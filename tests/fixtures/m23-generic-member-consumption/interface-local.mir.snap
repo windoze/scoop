@@ -2,7 +2,7 @@ Module
   class LocalReader<Int> vtable=0 itables=2
   class LocalItem<Int> vtable=1 itables=2
   class AbstractReader<Int> vtable=1 itables=2
-  interface Reader<Int>
+  interface Reader<Int> : Readable<Int>
   interface Readable<Int>
   fun result @fn0() -> Int
     bb0 entry

@@ -233,6 +233,7 @@ impl Fixture {
                             Vec::new(),
                         ),
                         itables,
+                        crate::TypeDescriptorRelations::Absent,
                     )
                 })
                 .collect(),

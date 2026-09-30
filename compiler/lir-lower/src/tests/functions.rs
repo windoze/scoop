@@ -1,56 +1,54 @@
 use super::*;
 
 #[test]
-fn reachable_structural_function_descriptor_reports_strong_capability_error() {
+fn reachable_structural_function_descriptor_keeps_its_signature() {
     let mut b = Builder::new();
     let function_type = b.function_types.alloc(mir::FunctionType {
         is_suspend: false,
-        parameter_types: Vec::new(),
-        return_type: mir::Type::Unit,
+        parameter_types: vec![mir::Type::Any],
+        return_type: mir::Type::Any,
     });
     let mut locals = Arena::new();
     let callable = locals.alloc(local("callable", mir::Type::Any));
+    let result = locals.alloc(local("result", mir::Type::Boolean));
     let main = b.main(
         locals,
-        vec![call_stmt(mir::Call {
-            target: mir::CallTarget {
-                kind: mir::CallKind::FunctionBridge { function_type },
-                callee: mir::Callee::FunctionBridge(function_type),
-            },
-            args: vec![local_expr(callable, mir::Type::Any)],
-            pending: mir::CoroutinePendingContext::Root,
-        })],
+        vec![val_decl(
+            result,
+            expr(
+                mir::Type::Boolean,
+                mir::ExprKind::IsInstance {
+                    operand: Box::new(local_expr(callable, mir::Type::Any)),
+                    check_ty: Box::new(mir::Type::Function(function_type)),
+                },
+            ),
+        )],
     );
     let mut source = b.finish(main);
     register_test_source_exact_type(&mut source, mir::Type::Function(function_type));
-
-    let error = match try_lower(source) {
-        Err(error) => error,
-        Ok(_) => panic!("reachable function bridge must fail strong LIR capability validation"),
-    };
-    assert!(
-        error
-            .to_string()
-            .starts_with(StrongLirCapabilityError::CODE)
+    let module = lower(source);
+    let descriptor = module
+        .meta
+        .type_descriptors
+        .iter()
+        .find_map(|(_, descriptor)| {
+            matches!(
+                descriptor.relations,
+                lir::TypeDescriptorRelations::Signature { .. }
+            )
+            .then_some(descriptor)
+        })
+        .unwrap();
+    assert_eq!(
+        descriptor.relations,
+        lir::TypeDescriptorRelations::Signature {
+            is_suspend: false,
+            parameters: vec![None],
+            result: None,
+        }
     );
-    match error {
-        LirLoweringError::Capability(error) => {
-            assert_eq!(error.function(), main);
-            assert_eq!(
-                error.requirement(),
-                &StrongLirMaterializationRequirement::TypeDescriptor(mir::Type::Function(
-                    function_type
-                ))
-            );
-        }
-        LirLoweringError::Output(lir::ConeLirOutputError::Foundation(_)) => {
-            panic!("capability validation must run before LIR foundation projection")
-        }
-        LirLoweringError::Output(lir::ConeLirOutputError::ShapeSupport(_)) => {
-            panic!("a non-core capability fixture cannot enter core shape sealing")
-        }
-        other => panic!("unexpected strong lowering error: {other}"),
-    }
+    assert_eq!(descriptor.parent, None);
+    assert!(descriptor.vtable.slots().is_empty());
 }
 
 #[test]

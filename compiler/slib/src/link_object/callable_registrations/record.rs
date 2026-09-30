@@ -3,7 +3,7 @@ use scoop_lir::StrongCallableRegistrationPlanV1;
 use super::StrongCallableRegistrationValidationError;
 
 const DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5043_414c;
-pub(in crate::link_object) const ABI_VERSION: u32 = 1;
+pub(in crate::link_object) const ABI_VERSION: u32 = 2;
 const DEFINITION_FINGERPRINT_OFFSET: usize = 120;
 const BODY_DEFINITION_FINGERPRINT_OFFSET: usize = 152;
 const DIGEST_WIDTH: usize = 32;

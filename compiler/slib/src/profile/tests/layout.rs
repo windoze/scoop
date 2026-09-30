@@ -10,7 +10,7 @@ fn generic_profile_has_a_fixed_descriptor_and_fingerprint() {
     );
     assert_eq!(
         profile.fingerprint().unwrap().to_string(),
-        "2b821f0ef6786fcfa262c5734b72a7527158ea513952a95e4771f897e36ea596"
+        "4b54a018eecb08a74126c4b0404d04b77c711d092b00c783eb20052c2acd1767"
     );
     assert_eq!(
         ArtifactCapabilityProfile::from_id(descriptor.id()),
@@ -105,7 +105,7 @@ fn each_layout_capability_is_required_before_payload_validation() {
 #[test]
 fn generic_profile_rejects_legacy_strong_production_even_when_optional() {
     let descriptor = ArtifactCapabilityProfile::CROSS_CONE_GENERIC.descriptor();
-    for version in [13, 14, 15] {
+    for version in [13, 14, 15, 16] {
         let legacy = CapabilityId::new("org.scoop-lang.lir", "strong-production", version).unwrap();
         for view in [ArtifactProfileView::Compile, ArtifactProfileView::Link] {
             for purpose in [MemberPurposeSet::NONE, MemberPurposeSet::COMPILE_AND_LINK] {

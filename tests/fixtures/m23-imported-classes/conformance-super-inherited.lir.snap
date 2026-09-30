@@ -42,7 +42,7 @@ Module
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
-  td td0 n(c=dev.example%3Aclasses-conformance-super-inherited%3A0.1.0;p=;o=-;k=I;x=LocalParent) @scoop$1$td$fc3026d7ce1bc4885be586fff98f42e3e08ea06a3721ae7bd8dccd6e5d10a70c type-id=12989207770509998820 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[]
+  td td0 n(c=dev.example%3Aclasses-conformance-super-inherited%3A0.1.0;p=;o=-;k=I;x=LocalParent) @scoop$1$td$fc3026d7ce1bc4885be586fff98f42e3e08ea06a3721ae7bd8dccd6e5d10a70c type-id=12989207770509998820 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[external-td0]
   td td1 n(c=dev.example%3Aclasses-conformance-super-inherited%3A0.1.0;p=;o=-;k=C;x=LocalChoice) @scoop$1$td$0d2aba2b4b650aa1f026d53b3ddb5563bb0ddc2fb57a137da36be6d994a61e57 type-id=18406711999949343110 shape=FixedObject minimum-size=16 align=8 parent=none vtable=[] itables=[external-td0:[local-fn0], td0:[local-fn0]]
   td td2 g(r=00000007;i=96ed7c9a63aa29ba3a2585adfb16a08f320333e05c9687417e01482ee77be88f) @scoop$1$td$1f00c17059a05bc9fa0943b5ca00524dd5cad329b9e1a4c70d125576e2cb1e74 type-id=9689367630390866041 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td3 g(r=00000005;i=c70d52830481f7f36d0911044e82ae816ba6586e18d8a703e1e2614988d0a76c) @scoop$1$td$21ab939913ddea941f28385ed07218955e23a70e83a82c8e6bb9c9f3ccb2ddb9 type-id=17336276195259881129 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]

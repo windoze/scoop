@@ -8,7 +8,7 @@ Module
     Value(value: LocalReader)
   class Counter vtable=0 itables=0
   class box<LocalReader> vtable=0 itables=2
-  interface ChildReader
+  interface ChildReader : ParentReader
   interface ParentReader
   generated_exact_type get0 location=class1 nominal_id=360f85d8db46bacfb6fb2b918ef5b69dac85a9fa08100dacded6a4313cb583ec exact_id=4c83c5f6c4ab15aceece9dce5cd014f12b3fda6410e9e1b85d7182f8ae708e15
   generated_exact_type get1 location=enum0 nominal_id=f4ece62e4cf7a0b3f3541c419790fcd3a6a3fb8e120331d6d0eac76960f99fd0 exact_id=b3dd55df7de07a19b31e4b142f379630e14bcb78f9d2c7a63640dcb678151e19

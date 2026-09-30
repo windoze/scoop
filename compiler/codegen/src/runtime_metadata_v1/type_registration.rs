@@ -10,7 +10,7 @@ use scoop_lir::{
 use super::RuntimeMetadataV1Types;
 use crate::CodegenError;
 
-const METADATA_ABI_VERSION: u64 = 1;
+const METADATA_ABI_VERSION: u64 = 2;
 const TYPE_REGISTRATION_DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5054_5950;
 const TYPE_REGISTRATION_DESCRIPTOR_SIZE: u64 = 240;
 const REGISTRATION_DEFINITION_FINGERPRINT_OFFSET: u64 = 120;
@@ -171,7 +171,13 @@ fn prepare_registration<'plan, 'ctx, D: Copy, C>(
         scoop_lir::RegistrationDefinitionOwner::Strong => Linkage::External,
         scoop_lir::RegistrationDefinitionOwner::Odr { .. } => Linkage::WeakODR,
     };
-    if type_descriptor.get_value_type() != types.type_descriptor.as_any_type_enum()
+    if type_descriptor.get_value_type()
+        != types
+            .type_descriptor_storage(
+                u32::try_from(plan.semantic().relations().related_types().len())
+                    .expect("function arity fits its metadata count"),
+            )
+            .as_any_type_enum()
         || type_descriptor.get_linkage() != descriptor_linkage
         || type_descriptor.get_unnamed_address() != UnnamedAddress::None
         || !type_descriptor.is_constant()

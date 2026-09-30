@@ -24,6 +24,7 @@ Module
   class MutableArrayIterator<Int> vtable=0 itables=1
   class ArrayIterator<String> vtable=0 itables=1
   class Host<Int> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
   interface Iterable<Int>
   interface Iterator<Int>
   interface Iterable<Long>
@@ -33,9 +34,14 @@ Module
   interface Iterable<String>
   interface Iterator<String>
   closure cc0 $Closure$reference0 type=function_type0 invoke=@fn28 captures=0
+    bridge function_type1 -> @fn37 id=f1c03bf95c2b5e8120c0f56d9278ba96c66d4ca4a20739464d76bafbe7bccdf0
   closure cc1 $Closure$reference1 type=function_type0 invoke=@fn29 captures=0
+    bridge function_type1 -> @fn38 id=6f6f96c366481e04df85c62cd9170d13a182604da4757ef2807be055753b3f40
   generated_exact_type get0 location=closure0 nominal_id=f833bf2929d8c7479408df015f3722e8aa5cd9ac796ae387a676e3cb0cb3fc03 exact_id=7c5e8435d73ced6bd352428fc45deb5f7678add345f35585be27472fd32aa01f
   generated_exact_type get1 location=closure1 nominal_id=c4eddf4ed5d7ca203f269859f711a48a44be73692e12015391bcdad1c776389d exact_id=94c19051af0f533546cdee5adc41852c54c35f13a1b5009bac1163982e60801c
+  generated_exact_type get2 location=class14 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn38 id=6f6f96c366481e04df85c62cd9170d13a182604da4757ef2807be055753b3f40
+  generated_callable gc1 function=@fn37 id=f1c03bf95c2b5e8120c0f56d9278ba96c66d4ca4a20739464d76bafbe7bccdf0
   fun readInt @fn0(value: Int) -> Int
     bb0 entry
       return
@@ -3140,6 +3146,34 @@ Module
           Local values
           Type Int
           Local seed
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn37($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference1.(Any) -> Any @fn38($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn2 <- iterator
   instance mi1 function=@fn3 <- iterator
   instance mi2 function=@fn4 <- iterator

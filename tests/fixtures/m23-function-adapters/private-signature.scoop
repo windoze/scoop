@@ -1,0 +1,14 @@
+package consumer.adapters
+
+private class LocalResult(public val value: Int)
+private class UnusedResult(public val value: Int)
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val result = LocalResult(read(seed))
+    val source: ((LocalResult, T)) -> LocalResult = { pair -> result }
+    val erased: Any = source
+    val adapted = erased as ((LocalResult, T)) -> Any
+    return (adapted((result, seed)) as LocalResult).value
+}
+
+public fun result(): Int = exercise(42, { value: Int -> value })

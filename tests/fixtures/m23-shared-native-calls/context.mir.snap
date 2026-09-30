@@ -10,17 +10,28 @@ Module
   class Throwable vtable=0 itables=0
   class FixedHost vtable=0 itables=0
   class ArrayIterator<Int> vtable=0 itables=1
+  class box<Int> vtable=0 itables=0
+  class box<Int8> vtable=0 itables=0
   interface Iterable<Int>
   interface Iterator<Int>
-  closure cc0 $Closure$lambda0 type=function_type1 invoke=@fn8 captures=0
-  closure cc1 $Closure$lambda1 type=function_type1 invoke=@fn9 captures=0
+  closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn8 captures=0
+    bridge function_type1 -> @fn19 id=970fd2bc5f04ed92ac3c100c22d6049cc3efa52c90decb9d2b838d3866de9c73
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn9 captures=0
+    bridge function_type1 -> @fn20 id=ba6f9b24e15d1f306f682cc0d648a6678ade0921a09ecb2e35b3492aabf13c18
   closure cc2 $Closure$lambda2 type=function_type0 invoke=@fn12 captures=0
+    bridge function_type1 -> @fn21 id=9ee8b0d8402d6373051881ea507128fe9c777ff49d1d623752840b303d45c336
   closure cc3 $Closure$lambda3 type=function_type0 invoke=@fn13 captures=0
+    bridge function_type1 -> @fn22 id=381c2b510841a60db760e4ece7f2e77c88571d8270d8f390cf4fddc18d68440e
   closure cc4 $Closure$lambda4 type=function_type0 invoke=@fn14 captures=0
-  closure cc5 $Closure$anonymous0 type=function_type1 invoke=@fn10 captures=0
-  closure cc6 $Closure$anonymous1 type=function_type1 invoke=@fn11 captures=0
+    bridge function_type1 -> @fn23 id=358975e967d838ddcb7dc89deaa18aaa871a9ecabf3e2d4e555cd3be9b8f81ca
+  closure cc5 $Closure$anonymous0 type=function_type2 invoke=@fn10 captures=0
+    bridge function_type1 -> @fn24 id=97f7119fbc1187c6d7bcc020c16a4c4f14323ffb9010b011332ac087fb19c55f
+  closure cc6 $Closure$anonymous1 type=function_type2 invoke=@fn11 captures=0
+    bridge function_type1 -> @fn25 id=8ebf45e701ebd2412c90fef6c51628ec27293d32593d1991ec3dce2c85e59b02
   closure cc7 $Closure$reference0 type=function_type0 invoke=@fn16 captures=0
+    bridge function_type1 -> @fn26 id=305722b6276cac5bb6894a941e72ad7465769beb650f3de02c45195c37a46aed
   closure cc8 $Closure$reference1 type=function_type0 invoke=@fn17 captures=0
+    bridge function_type1 -> @fn27 id=89690fe0fc887cece9f4dcc01e001e77d673da9bc7bfb25f2e0977b42ff8bb64
   generated_exact_type get0 location=closure2 nominal_id=929d76c219c177f32860c71e73652f66980615242656ee0abdf6299da13798cc exact_id=0f65b4db4feccd4349de80790058da8b34afdafdc4e4fb75847890f0bec1a4a3
   generated_exact_type get1 location=closure1 nominal_id=2c806fb47391acff6bcc3136e3b12641fc24a9d96315db940eb0952088b004c7 exact_id=144221b8e51844ece62a14da8d45cb430a413e77a0b040398deea6494303c2ce
   generated_exact_type get2 location=closure0 nominal_id=cec57c5cac2b501507d5cddbbe49c8192d757a49c34174f6a034e419ecac25b6 exact_id=17fbf9a8274e90e3039bcb253c9afb8eee67b78ab48af91033dec7abaae25a11
@@ -29,7 +40,18 @@ Module
   generated_exact_type get5 location=closure7 nominal_id=c6c762908bb99c94dae11c91be6be60ae12bda7ab2f14085ae0cd2f0565ce9d9 exact_id=8b45a5cbf85571a4172eba7e348681759e04a415c12d7de8b653f47bb71da5f8
   generated_exact_type get6 location=closure6 nominal_id=f0bdeb5cbd4047611259f0f20b0bf1e8b361971d3077fa72a3870b5ffb248715 exact_id=9d2a3187f9fe102758a6408f4ed78d69edd65cacb856e6157eb7c4711c4e4613
   generated_exact_type get7 location=closure4 nominal_id=5d747a5e278fa5a00f0f9cbafe31ac23706772d078375c5fc8ff6d179b5619a9 exact_id=a0d7f66d9165066196a299d6545f12e29b2385d516a5bc1cfc7dd6b7773443fe
-  generated_exact_type get8 location=closure3 nominal_id=27582c13cf62470df347ed8fdc25b587e43bdaeddccd37c003e14f9be5328730 exact_id=e4c84ed04f43d971bdd8f571f1af1e018fbdc831c005feb99f6fa67b1b8de443
+  generated_exact_type get8 location=class7 nominal_id=de537a479a9750a662a38e8bc8144b7035afa0c1849733a99c565fd3a7bc87b1 exact_id=db9e3cb3d8fc84aff6fadcd13ed41bfabfeba931a2091e153f787fa001f8bcd3
+  generated_exact_type get9 location=closure3 nominal_id=27582c13cf62470df347ed8fdc25b587e43bdaeddccd37c003e14f9be5328730 exact_id=e4c84ed04f43d971bdd8f571f1af1e018fbdc831c005feb99f6fa67b1b8de443
+  generated_exact_type get10 location=class6 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn26 id=305722b6276cac5bb6894a941e72ad7465769beb650f3de02c45195c37a46aed
+  generated_callable gc1 function=@fn23 id=358975e967d838ddcb7dc89deaa18aaa871a9ecabf3e2d4e555cd3be9b8f81ca
+  generated_callable gc2 function=@fn22 id=381c2b510841a60db760e4ece7f2e77c88571d8270d8f390cf4fddc18d68440e
+  generated_callable gc3 function=@fn27 id=89690fe0fc887cece9f4dcc01e001e77d673da9bc7bfb25f2e0977b42ff8bb64
+  generated_callable gc4 function=@fn25 id=8ebf45e701ebd2412c90fef6c51628ec27293d32593d1991ec3dce2c85e59b02
+  generated_callable gc5 function=@fn19 id=970fd2bc5f04ed92ac3c100c22d6049cc3efa52c90decb9d2b838d3866de9c73
+  generated_callable gc6 function=@fn24 id=97f7119fbc1187c6d7bcc020c16a4c4f14323ffb9010b011332ac087fb19c55f
+  generated_callable gc7 function=@fn21 id=9ee8b0d8402d6373051881ea507128fe9c777ff49d1d623752840b303d45c336
+  generated_callable gc8 function=@fn20 id=ba6f9b24e15d1f306f682cc0d648a6678ade0921a09ecb2e35b3492aabf13c18
   fun localApply @fn0(action: (Int) -> Int, value: Int) -> Int
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
@@ -52,7 +74,7 @@ Module
           Local $dependency.receiver
   fun localNarrowAction @fn2(action: (Int) -> Int8) -> Int
     bb0 entry
-      call $dependency.receiver: Int8 = <closure:function_type1> closure[function_type1]
+      call $dependency.receiver: Int8 = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int8
         Local action
         Type Int
@@ -1111,6 +1133,132 @@ Module
         Type Long
         Local index
       return
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn19($source: (Int) -> Int8, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int8 = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int8
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int8
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn20($source: (Int) -> Int8, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int8 = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int8
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int8
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn21($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda3.(Any) -> Any @fn22($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda4.(Any) -> Any @fn23($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$anonymous0.(Any) -> Any @fn24($source: (Int) -> Int8, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int8 = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int8
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int8
+          Local $call.1
+  fun function_bridge.$Closure$anonymous1.(Any) -> Any @fn25($source: (Int) -> Int8, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int8 = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int8
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int8
+          Local $call.1
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn26($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference1.(Any) -> Any @fn27($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn7 <- iterator
   instance mi1 function=@fn15 <- next
   output library

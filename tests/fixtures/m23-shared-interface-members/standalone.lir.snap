@@ -90,7 +90,7 @@ Module
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
-  td td0 a(n(c=dev.example%3Ageneric-member-standalone%3A0.1.0;p=consumer.readers;o=-;k=I;x=Reader);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$7cbc72625f1f5e093a9232da998cf89e68997198b749d51afc6c611a67b6ef95 type-id=13056083432020385184 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[]
+  td td0 a(n(c=dev.example%3Ageneric-member-standalone%3A0.1.0;p=consumer.readers;o=-;k=I;x=Reader);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$7cbc72625f1f5e093a9232da998cf89e68997198b749d51afc6c611a67b6ef95 type-id=13056083432020385184 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
   td td1 n(c=dev.example%3Ageneric-member-standalone%3A0.1.0;p=consumer.readers;o=-;k=C;x=NumberReader) @scoop$1$td$122cfcf9a248c6b3a0d97aab95fe06cd76a217872f3a991cd43c6496018fbc19 type-id=3279059935292656533 shape=FixedObject minimum-size=16 align=8 parent=none vtable=[] itables=[td0:[local-fn0, local-fn3]]
   layout Reader value size=8 align=8 refs=[0]
   layout NumberReader value size=8 align=8 refs=[0]

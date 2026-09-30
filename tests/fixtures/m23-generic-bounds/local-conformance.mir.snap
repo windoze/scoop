@@ -1,9 +1,13 @@
 Module
   struct Local<Int> (payload: Int)
   struct GenericValue<Int> (payload: Int, number: Int)
+  class box<Int> vtable=0 itables=0
   interface Readable
   closure cc0 $Closure$reference0 type=function_type0 invoke=@fn6 captures=1
+    bridge function_type1 -> @fn9 id=8ec21a946e539b068a6ad8ed423d4cc86c9bbd2359f6ecd2ea2c45a1c229f677
   generated_exact_type get0 location=closure0 nominal_id=4a3b146500de1d1c43af89d1601cd21816c41db92a5091677724a2ce15314d87 exact_id=398f2ee090b89778052839f62719e6ca8e2b736b40d43da248da44f85984ae02
+  generated_exact_type get1 location=class0 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn9 id=8ec21a946e539b068a6ad8ed423d4cc86c9bbd2359f6ecd2ea2c45a1c229f677
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -179,6 +183,16 @@ Module
           Local payload
           Type Int
           Local number
+  fun function_bridge.$Closure$reference0.() -> Any @fn9($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn1 <- exercise
   instance mi1 function=@fn2 <- Local.read
   instance mi2 function=@fn3 <- read

@@ -26,14 +26,22 @@ Module
   class Carrier<Unit> vtable=0 itables=0
   class Carrier<Int> vtable=0 itables=0
   class box<Native> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  class box<Unit> vtable=0 itables=0
   interface PointerView<Native>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn6 captures=0
-  closure cc1 $Closure$lambda1 type=function_type1 invoke=@fn8 captures=0
+    bridge function_type1 -> @fn27 id=895f804336b74cd2d8a40d61cdde1c546c37c2b75ef6715103fd83c33bc1c36d
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn8 captures=0
+    bridge function_type1 -> @fn28 id=777623f7a84bc0931cceaf90daf9920ae7808bf4ec02b3026c51dd033dd85d75
   generated_exact_type get0 location=enum2 nominal_id=91656b5117c2afaa5219849eb709d23f65f16e94bd05749a677bfeb8111a0e7a exact_id=33db388b75d13ca8c4152e0cbfcc51391a3504a3bccc2b23724aa6dda355f64e
   generated_exact_type get1 location=enum3 nominal_id=56f70e593a8d87c844350312e09b9f5fe2ed4ee914354059bc94765c87f9628e exact_id=342527cc44aa221ff8c30903b58a5cb2b8e2f70c199bf9a31f5d2234653aab99
-  generated_exact_type get2 location=class3 nominal_id=6a2a13cbeb71ce92a378de24ce791038a96212411e2262b07907d076e54f59be exact_id=5ae24f0ce31e2c63585bd708ad0755b13ad49dba787ae2fd35b6d2f2a7625647
-  generated_exact_type get3 location=closure1 nominal_id=860c3120626ce10e3e9687d46e1f51528a713b9347741a33ce6d5bd75fd74a5c exact_id=b9c3a4981f171eadadb388d03f615692550e8cfd8245e49d12cbf8c82b82a856
-  generated_exact_type get4 location=closure0 nominal_id=4e2df6698f149f411a16534e3311c63fb857e99841d30a9b96d7e3ab95a2b147 exact_id=f0a537fde7c42c5e152f59ce7326a6532747708776d053b1dd76b8fbfb35d57c
+  generated_exact_type get2 location=class5 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get3 location=class3 nominal_id=6a2a13cbeb71ce92a378de24ce791038a96212411e2262b07907d076e54f59be exact_id=5ae24f0ce31e2c63585bd708ad0755b13ad49dba787ae2fd35b6d2f2a7625647
+  generated_exact_type get4 location=closure1 nominal_id=860c3120626ce10e3e9687d46e1f51528a713b9347741a33ce6d5bd75fd74a5c exact_id=b9c3a4981f171eadadb388d03f615692550e8cfd8245e49d12cbf8c82b82a856
+  generated_exact_type get5 location=class4 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get6 location=closure0 nominal_id=4e2df6698f149f411a16534e3311c63fb857e99841d30a9b96d7e3ab95a2b147 exact_id=f0a537fde7c42c5e152f59ce7326a6532747708776d053b1dd76b8fbfb35d57c
+  generated_callable gc0 function=@fn28 id=777623f7a84bc0931cceaf90daf9920ae7808bf4ec02b3026c51dd033dd85d75
+  generated_callable gc1 function=@fn27 id=895f804336b74cd2d8a40d61cdde1c546c37c2b75ef6715103fd83c33bc1c36d
   fun pointer @fn0(value: Pointer<Native>) -> Int
     bb0 entry
       return
@@ -504,7 +512,7 @@ Module
         VariantPayloadProject Choice<Int> v1 f0
           Type Choice<Int>
           Local $pattern.subject.3
-      call $call.3: Int = <closure:function_type1> closure[function_type1]
+      call $call.3: Int = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int
         Local read
         Type Int
@@ -639,6 +647,34 @@ Module
         StructInit Scalar<Scalar<Phantom<String>>>
           Type Scalar<Phantom<String>>
           Local value
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn27($source: (Unit) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Unit) -> Int
+        Local $source
+        Type Unit
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn28($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   coroutine_step cs0 CoroutineStep<Native> result=Native
   coroutine_slot cl0 CoroutineSlot<Native> value=Native
   instance mi0 function=@fn4 <- hidden

@@ -229,7 +229,7 @@ Module
   block entry
     t0 = aggregate (param0, param1) : struct0
     ret t0
-  td td0 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.equality;o=-;k=I;x=EqualTo);[a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.equality;o=-;k=C;x=Key);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)])]) @scoop$1$td$a52fc39a8340919b6a5ad260d76f28af8be3c14fbe11309e6f70a4bcdb7834a0 type-id=6416101019663068387 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[]
+  td td0 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.equality;o=-;k=I;x=EqualTo);[a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.equality;o=-;k=C;x=Key);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)])]) @scoop$1$td$a52fc39a8340919b6a5ad260d76f28af8be3c14fbe11309e6f70a4bcdb7834a0 type-id=6416101019663068387 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
   td td1 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.equality;o=-;k=C;x=Key);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$d0293b881b7c959e8d2c898a4a2101f7a6c23b0a94c4b356efee61dfc783e892 type-id=10444749422965778177 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[td0:[local-fn2]]
   td td2 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.equality;o=-;k=S;x=Payload);[a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.equality;o=-;k=C;x=Key);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)])]) @scoop$1$td$d21fa11c26922ca5acb423c81c79fb985d3c55a94415f050947b16f5c7b8e982 type-id=14126869024328303418 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
   layout Payload size=16 align=8 refs=[0]

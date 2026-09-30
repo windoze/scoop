@@ -82,6 +82,7 @@ pub(super) fn type_context(
         shell_interfaces.alloc(mir::InterfaceDef {
             name: def.name.clone(),
             type_arguments: def.type_arguments.clone(),
+            parents: Vec::new(),
             methods: Vec::new(),
         });
     }

@@ -43,6 +43,9 @@ Module
   class ArrayIterator<Payload<Large>> vtable=0 itables=1
   class MutableArrayIterator<Payload<Large>> vtable=0 itables=1
   class box<Large> vtable=0 itables=0
+  class box<Unit> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  class box<Payload<Large>> vtable=0 itables=0
   interface Iterable<Large>
   interface Iterator<Large>
   interface Iterable<Unit>
@@ -51,23 +54,38 @@ Module
   interface Iterator<Array<Large>>
   interface Iterable<Payload<Large>>
   interface Iterator<Payload<Large>>
-  closure cc0 $Closure$lambda0 type=function_type3 invoke=@fn36 captures=1
-  closure cc1 $Closure$lambda1 type=function_type4 invoke=@fn40 captures=1
-  closure cc2 $Closure$lambda2 type=function_type5 invoke=@fn42 captures=1
+  closure cc0 $Closure$lambda0 type=function_type4 invoke=@fn36 captures=1
+    bridge function_type5 -> @fn57 id=b89bdca1cac6e9b311ffa6f4d8892feeb60717b933ec81706d39f6c0e4383c20
+  closure cc1 $Closure$lambda1 type=function_type6 invoke=@fn40 captures=1
+    bridge function_type5 -> @fn58 id=439cb841734a230f347f007f60882be773fed2ec1b22f705fef18dbed4a9d659
+  closure cc2 $Closure$lambda2 type=function_type7 invoke=@fn42 captures=1
+    bridge function_type5 -> @fn59 id=10b7d8a4983011e9c3cfc1cdcf6d23ea21a17c79f84c42e2f24af84dfa73959f
   closure cc3 $Closure$reference0 type=function_type0 invoke=@fn44 captures=0
-  closure cc4 $Closure$reference1 type=function_type1 invoke=@fn45 captures=0
-  closure cc5 $Closure$reference2 type=function_type2 invoke=@fn46 captures=0
+    bridge function_type1 -> @fn60 id=b7dc0989089ed1cecd3cda7a6d466add54eb49a0286af813ecd0fe7be7feb106
+  closure cc4 $Closure$reference1 type=function_type2 invoke=@fn45 captures=0
+    bridge function_type1 -> @fn61 id=5e8ba823956a4027d535a49b89dc15e81e425fda39ce5dbca00bf7b02216a77d
+  closure cc5 $Closure$reference2 type=function_type3 invoke=@fn46 captures=0
+    bridge function_type1 -> @fn62 id=ef784f271f4661ff2500e25f40e9a4c6a95636ce1b5a88ac793d2420804b87d8
   generated_exact_type get0 location=enum9 nominal_id=225818ae785f11d9aef45f88a02ed2b91e9ff54bbabb9356c575adf819a6de88 exact_id=062f2d496da44fc8d568af539eff2cab00487d50810218d1d8b99adb000e6c8a
   generated_exact_type get1 location=closure5 nominal_id=fa82443b9aa1ab0b1b7d494721a26ca370ec9674a7306ac8432213d463919848 exact_id=1c66fc903915f0e6c566940a810cf48e17a66b0ce7c8a6d6969c17163a5b9f38
   generated_exact_type get2 location=closure1 nominal_id=ca6722eccd174c835014541582b268077e63cbef2e17608ca755be1fe0203893 exact_id=3a8016be31eb1502351e45a75704e8c79b476a5d427cdbbfad8019d0e2ad7502
-  generated_exact_type get3 location=closure2 nominal_id=3cdfec957a2f715be246f6255f059fd83737291ae9ce61ef350190d6ccb33e7e exact_id=6a0feee4d85b4882b36ca436210a04c54a0ad8c6ab519736c888c6c93af064c7
-  generated_exact_type get4 location=closure0 nominal_id=bb6cacd01afd1832491f9ac9118b1744b807f2d687e74a3f0f2861873065949b exact_id=78d38728f6bdcea4d3ac500b4c0aa3582b5f4df26acb140f3210e6b93006b068
-  generated_exact_type get5 location=enum7 nominal_id=aae71c93b005807eab91033930e34fe972c0bc6fe57669cf11208f68501851cd exact_id=8f564586975dca2d8b105c04ca3bd5d7384e9cf2fe686a1982feac8946e3e1ba
-  generated_exact_type get6 location=closure3 nominal_id=c1c3b3a6ce247613c425591dd2b82952ca2d74d224f538409d18831c176010ec exact_id=b4771d20e0248a8818eb1d62de1899f167ca8ff05ec66bc0b3072f0da140e0aa
-  generated_exact_type get7 location=class20 nominal_id=56e68feb614803da776e4b0872e9eb6c210ddfb27f558195da284a2fe3dc87d7 exact_id=d218bed852e2d0faced987d11a451dbe9111d09c18ca28282e521561e06dbb97
-  generated_exact_type get8 location=enum6 nominal_id=7086703c614934a6cfee79cad5d4137422e00506aa7956d922e321cec42616aa exact_id=d6e0e39e17cb0136c332cc75e57a358fa1dcfe359cf5bccfcd3c81de6c94ef8b
-  generated_exact_type get9 location=enum8 nominal_id=b14a6f40c0995e1f6d38184a07d1d5c22e60ed9eb3467f6db553246d9e90d19f exact_id=e92b148a42f8bc2f010eeb273aae3ae77c13ba04de80c79ffe94286dc4006e44
-  generated_exact_type get10 location=closure4 nominal_id=4abdf4091f5555bce910f3bdc5cbe56da0e4435c664a49bfd8cc746a38a99ff9 exact_id=f207f426f2fb73523d18ea80c23eca06ab4c064c40aa053de2974ea91d57a88d
+  generated_exact_type get3 location=class21 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get4 location=class23 nominal_id=df9f437f4799acd23c410f297ca6cf9981a239efe55fd37e77e453212c36059b exact_id=4cae4af3566c7e51cbd6a8d2c3e39f94ca52245b950fd51f8c3f595d4f0cbe1a
+  generated_exact_type get5 location=closure2 nominal_id=3cdfec957a2f715be246f6255f059fd83737291ae9ce61ef350190d6ccb33e7e exact_id=6a0feee4d85b4882b36ca436210a04c54a0ad8c6ab519736c888c6c93af064c7
+  generated_exact_type get6 location=closure0 nominal_id=bb6cacd01afd1832491f9ac9118b1744b807f2d687e74a3f0f2861873065949b exact_id=78d38728f6bdcea4d3ac500b4c0aa3582b5f4df26acb140f3210e6b93006b068
+  generated_exact_type get7 location=enum7 nominal_id=aae71c93b005807eab91033930e34fe972c0bc6fe57669cf11208f68501851cd exact_id=8f564586975dca2d8b105c04ca3bd5d7384e9cf2fe686a1982feac8946e3e1ba
+  generated_exact_type get8 location=closure3 nominal_id=c1c3b3a6ce247613c425591dd2b82952ca2d74d224f538409d18831c176010ec exact_id=b4771d20e0248a8818eb1d62de1899f167ca8ff05ec66bc0b3072f0da140e0aa
+  generated_exact_type get9 location=class20 nominal_id=56e68feb614803da776e4b0872e9eb6c210ddfb27f558195da284a2fe3dc87d7 exact_id=d218bed852e2d0faced987d11a451dbe9111d09c18ca28282e521561e06dbb97
+  generated_exact_type get10 location=enum6 nominal_id=7086703c614934a6cfee79cad5d4137422e00506aa7956d922e321cec42616aa exact_id=d6e0e39e17cb0136c332cc75e57a358fa1dcfe359cf5bccfcd3c81de6c94ef8b
+  generated_exact_type get11 location=class22 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get12 location=enum8 nominal_id=b14a6f40c0995e1f6d38184a07d1d5c22e60ed9eb3467f6db553246d9e90d19f exact_id=e92b148a42f8bc2f010eeb273aae3ae77c13ba04de80c79ffe94286dc4006e44
+  generated_exact_type get13 location=closure4 nominal_id=4abdf4091f5555bce910f3bdc5cbe56da0e4435c664a49bfd8cc746a38a99ff9 exact_id=f207f426f2fb73523d18ea80c23eca06ab4c064c40aa053de2974ea91d57a88d
+  generated_callable gc0 function=@fn59 id=10b7d8a4983011e9c3cfc1cdcf6d23ea21a17c79f84c42e2f24af84dfa73959f
+  generated_callable gc1 function=@fn58 id=439cb841734a230f347f007f60882be773fed2ec1b22f705fef18dbed4a9d659
+  generated_callable gc2 function=@fn61 id=5e8ba823956a4027d535a49b89dc15e81e425fda39ce5dbca00bf7b02216a77d
+  generated_callable gc3 function=@fn60 id=b7dc0989089ed1cecd3cda7a6d466add54eb49a0286af813ecd0fe7be7feb106
+  generated_callable gc4 function=@fn57 id=b89bdca1cac6e9b311ffa6f4d8892feeb60717b933ec81706d39f6c0e4383c20
+  generated_callable gc5 function=@fn62 id=ef784f271f4661ff2500e25f40e9a4c6a95636ce1b5a88ac793d2420804b87d8
   fun readLarge @fn0(value: Large) -> Int
     bb0 entry
       val $dependency.receiver: Int
@@ -2849,7 +2867,7 @@ Module
         Type IndexOutOfBoundsException
         Local $new.4
     bb20 if.merge.20
-      call $dependency.local.36: Int = <closure:function_type1> closure[function_type1]
+      call $dependency.local.36: Int = <closure:function_type2> closure[function_type2]
         Type (Payload<Large>) -> Int
         Local $dependency.local.35
         Type Payload<Large>
@@ -2938,7 +2956,7 @@ Module
         Type IndexOutOfBoundsException
         Local $new.6
     bb28 if.merge.28
-      call $dependency.local.44: Int = <closure:function_type1> closure[function_type1]
+      call $dependency.local.44: Int = <closure:function_type2> closure[function_type2]
         Type (Payload<Large>) -> Int
         Local $dependency.local.43
         Type Payload<Large>
@@ -3027,7 +3045,7 @@ Module
         Type IndexOutOfBoundsException
         Local $new.8
     bb36 if.merge.36
-      call $dependency.local.52: Int = <closure:function_type1> closure[function_type1]
+      call $dependency.local.52: Int = <closure:function_type2> closure[function_type2]
         Type (Payload<Large>) -> Int
         Local $dependency.local.51
         Type Payload<Large>
@@ -3387,7 +3405,7 @@ Module
         Type IndexOutOfBoundsException
         Local $new.4
     bb20 if.merge.20
-      call $dependency.local.36: Int = <closure:function_type2> closure[function_type2]
+      call $dependency.local.36: Int = <closure:function_type3> closure[function_type3]
         Type (Unit) -> Int
         Local $dependency.local.35
         Type Unit
@@ -3476,7 +3494,7 @@ Module
         Type IndexOutOfBoundsException
         Local $new.6
     bb28 if.merge.28
-      call $dependency.local.44: Int = <closure:function_type2> closure[function_type2]
+      call $dependency.local.44: Int = <closure:function_type3> closure[function_type3]
         Type (Unit) -> Int
         Local $dependency.local.43
         Type Unit
@@ -3565,7 +3583,7 @@ Module
         Type IndexOutOfBoundsException
         Local $new.8
     bb36 if.merge.36
-      call $dependency.local.52: Int = <closure:function_type2> closure[function_type2]
+      call $dependency.local.52: Int = <closure:function_type3> closure[function_type3]
         Type (Unit) -> Int
         Local $dependency.local.51
         Type Unit
@@ -3720,7 +3738,7 @@ Module
       call $dependency.local.2: Array<Large> = @fn37 direct
         Type MutableArray<Large>
         Local source
-      call $dependency.local.3: Array<Large> = <closure:function_type3> closure[function_type3]
+      call $dependency.local.3: Array<Large> = <closure:function_type4> closure[function_type4]
         Type () -> Array<Large>
         Local $dependency.local.1
       branch bb1 bb2
@@ -3844,7 +3862,7 @@ Module
       call $dependency.local.2: Array<Payload<Large>> = @fn41 direct
         Type MutableArray<Payload<Large>>
         Local source
-      call $dependency.local.3: Array<Payload<Large>> = <closure:function_type4> closure[function_type4]
+      call $dependency.local.3: Array<Payload<Large>> = <closure:function_type6> closure[function_type6]
         Type () -> Array<Payload<Large>>
         Local $dependency.local.1
       branch bb1 bb2
@@ -3910,7 +3928,7 @@ Module
       call $dependency.local.2: Array<Unit> = @fn43 direct
         Type MutableArray<Unit>
         Local source
-      call $dependency.local.3: Array<Unit> = <closure:function_type5> closure[function_type5]
+      call $dependency.local.3: Array<Unit> = <closure:function_type7> closure[function_type7]
         Type () -> Array<Unit>
         Local $dependency.local.1
       branch bb1 bb2
@@ -4421,6 +4439,78 @@ Module
           Local second
           Type Reference
           Local third
+  fun function_bridge.$Closure$lambda0.() -> Any @fn57($source: () -> Array<Large>) -> Any
+    bb0 entry
+      call $call.1: Array<Large> = <closure:function_type4> closure[function_type4]
+        Type () -> Array<Large>
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type Array<Large>
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.() -> Any @fn58($source: () -> Array<Payload<Large>>) -> Any
+    bb0 entry
+      call $call.1: Array<Payload<Large>> = <closure:function_type6> closure[function_type6]
+        Type () -> Array<Payload<Large>>
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type Array<Payload<Large>>
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.() -> Any @fn59($source: () -> Array<Unit>) -> Any
+    bb0 entry
+      call $call.1: Array<Unit> = <closure:function_type7> closure[function_type7]
+        Type () -> Array<Unit>
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type Array<Unit>
+          Local $call.1
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn60($source: (Large) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Large) -> Int
+        Local $source
+        Type Large
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference1.(Any) -> Any @fn61($source: (Payload<Large>) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Payload<Large>) -> Int
+        Local $source
+        Type Payload<Large>
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference2.(Any) -> Any @fn62($source: (Unit) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type (Unit) -> Int
+        Local $source
+        Type Unit
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   coroutine_step cs0 CoroutineStep<Reference> result=Reference
   coroutine_step cs1 CoroutineStep<Large> result=Large
   coroutine_slot cl0 CoroutineSlot<Reference> value=Reference

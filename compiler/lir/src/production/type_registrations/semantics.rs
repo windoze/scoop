@@ -135,6 +135,11 @@ fn build_descriptor(
         parent,
         vtable,
         itables,
+        relations: descriptor.relations.clone().try_map(|reference| {
+            reference
+                .map(|reference| resolve_descriptor_ref(reference, inputs))
+                .transpose()
+        })?,
     })
 }
 

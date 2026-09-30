@@ -683,6 +683,7 @@ fn duplicate_type_descriptor_identity_is_rejected() {
         .identity
         .clone();
     module.meta.type_descriptors.alloc(TypeDescriptor {
+        relations: Default::default(),
         diagnostic_name: "DuplicateString".to_string(),
         identity,
         instance_layout: layout_identity(

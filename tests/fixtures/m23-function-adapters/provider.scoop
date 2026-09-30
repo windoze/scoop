@@ -1,0 +1,101 @@
+package templates.adapters
+
+public class Box<T> public constructor(public val value: T)
+public class Payload public constructor(public val value: Int)
+public class Failure public constructor(public val payload: Payload) : Throwable()
+
+public interface Readable {
+    public fun read(): Int
+}
+public struct ValueReader(val value: Int) : Readable {
+    public override fun read(): Int = this.value
+}
+public interface Tagged {
+    public fun tag(): Int
+}
+public interface DetailedReadable : Readable, Tagged {}
+public class DetailedValue public constructor(public val value: Int) : DetailedReadable {
+    public override fun read(): Int = this.value
+    public override fun tag(): Int = this.value
+}
+public fun erasedReadable(value: Int): Any {
+    val source: (Any) -> DetailedReadable = { ignored: Any -> DetailedValue(value) }
+    return source
+}
+public open class Parent public constructor(public val value: Int)
+public class Child public constructor(value: Int) : Parent(value)
+
+public fun <T> boxedResult(value: T): () -> Any = { value }
+public fun valueResult(value: Int): () -> Readable = { ValueReader(value) }
+public fun referenceResult(value: Int): () -> Parent = { Child(value) }
+public fun externalErased(): Any {
+    val source: (Any) -> Int = { ignored: Any -> 42 }
+    return source
+}
+public fun nestedResult(value: Int): () -> ((Int) -> Any) {
+    val source: (Any) -> Int = { ignored: Any -> value }
+    return { source }
+}
+
+public fun <T> pointerSource(seed: T, read: (T) -> Int, pointer: Ptr<Int>): (Any) -> Ptr<Int> = {
+    value: Any ->
+    val captured = Box(seed)
+    @Unsafe { pointer.store(read(captured.value)) }
+    pointer
+}
+
+public fun <T> staticPointer(seed: T, read: (T) -> Int, pointer: Ptr<Int>): (Ptr<Int>) -> Any =
+    pointerSource(seed, read, pointer)
+
+public fun <T> dynamicPointer(seed: T, read: (T) -> Int, pointer: Ptr<Int>): Any =
+    pointerSource(seed, read, pointer)
+
+public fun <T> nestedPointer(seed: T, read: (T) -> Int, pointer: Ptr<Int>): ((Any) -> Ptr<Int>) -> ((Ptr<Int>) -> Any) {
+    val exact: ((Ptr<Int>) -> Any) -> ((Any) -> Ptr<Int>) = {
+        ignored: (Ptr<Int>) -> Any -> pointerSource(seed, read, pointer)
+    }
+    return exact
+}
+
+@NoGC
+public fun nativeIdentity(value: Long): Long = value
+
+public fun <T> nativeSource(seed: T, read: (T) -> Int, pointer: FunPtr<(Long) -> Long>): (Any) -> FunPtr<(Long) -> Long> = {
+    ignored: Any ->
+    val payload = Payload(read(seed))
+    if (payload.value != 42) { throw IllegalStateException() }
+    pointer
+}
+
+public fun <T> failing(error: Throwable): (T) -> Any {
+    val exact: (Any) -> Int = { ignored: Any -> throw error }
+    return exact
+}
+
+public object Trace {
+    public var initializations: Int = 0
+}
+
+public class Receiver<T> public constructor(public val value: T)
+public class Slot<T> public constructor(private val action: (T) -> Any) {
+    public operator fun getValue(thisRef: Receiver<T>): Int = this.action(thisRef.value) as Int
+}
+
+public val <T> Receiver<T>.staticAdapt: Int by if (true) {
+    Trace.initializations += 1
+    val payload = Payload(42)
+    val exact: (Any) -> Int = { ignored: Any -> Payload(payload.value).value }
+    Slot<T>(exact)
+} else {
+    Slot<T>({ ignored: T -> 0 })
+}
+
+public val <T> Receiver<T>.dynamicAdapt: Int by if (true) {
+    Trace.initializations += 1
+    val payload = Payload(42)
+    val exact: (Any) -> Int = { ignored: Any -> Payload(payload.value).value }
+    val erased: Any = exact
+    Slot<T>(erased as (T) -> Any)
+} else {
+    Slot<T>({ ignored: T -> 0 })
+}

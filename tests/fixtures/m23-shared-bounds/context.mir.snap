@@ -2,21 +2,25 @@ Module
   class Holder<Any> vtable=0 itables=4
   class Holder<Int> vtable=0 itables=4
   class box<Int> vtable=0 itables=0
-  interface BothReader<Any>
-  interface LeftReader<Any>
+  interface BothReader<Any> : LeftReader<Any>, RightReader<Any>
+  interface LeftReader<Any> : Reader<Any>
   interface Reader<Any>
-  interface RightReader<Any>
-  interface BothReader<Int>
-  interface LeftReader<Int>
+  interface RightReader<Any> : Reader<Any>
+  interface BothReader<Int> : LeftReader<Int>, RightReader<Int>
+  interface LeftReader<Int> : Reader<Int>
   interface Reader<Int>
-  interface RightReader<Int>
+  interface RightReader<Int> : Reader<Int>
   interface ToString
   interface Hash
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn2 captures=0
+    bridge function_type1 -> @fn13 id=b1917cbe83be8b06a1bf4e9c00898a6e2ef6f7d9a9d715530ad4a21d06756657
   closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn7 captures=1
+    bridge function_type1 -> @fn14 id=2f0cb56a2223f5696ed0dccc8ba94f9bd24640b364c394f3f106ae373dc75341
   generated_exact_type get0 location=closure0 nominal_id=0604236b6e084ea37dbb4f891efdf61cf4ea64ff5e185966fa9f2275e4673887 exact_id=c97e31148196470ac11430e976560ae2be2b2c3ef39e0b190b7e837514ed02ff
   generated_exact_type get1 location=closure1 nominal_id=7305c02afd5158863733a6e971d373ab0107d77e1aba150faa502ad8290b5cf7 exact_id=d116d593abbee02abfe5cb71e319e817f8fcd400f0be15e321a7e92f0739c8e2
   generated_exact_type get2 location=class2 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn14 id=2f0cb56a2223f5696ed0dccc8ba94f9bd24640b364c394f3f106ae373dc75341
+  generated_callable gc1 function=@fn13 id=b1917cbe83be8b06a1bf4e9c00898a6e2ef6f7d9a9d715530ad4a21d06756657
   fun observe @fn0(value: Any) -> Int
     bb0 entry
       return
@@ -237,6 +241,34 @@ Module
         Type Int
         Local value
       return
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn13($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn14($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn3 <- exercise
   instance mi1 function=@fn4 <- read
   instance mi2 function=@fn5 <- read

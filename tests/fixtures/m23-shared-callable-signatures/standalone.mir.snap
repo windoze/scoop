@@ -1,10 +1,16 @@
 Module
   callback cb0 @fn0 -> @fn13 function_type0 id=b685b96b2111e865ae6ab5bf57e2e50cf09433503c97ca885d5a51e8eaf0648e
+  class box<Int> vtable=0 itables=0
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn6 captures=0
+    bridge function_type1 -> @fn14 id=1bdf16635d3fc020a554c8e97a7295a09412c8d581f2258ecef7aec9a2c17c90
   closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn10 captures=0
+    bridge function_type1 -> @fn15 id=10e276ec724d1a0ec30b71814b93eea7de7fe3c3670a5be38dc7f21e4c80f6bb
   generated_exact_type get0 location=closure0 nominal_id=15cf6bf0371547c0f28b6c8c313191692ef63af5a1323bade87f81f2141808ea exact_id=54d1df986877378085af56fb8557f2e19764e4302c629e61504883aac68c225e
   generated_exact_type get1 location=closure1 nominal_id=dd7c573b7b0ae918a7148a4afbca0f9d773937bbac7a34afef15663377ab4ec4 exact_id=7bea6730b2c79d44b28bf3ff959b8ab21d598b937dc259aff9a4cde99d3ad1f1
-  generated_callable gc0 function=@fn13 id=b685b96b2111e865ae6ab5bf57e2e50cf09433503c97ca885d5a51e8eaf0648e
+  generated_exact_type get2 location=class0 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn15 id=10e276ec724d1a0ec30b71814b93eea7de7fe3c3670a5be38dc7f21e4c80f6bb
+  generated_callable gc1 function=@fn14 id=1bdf16635d3fc020a554c8e97a7295a09412c8d581f2258ecef7aec9a2c17c90
+  generated_callable gc2 function=@fn13 id=b685b96b2111e865ae6ab5bf57e2e50cf09433503c97ca885d5a51e8eaf0648e
   fun nativeNumber @fn0(value: Int) -> Int <no-gc>
     bb0 entry
       val $dependency.argument.0: Int
@@ -221,6 +227,34 @@ Module
         Type Int
         Local $value
       return
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn14($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn15($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn2 <- scalar
   instance mi1 function=@fn3 <- identity
   instance mi2 function=@fn4 <- localIdentity

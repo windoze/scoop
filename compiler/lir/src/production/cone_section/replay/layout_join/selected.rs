@@ -24,6 +24,9 @@ pub(super) fn validate(
         if let Some(reference) = semantic.parent() {
             descriptor(reference, selected)?;
         }
+        for reference in semantic.relations().operands().flatten() {
+            descriptor(*reference, selected)?;
+        }
         for table in semantic.itables() {
             descriptor(table.interface(), selected)?;
         }

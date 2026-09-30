@@ -301,28 +301,23 @@ impl Concretizer<'_> {
             export::ExprKind::Box(value) => {
                 let value = self.lower_expr(value, substitution, locals);
                 self.ensure_box_source(value.ty);
-                if matches!(
-                    self.types[value.ty].kind,
-                    concrete::TypeKind::Unit
-                        | concrete::TypeKind::Integer(_)
-                        | concrete::TypeKind::Boolean
-                        | concrete::TypeKind::Struct(_)
-                        | concrete::TypeKind::Enum(_)
-                        | concrete::TypeKind::Tuple(_)
-                        | concrete::TypeKind::Ptr(_)
-                        | concrete::TypeKind::FunPtr(_)
-                ) {
+                if self.is_value_representation(value.ty) {
                     concrete::ExprKind::Box(Box::new(value))
                 } else {
                     // A source type parameter with interface-only bounds is
                     // conservatively represented as Box in Export HIR. Its
                     // concrete argument may instead be a reference; in that
                     // case the adaptation is a zero-cost retype.
-                    value.kind
+                    concrete::ExprKind::ReferenceUpcast(Box::new(value))
                 }
             }
             export::ExprKind::Unbox(value) => {
-                concrete::ExprKind::Unbox(Box::new(self.lower_expr(value, substitution, locals)))
+                let value = self.lower_expr(value, substitution, locals);
+                if self.is_value_representation(ty) {
+                    concrete::ExprKind::Unbox(Box::new(value))
+                } else {
+                    concrete::ExprKind::ReferenceUpcast(Box::new(value))
+                }
             }
             export::ExprKind::ReferenceUpcast(value) => concrete::ExprKind::ReferenceUpcast(
                 Box::new(self.lower_expr(value, substitution, locals)),

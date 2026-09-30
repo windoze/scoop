@@ -5,7 +5,7 @@ use scoop_lir::{
 use super::{InitializationArtifactRoleV1, StrongInitializationRegistrationValidationError};
 
 const DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5049_4e49;
-pub(in crate::link_object) const ABI_VERSION: u32 = 1;
+pub(in crate::link_object) const ABI_VERSION: u32 = 2;
 const DEFINITION_FINGERPRINT_OFFSET: usize = 120;
 const GATEWAY_DEFINITION_FINGERPRINT_OFFSET: usize = 312;
 const DIGEST_WIDTH: usize = 32;

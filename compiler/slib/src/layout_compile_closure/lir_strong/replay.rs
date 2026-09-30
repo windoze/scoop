@@ -53,5 +53,6 @@ pub(super) fn replay(
         &initialization_definitions,
     )?;
     super::initialization::validate(&strong, parts.identities)?;
+    super::functions::validate(&strong, parts.identities)?;
     Ok(strong)
 }

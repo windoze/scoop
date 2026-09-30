@@ -369,6 +369,7 @@ pub struct TypeDescriptor {
     /// vector.
     pub vtable: VtableRecord,
     pub itables: Vec<ItableRecord>,
+    pub relations: crate::TypeDescriptorRelations<Option<TypeDescriptorRef>>,
 }
 
 /// Persistent runtime and materialization identity of one TypeDescriptor.

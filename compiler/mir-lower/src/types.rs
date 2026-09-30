@@ -39,6 +39,27 @@ pub(super) fn exact_function_identity(
     (signature, exact_type)
 }
 
+pub(crate) fn dynamic_function_type(
+    module: &hir::Module,
+    source: mir::FunctionTypeId,
+) -> mir::FunctionTypeId {
+    let source = &module.function_types[remap_idx(source)];
+    let (id, _) = module
+        .function_types
+        .iter()
+        .find(|(_, candidate)| {
+            candidate.is_suspend == source.is_suspend
+                && candidate.parameter_types.len() == source.parameter_types.len()
+                && candidate
+                    .parameter_types
+                    .iter()
+                    .chain([&candidate.return_type])
+                    .all(|ty| matches!(module.types[*ty].kind, hir::TypeKind::Any))
+        })
+        .expect("concrete function types include their complete dynamic call signature");
+    remap_idx(id)
+}
+
 pub(super) const fn lower_integer_kind(kind: hir::IntegerKind) -> mir::IntegerKind {
     let signedness = match kind.signedness() {
         hir::IntegerSignedness::Signed => mir::IntegerSignedness::Signed,
@@ -93,11 +114,13 @@ impl InterfaceRegistry {
         let id = self.defs.alloc(mir::InterfaceDef {
             name: name.clone(),
             type_arguments: args.clone(),
+            parents: Vec::new(),
             methods: Vec::new(),
         });
         shell.interfaces.alloc(mir::InterfaceDef {
             name: name.clone(),
             type_arguments: args.clone(),
+            parents: Vec::new(),
             methods: Vec::new(),
         });
         self.instances.insert(id, (hir_id, args));
@@ -433,6 +456,8 @@ pub(super) fn is_boxable(ty: &mir::Type) -> bool {
             | mir::Type::Integer(_)
             | mir::Type::Boolean
             | mir::Type::Unit
+            | mir::Type::Ptr(_)
+            | mir::Type::FunPtr(_)
     )
 }
 

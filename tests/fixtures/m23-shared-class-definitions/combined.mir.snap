@@ -68,21 +68,31 @@ Module
   class Link<Int> vtable=0 itables=0
   class Nested<Int> vtable=0 itables=0
   class Remote<Int> vtable=2 itables=1
+  class box<Int> vtable=0 itables=0
+  class box<Unit> vtable=0 itables=0
   interface Readable<String>
   interface Readable<Unit>
   interface Readable<Int>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn7 captures=0
-  closure cc1 $Closure$lambda1 type=function_type1 invoke=@fn9 captures=0
-  closure cc2 $Closure$lambda2 type=function_type2 invoke=@fn11 captures=0
+    bridge function_type1 -> @fn70 id=fa087cde9b6a091717de5100520dc90719fe810a18ee8d6b1151793ddd991e80
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn9 captures=0
+    bridge function_type1 -> @fn71 id=1f5c3461b05f9b1557f37480c165c4ec67cd18737e9270315912f9e8698a50fe
+  closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn11 captures=0
+    bridge function_type1 -> @fn72 id=91ff3bf15062ecd1d6109adb6b4ca97de1a6fb49f711218c6238d8bac1358e05
   generated_exact_type get0 location=enum10 nominal_id=750eaa185ff725d3720d9b3759cbda0cb7669f03d7e9e0e873d1878fdf60451e exact_id=234f39a9e938863381c22a91e603a632236b637d40ca6dae3c37934e933d2c66
   generated_exact_type get1 location=enum12 nominal_id=f7989803d00e9e26b1c05fc76ffff3c6bfa9f97ce2c8d593b06c98d0f0c098b6 exact_id=251cca9af29db9cd9aadebb8d83def8aba8b289d146478fb64634885c4ae16d6
-  generated_exact_type get2 location=closure0 nominal_id=bde590cd31cae2432e04499e5907eb07a0e62a92b7007848f7138585e38c738c exact_id=76d3443ddac142039b9bde62c83c759cfa4d9746b092827625827194a16b9523
-  generated_exact_type get3 location=closure2 nominal_id=68e91c233e68706d0349dba6455e76b9a093061b02e042b63a7732c8a797a667 exact_id=798fe4d0b220a335dfd6b5ed7f0bae252715208e3d912a04922d2b728bddf535
-  generated_exact_type get4 location=enum8 nominal_id=2e9741b96cc78b1c330640cb60de8de3dfbb30aa87d155c1cb782b91a44a80c6 exact_id=c551825b775b9d40f765a5a0bf464c4bd819e6ddeaf648ed6b50b50e8d02f3e0
-  generated_exact_type get5 location=enum9 nominal_id=06b9bcef74a27bcdc67ec1b43f37ca1797c434fd161f7107635e2b27524b3da1 exact_id=c6dafb29480029a6a681e8991bf24b2c1dd61a69b5736436f4b727296d2c694e
-  generated_exact_type get6 location=enum7 nominal_id=910d9f38f65afb02c864d74eb14bbd8b2b1753b09a90a558e1fd97cc274b3728 exact_id=f3bd9a63d861e9efb963ff0b23d2b9cee6ca0ae122e10126530c7216d05769ab
-  generated_exact_type get7 location=enum11 nominal_id=8a92a731a3e6dbc0ef81f8cbaa7249f5fef7b1957c9b9d3d57a6337872974fb5 exact_id=f614eed68e6c28f233375c9fe329925891c39cfd5fd07a547765cc062b454240
-  generated_exact_type get8 location=closure1 nominal_id=e216dd0497f8b35e5b074b3cb0d25e3dc7006785603afc3d71c214dc600330aa exact_id=fb988a44eb8dd44414be7f90b1916768e79ce02bb226a1db3788c6e7397d24a9
+  generated_exact_type get2 location=class25 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get3 location=closure0 nominal_id=bde590cd31cae2432e04499e5907eb07a0e62a92b7007848f7138585e38c738c exact_id=76d3443ddac142039b9bde62c83c759cfa4d9746b092827625827194a16b9523
+  generated_exact_type get4 location=closure2 nominal_id=68e91c233e68706d0349dba6455e76b9a093061b02e042b63a7732c8a797a667 exact_id=798fe4d0b220a335dfd6b5ed7f0bae252715208e3d912a04922d2b728bddf535
+  generated_exact_type get5 location=enum8 nominal_id=2e9741b96cc78b1c330640cb60de8de3dfbb30aa87d155c1cb782b91a44a80c6 exact_id=c551825b775b9d40f765a5a0bf464c4bd819e6ddeaf648ed6b50b50e8d02f3e0
+  generated_exact_type get6 location=enum9 nominal_id=06b9bcef74a27bcdc67ec1b43f37ca1797c434fd161f7107635e2b27524b3da1 exact_id=c6dafb29480029a6a681e8991bf24b2c1dd61a69b5736436f4b727296d2c694e
+  generated_exact_type get7 location=class24 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get8 location=enum7 nominal_id=910d9f38f65afb02c864d74eb14bbd8b2b1753b09a90a558e1fd97cc274b3728 exact_id=f3bd9a63d861e9efb963ff0b23d2b9cee6ca0ae122e10126530c7216d05769ab
+  generated_exact_type get9 location=enum11 nominal_id=8a92a731a3e6dbc0ef81f8cbaa7249f5fef7b1957c9b9d3d57a6337872974fb5 exact_id=f614eed68e6c28f233375c9fe329925891c39cfd5fd07a547765cc062b454240
+  generated_exact_type get10 location=closure1 nominal_id=e216dd0497f8b35e5b074b3cb0d25e3dc7006785603afc3d71c214dc600330aa exact_id=fb988a44eb8dd44414be7f90b1916768e79ce02bb226a1db3788c6e7397d24a9
+  generated_callable gc0 function=@fn71 id=1f5c3461b05f9b1557f37480c165c4ec67cd18737e9270315912f9e8698a50fe
+  generated_callable gc1 function=@fn72 id=91ff3bf15062ecd1d6109adb6b4ca97de1a6fb49f711218c6238d8bac1358e05
+  generated_callable gc2 function=@fn70 id=fa087cde9b6a091717de5100520dc90719fe810a18ee8d6b1151793ddd991e80
   fun Counter.getValue @fn0(this: Counter, thisRef: Host) -> Int
     bb0 entry
       return
@@ -907,7 +917,7 @@ Module
         Retype Readable<Unit>
           Type Local<Unit, Unit>
           Local local
-      call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
+      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local read
         Type Unit
@@ -951,7 +961,7 @@ Module
         Local $dependency.receiver
         Type Unit
         Local $dependency.parameter.other
-      call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
+      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local $callable.receiver
         Type Unit
@@ -1029,7 +1039,7 @@ Module
         Local $receiver
         Type Unit
         Local $parameter.other
-      call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
+      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local $callable.receiver
         Type Unit
@@ -1098,7 +1108,7 @@ Module
         Local $receiver
         Type Unit
         Local $parameter.other
-      call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
+      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local $callable.receiver
         Type Unit
@@ -1240,7 +1250,7 @@ Module
           FieldAccess 0
             Type Nested<Unit>
             Local $uw.2
-      call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
+      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local read
         Type Unit
@@ -1341,7 +1351,7 @@ Module
       call @fn31 direct
         Type Remote<Unit>
         Local remote
-      call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
+      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local read
         Type Unit
@@ -1390,7 +1400,7 @@ Module
         Local $dependency.parameter.value
         Type Link<Unit>
         Local $dependency.parameter.link
-      call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
+      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local $callable.receiver
         Type Unit
@@ -1453,7 +1463,7 @@ Module
         Retype Readable<Int>
           Type Local<Int, Unit>
           Local local
-      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
+      call $dependency.receiver: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
         Local read
         Type Int
@@ -1494,7 +1504,7 @@ Module
         Local $dependency.receiver
         Type Int
         Local $dependency.parameter.other
-      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
+      call $dependency.receiver: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
         Local $callable.receiver
         Type Int
@@ -1569,7 +1579,7 @@ Module
         Local $receiver
         Type Int
         Local $parameter.other
-      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
+      call $dependency.receiver: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
         Local $callable.receiver
         Type Int
@@ -1635,7 +1645,7 @@ Module
         Local $receiver
         Type Int
         Local $parameter.other
-      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
+      call $dependency.receiver: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
         Local $callable.receiver
         Type Int
@@ -1777,7 +1787,7 @@ Module
           FieldAccess 0
             Type Nested<Int>
             Local $uw.2
-      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
+      call $dependency.receiver: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
         Local read
         Type Int
@@ -1878,7 +1888,7 @@ Module
       call $call.12: Int = @fn41 direct
         Type Remote<Int>
         Local remote
-      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
+      call $dependency.receiver: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
         Local read
         Type Int
@@ -1927,7 +1937,7 @@ Module
         Local $dependency.parameter.value
         Type Link<Int>
         Local $dependency.parameter.link
-      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
+      call $dependency.receiver: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
         Local $callable.receiver
         Type Int
@@ -2065,7 +2075,7 @@ Module
       call @fn44 interface Readable<Unit>[0]
         Type Readable<Unit>
         Local $dependency.local.2
-      call $call.1: Int = <closure:function_type1> closure[function_type1]
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local $dependency.local.3
         Type Unit
@@ -2158,7 +2168,7 @@ Module
       call $call.1: Int = @fn45 interface Readable<Int>[0]
         Type Readable<Int>
         Local $dependency.local.2
-      call $call.2: Int = <closure:function_type2> closure[function_type2]
+      call $call.2: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
         Local $dependency.local.3
         Type Int
@@ -2684,6 +2694,48 @@ Module
         StructInit Wrapper<Int>
           Type Link<Int>
           Local head
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn70($source: (String) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (String) -> Int
+        Local $source
+        Type String
+        Retype String
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn71($source: (Unit) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Unit) -> Int
+        Local $source
+        Type Unit
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn72($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   coroutine_step cs0 CoroutineStep<Host> result=Host
   coroutine_step cs1 CoroutineStep<State> result=State
   coroutine_step cs2 CoroutineStep<Counter> result=Counter

@@ -37,15 +37,25 @@ Module
   class Carrier<Scalar<Unit>> vtable=0 itables=0
   class Carrier<Scalar<Int>> vtable=0 itables=0
   class box<Local> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  class box<Unit> vtable=0 itables=0
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
-  closure cc1 $Closure$lambda1 type=function_type1 invoke=@fn3 captures=0
-  closure cc2 $Closure$lambda2 type=function_type2 invoke=@fn5 captures=0
+    bridge function_type1 -> @fn29 id=0a84c702bf6f08519e12b66c2bb9c49f9eb14e3d416e06236d3f80de745b85c6
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn3 captures=0
+    bridge function_type1 -> @fn30 id=a3d00b0a6d07d404e8c436166b03180127855b90e6c622dd816e842524258b37
+  closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn5 captures=0
+    bridge function_type1 -> @fn31 id=234003afc606f57ae3e2e2d26513e047b555e2a20f8c13b987718f5b038a06b5
   generated_exact_type get0 location=enum6 nominal_id=a7d37fe97ce9329c26b6b0245f0e309566a6cebbdf5f4d13d4a664eef833647b exact_id=17c19b23627a6cba83f5df0b308f547661f8f0ed26c2476d2b04efea5d09cfb9
-  generated_exact_type get1 location=class3 nominal_id=cc0a92d2c7118cb97a01d4c868858138333ae24d780d6b647ccc12e3deedc21a exact_id=43c537cf8c59e582bb961a75e6a13ac007f7b43ee874cc95263e7f9354c902a6
-  generated_exact_type get2 location=closure1 nominal_id=0fbea3ce773d0c1cffb7c502f83946a29f5d34d4c68adf05209303ffd36fa608 exact_id=6368fe21d62589c60d3cbd188426b914f0b6fb6b10808b47f5bd2fa70e22feac
-  generated_exact_type get3 location=closure2 nominal_id=710ebe59596fad122b0c35f4288c45dec84530d8318d577c78f8034025af0141 exact_id=a150cfdc98a6525a4a2e6141def8d3ab676ff34dae24e565ee99cc0fa0acb9f3
-  generated_exact_type get4 location=enum7 nominal_id=129737a90613d0d6330a42fbe17de7605f4489602961f03c7bcf0bea57c5b701 exact_id=ad43d3ca677a54364f606b8ed3ba8ebbbc5d66ef3d99ef62bc4d65964c57be72
-  generated_exact_type get5 location=closure0 nominal_id=6d3910953259c29d27fa1e697f4a1b9fc3a12b3206c9d90761d29cf66b2ef06b exact_id=fc00c98e9fe9668c07751517e4fc589f9b87ecfb268e5f29dddc9c3961eb06cc
+  generated_exact_type get1 location=class5 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get2 location=class3 nominal_id=cc0a92d2c7118cb97a01d4c868858138333ae24d780d6b647ccc12e3deedc21a exact_id=43c537cf8c59e582bb961a75e6a13ac007f7b43ee874cc95263e7f9354c902a6
+  generated_exact_type get3 location=closure1 nominal_id=0fbea3ce773d0c1cffb7c502f83946a29f5d34d4c68adf05209303ffd36fa608 exact_id=6368fe21d62589c60d3cbd188426b914f0b6fb6b10808b47f5bd2fa70e22feac
+  generated_exact_type get4 location=closure2 nominal_id=710ebe59596fad122b0c35f4288c45dec84530d8318d577c78f8034025af0141 exact_id=a150cfdc98a6525a4a2e6141def8d3ab676ff34dae24e565ee99cc0fa0acb9f3
+  generated_exact_type get5 location=enum7 nominal_id=129737a90613d0d6330a42fbe17de7605f4489602961f03c7bcf0bea57c5b701 exact_id=ad43d3ca677a54364f606b8ed3ba8ebbbc5d66ef3d99ef62bc4d65964c57be72
+  generated_exact_type get6 location=class4 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get7 location=closure0 nominal_id=6d3910953259c29d27fa1e697f4a1b9fc3a12b3206c9d90761d29cf66b2ef06b exact_id=fc00c98e9fe9668c07751517e4fc589f9b87ecfb268e5f29dddc9c3961eb06cc
+  generated_callable gc0 function=@fn29 id=0a84c702bf6f08519e12b66c2bb9c49f9eb14e3d416e06236d3f80de745b85c6
+  generated_callable gc1 function=@fn31 id=234003afc606f57ae3e2e2d26513e047b555e2a20f8c13b987718f5b038a06b5
+  generated_callable gc2 function=@fn30 id=a3d00b0a6d07d404e8c436166b03180127855b90e6c622dd816e842524258b37
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -537,7 +547,7 @@ Module
         VariantPayloadProject Option<Scalar<Unit>> v0 f0
           Type Option<Scalar<Unit>>
           Local $pattern.subject.6
-      call $call.3: Int = <closure:function_type1> closure[function_type1]
+      call $call.3: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local read
         Type Unit
@@ -734,7 +744,7 @@ Module
         VariantPayloadProject Option<Scalar<Int>> v0 f0
           Type Option<Scalar<Int>>
           Local $pattern.subject.6
-      call $call.3: Int = <closure:function_type2> closure[function_type2]
+      call $call.3: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
         Local read
         Type Int
@@ -928,6 +938,48 @@ Module
         StructInit Scalar<Int>
           Type Int
           Local value
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn29($source: (Local) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Local) -> Int
+        Local $source
+        Type Local
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn30($source: (Unit) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Unit) -> Int
+        Local $source
+        Type Unit
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn31($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   coroutine_step cs0 CoroutineStep<Local> result=Local
   coroutine_slot cl0 CoroutineSlot<Local> value=Local
   instance mi0 function=@fn2 <- exercise

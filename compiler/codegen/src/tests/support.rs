@@ -912,6 +912,7 @@ pub(super) fn string_metadata() -> LirMeta {
     });
     let mut type_descriptors = Arena::new();
     let string_descriptor = type_descriptors.alloc(TypeDescriptor {
+        relations: Default::default(),
         diagnostic_name: "String".to_string(),
         identity: scoop_lir::TypeDescriptorIdentity::new(
             runtime_type("String"),
@@ -965,6 +966,7 @@ pub(super) fn array_type(
     )
     .unwrap();
     let type_descriptor = meta.type_descriptors.alloc(TypeDescriptor {
+        relations: Default::default(),
         diagnostic_name: name.to_string(),
         identity: type_descriptor_identity(name),
         instance_layout: layout_identity(name, scoop_identity::RepresentationRole::ManagedObject),

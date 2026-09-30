@@ -792,7 +792,7 @@ impl BoxedType {
         })
     }
 
-    pub fn for_tuple(
+    pub fn for_structural(
         payload: Type,
         class: ClassId,
         payload_identity: &scoop_identity::CborIdentityRecord<
@@ -803,7 +803,7 @@ impl BoxedType {
         Ok(Self {
             payload,
             class,
-            identity: BoxedValueIdentity::for_tuple(payload_identity)?,
+            identity: BoxedValueIdentity::for_structural(payload_identity)?,
         })
     }
 

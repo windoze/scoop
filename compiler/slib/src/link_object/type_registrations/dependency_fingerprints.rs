@@ -83,7 +83,7 @@ where
         let descriptor_bytes = exact_bytes(
             object,
             descriptor_proof.checked_offset(),
-            TYPE_DESCRIPTOR_SIZE,
+            TYPE_DESCRIPTOR_SIZE + plan.semantic().relations().related_types().len() * 8,
             exact_type,
             TypeDependencyArtifactV1::Descriptor,
         )?;
@@ -193,7 +193,7 @@ pub enum StrongTypeDependencyFingerprintError {
     },
     DescriptorByteMismatch {
         exact_type: PersistentExactTypeId,
-        offset_within_descriptor: u8,
+        offset_within_descriptor: u64,
         expected: u8,
         actual: u8,
     },

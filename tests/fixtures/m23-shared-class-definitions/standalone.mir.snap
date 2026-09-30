@@ -33,6 +33,8 @@ Module
   class MutableArrayIterator<Link<Unit>> vtable=0 itables=1
   class ArrayIterator<Link<Int>> vtable=0 itables=1
   class MutableArrayIterator<Link<Int>> vtable=0 itables=1
+  class box<Int> vtable=0 itables=0
+  class box<Unit> vtable=0 itables=0
   interface Readable<String>
   interface Iterable<Link<String>>
   interface Iterator<Link<String>>
@@ -43,11 +45,19 @@ Module
   interface Iterable<Link<Int>>
   interface Iterator<Link<Int>>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
-  closure cc1 $Closure$lambda1 type=function_type1 invoke=@fn3 captures=0
-  closure cc2 $Closure$lambda2 type=function_type2 invoke=@fn7 captures=0
+    bridge function_type1 -> @fn70 id=a16fc5362f360c41d8c5b7053cd21a8e48a7f2ecf317ffec2f2a6fbedb08972a
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn3 captures=0
+    bridge function_type1 -> @fn71 id=141ee590562f0b178d8f4340bd78c37acb7be5d5811f0d5097e90bcc4938c6a5
+  closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn7 captures=0
+    bridge function_type1 -> @fn72 id=34971ec391a88e804ef142b0641a0af579bfca419ba002d0ed46c95294ab80e1
   generated_exact_type get0 location=closure1 nominal_id=880fa5e2d8a9dcd0e1a96e4f8f95a8319568cee3d952b4b847ae3b0373788f59 exact_id=0f0ccc9fa97e3f2a70502220f1f54f1384848e32b21f0a9074227620fe1060aa
   generated_exact_type get1 location=closure2 nominal_id=2a6e3d5b86f807d3438642d799ee732ede9ab77194bbafd8f03055a6932d8a21 exact_id=3930ee0d901e30f1b3f83933f5cfcffb2767ac76330192ffac5fe526b9b6c23f
-  generated_exact_type get2 location=closure0 nominal_id=99a643b0f2124ebe0934a2ab53e8540bdec9991bd48a54ddea6a069df0478551 exact_id=aead5a485d772a8d556d62e5971ba8f3b4ba9bbac0ddb344bfb14868dfeeddee
+  generated_exact_type get2 location=class26 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get3 location=closure0 nominal_id=99a643b0f2124ebe0934a2ab53e8540bdec9991bd48a54ddea6a069df0478551 exact_id=aead5a485d772a8d556d62e5971ba8f3b4ba9bbac0ddb344bfb14868dfeeddee
+  generated_exact_type get4 location=class25 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn71 id=141ee590562f0b178d8f4340bd78c37acb7be5d5811f0d5097e90bcc4938c6a5
+  generated_callable gc1 function=@fn72 id=34971ec391a88e804ef142b0641a0af579bfca419ba002d0ed46c95294ab80e1
+  generated_callable gc2 function=@fn70 id=a16fc5362f360c41d8c5b7053cd21a8e48a7f2ecf317ffec2f2a6fbedb08972a
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: String
@@ -776,7 +786,7 @@ Module
       call @fn29 direct
         Type Link<Unit>
         Local $uw.2
-      call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
+      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local read
         Type Unit
@@ -830,7 +840,7 @@ Module
       call @fn29 direct
         Type Link<Unit>
         Local $uw.4
-      call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
+      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local read
         Type Unit
@@ -885,7 +895,7 @@ Module
       call @fn30 direct
         Type Remote<Unit>
         Local remote
-      call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
+      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local read
         Type Unit
@@ -927,7 +937,7 @@ Module
         Local $dependency.receiver
         Type Unit
         Local $dependency.parameter.other
-      call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
+      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local $callable.receiver
         Type Unit
@@ -1136,7 +1146,7 @@ Module
           Local $arr.8
           Type Long
           Local $idx.9
-      call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
+      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local $callable.receiver
         Type Unit
@@ -1184,7 +1194,7 @@ Module
         Local $dependency.parameter.value
         Type Link<Unit>
         Local $dependency.parameter.link
-      call $call.9: Int = <closure:function_type1> closure[function_type1]
+      call $call.9: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local $callable.receiver
         Type Unit
@@ -1328,7 +1338,7 @@ Module
       call $call.3: Int = @fn6 direct
         Type Link<Int>
         Local $uw.2
-      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
+      call $dependency.receiver: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
         Local read
         Type Int
@@ -1382,7 +1392,7 @@ Module
       call $call.5: Int = @fn6 direct
         Type Link<Int>
         Local $uw.4
-      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
+      call $dependency.receiver: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
         Local read
         Type Int
@@ -1437,7 +1447,7 @@ Module
       call $call.7: Int = @fn40 direct
         Type Remote<Int>
         Local remote
-      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
+      call $dependency.receiver: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
         Local read
         Type Int
@@ -1476,7 +1486,7 @@ Module
         Local $dependency.receiver
         Type Int
         Local $dependency.parameter.other
-      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
+      call $dependency.receiver: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
         Local $callable.receiver
         Type Int
@@ -1685,7 +1695,7 @@ Module
           Local $arr.8
           Type Long
           Local $idx.9
-      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
+      call $dependency.receiver: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
         Local $callable.receiver
         Type Int
@@ -1733,7 +1743,7 @@ Module
         Local $dependency.parameter.value
         Type Link<Int>
         Local $dependency.parameter.link
-      call $call.15: Int = <closure:function_type2> closure[function_type2]
+      call $call.15: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
         Local $callable.receiver
         Type Int
@@ -1921,7 +1931,7 @@ Module
       call @fn46 interface Readable<Unit>[0]
         Type Readable<Unit>
         Local $dependency.local.2
-      call $call.1: Int = <closure:function_type1> closure[function_type1]
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local $dependency.local.3
         Type Unit
@@ -2077,7 +2087,7 @@ Module
       call $call.1: Int = @fn49 interface Readable<Int>[0]
         Type Readable<Int>
         Local $dependency.local.2
-      call $call.2: Int = <closure:function_type2> closure[function_type2]
+      call $call.2: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
         Local $dependency.local.3
         Type Int
@@ -3233,6 +3243,48 @@ Module
         StructInit Wrapper<Int>
           Type Link<Int>
           Local head
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn70($source: (String) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (String) -> Int
+        Local $source
+        Type String
+        Retype String
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn71($source: (Unit) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Unit) -> Int
+        Local $source
+        Type Unit
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn72($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn2 <- exercise
   instance mi1 function=@fn4 <- exercise
   instance mi2 function=@fn5 <- make

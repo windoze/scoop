@@ -21,20 +21,24 @@ Module
   class ForeignDerived vtable=1 itables=3
   class PlainBase vtable=1 itables=2
   class HolderImpl<Int> vtable=0 itables=2
+  class box<Int> vtable=0 itables=0
   interface LocalExtra
   interface Readable
   interface Extra
   interface Marker
-  interface ChildHolder<Int>
+  interface ChildHolder<Int> : Holder<Int>
   interface Holder<Int>
   closure cc0 $Closure$reference0 type=function_type0 invoke=@fn15 captures=1
+    bridge function_type1 -> @fn19 id=5cd50537c0d90eac5c401b71cb3da0940e004db5c89cf2a878f51c5633e6250b
   generated_exact_type get0 location=enum1 nominal_id=ec9e475b4e2bfeadc67f8e6f95894668c6d1baa6fedccab37d4c5de1bb19841d exact_id=4abc7d53728f8809c2d143cda165363a02269c68417c83179149b707fce43904
   generated_exact_type get1 location=enum3 nominal_id=e335975e8bf146e66194db954f3a79e0927242ef005601e7005d49a1e3b5cc3b exact_id=6f0fa820234e0b04fa9fb32b0f898b4dc57c74856a97f850f81a4cca77506aef
   generated_exact_type get2 location=enum5 nominal_id=0b283770c4d4c9e03a7b407d341d40ad47ea14b4159cefd7bda0b2e7321bf8c4 exact_id=7680f1d9035ffc7e3c6911de7c15700fba6f94921e4e29e68c5fe2161ec95e86
   generated_exact_type get3 location=enum0 nominal_id=0f7655596e8a641a0ed47985c350dbccc132309ae5d6a2fc3a9d4faac85bb646 exact_id=87feb5aa894bb1c1b084dc50cbf00ecdb4df116800e61a72ff1a46353a5c6687
   generated_exact_type get4 location=closure0 nominal_id=41ed08f13d69caf8a3bfafddce021cc3c0fa29255eea6a55998d26691bc5f63c exact_id=9dfc6b93a97c512cc5ea35a5885186ad967de541873315ec470a15519603ff7f
-  generated_exact_type get5 location=enum2 nominal_id=6e43f67243045bd9dc2a0ba5de4ef3a252350d09a276a42bcce4ec9979e75bcf exact_id=ebceb79196b96d86be18479fa3419687af832add06abb499fa411a7e26348758
-  generated_exact_type get6 location=enum4 nominal_id=69cf599bb0ecab81ebfd509d827149544d6d541d09a6dada031623cf16ae4c65 exact_id=efa2579c1f37484f746776c2b82211b6d1a4d6d301fc8cb430c122f571dc58d8
+  generated_exact_type get5 location=class4 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get6 location=enum2 nominal_id=6e43f67243045bd9dc2a0ba5de4ef3a252350d09a276a42bcce4ec9979e75bcf exact_id=ebceb79196b96d86be18479fa3419687af832add06abb499fa411a7e26348758
+  generated_exact_type get7 location=enum4 nominal_id=69cf599bb0ecab81ebfd509d827149544d6d541d09a6dada031623cf16ae4c65 exact_id=efa2579c1f37484f746776c2b82211b6d1a4d6d301fc8cb430c122f571dc58d8
+  generated_callable gc0 function=@fn19 id=5cd50537c0d90eac5c401b71cb3da0940e004db5c89cf2a878f51c5633e6250b
   fun LocalBase.read @fn0(this: LocalBase) -> Int
     bb0 entry
       return
@@ -360,6 +364,16 @@ Module
         Type Int
         Local payload
       return
+  fun function_bridge.$Closure$reference0.() -> Any @fn19($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   coroutine_step cs0 CoroutineStep<LocalBase> result=LocalBase
   coroutine_step cs1 CoroutineStep<ForeignDerived> result=ForeignDerived
   coroutine_step cs2 CoroutineStep<LocalExtra> result=LocalExtra

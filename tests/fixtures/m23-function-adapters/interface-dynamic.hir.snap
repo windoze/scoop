@@ -1,0 +1,83 @@
+Module
+  fun exercise<T>(seed: T0, read: (T0) -> Int): Int
+    val local2
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        Local seed : T0
+    val local3
+      Local $dependency.argument.0 : Int
+    val local4
+      Call external #0 : Any
+        Local $dependency.parameter.value : Int
+    val local5
+      IsInstance (T0) -> Readable : Boolean
+        Local erased : Any
+    if
+      PrimitiveUnary BooleanNot : Boolean
+        Local $dependency.receiver : Boolean
+      return
+        IntegerLiteral 11 : Int
+    val local6
+      IsInstance (T0) -> Tagged : Boolean
+        Local erased : Any
+    if
+      PrimitiveUnary BooleanNot : Boolean
+        Local $dependency.receiver : Boolean
+      return
+        IntegerLiteral 12 : Int
+    if
+      IsInstance () -> Readable : Boolean
+        Local erased : Any
+      return
+        IntegerLiteral 13 : Int
+    if
+      IsInstance (T0) -> Failure : Boolean
+        Local erased : Any
+      return
+        IntegerLiteral 14 : Int
+    val local7
+      Cast (T0) -> Readable optional=false : (T0) -> Readable
+        Local erased : Any
+    val local8
+      Cast (T0) -> Tagged optional=false : (T0) -> Tagged
+        Local erased : Any
+    val local9
+      CallableCall function_type1 : Readable
+        Local first : (T0) -> Readable
+        Local seed : T0
+    val local10
+      Call external #1 interface[0] : Int
+        Local $dependency.receiver : Readable
+    val local11
+      IntegerLiteral 42 : Int
+    val local12
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 15 : Int
+    val local13
+      CallableCall function_type2 : Tagged
+        Local second : (T0) -> Tagged
+        Local seed : T0
+    return
+      Call external #2 interface[0] : Int
+        Local $dependency.receiver : Tagged
+  fun result(): Int
+    val local0
+      IntegerLiteral 42 : Int
+    val local1
+      Lambda lambda0 invoke=$lambda.0 captures=0 : (Int) -> Int
+    val local2
+      Local $argument.0 : Int
+    val local3
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.seed : Int
+        Local $parameter.read : (Int) -> Int
+  output library
+  instance exercise<Int>

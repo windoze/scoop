@@ -40,7 +40,7 @@ Module
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store global0 -> local0
-    call managed-direct-target0 sp<managed-call:0> live=[local0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td10, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target0 sp<managed-call:0> live=[local0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td13, machine<byte-size>(ByteSize(24)))
     t1 = function_address @scoop$1$cb$3a13f67923167d3eacac2f2653610793ef99244f25abd7f65122fd709e45dc30 : ptr
     heap_store t0 +16 t1
     store t0 -> local1
@@ -58,7 +58,7 @@ Module
   block if.merge.2
     t5 = aggregate () : {}
     store t5 -> local7
-    call managed-direct-target2 sp<managed-call:2> live=[] t6 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td11, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target2 sp<managed-call:2> live=[] t6 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td14, machine<byte-size>(ByteSize(24)))
     t7 = function_address @scoop$1$cb$726e0eab0d04d8411aa1fff9f04eff3795557f17f24be745e2bbc0773432c00b : ptr
     heap_store t6 +16 t7
     store t6 -> local8
@@ -75,7 +75,7 @@ Module
     ret integer<Int>(0x00000002)
   block if.merge.4
     store integer<Int>(0x0000002a) -> local14
-    call managed-direct-target4 sp<managed-call:4> live=[] t11 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td12, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target4 sp<managed-call:4> live=[] t11 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td15, machine<byte-size>(ByteSize(24)))
     t12 = function_address @scoop$1$cb$5d23126813357611863b86df05679bd59eafef57fa5020483ec4f3f82781079e : ptr
     heap_store t11 +16 t12
     store t11 -> local15
@@ -732,36 +732,72 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (indirect<struct10 size=4 align=4 scan=none>) -> i32 local-fn14(indirect local2)
     store t0 -> local0
     ret local0
-  td td0 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=I;x=Readable);[a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=S;x=Phantom);[n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.valuelayouts;o=-;k=S;x=Mixed)])]) @scoop$1$td$57586351699049ea7b89cf8a547556a5f3bf9e24bdbcbc2ce6a5d9d227f9fe0c type-id=14928665107242767505 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[]
-  td td1 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=I;x=Readable);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$9823056f78bc74c846985dff90a352d660b6c929375295b529651337fe67b821 type-id=16642581957281740279 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[]
-  td td2 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=I;x=Readable);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit)]) @scoop$1$td$686753291c9df3f7786432d7bc4c3bbc54bc6843f4e9e21691c880641b446365 type-id=12430311141810107847 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[]
-  td td3 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=I;x=Readable);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$5786be97ddf61c9c14b86ec921e4907884a9448012c6774bad676e926ce870a6 type-id=15650305822971156442 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[]
+  fun @scoop$1$cb$681fb9890902a0b339c063112d63d918688045ffd9e9db5600bc44a06e70fe8f(ptr<managed>, ptr<managed>) -> ptr<managed>
+    local %0 $call.1: i32
+    local %1 $box.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, ptr<managed>) -> i32 dispatch[Closure:2] param0(param0, param1)
+    store t0 -> local0
+    store local0 -> local1
+    t1 = box_value external-td1, local1 scan=none sp<managed-call:1> live=[]
+    ret t1
+  fun @scoop$1$cb$dce6ba0ec77b320d89f74c5dfb5903c871d9975a7584fbc0e0b12341516566d7(ptr<managed>, ptr<managed>) -> ptr<managed>
+    local %0 $call.1: i32
+    local %1 $box.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    unbox_zst external-td0, param1 -> t0
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t1 = sig=direct0 (ptr<managed>, elided-zst<{} size=0 align=1>) -> i32 dispatch[Closure:2] param0(param0, elided-zst t0)
+    store t1 -> local0
+    store local0 -> local1
+    t2 = box_value external-td1, local1 scan=none sp<managed-call:1> live=[]
+    ret t2
+  fun @scoop$1$cb$f2d0069a8f229b668a4268246cd66066c91a4dd43f4d5813fdae392ec94bf547(ptr<managed>, ptr<managed>) -> ptr<managed>
+    local %0 $call.1: i32
+    local %1 $box.1: i32
+    local %2 $box.2: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    unbox_value external-td1, param1 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, i32) -> i32 dispatch[Closure:2] param0(param0, local1)
+    store t0 -> local0
+    store local0 -> local2
+    t1 = box_value external-td1, local2 scan=none sp<managed-call:1> live=[]
+    ret t1
+  td td0 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=I;x=Readable);[a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=S;x=Phantom);[n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.valuelayouts;o=-;k=S;x=Mixed)])]) @scoop$1$td$57586351699049ea7b89cf8a547556a5f3bf9e24bdbcbc2ce6a5d9d227f9fe0c type-id=14928665107242767505 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td1 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=I;x=Readable);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$9823056f78bc74c846985dff90a352d660b6c929375295b529651337fe67b821 type-id=16642581957281740279 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td2 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=I;x=Readable);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit)]) @scoop$1$td$686753291c9df3f7786432d7bc4c3bbc54bc6843f4e9e21691c880641b446365 type-id=12430311141810107847 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td3 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=I;x=Readable);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$5786be97ddf61c9c14b86ec921e4907884a9448012c6774bad676e926ce870a6 type-id=15650305822971156442 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
   td td4 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=C;x=Link);[n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.valuelayouts;o=-;k=E;x=Nested)]) @scoop$1$td$5ff684cc235f4236416f7191e9cf5c51f5c55e33726ee412bc712fafcff3ddc7 type-id=4143337530314130551 shape=FixedObject minimum-size=32 align=8 parent=none vtable=[] itables=[]
   td td5 g(r=00000006;i=9711e7a1e9bb3a93d6795a346be0dc2fa25af0cfbd365483e21c1d864347b120) @scoop$1$td$5a5cecfdd6db9dc7699d461fc272266c0b72c81cf3859d0594d6619c8a18f2f2 type-id=11555164253483023158 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[td1:[local-fn29]]
   td td6 g(r=00000006;i=1847ac424ca3c11c5d3a671c0d854ccf2f2728359a5ed37e481cbc24593e28f6) @scoop$1$td$64b0c2de28596618552db342d62dbfc5f7022ebab49bfa12d0fed6f2944693f8 type-id=6347648228974141930 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[td2:[local-fn30]]
   td td7 g(r=00000006;i=5a86bf309a29ce71728e990b3a97a4cfba7bf8805b44c54053141dd7641fad17) @scoop$1$td$42ee63808b80b903e8e0bc2e01ca2df9f153c05998a2278850ab432062c98fb0 type-id=7198782326081942943 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[td3:[local-fn31]]
   td td8 g(r=00000006;i=9f4cd2462b2bfdfbdf954e5985c13b6712025981f79db5c516f41bab1709d6fd) @scoop$1$td$18371271c5c47804c1fa1a3419faa8ff70a31ae1dcf6343a87ee0c74f7b4a584 type-id=9906617448056086899 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
   td td9 g(r=00000006;i=112b10a9a92a49802b9b379a1781e180ee43c95af6414ba7888e8486b9922bf5) @scoop$1$td$7c6a3a2fa2740eabcc4979620fc1a7bba7cd43fe64901bf03e6d88c7468605b4 type-id=2548843274636350660 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
-  td td10 g(r=00000001;i=1e9cd6bd756793db9ce899b7858a992ce9792cda9ff3b69b18c13da76a847920) @scoop$1$td$01169a564068bec4f83306a21edb6fb1742075eead51ed17851a42c7a0be78bd type-id=4855861737714010192 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td11 g(r=00000001;i=af3d32633ddd81fbb38ecf57ccba61f2e776bdfafac933f0e3cd054fff0ed1d6) @scoop$1$td$2bb49a6813bd59076d11e383b0f91492fc086767b600e4e047cf65f3bd388c77 type-id=1751467158972081645 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td12 g(r=00000001;i=a01fd5dc89f2f6fbb7547c1ff9163f27b1172adefa2e774810b366cb661b3f18) @scoop$1$td$ae2e2c86a44e67285fa743926b1d5d7226542431c43846acdee30173f133d2c1 type-id=8980925409013786868 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td13 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=S;x=Phantom);[n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.valuelayouts;o=-;k=S;x=Mixed)]) @scoop$1$td$0571367a565de1a4e03aa78be8d6d20d5b108f2f204ce8686a4f4a3d929b7132 type-id=6884539297553034104 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
-  td td14 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=S;x=Wrapper);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$09196e70e7bcaf84d9ee53ada4a468d043ab8c59254a8b343c5a715afbf7faf8 type-id=4105031300040097111 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td15 a(n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.valuelayouts;o=-;k=S;x=Local);[a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=S;x=Wrapper);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)])]) @scoop$1$td$1b7b7ae3eb01d52843dc45875bf82976c7292393653d6b4bb7cee01e96aec84d type-id=9664812435823774868 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td16 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=S;x=Wrapper);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$4efbb63ca1a88a1e377094b0492e2106e3430baec72e63de5cd201e035cc0bd0 type-id=7566637019183647269 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td17 a(n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.valuelayouts;o=-;k=S;x=Local);[a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=S;x=Wrapper);[a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=S;x=Phantom);[n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.valuelayouts;o=-;k=S;x=Mixed)])])]) @scoop$1$td$5ce999a6a5a721543f3c995f9f9e89e907cbc1ebc6688f0a51bfc73fcf5bc479 type-id=11054124104647983297 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
-  td td18 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=S;x=Wrapper);[a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=S;x=Phantom);[n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.valuelayouts;o=-;k=S;x=Mixed)])]) @scoop$1$td$83f01bcdcce31b1a7b6d352c3eb58ac3bbee393d9f1a59ef2e04e88be563241a type-id=8981284296419768454 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
-  td td19 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=S;x=Wrapper);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit)]) @scoop$1$td$9cdc047bf55888868143f918aaa0a4ca85136a5802b70a2a3c6b796afeab2c69 type-id=13885161378276064415 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
-  td td20 n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.valuelayouts;o=-;k=S;x=Mixed) @scoop$1$td$b9628eb332f40fa268b42dd1230b6124d53e543173c38dc9c750f97d55ccd208 type-id=10658203269138670454 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
-  td td21 a(n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.valuelayouts;o=-;k=S;x=Local);[a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=S;x=Wrapper);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit)])]) @scoop$1$td$bca34a8000f066db2030c60b17bef82aad0474957159d1a9a05fc8c7b9bb906d type-id=16337674858948404135 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
-  td td22 a(n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.valuelayouts;o=-;k=S;x=Local);[a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=S;x=Wrapper);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)])]) @scoop$1$td$d9cda26c82c2fe8a00ab5b0ea432f623f81746dcd5554f1dfcb42a217079e8c2 type-id=8964211632041972142 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td23 n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.valuelayouts;o=-;k=E;x=Nested) @scoop$1$td$da733df8c738aadf77b2d9a13f618d72b124648786996e5b311d57925808dd3f type-id=8558566284129327142 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
-  td td24 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=S;x=Reference);[n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.valuelayouts;o=-;k=E;x=Nested)]) @scoop$1$td$dde3a2169b226ed5bbe1afaceb13e5ee6dc17724ad7db495be6de691fd936dd9 type-id=8072269197108136543 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td25 a(n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.valuelayouts;o=-;k=S;x=Local);[a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=S;x=Reference);[n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.valuelayouts;o=-;k=E;x=Nested)])]) @scoop$1$td$e19e2fe8e9db2216de751c52b4ca50fdaea7b8f1b30cdb19893eeb77e23f084e type-id=4003903693879919317 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td26 g(r=00000007;i=3be4b18eb6f2f50029f53b80925edb051739ce9fd0c92861c97c483e0c4c9f23) @scoop$1$td$1ef20bf0693461bd9c127db4f16770526304db8b128fefcafbdb59b611faec2d type-id=10098725449641186626 shape=BoxedValue minimum-size=40 align=8 parent=none vtable=[] itables=[]
-  td td27 g(r=00000007;i=1e0e1d5179faf7c4828b15a1ce10ce3b59712591a79fdcea15bc3372a462bb7f) @scoop$1$td$5bf279ebfa36eaf5a55514d1762c2176288c2491d5e3d843f139d810a337c0a5 type-id=4385987583059328807 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td28 g(r=00000005;i=26b391ba7e1568b76751e874f24004f2019c8f72b551480fc74362f369d4fbf1) @scoop$1$td$d7b759f818de00fb731c805b01519f6fed973fa2f867b2d84323c4bd276ea97c type-id=10026704353282465209 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td29 g(r=00000005;i=507604de783e72c71899e53ad867830f00bb8c2fb7730e82d6b5114bb25fb28b) @scoop$1$td$dcc70cb5433c5bc0341a306ee2f55ac41257785c140737938d97b34b64c42d1c type-id=17149326229096567904 shape=BoxedValue minimum-size=40 align=8 parent=none vtable=[] itables=[]
+  td td10 f(o;[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)) @scoop$1$td$0c5d79558804bae45a005f1808135989ad3ab1604dbc55e968124f5691f7c773 type-id=2794820464339256360 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary(external-td2)->external-td1
+  td td11 f(o;[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)) @scoop$1$td$23935e22ada5206ddbde55e993e7c8ab4bb4428a0f9a361c61c6565ee1902d69 type-id=15845947979171618166 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary(external-td1)->external-td1
+  td td12 f(o;[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit)]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)) @scoop$1$td$629d09ff83ed8e513deee1234c19d1a048dbfb01ec7fef71e6064e4c827cd040 type-id=13792928394547298880 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary(external-td0)->external-td1
+  td td13 g(r=00000001;i=1e9cd6bd756793db9ce899b7858a992ce9792cda9ff3b69b18c13da76a847920) @scoop$1$td$01169a564068bec4f83306a21edb6fb1742075eead51ed17851a42c7a0be78bd type-id=4855861737714010192 shape=FixedObject minimum-size=24 align=8 parent=td10 vtable=[local-fn32] itables=[]
+  td td14 g(r=00000001;i=af3d32633ddd81fbb38ecf57ccba61f2e776bdfafac933f0e3cd054fff0ed1d6) @scoop$1$td$2bb49a6813bd59076d11e383b0f91492fc086767b600e4e047cf65f3bd388c77 type-id=1751467158972081645 shape=FixedObject minimum-size=24 align=8 parent=td12 vtable=[local-fn33] itables=[]
+  td td15 g(r=00000001;i=a01fd5dc89f2f6fbb7547c1ff9163f27b1172adefa2e774810b366cb661b3f18) @scoop$1$td$ae2e2c86a44e67285fa743926b1d5d7226542431c43846acdee30173f133d2c1 type-id=8980925409013786868 shape=FixedObject minimum-size=24 align=8 parent=td11 vtable=[local-fn34] itables=[]
+  td td16 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=S;x=Phantom);[n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.valuelayouts;o=-;k=S;x=Mixed)]) @scoop$1$td$0571367a565de1a4e03aa78be8d6d20d5b108f2f204ce8686a4f4a3d929b7132 type-id=6884539297553034104 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
+  td td17 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=S;x=Wrapper);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$09196e70e7bcaf84d9ee53ada4a468d043ab8c59254a8b343c5a715afbf7faf8 type-id=4105031300040097111 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td18 a(n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.valuelayouts;o=-;k=S;x=Local);[a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=S;x=Wrapper);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)])]) @scoop$1$td$1b7b7ae3eb01d52843dc45875bf82976c7292393653d6b4bb7cee01e96aec84d type-id=9664812435823774868 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td19 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=S;x=Wrapper);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$4efbb63ca1a88a1e377094b0492e2106e3430baec72e63de5cd201e035cc0bd0 type-id=7566637019183647269 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td20 a(n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.valuelayouts;o=-;k=S;x=Local);[a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=S;x=Wrapper);[a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=S;x=Phantom);[n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.valuelayouts;o=-;k=S;x=Mixed)])])]) @scoop$1$td$5ce999a6a5a721543f3c995f9f9e89e907cbc1ebc6688f0a51bfc73fcf5bc479 type-id=11054124104647983297 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
+  td td21 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=S;x=Wrapper);[a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=S;x=Phantom);[n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.valuelayouts;o=-;k=S;x=Mixed)])]) @scoop$1$td$83f01bcdcce31b1a7b6d352c3eb58ac3bbee393d9f1a59ef2e04e88be563241a type-id=8981284296419768454 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
+  td td22 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=S;x=Wrapper);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit)]) @scoop$1$td$9cdc047bf55888868143f918aaa0a4ca85136a5802b70a2a3c6b796afeab2c69 type-id=13885161378276064415 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
+  td td23 n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.valuelayouts;o=-;k=S;x=Mixed) @scoop$1$td$b9628eb332f40fa268b42dd1230b6124d53e543173c38dc9c750f97d55ccd208 type-id=10658203269138670454 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
+  td td24 a(n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.valuelayouts;o=-;k=S;x=Local);[a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=S;x=Wrapper);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit)])]) @scoop$1$td$bca34a8000f066db2030c60b17bef82aad0474957159d1a9a05fc8c7b9bb906d type-id=16337674858948404135 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
+  td td25 a(n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.valuelayouts;o=-;k=S;x=Local);[a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=S;x=Wrapper);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)])]) @scoop$1$td$d9cda26c82c2fe8a00ab5b0ea432f623f81746dcd5554f1dfcb42a217079e8c2 type-id=8964211632041972142 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td26 n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.valuelayouts;o=-;k=E;x=Nested) @scoop$1$td$da733df8c738aadf77b2d9a13f618d72b124648786996e5b311d57925808dd3f type-id=8558566284129327142 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  td td27 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=S;x=Reference);[n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.valuelayouts;o=-;k=E;x=Nested)]) @scoop$1$td$dde3a2169b226ed5bbe1afaceb13e5ee6dc17724ad7db495be6de691fd936dd9 type-id=8072269197108136543 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td28 a(n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.valuelayouts;o=-;k=S;x=Local);[a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.valuelayouts;o=-;k=S;x=Reference);[n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.valuelayouts;o=-;k=E;x=Nested)])]) @scoop$1$td$e19e2fe8e9db2216de751c52b4ca50fdaea7b8f1b30cdb19893eeb77e23f084e type-id=4003903693879919317 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td29 g(r=00000007;i=3be4b18eb6f2f50029f53b80925edb051739ce9fd0c92861c97c483e0c4c9f23) @scoop$1$td$1ef20bf0693461bd9c127db4f16770526304db8b128fefcafbdb59b611faec2d type-id=10098725449641186626 shape=BoxedValue minimum-size=40 align=8 parent=none vtable=[] itables=[]
+  td td30 g(r=00000007;i=1e0e1d5179faf7c4828b15a1ce10ce3b59712591a79fdcea15bc3372a462bb7f) @scoop$1$td$5bf279ebfa36eaf5a55514d1762c2176288c2491d5e3d843f139d810a337c0a5 type-id=4385987583059328807 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td31 g(r=00000005;i=26b391ba7e1568b76751e874f24004f2019c8f72b551480fc74362f369d4fbf1) @scoop$1$td$d7b759f818de00fb731c805b01519f6fed973fa2f867b2d84323c4bd276ea97c type-id=10026704353282465209 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td32 g(r=00000005;i=507604de783e72c71899e53ad867830f00bb8c2fb7730e82d6b5114bb25fb28b) @scoop$1$td$dcc70cb5433c5bc0341a306ee2f55ac41257785c140737938d97b34b64c42d1c type-id=17149326229096567904 shape=BoxedValue minimum-size=40 align=8 parent=none vtable=[] itables=[]
   layout Mixed size=0 align=1 refs=[]
   layout Phantom size=0 align=1 refs=[]
   layout Wrapper size=0 align=1 refs=[]

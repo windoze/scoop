@@ -1,7 +1,7 @@
 Module
   struct InterfaceCell<Int> (value: Int)
   class box<InterfaceCell<Int>> vtable=0 itables=2
-  interface Reader<Int>
+  interface Reader<Int> : Readable<Int>
   interface Readable<Int>
   generated_exact_type get0 location=class0 nominal_id=a14e651dda784ab9dc47bfe2811cca6e2e474f5f62fa114446eb8f0324b32cf5 exact_id=f51b93b042db4f7ec78a2810c2daa7cf912d10087e8624b3785c130112bfe8b7
   generated_callable gc0 function=@fn7 id=b7f6cc5b4795da42564e78d7544a19063904473d8f916ace282585589b51c7f2

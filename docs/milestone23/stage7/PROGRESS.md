@@ -710,13 +710,21 @@
 - 清除全部 `SCOOP_UPDATE_*`、`INSTA_UPDATE` 与 `RUST_MIN_STACK`，启用最新实际配套 `scoopc` 完成 `cargo test --workspace --no-fail-fast --target-dir target/m23-6a`：**37 个测试组、5313 passed、0 failed、0 ignored**，无编译警告；driver 的 **206 项** 全部通过，耗时 **703.46 秒**。包含实际编译执行的 collector、GC／stack-map、EH C 回归及关闭更新的全部 golden。日志与汇总为 `/tmp/scoop-m23-7-native-final-workspace.log` 和 `/tmp/scoop-m23-7-native-final-results.json`。
 - 全部构建和测试结束后执行 `cargo clean --target-dir target/m23-6a`，删除 **1948 个文件、5.1 GiB**；日志为 `/tmp/scoop-m23-7-native-clean.log`。
 
+## 2026-10-01：跨 Cone 函数适配器与动态调用
+
+- 函数值适配共用普通 typed CFG，覆盖 `Ptr`／`FunPtr` 的装箱、引用上行、嵌套函数型变、lambda 结果与 generic delegate initializer。closure 的 parent 指向自身精确 FunctionShape 描述符，vtable 第 0 槽固定为同参数个数、同挂起性的 Any 动态 invoke；目标 adapter 负责参数装箱和结果还原。下游首次检查自己的类型时不改变提供方 TD 或 bridge，泛型继续单态化。
+- runtime 按完整函数签名执行参数逆变、结果协变检查。共有类型登记以必需 field 29 保存 `Absent | Signature | Interface`，interface 直接父关系保留多继承；TD 固定前缀扩为 144 byte，尾部保存实际关系引用。cone-production 升为 **`/3`**、历史 strong-production 升为 **`/16`**、runtime metadata ABI 升为 **2**，固定向量、对象布局与指纹同步，旧产物和缓存重建。对象头、实例布局、GC 扫描及 C 调用 ABI 保持。
+- 泛型引用实参消除保守装箱时保留原操作数类型和显式上行转换，捕获字段仍按真实类型读取；外来值的装箱沿定义方支持记录选择。实际 closure、adapter 和动态检查的签名中，tuple／嵌套函数引用的私有名义类型进入共有表示闭包，无关私有声明继续本地保存。
+- 新增 `m23-function-adapters` 的 **16 份 Scoop 源码、34 份 golden** 和实际 C callback fixture。**6 项测试**覆盖 **10 组正例、4 组诊断反例**，包含首次下游动态检查、接口多继承、私有 tuple 签名、委托初始化、捕获对象和异常／finally。provider／consumer 发布后移走源码，下游以自有引用类型、Int 和 Unit 再次实例化和发布；正例全部通过实际对象链接、普通执行和强制移动 GC。
+- 按职责新增动态 adapter、函数描述符与类型关系模块，并将 LIR dump 的 metadata 部分拆出；新实现模块均保持在约 300 行以内。完成 LLVM 22.1 下的 `cargo fmt --all`、`cargo clippy --workspace --all-targets` 和实际配套 `scoopc` 构建，无警告。
+- 清除全部快照更新开关和测试栈覆盖，执行 `cargo test --workspace --no-fail-fast --target-dir target/m23-6a`：**37 个测试组、5322 passed、0 failed、0 ignored**，无编译警告；driver 的 **212 项**全部通过，耗时 **715.49 秒**。既有函数引用组合、source-only 私有类型、三个 IR golden、core 产物、reader、对象、EH、stack-map 和 runtime 回归均通过。日志及汇总为 `/tmp/scoop-m23-7-adapter-strict-workspace.log` 与 `/tmp/scoop-m23-7-adapter-strict-results.json`。
+
 ## 剩余主线
 
 [M23-6a 已验收](../stage6a/ACCEPTANCE.md)，普通宿主的封闭泛型父类型、整数范围、外来类型解构及函数值默认参数不再列为本阶段缺口。本阶段继续承担实际机器定义、ODR 和委托运行闭环，具体边界以修订后的 [设计](DESIGN.md) 为准。
 
-1. 补齐指针／函数值 adapter 与泛型 delegate initializer 中的适配组合，使用现有真实产物、再次发布和移动 GC 入口验收。
-2. 接通外来 core 协程协议的完整具体化、机器定义、异常与执行，以及参数自由 source exact 的有限 shell/start 支持；泛型与结构结果类型继续按实际使用物化。
-3. 验证 sibling 对同组独立 adapter／helper 成员的合法并集，共同 member、EH／stackmap 内容一致，以及真实 TD 和 dispatch 地址合并。
-4. 核对 core、driver、reader/publisher、cache 与全部 fixture 使用共同生产路径，清理无调用的旧路径，完成实际配套编译器和 runtime 的全仓验收。
+1. 接通外来 core 协程协议的完整具体化、机器定义、异常与执行，以及参数自由 source exact 的有限 shell/start 支持；泛型与结构结果类型继续按实际使用物化。
+2. 验证 sibling 对同组独立 adapter／helper 成员的合法并集，共同 member、EH／stackmap 内容一致，以及真实 TD 和 dispatch 地址合并。
+3. 核对 core、driver、reader/publisher、cache 与全部 fixture 使用共同生产路径，清理无调用的旧路径，完成实际配套编译器和 runtime 的全仓验收。
 
 验收始终以源码与实际产物为依据。最终必须逐项核对设计第 12、14 节，不能用局部单测替代跨 Cone 链接运行或宣布阶段完成。

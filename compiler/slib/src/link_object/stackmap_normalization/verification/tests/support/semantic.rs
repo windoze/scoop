@@ -1106,6 +1106,7 @@ fn metadata() -> LirMeta {
         TypeDescriptorIdentity::new(runtime_type, MaterializationRoot::cone_owned()).unwrap();
     let vtable = VtableRecord::new(&identity, Vec::new()).unwrap();
     let string_descriptor = type_descriptors.alloc(TypeDescriptor {
+        relations: Default::default(),
         diagnostic_name: "String".to_string(),
         identity,
         instance_layout: layouts[string_layout].identity.clone(),

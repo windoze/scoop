@@ -14,7 +14,7 @@ use crate::link_object::{
     VerifiedStrongTypeRegistrationV1,
 };
 
-pub(super) const TYPE_DESCRIPTOR_SIZE: usize = 128;
+pub(super) const TYPE_DESCRIPTOR_SIZE: usize = 144;
 
 pub(super) fn exact_bytes(
     object: &[u8],
@@ -67,14 +67,13 @@ fn validate_descriptor_bytes<D: Copy, C>(
     let expected = expected_descriptor_bytes(plan);
     if let Some(offset) = actual
         .iter()
-        .zip(expected)
-        .position(|(actual, expected)| *actual != expected)
+        .zip(&expected)
+        .position(|(actual, expected)| *actual != *expected)
     {
         return Err(
             StrongTypeDependencyFingerprintError::DescriptorByteMismatch {
                 exact_type: plan.exact_type(),
-                offset_within_descriptor: u8::try_from(offset)
-                    .expect("type descriptor offsets fit u8"),
+                offset_within_descriptor: offset as u64,
                 expected: expected[offset],
                 actual: actual[offset],
             },
@@ -83,12 +82,11 @@ fn validate_descriptor_bytes<D: Copy, C>(
     Ok(())
 }
 
-fn expected_descriptor_bytes<D: Copy, C>(
-    plan: &StrongTypeRegistrationPlan<D, C>,
-) -> [u8; TYPE_DESCRIPTOR_SIZE] {
+fn expected_descriptor_bytes<D: Copy, C>(plan: &StrongTypeRegistrationPlan<D, C>) -> Vec<u8> {
     let semantic = plan.semantic();
     let shape = semantic.instance_shape();
-    let mut bytes = [0; TYPE_DESCRIPTOR_SIZE];
+    let function = semantic.relations();
+    let mut bytes = vec![0; TYPE_DESCRIPTOR_SIZE + function.related_types().len() * 8];
     write_u64(&mut bytes, 0, plan.runtime_type().get());
     write_u32(&mut bytes, 8, shape.instance_kind().tag());
     write_u32(&mut bytes, 12, shape.inline_storage_kind().tag());
@@ -107,6 +105,13 @@ fn expected_descriptor_bytes<D: Copy, C>(
         &mut bytes,
         120,
         u64::try_from(semantic.diagnostic_name().len()).expect("diagnostic length fits u64"),
+    );
+    write_u32(&mut bytes, 128, function.runtime_kind());
+    write_u32(
+        &mut bytes,
+        132,
+        u32::try_from(function.related_types().len())
+            .expect("function arity fits its metadata count"),
     );
     bytes
 }
@@ -202,6 +207,30 @@ where
                 None => false,
             },
             112 => relocation == descriptor.diagnostic_relocation(),
+            offset if offset >= 136 => {
+                let function = plan.semantic().relations();
+                let reference = if offset == 136 {
+                    function.result().copied().flatten()
+                } else {
+                    function
+                        .related_types()
+                        .get(((offset - 144) / 8) as usize)
+                        .copied()
+                        .flatten()
+                };
+                match reference.map(LinkDescriptorReference::kind) {
+                    Some(DescriptorReferenceKind::Local(exact)) => definition_target_matches(
+                        target,
+                        definitions,
+                        StrongDefinitionEntity::exact_type(exact),
+                        StrongDefinitionRole::TypeDescriptor,
+                    ),
+                    Some(DescriptorReferenceKind::External(exact)) => {
+                        external_target_matches(target, PersistentSymbolKey::TypeDescriptor(exact))
+                    }
+                    None => false,
+                }
+            }
             _ => false,
         };
         if !target_matches {
@@ -256,6 +285,15 @@ fn expected_relocation_offsets<D: Copy, C>(plan: &StrongTypeRegistrationPlan<D, 
         expected.push(96);
     }
     expected.push(112);
+    let function = plan.semantic().relations();
+    if function.result().copied().flatten().is_some() {
+        expected.push(136);
+    }
+    for (index, reference) in function.related_types().iter().enumerate() {
+        if reference.is_some() {
+            expected.push(144 + index as u64 * 8);
+        }
+    }
     expected
 }
 

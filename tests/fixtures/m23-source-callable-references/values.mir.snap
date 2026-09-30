@@ -3,12 +3,20 @@ Module
   struct Cell<Int> (value: Int)
   struct Empty ()
   class Plain vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
   closure cc0 $Closure$reference0 type=function_type0 invoke=@fn3 captures=1
+    bridge function_type1 -> @fn7 id=2829e35569d092b61cc83735067b570e60b3615e67c512cba1ea8e8fa2e74886
   closure cc1 $Closure$reference1 type=function_type0 invoke=@fn4 captures=1
+    bridge function_type1 -> @fn8 id=675879f4a9abd62c8e0dad32aef0768785bc7e45dbe1a5ab173910fffb7cb9e6
   closure cc2 $Closure$reference2 type=function_type0 invoke=@fn5 captures=1
+    bridge function_type1 -> @fn9 id=3f57a8233c3faa6b22cd09c9276b688b4215cf545d41e9c656d6f4fd737ccb96
   generated_exact_type get0 location=closure0 nominal_id=545d8a0e83aa24c4b525c451aeda9e44b71da8b66e20d70120204d58e1870906 exact_id=2d945e4602688e8da9cba961fbdd6e64f45881e6e2e0ee0f60fe399fc7bbedaf
   generated_exact_type get1 location=closure1 nominal_id=39afcb44e649af9e14611594d4376c1ec385eab9d30559a83055ff4041beeb4e exact_id=4472606c3a0dfb1b7799decadfd717787896a0fe1d72dadcccaa5ca57b9958ed
   generated_exact_type get2 location=closure2 nominal_id=487004b46cf0071a748dccaf97c64dda2ac617767a8e171096209b0cc149ddee exact_id=557ffe227608c607a7c0f1dc39d038d4d76573faaa54b65e8a412c3bfec63c5b
+  generated_exact_type get3 location=class1 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn7 id=2829e35569d092b61cc83735067b570e60b3615e67c512cba1ea8e8fa2e74886
+  generated_callable gc1 function=@fn9 id=3f57a8233c3faa6b22cd09c9276b688b4215cf545d41e9c656d6f4fd737ccb96
+  generated_callable gc2 function=@fn8 id=675879f4a9abd62c8e0dad32aef0768785bc7e45dbe1a5ab173910fffb7cb9e6
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -305,6 +313,36 @@ Module
         StructInit Cell<Int>
           Type Int
           Local value
+  fun function_bridge.$Closure$reference0.() -> Any @fn7($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference1.() -> Any @fn8($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference2.() -> Any @fn9($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn1 <- exercise
   instance mi1 function=@fn2 <- read
   output library

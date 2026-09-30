@@ -9,7 +9,7 @@ Module
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store integer<Int>(0x0000002a) -> local0
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td1, machine<byte-size>(ByteSize(24)))
     t1 = function_address @scoop$1$cb$3e4196ee273e0536367774749d5c0a8d85075d5c15afc8cf96eee291d588a77a : ptr
     heap_store t0 +16 t1
     store t0 -> local1
@@ -238,8 +238,21 @@ Module
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param2
-  td td0 g(r=00000001;i=04f393714da57c1b19262cef0a681e7907a9117d2e205339c20fe0d4c820a033) @scoop$1$td$66720d4bd84b9752b22b00b0860e237dd1604c41f594b016d64a72d33c9bac74 type-id=3914965655898504775 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td1 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.enums;o=-;k=E;x=Choice);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$eff8386182b2106c1a6d278214e1f37e721f56f106b2b329ba51f7a9ffa8fdec type-id=13155625441435353378 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  fun @scoop$1$cb$d02719b42cea5b2e3c7aabaeedcc0d5e905bb84480483b6d32ab7db8f7fa713b(ptr<managed>, ptr<managed>) -> ptr<managed>
+    local %0 $call.1: i32
+    local %1 $box.1: i32
+    local %2 $box.2: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    unbox_value external-td0, param1 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, i32) -> i32 dispatch[Closure:2] param0(param0, local1)
+    store t0 -> local0
+    store local0 -> local2
+    t1 = box_value external-td0, local2 scan=none sp<managed-call:1> live=[]
+    ret t1
+  td td0 f(o;[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)) @scoop$1$td$23935e22ada5206ddbde55e993e7c8ab4bb4428a0f9a361c61c6565ee1902d69 type-id=15845947979171618166 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary(external-td0)->external-td0
+  td td1 g(r=00000001;i=04f393714da57c1b19262cef0a681e7907a9117d2e205339c20fe0d4c820a033) @scoop$1$td$66720d4bd84b9752b22b00b0860e237dd1604c41f594b016d64a72d33c9bac74 type-id=3914965655898504775 shape=FixedObject minimum-size=24 align=8 parent=td0 vtable=[local-fn4] itables=[]
+  td td2 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.enums;o=-;k=E;x=Choice);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$eff8386182b2106c1a6d278214e1f37e721f56f106b2b329ba51f7a9ffa8fdec type-id=13155625441435353378 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
   layout Choice size=16 align=8 enum-scan=none
   layout $Closure$lambda0 value size=8 align=8 refs=[0]
   layout $Closure$lambda0 size=24 align=8 refs=[]

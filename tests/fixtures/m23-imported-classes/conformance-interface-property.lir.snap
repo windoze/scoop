@@ -73,7 +73,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (indirect<enum0 size=8 align=8 scan=none>) -> i64 local-fn0(indirect local2)
     store t0 -> local0
     ret local0
-  td td0 n(c=dev.example%3Aclasses-conformance-interface-property%3A0.1.0;p=;o=-;k=I;x=LocalValue) @scoop$1$td$4314b04341ce0aa0e6602ea62099aaa86d374255266be6e0fa455d20325d1690 type-id=7565009222764577217 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[]
+  td td0 n(c=dev.example%3Aclasses-conformance-interface-property%3A0.1.0;p=;o=-;k=I;x=LocalValue) @scoop$1$td$4314b04341ce0aa0e6602ea62099aaa86d374255266be6e0fa455d20325d1690 type-id=7565009222764577217 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[external-td0]
   td td1 g(r=00000006;i=a542ce44497ce077212cbf885ebdcf4a022bba714bf42043ea835e5059482fe1) @scoop$1$td$9aa122687514342cfd3f8e369541c22bb0555a9266e310c6e7feb82a46e53740 type-id=14647934883668933 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[td0:[local-fn4, local-fn5], external-td0:[local-fn6]]
   td td2 n(c=dev.example%3Aclasses-conformance-interface-property%3A0.1.0;p=;o=-;k=E;x=LocalChoice) @scoop$1$td$6430d772b68395c362697c537ed84b3a1a0c85b788fbfbb37be9cf6c87d13d48 type-id=9209552773333715292 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td3 g(r=00000007;i=851a916d49eee659a9222a96c26c6461905f9c89e65f18a6c313a19576605e62) @scoop$1$td$8b0e1542ba15a4729f204ac3097d91d9a2df1eac483288df114b2e8a5d4d8090 type-id=6861694268385233812 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]

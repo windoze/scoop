@@ -110,6 +110,11 @@ fn build_descriptor_v2(
         parent,
         vtable,
         itables,
+        descriptor.relations.clone().try_map(|reference| {
+            reference
+                .map(|reference| descriptor_ref(module, reference))
+                .transpose()
+        })?,
     ))
 }
 

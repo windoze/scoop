@@ -32,7 +32,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> i32 local-fn0(param0)
     store t0 -> local0
     ret local0
-  td td0 n(c=dev.example%3Acombined%3A0.1.0;p=;o=-;k=I;x=Marker) @scoop$1$td$d2b2f927e18573036594f1cf00d7b5b7c4f7c252ecca18147f82993261ce2a7b type-id=1120363844398344790 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[]
+  td td0 n(c=dev.example%3Acombined%3A0.1.0;p=;o=-;k=I;x=Marker) @scoop$1$td$d2b2f927e18573036594f1cf00d7b5b7c4f7c252ecca18147f82993261ce2a7b type-id=1120363844398344790 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
   td td1 n(c=dev.example%3Acombined%3A0.1.0;p=;o=-;k=C;x=Holder) @scoop$1$td$25222f5cbfbd10f776bca4bc76fec7c301a84dd92471a3530742cd6395b690e8 type-id=2005330988925506088 shape=FixedObject minimum-size=32 align=8 parent=none vtable=[] itables=[]
   td td2 g(r=00000006;i=3f006ba37543ed4c7828dfb1bd68ead29d3aa975e211b674894ff668f2fb2dae) @scoop$1$td$80e9afe6b9ac587d049719d4d77ccb4f460814d1197b92fdb2eaf7079222137a type-id=4897769272981463500 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[td0:[local-fn4]]
   td td3 g(r=00000006;i=559ca02619303cf35b88f62ce96130f81ea195d0e1c8035b76d22ab43da66623) @scoop$1$td$545a98c66c579f89c1dc4bf9c268aa75790a572d5ae7504a1b960d9fe7e23c04 type-id=4156082029347350046 shape=BoxedValue minimum-size=40 align=8 parent=none vtable=[] itables=[]

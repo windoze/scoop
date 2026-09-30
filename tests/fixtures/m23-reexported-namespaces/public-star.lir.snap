@@ -13,7 +13,7 @@ Module
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store integer<Int>(0x0000002a) -> local0
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td1, machine<byte-size>(ByteSize(24)))
     t1 = function_address @scoop$1$cb$066d942133b0563656c9346f2ff7f3f5fdaa559763fa30b50b7fa235ac845014 : ptr
     heap_store t0 +16 t1
     store t0 -> local1
@@ -86,8 +86,21 @@ Module
   block entry
     t0 = aggregate (param0) : struct0
     ret t0
-  td td0 g(r=00000001;i=526cedfa5dde43e8135feaf50b057ed376c0d3152f21212efd5962a3c17fcadd) @scoop$1$td$7b9f729dfb7df434ac8273731a5762c18631de021ed177436e63e69a484738c3 type-id=10884094304136396850 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td1 a(n(c=dev.example%3Anamespace-origin%3A0.1.0;p=origin.nesting;o=C:Outer;k=S;x=Box);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$25973812702f394463301bbc679979ad915649d8f4693b4ce7b7960ca9c247c7 type-id=18280882817138944944 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  fun @scoop$1$cb$c7c758a72fe6ec409325a6500e17ff880f327e83ab0c4abcd7e44e27de14bbae(ptr<managed>, ptr<managed>) -> ptr<managed>
+    local %0 $call.1: i32
+    local %1 $box.1: i32
+    local %2 $box.2: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    unbox_value external-td0, param1 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, i32) -> i32 dispatch[Closure:2] param0(param0, local1)
+    store t0 -> local0
+    store local0 -> local2
+    t1 = box_value external-td0, local2 scan=none sp<managed-call:1> live=[]
+    ret t1
+  td td0 f(o;[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)) @scoop$1$td$23935e22ada5206ddbde55e993e7c8ab4bb4428a0f9a361c61c6565ee1902d69 type-id=15845947979171618166 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary(external-td0)->external-td0
+  td td1 g(r=00000001;i=526cedfa5dde43e8135feaf50b057ed376c0d3152f21212efd5962a3c17fcadd) @scoop$1$td$7b9f729dfb7df434ac8273731a5762c18631de021ed177436e63e69a484738c3 type-id=10884094304136396850 shape=FixedObject minimum-size=24 align=8 parent=td0 vtable=[local-fn5] itables=[]
+  td td2 a(n(c=dev.example%3Anamespace-origin%3A0.1.0;p=origin.nesting;o=C:Outer;k=S;x=Box);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$25973812702f394463301bbc679979ad915649d8f4693b4ce7b7960ca9c247c7 type-id=18280882817138944944 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Box size=4 align=4 refs=[]
   layout $Closure$reference0 value size=8 align=8 refs=[0]
   layout $Closure$reference0 size=24 align=8 refs=[]

@@ -1,6 +1,7 @@
 use super::*;
 
 mod adapters;
+mod dynamic_adapters;
 
 impl BodyLowerer<'_> {
     pub(crate) fn allocate_function_locals(

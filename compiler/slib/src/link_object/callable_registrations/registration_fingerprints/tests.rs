@@ -53,7 +53,7 @@ fn computes_the_canonical_callable_strong_registration_fingerprint() {
     );
     assert_eq!(
         actual.registration().to_string(),
-        "133edde60aab67c8f3a4e055feb8678bf99a5c98296c03eb4f53104e5d65b2e7"
+        "394f69fcd699470b5b399b994d96dfd7b7530482a3e57d25157f2c9d98eeed30"
     );
 }
 

@@ -39,6 +39,8 @@ Module
   class MutableArrayIterator<Local<Unit>> vtable=0 itables=1
   class ArrayIterator<Local<Int>> vtable=0 itables=1
   class MutableArrayIterator<Local<Int>> vtable=0 itables=1
+  class box<Int> vtable=0 itables=0
+  class box<Unit> vtable=0 itables=0
   interface ValueSource<String>
   interface Iterable<Local<String>>
   interface Iterator<Local<String>>
@@ -49,13 +51,21 @@ Module
   interface Iterable<Local<Int>>
   interface Iterator<Local<Int>>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn3 captures=0
-  closure cc1 $Closure$lambda1 type=function_type1 invoke=@fn5 captures=0
-  closure cc2 $Closure$lambda2 type=function_type2 invoke=@fn7 captures=0
+    bridge function_type1 -> @fn61 id=061b5e6aae57128ab24ff3d435f8762d8f3a9267ee233a733125df90504e2e2e
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn5 captures=0
+    bridge function_type1 -> @fn62 id=3b43b578f3753b87bad908f97ab5df63777abbeb482d3f09081d2a1f4e4fdfcc
+  closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn7 captures=0
+    bridge function_type1 -> @fn63 id=df274ace3678657c569009bcbe922673a0393899cbd31eea9de973a58ace25ab
   generated_exact_type get0 location=enum4 nominal_id=ce370657a76593007c0112dfe6d6d240b3e416b575ac8fe4d67aa2b0b2caeb78 exact_id=191beb6a407394943b7f1d9bccb8ccee852a29d2a69cd3d1a723262c65c4bd49
-  generated_exact_type get1 location=closure1 nominal_id=adfdf4cc89a1c981d5a80139de9d9f16a986d96347806e3138cd83faa6d17c51 exact_id=4e8091335594e9f9a00f405de263b831c73d07956ca04aa6c09dbd81d1efa1fc
-  generated_exact_type get2 location=closure0 nominal_id=7bcc6dda22cf7b5ba05a6d7b9dfb897cc87781ae83a51a73d8bf59d8d4a9bcaf exact_id=9a50fd3cb673e059242d0980e9f6cb9ef878570dd630ad6c970723545e1d41d2
-  generated_exact_type get3 location=closure2 nominal_id=19399ca6334cf1dd92547ebbe3bf063d91abfdfbbeddebed90b1b32a3eabcd6e exact_id=9e4665277347852da80ffa08e373c38dd45fc666bce1dcb6e9f92603bd97d722
-  generated_exact_type get4 location=enum5 nominal_id=053470e9cb3adb71e2343b12637249a0abc4dd8d2d314986c17bbebf616282ae exact_id=b19dcc12e002c69d2648ec0ae222700825838c0384fd81bcf33184ec3bd572e1
+  generated_exact_type get1 location=class26 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get2 location=closure1 nominal_id=adfdf4cc89a1c981d5a80139de9d9f16a986d96347806e3138cd83faa6d17c51 exact_id=4e8091335594e9f9a00f405de263b831c73d07956ca04aa6c09dbd81d1efa1fc
+  generated_exact_type get3 location=closure0 nominal_id=7bcc6dda22cf7b5ba05a6d7b9dfb897cc87781ae83a51a73d8bf59d8d4a9bcaf exact_id=9a50fd3cb673e059242d0980e9f6cb9ef878570dd630ad6c970723545e1d41d2
+  generated_exact_type get4 location=closure2 nominal_id=19399ca6334cf1dd92547ebbe3bf063d91abfdfbbeddebed90b1b32a3eabcd6e exact_id=9e4665277347852da80ffa08e373c38dd45fc666bce1dcb6e9f92603bd97d722
+  generated_exact_type get5 location=enum5 nominal_id=053470e9cb3adb71e2343b12637249a0abc4dd8d2d314986c17bbebf616282ae exact_id=b19dcc12e002c69d2648ec0ae222700825838c0384fd81bcf33184ec3bd572e1
+  generated_exact_type get6 location=class25 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn61 id=061b5e6aae57128ab24ff3d435f8762d8f3a9267ee233a733125df90504e2e2e
+  generated_callable gc1 function=@fn62 id=3b43b578f3753b87bad908f97ab5df63777abbeb482d3f09081d2a1f4e4fdfcc
+  generated_callable gc2 function=@fn63 id=df274ace3678657c569009bcbe922673a0393899cbd31eea9de973a58ace25ab
   fun $init$body$0 @fn0() -> Unit
     bb0 entry
       assign $new.1
@@ -636,7 +646,7 @@ Module
       call @fn26 direct
         Type Base<Unit>
         Local base
-      call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
+      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local read
         Type Unit
@@ -678,7 +688,7 @@ Module
         Local $dependency.receiver
         Type Unit
         Local $dependency.parameter.other
-      call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
+      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local $callable.receiver
         Type Unit
@@ -712,7 +722,7 @@ Module
       call @fn27 interface ValueSource<Unit>[0]
         Type ValueSource<Unit>
         Local $dependency.receiver
-      call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
+      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local $callable.receiver
         Type Unit
@@ -887,7 +897,7 @@ Module
             Local $arr.4
             Type Long
             Local $idx.5
-      call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
+      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local $callable.receiver
         Type Unit
@@ -959,7 +969,7 @@ Module
       call $call.2: Int = @fn36 direct
         Type Base<Int>
         Local base
-      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
+      call $dependency.receiver: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
         Local read
         Type Int
@@ -1001,7 +1011,7 @@ Module
         Local $dependency.receiver
         Type Int
         Local $dependency.parameter.other
-      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
+      call $dependency.receiver: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
         Local $callable.receiver
         Type Int
@@ -1035,7 +1045,7 @@ Module
       call $call.4: Int = @fn37 interface ValueSource<Int>[0]
         Type ValueSource<Int>
         Local $dependency.receiver
-      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
+      call $dependency.receiver: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
         Local $callable.receiver
         Type Int
@@ -1210,7 +1220,7 @@ Module
             Local $arr.4
             Type Long
             Local $idx.5
-      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
+      call $dependency.receiver: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
         Local $callable.receiver
         Type Int
@@ -2628,6 +2638,48 @@ Module
         Type Int
         Local value
       return
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn61($source: (String) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (String) -> Int
+        Local $source
+        Type String
+        Retype String
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn62($source: (Unit) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Unit) -> Int
+        Local $source
+        Type Unit
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn63($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   coroutine_step cs0 CoroutineStep<State> result=State
   coroutine_slot cl0 CoroutineSlot<State> value=State
   instance mi0 function=@fn4 <- exercise

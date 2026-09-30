@@ -672,7 +672,7 @@ lambda 写作 `{ parameters -> body }`，挂起 lambda 写作 `suspend { paramet
 - 有期望函数类型时，每个lambda parameter的完整subject type可由对应的一个期望参数类型给出；期望元数按source pattern数量匹配。无期望类型时，每个显式参数（包括composite pattern）都必须为完整subject写出type annotation。单参数 lambda 在期望元数为 1 且省略参数列表时隐式声明 `it`；无参数 lambda 使用 `{ body }`。
 - lambda 或匿名函数已有显式参数类型时保留该类型，并按 8.1.1 的逆变检查其能否接收期望参数；匿名函数已有显式返回类型时保留该类型，并按协变检查结果。上下文只补全未标注的部分，随后按普通函数值规则适配，不能因直接写在实参位置而禁止既有函数类型型变。
 - lambda 参数支持 4.6 的解构模式。传入的单个参数值作为该pattern的subject且只处理一次；解构失败不产生运行期分支，参数静态类型必须能按该模式解构，否则是编译错误。投影、component调用、hidden temporary、异常与挂起语义均遵守4.6，不改变函数的源码/函数类型元数或该参数对应的单个typed ABI classification entry。
-- lambda 的值是 body 最后一个表达式的值；期望返回 `Unit` 时最后一个表达式的值被丢弃。匿名函数使用普通函数的返回规则。
+- lambda 的值是 body 最后一个表达式的值；有期望结果类型时，按普通函数返回规则检查 subtype 并完成隐式适配，包括值装箱、引用上行转换与函数值型变，不要求结果类型逐字相同。期望返回 `Unit` 时最后一个表达式的值被丢弃。匿名函数使用普通函数的返回规则。
 - lambda 中的裸 `return` 是编译错误。Scoop 不提供 Kotlin inline lambda 的 non-local return；需要提前返回时应使用匿名函数，其 `return` 只返回该匿名函数。
 - `suspend` 必须显式写在 lambda 或匿名函数上；期望类型不会把普通 lambda 静默改为挂起 lambda。创建或保存挂起函数值本身不会挂起，只有调用其 body 时才检查挂起上下文。
 

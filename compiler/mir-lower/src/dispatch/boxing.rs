@@ -168,7 +168,7 @@ impl Lowerer {
             .into_iter()
             .find(|implementation| {
                 let source = self.interfaces.mir_id(implementation.interface);
-                self.interface_is_subtype(module, source, iface)
+                source == iface
             })
             .expect("concrete HIR supplies the boxed value's target conformance");
         let implementation = source_implementation

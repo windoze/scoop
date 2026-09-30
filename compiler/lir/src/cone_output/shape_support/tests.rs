@@ -316,6 +316,7 @@ fn add_exact_shape_to_components(
     )
     .unwrap();
     let descriptor = type_descriptors.alloc(TypeDescriptor {
+        relations: Default::default(),
         diagnostic_name: nominal.to_string(),
         vtable: VtableRecord::new(&identity, Vec::new()).unwrap(),
         identity,

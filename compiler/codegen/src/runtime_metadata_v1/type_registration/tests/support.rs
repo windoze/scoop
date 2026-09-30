@@ -190,6 +190,7 @@ fn type_semantics(types: &[TypeArtifacts]) -> StrongTypeDescriptorSemanticPlanSe
         .unwrap();
         let vtable = VtableRecord::new(&identity, Vec::new()).unwrap();
         let descriptor = type_descriptors.alloc(TypeDescriptor {
+            relations: Default::default(),
             diagnostic_name: format!("type-{}", item.exact_type),
             identity,
             instance_layout,

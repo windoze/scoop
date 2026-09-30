@@ -22,10 +22,14 @@ Module
   class UnwrapException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
+  class box<Option<Int>> vtable=0 itables=0
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn5 captures=1
+    bridge function_type1 -> @fn11 id=7372335e0ec44d18a61bf892675d94fa27828126edcb5661a0e68ced4160beff
   generated_exact_type get0 location=closure0 nominal_id=fb210f27032952bbab47716a0542412f753aa9c995bc71d7808d1f143e69a6f2 exact_id=0464dfcfe184575a7f2a4a7e35ae4c39e78b583692197eb5f7447cc3ef3a33f1
   generated_exact_type get1 location=enum5 nominal_id=f052ece47e51712c05f5fe0f396c49dfe99de0134fadb08f92194a8bc7b09b2c exact_id=6accb09a864aa7da6bf5985ae05e79f627076ff6d82b066ec3d85ded8678670c
   generated_exact_type get2 location=enum4 nominal_id=07583e80842bdf2384f8915b607de704a8bc2af383ab375d8da8790b69edf1b0 exact_id=9cb554e688486ea23550354e2093f75bf4f6162ce626c4dcf482efee69147f97
+  generated_exact_type get3 location=class4 nominal_id=3395593155143e4a4592da790b768720098257cf53aae28356f8a2fc0b159f2c exact_id=ed1c904d9474aece883148a0c7c98672b8a78eb30b31357e10699e29c53a48b5
+  generated_callable gc0 function=@fn11 id=7372335e0ec44d18a61bf892675d94fa27828126edcb5661a0e68ced4160beff
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -572,6 +576,16 @@ Module
         Type Int
         Local number
       return
+  fun function_bridge.$Closure$lambda0.() -> Any @fn11($source: () -> Option<Int>) -> Any
+    bb0 entry
+      call $call.1: Option<Int> = <closure:function_type0> closure[function_type0]
+        Type () -> Option<Int>
+        Local $source
+      return
+        Type Any
+        Box
+          Type Option<Int>
+          Local $call.1
   coroutine_step cs0 CoroutineStep<Cell> result=Cell
   coroutine_slot cl0 CoroutineSlot<Cell> value=Cell
   instance mi0 function=@fn3 <- exercise

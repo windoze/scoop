@@ -82,7 +82,11 @@ fn generic_iterator_bound_concretizes_value_and_reference_results() {
                 saw_value = true;
             }
             hir::concrete::TypeKind::Class(_) => {
-                assert!(matches!(&init.kind, hir::concrete::ExprKind::Local(_)));
+                assert!(
+                    matches!(&init.kind, hir::concrete::ExprKind::ReferenceUpcast(value)
+                    if matches!(value.kind, hir::concrete::ExprKind::Local(local) if local == raw)
+                        && value.ty == body.locals[raw].ty)
+                );
                 saw_reference = true;
             }
             other => panic!("unexpected iterator result kind {other:?}"),

@@ -12,14 +12,18 @@ Module
   class IndexOutOfBoundsException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
-  interface BothReader<Int>
-  interface LeftReader<Int>
+  class box<Int> vtable=0 itables=0
+  interface BothReader<Int> : LeftReader<Int>, RightReader<Int>
+  interface LeftReader<Int> : Reader<Int>
   interface Reader<Int>
-  interface RightReader<Int>
+  interface RightReader<Int> : Reader<Int>
   interface Iterable<Int>
   interface Iterator<Int>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
+    bridge function_type1 -> @fn18 id=3de579ab7980a612ccb79832dedd6e0aae488378403048b19e50cfbaec1d96d3
   generated_exact_type get0 location=closure0 nominal_id=3261d1d6e6cff99b2d217418ed810a3b5f85181e48dda018efc3fcce7f9122cf exact_id=65b772ae60100d659372d815ddc2e47528a9b538c993f9d798e6754d31b46ea2
+  generated_exact_type get1 location=class7 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn18 id=3de579ab7980a612ccb79832dedd6e0aae488378403048b19e50cfbaec1d96d3
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -568,6 +572,20 @@ Module
         StructInit Direct<Cursor<Int>>
           Type Cursor<Int>
           Local value
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn18($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn2 <- exercise
   instance mi1 function=@fn3 <- Holder.read
   instance mi2 function=@fn4 <- iterator

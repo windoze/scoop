@@ -208,6 +208,9 @@ fn validate_types_with_references<R: TypeReferences>(
             parent,
             vtable,
             itables,
+            decoded
+                .relations
+                .try_map(|reference| references.parent(reference, index))?,
         ));
     }
     let semantics = StrongTypeDescriptorSemanticPlanSet::from_artifact(

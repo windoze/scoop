@@ -1,0 +1,17 @@
+package consumer.adapters
+
+import templates.adapters.*
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val erased = erasedReadable(read(seed))
+    if (!(erased is (T) -> Readable)) { return 11 }
+    if (!(erased is (T) -> Tagged)) { return 12 }
+    if (erased is () -> Readable) { return 13 }
+    if (erased is (T) -> Failure) { return 14 }
+    val first = erased as (T) -> Readable
+    val second = erased as (T) -> Tagged
+    if (first(seed).read() != 42) { return 15 }
+    return second(seed).tag()
+}
+
+public fun result(): Int = exercise(42, { value: Int -> value })

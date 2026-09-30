@@ -175,6 +175,15 @@ where
         encode_descriptor_ref(encoder, Some(itable.interface()))?;
         encode_dispatch_slots(encoder, itable.slots())?;
     }
+    let function = semantic.relations();
+    encoder.u32(function.runtime_kind())?;
+    encoder.sequence_length(function.related_types().len())?;
+    for reference in function.related_types() {
+        encode_descriptor_ref(encoder, *reference)?;
+    }
+    if let Some(reference) = function.result() {
+        encode_descriptor_ref(encoder, *reference)?;
+    }
     Ok(())
 }
 

@@ -10,10 +10,14 @@ Module
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
   class MutableArrayIterator<Int> vtable=0 itables=1
+  class box<Int> vtable=0 itables=0
   interface Iterable<Int>
   interface Iterator<Int>
   closure cc0 $Closure$reference0 type=function_type0 invoke=@fn15 captures=0
+    bridge function_type1 -> @fn18 id=9b8089ed4fd2dfc777a195cd2c725d87974019390e1bd8fd4ae9b0c0bbc00fbc
   generated_exact_type get0 location=closure0 nominal_id=c2b93645856c40f30d86ece44bcac19daa6ff95893b238f134c1d0ea309e6691 exact_id=2183e30fba3d358d4e0535068e7f8a398eb96011c0c17a3123b06d7df3734ca2
+  generated_exact_type get1 location=class7 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn18 id=9b8089ed4fd2dfc777a195cd2c725d87974019390e1bd8fd4ae9b0c0bbc00fbc
   fun readInt @fn0(value: Int) -> Int
     bb0 entry
       return
@@ -1239,6 +1243,20 @@ Module
         Type Long
         Local index
       return
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn18($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn2 <- iterator
   instance mi1 function=@fn3 <- pack
   instance mi2 function=@fn4 <- defaultPack

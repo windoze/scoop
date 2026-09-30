@@ -1,0 +1,70 @@
+Module
+  fun exercise<T>(seed: T0, read: (T0) -> Int): Int
+    val local2
+      IntegerLiteral 0 : Int
+    val local3
+      AddressOf storage : Ptr<Int>
+    val local4
+      Local seed : T0
+    val local5
+      Local read : (T0) -> Int
+    val local6
+      Local pointer : Ptr<Int>
+    val local7
+      Local $dependency.argument.0 : T0
+    val local8
+      Local $dependency.argument.1 : (T0) -> Int
+    val local9
+      Local $dependency.argument.2 : Ptr<Int>
+    val local10
+      Call staticPointer<T0> : (Ptr<Int>) -> Any
+        Local $dependency.parameter.seed : T0
+        Local $dependency.parameter.read : (T0) -> Int
+        Local $dependency.parameter.pointer : Ptr<Int>
+    val local11
+      Unbox : Ptr<Int>
+        Cast Ptr<Int> optional=false : Ptr<Int>
+          CallableCall function_type2 : Any
+            Local action : (Ptr<Int>) -> Any
+            Local pointer : Ptr<Int>
+    val local12
+      Local result : Ptr<Int>
+    val local14
+      PtrToULong : ULong
+        Local $dependency.receiver : Ptr<Int>
+    val local13
+      Local pointer : Ptr<Int>
+    val local15
+      Local $equality.lhs : ULong
+    val local16
+      PtrToULong : ULong
+        Local $dependency.receiver : Ptr<Int>
+    val local17
+      Local $dependency.argument.0 : ULong
+    if
+      Unary Not : Boolean
+        IntegerOperation ulong.equals <no-gc> : Boolean
+          Local $dependency.receiver : ULong
+          Local $dependency.parameter.other : ULong
+      return
+        IntegerLiteral 1 : Int
+    val local18
+      Local result : Ptr<Int>
+    return
+      PtrLoad : Int
+        Local $dependency.receiver : Ptr<Int>
+  fun result(): Int
+    val local0
+      IntegerLiteral 42 : Int
+    val local1
+      Lambda lambda0 invoke=$lambda.0 captures=0 : (Int) -> Int
+    val local2
+      Local $argument.0 : Int
+    val local3
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.seed : Int
+        Local $parameter.read : (Int) -> Int
+  output library
+  instance exercise<Int>

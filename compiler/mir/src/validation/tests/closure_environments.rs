@@ -48,40 +48,67 @@ fn module_with_source_closure() -> Module {
 }
 
 pub(super) fn module_with_source_closure_fields(field_count: u32) -> (Module, ClosureClassId) {
+    module_with_source_closure_result(field_count, Type::Any)
+}
+
+pub(super) fn module_with_source_closure_result(
+    field_count: u32,
+    result: Type,
+) -> (Module, ClosureClassId) {
     let (mut module, _) = module_with_variants(Vec::new());
     register_test_exact_type(&mut module, &Type::Unit);
     let callable = lambda_materialization();
-    module.meta.source_callable_materializations = SourceCallableMaterializations::checked(vec![
+    register_test_exact_type(&mut module, &Type::Any);
+    let function_type = module.function_types.alloc(FunctionType {
+        is_suspend: false,
+        parameter_types: Vec::new(),
+        return_type: result.clone(),
+    });
+    register_test_function_type(&mut module, function_type);
+    let mut locals = Arena::new();
+    let receiver = locals.alloc(Local {
+        name: "$closure".to_string(),
+        ty: Type::Function(function_type),
+        mutable: false,
+    });
+    let invoke_function = module.functions.alloc(Function {
+        gc_effect: GcEffect::Managed,
+        name: "$closure.invoke".to_string(),
+        params: vec![Param {
+            name: "$closure".to_string(),
+            ty: Type::Function(function_type),
+            local: receiver,
+        }],
+        return_ty: result.clone(),
+        body: Body::unreachable(locals),
+    });
+    module.top_level.push(invoke_function);
+    let mut sources = module
+        .meta
+        .source_callable_materializations
+        .iter()
+        .cloned()
+        .collect::<Vec<_>>();
+    sources.push(
         SourceCallableMaterialization::new(
-            module
-                .output
-                .executable_entry()
-                .expect("test module is executable"),
+            invoke_function,
             callable,
             scoop_identity::ExactCallableSignature::new(
                 scoop_identity::Effect::Ordinary,
                 None,
                 Vec::new(),
-                test_exact_type(&Type::Unit).id(),
+                test_exact_type(&result).id(),
             ),
             None,
         )
         .unwrap(),
-    ])
-    .unwrap();
-    let function_type = module.function_types.alloc(FunctionType {
-        is_suspend: false,
-        parameter_types: Vec::new(),
-        return_type: Type::Unit,
-    });
-    register_test_function_type(&mut module, function_type);
+    );
+    module.meta.source_callable_materializations =
+        SourceCallableMaterializations::checked(sources).unwrap();
     let invoke = module
         .closure_invoke_functions
         .alloc(ClosureInvokeFunction {
-            function: module
-                .output
-                .executable_entry()
-                .expect("test module is executable"),
+            function: invoke_function,
         });
     let inputs = (0..field_count)
         .map(|declaration_index| {
@@ -110,7 +137,10 @@ pub(super) fn module_with_source_closure_fields(field_count: u32) -> (Module, Cl
         function_type,
         invoke,
         captures,
-        bridges: Vec::new(),
+        bridges: vec![FunctionBridge {
+            target: function_type,
+            function: invoke_function,
+        }],
     });
     module.meta.closure_environments.push(
         ClosureEnvironment::checked(class, &module.closure_classes[class], identity).unwrap(),
@@ -211,4 +241,28 @@ fn closure_allocation_rejects_a_duplicate_physical_field() {
             },
         }
     );
+}
+
+#[test]
+fn closures_require_one_fixed_dynamic_invoke() {
+    let (mut module, class) = module_with_source_closure_fields(0);
+    let target = module.closure_classes[class].bridges[0].target;
+    let function = module.closure_classes[class].bridges[0].function;
+    module.closure_classes[class].bridges.clear();
+    assert!(matches!(
+        module.validate().unwrap_err().kind,
+        MirValidationErrorKind::InvalidFunctionBridge {
+            reason: "a closure requires exactly one fixed dynamic invoke"
+        }
+    ));
+    module.closure_classes[class].bridges = vec![
+        FunctionBridge { target, function },
+        FunctionBridge { target, function },
+    ];
+    assert!(matches!(
+        module.validate().unwrap_err().kind,
+        MirValidationErrorKind::InvalidFunctionBridge {
+            reason: "a closure requires exactly one fixed dynamic invoke"
+        }
+    ));
 }

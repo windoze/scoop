@@ -23,17 +23,27 @@ Module
   class Pieces<Unit> vtable=0 itables=0
   class Pieces<Node> vtable=0 itables=0
   class box<Wide> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  class box<Unit> vtable=0 itables=0
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
-  closure cc1 $Closure$lambda1 type=function_type1 invoke=@fn3 captures=0
-  closure cc2 $Closure$lambda2 type=function_type2 invoke=@fn5 captures=0
+    bridge function_type1 -> @fn33 id=727f983170107db118156909c60972eb534601a3db9bc12c23918682b4c653c0
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn3 captures=0
+    bridge function_type1 -> @fn34 id=34363a99634fc658dde23fc47f47d796a305c864854bd6048d85144271c8470c
+  closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn5 captures=0
+    bridge function_type1 -> @fn35 id=0d41933fdad11e62b0b4f82c7035893e38c3d22b2bd7b8dde3fe15b77af4c184
   generated_exact_type get0 location=enum2 nominal_id=aff6cbe4df55d2dfae2f34c2daa4a91098b572054e5ab45e0426c247ffc6d12f exact_id=0ec4dd463facdf73f0e0d3d9e37dfd6b391adc36aa5d1f9bdffeddcbc5662b61
-  generated_exact_type get1 location=enum0 nominal_id=2f239e512080c97ccc799e18fa0aed8081adcc923247a0200931a5d5a416ce47 exact_id=508aabcd1fbc6927d87c6365d692d6c3a657d23214e34ce54f1826473734c6f8
-  generated_exact_type get2 location=enum1 nominal_id=fa21e04852433fa6b0197bc3be069ff89a2f0c4b87a4368286c79c902678ea69 exact_id=51d4f357196527e8a3b3baf51110a1bfb3ac18ddf8e2c1213256929f96ac3f18
-  generated_exact_type get3 location=closure0 nominal_id=171a1e8613ecffb0e3ce938e5334a622ae1752d01edcaed86913f7cdd9956388 exact_id=8e001992ed9b9f9e5c8ec7a69407653a218baaa09dbc11da020ba162ce2980e9
-  generated_exact_type get4 location=closure2 nominal_id=a1dc690d6d4c0e6b78fd12861fda6c979311e1185d1292987089630545ecad8e exact_id=96733a90571cac2817558c4b5714e61b5162df276bb855b204d5d4e29559e84a
-  generated_exact_type get5 location=enum3 nominal_id=39e7adb64a7ec534ed35016d88790178bd52f82d1dac9f246e52b99c956b7c6e exact_id=ad5acf6e70f6ecdbcbe4cba39146bcdd1044504e758c75b1b789d7864ea4fd12
-  generated_exact_type get6 location=closure1 nominal_id=17936749a060eef604fecbab107ce9630650cf8996a7e4f9e99438411925e936 exact_id=b35d43c682fce9b51159a0b8fc33d269bea7025ae5e05d322b1d58e6ba9cd4e3
-  generated_exact_type get7 location=class4 nominal_id=ccf26b3d1b045896b00da9b20b6ab7da29a43b2dd1b89eef8735d26ed0653693 exact_id=febbc5d10e0db6ce825c3401f3c00f8ea831dcda58cb05f04232b893d817d194
+  generated_exact_type get1 location=class6 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get2 location=enum0 nominal_id=2f239e512080c97ccc799e18fa0aed8081adcc923247a0200931a5d5a416ce47 exact_id=508aabcd1fbc6927d87c6365d692d6c3a657d23214e34ce54f1826473734c6f8
+  generated_exact_type get3 location=enum1 nominal_id=fa21e04852433fa6b0197bc3be069ff89a2f0c4b87a4368286c79c902678ea69 exact_id=51d4f357196527e8a3b3baf51110a1bfb3ac18ddf8e2c1213256929f96ac3f18
+  generated_exact_type get4 location=closure0 nominal_id=171a1e8613ecffb0e3ce938e5334a622ae1752d01edcaed86913f7cdd9956388 exact_id=8e001992ed9b9f9e5c8ec7a69407653a218baaa09dbc11da020ba162ce2980e9
+  generated_exact_type get5 location=closure2 nominal_id=a1dc690d6d4c0e6b78fd12861fda6c979311e1185d1292987089630545ecad8e exact_id=96733a90571cac2817558c4b5714e61b5162df276bb855b204d5d4e29559e84a
+  generated_exact_type get6 location=enum3 nominal_id=39e7adb64a7ec534ed35016d88790178bd52f82d1dac9f246e52b99c956b7c6e exact_id=ad5acf6e70f6ecdbcbe4cba39146bcdd1044504e758c75b1b789d7864ea4fd12
+  generated_exact_type get7 location=closure1 nominal_id=17936749a060eef604fecbab107ce9630650cf8996a7e4f9e99438411925e936 exact_id=b35d43c682fce9b51159a0b8fc33d269bea7025ae5e05d322b1d58e6ba9cd4e3
+  generated_exact_type get8 location=class5 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get9 location=class4 nominal_id=ccf26b3d1b045896b00da9b20b6ab7da29a43b2dd1b89eef8735d26ed0653693 exact_id=febbc5d10e0db6ce825c3401f3c00f8ea831dcda58cb05f04232b893d817d194
+  generated_callable gc0 function=@fn35 id=0d41933fdad11e62b0b4f82c7035893e38c3d22b2bd7b8dde3fe15b77af4c184
+  generated_callable gc1 function=@fn34 id=34363a99634fc658dde23fc47f47d796a305c864854bd6048d85144271c8470c
+  generated_callable gc2 function=@fn33 id=727f983170107db118156909c60972eb534601a3db9bc12c23918682b4c653c0
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Long
@@ -746,7 +756,7 @@ Module
         FieldAccess 1
           Type Pair<Unit>
           Local $when.1
-      call $dependency.local.4: Int = <closure:function_type1> closure[function_type1]
+      call $dependency.local.4: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local read
         Type Unit
@@ -852,7 +862,7 @@ Module
         FieldAccess 1
           Type Pair<Node>
           Local $when.1
-      call $dependency.local.4: Int = <closure:function_type2> closure[function_type2]
+      call $dependency.local.4: Int = <closure:function_type3> closure[function_type3]
         Type (Node) -> Int
         Local read
         Type Node
@@ -1035,6 +1045,48 @@ Module
           Local left
           Type Int
           Local right
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn33($source: (Wide) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Wide) -> Int
+        Local $source
+        Type Wide
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn34($source: (Unit) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Unit) -> Int
+        Local $source
+        Type Unit
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn35($source: (Node) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type (Node) -> Int
+        Local $source
+        Type Node
+        Retype Node
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   coroutine_step cs0 CoroutineStep<Wide> result=Wide
   coroutine_step cs1 CoroutineStep<Node> result=Node
   coroutine_slot cl0 CoroutineSlot<Wide> value=Wide

@@ -1,21 +1,21 @@
 use scoop_identity::{CborIdentityRecord, Effect, ExactCallableSignature, GeneratedNominalKey};
 
-use super::closure_environments::module_with_source_closure_fields;
+use super::closure_environments::module_with_source_closure_result;
 use super::*;
 
 fn module_with_function_bridge() -> Module {
-    let (mut module, class) = module_with_source_closure_fields(0);
+    let (mut module, class) = module_with_source_closure_result(0, Type::Unit);
     register_test_exact_type(&mut module, &Type::Unit);
     let target = module.function_types.alloc(FunctionType {
         is_suspend: false,
-        parameter_types: vec![Type::Unit],
-        return_type: Type::Unit,
+        parameter_types: Vec::new(),
+        return_type: Type::Any,
     });
     register_test_function_type(&mut module, target);
     let mut locals = Arena::new();
     let parameter = locals.alloc(Local {
         name: "value".to_string(),
-        ty: Type::Unit,
+        ty: Type::Function(module.closure_classes[class].function_type),
         mutable: false,
     });
     let function = module.functions.alloc(Function {
@@ -23,15 +23,13 @@ fn module_with_function_bridge() -> Module {
         name: "$function.bridge".to_string(),
         params: vec![Param {
             name: "value".to_string(),
-            ty: Type::Unit,
+            ty: Type::Function(module.closure_classes[class].function_type),
             local: parameter,
         }],
-        return_ty: Type::Unit,
+        return_ty: Type::Any,
         body: Body::unreachable(locals),
     });
-    module.closure_classes[class]
-        .bridges
-        .push(FunctionBridge { target, function });
+    module.closure_classes[class].bridges = vec![FunctionBridge { target, function }];
     let environment = module.meta.closure_environments[0]
         .identity()
         .generated_type_record();
@@ -40,8 +38,8 @@ fn module_with_function_bridge() -> Module {
         ExactCallableSignature::new(
             Effect::Ordinary,
             None,
-            vec![test_exact_type(&Type::Unit).id()],
-            test_exact_type(&Type::Unit).id(),
+            Vec::new(),
+            test_exact_type(&Type::Any).id(),
         ),
         None,
     )

@@ -1,5 +1,6 @@
 use scoop_identity::{
-    ConeIdentity, PersistentCallableBodyId, PersistentInitializationUnitId, PersistentSymbolKey,
+    ConeIdentity, PersistentCallableBodyId, PersistentExactTypeId, PersistentInitializationUnitId,
+    PersistentSymbolKey,
 };
 use scoop_lir as lir;
 use scoop_wire::WireError;
@@ -15,8 +16,13 @@ pub enum SharedLirStrongProductionError {
         unit: PersistentInitializationUnitId,
         field: &'static str,
     },
+    FunctionDescriptor {
+        exact: PersistentExactTypeId,
+        field: &'static str,
+    },
     ShapeSources(scoop_hir::PublicNominalShapeProjectionError),
     SourceIdentity(scoop_identity::IdentityReferenceError),
+    TypeGraph(scoop_identity::ExactTypeDiagnosticCatalogError),
     ShapeDefinition(lir::StrongShapeDefinitionError),
     TypeDefinitions(lir::StrongTypeReferenceResolutionErrorV2),
     InitializationDefinitions(lir::InitializationDependencyResolutionError),
@@ -36,6 +42,7 @@ macro_rules! from_error {
 from_error!(WireError, Resource);
 from_error!(scoop_hir::PublicNominalShapeProjectionError, ShapeSources);
 from_error!(scoop_identity::IdentityReferenceError, SourceIdentity);
+from_error!(scoop_identity::ExactTypeDiagnosticCatalogError, TypeGraph);
 from_error!(lir::StrongShapeDefinitionError, ShapeDefinition);
 from_error!(lir::StrongTypeReferenceResolutionErrorV2, TypeDefinitions);
 from_error!(

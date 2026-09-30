@@ -1,19 +1,33 @@
   class ReferenceConstructor<Int> vtable=0 itables=0
   class ReferenceConstructor<String> vtable=0 itables=0
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn30 captures=1
-  closure cc1 $Closure$lambda1 type=function_type1 invoke=@fn35 captures=1
+    bridge function_type1 -> @fn76 id=6de076ed51bbef8e1fe41a6a484004baa460a28e952b0534e4d27c7d417e05ec
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn35 captures=1
+    bridge function_type1 -> @fn77 id=f0108a75ae691c1389d3c34b6f0d995de521d020d986b470a2a68002bc676660
   closure cc2 $Closure$lambda2 type=function_type0 invoke=@fn49 captures=1
-  closure cc3 $Closure$lambda3 type=function_type1 invoke=@fn52 captures=1
+    bridge function_type1 -> @fn78 id=2fcdcf4d5d0372fce02bb04f6a561078bdbc7c176c2317836b31d42af18e4f6e
+  closure cc3 $Closure$lambda3 type=function_type2 invoke=@fn52 captures=1
+    bridge function_type1 -> @fn79 id=29c9066877cce7802901b8a7333d6c2268359afad1347d377ac41dd9af4159bd
   closure cc4 $Closure$anonymous0 type=function_type0 invoke=@fn32 captures=1
-  closure cc5 $Closure$anonymous1 type=function_type1 invoke=@fn37 captures=1
+    bridge function_type1 -> @fn80 id=e0dca4b58948b80fa5c9e4d4258c245417ce7e3bd4d4453813225e7a8ebf43e0
+  closure cc5 $Closure$anonymous1 type=function_type2 invoke=@fn37 captures=1
+    bridge function_type1 -> @fn81 id=1574130801551eb8ff056053df290b332bee263ba8eb939c268cfe258968b92b
   closure cc6 $Closure$reference0 type=function_type0 invoke=@fn56 captures=1
+    bridge function_type1 -> @fn82 id=a64569ecdd7fee9d4ac087001e51d3c6c12ca940c937c386a6e4f7862851aaef
   closure cc7 $Closure$reference1 type=function_type0 invoke=@fn57 captures=1
+    bridge function_type1 -> @fn83 id=47b3c454299fd4405e1b1a5548deecc7dbfdb3e493e470b86cfae3480880bfdf
   closure cc8 $Closure$reference2 type=function_type0 invoke=@fn58 captures=0
+    bridge function_type1 -> @fn84 id=5133572bb0e414e90400ffa09e2ce6d50fb603892ac600e6bb5b005b18bfc53f
   closure cc9 $Closure$reference3 type=function_type0 invoke=@fn59 captures=0
+    bridge function_type1 -> @fn85 id=6ca2d632b913dc2ab0815093573f61c54d0fff4dd11cecb05bc0ae00039321d0
   closure cc10 $Closure$reference4 type=function_type0 invoke=@fn60 captures=0
+    bridge function_type1 -> @fn86 id=b7819efa36f26c9523b194a6b1a369d98480c15e9e40c29920e7c084e6d883c2
   closure cc11 $Closure$reference5 type=function_type0 invoke=@fn61 captures=0
+    bridge function_type1 -> @fn87 id=01079b1b29c163a1bd9f1dc30a494752dee8f412b6b7e8689b10ee241992b3aa
   closure cc12 $Closure$reference6 type=function_type0 invoke=@fn62 captures=1
-  closure cc13 $Closure$reference7 type=function_type1 invoke=@fn63 captures=1
+    bridge function_type1 -> @fn88 id=8c8db14d2d9c162dcecd7e5ced9e209105fa080d8a650ee31d4c20bfdca47438
+  closure cc13 $Closure$reference7 type=function_type2 invoke=@fn63 captures=1
+    bridge function_type1 -> @fn89 id=1ac71500153615bc2309f98541a44c820a7aaeb8f03e4a7dcd356d852403b67b
   fun main @fn27() -> Unit
     bb0 entry
       val $argument.0: String
@@ -203,7 +217,7 @@
         Local $parameter.first
         Type Int
         Local $parameter.second
-      call $call.10: Int = <closure:function_type1> closure[function_type1]
+      call $call.10: Int = <closure:function_type2> closure[function_type2]
         Type () -> Int
         Local $call.9
       val $argument.0: Int
@@ -459,7 +473,7 @@
         Local value
   fun closureBridge @fn39(first: String, second: Int, left: () -> Int, right: () -> Int) -> Int
     bb0 entry
-      call $call.1: Int = <closure:function_type1> closure[function_type1]
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type () -> Int
         Local left
       return

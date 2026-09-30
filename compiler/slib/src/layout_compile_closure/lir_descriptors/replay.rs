@@ -50,12 +50,32 @@ pub fn replay_shared_mir_descriptors(
         }
 
         interfaces.sort_unstable_by_key(|reference| reference.exact_type());
+        let interface_parents =
+            if matches!(ty.representation(), mir::MirTypeRepresentationV1::Interface)
+                && diagnostics.exact_type_key(ty.exact())
+                    != Some(&scoop_identity::ExactTypeKey::Nominal(
+                        scoop_identity::CoreBuiltinNominal::Any
+                            .identity_record()
+                            .id(),
+                    ))
+            {
+                Some(
+                    ty.base_and_interfaces()
+                        .interfaces
+                        .iter()
+                        .map(|exact| references.get(*exact))
+                        .collect::<Result<Vec<_>, _>>()?,
+                )
+            } else {
+                None
+            };
         let record = lir::ExactDescriptorExportV1::replay_from_constituents(
             target,
             lir::ExactDescriptorSourceInputV1 {
                 exact: ty.exact(),
                 parent,
                 interfaces: &interfaces,
+                interface_parents: interface_parents.as_deref(),
             },
             inputs.layouts,
             inputs.dispatch,

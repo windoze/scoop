@@ -55,7 +55,7 @@ Module
     call managed-void-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn4(param0)
     t0 = aggregate () : {}
     ret
-  td td0 n(c=dev.example%3Aclasses-conformance-abstract-interface%3A0.1.0;p=;o=-;k=I;x=LocalChoice) @scoop$1$td$ccedb7704041c1dd0fee303effdccc7a8ab935d03eb5703f673f7ba6839cabf0 type-id=15167016221514387121 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[]
+  td td0 n(c=dev.example%3Aclasses-conformance-abstract-interface%3A0.1.0;p=;o=-;k=I;x=LocalChoice) @scoop$1$td$ccedb7704041c1dd0fee303effdccc7a8ab935d03eb5703f673f7ba6839cabf0 type-id=15167016221514387121 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[external-td0]
   td td1 n(c=dev.example%3Aclasses-conformance-abstract-interface%3A0.1.0;p=;o=-;k=C;x=LocalBase) @scoop$1$td$268adedd104281d5efeeb2974ac27cfb56ba9c317f56348532236b20e06eecfb type-id=12484701765846336080 shape=FixedObject minimum-size=16 align=8 parent=none vtable=[] itables=[external-td0:[local-fn3], td0:[local-fn3]]
   td td2 n(c=dev.example%3Aclasses-conformance-abstract-interface%3A0.1.0;p=;o=-;k=C;x=LocalReader) @scoop$1$td$c30feefb296e199f960e2296984375bbcae7e3efb300e27773fe93cba53ec5a8 type-id=4432335115342817496 shape=FixedObject minimum-size=16 align=8 parent=td1 vtable=[] itables=[external-td0:[local-fn0], td0:[local-fn0]]
   td td3 g(r=00000007;i=a8d99921ad6d14625955725ef2434581586e354d952f305535f9a2b8fd07f891) @scoop$1$td$7ff342d4196f65d37434cf26d948b5bd0b3d16795f42ea68c400f9153df8535a type-id=9252735460823670254 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]

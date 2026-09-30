@@ -269,7 +269,7 @@ fn computes_canonical_initialization_registration_object_leaves() {
     );
     assert_eq!(
         eager_fingerprint.fingerprint().to_string(),
-        "e33aaabaca1f05ee46642103c796b4a2b87d4e6cbcad896dee204659c9d76a27"
+        "9ced1635d0a48aedb4f4d6ae4f3ddc17a0d6e8bf5aaa2e588bfe7fcc8d50608d"
     );
 
     let lazy = Fixture::new(true, Corruption::None);
@@ -377,7 +377,7 @@ fn computes_canonical_initialization_strong_fingerprints() {
     );
     assert_eq!(
         eager_actual.registration().to_string(),
-        "75e1759d7ce8eb8782ec97f3552150e2345b0a0294f070ca69c1273162c112ae"
+        "bbdb9514f77771bd408a26916162b8fe532b4c47ccfec5e0e4142cc6f959ffef"
     );
     let eager_patched =
         crate::link_object::strong_registration_finalization::patch_initializations_for_test(

@@ -15,14 +15,22 @@ Module
   class ArrayIterator<Int> vtable=0 itables=1
   class MutableArrayIterator<Int> vtable=0 itables=1
   class ArrayIterator<Unit> vtable=0 itables=1
+  class box<Int> vtable=0 itables=0
+  class box<Long> vtable=0 itables=0
   interface Iterable<Int>
   interface Iterator<Int>
   interface Iterable<Unit>
   interface Iterator<Unit>
   closure cc0 $Closure$reference0 type=function_type0 invoke=@fn18 captures=0
-  closure cc1 $Closure$reference1 type=function_type1 invoke=@fn19 captures=0
+    bridge function_type1 -> @fn23 id=39bdcedf40a255ce61315795a7855aa9b827be0db34999919101906fe668a36d
+  closure cc1 $Closure$reference1 type=function_type2 invoke=@fn19 captures=0
+    bridge function_type1 -> @fn24 id=9da38e7173259415dcebb7fb36b18ef1ce35c4ab242eb990549a7d9152ae357b
   generated_exact_type get0 location=closure0 nominal_id=acd7b0fdd580cabc76ceb098d2a558de583ebe010c8427627a738779ead3913f exact_id=2185c2a35ca516baa157a003101b24a0e009babb7217429f22c5f1e283535537
   generated_exact_type get1 location=closure1 nominal_id=8c1a61ced5deb051eeb09765662b3764390535f3b3c01daea8683a2ae8b26539 exact_id=5afea2e2636ac1e92b152e56f1874f288bec02b960e865f00ae8910be45e8948
+  generated_exact_type get2 location=class9 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get3 location=class10 nominal_id=1019845dbac8b40486c7a8317715dddb4016698da08e810513dc12e31dd8b68f exact_id=f4ac53b66a5aaca260a9f537cf582a82b69042d884a570f92ccc8e738ababceb
+  generated_callable gc0 function=@fn23 id=39bdcedf40a255ce61315795a7855aa9b827be0db34999919101906fe668a36d
+  generated_callable gc1 function=@fn24 id=9da38e7173259415dcebb7fb36b18ef1ce35c4ab242eb990549a7d9152ae357b
   fun badIndex @fn0() -> Long
     bb0 entry
       call $dependency.receiver: Int = @fn3 direct
@@ -819,7 +827,7 @@ Module
       call $dependency.local.4: Long = <closure:function_type0> closure[function_type0]
         Type () -> Long
         Local index
-      call $dependency.local.5: Int = <closure:function_type1> closure[function_type1]
+      call $dependency.local.5: Int = <closure:function_type2> closure[function_type2]
         Type () -> Int
         Local value
       val $dependency.local.6: Long
@@ -1454,6 +1462,26 @@ Module
         Type Long
         Local index
       return
+  fun function_bridge.$Closure$reference0.() -> Any @fn23($source: () -> Long) -> Any
+    bb0 entry
+      call $call.1: Long = <closure:function_type0> closure[function_type0]
+        Type () -> Long
+        Local $source
+      return
+        Type Any
+        Box
+          Type Long
+          Local $call.1
+  fun function_bridge.$Closure$reference1.() -> Any @fn24($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn5 <- iterator
   instance mi1 function=@fn6 <- iterator
   instance mi2 function=@fn7 <- iterator

@@ -228,7 +228,7 @@ impl Lowerer {
                 .map_or(expected_return.unwrap_or(self.unit), |value| value.ty);
             if let Some(expected_return) = expected_return
                 && !self.types_equal(expected_return, self.unit)
-                && !self.types_equal(return_ty, expected_return)
+                && !self.is_subtype(return_ty, expected_return)
             {
                 let expected = self.type_name(expected_return);
                 let found = self.type_name(return_ty);

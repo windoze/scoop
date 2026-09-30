@@ -12,14 +12,22 @@ Module
   class Current vtable=0 itables=0
   class State vtable=0 itables=0
   class Registry vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn3 captures=0
-  closure cc1 $Closure$lambda1 type=function_type1 invoke=@fn5 captures=0
-  closure cc2 $Closure$anonymous0 type=function_type1 invoke=@fn6 captures=1
+    bridge function_type1 -> @fn9 id=12d20e59fdc15cf4a6ebedc8572965903cd110c865e6cd5dd1608a9478f84060
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn5 captures=0
+    bridge function_type3 -> @fn10 id=44387e70e7ae54f2cec0f16af3bff05412c1ab3f785983a35c26ce2fa9cd877a
+  closure cc2 $Closure$anonymous0 type=function_type2 invoke=@fn6 captures=1
+    bridge function_type3 -> @fn11 id=97d30d7e54b80dc4b6a3cadb595405a7d1ed3c1edb50b2259958e6fabd67f18d
   generated_exact_type get0 location=closure2 nominal_id=76ae8f5df5dbfccabf0f178af6f1c8fb9847a98e4eafb48a2fbf502a98a9fbc3 exact_id=00d3c8ff423fc751e70a62d6e2976aaf645e9e68c64583d6d16fb6b938de7ea9
   generated_exact_type get1 location=enum0 nominal_id=093a992857e9f895cc500087e29aeb63c82ebc79e8188ac77c54eb220b527bad exact_id=340c6176819139e316f8d8d37ec9386becc7c14e912f1290ee4e3bddec17e1f0
   generated_exact_type get2 location=closure1 nominal_id=19f2dfe77a8245ff947f152bc39fa0b137b27829de24ba8f20b4a399cc112c1b exact_id=5b5cc93f3e52408727d5c56422aded25c8956fa5cc5a94fbde92ee4d80afa102
   generated_exact_type get3 location=enum1 nominal_id=a60ce26b4c7920f8fd319a63ffb32ad194d6edcaf34795799afcac549cb43be7 exact_id=9ab7f370a33253c532d79254e36085abceef97648a1c7bf063ef1318f7daee38
   generated_exact_type get4 location=closure0 nominal_id=057dc2d6f2ca3dd85b832190a534892d0ba55b5421a33941c87321859b588d06 exact_id=db7151d23cbe6b8f6251a58f06d7fbf4ba8008398d329da931d34665cf62a80c
+  generated_exact_type get5 location=class3 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn9 id=12d20e59fdc15cf4a6ebedc8572965903cd110c865e6cd5dd1608a9478f84060
+  generated_callable gc1 function=@fn10 id=44387e70e7ae54f2cec0f16af3bff05412c1ab3f785983a35c26ce2fa9cd877a
+  generated_callable gc2 function=@fn11 id=97d30d7e54b80dc4b6a3cadb595405a7d1ed3c1edb50b2259958e6fabd67f18d
   fun $init$body$0 @fn0() -> Unit
     bb0 entry
       assign $new.1
@@ -369,7 +377,7 @@ Module
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
     bb18 if.merge.18
-      call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
+      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type () -> Int
         Local read
       val $dependency.argument.0: Int
@@ -393,7 +401,7 @@ Module
         BoolLiteral true
       goto bb21
     bb20 if.else.20
-      call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
+      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type () -> Int
         Local again
       val $dependency.argument.0: Int
@@ -554,6 +562,40 @@ Module
         Type State
         Local $new.1
       return
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn9($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.() -> Any @fn10($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$anonymous0.() -> Any @fn11($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   coroutine_step cs0 CoroutineStep<Current> result=Current
   coroutine_slot cl0 CoroutineSlot<Current> value=Current
   instance mi0 function=@fn4 <- exercise

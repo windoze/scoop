@@ -1,11 +1,17 @@
 Module
   class Box<Int> vtable=1 itables=2
+  class box<Int> vtable=0 itables=0
   interface Label
   interface Reader<Int>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
-  closure cc1 $Closure$reference0 type=function_type1 invoke=@fn10 captures=1
+    bridge function_type1 -> @fn12 id=6fb94094d38b708e020ee3ae9f1e37f327263a1363c2027ca871e62374cb3726
+  closure cc1 $Closure$reference0 type=function_type2 invoke=@fn10 captures=1
+    bridge function_type3 -> @fn13 id=b33fea563d2f7ef5748c00f106f1c46c87e82c3b40c1042feffc0d986832e60f
   generated_exact_type get0 location=closure1 nominal_id=0b3bd40e4eb048d37dbfbc08180e6c9cd7300a11f1106bf1191f3054b098eb85 exact_id=0bb3c6c2d1924eecd422e1fe3b199f69240eafb30b7a9c2e7ed56534ce85848e
   generated_exact_type get1 location=closure0 nominal_id=4471cdc78229b740ddc34cea908232b71543764224dac5120909fa3f2cb9fe98 exact_id=625f5be196bca9eca1899448b14b73b64b1d3550a9aa39f88b7ebecbab27f54b
+  generated_exact_type get2 location=class1 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn12 id=6fb94094d38b708e020ee3ae9f1e37f327263a1363c2027ca871e62374cb3726
+  generated_callable gc1 function=@fn13 id=b33fea563d2f7ef5748c00f106f1c46c87e82c3b40c1042feffc0d986832e60f
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -117,7 +123,7 @@ Module
         Local read
         Type Int
         Local chosen
-      call $call.2: Int = <closure:function_type1> closure[function_type1]
+      call $call.2: Int = <closure:function_type2> closure[function_type2]
         Type () -> Int
         Local callback
       call $dependency.argument.0: Int = <closure:function_type0> closure[function_type0]
@@ -286,6 +292,30 @@ Module
         Type Int
         Local value
       return
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn12($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference0.() -> Any @fn13($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn2 <- exercise
   instance mi1 function=@fn3 <- read
   instance mi2 function=@fn4 <- choose

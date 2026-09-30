@@ -3,8 +3,12 @@ Module
   struct Pair<Int> (left: Int, right: Int)
   struct Nested<Int> (payload: (Int, Int), spare: Int, empty: Unit)
   struct LocalPair<Int> (left: Int, right: Int)
+  class box<Int> vtable=0 itables=0
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn4 captures=0
+    bridge function_type1 -> @fn10 id=7fe24ecd55add103373a46c9a6f76dbf8fcafb1cfd4835ee800107bd168f7398
   generated_exact_type get0 location=closure0 nominal_id=167830b9ed3967dc3a696b65aef668e8899e9606a03bb2910fa11768b8e6c93b exact_id=9db0f2bc721c97548aba16d09f87b138f79a3351df7a64e66fd43f20a13ee31b
+  generated_exact_type get1 location=class0 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn10 id=7fe24ecd55add103373a46c9a6f76dbf8fcafb1cfd4835ee800107bd168f7398
   fun marked @fn0() -> Pair<Int>
     bb0 entry
       call $dependency.receiver: Int = @fn2 direct
@@ -528,6 +532,20 @@ Module
           Local left
           Type Int
           Local right
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn10($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn5 <- exercise
   instance mi1 function=@fn6 <- fromDefinition
   output library

@@ -28,25 +28,28 @@ fn computes_canonical_object_stackmap_and_strong_registration_fingerprints() {
             .windows(2)
             .all(|pair| pair[0].site() < pair[1].site())
     );
+    let actual = fingerprints
+        .fingerprints()
+        .iter()
+        .map(|value| {
+            (
+                value.object_definition().to_string(),
+                value.registration().to_string(),
+            )
+        })
+        .collect::<Vec<_>>();
     assert_eq!(
-        fingerprints.fingerprints()[0]
-            .object_definition()
-            .to_string(),
-        "1ad6e16427b8a13702aa9d328c8afa3582fa3853a914d3c9c70250211d625fd1"
-    );
-    assert_eq!(
-        fingerprints.fingerprints()[0].registration().to_string(),
-        "fdf327d242b769fe3f25348e2d4cd9bc05f6457835898b62e37d1ee504742578"
-    );
-    assert_eq!(
-        fingerprints.fingerprints()[1]
-            .object_definition()
-            .to_string(),
-        "d932ab5be26400e0936b8e3632daf25723f2a87090b080760edb65b3e1cf7351"
-    );
-    assert_eq!(
-        fingerprints.fingerprints()[1].registration().to_string(),
-        "5b86ae4675046a8b1887268e048633b4ec688a23ab81455b096ec12a72e667ec"
+        actual,
+        [
+            (
+                "3da1c9eb7b71b39229809e167452d3c0aa6b9804892ce89632de80fdad74fcf4".to_owned(),
+                "43e6a83e21b6ef98e9e9670e1cd91f178ca143e8901e54e88fbb39faabe3e5df".to_owned(),
+            ),
+            (
+                "f522ab6f4e6f1f91c1616886a746fb85941ae53ded55054346b14d461f18f6cc".to_owned(),
+                "1dc24bf7742cd2a0a7950690ff7b17fab096c090230c675d66e7bae1031fd98c".to_owned(),
+            ),
+        ]
     );
 }
 

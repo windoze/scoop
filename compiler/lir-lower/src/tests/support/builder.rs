@@ -222,6 +222,7 @@ impl Builder {
         self.interfaces.alloc(mir::InterfaceDef {
             name: name.to_string(),
             type_arguments: Vec::new(),
+            parents: Vec::new(),
             methods,
         })
     }

@@ -63,7 +63,11 @@ where
         );
     }
     let primary_size = primary_end - primary_start;
-    if primary_size != TYPE_DESCRIPTOR_SIZE {
+    let expected_size = TYPE_DESCRIPTOR_SIZE
+        + u64::try_from(plan.semantic().relations().related_types().len())
+            .expect("function arity fits u64")
+            * 8;
+    if primary_size != expected_size {
         return Err(
             StrongTypeRegistrationValidationError::DescriptorPrimaryAtomSizeMismatch {
                 exact_type: plan.exact_type(),

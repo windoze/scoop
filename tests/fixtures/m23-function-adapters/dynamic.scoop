@@ -1,0 +1,26 @@
+package consumer.adapters
+
+import templates.adapters.*
+
+public fun <T> isNone(value: T?): Boolean = when (value) {
+    Some(_) -> false
+    None -> true
+}
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    var storage: Int = 0
+    @Unsafe {
+        val pointer = addressOf(storage)
+        val erased = dynamicPointer(seed, read, pointer)
+        if (!(erased is (Ptr<Int>) -> Any)) { return 1 }
+        if (!isNone(erased as? (Ptr<Int>) -> Long)) { return 2 }
+        val optional = (erased as? (Ptr<Int>) -> Any)!!
+        val action = erased as (Ptr<Int>) -> Any
+        val first = optional(pointer) as Ptr<Int>
+        val second = action(pointer) as Ptr<Int>
+        if (first.toULong() != second.toULong()) { return 3 }
+        return second.load()
+    }
+}
+
+public fun result(): Int = exercise(42, { value: Int -> value })

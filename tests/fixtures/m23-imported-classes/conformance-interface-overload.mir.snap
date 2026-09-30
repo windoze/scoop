@@ -14,7 +14,7 @@ Module
     Value(value: LocalValue)
   class Counter vtable=0 itables=0
   class box<LocalValue> vtable=0 itables=2
-  interface LocalReader
+  interface LocalReader : Readable
   interface Readable
   generated_exact_type get0 location=enum0 nominal_id=44e8d8ce931976ed58df505793bb52cc2d14a67920b5336d49eae97133bf9d52 exact_id=23df1235de19190e5f8ef37a6fbab94e9b6d1eac1f52c6d6a09b27ed2107429f
   generated_exact_type get1 location=class1 nominal_id=7056e2803d75f50116b62288b6217bd87d4af1e0747d8ee327a8bb095631c449 exact_id=73699a76f2ea63a63ba96e2ae4c0f4addedc5306003fb82cbfc652f398d6cbaf

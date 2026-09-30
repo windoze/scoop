@@ -481,6 +481,8 @@ pub struct InterfaceDef {
     pub name: String,
     /// Canonical arguments of this fully specialized application.
     pub type_arguments: Vec<Type>,
+    /// Direct exact parent interfaces from concrete HIR.
+    pub parents: Vec<InterfaceId>,
     /// Complete method signatures in itable-slot order.
     pub methods: Vec<InterfaceMethod>,
 }

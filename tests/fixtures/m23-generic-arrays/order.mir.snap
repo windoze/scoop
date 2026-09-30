@@ -12,7 +12,9 @@ Module
   interface Iterable<Int>
   interface Iterator<Int>
   closure cc0 $Closure$reference0 type=function_type0 invoke=@fn6 captures=0
+    bridge function_type1 -> @fn8 id=234578c72f8e7b99d0f0618d543a5bcb751a5fdc8a179e1790292ed2f9599fae
   generated_exact_type get0 location=closure0 nominal_id=b8054afeb98645ed188d51d2b6ca7e7e222e94d4c5aefb47a1efa84042ee48f8 exact_id=c787e0a9c5d1a4a89fe1a7a7aff230d9abbddb05c9110e331d926386e82f01ec
+  generated_callable gc0 function=@fn8 id=234578c72f8e7b99d0f0618d543a5bcb751a5fdc8a179e1790292ed2f9599fae
   fun result @fn0() -> Int
     bb0 entry
       call external0 direct
@@ -1007,6 +1009,20 @@ Module
         Type Long
         Local index
       return
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn8($source: (Array<Int>) -> Array<Int>, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Array<Int> = <closure:function_type0> closure[function_type0]
+        Type (Array<Int>) -> Array<Int>
+        Local $source
+        Type Array<Int>
+        Retype Array<Int>
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Retype Any
+          Type Array<Int>
+          Local $call.1
   instance mi0 function=@fn1 <- iterator
   instance mi1 function=@fn2 <- first
   instance mi2 function=@fn3 <- defaultFirst

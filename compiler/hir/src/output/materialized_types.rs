@@ -40,7 +40,7 @@ impl LocalConcreteHirOutput {
         let materialized = self.materialized_types()?;
         let mut collector = Collector::new(self.module());
         for ty in materialized.seen {
-            if materialized.dependency_receivers.contains(&ty)
+            if materialized.shared_types.contains(&ty)
                 || self
                     .module()
                     .exact_type_identities
@@ -73,7 +73,7 @@ struct Collector<'a> {
     module: &'a Module,
     seen: BTreeSet<TypeId>,
     pending: Vec<TypeId>,
-    dependency_receivers: BTreeSet<TypeId>,
+    shared_types: BTreeSet<TypeId>,
 }
 
 impl<'a> Collector<'a> {
@@ -82,7 +82,7 @@ impl<'a> Collector<'a> {
             module,
             seen: BTreeSet::new(),
             pending: Vec::new(),
-            dependency_receivers: BTreeSet::new(),
+            shared_types: BTreeSet::new(),
         }
     }
 

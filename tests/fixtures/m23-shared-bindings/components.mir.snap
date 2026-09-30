@@ -3,8 +3,12 @@ Module
   class Pieces<Pieces<Int>> vtable=0 itables=0
   class LocalPieces<Int> vtable=0 itables=0
   class ExtensionPieces<Int> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn5 captures=0
+    bridge function_type1 -> @fn19 id=1fd712b844b08f24c3641f316497dcd4bb76119de9419cc89e1a55ec8021a370
   generated_exact_type get0 location=closure0 nominal_id=71dad51073b6aec1d377814d3b7b729c5c4077aa66ab45ee676ed43e56331fe1 exact_id=4504c86433b7abc375d14edd4917ec9be206d937e6eae88450ccadc77121a0da
+  generated_exact_type get1 location=class4 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn19 id=1fd712b844b08f24c3641f316497dcd4bb76119de9419cc89e1a55ec8021a370
   fun result @fn0() -> Int
     bb0 entry
       call external0 direct
@@ -556,6 +560,20 @@ Module
         Type Int
         Local value
       return
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn19($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn1 <- component1
   instance mi1 function=@fn2 <- component1
   instance mi2 function=@fn3 <- component2

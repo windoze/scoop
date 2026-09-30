@@ -26,11 +26,11 @@ Module
     Value(value: LocalReader)
   class Counter vtable=0 itables=0
   class box<LocalValue> vtable=0 itables=5
-  interface LocalReader
-  interface LocalLeft
-  interface ChildReader
+  interface LocalReader : LocalLeft, LocalRight
+  interface LocalLeft : ChildReader
+  interface ChildReader : ParentReader
   interface ParentReader
-  interface LocalRight
+  interface LocalRight : ChildReader
   generated_exact_type get0 location=enum7 nominal_id=ccce0b3879ae2a71bc6c0e02b6a89ef19f20c1e18dcdb2c0eed5ebd3e2020dc6 exact_id=088864f5041f76c7200e6b8a144fcc87e853ff1cf168249fadd43becfd882b9a
   generated_exact_type get1 location=enum2 nominal_id=26409f325f7e8103a81ced9dd342d9fb9b74cc4ec649b2dab77749403be816cc exact_id=18ec70519eb34a64853e8287d8d41a2778ece5ea61ff1d25c58006c84cf50ad6
   generated_exact_type get2 location=enum6 nominal_id=a9871a4d0398b38880e94504d3e8b19fbc82f86f01e06a4f30822962970285db exact_id=28b550c1b693441e3327b84556b66717dcc850f5de037acf461f8716d2d423dd

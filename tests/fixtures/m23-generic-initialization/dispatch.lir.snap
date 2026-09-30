@@ -89,7 +89,7 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  td td0 a(n(c=dev.example%3Ageneric-initialization-dispatch%3A0.1.0;p=templates.initialization;o=-;k=I;x=Source);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$618c9141b1344d433713ad760ac9f7f20f5ba146720c608cd454977138a6fae9 type-id=4851628428843220123 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[]
+  td td0 a(n(c=dev.example%3Ageneric-initialization-dispatch%3A0.1.0;p=templates.initialization;o=-;k=I;x=Source);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$618c9141b1344d433713ad760ac9f7f20f5ba146720c608cd454977138a6fae9 type-id=4851628428843220123 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
   td td1 a(n(c=dev.example%3Ageneric-initialization-dispatch%3A0.1.0;p=templates.initialization;o=-;k=C;x=Base);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$e879542406bd62ea893b6cb59ac5f13f92f7dc47154fd83ac9af6298f494413b type-id=13057221355967863788 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[local-fn1, local-fn2] itables=[td0:[local-fn1, local-fn5]]
   td td2 a(n(c=dev.example%3Ageneric-initialization-dispatch%3A0.1.0;p=templates.initialization;o=-;k=C;x=Derived);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$2ca67101cd764c42733ffe5110b99a4b4d3946cad2dd489a440f9366a601e356 type-id=261561652222832803 shape=FixedObject minimum-size=24 align=8 parent=td1 vtable=[local-fn1, local-fn3] itables=[td0:[local-fn1, local-fn5]]
   layout Source value size=8 align=8 refs=[0]

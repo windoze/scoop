@@ -20,7 +20,7 @@ const TEXT_SIZE: u64 = 16;
 const STACK_SIZE: u64 = 64;
 const SAFEPOINT_REGISTRATION_SIZE: u64 = 232;
 const CALLABLE_REGISTRATION_SIZE: u64 = 192;
-const TYPE_DESCRIPTOR_SIZE: u64 = 128;
+const TYPE_DESCRIPTOR_SIZE: u64 = 144;
 const LAYOUT_SIZE: u64 = 8;
 const TYPE_REGISTRATION_SIZE: u64 = 240;
 const IMMORTAL_REGISTRATION_SIZE: u64 = 184;
@@ -2621,7 +2621,7 @@ fn static_storage_start(
 
 fn push_registration(bytes: &mut Vec<u8>, registration: StrongSafepointRegistrationPlanV1) {
     push_u64(bytes, 0x5343_4f4f_5053_5054);
-    push_u32(bytes, 1);
+    push_u32(bytes, 2);
     push_u32(bytes, u32::try_from(SAFEPOINT_REGISTRATION_SIZE).unwrap());
     push_u32(bytes, 1);
     push_u32(bytes, 0);
@@ -2638,7 +2638,7 @@ fn push_registration(bytes: &mut Vec<u8>, registration: StrongSafepointRegistrat
 
 fn push_callable_registration(bytes: &mut Vec<u8>, registration: StrongCallableRegistrationPlanV1) {
     push_u64(bytes, 0x5343_4f4f_5043_414c);
-    push_u32(bytes, 1);
+    push_u32(bytes, 2);
     push_u32(bytes, u32::try_from(CALLABLE_REGISTRATION_SIZE).unwrap());
     push_u32(bytes, 1);
     push_u32(bytes, 0);
@@ -2652,7 +2652,7 @@ fn push_callable_registration(bytes: &mut Vec<u8>, registration: StrongCallableR
 
 fn push_type_registration(bytes: &mut Vec<u8>, registration: &StrongTypeRegistrationPlanV1) {
     push_u64(bytes, 0x5343_4f4f_5054_5950);
-    push_u32(bytes, 1);
+    push_u32(bytes, 2);
     push_u32(bytes, u32::try_from(TYPE_REGISTRATION_SIZE).unwrap());
     push_u32(bytes, 1);
     push_u32(bytes, 0);
@@ -2692,6 +2692,10 @@ fn push_type_descriptor(bytes: &mut Vec<u8>, registration: &StrongTypeRegistrati
         bytes,
         u64::try_from(registration.semantic().diagnostic_name().len()).unwrap(),
     );
+    assert_eq!(registration.semantic().relations().runtime_kind(), 0);
+    push_u32(bytes, 0);
+    push_u32(bytes, 0);
+    push_u64(bytes, 0);
 }
 
 fn push_immortal_registration(
@@ -2699,7 +2703,7 @@ fn push_immortal_registration(
     registration: StrongImmortalObjectRegistrationPlanV1,
 ) {
     push_u64(bytes, 0x5343_4f4f_5049_4d4d);
-    push_u32(bytes, 1);
+    push_u32(bytes, 2);
     push_u32(bytes, u32::try_from(IMMORTAL_REGISTRATION_SIZE).unwrap());
     push_u32(bytes, 1);
     push_u32(bytes, 0);
@@ -2719,7 +2723,7 @@ fn push_static_storage_registration(
 ) {
     let semantic = registration.semantic();
     push_u64(bytes, 0x5343_4f4f_5053_544f);
-    push_u32(bytes, 1);
+    push_u32(bytes, 2);
     push_u32(
         bytes,
         u32::try_from(STATIC_STORAGE_REGISTRATION_SIZE).unwrap(),

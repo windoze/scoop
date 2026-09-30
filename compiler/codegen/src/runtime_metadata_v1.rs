@@ -3,7 +3,7 @@
 //! Field order is defined once here for codegen and checked against the same
 //! closed size/alignment/offset golden values enforced by the C header. Target
 //! qualification rejects a backend before emission if LLVM cannot represent
-//! the frozen v1 ABI exactly.
+//! the current metadata ABI exactly.
 
 use inkwell::AddressSpace;
 use inkwell::context::Context;
@@ -149,7 +149,7 @@ const ITABLE_ENTRY: ExpectedStruct = ExpectedStruct {
 };
 const TYPE_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
     name: "ScoopTypeDescriptor",
-    size: 128,
+    size: 144,
     alignment: 8,
     fields: expected_fields!(
         "type_id" => 0,
@@ -160,6 +160,9 @@ const TYPE_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
         "itables" => 96,
         "itable_count" => 104,
         "diagnostic_name" => 112,
+        "relation_kind" => 128,
+        "related_type_count" => 132,
+        "function_result" => 136,
     ),
 };
 const REGISTRATION_IDENTITY: ExpectedStruct = ExpectedStruct {
@@ -315,7 +318,7 @@ const IMAGE_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
         "callable_count" => 232,
     ),
 };
-/// All LLVM aggregate types in the private runtime metadata v1 ABI.
+/// All LLVM aggregate types in the private runtime metadata ABI.
 pub(crate) struct RuntimeMetadataV1Types<'ctx> {
     descriptor_prefix: StructType<'ctx>,
     digest: StructType<'ctx>,
@@ -381,6 +384,9 @@ impl<'ctx> RuntimeMetadataV1Types<'ctx> {
                 ptr.into(),
                 i64.into(),
                 byte_span.into(),
+                i32.into(),
+                i32.into(),
+                ptr.into(),
             ],
             false,
         );
@@ -588,6 +594,21 @@ impl<'ctx> RuntimeMetadataV1Types<'ctx> {
 
     pub(crate) const fn type_descriptor(&self) -> StructType<'ctx> {
         self.type_descriptor
+    }
+
+    pub(crate) fn type_descriptor_storage(&self, parameter_count: u32) -> StructType<'ctx> {
+        if parameter_count == 0 {
+            return self.type_descriptor;
+        }
+        let context = self.type_descriptor.get_context();
+        let mut fields = self.type_descriptor.get_field_types().to_vec();
+        fields.push(
+            context
+                .ptr_type(AddressSpace::default())
+                .array_type(parameter_count)
+                .into(),
+        );
+        context.struct_type(&fields, false)
     }
 }
 

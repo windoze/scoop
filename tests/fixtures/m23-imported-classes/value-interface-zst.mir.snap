@@ -2,7 +2,7 @@ Module
   struct ZeroReader ()
   class Counter vtable=0 itables=0
   class box<ZeroReader> vtable=0 itables=0
-  interface ChildReader
+  interface ChildReader : ParentReader
   interface ParentReader
   generated_exact_type get0 location=class1 nominal_id=3aaa4808c06cf142dcd36e7f94c25039adccef755d916e6a7a92a2ce651a95b0 exact_id=2f47ffffbf8e47b7324e089a503a22bab0cf89d64749da22ff3ae725a28a7e4f
   fun primary @fn0() -> Counter

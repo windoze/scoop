@@ -2,12 +2,18 @@ Module
   struct GenericValue<Int> (payload: Int, number: Int)
   class PlainBase vtable=1 itables=2
   class PlainDerived vtable=1 itables=2
+  class box<Int> vtable=0 itables=0
   interface Readable
   interface Marker
   closure cc0 $Closure$reference0 type=function_type0 invoke=@fn7 captures=1
+    bridge function_type1 -> @fn10 id=d916193d264cf9036f703238124825db19f5582b829887dddeecb12d10d7eab7
   closure cc1 $Closure$reference1 type=function_type0 invoke=@fn8 captures=1
+    bridge function_type1 -> @fn11 id=222949637d82430a17f46b556a719ba6699a84348b0d59f4ba09086fea7e4cbb
   generated_exact_type get0 location=closure1 nominal_id=50c6d5d3267d310998fdac2fa0bcc1c4ed50d15720071061efcf5e4d22295e56 exact_id=14bfcf4a14cabb55f2fbbca84ca527dd45420e040fdecfb6ed9d2b404f9f4624
   generated_exact_type get1 location=closure0 nominal_id=0ebf73bff6955e390feac20030c2c330c5617163c161d82e69392e8f992c7d06 exact_id=2ed53d107d36115324b6e400b6c1c317e15685aa13b8077a9870e7d102e704dc
+  generated_exact_type get2 location=class2 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn11 id=222949637d82430a17f46b556a719ba6699a84348b0d59f4ba09086fea7e4cbb
+  generated_callable gc1 function=@fn10 id=d916193d264cf9036f703238124825db19f5582b829887dddeecb12d10d7eab7
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -269,6 +275,26 @@ Module
           Local payload
           Type Int
           Local number
+  fun function_bridge.$Closure$reference0.() -> Any @fn10($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference1.() -> Any @fn11($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn1 <- exercise
   instance mi1 function=@fn2 <- read
   instance mi2 function=@fn3 <- readReference

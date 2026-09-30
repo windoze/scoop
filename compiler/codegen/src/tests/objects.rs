@@ -97,6 +97,7 @@ pub(super) fn classes_module() -> Module {
 
     let mut meta = string_metadata();
     let describable = meta.type_descriptors.alloc(TypeDescriptor {
+        relations: Default::default(),
         diagnostic_name: "Describable".to_string(),
         identity: type_descriptor_identity("Describable"),
         instance_layout: layout_identity(
@@ -110,6 +111,7 @@ pub(super) fn classes_module() -> Module {
         itables: vec![],
     });
     let shape = meta.type_descriptors.alloc(TypeDescriptor {
+        relations: Default::default(),
         diagnostic_name: "Shape".to_string(),
         identity: type_descriptor_identity("Shape"),
         instance_layout: layout_identity(
@@ -134,6 +136,7 @@ pub(super) fn classes_module() -> Module {
         itables: vec![],
     });
     meta.type_descriptors.alloc(TypeDescriptor {
+        relations: Default::default(),
         diagnostic_name: "Point".to_string(),
         identity: type_descriptor_identity("Point"),
         instance_layout: layout_identity(
@@ -209,6 +212,7 @@ pub(super) fn heap_module() -> Module {
     let globals = Arena::default();
     let mut meta = string_metadata();
     let point_descriptor = meta.type_descriptors.alloc(TypeDescriptor {
+        relations: Default::default(),
         diagnostic_name: "Point".to_string(),
         identity: type_descriptor_identity("Point"),
         instance_layout: layout_identity(

@@ -3,12 +3,20 @@ Module
   class Host<Int> vtable=0 itables=0
   class Base<Int> vtable=0 itables=0
   class Local<Int> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
-  closure cc1 $Closure$lambda1 type=function_type1 invoke=@fn3 captures=1
-  closure cc2 $Closure$reference0 type=function_type1 invoke=@fn12 captures=1
+    bridge function_type1 -> @fn17 id=a3bd5be71a35e2e0b756ac7fe16a044b88cf74bbd1e7e76db50ca91eb9ca0b53
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn3 captures=1
+    bridge function_type3 -> @fn18 id=7aa8c97c4ecc048653505a09c990623ebd13b9c9795ea474ac87b87e1d58ced5
+  closure cc2 $Closure$reference0 type=function_type2 invoke=@fn12 captures=1
+    bridge function_type3 -> @fn19 id=41e46693acd31bbe02b121a68be8c6c4ff4cae72ef44840238c0d087a3651592
   generated_exact_type get0 location=closure2 nominal_id=a24a23d83dc651c80be4a40fa0884a7713dfadfd27c50caabf800a1d9b675a5a exact_id=62316449deaf077ae16ae7bc456a5ef50a1e937e96117767cb5ac48eef2bf9bd
   generated_exact_type get1 location=closure1 nominal_id=84a5a9e282cd6734c7cdcbd2a387ee3fddc075e036f4006edce0fdfe4f65138c exact_id=9da98b531361c511afa2ff520a349cb656f7e132d5cd998adf3c5f3fe383f7ee
   generated_exact_type get2 location=closure0 nominal_id=97e2fb6c1f9435e532be54593116993aba21df3850e74a914fcc7b396ea265e6 exact_id=ba1db0831625726680a703f6766bb607e0bfb5d034977b77062a8fafd646c182
+  generated_exact_type get3 location=class4 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn19 id=41e46693acd31bbe02b121a68be8c6c4ff4cae72ef44840238c0d087a3651592
+  generated_callable gc1 function=@fn18 id=7aa8c97c4ecc048653505a09c990623ebd13b9c9795ea474ac87b87e1d58ced5
+  generated_callable gc2 function=@fn17 id=a3bd5be71a35e2e0b756ac7fe16a044b88cf74bbd1e7e76db50ca91eb9ca0b53
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -159,7 +167,7 @@ Module
       call read: () -> Int = @fn6 direct
         Type Host<Int>
         Local $receiver
-      call $call.5: Int = <closure:function_type1> closure[function_type1]
+      call $call.5: Int = <closure:function_type2> closure[function_type2]
         Type () -> Int
         Local read
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
@@ -261,7 +269,7 @@ Module
       call $call.1: () -> Int = @fn10 direct
         Type Host<Int>
         Local this
-      call $call.2: Int = <closure:function_type1> closure[function_type1]
+      call $call.2: Int = <closure:function_type2> closure[function_type2]
         Type () -> Int
         Local $call.1
       return
@@ -385,6 +393,40 @@ Module
         Type Item<Int>
         Local item
       return
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn17($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.() -> Any @fn18($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference0.() -> Any @fn19($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn2 <- exercise
   instance mi1 function=@fn3 <- $lambda.0
   instance mi2 function=@fn4 <- $extension.readItem

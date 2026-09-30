@@ -48,9 +48,13 @@ Module
   class box<HeapEmpty> vtable=0 itables=0
   class box<HeapPair> vtable=0 itables=0
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn16 captures=1
-  closure cc1 $Closure$lambda1 type=function_type1 invoke=@fn17 captures=1
-  closure cc2 $Closure$lambda2 type=function_type2 invoke=@fn18 captures=1
+    bridge function_type1 -> @fn26 id=34a5146a1d1ffdfb105e31277abc35b9863986ad7eae014863e8cbf83376f48f
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn17 captures=1
+    bridge function_type1 -> @fn27 id=05b4b72c19aba687e03d8b7ff20afcd1dc6e3d0aa26790dd81af5ed3df1fc6a1
+  closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn18 captures=1
+    bridge function_type1 -> @fn28 id=0a1c31c6f3dea8764844d8a0d75e3b46cb7135deb6f45b5acc10519d9ad0fab1
   closure cc3 $Closure$lambda3 type=function_type0 invoke=@fn19 captures=1
+    bridge function_type1 -> @fn29 id=dd0000e435c11d71af122fce0eb7bbd42c0aa33c58d8ce51e6232a3dfe4d69f3
   generated_exact_type get0 location=enum8 nominal_id=981f1503d64db886acecc0e1b4d18f93ca9eb09b9e6f712e82ea0ad956e44aea exact_id=1246064da34f404a04d2149173683262d56a7032e82bbedced0b1df768b52f10
   generated_exact_type get1 location=class5 nominal_id=925a77258bc47ca36b176c940ff137420b2508d0482cec835e2e5ce3cc893f3b exact_id=1636256d1cd8085ef47cbc8f948ae25692ebe04ef446f4c562a242e196d18509
   generated_exact_type get2 location=enum7 nominal_id=7e4f7bef1d89e471476a0a751fbe7aa0da2abccf60e3a5448fbd3639b8c56f37 exact_id=1860ba9cf317626950e6a5a7fcc5a5a4dcb85b628950c7f85519b5c5983c320f
@@ -69,6 +73,10 @@ Module
   generated_exact_type get15 location=enum11 nominal_id=4f58082a59a0cf093b0dd080504cfbb27bd34f4b41ea2844e839e25287addf7c exact_id=da12dc561777ef24dbe0f7d8caf6493c7d3f1d9f4cbae09d7cf264bd1007522e
   generated_exact_type get16 location=enum1 nominal_id=d1e7e9de197ef8667609027649d331cd0f626d26e7852fc8ca76a464591b6d99 exact_id=e8c882ace32b43568046aa9062fefe73dd6e1e28ed88fcfd039360c510eda335
   generated_exact_type get17 location=enum10 nominal_id=eb9e633080f99eb44794d5826011b0de92e0d809cdcfe75cd7176e28ff8d9982 exact_id=fc26628b4e460544a10489447b5be8fd95027b31414de6b0c59b3ef701728e33
+  generated_callable gc0 function=@fn27 id=05b4b72c19aba687e03d8b7ff20afcd1dc6e3d0aa26790dd81af5ed3df1fc6a1
+  generated_callable gc1 function=@fn28 id=0a1c31c6f3dea8764844d8a0d75e3b46cb7135deb6f45b5acc10519d9ad0fab1
+  generated_callable gc2 function=@fn26 id=34a5146a1d1ffdfb105e31277abc35b9863986ad7eae014863e8cbf83376f48f
+  generated_callable gc3 function=@fn29 id=dd0000e435c11d71af122fce0eb7bbd42c0aa33c58d8ce51e6232a3dfe4d69f3
   fun HeapCell.$get$empty @fn0(this: HeapCell) -> HeapEmpty
     bb0 entry
       return
@@ -364,10 +372,10 @@ Module
         Local changing
         Type HeapEmpty
         Local $call.3
-      call $call.4: HeapDerived = <closure:function_type2> closure[function_type2]
+      call $call.4: HeapDerived = <closure:function_type3> closure[function_type3]
         Type () -> HeapDerived
         Local readReference
-      call $call.5: HeapPair = <closure:function_type1> closure[function_type1]
+      call $call.5: HeapPair = <closure:function_type2> closure[function_type2]
         Type () -> HeapPair
         Local readPair
       call @fn7 direct
@@ -522,6 +530,46 @@ Module
           Local first
           Type HeapEmpty
           Local second
+  fun function_bridge.$Closure$lambda0.() -> Any @fn26($source: () -> HeapEmpty) -> Any
+    bb0 entry
+      call $call.1: HeapEmpty = <closure:function_type0> closure[function_type0]
+        Type () -> HeapEmpty
+        Local $source
+      return
+        Type Any
+        Box
+          Type HeapEmpty
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.() -> Any @fn27($source: () -> HeapPair) -> Any
+    bb0 entry
+      call $call.1: HeapPair = <closure:function_type2> closure[function_type2]
+        Type () -> HeapPair
+        Local $source
+      return
+        Type Any
+        Box
+          Type HeapPair
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.() -> Any @fn28($source: () -> HeapDerived) -> Any
+    bb0 entry
+      call $call.1: HeapDerived = <closure:function_type3> closure[function_type3]
+        Type () -> HeapDerived
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type HeapDerived
+          Local $call.1
+  fun function_bridge.$Closure$lambda3.() -> Any @fn29($source: () -> HeapEmpty) -> Any
+    bb0 entry
+      call $call.1: HeapEmpty = <closure:function_type0> closure[function_type0]
+        Type () -> HeapEmpty
+        Local $source
+      return
+        Type Any
+        Box
+          Type HeapEmpty
+          Local $call.1
   coroutine_step cs0 CoroutineStep<HeapCell> result=HeapCell
   coroutine_step cs1 CoroutineStep<HeapEmpty> result=HeapEmpty
   coroutine_step cs2 CoroutineStep<HeapDerived> result=HeapDerived

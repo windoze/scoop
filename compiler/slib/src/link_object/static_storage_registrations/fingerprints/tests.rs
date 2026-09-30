@@ -31,7 +31,7 @@ fn computes_the_canonical_static_registration_object_leaf() {
     assert_eq!(actual.node(), plan.registration_object_node());
     assert_eq!(
         actual.fingerprint().to_string(),
-        "dbc2eb8667c87bea7e2d3a977ae1dc18996e408b6b35783d5057b1ce4a90f1d5"
+        "375080b850794536cc3593a7ebc19c77854984bea6250a11fd885499465a2d80"
     );
 }
 

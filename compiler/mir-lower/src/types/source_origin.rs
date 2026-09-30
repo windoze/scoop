@@ -24,7 +24,7 @@ pub(crate) struct SourceExactTypeRegistry {
 }
 
 impl SourceExactTypeRegistry {
-    pub(super) fn record(&mut self, module: &hir::Module, source: hir::TypeId, lowered: mir::Type) {
+    pub(crate) fn record(&mut self, module: &hir::Module, source: hir::TypeId, lowered: mir::Type) {
         if let Some((_, existing)) = self.entries.iter().find(|(found, _)| *found == source) {
             assert_eq!(
                 existing.ty(),

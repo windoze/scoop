@@ -15,7 +15,7 @@ Module
     Value(value: LocalValue)
   class Counter vtable=0 itables=0
   class box<LocalChoice> vtable=0 itables=2
-  interface LocalValue
+  interface LocalValue : Valued
   interface Valued
   generated_exact_type get0 location=enum4 nominal_id=851a916d49eee659a9222a96c26c6461905f9c89e65f18a6c313a19576605e62 exact_id=8b0e1542ba15a4729f204ac3097d91d9a2df1eac483288df114b2e8a5d4d8090
   generated_exact_type get1 location=enum2 nominal_id=32053214b2e372e555062ef947c8c70aa4100729b7e384d45e7bdc78fb54d929 exact_id=95caf37e54ec1a524fe5f75051bb6f2eeefcfd5529a321b16cd8587eecfba5a7

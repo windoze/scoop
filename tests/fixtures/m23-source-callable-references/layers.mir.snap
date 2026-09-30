@@ -1,8 +1,16 @@
 Module
+  class box<Int> vtable=0 itables=0
+  class box<(Int, Int)> vtable=0 itables=0
   closure cc0 $Closure$reference0 type=function_type0 invoke=@fn3 captures=0
-  closure cc1 $Closure$reference1 type=function_type1 invoke=@fn4 captures=0
+    bridge function_type1 -> @fn5 id=49e5ff19989a7c843dea598beaeb4a54e7bdaa8b5c72baaa925f1b3cfd0aede7
+  closure cc1 $Closure$reference1 type=function_type2 invoke=@fn4 captures=0
+    bridge function_type1 -> @fn6 id=4e7c31acb7e730d06a8f59ae9e23820032854ee91db543b9bddf1a7c94a874ba
   generated_exact_type get0 location=closure0 nominal_id=86ad7580ee00aaa4797f5214c53bd94ea6ab9cba1d14549f6f181bc42c88d0ee exact_id=3b3fd4bd8401d80b18605b55e0c28b7ba25bc1c0862f8db261ced78f87a151a6
-  generated_exact_type get1 location=closure1 nominal_id=6787d84fc52b5b4ca879205e72c862e715ffcf118d1444905fa49b754b2de6ba exact_id=7cb728781f4e836a2b053653bfcacfeac81063ce5add15df6b77495eb931c03d
+  generated_exact_type get1 location=class1 nominal_id=f899deb4166a3bbc8d0087df7d070b8b39b0f0bb0f1e3980f9361b0090dc97ec exact_id=7b73acd50e9944a7530292aeab91e26a05c7ae6a2d8ebea4ab22d2a968bebdee
+  generated_exact_type get2 location=closure1 nominal_id=6787d84fc52b5b4ca879205e72c862e715ffcf118d1444905fa49b754b2de6ba exact_id=7cb728781f4e836a2b053653bfcacfeac81063ce5add15df6b77495eb931c03d
+  generated_exact_type get3 location=class0 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn5 id=49e5ff19989a7c843dea598beaeb4a54e7bdaa8b5c72baaa925f1b3cfd0aede7
+  generated_callable gc1 function=@fn6 id=4e7c31acb7e730d06a8f59ae9e23820032854ee91db543b9bddf1a7c94a874ba
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -54,7 +62,7 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
     bb2 if.merge.2
-      call $call.1: Int = <closure:function_type1> closure[function_type1]
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int
         Local preference
         Type Int
@@ -83,6 +91,34 @@ Module
       return
         Type Int
         Local $call.1
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn5($source: ((Int, Int)) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type ((Int, Int)) -> Int
+        Local $source
+        Type (Int, Int)
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference1.(Any) -> Any @fn6($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn1 <- exercise
   instance mi1 function=@fn2 <- select
   output library

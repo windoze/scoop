@@ -13,7 +13,7 @@ Module
     Value(value: LocalChoice)
   class LocalChoice vtable=0 itables=2
   class Counter vtable=0 itables=0
-  interface LocalParent
+  interface LocalParent : FirstChoice
   interface FirstChoice
   generated_exact_type get0 location=enum1 nominal_id=96ed7c9a63aa29ba3a2585adfb16a08f320333e05c9687417e01482ee77be88f exact_id=1f00c17059a05bc9fa0943b5ca00524dd5cad329b9e1a4c70d125576e2cb1e74
   generated_exact_type get1 location=enum0 nominal_id=c70d52830481f7f36d0911044e82ae816ba6586e18d8a703e1e2614988d0a76c exact_id=21ab939913ddea941f28385ed07218955e23a70e83a82c8e6bb9c9f3ccb2ddb9

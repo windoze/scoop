@@ -46,9 +46,14 @@ impl BoxedValueIdentity {
         Self::finish(generated_type, root)
     }
 
-    pub fn for_tuple(payload: &ExactTypeRecord) -> Result<Self, BoxedValueIdentityError> {
-        if !matches!(payload.key(), ExactTypeKey::Tuple(_)) {
-            return Err(BoxedValueIdentityError::ExpectedTuple);
+    pub fn for_structural(payload: &ExactTypeRecord) -> Result<Self, BoxedValueIdentityError> {
+        if !matches!(
+            payload.key(),
+            ExactTypeKey::Tuple(_)
+                | ExactTypeKey::RawPointer(_)
+                | ExactTypeKey::NativeFunctionPointer { .. }
+        ) {
+            return Err(BoxedValueIdentityError::ExpectedStructuralValue);
         }
         let generated_type = Self::generated_type(payload.id())?;
         let root = ExactOwnerRoot::structural(
@@ -98,7 +103,7 @@ impl BoxedValueIdentity {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BoxedValueIdentityError {
-    ExpectedTuple,
+    ExpectedStructuralValue,
     GeneratedType(GeneratedNominalIdentityError),
     PayloadField(FieldIdentityError),
     Root(ExactOwnerRootError),
@@ -107,7 +112,9 @@ pub enum BoxedValueIdentityError {
 impl fmt::Display for BoxedValueIdentityError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::ExpectedTuple => formatter.write_str("boxed payload is not a tuple"),
+            Self::ExpectedStructuralValue => {
+                formatter.write_str("boxed payload is not a structural value")
+            }
             Self::GeneratedType(error) => error.fmt(formatter),
             Self::PayloadField(error) => error.fmt(formatter),
             Self::Root(error) => error.fmt(formatter),
@@ -205,7 +212,7 @@ mod tests {
             [],
         )))
         .unwrap();
-        let identity = BoxedValueIdentity::for_tuple(&payload).unwrap();
+        let identity = BoxedValueIdentity::for_structural(&payload).unwrap();
         let ExactOwnerRoot::Structural(root) = identity.root() else {
             panic!("tuples are ODR-owned")
         };

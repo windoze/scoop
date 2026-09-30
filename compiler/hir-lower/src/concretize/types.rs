@@ -1,6 +1,20 @@
 use super::*;
 
 impl Concretizer<'_> {
+    pub(super) fn is_value_representation(&self, ty: concrete::TypeId) -> bool {
+        matches!(
+            self.types[ty].kind,
+            concrete::TypeKind::Unit
+                | concrete::TypeKind::Integer(_)
+                | concrete::TypeKind::Boolean
+                | concrete::TypeKind::Struct(_)
+                | concrete::TypeKind::Enum(_)
+                | concrete::TypeKind::Tuple(_)
+                | concrete::TypeKind::Ptr(_)
+                | concrete::TypeKind::FunPtr(_)
+        )
+    }
+
     pub(super) fn lower_integer_type(
         &mut self,
         kind: export::IntegerKind,
@@ -257,7 +271,20 @@ impl Concretizer<'_> {
             .map(|ty| self.lower_type(*ty, substitution))
             .collect::<Vec<_>>();
         let return_type = self.lower_type(source.return_type, substitution);
-        let key = (source.is_suspend, parameter_types.clone(), return_type);
+        let function = self.intern_function_type(source.is_suspend, parameter_types, return_type);
+        let any = self.intern_type(concrete::TypeKind::Any, false);
+        let arity = self.function_types[function].parameter_types.len();
+        self.intern_function_type(source.is_suspend, vec![any; arity], any);
+        function
+    }
+
+    fn intern_function_type(
+        &mut self,
+        is_suspend: bool,
+        parameter_types: Vec<concrete::TypeId>,
+        return_type: concrete::TypeId,
+    ) -> concrete::FunctionTypeId {
+        let key = (is_suspend, parameter_types.clone(), return_type);
         if let Some(&id) = self.function_type_by_signature.get(&key) {
             return id;
         }
@@ -275,7 +302,7 @@ impl Concretizer<'_> {
         self.type_by_kind.insert(canonical_kind, canonical_type);
         let id = self.function_types.alloc(concrete::FunctionType {
             canonical_type,
-            is_suspend: source.is_suspend,
+            is_suspend,
             parameter_types,
             return_type,
         });

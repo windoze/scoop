@@ -127,16 +127,10 @@ fn validate_call(
                 &mir::Type::Interface(interface),
             )?;
         }
-        mir::CallKind::FunctionBridge { function_type } => {
-            require_descriptor(
-                module,
-                roots,
-                dependencies,
-                function,
-                &mir::Type::Function(function_type),
-            )?;
-        }
-        mir::CallKind::Direct | mir::CallKind::Virtual { .. } | mir::CallKind::Closure { .. } => {}
+        mir::CallKind::FunctionBridge { .. }
+        | mir::CallKind::Direct
+        | mir::CallKind::Virtual { .. }
+        | mir::CallKind::Closure { .. } => {}
     }
     for argument in &call.args {
         validate_expr(module, roots, dependencies, function, argument)?;
@@ -311,7 +305,8 @@ fn unavailable_descriptor(
                 && (roots.materializes_type(&mir::Type::Class(boxed.class()))
                     || dependencies.contains(&mir::Type::Class(boxed.class())))
         }),
-        mir::Type::Function(_) | mir::Type::Any => false,
+        mir::Type::Function(_) => module.meta.source_exact_types.get(ty).is_some(),
+        mir::Type::Any => false,
     };
     (!available).then(|| StrongLirMaterializationRequirement::TypeDescriptor(ty.clone()))
 }

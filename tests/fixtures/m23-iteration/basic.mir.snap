@@ -22,16 +22,22 @@ Module
   class DiamondCursor<Int> vtable=0 itables=4
   class box<ValueCursor<Int>> vtable=0 itables=1
   class box<EnumCursor<Int>> vtable=0 itables=1
+  class box<Int> vtable=0 itables=0
   interface Iterable<Int>
   interface Iterator<Int>
-  interface Diamond<Int>
-  interface Left<Int>
-  interface Right<Int>
-  closure cc0 $Closure$lambda0 type=function_type1 invoke=@fn19 captures=2
+  interface Diamond<Int> : Left<Int>, Right<Int>
+  interface Left<Int> : Iterator<Int>
+  interface Right<Int> : Iterator<Int>
+  closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn19 captures=2
+    bridge function_type3 -> @fn47 id=ce17b7a6e63599bb8828ae63a7ad434c6c32b60e8ce9775d637b49b3fef5b4d2
   closure cc1 $Closure$reference0 type=function_type0 invoke=@fn31 captures=0
+    bridge function_type1 -> @fn48 id=01dd11ded68f8b259a20998821c8c7a8f68b8f96877a2337140ece935724ea7d
   closure cc2 $Closure$reference1 type=function_type0 invoke=@fn32 captures=0
+    bridge function_type1 -> @fn49 id=311bc2744c4bc7a44a73338fc3972b826f32a185c31d1347b842f2c95094fa30
   closure cc3 $Closure$reference2 type=function_type0 invoke=@fn33 captures=0
+    bridge function_type1 -> @fn50 id=0cba41ef7ef524d4fa2be61647365ce8c7a35cf901ffca23536ded73df56351a
   closure cc4 $Closure$reference3 type=function_type0 invoke=@fn34 captures=0
+    bridge function_type1 -> @fn51 id=adefbaf07781664c685ec61a3c89ca333f1a758afdedec0d12d1667b35494427
   generated_exact_type get0 location=closure3 nominal_id=a6d3b6508fcf4cc4dc33581b67970455a9d0fca0ee6d330f3d2939db11683b32 exact_id=43a18f73d6014441e8a48ba0851dca44b6bfa4217624ab10f528540fdb881e8a
   generated_exact_type get1 location=closure2 nominal_id=22bb7b9891729ed8da8e50629f7ed1b21a71ef42517e3a836ba7ed425d400c0e exact_id=586bdf2372a3454ac77703495063c4659f5a9e331470e87bfe35f200e99c1848
   generated_exact_type get2 location=closure4 nominal_id=2f1c768303b6f0aa98f3d22fa63c761c719206f7ca4e1720078ab15479846d6c exact_id=98c2a6223f143e773de43524c0bfd146ace97ff52091cb6607d4efe46e77e96e
@@ -39,8 +45,14 @@ Module
   generated_exact_type get4 location=closure0 nominal_id=541d862916f31aae70de4347edb6bc1368eba50439525fe242edba42966a4431 exact_id=be19ca0f975fcd11ba0dad01b38423c4caf83e1cd8685a6de1bbfa9427864cbb
   generated_exact_type get5 location=class10 nominal_id=58406229412dc999b74a0cb3905512e8f5828ffadeb0522f5128e6f173f118c5 exact_id=becd2bc86ca1b1cce4cc421222f15851e5e7a990a20ef42d418c833df18f8362
   generated_exact_type get6 location=closure1 nominal_id=433502b7ed784a449cb6f3ca63150da6e613b8caa2f37a2b4979bac3fcbc07b2 exact_id=e000d45ddab772337fea89780429a0943f4c2e920c0eeba817edaba013871e65
-  generated_callable gc0 function=@fn45 id=5941f915eb8600343764ca8b4d7ac913749d9bfe15eb9ed295f83051291dd33f
-  generated_callable gc1 function=@fn46 id=8b76d817dc16e020f5c7636f7c0e580ebf32fa25b82c98057fb1a615c5d3c767
+  generated_exact_type get7 location=class12 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn48 id=01dd11ded68f8b259a20998821c8c7a8f68b8f96877a2337140ece935724ea7d
+  generated_callable gc1 function=@fn50 id=0cba41ef7ef524d4fa2be61647365ce8c7a35cf901ffca23536ded73df56351a
+  generated_callable gc2 function=@fn49 id=311bc2744c4bc7a44a73338fc3972b826f32a185c31d1347b842f2c95094fa30
+  generated_callable gc3 function=@fn45 id=5941f915eb8600343764ca8b4d7ac913749d9bfe15eb9ed295f83051291dd33f
+  generated_callable gc4 function=@fn46 id=8b76d817dc16e020f5c7636f7c0e580ebf32fa25b82c98057fb1a615c5d3c767
+  generated_callable gc5 function=@fn51 id=adefbaf07781664c685ec61a3c89ca333f1a758afdedec0d12d1667b35494427
+  generated_callable gc6 function=@fn47 id=ce17b7a6e63599bb8828ae63a7ad434c6c32b60e8ce9775d637b49b3fef5b4d2
   fun readInt @fn0(value: Int) -> Int
     bb0 entry
       return
@@ -1399,7 +1411,7 @@ Module
       goto bb1
   fun defaultTotal @fn20(values: Iterable<Int>, read: (Int) -> Int, compute: () -> Int) -> Int
     bb0 entry
-      call $call.1: Int = <closure:function_type1> closure[function_type1]
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type () -> Int
         Local compute
       return
@@ -1909,6 +1921,72 @@ Module
       return
         Type Option<Int>
         Local $call.1
+  fun function_bridge.$Closure$lambda0.() -> Any @fn47($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn48($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference1.(Any) -> Any @fn49($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference2.(Any) -> Any @fn50($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference3.(Any) -> Any @fn51($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn2 <- iterator
   instance mi1 function=@fn3 <- iterator
   instance mi2 function=@fn4 <- iterator

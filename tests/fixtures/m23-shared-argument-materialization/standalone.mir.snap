@@ -34,9 +34,11 @@ Module
   class Calculator<Int> vtable=0 itables=0
   class ExtensionCalculator<Int> vtable=0 itables=0
   class box<Packet> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
   interface Iterable<Int>
   interface Iterator<Int>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn11 captures=0
+    bridge function_type1 -> @fn28 id=1f0a1713fe9afb4b19b41a7a8fa3f85ba82237b397a1389dffac7880f0727e80
   generated_exact_type get0 location=closure0 nominal_id=86fa621ca7aa94f00fe43690b39417e771df248888dda42b673aa0b3ed934f2d exact_id=1a3a5865ae7c6f306f38590de76d77f4b11ec877ab6554ee346ee5e8527db9b2
   generated_exact_type get1 location=enum4 nominal_id=f7592d0b758cd586d13e49b23e8ef1d9bb3d124c3bf6c405683c376240cc8a7a exact_id=361a021b859ece4af67003edd713d1ea48bb69cb7495c5315e658ef164b0088d
   generated_exact_type get2 location=enum7 nominal_id=721e61750f3b2fd7a0828101e8abc641765868faa0bd47fb33d1a5a369799085 exact_id=4df4baee3c2c15d7a45da7affa1c66d245174ce08672bee997f5cff608909fd9
@@ -45,6 +47,8 @@ Module
   generated_exact_type get5 location=enum6 nominal_id=7c829d8295356516cf41f5f65cc58c37bbea74f2f9921fd230170cd5ed65e72f exact_id=7f879f253fcbb167646d5889e55ce6de0b304bc0b87784cba95915978240ac3a
   generated_exact_type get6 location=enum3 nominal_id=40b5f1e33375f2773a47aa4893bed8f6578c36ff30a6189b25cbde004f9a1749 exact_id=a40754345291a7953faf17e0cad6cf2e14c6f50430897257f577bc6c7826a1e9
   generated_exact_type get7 location=enum5 nominal_id=da559d2f569a2d73ef9617ab8d5ec3bb60858df9274ac6c30a368ce253eeb880 exact_id=c257d398e24228378a4d7cbe50d809a999d68e412b8556e78af6185786ab126a
+  generated_exact_type get8 location=class10 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn28 id=1f0a1713fe9afb4b19b41a7a8fa3f85ba82237b397a1389dffac7880f0727e80
   fun Tape.mark @fn0(this: Tape, value: Int) -> Int
     bb0 entry
       call $dependency.receiver: Int = @fn2 direct
@@ -1919,6 +1923,20 @@ Module
         Type Tape
         Local tape
       return
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn28($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   coroutine_step cs0 CoroutineStep<Ordinary> result=Ordinary
   coroutine_step cs1 CoroutineStep<Tape> result=Tape
   coroutine_step cs2 CoroutineStep<Packet> result=Packet

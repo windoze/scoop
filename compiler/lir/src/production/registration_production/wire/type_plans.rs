@@ -99,6 +99,7 @@ pub struct DecodedStrongTypeRegistrationPlan<P, D, C> {
         DecodedPersistentId<PersistentScanId>,
     pub(in crate::production::registration_production) instance_shape: DecodedTypeInstanceShapeV1,
     pub(in crate::production::registration_production) parent: P,
+    pub(in crate::production::registration_production) relations: crate::TypeDescriptorRelations<P>,
     pub(in crate::production::registration_production) vtable:
         DecodedStrongTypeVtableSemanticPlan<C>,
     pub(in crate::production::registration_production) itables:
@@ -112,7 +113,7 @@ impl<P: WireEncode, D: WireEncode, C: WireEncode> WireEncode
     for DecodedStrongTypeRegistrationPlan<P, D, C>
 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(28)?;
+        encoder.map(29)?;
         encode_field(encoder, 1, &self.exact_type)?;
         encode_unsigned_field(encoder, 2, self.runtime_type)?;
         encode_field(encoder, 3, &self.symbol)?;
@@ -141,7 +142,8 @@ impl<P: WireEncode, D: WireEncode, C: WireEncode> WireEncode
         encode_array_field(encoder, 25, &self.itables)?;
         encode_field(encoder, 26, &self.diagnostic_atom)?;
         encode_field(encoder, 27, &self.inline_scan)?;
-        encode_field(encoder, 28, &self.itable_directory)
+        encode_field(encoder, 28, &self.itable_directory)?;
+        encode_field(encoder, 29, &self.relations)
     }
 }
 
@@ -149,7 +151,7 @@ impl<P: WireDecode, D: WireDecode, C: WireDecode> WireDecode
     for DecodedStrongTypeRegistrationPlan<P, D, C>
 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(28)?;
+        decoder.expect_map(29)?;
         Ok(Self {
             exact_type: decoder.field(1, DecodedPersistentId::decode)?,
             runtime_type: decoder.field(2, Decoder::unsigned)?,
@@ -183,6 +185,7 @@ impl<P: WireDecode, D: WireDecode, C: WireDecode> WireDecode
             diagnostic_atom: decoder.field(26, DecodedPersistentId::decode)?,
             inline_scan: decoder.field(27, DecodedTypeDescriptorInlineScanV1::decode)?,
             itable_directory: decoder.field(28, DecodedTypeDescriptorITableDirectoryV1::decode)?,
+            relations: decoder.field(29, crate::TypeDescriptorRelations::<P>::decode)?,
         })
     }
 }

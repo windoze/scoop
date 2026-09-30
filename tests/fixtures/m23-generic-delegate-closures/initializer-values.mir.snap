@@ -8,10 +8,16 @@ Module
   class Payload vtable=0 itables=0
   class TraceMore vtable=0 itables=0
   class ReaderSlot<Int> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn6 captures=2
+    bridge function_type1 -> @fn10 id=bf2372f1e5f1c4e851e0995fe1845575c2baa3fcc8c9e609baab8c9eb4a280a3
   closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn7 captures=0
+    bridge function_type1 -> @fn11 id=9f49095513d2a977a24c0c22465899894a7764615c134936409356766e6c8e64
   generated_exact_type get0 location=closure0 nominal_id=91523ef7cd60dc0307168cef441e64b4b9b1c89752e58cc23f913265541c49cc exact_id=d8065a23c3fa8cd523201909b04c9d29bd5c038b9cd470a263c7fb20271e568c
   generated_exact_type get1 location=closure1 nominal_id=2c2a893da724bfdaaaaaf49c534a431aff4a21fa03aa4d6b33d1c10a6c198e12 exact_id=e30e6c6e5f45fd30926f2e815339a6118e9d5801736868c221b80d9a776e2aa5
+  generated_exact_type get2 location=class4 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn11 id=9f49095513d2a977a24c0c22465899894a7764615c134936409356766e6c8e64
+  generated_callable gc1 function=@fn10 id=bf2372f1e5f1c4e851e0995fe1845575c2baa3fcc8c9e609baab8c9eb4a280a3
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -579,6 +585,26 @@ Module
         Type () -> Int
         Local read
       return
+  fun function_bridge.$Closure$lambda0.() -> Any @fn10($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.() -> Any @fn11($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn1 <- exercise
   instance mi1 function=@fn2 <- $extension.initializerValues
   instance mi2 function=@fn3 <- getValue

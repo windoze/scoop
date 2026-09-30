@@ -46,7 +46,7 @@ Module
     store t0 -> local3
     t1 = ptr_to_ulong local3 : i64
     store t1 -> local4
-    call managed-direct-target0 sp<managed-call:0> live=[] t2 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td1, machine<byte-size>(ByteSize(40)))
+    call managed-direct-target0 sp<managed-call:0> live=[] t2 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td2, machine<byte-size>(ByteSize(40)))
     t3 = function_address @scoop$1$cb$58570990c261f0eff039945479521d74ed1756fae25afa218e96f5aef83f26ab : ptr
     heap_store t2 +16 t3
     heap_store t2 +32 local2
@@ -132,7 +132,7 @@ Module
     store t2 -> local6
     t3 = ptr_to_ulong local6 : i64
     store t3 -> local3
-    call managed-direct-target0 sp<managed-call:1> live=[] t4 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td2, machine<byte-size>(ByteSize(40)))
+    call managed-direct-target0 sp<managed-call:1> live=[] t4 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td3, machine<byte-size>(ByteSize(40)))
     t5 = function_address @scoop$1$cb$ba66ebe85ae6e87a0be1d31a23225a752ce414b39807c9ae57f8c3c76d985782 : ptr
     heap_store t4 +16 t5
     heap_store t4 +24 local2
@@ -166,12 +166,35 @@ Module
   block entry
     t0 = aggregate (param0) : struct0
     ret t0
+  fun @scoop$1$cb$09d0586a8f046ac9af29290511f5b3f59a806c2faf255a245fd23c827a6fcb88(ptr<managed>) -> ptr<managed>
+    local %0 $call.1: struct0
+    local %1 $sc.1: struct0
+    local %2 $box.2: struct0
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    call managed-indirect-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] local1 = sig=indirect0 (sret struct0 size=4 align=4 scan=none, ptr<managed>) dispatch[Closure:2] param0(param0)
+    store local1 -> local0
+    store local0 -> local2
+    t0 = box_value td0, local2 scan=none sp<managed-call:1> live=[]
+    ret t0
+  fun @scoop$1$cb$c279319e9d153e6f7d2e9c0c0166ff90576deedf007cc569cc0fb3c2542e5b0d(ptr<managed>) -> ptr<managed>
+    local %0 $call.1: struct0
+    local %1 $sc.1: struct0
+    local %2 $box.2: struct0
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    call managed-indirect-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] local1 = sig=indirect0 (sret struct0 size=4 align=4 scan=none, ptr<managed>) dispatch[Closure:2] param0(param0)
+    store local1 -> local0
+    store local0 -> local2
+    t0 = box_value td0, local2 scan=none sp<managed-call:1> live=[]
+    ret t0
   td td0 g(r=00000006;i=7e1dea6262c147a81964fbbd0557697f61786d87080117fbd29b01aa2cad9ea0) @scoop$1$td$cf0c97e2c1639bda7a3dfbce9c88116358ea468018d4df1f6e88f0289b3138bc type-id=16410761727483219557 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td1 g(r=00000001;i=0727ea57833a60c8e85a1e462dca6ef0c6062322d97bafbac9454feac447ef1f) @scoop$1$td$3f9150cdb7cd5d659e69b4669f388facd44c438dcac1f0702c8ade0cf0386ac2 type-id=444275059355011961 shape=FixedObject minimum-size=40 align=8 parent=none vtable=[] itables=[]
-  td td2 g(r=00000001;i=31955c72f72d01c54f504fcfe5354dbe29eeca1c1b788d2231ee13dea09270bd) @scoop$1$td$5a85839cbd89129f2246cd8694ff207eefd2577e283a4c78e4dbbd94e2dc50ce type-id=17620476662953668800 shape=FixedObject minimum-size=40 align=8 parent=none vtable=[] itables=[]
-  td td3 n(c=dev.example%3Ageneric-member-lexical%3A0.1.0;p=consumer.construction;o=-;k=S;x=Number) @scoop$1$td$e2b4cfac061fdafaa1cbb423007280ac3071f3077451eacd167b9c1f3034491b type-id=12390637738411387547 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td4 g(r=00000005;i=16803cca00ac4a0cdd92201c94dd5c19fd323807e17b0962b951dcf343f68a74) @scoop$1$td$14d155988c277eebafdded6f0bdf8ca3926c3c28a690f10e6299d1adf9c654fc type-id=2151331868579926346 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
-  td td5 g(r=00000007;i=c75ee9af9f5931b9cd277f7f0bc8d55a4c978ba584a7bee200ba36a28d4ff2f2) @scoop$1$td$b83af2defe198316d5d6d6ea67a32f78886e88c92a51f5d10e09f5da50f5890a type-id=1660018276402717553 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  td td1 f(o;[]->n(c=dev.example%3Ageneric-member-lexical%3A0.1.0;p=consumer.construction;o=-;k=S;x=Number)) @scoop$1$td$e3e0d6cd38d4d832813b48ba502ce77be23320cad2508376664ea9bf2bbe2de9 type-id=10440518393795290117 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary()->td0
+  td td2 g(r=00000001;i=0727ea57833a60c8e85a1e462dca6ef0c6062322d97bafbac9454feac447ef1f) @scoop$1$td$3f9150cdb7cd5d659e69b4669f388facd44c438dcac1f0702c8ade0cf0386ac2 type-id=444275059355011961 shape=FixedObject minimum-size=40 align=8 parent=td1 vtable=[local-fn8] itables=[]
+  td td3 g(r=00000001;i=31955c72f72d01c54f504fcfe5354dbe29eeca1c1b788d2231ee13dea09270bd) @scoop$1$td$5a85839cbd89129f2246cd8694ff207eefd2577e283a4c78e4dbbd94e2dc50ce type-id=17620476662953668800 shape=FixedObject minimum-size=40 align=8 parent=td1 vtable=[local-fn9] itables=[]
+  td td4 n(c=dev.example%3Ageneric-member-lexical%3A0.1.0;p=consumer.construction;o=-;k=S;x=Number) @scoop$1$td$e2b4cfac061fdafaa1cbb423007280ac3071f3077451eacd167b9c1f3034491b type-id=12390637738411387547 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td5 g(r=00000005;i=16803cca00ac4a0cdd92201c94dd5c19fd323807e17b0962b951dcf343f68a74) @scoop$1$td$14d155988c277eebafdded6f0bdf8ca3926c3c28a690f10e6299d1adf9c654fc type-id=2151331868579926346 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  td td6 g(r=00000007;i=c75ee9af9f5931b9cd277f7f0bc8d55a4c978ba584a7bee200ba36a28d4ff2f2) @scoop$1$td$b83af2defe198316d5d6d6ea67a32f78886e88c92a51f5d10e09f5da50f5890a type-id=1660018276402717553 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
   layout Number size=4 align=4 refs=[]
   layout CoroutineStep<Number> size=16 align=8 enum-scan=none
   layout CoroutineSlot<Number> size=16 align=8 enum-scan=none

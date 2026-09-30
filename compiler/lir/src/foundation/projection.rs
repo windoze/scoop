@@ -614,6 +614,7 @@ mod tests {
         .unwrap();
         let interface_vtable = VtableRecord::new(&interface_identity, Vec::new()).unwrap();
         let interface = descriptors.alloc(TypeDescriptor {
+            relations: Default::default(),
             diagnostic_name: "Interface".to_string(),
             identity: interface_identity,
             instance_layout: LayoutIdentity::managed_object(
@@ -644,6 +645,7 @@ mod tests {
             .unwrap(),
         ];
         descriptors.alloc(TypeDescriptor {
+            relations: Default::default(),
             diagnostic_name: "Owner".to_string(),
             identity: owner_identity,
             instance_layout: LayoutIdentity::managed_object(

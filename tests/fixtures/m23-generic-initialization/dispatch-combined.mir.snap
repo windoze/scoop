@@ -8,7 +8,7 @@ Module
   class Payload vtable=0 itables=0
   class Base<Payload> vtable=2 itables=2
   class Derived<Payload> vtable=2 itables=2
-  interface Source<Payload>
+  interface Source<Payload> : Root<Payload>
   interface Root<Payload>
   generated_exact_type get0 location=enum1 nominal_id=c5fcfd3ea818e73a2952cfbe553b94ced26c809ee644174ca7ee282db1a3cddb exact_id=d1ba0e42c6d6ec2f3846a8efd8611d020ca0378552d31716d2411b0ca16aeab9
   generated_exact_type get1 location=enum0 nominal_id=23a2cc86897c22417140aa777c616df8eaea32f138bb36d908ce455a7e6159a8 exact_id=fc7549417b8464b4fe3438b74b5dff0df8fa7d13a8965c2e636a16466e4326b0

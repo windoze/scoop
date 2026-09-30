@@ -729,7 +729,7 @@ fn nominal_descriptor_symbols_use_exact_type_identity() {
     let function_type = source.function_types.alloc(mir::FunctionType {
         is_suspend: false,
         parameter_types: Vec::new(),
-        return_type: mir::Type::Unit,
+        return_type: mir::Type::Any,
     });
     register_test_source_exact_type(&mut source, mir::Type::Function(function_type));
     let site = SourceDeclarationSite::new(
@@ -775,7 +775,7 @@ fn nominal_descriptor_symbols_use_exact_type_identity() {
             gc_effect: mir::GcEffect::Managed,
             name: format!("$closure{index}.invoke"),
             params: Vec::new(),
-            return_ty: mir::Type::Unit,
+            return_ty: mir::Type::Any,
             body: mir::Body::unreachable(Arena::new()),
         });
         source.top_level.push(invoke_function);
@@ -783,7 +783,18 @@ fn nominal_descriptor_symbols_use_exact_type_identity() {
             mir::SourceCallableMaterialization::new(
                 invoke_function,
                 materialization,
-                exact_callback_signature(),
+                scoop_identity::ExactCallableSignature::new(
+                    scoop_identity::Effect::Ordinary,
+                    None,
+                    Vec::new(),
+                    source
+                        .meta
+                        .source_exact_types
+                        .get(&mir::Type::Any)
+                        .unwrap()
+                        .identity_record()
+                        .id(),
+                ),
                 None,
             )
             .unwrap(),
@@ -798,7 +809,10 @@ fn nominal_descriptor_symbols_use_exact_type_identity() {
             function_type,
             invoke,
             captures: Vec::new(),
-            bridges: Vec::new(),
+            bridges: vec![mir::FunctionBridge {
+                target: function_type,
+                function: invoke_function,
+            }],
         });
         let identity =
             mir::ClosureEnvironmentIdentity::for_lambda(materialization, Vec::new(), None).unwrap();

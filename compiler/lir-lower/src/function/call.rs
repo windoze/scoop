@@ -95,15 +95,16 @@ impl<'a> FunctionLowerer<'a> {
                     self.context.object_type_descriptor_offset(),
                     lir::METADATA_PTR,
                 );
-                let target_td = self.td_ref(&mir::Type::Function(function_type));
-                let table = self.emit_plain_call(
-                    LoweredCallDestination::no_gc_runtime(lir::NoGcRuntimeFunction::ITableLookup),
-                    vec![lir::METADATA_PTR, lir::METADATA_PTR],
+                let table = self.load_at_offset(
+                    lir::Value::Temp(td),
+                    self.context.type_descriptor_vtable_offset(),
                     lir::METADATA_PTR,
-                    vec![lir::Value::Temp(td), target_td],
-                )?;
-                let destination =
-                    self.managed_dispatch_destination(table, lir::DispatchKind::FunctionBridge, 0);
+                );
+                let destination = self.managed_dispatch_destination(
+                    lir::Value::Temp(table),
+                    lir::DispatchKind::FunctionBridge,
+                    0,
+                );
                 let returns_unit =
                     !signature.is_suspend && signature.return_type == mir::Type::Unit;
                 let call_signature = abi::classify_mir_signature(

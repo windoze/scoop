@@ -18,9 +18,9 @@ Module
   class box<InterfaceCell<Unit>> vtable=0 itables=2
   class box<InterfaceCell<Large>> vtable=0 itables=2
   class box<Large> vtable=0 itables=0
-  interface Reader<Unit>
+  interface Reader<Unit> : Readable<Unit>
   interface Readable<Unit>
-  interface Reader<Large>
+  interface Reader<Large> : Readable<Large>
   interface Readable<Large>
   generated_exact_type get0 location=enum0 nominal_id=601db9629faad6625746f3ca444076aab26172012aa07e00d940287696623d92 exact_id=2657d8d213e71e6844c25ff6971bd11cc1c583f79f1313bac86a167c4b7e62a2
   generated_exact_type get1 location=enum1 nominal_id=66d7d7b5b1eefa2de746d2b185ff185c822a65f03bb63f9e50f45d32fc1dfde9 exact_id=2fd7256aaec5a01dd8796729ae4570a754a51e831b55ed18742cc098d7214764

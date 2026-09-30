@@ -1,6 +1,6 @@
 Module
   class PropertyItem<Int> vtable=0 itables=2
-  interface MutableProperty<Int>
+  interface MutableProperty<Int> : ReadOnlyProperty<Int>
   interface ReadOnlyProperty<Int>
   fun result @fn0() -> Int
     bb0 entry

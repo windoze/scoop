@@ -360,6 +360,7 @@ Strong production 的两种表示当前使用 `/13`、`/14`：删除初始化专
 - 数组模板、转换构造与函数 vararg 调用已接通实际 core owner、共有类型与普通物化；数组读写、转换成员／构造、别名与同名重载、默认值、复制 identity、函数引用和迭代成员有再次发布及移动 GC 回归。导入泛型调用复用整组实参的约束固定点，后续实参可为前面的空数组、裸变体、lambda 和函数引用提供上下文，求值顺序保持源码序。数组 instance／element scan 与派发表保留各自真实身份，递归 scan 的完整字节归原对象定义；具体范围与验证见 [进度记录](milestone23/stage7/PROGRESS.md)。
 - `for` 在 Export HIR 前展开为普通调用、接口适配、Option 操作与 while，共有 HIR `/40` 撤销专用 For 和 portable binding-plan 编码。数组与本地／外来泛型迭代器、普通默认表达式、逐轮捕获、跳转和 finally 已有真实再次发布与移动 GC 回归；普通宿主的泛型父类型与整数范围迭代、消费者源码对外来类型的直接解构、外来函数值默认参数已由 6a 的共同 HIR 修正，本阶段的机器闭包、ODR 与委托运行验收继续推进。
 - 跨 Cone 首次取得参数自由 `@NoGC` 源函数的 C 地址已接通：定义方发布 C-safe 函数的 storage bridge，消费方使用原 typed callable 并按实际取址生成 C trampoline。公开、私有模板支持、精确重载、默认值、再次转导出、大值及指针写回均完成真实产物链接、C 调用和移动 GC 验证；自动属性访问器不生成此桥。共有 MIR type bridge 升至 `/5`，runtime ABI 保持。
+- 函数静态／动态适配已覆盖指针装箱、嵌套函数、lambda 结果、接口继承、私有 tuple 签名和 generic delegate initializer，全部通过再次发布、真实链接和移动 GC。closure 使用精确 FunctionShape parent 及固定 Any 动态 invoke，下游目标集合不改变共同 TD；类型关系随 cone-production `/3` 和 runtime metadata ABI 2 发布。严格全仓 **5322 项**通过，M23-7 继续推进导入协程和 sibling 成员／地址合并验收。
 - 保留四类 specialization 和既有 group/member identity；按重复 member 的完整 ABI、canonical LIR、对象/EH/stackmap 判等，独立 helper 的成员集合取并集。旧“同组全部成员必须相同”规则会拒绝不同源签名到同一目标类型的合法 adapter，现按实际定义与引用修订；不增加授权、预算或证明体系。
 - 正式产物沿原完整 layout 路径切换到 `cross-cone-generic/1`，模板、定义目录、逐 member fingerprint 与缓存同步迁移；required section 按实际 payload 分步升级，不预填尚未实现的模板或保留平行发布器。完成门包含 provider 源码移走后的下游编译，以及现有单 image 验收入口的真实链接、地址合并、委托初始化/失败共享和移动 GC；生产多 image 启动与正式 program-link 仍留给 M23-8/9。
 

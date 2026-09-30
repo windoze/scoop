@@ -99,12 +99,16 @@ fn wire_reader_reconstructs_the_complete_type_descriptor_semantics() {
 }
 
 #[test]
-fn wire_reader_rejects_the_old_27_field_type_registration_plan() {
+fn wire_reader_rejects_type_registrations_without_runtime_relations() {
     let fixture = Fixture::new(Options::default());
     let plans = fixture.build().unwrap();
     let plan = &plans.registrations()[0];
     let mut encoded = encode(plan).unwrap();
-    assert_eq!(&encoded[..2], &[0xb8, 0x1c]);
+    assert_eq!(&encoded[..2], &[0xb8, 29]);
+    assert_eq!(&encoded[encoded.len() - 5..], &[0x18, 29, 0xa1, 0, 0]);
+    encoded[1] = 28;
+    encoded.truncate(encoded.len() - 5);
+    assert!(decode_canonical::<DecodedStrongTypeRegistrationPlanV1>(&encoded).is_err());
     assert_eq!(
         &encoded[encoded.len() - 7..],
         &[0x18, 0x1c, 0xa2, 0, 1, 1, 0]

@@ -236,11 +236,21 @@ pub fn dump(module: &Module) -> String {
             def.itables.len()
         ));
     }
-    for (id, _) in module.interfaces.iter() {
+    for (id, def) in module.interfaces.iter() {
         out.push_str(&format!(
-            "  interface {}\n",
+            "  interface {}",
             type_name(module, &Type::Interface(id))
         ));
+        if !def.parents.is_empty() {
+            let parents = def
+                .parents
+                .iter()
+                .map(|parent| type_name(module, &Type::Interface(*parent)))
+                .collect::<Vec<_>>()
+                .join(", ");
+            out.push_str(&format!(" : {parents}"));
+        }
+        out.push('\n');
     }
     for (id, def) in module.closure_classes.iter() {
         let invoke = module.closure_invoke_functions[def.invoke].function;

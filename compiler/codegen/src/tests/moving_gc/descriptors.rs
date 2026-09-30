@@ -68,6 +68,7 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
         terminator: Terminator::Return { value: None },
     });
     meta.type_descriptors.alloc(TypeDescriptor {
+        relations: Default::default(),
         diagnostic_name: "Holder".to_string(),
         identity: type_descriptor_identity("Holder"),
         instance_layout: layout_identity(

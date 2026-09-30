@@ -7,10 +7,16 @@ Module
   class Payload vtable=0 itables=0
   class Trace vtable=0 itables=0
   class ArgumentSlot<Int> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
   closure cc0 $Closure$reference0 type=function_type0 invoke=@fn9 captures=1
+    bridge function_type1 -> @fn13 id=a096f1f357a3365c2f026fde938ccb545fabd1fb0b67d90dba82986e3c435871
   closure cc1 $Closure$reference1 type=function_type0 invoke=@fn10 captures=0
+    bridge function_type1 -> @fn14 id=6febf1be15a6df63b6719841c6de7b938246062a4909a24152b9b53f09effb67
   generated_exact_type get0 location=closure0 nominal_id=89f18e2a61874ae6dad471f168eebbbbf25c49434188b462de025a31a3c0812d exact_id=26f0c25ec4042ee157251782219b340e835be542cdb90820bfc4942b22c92814
   generated_exact_type get1 location=closure1 nominal_id=bebd7c817eb7fa3870b7065c0fc56c3ce65ce63f29fed95fd1fb4ddfc569b186 exact_id=9b9a2279a59b2526d526e8d07849d8135edbc4a4aec0e552f631e87090fef485
+  generated_exact_type get2 location=class4 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn14 id=6febf1be15a6df63b6719841c6de7b938246062a4909a24152b9b53f09effb67
+  generated_callable gc1 function=@fn13 id=a096f1f357a3365c2f026fde938ccb545fabd1fb0b67d90dba82986e3c435871
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -465,6 +471,34 @@ Module
         Type (Int) -> Int
         Local read
       return
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn13($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference1.(Any) -> Any @fn14($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn1 <- exercise
   instance mi1 function=@fn2 <- $extension.referenceLocalGeneric
   instance mi2 function=@fn3 <- getValue

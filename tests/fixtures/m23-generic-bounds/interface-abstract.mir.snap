@@ -1,9 +1,13 @@
 Module
   class AbstractReader<Int> vtable=0 itables=1
   class ActualReader<Int> vtable=0 itables=1
+  class box<Int> vtable=0 itables=0
   interface Readable
   closure cc0 $Closure$reference0 type=function_type0 invoke=@fn5 captures=1
+    bridge function_type1 -> @fn8 id=f935f94b0a43f5c7825d4da5446c7fc3120238f5a5a4a5f6add16413c7537d0e
   generated_exact_type get0 location=closure0 nominal_id=65f49e27775b6cf7e89a4c28fc545288889276431b8e2a84ce708af20603f147 exact_id=4ef697ac8f755095b26a2c121b127e10ce9ea0b586853312b4e426eb87798a49
+  generated_exact_type get1 location=class2 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn8 id=f935f94b0a43f5c7825d4da5446c7fc3120238f5a5a4a5f6add16413c7537d0e
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -137,6 +141,16 @@ Module
   fun init.AbstractReader.$c1 @fn7(this: AbstractReader<Int>) -> Unit
     bb0 entry
       return
+  fun function_bridge.$Closure$reference0.() -> Any @fn8($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn1 <- exercise
   instance mi1 function=@fn2 <- read
   instance mi2 function=@fn3 <- readBound

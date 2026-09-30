@@ -10,8 +10,12 @@ Module
   enum Carrier<Int>
     Vacant()
     Wrapped(_1: Choice<Int>, _2: Option<Int>)
+  class box<Int> vtable=0 itables=0
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
+    bridge function_type1 -> @fn5 id=ddcd848f3dfd3c7ae380b01e2e43d61cfe612854907566d728cd3669f3ad70ba
   generated_exact_type get0 location=closure0 nominal_id=550fc334475a3b619baa3272af5276c0a5e64484e4e35f1ff157378f6e8c8207 exact_id=35098ae73560b2be3764708544ed3b140c3abf20a51f7b2e79c785997d2bbb86
+  generated_exact_type get1 location=class0 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn5 id=ddcd848f3dfd3c7ae380b01e2e43d61cfe612854907566d728cd3669f3ad70ba
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -598,6 +602,20 @@ Module
       return
         Type Int
         Local result
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn5($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn2 <- exercise
   instance mi1 function=@fn3 <- select
   instance mi2 function=@fn4 <- selected

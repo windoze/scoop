@@ -157,19 +157,50 @@ _Noreturn void scoop_rt_trap(const char *message) {
     abort();
 }
 
-bool scoop_rt_is_instance(const void *obj, const ScoopTypeDescriptor *td) {
-    const ScoopTypeDescriptor *obj_td = ((const ScoopObjectHeader *)obj)->td;
-    for (const ScoopTypeDescriptor *cur = obj_td; cur != NULL; cur = cur->parent) {
-        if (cur == td) {
+static bool type_is_subtype(const ScoopTypeDescriptor *source, const ScoopTypeDescriptor *target) {
+    if (target == NULL || source == target) {
+        return true;
+    }
+    if (source == NULL) {
+        return false;
+    }
+    if (target->relation_kind == 1 || target->relation_kind == 2) {
+        while (source != NULL && source->relation_kind != 1 && source->relation_kind != 2) {
+            source = source->parent;
+        }
+        if (source == NULL || source->relation_kind != target->relation_kind ||
+            source->related_type_count != target->related_type_count) {
+            return false;
+        }
+        for (uint32_t i = 0; i < source->related_type_count; i++) {
+            if (!type_is_subtype(target->related_types[i], source->related_types[i])) {
+                return false;
+            }
+        }
+        return type_is_subtype(source->function_result, target->function_result);
+    }
+    for (const ScoopTypeDescriptor *cur = source; cur != NULL; cur = cur->parent) {
+        if (cur == target) {
             return true;
         }
     }
-    for (uint64_t i = 0; i < obj_td->itable_count; i++) {
-        if (obj_td->itables[i].interface == td) {
+    for (uint64_t i = 0; i < source->itable_count; i++) {
+        if (source->itables[i].interface == target) {
             return true;
+        }
+    }
+    if (source->relation_kind == 3) {
+        for (uint32_t i = 0; i < source->related_type_count; i++) {
+            if (type_is_subtype(source->related_types[i], target)) {
+                return true;
+            }
         }
     }
     return false;
+}
+
+bool scoop_rt_is_instance(const void *obj, const ScoopTypeDescriptor *td) {
+    return type_is_subtype(((const ScoopObjectHeader *)obj)->td, td);
 }
 
 const void *const *scoop_rt_itable_lookup(const ScoopTypeDescriptor *obj_td,

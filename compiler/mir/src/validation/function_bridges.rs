@@ -124,23 +124,36 @@ pub(super) fn validate_function_bridge_metadata(module: &Module) -> Result<(), M
     }
 
     for (class_id, class) in module.closure_classes.iter() {
+        let location = MirValidationLocation::FunctionBridge {
+            bridge: module.meta.function_bridges.len() as u32,
+        };
+        if class.bridges.len() != 1 {
+            return invalid(
+                location,
+                "a closure requires exactly one fixed dynamic invoke",
+            );
+        }
         let Some(invoke) = arena_get(&module.closure_invoke_functions, class.invoke) else {
             continue;
         };
-        let mut targets = HashSet::new();
+        let Some(source) = arena_get(&module.function_types, class.function_type) else {
+            continue;
+        };
         for entry in &class.bridges {
-            let location = MirValidationLocation::FunctionBridge {
-                bridge: module.meta.function_bridges.len() as u32,
+            let Some(target) = arena_get(&module.function_types, entry.target) else {
+                return invalid(location, "a closure dispatch entry has an invalid target");
             };
-            if !targets.insert(entry.target) {
+            if target.is_suspend != source.is_suspend
+                || target.parameter_types.len() != source.parameter_types.len()
+                || target.parameter_types.iter().any(|ty| *ty != Type::Any)
+                || target.return_type != Type::Any
+            {
                 return invalid(
                     location,
-                    "one closure has duplicate dispatch entries for the same target",
+                    "a dynamic invoke preserves arity and effect with Any parameters and result",
                 );
             }
-            if arena_get(&module.function_types, entry.target).is_none()
-                || arena_get(&module.functions, entry.function).is_none()
-            {
+            if arena_get(&module.functions, entry.function).is_none() {
                 return invalid(location, "a closure dispatch entry has an invalid target");
             }
             if entry.target == class.function_type {

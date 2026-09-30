@@ -78,6 +78,6 @@ Module
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global0)
     unreachable
-  td td0 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=dependency.readers;o=-;k=I;x=Reader);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$09f5eb9040f751e972a1dee9e46c16afc2de1c5aa3d0656dfb8005090d4a9034 type-id=8715952522854779585 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[]
+  td td0 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=dependency.readers;o=-;k=I;x=Reader);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$09f5eb9040f751e972a1dee9e46c16afc2de1c5aa3d0656dfb8005090d4a9034 type-id=8715952522854779585 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
   layout Reader value size=8 align=8 refs=[0]
   output library

@@ -25,9 +25,9 @@ Module
     Value(value: LocalIntReader)
   class NumberReader vtable=0 itables=2
   class LocalNumberReader vtable=0 itables=2
-  interface IntReader
+  interface IntReader : Reader<Int>
   interface Reader<Int>
-  interface LocalIntReader
+  interface LocalIntReader : LocalReader<Int>
   interface LocalReader<Int>
   generated_exact_type get0 location=enum0 nominal_id=9d783092555ff649d10266d9bc91458fa3fbbe547b7a21b2d1cc0b8fcfe53a2b exact_id=02137503dc5afdf4b15b6fbfffb0cdd2289a5ba92e68b3eda681ea79ce007962
   generated_exact_type get1 location=enum5 nominal_id=126287e8f2e5c823e8874a688dcc659aeeb0c3217cc0b2bfd946066377b549a9 exact_id=13e408e52f45561e42617eaa59fa900d8435f565dfa31ccd79ec56fda6710056

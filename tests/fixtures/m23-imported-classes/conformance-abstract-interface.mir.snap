@@ -20,7 +20,7 @@ Module
   class LocalBase vtable=0 itables=2
   class LocalReader vtable=0 itables=2
   class Counter vtable=0 itables=0
-  interface LocalChoice
+  interface LocalChoice : FirstChoice
   interface FirstChoice
   generated_exact_type get0 location=enum5 nominal_id=a8d99921ad6d14625955725ef2434581586e354d952f305535f9a2b8fd07f891 exact_id=7ff342d4196f65d37434cf26d948b5bd0b3d16795f42ea68c400f9153df8535a
   generated_exact_type get1 location=enum2 nominal_id=68bfeab283f715ee8e1994a3d0f759cbf53093f389ce222d92fdd0a919ef1d4e exact_id=90a520bb9254a1be027bbdb3f5f0d8340bfbe3aa3e157a4a28b49b0dfe81c107

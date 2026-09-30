@@ -16,34 +16,44 @@ Module
   class box<Inline<Unit>> vtable=0 itables=3
   class box<Inline<Pair<Int, Unit>>> vtable=0 itables=3
   class box<Inline<Int>> vtable=0 itables=3
-  interface Diamond<String>
-  interface Restored<Unit, String>
-  interface Swap<String, Unit>
+  class box<Int> vtable=0 itables=0
+  class box<Pair<Int, Unit>> vtable=0 itables=0
+  class box<Unit> vtable=0 itables=0
+  interface Diamond<String> : Restored<Unit, String>, View<Unit, String>
+  interface Restored<Unit, String> : Swap<String, Unit>
+  interface Swap<String, Unit> : View<Unit, String>
   interface View<Unit, String>
-  interface Diamond<Unit>
-  interface Restored<Unit, Unit>
-  interface Swap<Unit, Unit>
+  interface Diamond<Unit> : Restored<Unit, Unit>, View<Unit, Unit>
+  interface Restored<Unit, Unit> : Swap<Unit, Unit>
+  interface Swap<Unit, Unit> : View<Unit, Unit>
   interface View<Unit, Unit>
-  interface Diamond<Pair<Int, Unit>>
-  interface Restored<Unit, Pair<Int, Unit>>
-  interface Swap<Pair<Int, Unit>, Unit>
+  interface Diamond<Pair<Int, Unit>> : Restored<Unit, Pair<Int, Unit>>, View<Unit, Pair<Int, Unit>>
+  interface Restored<Unit, Pair<Int, Unit>> : Swap<Pair<Int, Unit>, Unit>
+  interface Swap<Pair<Int, Unit>, Unit> : View<Unit, Pair<Int, Unit>>
   interface View<Unit, Pair<Int, Unit>>
-  interface Diamond<Int>
-  interface Restored<Unit, Int>
-  interface Swap<Int, Unit>
+  interface Diamond<Int> : Restored<Unit, Int>, View<Unit, Int>
+  interface Restored<Unit, Int> : Swap<Int, Unit>
+  interface Swap<Int, Unit> : View<Unit, Int>
   interface View<Unit, Int>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
-  closure cc1 $Closure$lambda1 type=function_type1 invoke=@fn3 captures=0
-  closure cc2 $Closure$lambda2 type=function_type2 invoke=@fn5 captures=0
-  closure cc3 $Closure$lambda3 type=function_type3 invoke=@fn7 captures=0
+    bridge function_type1 -> @fn138 id=1f7bfb344249c7a0c0baae6648fc4e55809cb2ccd74060e69da7e7e8a45e46c3
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn3 captures=0
+    bridge function_type1 -> @fn139 id=7b5c5d7813705eb076f498f4bf4d0bfdee5a0902b3cfe5419a67a6a7aa617403
+  closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn5 captures=0
+    bridge function_type1 -> @fn140 id=dea6b412563292f331d319882669e4244002da4d3facc6b693098de3f39c7a5f
+  closure cc3 $Closure$lambda3 type=function_type4 invoke=@fn7 captures=0
+    bridge function_type1 -> @fn141 id=66f1089b1a64e836cef70b339b81ac8d43c5ad78bd5a8c921718bef75a61ffd9
   generated_exact_type get0 location=class8 nominal_id=76f87749725729e8408d62dc42d19f44590c823a1f00fb931226d9e877c5ec1a exact_id=053cabab9506107fd6e4a41da97b8d86c678175b648896fc168805b7062884f3
   generated_exact_type get1 location=class11 nominal_id=066288fcc575b7054124cb19b305a6e0072d8c3bbef0f7e89409b09e0f02fc83 exact_id=1ce6e9f3b257fe6d0f3fdef64ec7d687df8af93372c510e643d00bd4c3007ff1
-  generated_exact_type get2 location=closure3 nominal_id=e9c9cf491fc06401da8d4a0b097c39e01fd98a6f0ecbd3dc86b749eb2f580bc0 exact_id=555f27d77c93e54620040709e6b8e8b72c59c42dba5546d2185049ce4e973396
-  generated_exact_type get3 location=closure0 nominal_id=63de6590a2fb7f24f3ffdc3ee39b58b472eed76cfbe0ecc6135c83edef1831e9 exact_id=720cdd81c2aab2a47cf8d951a36f9ebe360e5deecc63868c112fc655f47168df
-  generated_exact_type get4 location=closure2 nominal_id=f65af0ac28b7828102038c7af7c47bcdebac2faae377a194af82b101177453b9 exact_id=bcd7c248e60910b385952123d4251466ea244701ec7102ffc243adc2b9be73b4
-  generated_exact_type get5 location=closure1 nominal_id=20ab55a0fe20f862a5276e62d794eb44d66be483d2ec23da00242653cb506a65 exact_id=bf8515818bb516c65a553b355181bed2445fe328197e375d4c3e4dad7b533adf
-  generated_exact_type get6 location=class10 nominal_id=5b744023620fa19657fa0437433a5a6d682ff4d083d79b5374cc0cdb76bef8e2 exact_id=c67bf8f9fd10e723a8f38b8b5e856ba86ffa7ee5d2093b92f37a538ffd1a576f
-  generated_exact_type get7 location=class9 nominal_id=f4722df97876e01266fe017b3fbc3b978d39e83df69bd815b4b75f7c674afc25 exact_id=f0c7f47d078eb802c88b7c9756afa5b47fded5203cfa8987be7532290d3065b8
+  generated_exact_type get2 location=class14 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get3 location=closure3 nominal_id=e9c9cf491fc06401da8d4a0b097c39e01fd98a6f0ecbd3dc86b749eb2f580bc0 exact_id=555f27d77c93e54620040709e6b8e8b72c59c42dba5546d2185049ce4e973396
+  generated_exact_type get4 location=closure0 nominal_id=63de6590a2fb7f24f3ffdc3ee39b58b472eed76cfbe0ecc6135c83edef1831e9 exact_id=720cdd81c2aab2a47cf8d951a36f9ebe360e5deecc63868c112fc655f47168df
+  generated_exact_type get5 location=class13 nominal_id=fbaac0ecb735a11a0ef6086ffb7828846bffba1c350d066a0cce368fc87e9f7b exact_id=ab31aa080c5e761ce396e3e53bcbc2f3b9d7be96cb34319d8de8afc7e90ac5b9
+  generated_exact_type get6 location=closure2 nominal_id=f65af0ac28b7828102038c7af7c47bcdebac2faae377a194af82b101177453b9 exact_id=bcd7c248e60910b385952123d4251466ea244701ec7102ffc243adc2b9be73b4
+  generated_exact_type get7 location=closure1 nominal_id=20ab55a0fe20f862a5276e62d794eb44d66be483d2ec23da00242653cb506a65 exact_id=bf8515818bb516c65a553b355181bed2445fe328197e375d4c3e4dad7b533adf
+  generated_exact_type get8 location=class10 nominal_id=5b744023620fa19657fa0437433a5a6d682ff4d083d79b5374cc0cdb76bef8e2 exact_id=c67bf8f9fd10e723a8f38b8b5e856ba86ffa7ee5d2093b92f37a538ffd1a576f
+  generated_exact_type get9 location=class12 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get10 location=class9 nominal_id=f4722df97876e01266fe017b3fbc3b978d39e83df69bd815b4b75f7c674afc25 exact_id=f0c7f47d078eb802c88b7c9756afa5b47fded5203cfa8987be7532290d3065b8
   generated_callable gc0 function=@fn117 id=02a42d4604a6ebd3ed2422007fbf09d1d7140d290c4ddebb88062a998a0d5a29
   generated_callable gc1 function=@fn109 id=03ff8b74b17d1d470297b627130ab07f028a756c5fba59ab8fb603474fd64f0c
   generated_callable gc2 function=@fn135 id=053d9ba401fd6ba23ea9a5b3d227d74fe4dfc1f44333c85052b50c29f83eacf8
@@ -54,52 +64,56 @@ Module
   generated_callable gc7 function=@fn86 id=0c421448886a7965426509e20dbdb0c6fdfe249ab042957d6e64a9c4449bb2f2
   generated_callable gc8 function=@fn126 id=0c922700beddd8eca08b28610b3f92beb6c25d13b12931c187ed46550959775c
   generated_callable gc9 function=@fn111 id=17b01d6b25709ea590f5119f0f3f8b8ccfe695343663f5978198605a143cb038
-  generated_callable gc10 function=@fn87 id=23c5aab229b4c9d1d527d7abd3aaf03db286895ecc86d5f65d3709cc7fafb57e
-  generated_callable gc11 function=@fn129 id=319427724c872329d7256dfa280ecd88f3f2548f118d505e5996ff802e1fc220
-  generated_callable gc12 function=@fn97 id=31bccac5a6994e74bea0a083d7ce7e525d47808beb94d9d8a7b017d4e0f83b5c
-  generated_callable gc13 function=@fn99 id=38c443ad9635c3aa72e7155564d0f8bec88e9364e6b69a27858e3d4c2d4c3145
-  generated_callable gc14 function=@fn125 id=465e66862cb18e6978979d0671ec5386a53d14c35e8be4b423db89cfc62968fb
-  generated_callable gc15 function=@fn131 id=490062732e99881c1c2c9dd61dd77c24c45a82be658edce832ddd10c4e75af3a
-  generated_callable gc16 function=@fn101 id=49e3c5031300fdc1aace083fd0b4052ca36999928afb7f27669176a1eafe519f
-  generated_callable gc17 function=@fn132 id=4b69ace3551a0eb28f31ed0daa05967680120083190dc66e64df72c6b5cf8b48
-  generated_callable gc18 function=@fn92 id=5104aad6dc86d84e9a2c5d3983d5cbb1d1d445021a4ff04cf57a92da08a04633
-  generated_callable gc19 function=@fn121 id=5223d0f8049768de401d3228a1bf0beb48b67723e8e464866b08bd40073e1466
-  generated_callable gc20 function=@fn96 id=55c07e32acc9acc6522877701086fb36593fa53a16bd991bfe5d3edf50ab234e
-  generated_callable gc21 function=@fn100 id=585ba7b4e0774fe2b9bcb2dc9f0edfd76e95a9382e06b07f7b13ea7be169cfb9
-  generated_callable gc22 function=@fn103 id=5add68b871436513e74ab29eae1f2a016e984eb2737c9a8a61c21054718d894c
-  generated_callable gc23 function=@fn95 id=5f61b05fcbdfc708066a9de83528c4e39b0669d5345c8367474f39662c8bc43b
-  generated_callable gc24 function=@fn108 id=61e37f887777a942462b024aaec81c4e9ab8fc3ff16fe28c2b4bc99a0355fe0c
-  generated_callable gc25 function=@fn83 id=6b39862b4f976a3bbdb5554e4eba982d7579ce7ceecba247fec0fc6d25c24a19
-  generated_callable gc26 function=@fn84 id=6cd131de6d13ff62116fa100ed11f96db855155b46ff15568d7ccd781e359a72
-  generated_callable gc27 function=@fn105 id=74f9cb8fd748e6306df23df4cf56086675ec161f1662f4b0c6619dbbc297be29
-  generated_callable gc28 function=@fn123 id=7ffd27cfe71370a3ed7f7a5b7050a74aef0dbe2a67b6d09bc6cdc84b8521a764
-  generated_callable gc29 function=@fn94 id=80d71def46fb60f5c461c7ef0246617c4abea6e8315ac1d27d4870bee6ad524c
-  generated_callable gc30 function=@fn115 id=88a21eb415d06ef6509c166a4a0d67f36522099756e302dee5fb94eea0b09b2b
-  generated_callable gc31 function=@fn128 id=8abe3f74b0bf1532bc444a2d64ea808de1812ef9946e76e663de939ee266bca2
-  generated_callable gc32 function=@fn107 id=8c28923d06f60d2fa7fcdac45a3331b0a632da4f46b3a87a280e4b62f9e7d182
-  generated_callable gc33 function=@fn82 id=8d304f9e3885b85e7a44142349164505b840cff2cbd6afa84007cb43d91c1256
-  generated_callable gc34 function=@fn106 id=8d979124a51e43d41ed50c67c539a5989190e2bbe0b6bc417fba6347ebc53382
-  generated_callable gc35 function=@fn127 id=9290f7e5f9ab0fe9da530d97424e5edaaa8e5e21daf09bc8f69b7fbba3f0952b
-  generated_callable gc36 function=@fn102 id=97cd5c321936da3d3a21b4343ca584438779da7f5920a2758661b0f7995da875
-  generated_callable gc37 function=@fn133 id=9d4443bb57da749808b7abe68e677ea9db8618c8b95d2c4ff0dda2dc4a7acf69
-  generated_callable gc38 function=@fn118 id=a0a6e932ffaddea5a978ec0fe04384709cc66da9790fe1f63b6e76006573ef1d
-  generated_callable gc39 function=@fn112 id=acc7b7856bc5867af7048c12c675542246ba51a8a0aedc92ef2db860cd5c76a3
-  generated_callable gc40 function=@fn88 id=aea9d97e334be17f0cc6d9a1760a7bc7bfbb05c9e16defaaf93cc64bc6695835
-  generated_callable gc41 function=@fn90 id=b3070f6d274cdd8c1431a240b9b88c4c999688cbb3852879da7108fd6855cc57
-  generated_callable gc42 function=@fn113 id=b4be1396f7a80da0af303878d73278682c4736f1058ecd851509493d651d3c7a
-  generated_callable gc43 function=@fn116 id=ca8aac1c44a331ff1b8d0896c8a25192309e29933e57405beddf8e727bdb14c6
-  generated_callable gc44 function=@fn119 id=cd4f66da29047ff57926138861594ff114b3e752a7545ca33cfa770161fd2f1c
-  generated_callable gc45 function=@fn89 id=ce355bdcd7cc6730910f62bbb285ec1f316bc90a922edc98105b31c07bf78009
-  generated_callable gc46 function=@fn120 id=d29b985a4922d60660df4018127e1660b993de9231b0c4dfaee4c9c49b18fb5c
-  generated_callable gc47 function=@fn124 id=d468afa404bd8166ea32b41526392517a3a23341a4862a4e49f896fda7c2dced
-  generated_callable gc48 function=@fn130 id=d90b01b93a4779106f71929667fb0427eb66cb12017f1c0222b8be102c993209
-  generated_callable gc49 function=@fn136 id=db65dcb4d323cfd4617c01fd9853977b59b4f0782ef084472111be43e00e23ff
-  generated_callable gc50 function=@fn137 id=dbb8e776387a4e0a827c3eaa32c4288b88d1cf9899c57c6c13be0c2f62d604d7
-  generated_callable gc51 function=@fn134 id=e032c29c2792826ad3f0de6f72c7ab53d961aef09d99ffca388b64063f799d6c
-  generated_callable gc52 function=@fn122 id=e8b155b6354fac60aff136cd4b95ab53994163a709a4a5d3bdc9e6cc9d2ad2c9
-  generated_callable gc53 function=@fn114 id=ee888e1728fcc17c6b1452ff539334b73abd910766a16e6d720efddfba4000df
-  generated_callable gc54 function=@fn98 id=f7cf939913ec9ec56a2837ddc1f81a4443429337a3c08579798a8db527b90927
-  generated_callable gc55 function=@fn110 id=f94bb6cfb0bd9722f57467a54c51eabad1ee431a1965c9cf3039b7b40433de50
+  generated_callable gc10 function=@fn138 id=1f7bfb344249c7a0c0baae6648fc4e55809cb2ccd74060e69da7e7e8a45e46c3
+  generated_callable gc11 function=@fn87 id=23c5aab229b4c9d1d527d7abd3aaf03db286895ecc86d5f65d3709cc7fafb57e
+  generated_callable gc12 function=@fn129 id=319427724c872329d7256dfa280ecd88f3f2548f118d505e5996ff802e1fc220
+  generated_callable gc13 function=@fn97 id=31bccac5a6994e74bea0a083d7ce7e525d47808beb94d9d8a7b017d4e0f83b5c
+  generated_callable gc14 function=@fn99 id=38c443ad9635c3aa72e7155564d0f8bec88e9364e6b69a27858e3d4c2d4c3145
+  generated_callable gc15 function=@fn125 id=465e66862cb18e6978979d0671ec5386a53d14c35e8be4b423db89cfc62968fb
+  generated_callable gc16 function=@fn131 id=490062732e99881c1c2c9dd61dd77c24c45a82be658edce832ddd10c4e75af3a
+  generated_callable gc17 function=@fn101 id=49e3c5031300fdc1aace083fd0b4052ca36999928afb7f27669176a1eafe519f
+  generated_callable gc18 function=@fn132 id=4b69ace3551a0eb28f31ed0daa05967680120083190dc66e64df72c6b5cf8b48
+  generated_callable gc19 function=@fn92 id=5104aad6dc86d84e9a2c5d3983d5cbb1d1d445021a4ff04cf57a92da08a04633
+  generated_callable gc20 function=@fn121 id=5223d0f8049768de401d3228a1bf0beb48b67723e8e464866b08bd40073e1466
+  generated_callable gc21 function=@fn96 id=55c07e32acc9acc6522877701086fb36593fa53a16bd991bfe5d3edf50ab234e
+  generated_callable gc22 function=@fn100 id=585ba7b4e0774fe2b9bcb2dc9f0edfd76e95a9382e06b07f7b13ea7be169cfb9
+  generated_callable gc23 function=@fn103 id=5add68b871436513e74ab29eae1f2a016e984eb2737c9a8a61c21054718d894c
+  generated_callable gc24 function=@fn95 id=5f61b05fcbdfc708066a9de83528c4e39b0669d5345c8367474f39662c8bc43b
+  generated_callable gc25 function=@fn108 id=61e37f887777a942462b024aaec81c4e9ab8fc3ff16fe28c2b4bc99a0355fe0c
+  generated_callable gc26 function=@fn141 id=66f1089b1a64e836cef70b339b81ac8d43c5ad78bd5a8c921718bef75a61ffd9
+  generated_callable gc27 function=@fn83 id=6b39862b4f976a3bbdb5554e4eba982d7579ce7ceecba247fec0fc6d25c24a19
+  generated_callable gc28 function=@fn84 id=6cd131de6d13ff62116fa100ed11f96db855155b46ff15568d7ccd781e359a72
+  generated_callable gc29 function=@fn105 id=74f9cb8fd748e6306df23df4cf56086675ec161f1662f4b0c6619dbbc297be29
+  generated_callable gc30 function=@fn139 id=7b5c5d7813705eb076f498f4bf4d0bfdee5a0902b3cfe5419a67a6a7aa617403
+  generated_callable gc31 function=@fn123 id=7ffd27cfe71370a3ed7f7a5b7050a74aef0dbe2a67b6d09bc6cdc84b8521a764
+  generated_callable gc32 function=@fn94 id=80d71def46fb60f5c461c7ef0246617c4abea6e8315ac1d27d4870bee6ad524c
+  generated_callable gc33 function=@fn115 id=88a21eb415d06ef6509c166a4a0d67f36522099756e302dee5fb94eea0b09b2b
+  generated_callable gc34 function=@fn128 id=8abe3f74b0bf1532bc444a2d64ea808de1812ef9946e76e663de939ee266bca2
+  generated_callable gc35 function=@fn107 id=8c28923d06f60d2fa7fcdac45a3331b0a632da4f46b3a87a280e4b62f9e7d182
+  generated_callable gc36 function=@fn82 id=8d304f9e3885b85e7a44142349164505b840cff2cbd6afa84007cb43d91c1256
+  generated_callable gc37 function=@fn106 id=8d979124a51e43d41ed50c67c539a5989190e2bbe0b6bc417fba6347ebc53382
+  generated_callable gc38 function=@fn127 id=9290f7e5f9ab0fe9da530d97424e5edaaa8e5e21daf09bc8f69b7fbba3f0952b
+  generated_callable gc39 function=@fn102 id=97cd5c321936da3d3a21b4343ca584438779da7f5920a2758661b0f7995da875
+  generated_callable gc40 function=@fn133 id=9d4443bb57da749808b7abe68e677ea9db8618c8b95d2c4ff0dda2dc4a7acf69
+  generated_callable gc41 function=@fn118 id=a0a6e932ffaddea5a978ec0fe04384709cc66da9790fe1f63b6e76006573ef1d
+  generated_callable gc42 function=@fn112 id=acc7b7856bc5867af7048c12c675542246ba51a8a0aedc92ef2db860cd5c76a3
+  generated_callable gc43 function=@fn88 id=aea9d97e334be17f0cc6d9a1760a7bc7bfbb05c9e16defaaf93cc64bc6695835
+  generated_callable gc44 function=@fn90 id=b3070f6d274cdd8c1431a240b9b88c4c999688cbb3852879da7108fd6855cc57
+  generated_callable gc45 function=@fn113 id=b4be1396f7a80da0af303878d73278682c4736f1058ecd851509493d651d3c7a
+  generated_callable gc46 function=@fn116 id=ca8aac1c44a331ff1b8d0896c8a25192309e29933e57405beddf8e727bdb14c6
+  generated_callable gc47 function=@fn119 id=cd4f66da29047ff57926138861594ff114b3e752a7545ca33cfa770161fd2f1c
+  generated_callable gc48 function=@fn89 id=ce355bdcd7cc6730910f62bbb285ec1f316bc90a922edc98105b31c07bf78009
+  generated_callable gc49 function=@fn120 id=d29b985a4922d60660df4018127e1660b993de9231b0c4dfaee4c9c49b18fb5c
+  generated_callable gc50 function=@fn124 id=d468afa404bd8166ea32b41526392517a3a23341a4862a4e49f896fda7c2dced
+  generated_callable gc51 function=@fn130 id=d90b01b93a4779106f71929667fb0427eb66cb12017f1c0222b8be102c993209
+  generated_callable gc52 function=@fn136 id=db65dcb4d323cfd4617c01fd9853977b59b4f0782ef084472111be43e00e23ff
+  generated_callable gc53 function=@fn137 id=dbb8e776387a4e0a827c3eaa32c4288b88d1cf9899c57c6c13be0c2f62d604d7
+  generated_callable gc54 function=@fn140 id=dea6b412563292f331d319882669e4244002da4d3facc6b693098de3f39c7a5f
+  generated_callable gc55 function=@fn134 id=e032c29c2792826ad3f0de6f72c7ab53d961aef09d99ffca388b64063f799d6c
+  generated_callable gc56 function=@fn122 id=e8b155b6354fac60aff136cd4b95ab53994163a709a4a5d3bdc9e6cc9d2ad2c9
+  generated_callable gc57 function=@fn114 id=ee888e1728fcc17c6b1452ff539334b73abd910766a16e6d720efddfba4000df
+  generated_callable gc58 function=@fn98 id=f7cf939913ec9ec56a2837ddc1f81a4443429337a3c08579798a8db527b90927
+  generated_callable gc59 function=@fn110 id=f94bb6cfb0bd9722f57467a54c51eabad1ee431a1965c9cf3039b7b40433de50
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: String
@@ -536,7 +550,7 @@ Module
         Local $receiver
         Type Unit
         Local $parameter.next
-      call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
+      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local $callable.receiver
         Type Unit
@@ -628,7 +642,7 @@ Module
       call @fn25 interface View<Unit, Unit>[3]
         Type View<Unit, Unit>
         Local peer
-      call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
+      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local read
         Type Unit
@@ -723,7 +737,7 @@ Module
         Local $receiver
         Type Unit
         Local $parameter.next
-      call $call.3: Int = <closure:function_type1> closure[function_type1]
+      call $call.3: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local $callable.receiver
         Type Unit
@@ -780,7 +794,7 @@ Module
         Local $receiver
         Type Pair<Int, Unit>
         Local $parameter.next
-      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
+      call $dependency.receiver: Int = <closure:function_type3> closure[function_type3]
         Type (Pair<Int, Unit>) -> Int
         Local $callable.receiver
         Type Pair<Int, Unit>
@@ -872,7 +886,7 @@ Module
       call $call.4: Pair<Int, Unit> = @fn35 interface View<Unit, Pair<Int, Unit>>[3]
         Type View<Unit, Pair<Int, Unit>>
         Local peer
-      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
+      call $dependency.receiver: Int = <closure:function_type3> closure[function_type3]
         Type (Pair<Int, Unit>) -> Int
         Local read
         Type Pair<Int, Unit>
@@ -964,7 +978,7 @@ Module
         Local $receiver
         Type Pair<Int, Unit>
         Local $parameter.next
-      call $call.6: Int = <closure:function_type2> closure[function_type2]
+      call $call.6: Int = <closure:function_type3> closure[function_type3]
         Type (Pair<Int, Unit>) -> Int
         Local $callable.receiver
         Type Pair<Int, Unit>
@@ -1019,7 +1033,7 @@ Module
         Local $receiver
         Type Int
         Local $parameter.next
-      call $dependency.receiver: Int = <closure:function_type3> closure[function_type3]
+      call $dependency.receiver: Int = <closure:function_type4> closure[function_type4]
         Type (Int) -> Int
         Local $callable.receiver
         Type Int
@@ -1111,7 +1125,7 @@ Module
       call $call.4: Int = @fn45 interface View<Unit, Int>[3]
         Type View<Unit, Int>
         Local peer
-      call $dependency.receiver: Int = <closure:function_type3> closure[function_type3]
+      call $dependency.receiver: Int = <closure:function_type4> closure[function_type4]
         Type (Int) -> Int
         Local read
         Type Int
@@ -1203,7 +1217,7 @@ Module
         Local $receiver
         Type Int
         Local $parameter.next
-      call $call.6: Int = <closure:function_type3> closure[function_type3]
+      call $call.6: Int = <closure:function_type4> closure[function_type4]
         Type (Int) -> Int
         Local $callable.receiver
         Type Int
@@ -1377,7 +1391,7 @@ Module
           Local $dependency.receiver
         Type Unit
         Local $dependency.parameter.next
-      call $call.1: Int = <closure:function_type1> closure[function_type1]
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local $callable.receiver
         Type Unit
@@ -1429,7 +1443,7 @@ Module
           Local $dependency.receiver
         Type Unit
         Local $dependency.parameter.next
-      call $call.1: Int = <closure:function_type1> closure[function_type1]
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local $callable.receiver
         Type Unit
@@ -1490,7 +1504,7 @@ Module
           Local $dependency.receiver
         Type Pair<Int, Unit>
         Local $dependency.parameter.next
-      call $call.2: Int = <closure:function_type2> closure[function_type2]
+      call $call.2: Int = <closure:function_type3> closure[function_type3]
         Type (Pair<Int, Unit>) -> Int
         Local $callable.receiver
         Type Pair<Int, Unit>
@@ -1539,7 +1553,7 @@ Module
           Local $dependency.receiver
         Type Pair<Int, Unit>
         Local $dependency.parameter.next
-      call $call.2: Int = <closure:function_type2> closure[function_type2]
+      call $call.2: Int = <closure:function_type3> closure[function_type3]
         Type (Pair<Int, Unit>) -> Int
         Local $callable.receiver
         Type Pair<Int, Unit>
@@ -1600,7 +1614,7 @@ Module
           Local $dependency.receiver
         Type Int
         Local $dependency.parameter.next
-      call $call.2: Int = <closure:function_type3> closure[function_type3]
+      call $call.2: Int = <closure:function_type4> closure[function_type4]
         Type (Int) -> Int
         Local $callable.receiver
         Type Int
@@ -1649,7 +1663,7 @@ Module
           Local $dependency.receiver
         Type Int
         Local $dependency.parameter.next
-      call $call.2: Int = <closure:function_type3> closure[function_type3]
+      call $call.2: Int = <closure:function_type4> closure[function_type4]
         Type (Int) -> Int
         Local $callable.receiver
         Type Int
@@ -2446,6 +2460,62 @@ Module
       return
         Type Int
         Local $call.1
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn138($source: (String) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (String) -> Int
+        Local $source
+        Type String
+        Retype String
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn139($source: (Unit) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Unit) -> Int
+        Local $source
+        Type Unit
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn140($source: (Pair<Int, Unit>) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type (Pair<Int, Unit>) -> Int
+        Local $source
+        Type Pair<Int, Unit>
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda3.(Any) -> Any @fn141($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type4> closure[function_type4]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn2 <- exercise
   instance mi1 function=@fn4 <- exercise
   instance mi2 function=@fn6 <- exercise

@@ -56,6 +56,7 @@ pub(super) fn value_or_abstract_type_descriptor(
     let vtable = lir::VtableRecord::new(&identity, Vec::new())
         .expect("validated exact type must derive a vtable identity");
     Ok(lir::TypeDescriptor {
+        relations: lir::TypeDescriptorRelations::Absent,
         diagnostic_name: mir::type_name(module, ty),
         identity,
         instance_layout,
@@ -198,6 +199,7 @@ pub(crate) fn class_type_descriptor(
         .collect();
     itables.sort_unstable_by_key(|table| table.identity_record().key().interface());
     Ok(lir::TypeDescriptor {
+        relations: Default::default(),
         diagnostic_name: def.name.clone(),
         identity,
         instance_layout,

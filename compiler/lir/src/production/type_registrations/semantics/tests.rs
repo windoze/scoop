@@ -19,6 +19,7 @@ fn projects_complete_descriptor_semantics_in_exact_type_order() {
     let mut descriptors = Arena::new();
     let interface_identity = identity(interface_exact);
     let interface = descriptors.alloc(TypeDescriptor {
+        relations: Default::default(),
         diagnostic_name: "Readable".to_string(),
         instance_layout: instance_layout(interface_exact),
         instance_shape: TypeInstanceShapeV1::abstract_ref(),
@@ -33,6 +34,7 @@ fn projects_complete_descriptor_semantics_in_exact_type_order() {
         callable: CallableRef::Runtime(RuntimeFunction::NoGc(NoGcRuntimeFunction::Trap)),
     };
     descriptors.alloc(TypeDescriptor {
+        relations: Default::default(),
         diagnostic_name: "Document".to_string(),
         instance_layout: instance_layout(owner_exact),
         instance_shape: TypeInstanceShapeV1::inline_array(
@@ -119,6 +121,7 @@ fn rejects_duplicate_exact_types_and_foreign_instance_layouts() {
     for name in ["first", "second"] {
         let identity = identity(exact);
         descriptors.alloc(TypeDescriptor {
+            relations: Default::default(),
             diagnostic_name: name.to_string(),
             instance_layout: instance_layout(exact),
             instance_shape: TypeInstanceShapeV1::abstract_ref(),
@@ -149,6 +152,7 @@ fn rejects_duplicate_exact_types_and_foreign_instance_layouts() {
     let identity = identity(owner);
     let mut descriptors = Arena::new();
     descriptors.alloc(TypeDescriptor {
+        relations: Default::default(),
         diagnostic_name: "Owner".to_string(),
         instance_layout: instance_layout(exact_type("Foreign")),
         instance_shape: TypeInstanceShapeV1::abstract_ref(),

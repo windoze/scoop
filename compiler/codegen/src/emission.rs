@@ -200,7 +200,8 @@ fn emit_llvm_module_with_surface<'ctx, R>(
     let i8_ty = context.i8_type();
     let i64_ty = context.i64_type();
 
-    let td_ty = runtime_metadata_v1::RuntimeMetadataV1Types::new(context).type_descriptor();
+    let metadata_types = runtime_metadata_v1::RuntimeMetadataV1Types::new(context);
+    let td_ty = metadata_types.type_descriptor();
     // Declare every local and external descriptor before building any
     // initializer. Semantic edges resolve through typed ids; symbols are read
     // only from the selected entity at final emission.
@@ -209,7 +210,11 @@ fn emit_llvm_module_with_surface<'ctx, R>(
         .type_descriptors
         .iter()
         .map(|(_, descriptor)| {
-            let global = llvm.add_global(td_ty, None, descriptor.identity.symbol());
+            let concrete_td = metadata_types.type_descriptor_storage(
+                u32::try_from(descriptor.relations.related_types().len())
+                    .expect("function arity fits its metadata count"),
+            );
+            let global = llvm.add_global(concrete_td, None, descriptor.identity.symbol());
             apply_persistent_linkage(
                 &global,
                 descriptor.identity.symbol_request(),

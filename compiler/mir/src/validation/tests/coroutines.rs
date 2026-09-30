@@ -26,6 +26,7 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
     let continuation = module.interfaces.alloc(InterfaceDef {
         name: "Continuation".to_string(),
         type_arguments: vec![result.clone()],
+        parents: Vec::new(),
         methods: Vec::new(),
     });
     register_test_exact_type(&mut module, &Type::Interface(continuation));

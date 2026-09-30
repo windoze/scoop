@@ -119,10 +119,21 @@ impl Lowerer {
 
         for (hir_id, interface) in module.interfaces.iter() {
             let mir_id = self.interfaces.mir_id(hir_id);
+            let parents = interface
+                .parents
+                .iter()
+                .map(|ty| {
+                    let hir::TypeKind::Interface(parent) = module.types[*ty].kind else {
+                        unreachable!("concrete interface parents are exact interfaces")
+                    };
+                    self.interfaces.mir_id(parent)
+                })
+                .collect();
             let methods = (0..interface.methods.len())
                 .map(|slot| self.lower_interface_signature(module, hir_id, slot))
                 .collect();
             self.interfaces.defs[mir_id].methods = methods;
+            self.interfaces.defs[mir_id].parents = parents;
         }
         // Bound callable-reference invoke bodies preserve virtual/interface
         // dispatch, so closure materialization needs completed slot tables.
@@ -240,13 +251,20 @@ impl Lowerer {
         // Finalize boxed value types to a fixed point. Function-type bridges
         // can discover additional boxed payloads.
         let mut next_boxed = 0;
+        let mut next_dynamic_adapter = 0;
+        let mut function_shapes = HashSet::new();
         loop {
+            self.prepare_function_shapes(module, &mut function_shapes);
+            self.finalize_dynamic_adapters(module, &mut next_dynamic_adapter);
             while next_boxed < self.boxed.order.len() {
                 self.finalize_boxed(module, next_boxed);
                 next_boxed += 1;
             }
             let added_function_bridges = self.finalize_function_bridges(module);
-            if next_boxed == self.boxed.order.len() && !added_function_bridges {
+            if next_boxed == self.boxed.order.len()
+                && next_dynamic_adapter == self.dynamic_closure_adapters.len()
+                && !added_function_bridges
+            {
                 break;
             }
         }
@@ -304,8 +322,11 @@ impl Lowerer {
                         exact,
                         group,
                     )
-                } else if matches!(&entry.payload, mir::Type::Tuple(_)) {
-                    mir::BoxedType::for_tuple(entry.payload, entry.class, exact)
+                } else if matches!(
+                    &entry.payload,
+                    mir::Type::Tuple(_) | mir::Type::Ptr(_) | mir::Type::FunPtr(_)
+                ) {
+                    mir::BoxedType::for_structural(entry.payload, entry.class, exact)
                 } else {
                     mir::BoxedType::for_source_nominal(entry.payload, entry.class, exact)
                 }

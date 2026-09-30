@@ -1,0 +1,3 @@
+span=67..73
+expression={ 42 }
+lambda result must be of type Ptr<Int>, found Int

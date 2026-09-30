@@ -1,13 +1,23 @@
 Module
   class ReaderBox<Int> vtable=5 itables=1
   class BaseReader<Int> vtable=5 itables=1
+  class box<Int> vtable=0 itables=0
+  class box<Unit> vtable=0 itables=0
   interface MutableReader<Int>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
-  closure cc1 $Closure$reference0 type=function_type1 invoke=@fn15 captures=1
-  closure cc2 $Closure$reference1 type=function_type2 invoke=@fn16 captures=1
-  generated_exact_type get0 location=closure1 nominal_id=0fef3bd7478a87841773bda4652d1209462366cded378f8e16c81a05738df34c exact_id=89cf9b7978e07ef8e88b8e0ff74edb7a74e258abbcdd3b84d1051895981eac51
-  generated_exact_type get1 location=closure2 nominal_id=d241ce77c3551477c0b52f60808eff0c670dcbbc6e965a717e0c4d41740a37db exact_id=a2df82c24e92adf21f07e90048752c33ec6adfe612bdba488e3f123d8776b2af
-  generated_exact_type get2 location=closure0 nominal_id=0aecb4b86740863b70ab3998b35ac9ef25581d26cfc59720a04679c16c99f807 exact_id=a4d782b3a0905ff0dde527dff021096c8c4d3344288c264ba86d3fbe75661a3d
+    bridge function_type1 -> @fn19 id=a9d1052a5171d6e429ba06c1da0f4c09ef852e3a7e15496501c498656fc60014
+  closure cc1 $Closure$reference0 type=function_type2 invoke=@fn15 captures=1
+    bridge function_type1 -> @fn20 id=73e00d3af504780d7f79b3190010c0cf43ab13956bcf667f550f1897846096a7
+  closure cc2 $Closure$reference1 type=function_type3 invoke=@fn16 captures=1
+    bridge function_type4 -> @fn21 id=b6a530537918f2dd46114989ec8ba6157d76283dc223556ac39b964d91d16303
+  generated_exact_type get0 location=class3 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get1 location=closure1 nominal_id=0fef3bd7478a87841773bda4652d1209462366cded378f8e16c81a05738df34c exact_id=89cf9b7978e07ef8e88b8e0ff74edb7a74e258abbcdd3b84d1051895981eac51
+  generated_exact_type get2 location=closure2 nominal_id=d241ce77c3551477c0b52f60808eff0c670dcbbc6e965a717e0c4d41740a37db exact_id=a2df82c24e92adf21f07e90048752c33ec6adfe612bdba488e3f123d8776b2af
+  generated_exact_type get3 location=closure0 nominal_id=0aecb4b86740863b70ab3998b35ac9ef25581d26cfc59720a04679c16c99f807 exact_id=a4d782b3a0905ff0dde527dff021096c8c4d3344288c264ba86d3fbe75661a3d
+  generated_exact_type get4 location=class2 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn20 id=73e00d3af504780d7f79b3190010c0cf43ab13956bcf667f550f1897846096a7
+  generated_callable gc1 function=@fn19 id=a9d1052a5171d6e429ba06c1da0f4c09ef852e3a7e15496501c498656fc60014
+  generated_callable gc2 function=@fn21 id=b6a530537918f2dd46114989ec8ba6157d76283dc223556ac39b964d91d16303
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -62,7 +72,7 @@ Module
           CaptureInit field=0
             Type MutableReader<Int>
             Local box
-      call <closure:function_type1> closure[function_type1]
+      call <closure:function_type2> closure[function_type2]
         Type (Int) -> Unit
         Local replace
         Type Int
@@ -87,7 +97,7 @@ Module
         Local $callable.receiver
         Type Int
         Local $call.2
-      call $call.3: Int = <closure:function_type2> closure[function_type2]
+      call $call.3: Int = <closure:function_type3> closure[function_type3]
         Type () -> Int
         Local fetch
       call $dependency.argument.0: Int = <closure:function_type0> closure[function_type0]
@@ -238,6 +248,44 @@ Module
   fun init.BaseReader.$c0 @fn18(this: BaseReader<Int>) -> Unit
     bb0 entry
       return
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn19($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn20($source: (Int) -> Unit, arg0: Any) -> Any
+    bb0 entry
+      call <closure:function_type2> closure[function_type2]
+        Type (Int) -> Unit
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Unit
+          UnitLiteral
+  fun function_bridge.$Closure$reference1.() -> Any @fn21($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn2 <- exercise
   instance mi1 function=@fn3 <- BaseReader.stored
   instance mi2 function=@fn4 <- BaseReader.read

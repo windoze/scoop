@@ -90,6 +90,7 @@ pub struct StrongTypeDescriptorSemanticPlan<D, C> {
     pub(super) parent: Option<D>,
     pub(super) vtable: StrongTypeVtableSemanticPlan<C>,
     pub(super) itables: Vec<StrongTypeItableSemanticPlan<D, C>>,
+    pub(super) relations: crate::TypeDescriptorRelations<Option<D>>,
 }
 
 impl<D: Copy, C> StrongTypeDescriptorSemanticPlan<D, C> {
@@ -104,6 +105,7 @@ impl<D: Copy, C> StrongTypeDescriptorSemanticPlan<D, C> {
         parent: Option<D>,
         vtable: StrongTypeVtableSemanticPlan<C>,
         itables: Vec<StrongTypeItableSemanticPlan<D, C>>,
+        relations: crate::TypeDescriptorRelations<Option<D>>,
     ) -> Self {
         Self {
             exact_type,
@@ -115,6 +117,7 @@ impl<D: Copy, C> StrongTypeDescriptorSemanticPlan<D, C> {
             parent,
             vtable,
             itables,
+            relations,
         }
     }
 
@@ -152,6 +155,10 @@ impl<D: Copy, C> StrongTypeDescriptorSemanticPlan<D, C> {
 
     pub fn itables(&self) -> &[StrongTypeItableSemanticPlan<D, C>] {
         &self.itables
+    }
+
+    pub const fn relations(&self) -> &crate::TypeDescriptorRelations<Option<D>> {
+        &self.relations
     }
 }
 

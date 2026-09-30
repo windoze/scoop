@@ -182,6 +182,7 @@ impl Fixture {
                 exact: self.exact(),
                 parent: None,
                 interfaces: &[],
+                interface_parents: None,
             },
             &self.layouts,
             &dispatch,
@@ -206,6 +207,7 @@ impl Fixture {
             None,
             StrongTypeVtableSemanticPlanV2::from_artifact(vtable, Vec::new()),
             Vec::new(),
+            crate::TypeDescriptorRelations::Absent,
         )
     }
 }

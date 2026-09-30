@@ -27,30 +27,44 @@ Module
   class Remote<Pair<Int, Unit>> vtable=0 itables=2
   class ArrayIterator<Int> vtable=0 itables=1
   class MutableArrayIterator<Int> vtable=0 itables=1
-  interface Swap<Int, Unit>
+  class box<Int> vtable=0 itables=0
+  class box<Pair<Int, Unit>> vtable=0 itables=0
+  class box<Unit> vtable=0 itables=0
+  interface Swap<Int, Unit> : View<Unit, Int>
   interface View<Unit, Int>
-  interface Swap<String, Unit>
+  interface Swap<String, Unit> : View<Unit, String>
   interface View<Unit, String>
   interface Iterable<String>
   interface Iterator<String>
-  interface Swap<Unit, Unit>
+  interface Swap<Unit, Unit> : View<Unit, Unit>
   interface View<Unit, Unit>
   interface Iterable<Unit>
   interface Iterator<Unit>
-  interface Swap<Pair<Int, Unit>, Unit>
+  interface Swap<Pair<Int, Unit>, Unit> : View<Unit, Pair<Int, Unit>>
   interface View<Unit, Pair<Int, Unit>>
   interface Iterable<Pair<Int, Unit>>
   interface Iterator<Pair<Int, Unit>>
   interface Iterable<Int>
   interface Iterator<Int>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn7 captures=0
-  closure cc1 $Closure$lambda1 type=function_type1 invoke=@fn9 captures=0
-  closure cc2 $Closure$lambda2 type=function_type2 invoke=@fn11 captures=0
-  closure cc3 $Closure$lambda3 type=function_type3 invoke=@fn13 captures=0
+    bridge function_type1 -> @fn70 id=76b03227a37d26921171b8fb12af5498b14fb32d4651f5e56a284e1544f55569
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn9 captures=0
+    bridge function_type1 -> @fn71 id=9142e8d43a51d979bbfe92f52ecbaa7d4e8d355ea0535b28d77e41790c2c1db3
+  closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn11 captures=0
+    bridge function_type1 -> @fn72 id=5d51871fafd5c64242c7a1c2dbf53a8aca67a506857d756b4c8a7858b3dbd216
+  closure cc3 $Closure$lambda3 type=function_type4 invoke=@fn13 captures=0
+    bridge function_type1 -> @fn73 id=08c0edae44486066a67f83c8d2b533347ab52d2236f085efc9c06beb46c2b393
   generated_exact_type get0 location=closure3 nominal_id=16cb6fc3df0c36279d8c0220835ed2de7487b30769b07bf59a5390d03ef1477e exact_id=3d55cecbd7484338cd2568b1d68f910f3f40a7964355d356fbcdf4999195b274
-  generated_exact_type get1 location=closure0 nominal_id=6ab77c641fbeb71b037d7cf1932cbd4fbbb95eb89f599381a89a6f4e011fa0e1 exact_id=86b63b672f0081f5e59eff45ec58bf7871c4787e2d51c5b961bd45ba97c9945d
-  generated_exact_type get2 location=closure2 nominal_id=7e66390e6456153eeea46dd345d7171dfab2a3ea5cd5d2f3a6c02414eaaac642 exact_id=a4c3b5743dc95919506dd559803a62598011b1dda2a81cfae78f4414219d7382
-  generated_exact_type get3 location=closure1 nominal_id=c4239f4c51fd4310c3a91c3597fed62f283a3aed7e44649b4ca28c87deef80d1 exact_id=d0f94f9f560b59ae6ad615c27cae482156cb8128cffed4f4e74d15b1c0e133ca
+  generated_exact_type get1 location=class25 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get2 location=closure0 nominal_id=6ab77c641fbeb71b037d7cf1932cbd4fbbb95eb89f599381a89a6f4e011fa0e1 exact_id=86b63b672f0081f5e59eff45ec58bf7871c4787e2d51c5b961bd45ba97c9945d
+  generated_exact_type get3 location=closure2 nominal_id=7e66390e6456153eeea46dd345d7171dfab2a3ea5cd5d2f3a6c02414eaaac642 exact_id=a4c3b5743dc95919506dd559803a62598011b1dda2a81cfae78f4414219d7382
+  generated_exact_type get4 location=class24 nominal_id=fbaac0ecb735a11a0ef6086ffb7828846bffba1c350d066a0cce368fc87e9f7b exact_id=ab31aa080c5e761ce396e3e53bcbc2f3b9d7be96cb34319d8de8afc7e90ac5b9
+  generated_exact_type get5 location=closure1 nominal_id=c4239f4c51fd4310c3a91c3597fed62f283a3aed7e44649b4ca28c87deef80d1 exact_id=d0f94f9f560b59ae6ad615c27cae482156cb8128cffed4f4e74d15b1c0e133ca
+  generated_exact_type get6 location=class23 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn73 id=08c0edae44486066a67f83c8d2b533347ab52d2236f085efc9c06beb46c2b393
+  generated_callable gc1 function=@fn72 id=5d51871fafd5c64242c7a1c2dbf53a8aca67a506857d756b4c8a7858b3dbd216
+  generated_callable gc2 function=@fn70 id=76b03227a37d26921171b8fb12af5498b14fb32d4651f5e56a284e1544f55569
+  generated_callable gc3 function=@fn71 id=9142e8d43a51d979bbfe92f52ecbaa7d4e8d355ea0535b28d77e41790c2c1db3
   fun result @fn0() -> Int
     bb0 entry
       val $dependency.argument.0: Int
@@ -624,7 +638,7 @@ Module
         Local $dependency.receiver
         Type Unit
         Local $dependency.parameter.next
-      call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
+      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local $callable.receiver
         Type Unit
@@ -668,7 +682,7 @@ Module
         Local $dependency.receiver
         Type Unit
         Local $dependency.parameter.next
-      call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
+      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local $callable.receiver
         Type Unit
@@ -860,7 +874,7 @@ Module
         Type IndexOutOfBoundsException
         Local $new.4
     bb14 if.merge.14
-      call $call.5: Int = <closure:function_type1> closure[function_type1]
+      call $call.5: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local $callable.receiver
         Type Unit
@@ -923,7 +937,7 @@ Module
         Local $dependency.receiver
         Type Pair<Int, Unit>
         Local $dependency.parameter.next
-      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
+      call $dependency.receiver: Int = <closure:function_type3> closure[function_type3]
         Type (Pair<Int, Unit>) -> Int
         Local $callable.receiver
         Type Pair<Int, Unit>
@@ -964,7 +978,7 @@ Module
         Local $dependency.receiver
         Type Pair<Int, Unit>
         Local $dependency.parameter.next
-      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
+      call $dependency.receiver: Int = <closure:function_type3> closure[function_type3]
         Type (Pair<Int, Unit>) -> Int
         Local $callable.receiver
         Type Pair<Int, Unit>
@@ -1156,7 +1170,7 @@ Module
         Type IndexOutOfBoundsException
         Local $new.8
     bb14 if.merge.14
-      call $call.9: Int = <closure:function_type2> closure[function_type2]
+      call $call.9: Int = <closure:function_type3> closure[function_type3]
         Type (Pair<Int, Unit>) -> Int
         Local $callable.receiver
         Type Pair<Int, Unit>
@@ -1217,7 +1231,7 @@ Module
         Local $dependency.receiver
         Type Int
         Local $dependency.parameter.next
-      call $dependency.receiver: Int = <closure:function_type3> closure[function_type3]
+      call $dependency.receiver: Int = <closure:function_type4> closure[function_type4]
         Type (Int) -> Int
         Local $callable.receiver
         Type Int
@@ -1258,7 +1272,7 @@ Module
         Local $dependency.receiver
         Type Int
         Local $dependency.parameter.next
-      call $dependency.receiver: Int = <closure:function_type3> closure[function_type3]
+      call $dependency.receiver: Int = <closure:function_type4> closure[function_type4]
         Type (Int) -> Int
         Local $callable.receiver
         Type Int
@@ -1450,7 +1464,7 @@ Module
         Type IndexOutOfBoundsException
         Local $new.8
     bb14 if.merge.14
-      call $call.9: Int = <closure:function_type3> closure[function_type3]
+      call $call.9: Int = <closure:function_type4> closure[function_type4]
         Type (Int) -> Int
         Local $callable.receiver
         Type Int
@@ -3051,6 +3065,62 @@ Module
           Local first
           Type Unit
           Local second
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn70($source: (String) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (String) -> Int
+        Local $source
+        Type String
+        Retype String
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn71($source: (Unit) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Unit) -> Int
+        Local $source
+        Type Unit
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn72($source: (Pair<Int, Unit>) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type (Pair<Int, Unit>) -> Int
+        Local $source
+        Type Pair<Int, Unit>
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda3.(Any) -> Any @fn73($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type4> closure[function_type4]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn1 <- peer
   instance mi1 function=@fn2 <- first
   instance mi2 function=@fn3 <- second

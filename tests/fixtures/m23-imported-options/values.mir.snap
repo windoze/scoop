@@ -43,7 +43,9 @@ Module
   class Throwable vtable=0 itables=0
   class box<Empty> vtable=0 itables=0
   class box<Wide> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn3 captures=0
+    bridge function_type1 -> @fn11 id=6d48b767c866fad28ea4ca236deb1bac63a7154413a926f3e36ec50a68e123d6
   generated_exact_type get0 location=enum9 nominal_id=142f0f9eab6a09d94c625137e2e20f09c503d203628df485f2a3dc2330b16227 exact_id=0c4a5cbcbe517931244250e62c56237577b5cab544c317dbda03d2b0d90f0cf4
   generated_exact_type get1 location=enum7 nominal_id=f6e517b7bf37ceb021c914e71c8762b5d4d07315f13415f437fc6042f5778e5d exact_id=13dbbb2e4e50d9328579f7641cca409304bef41f2c2601ed8822f19f9152bd86
   generated_exact_type get2 location=enum11 nominal_id=6ede5781accc8c53f62ea4553813ce43f4a2d772cffde5749c1ad00412aa1551 exact_id=323c3d7e5ab0d66030cabe7ec7ef62e608111cce6f3ad8e32ce8934185af73b2
@@ -52,7 +54,9 @@ Module
   generated_exact_type get5 location=class4 nominal_id=2414e15718187c45bf02ec87d80f307d70d79e62d01b11d54cbb4340f3980936 exact_id=aa49e647d8d70cc6c2b6375cafba9aa42aa08c26519556384db939a10396929c
   generated_exact_type get6 location=enum6 nominal_id=bf2532964c3ca920421f0457e9bff3e845bc3afd91115d73594626886dbaed2f exact_id=cc7d99209bf6babbfd981cb4010b518fdda94bd891ac04b6e9a52d7de73d4052
   generated_exact_type get7 location=enum10 nominal_id=d3df0994984c34af87b9435a5976444f13978f21a3a8d0f7052b2251252c8beb exact_id=d9ecc17b1bdde128eb0d9686757dba6fa87b99592efbb34a91ad7bb8881a1eaf
-  generated_exact_type get8 location=class5 nominal_id=6f277bd9be669f1e663d51ec96ba4356699fe69426ff79fec4e674a12fe1ede5 exact_id=f3c0b00d7db934a536333281e935940db01dced5096f7ec9083c1076a8096953
+  generated_exact_type get8 location=class6 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get9 location=class5 nominal_id=6f277bd9be669f1e663d51ec96ba4356699fe69426ff79fec4e674a12fe1ede5 exact_id=f3c0b00d7db934a536333281e935940db01dced5096f7ec9083c1076a8096953
+  generated_callable gc0 function=@fn11 id=6d48b767c866fad28ea4ca236deb1bac63a7154413a926f3e36ec50a68e123d6
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -632,6 +636,16 @@ Module
       return
         Type Empty
         StructInit Empty
+  fun function_bridge.$Closure$lambda0.() -> Any @fn11($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   coroutine_step cs0 CoroutineStep<Empty> result=Empty
   coroutine_step cs1 CoroutineStep<Wide> result=Wide
   coroutine_step cs2 CoroutineStep<Cell> result=Cell

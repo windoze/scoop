@@ -3,8 +3,12 @@ Module
   struct Box<Int> (value: Int)
   struct Leaf (number: Int)
   class Companion vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
   closure cc0 $Closure$reference0 type=function_type0 invoke=@fn3 captures=0
+    bridge function_type1 -> @fn5 id=1f51f381c8ad5a1d2f36cbfbcd37ebe78d559711098e31ab013f526651783cb2
   generated_exact_type get0 location=closure0 nominal_id=526cedfa5dde43e8135feaf50b057ed376c0d3152f21212efd5962a3c17fcadd exact_id=7b9f729dfb7df434ac8273731a5762c18631de021ed177436e63e69a484738c3
+  generated_exact_type get1 location=class1 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn5 id=1f51f381c8ad5a1d2f36cbfbcd37ebe78d559711098e31ab013f526651783cb2
   fun readInt @fn0(value: Int) -> Int
     bb0 entry
       return
@@ -116,5 +120,19 @@ Module
         StructInit Box<Int>
           Type Int
           Local value
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn5($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn2 <- exercise
   output library

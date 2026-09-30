@@ -106,7 +106,7 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     heap_store param0 +16 integer<Long>(0x00000000000003e8)
     ret
-  td td0 n(c=dev.example%3Aclasses-conformance-super-property%3A0.1.0;p=;o=-;k=I;x=LocalProcedure) @scoop$1$td$6740f5c820f59c45ba2211f8a97cfea08dcea09d6791572248cdf940d17dc9e4 type-id=10404545721756080323 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[]
+  td td0 n(c=dev.example%3Aclasses-conformance-super-property%3A0.1.0;p=;o=-;k=I;x=LocalProcedure) @scoop$1$td$6740f5c820f59c45ba2211f8a97cfea08dcea09d6791572248cdf940d17dc9e4 type-id=10404545721756080323 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
   td td1 n(c=dev.example%3Aclasses-conformance-super-property%3A0.1.0;p=;o=-;k=C;x=LocalProperty) @scoop$1$td$756c4b7ea8c547c63d0b0bc84998cc3cfcf3fc2d71802f5913a96cbbb5fe6e75 type-id=7094115573442187647 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[td0:[local-fn4], external-td0:[local-fn1, local-fn2]]
   td td2 g(r=00000005;i=7f54fac79ac339bf6e323f07adfc437f31d7360ad5b165155b5a89767dfee97a) @scoop$1$td$13f731bcc39ae9baf86c62567320de3427eccb9085488c3d02ca82b68de3d66b type-id=6138946747800990218 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td3 g(r=00000007;i=33770f3b01d628b8191f1a2aa41240a7102dc3bffd8611dab86f5128ea14f137) @scoop$1$td$73eb3ba116f657718ade90121c339430d8803d30b1285b8eca1b4664a0dfbdbd type-id=18376314818549492092 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]

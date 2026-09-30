@@ -1,0 +1,114 @@
+Module
+  fun nativeCall(arg1: FunPtr<(Long) -> Long>, arg2: Long): Long <unsafe no-gc cdecl> <extern0 abi=c symbol=m23_call_scalar>
+  fun callScalar(callback: FunPtr<(Long) -> Long>, value: Long): Long
+    val local2
+      Local callback : FunPtr<(Long) -> Long>
+    val local3
+      Local value : Long
+    val local4
+      Local $argument.0 : FunPtr<(Long) -> Long>
+    val local5
+      Local $argument.1 : Long
+    return
+      Call nativeCall : Long
+        Local $parameter.callback : FunPtr<(Long) -> Long>
+        Local $parameter.value : Long
+  fun exercise<T>(seed: T0, read: (T0) -> Int): Int
+    val local2
+      FunctionAddress external #0 : FunPtr<(Long) -> Long>
+    val local3
+      Local seed : T0
+    val local4
+      Local read : (T0) -> Int
+    val local5
+      Local pointer : FunPtr<(Long) -> Long>
+    val local6
+      Local $dependency.argument.0 : T0
+    val local7
+      Local $dependency.argument.1 : (T0) -> Int
+    val local8
+      Local $dependency.argument.2 : FunPtr<(Long) -> Long>
+    val local9
+      Call nativeSource<T0> : (Any) -> FunPtr<(Long) -> Long>
+        Local $dependency.parameter.seed : T0
+        Local $dependency.parameter.read : (T0) -> Int
+        Local $dependency.parameter.pointer : FunPtr<(Long) -> Long>
+    val local10
+      FunctionCoercion coercion0 (Any) -> FunPtr<(Long) -> Long> -> (FunPtr<(Long) -> Long>) -> Any : (FunPtr<(Long) -> Long>) -> Any
+        Local exact : (Any) -> FunPtr<(Long) -> Long>
+    val local11
+      ReferenceUpcast : Any
+        Local exact : (Any) -> FunPtr<(Long) -> Long>
+    val local12
+      Cast (FunPtr<(Long) -> Long>) -> Any optional=false : (FunPtr<(Long) -> Long>) -> Any
+        Local erased : Any
+    val local13
+      Unbox : FunPtr<(Long) -> Long>
+        Cast FunPtr<(Long) -> Long> optional=false : FunPtr<(Long) -> Long>
+          CallableCall function_type4 : Any
+            Local adapted : (FunPtr<(Long) -> Long>) -> Any
+            Local pointer : FunPtr<(Long) -> Long>
+    val local14
+      Unbox : FunPtr<(Long) -> Long>
+        Cast FunPtr<(Long) -> Long> optional=false : FunPtr<(Long) -> Long>
+          CallableCall function_type4 : Any
+            Local checked : (FunPtr<(Long) -> Long>) -> Any
+            Local pointer : FunPtr<(Long) -> Long>
+    val local15
+      Local first : FunPtr<(Long) -> Long>
+    val local16
+      IntegerLiteral 41 : Long
+    val local17
+      Local $argument.0 : FunPtr<(Long) -> Long>
+    val local18
+      Local $argument.1 : Long
+    val local19
+      Call callScalar : Long
+        Local $parameter.callback : FunPtr<(Long) -> Long>
+        Local $parameter.value : Long
+    val local20
+      IntegerLiteral 41 : Long
+    val local21
+      Local $dependency.argument.0 : Long
+    if
+      Unary Not : Boolean
+        IntegerOperation long.equals <no-gc> : Boolean
+          Local $dependency.receiver : Long
+          Local $dependency.parameter.other : Long
+      return
+        IntegerLiteral 1 : Int
+    val local23
+      Local second : FunPtr<(Long) -> Long>
+    val local22
+      CallableCall function_type1 : Int
+        Local read : (T0) -> Int
+        Local seed : T0
+    val local24
+      IntegerConversion Int -> Long <no-gc> : Long
+        Local $dependency.receiver : Int
+    val local25
+      Local $argument.0 : FunPtr<(Long) -> Long>
+    val local26
+      Local $argument.1 : Long
+    val local27
+      Call callScalar : Long
+        Local $parameter.callback : FunPtr<(Long) -> Long>
+        Local $parameter.value : Long
+    return
+      IntegerConversion Long -> Int <no-gc> : Int
+        Local $dependency.receiver : Long
+  fun result(): Int
+    val local0
+      IntegerLiteral 42 : Int
+    val local1
+      Lambda lambda0 invoke=$lambda.0 captures=0 : (Int) -> Int
+    val local2
+      Local $argument.0 : Int
+    val local3
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.seed : Int
+        Local $parameter.read : (Int) -> Int
+  output library
+  instance exercise<Int>

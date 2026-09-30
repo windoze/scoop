@@ -65,7 +65,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> i32 local-fn2(param0)
     store t0 -> local0
     ret local0
-  td td0 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.members;o=-;k=I;x=ReadOnlyProperty);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$85d3f51e9989ade8e4d028370f995a4e9669d2ac2860ba3c53c7d95b4004f592 type-id=2822139644376812075 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[]
+  td td0 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.members;o=-;k=I;x=ReadOnlyProperty);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$85d3f51e9989ade8e4d028370f995a4e9669d2ac2860ba3c53c7d95b4004f592 type-id=2822139644376812075 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
   td td1 g(r=00000006;i=4d5111a3ea423497398da808f47303c77d44141b7060775e0515491509012e74) @scoop$1$td$502d9d3e6468948306c1fcc07dd91558f6cc6e1a44db08b6c1556cc276afb4fc type-id=6526896747706216319 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[td0:[local-fn5, local-fn6]]
   td td2 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.members;o=-;k=S;x=PropertyCell);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$e217dd84ba7745e23d9f6e2465f64dc66dd870b640f92d5d1a9bb9b890d0f137 type-id=13917310327661509081 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout PropertyCell size=4 align=4 refs=[]

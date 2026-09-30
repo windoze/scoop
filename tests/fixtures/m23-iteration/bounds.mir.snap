@@ -28,25 +28,35 @@ Module
   class box<LocalValue<Int>> vtable=0 itables=1
   class box<ValueCursor<Int>> vtable=0 itables=1
   class box<EnumCursor<Int>> vtable=0 itables=1
+  class box<Int> vtable=0 itables=0
   interface Iterable<Int>
   interface Iterator<Int>
-  interface Diamond<Int>
-  interface Left<Int>
-  interface Right<Int>
-  closure cc0 $Closure$lambda0 type=function_type1 invoke=@fn22 captures=2
+  interface Diamond<Int> : Left<Int>, Right<Int>
+  interface Left<Int> : Iterator<Int>
+  interface Right<Int> : Iterator<Int>
+  closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn22 captures=2
+    bridge function_type3 -> @fn56 id=ce17b7a6e63599bb8828ae63a7ad434c6c32b60e8ce9775d637b49b3fef5b4d2
   closure cc1 $Closure$reference0 type=function_type0 invoke=@fn35 captures=0
+    bridge function_type1 -> @fn57 id=cc8a50391a9f1ae7aba114ef3915244a17db0c5838c32e576fa1e7320de80c21
   closure cc2 $Closure$reference1 type=function_type0 invoke=@fn36 captures=0
+    bridge function_type1 -> @fn58 id=591a89b988ed978bbdea2b572bb51729a78c5d703f62a44ecebe62befb042156
   closure cc3 $Closure$reference2 type=function_type0 invoke=@fn37 captures=0
+    bridge function_type1 -> @fn59 id=bcd0d79d67dff1cf30948ac63dd60ed4e7446929c2fea458d9bf7c6ae2c44613
   generated_exact_type get0 location=closure3 nominal_id=08700cb018e38775e92251366ceeb406a0e5498dfb62f182dac1cf8214c188d0 exact_id=44dd5639ed84108a00a368268430780650e9f774dd3fe8cec664c9c6a8fe53de
   generated_exact_type get1 location=class12 nominal_id=03aa53f4c43cbd8bc78008fb22f6ab6752d9dfd8d256114d915cd23d539ab93b exact_id=bc337c562ffc1ca18e8b78da47d146dba6c18243f77c818c3b5062f4bcc9643a
   generated_exact_type get2 location=closure1 nominal_id=60ba519626e44587445a5e377b14401da4fed6c096e5b026dcb11b580b65e623 exact_id=bd4161c927d6e7beeda226aa7e67eabe390000ab4676a71fd520137c9ea93a02
   generated_exact_type get3 location=closure0 nominal_id=541d862916f31aae70de4347edb6bc1368eba50439525fe242edba42966a4431 exact_id=be19ca0f975fcd11ba0dad01b38423c4caf83e1cd8685a6de1bbfa9427864cbb
   generated_exact_type get4 location=class11 nominal_id=58406229412dc999b74a0cb3905512e8f5828ffadeb0522f5128e6f173f118c5 exact_id=becd2bc86ca1b1cce4cc421222f15851e5e7a990a20ef42d418c833df18f8362
   generated_exact_type get5 location=closure2 nominal_id=a2dd63ba45a486e73156568685cc500b6578b873c169a82a2ea2c1d232816792 exact_id=c5c502f30fa6de208359b054f886a99dea67681c561a65e22d48476574e42c0e
-  generated_exact_type get6 location=class10 nominal_id=e474243c3971a4325b83c94a1a5df8c8229b760abc1aa4b7b7e97b9ba61b2bce exact_id=e79af6641dc426a7a93fb18935158d2f89b274f2baa836ca2c89659dcef9f52d
+  generated_exact_type get6 location=class13 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get7 location=class10 nominal_id=e474243c3971a4325b83c94a1a5df8c8229b760abc1aa4b7b7e97b9ba61b2bce exact_id=e79af6641dc426a7a93fb18935158d2f89b274f2baa836ca2c89659dcef9f52d
   generated_callable gc0 function=@fn53 id=3069e8b3476d80820e5ced02bd8394e6cfab35cfe5b912f7f8528df1d371ce4e
-  generated_callable gc1 function=@fn54 id=5941f915eb8600343764ca8b4d7ac913749d9bfe15eb9ed295f83051291dd33f
-  generated_callable gc2 function=@fn55 id=8b76d817dc16e020f5c7636f7c0e580ebf32fa25b82c98057fb1a615c5d3c767
+  generated_callable gc1 function=@fn58 id=591a89b988ed978bbdea2b572bb51729a78c5d703f62a44ecebe62befb042156
+  generated_callable gc2 function=@fn54 id=5941f915eb8600343764ca8b4d7ac913749d9bfe15eb9ed295f83051291dd33f
+  generated_callable gc3 function=@fn55 id=8b76d817dc16e020f5c7636f7c0e580ebf32fa25b82c98057fb1a615c5d3c767
+  generated_callable gc4 function=@fn59 id=bcd0d79d67dff1cf30948ac63dd60ed4e7446929c2fea458d9bf7c6ae2c44613
+  generated_callable gc5 function=@fn57 id=cc8a50391a9f1ae7aba114ef3915244a17db0c5838c32e576fa1e7320de80c21
+  generated_callable gc6 function=@fn56 id=ce17b7a6e63599bb8828ae63a7ad434c6c32b60e8ce9775d637b49b3fef5b4d2
   fun readInt @fn0(value: Int) -> Int
     bb0 entry
       return
@@ -1514,7 +1524,7 @@ Module
       goto bb1
   fun defaultTotal @fn23(values: Iterable<Int>, read: (Int) -> Int, compute: () -> Int) -> Int
     bb0 entry
-      call $call.1: Int = <closure:function_type1> closure[function_type1]
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type () -> Int
         Local compute
       return
@@ -2068,6 +2078,58 @@ Module
       return
         Type Option<Int>
         Local $call.1
+  fun function_bridge.$Closure$lambda0.() -> Any @fn56($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn57($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference1.(Any) -> Any @fn58($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference2.(Any) -> Any @fn59($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn2 <- iterator
   instance mi1 function=@fn3 <- next
   instance mi2 function=@fn4 <- LocalValue.next

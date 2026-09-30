@@ -249,7 +249,7 @@ impl ShapeProjection<'_> {
     }
 
     fn descriptor(&self, descriptor: &TypeDescriptor, e: &mut Encoder) -> Result {
-        tagged(e, 5, if self.abi { 8 } else { 9 })?;
+        tagged(e, 5, if self.abi { 9 } else { 10 })?;
         e.field(1)?;
         descriptor.identity.exact_type().encode(e)?;
         e.field(2)?;
@@ -284,8 +284,16 @@ impl ShapeProjection<'_> {
             self.descriptor_reference(table.interface(), e)?;
             table.identity_record().id().encode(e)?;
         }
+        e.field(8)?;
+        descriptor.relations.encode_with(e, |reference, e| {
+            e.array(u64::from(reference.is_some()))?;
+            if let Some(reference) = reference {
+                self.descriptor_reference(*reference, e)?;
+            }
+            Ok(())
+        })?;
         if !self.abi {
-            e.field(8)?;
+            e.field(9)?;
             e.text(&descriptor.diagnostic_name)?;
         }
         Ok(())

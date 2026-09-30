@@ -132,6 +132,7 @@ pub use cross_cone_types::{
 };
 mod current;
 mod dispatch;
+mod dynamic_adapters;
 mod globals;
 mod initialization;
 mod instances;
@@ -152,6 +153,7 @@ pub use current::{CurrentConeMirLoweringError, lower_current_cone};
 pub use production::{MirProductionLoweringError, lower_production_section};
 
 use context::*;
+use dynamic_adapters::{DynamicAdapterDefinitions, request_dynamic_adapter};
 use globals::*;
 use local_values::*;
 use lowering_support::*;

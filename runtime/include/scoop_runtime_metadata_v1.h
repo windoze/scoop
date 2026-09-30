@@ -18,7 +18,7 @@
 #error "Scoop runtime metadata ABI v1 requires little-endian byte order"
 #endif
 
-#define SCOOP_RUNTIME_METADATA_ABI_VERSION_V1 UINT32_C(1)
+#define SCOOP_RUNTIME_METADATA_ABI_VERSION_V1 UINT32_C(2)
 
 /* Unused program/core record magic values 0x53434f4f50505247 and
  * 0x53434f4f50434f52 are retired and must not be reused. */
@@ -114,6 +114,10 @@ struct ScoopTypeDescriptor {
     const ScoopItableEntryV1 *itables;
     uint64_t itable_count;
     ScoopByteSpanV1 diagnostic_name;
+    uint32_t relation_kind;
+    uint32_t related_type_count;
+    const ScoopTypeDescriptor *function_result;
+    const ScoopTypeDescriptor *related_types[];
 };
 
 typedef struct ScoopRegistrationIdentityV1 {
@@ -281,7 +285,7 @@ SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeInstanceShapeV1, inline_scan, 56);
 SCOOP_METADATA_ASSERT_LAYOUT(ScoopItableEntryV1, 16, 8);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopItableEntryV1, interface, 0);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopItableEntryV1, slots, 8);
-SCOOP_METADATA_ASSERT_LAYOUT(ScoopTypeDescriptor, 128, 8);
+SCOOP_METADATA_ASSERT_LAYOUT(ScoopTypeDescriptor, 144, 8);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeDescriptor, type_id, 0);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeDescriptor, instance_shape, 8);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeDescriptor, object_scan, 72);
@@ -290,6 +294,10 @@ SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeDescriptor, vtable, 88);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeDescriptor, itables, 96);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeDescriptor, itable_count, 104);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeDescriptor, diagnostic_name, 112);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeDescriptor, relation_kind, 128);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeDescriptor, related_type_count, 132);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeDescriptor, function_result, 136);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeDescriptor, related_types, 144);
 SCOOP_METADATA_ASSERT_LAYOUT(ScoopRegistrationIdentityV1, 136, 4);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopRegistrationIdentityV1, linkage_kind, 0);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopRegistrationIdentityV1, reserved_zero, 4);

@@ -11,14 +11,22 @@ Module
   class Throwable vtable=0 itables=0
   class ArrayIterator<Int> vtable=0 itables=1
   class IndexOutOfBoundsException vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
   interface Iterable<Int>
   interface Iterator<Int>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
+    bridge function_type1 -> @fn21 id=1741dea6a8313fb8ff65e500aa335f098425b0c3ed758816fb6be7a1063a9fd7
   closure cc1 $Closure$reference0 type=function_type0 invoke=@fn18 captures=2
+    bridge function_type1 -> @fn22 id=977a978fc11ab3c3b5c5c533dfdfed76cf20bb146325923663e9fc5d3dfb65d2
   closure cc2 $Closure$reference1 type=function_type0 invoke=@fn19 captures=2
+    bridge function_type1 -> @fn23 id=d22801987d4d498d90994cf3395f73c2ea211ce5dccaf7f5d0a4e16a8d9a6ca9
   generated_exact_type get0 location=closure1 nominal_id=1f9bbf8510b2968d0d10cedf1686a4a35add55c1b753fa445d4c31a5cb3429fa exact_id=5a72ae7b65fd7727515577e333e19a5e076df81a719886d6d87b7c2d727f1194
   generated_exact_type get1 location=closure2 nominal_id=14a561b411ccc62769fd1b8e3a056fbbfa5351af8f48b4214172d222c630daa4 exact_id=b177363346c77463364776c7341ab2461c5523e95ab2376134892186219e35bc
-  generated_exact_type get2 location=closure0 nominal_id=4e13e9590b2b2010d71f9d3e9c07e0a545280d8b7bd16f37f08014203955b424 exact_id=f6ce6c9d281a3fe0691d77fed587e3613b6d2f6a03cfebd3274b5fa0ebf559b5
+  generated_exact_type get2 location=class7 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get3 location=closure0 nominal_id=4e13e9590b2b2010d71f9d3e9c07e0a545280d8b7bd16f37f08014203955b424 exact_id=f6ce6c9d281a3fe0691d77fed587e3613b6d2f6a03cfebd3274b5fa0ebf559b5
+  generated_callable gc0 function=@fn21 id=1741dea6a8313fb8ff65e500aa335f098425b0c3ed758816fb6be7a1063a9fd7
+  generated_callable gc1 function=@fn22 id=977a978fc11ab3c3b5c5c533dfdfed76cf20bb146325923663e9fc5d3dfb65d2
+  generated_callable gc2 function=@fn23 id=d22801987d4d498d90994cf3395f73c2ea211ce5dccaf7f5d0a4e16a8d9a6ca9
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -1168,6 +1176,48 @@ Module
         Type Long
         Local index
       return
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn21($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn22($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference1.(Any) -> Any @fn23($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn2 <- exercise
   instance mi1 function=@fn3 <- choose
   instance mi2 function=@fn4 <- choose

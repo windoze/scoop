@@ -18,9 +18,9 @@ Module
   class Box<Unit> vtable=0 itables=0
   class Box<Large> vtable=0 itables=0
   class box<Large> vtable=0 itables=0
-  interface MutableProperty<Unit>
+  interface MutableProperty<Unit> : ReadOnlyProperty<Unit>
   interface ReadOnlyProperty<Unit>
-  interface MutableProperty<Large>
+  interface MutableProperty<Large> : ReadOnlyProperty<Large>
   interface ReadOnlyProperty<Large>
   generated_exact_type get0 location=class5 nominal_id=f8e144e18f705bc5a004422e6b991e07cad658441b7131289bb42b6e8d1a168c exact_id=148de98c8bc1bba544d4b1a33813b1d8e1c68c2e47de1f505e906bfc5754e87e
   generated_exact_type get1 location=enum3 nominal_id=e4d7a6412812eaf3d806c29bd5dd3d4f2e8ca0fdd6f6d482e89ccd2279655b70 exact_id=770ea40484780083cd623b851382f8120969a39560daacd7e777d284ffaa4a79

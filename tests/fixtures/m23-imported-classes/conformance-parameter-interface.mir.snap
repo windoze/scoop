@@ -13,7 +13,7 @@ Module
     Value(value: LocalParameters)
   class LocalDefaults vtable=0 itables=2
   class Counter vtable=0 itables=0
-  interface LocalParameters
+  interface LocalParameters : ParameterSource
   interface ParameterSource
   generated_exact_type get0 location=enum2 nominal_id=b53838244ded308120184857810b5e5a5c20dd89cf94de3e91a4d6e7e54df513 exact_id=0f61793c378fad405c8b20c8a69c44479f731784faaddf4194e7c8b6251da0fe
   generated_exact_type get1 location=enum1 nominal_id=e413793693d491067fa23717db74488bad8831e9972f1ca87681a5c8776a912f exact_id=43933f96a8608f2fefa5a55817f424f8152b99f9ef94c0258b2ca723a61051d3

@@ -1,4 +1,5 @@
 mod arrays;
+mod functions;
 mod shapes;
 pub(crate) use arrays::array_types;
 use shapes::*;
@@ -31,6 +32,7 @@ pub(crate) struct TypeDescriptorRefs {
     classes: HashMap<mir::ClassId, lir::TypeDescriptorRef>,
     interfaces: HashMap<mir::InterfaceId, lir::TypeDescriptorRef>,
     closures: HashMap<mir::ClosureClassId, lir::TypeDescriptorRef>,
+    functions: HashMap<mir::FunctionTypeId, lir::TypeDescriptorRef>,
     boxed: Vec<(mir::Type, lir::BoxedValueDescriptor)>,
     string: Option<lir::TypeDescriptorRef>,
 }
@@ -51,6 +53,7 @@ impl TypeDescriptorRefs {
         match ty {
             mir::Type::Class(id) => self.classes[id],
             mir::Type::Interface(id) => self.interfaces[id],
+            mir::Type::Function(id) => self.functions[id],
             mir::Type::String => self.string.expect("typed String descriptor"),
             mir::Type::Struct(_)
             | mir::Type::Enum(..)
@@ -70,7 +73,7 @@ impl TypeDescriptorRefs {
                     })
                 })
                 .unwrap_or_else(|| panic!("MIR did not supply a boxed descriptor for {ty:?}")),
-            mir::Type::Function(_) | mir::Type::Any => {
+            mir::Type::Any => {
                 unreachable!("the strong capability gate rejects this TypeDescriptor request")
             }
         }
@@ -161,6 +164,9 @@ pub(crate) fn type_descriptors(
         let vtable = lir::VtableRecord::new(&identity, Vec::new())
             .expect("validated interface exact type must derive a vtable identity");
         let id = descriptors.alloc(lir::TypeDescriptor {
+            relations: lir::TypeDescriptorRelations::Interface {
+                parents: Vec::new(),
+            },
             diagnostic_name: def.name.clone(),
             identity,
             instance_layout,
@@ -172,6 +178,29 @@ pub(crate) fn type_descriptors(
         });
         refs.interfaces
             .insert(interface, lir::TypeDescriptorRef::Local(id));
+    }
+    for (interface, definition) in module.interfaces.iter() {
+        let Some(lir::TypeDescriptorRef::Local(descriptor)) = refs.interfaces.get(&interface)
+        else {
+            continue;
+        };
+        let mut parents = definition
+            .parents
+            .iter()
+            .map(|parent| {
+                (
+                    exact_type_record(module, &mir::Type::Interface(*parent)).id(),
+                    refs.interfaces[parent],
+                )
+            })
+            .collect::<Vec<_>>();
+        parents.sort_unstable_by_key(|(exact, _)| *exact);
+        descriptors[*descriptor].relations = lir::TypeDescriptorRelations::Interface {
+            parents: parents
+                .into_iter()
+                .map(|(_, reference)| Some(reference))
+                .collect(),
+        };
     }
     for id in class_order(module)? {
         let def = &module.classes[id];
@@ -206,40 +235,37 @@ pub(crate) fn type_descriptors(
             refs.string = Some(descriptor);
         }
     }
-    for (closure, def) in module.closure_classes.iter() {
-        let (_, size, align, scan) = closure_shape(context, module, enums, def)?;
-        let runtime_type =
-            generated_runtime_type(module, mir::GeneratedExactTypeLocation::Closure(closure));
-        let root = identity_roots.for_generated(mir::GeneratedExactTypeLocation::Closure(closure));
-        let identity = lir::TypeDescriptorIdentity::new(runtime_type, root.clone())
-            .expect("validated closure exact type must derive descriptor identities");
-        let instance_layout = lir::LayoutIdentity::managed_object(
-            runtime_type.exact_type(),
-            context.target_profile(),
-            root,
-        )
-        .expect("validated closure exact type must derive its instance layout identity");
-        let vtable = lir::VtableRecord::new(&identity, Vec::new())
-            .expect("validated closure exact type must derive a vtable identity");
-        let descriptor = descriptors.alloc(lir::TypeDescriptor {
-            diagnostic_name: def.name.clone(),
-            identity,
-            instance_layout,
-            instance_shape: lir::TypeInstanceShapeV1::fixed_object(
-                context.target_profile(),
-                size,
-                align,
-                scan,
+    for boxed in &module.meta.boxed_types {
+        if !identity_roots.materializes_type(&mir::Type::Class(boxed.class())) {
+            continue;
+        }
+        let Some(descriptor) = refs.classes.get(&boxed.class()).copied() else {
+            continue;
+        };
+        let lir::TypeDescriptorRef::Local(descriptor) = descriptor else {
+            return Err(StorageLoweringError::InvalidRepresentation(
+                "local MIR boxed helpers require local descriptors",
             )
-            .map_err(StorageLoweringError::from)?,
-            inline_scan: lir::TypeDescriptorInlineScanV1::Null,
-            parent: None,
-            vtable,
-            itables: Vec::new(),
-        });
-        refs.closures
-            .insert(closure, lir::TypeDescriptorRef::Local(descriptor));
+            .into());
+        };
+        let proof = lir::BoxedValueDescriptor::from_local(
+            &descriptors,
+            descriptor,
+            exact_type_record(module, boxed.payload()).id(),
+            lir_type(boxed.payload()),
+        )
+        .map_err(StorageLoweringError::from)?;
+        refs.boxed.push((boxed.payload().clone(), proof));
     }
+    functions::materialize(
+        context,
+        identity_roots,
+        module,
+        enums,
+        local_functions,
+        &mut descriptors,
+        &mut refs,
+    )?;
     for root in identity_roots.source_nominal_shapes() {
         if imported.contains(root.ty()) {
             continue;
@@ -283,28 +309,6 @@ pub(crate) fn type_descriptors(
             root.exact(),
             identity_roots.for_generated(root.location()),
         )?);
-    }
-    for boxed in &module.meta.boxed_types {
-        if !identity_roots.materializes_type(&mir::Type::Class(boxed.class())) {
-            continue;
-        }
-        let Some(descriptor) = refs.classes.get(&boxed.class()).copied() else {
-            continue;
-        };
-        let lir::TypeDescriptorRef::Local(descriptor) = descriptor else {
-            return Err(StorageLoweringError::InvalidRepresentation(
-                "local MIR boxed helpers require local descriptors",
-            )
-            .into());
-        };
-        let proof = lir::BoxedValueDescriptor::from_local(
-            &descriptors,
-            descriptor,
-            exact_type_record(module, boxed.payload()).id(),
-            lir_type(boxed.payload()),
-        )
-        .map_err(StorageLoweringError::from)?;
-        refs.boxed.push((boxed.payload().clone(), proof));
     }
     let string = refs
         .string

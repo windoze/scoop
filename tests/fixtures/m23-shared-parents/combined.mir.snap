@@ -31,7 +31,7 @@ Module
   class Hidden vtable=0 itables=0
   class HiddenChild vtable=1 itables=0
   class Base<Hidden> vtable=1 itables=0
-  interface ClosedReader
+  interface ClosedReader : Reader<Int>
   interface Reader<Int>
   generated_exact_type get0 location=enum7 nominal_id=1d9a8cd540e15bebd525b5a6ac6bbaad9968941b6ce9536fd94fc64bae65244b exact_id=363fdf1de3097260129cf9f76ea2dc74c34d4c922dea15e91242a3377cc2057f
   generated_exact_type get1 location=enum5 nominal_id=656d8fa938a801e4c94cc3a0e4e9496a31786c4e5e37829a542aaba11ffe95eb exact_id=38e8cb4be5a57ac0fa30c34af91dc7e9f4fd233fd06e85f1f37af2de76bb04e5

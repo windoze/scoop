@@ -38,7 +38,14 @@ fn static_function_adapter_keeps_its_complete_structural_identity() {
     let export = executable_output(source_module, entry);
     let concrete =
         scoop_hir_lower::concretize_output(&export).expect("concrete type applications are valid");
-    let target_function = scoop_hir::concrete::FunctionTypeId::from_raw(target.0.into_raw());
+    let target_function = concrete
+        .module()
+        .function_coercions
+        .iter()
+        .next()
+        .unwrap()
+        .1
+        .target;
     let target_exact = concrete.module().exact_type_identities
         [concrete.module().function_types[target_function].canonical_type]
         .id();
@@ -299,7 +306,18 @@ fn signature_changing_closure_dispatch_keeps_its_generated_bridge_identity() {
         .function_bridges
         .first()
         .expect("the signature-changing source closure creates one bridge");
-    assert_eq!(module.meta.function_bridges.len(), 1);
+    assert_eq!(module.meta.function_bridges.len(), 3);
+    for (_, closure) in module.closure_classes.iter() {
+        assert_eq!(closure.bridges.len(), 1);
+        let dynamic = &module.function_types[closure.bridges[0].target];
+        assert!(
+            dynamic
+                .parameter_types
+                .iter()
+                .all(|ty| *ty == mir::Type::Any)
+        );
+        assert_eq!(dynamic.return_type, mir::Type::Any);
+    }
     let environment = module
         .meta
         .closure_environments

@@ -7,9 +7,9 @@ Module
     Value(value: LocalDefaults)
   class LocalDefaults vtable=0 itables=3
   class Counter vtable=0 itables=0
-  interface ParameterLeft
+  interface ParameterLeft : ParameterSource
   interface ParameterSource
-  interface ParameterRight
+  interface ParameterRight : ParameterSource
   generated_exact_type get0 location=enum1 nominal_id=cdd28ed562d2f9c84b18cf106d50bbf0cca92e59573a00887e3f53c73ff1dd64 exact_id=93cbe88fee0ba719903d7083cf8954ce625a482da13f494cf9899ebad92cef25
   generated_exact_type get1 location=enum0 nominal_id=b9ee17379cc4b8820d3b024f2bf151a684f3ac993beffc7745be9283c5a29a62 exact_id=cc18f97ceeef05bce233e3dfffa0bcb49e7f6d6bd872722665722e4bb75f711f
   fun LocalDefaults.base @fn0(this: LocalDefaults) -> Long

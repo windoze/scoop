@@ -4,14 +4,14 @@ expression: dump.text()
 ---
 Module
   callback cb0 @fn0 -> @fn25 function_type0 id=39afd61278d1f7e204c61fda359fd23046a3440fb317b8b0cd923d159db2a2db
-  callback cb1 @fn1 -> @fn26 function_type1 id=79ee3fa5adc6de650c33621e4f835447f4636cd7362c9207557263ce8cce999c
-  callback cb2 @fn2 -> @fn27 function_type2 id=feab7b7114c8c37c2d2b701825ae79692d0bbb7ae9d7a165cd6d1c61b88dd11e
-  callback cb3 @fn3 -> @fn28 function_type3 id=dab793ed64cfa0e7f1441d11e133a7ac713a3262bf7c2fe7626d17d6c22980b7
-  callback cb4 @fn4 -> @fn29 function_type4 id=a81288d1d52ac53c8b45f10f58ff1fbdb09e30b27c5bae9cd362490b8c6f53ba
-  callback cb5 @fn5 -> @fn30 function_type5 id=a5e656a4364e959754b9742de72b9f4ce553d2fea6cff7bcd3b0ca3400c00055
-  callback cb6 @fn6 -> @fn31 function_type6 id=9fafae916cb2b9c12b394144114d4254acef800fbeab46723a83299120bfa14c
-  callback cb7 @fn7 -> @fn32 function_type7 id=79a772f120f2e6e50b15154bd7fec1b3ebd2e0764e8faaf1c97db7cf79c142d4
-  callback cb8 @fn22 -> @fn33 function_type4 id=6f4c044085caa6b29cd76a679a94fa321f9bfc7b7dc6605625ff293d0f3eb824
+  callback cb1 @fn1 -> @fn26 function_type2 id=79ee3fa5adc6de650c33621e4f835447f4636cd7362c9207557263ce8cce999c
+  callback cb2 @fn2 -> @fn27 function_type3 id=feab7b7114c8c37c2d2b701825ae79692d0bbb7ae9d7a165cd6d1c61b88dd11e
+  callback cb3 @fn3 -> @fn28 function_type4 id=dab793ed64cfa0e7f1441d11e133a7ac713a3262bf7c2fe7626d17d6c22980b7
+  callback cb4 @fn4 -> @fn29 function_type5 id=a81288d1d52ac53c8b45f10f58ff1fbdb09e30b27c5bae9cd362490b8c6f53ba
+  callback cb5 @fn5 -> @fn30 function_type6 id=a5e656a4364e959754b9742de72b9f4ce553d2fea6cff7bcd3b0ca3400c00055
+  callback cb6 @fn6 -> @fn31 function_type7 id=9fafae916cb2b9c12b394144114d4254acef800fbeab46723a83299120bfa14c
+  callback cb7 @fn7 -> @fn32 function_type8 id=79a772f120f2e6e50b15154bd7fec1b3ebd2e0764e8faaf1c97db7cf79c142d4
+  callback cb8 @fn22 -> @fn33 function_type5 id=6f4c044085caa6b29cd76a679a94fa321f9bfc7b7dc6605625ff293d0f3eb824
   generated_callable gc0 function=@fn25 id=39afd61278d1f7e204c61fda359fd23046a3440fb317b8b0cd923d159db2a2db
   generated_callable gc1 function=@fn33 id=6f4c044085caa6b29cd76a679a94fa321f9bfc7b7dc6605625ff293d0f3eb824
   generated_callable gc2 function=@fn32 id=79a772f120f2e6e50b15154bd7fec1b3ebd2e0764e8faaf1c97db7cf79c142d4

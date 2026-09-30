@@ -147,8 +147,8 @@ impl BodyLowerer<'_> {
                 else_body: None,
             });
             // A checked function view needs an exact target-ABI closure;
-            // its invoke dispatches through the source closure's bridge
-            // table. Value targets are unboxed by the outer HIR node.
+            // its invoke calls the source closure's fixed dynamic invoke.
+            // Value targets are unboxed by the outer HIR node.
             return match target {
                 mir::Type::Function(function_type) => self.adapt_checked_function_value(
                     smir::Expr::local(slot, operand_ty),

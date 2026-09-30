@@ -2,12 +2,22 @@ Module
   struct Tagged<String> (enabled: Boolean, label: String, value: String)
   struct Tagged<Unit> (enabled: Boolean, label: String, value: Unit)
   struct Tagged<Int> (enabled: Boolean, label: String, value: Int)
+  class box<Int> vtable=0 itables=0
+  class box<Unit> vtable=0 itables=0
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
-  closure cc1 $Closure$lambda1 type=function_type1 invoke=@fn3 captures=0
-  closure cc2 $Closure$lambda2 type=function_type2 invoke=@fn5 captures=0
+    bridge function_type1 -> @fn16 id=081288489db9b098089b6831ba3fc1da3ff7f0f044e0aa8e867a6044911fb82d
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn3 captures=0
+    bridge function_type1 -> @fn17 id=16b4e48c0e29fe2ebe89106b1d9059a2d60211373dc2267443f20afb674b2071
+  closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn5 captures=0
+    bridge function_type1 -> @fn18 id=fab058391fcc0167fa44b052ef5fa503107ae8e81d0e9090f1ce8deac51dfe44
   generated_exact_type get0 location=closure1 nominal_id=dbf994d42bb175e3efe4ee768a5cc62265ba696c05e4af2e8e96c8ddacd9f74d exact_id=1c7c5ae85b4a23909aba5110d3cf9b8bab16a4f415494d751e687a796bcc1d1f
-  generated_exact_type get1 location=closure2 nominal_id=9c657aa3697d6c4cb7dd3d141dc2331c105f0fadfe6afa832c917e6848e96545 exact_id=983f1e3d96e289ccb6339caa04c159fd4cdfc60345309ef862df28f5281f3f12
-  generated_exact_type get2 location=closure0 nominal_id=a94f78f301bd00184980e96aff743740b1ddbbffd03039633174e4da877a2b56 exact_id=d34996fc563e37359b1bc1af5c6b2dd1fa2517ecb026aec099b4081d5f281425
+  generated_exact_type get1 location=class1 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get2 location=closure2 nominal_id=9c657aa3697d6c4cb7dd3d141dc2331c105f0fadfe6afa832c917e6848e96545 exact_id=983f1e3d96e289ccb6339caa04c159fd4cdfc60345309ef862df28f5281f3f12
+  generated_exact_type get3 location=closure0 nominal_id=a94f78f301bd00184980e96aff743740b1ddbbffd03039633174e4da877a2b56 exact_id=d34996fc563e37359b1bc1af5c6b2dd1fa2517ecb026aec099b4081d5f281425
+  generated_exact_type get4 location=class0 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn16 id=081288489db9b098089b6831ba3fc1da3ff7f0f044e0aa8e867a6044911fb82d
+  generated_callable gc1 function=@fn17 id=16b4e48c0e29fe2ebe89106b1d9059a2d60211373dc2267443f20afb674b2071
+  generated_callable gc2 function=@fn18 id=fab058391fcc0167fa44b052ef5fa503107ae8e81d0e9090f1ce8deac51dfe44
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: String
@@ -569,7 +579,7 @@ Module
         FieldAccess 2
           Type Tagged<Unit>
           Local $when.1
-      call $call.3: Int = <closure:function_type1> closure[function_type1]
+      call $call.3: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local $dependency.parameter.read
         Type Unit
@@ -845,7 +855,7 @@ Module
         FieldAccess 2
           Type Tagged<Int>
           Local $when.1
-      call $call.3: Int = <closure:function_type2> closure[function_type2]
+      call $call.3: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
         Local $dependency.parameter.read
         Type Int
@@ -1037,7 +1047,7 @@ Module
         FieldAccess 2
           Type Tagged<Unit>
           Local $when.1
-      call $call.3: Int = <closure:function_type1> closure[function_type1]
+      call $call.3: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local read
         Type Unit
@@ -1110,7 +1120,7 @@ Module
         FieldAccess 2
           Type Tagged<Int>
           Local $when.1
-      call $call.3: Int = <closure:function_type2> closure[function_type2]
+      call $call.3: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
         Local read
         Type Int
@@ -1184,6 +1194,48 @@ Module
           Local label
           Type Int
           Local value
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn16($source: (String) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (String) -> Int
+        Local $source
+        Type String
+        Retype String
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn17($source: (Unit) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Unit) -> Int
+        Local $source
+        Type Unit
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn18($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn2 <- exercise
   instance mi1 function=@fn4 <- exercise
   instance mi2 function=@fn6 <- exercise

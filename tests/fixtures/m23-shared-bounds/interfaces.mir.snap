@@ -2,16 +2,20 @@ Module
   class LocalHolder<Int> vtable=0 itables=4
   class Holder<Int> vtable=0 itables=4
   class Bridge<Int> vtable=0 itables=4
-  interface Both<Int>
-  interface Left<Int>
+  class box<Int> vtable=0 itables=0
+  interface Both<Int> : Left<Int>, Right<Int>
+  interface Left<Int> : LocalReader<Int>
   interface LocalReader<Int>
-  interface Right<Int>
-  interface BothReader<Int>
-  interface LeftReader<Int>
+  interface Right<Int> : LocalReader<Int>
+  interface BothReader<Int> : LeftReader<Int>, RightReader<Int>
+  interface LeftReader<Int> : Reader<Int>
   interface Reader<Int>
-  interface RightReader<Int>
+  interface RightReader<Int> : Reader<Int>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
+    bridge function_type1 -> @fn15 id=d53c1bbc067c8526adcd3433361ce41bdaaaba8a6fdf68764ae96314ea85cd8b
   generated_exact_type get0 location=closure0 nominal_id=723ff8c9260d894d523c06b723173370f0c9c33feb568fb7f386de1d3a13c6b2 exact_id=86d892e7b7135f6a5b2cd901fdcb1c1512b9afa26499be5b964eb2a7d1cd6ea5
+  generated_exact_type get1 location=class3 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn15 id=d53c1bbc067c8526adcd3433361ce41bdaaaba8a6fdf68764ae96314ea85cd8b
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -223,6 +227,20 @@ Module
         Type Int
         Local value
       return
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn15($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn2 <- exercise
   instance mi1 function=@fn3 <- LocalHolder.read
   instance mi2 function=@fn4 <- read

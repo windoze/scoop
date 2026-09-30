@@ -2,7 +2,7 @@ Module
   class InterfaceChooser<Int> vtable=0 itables=2
   class AbstractChooser<Int> vtable=0 itables=2
   interface Chooser<Int>
-  interface RequiredChooser<Int>
+  interface RequiredChooser<Int> : Chooser<Int>
   fun result @fn0() -> Int
     bb0 entry
       assign $new.1

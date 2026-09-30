@@ -160,7 +160,7 @@ Module
     global_store global0, t2
     end_catch
     ret integer<UInt>(0x00000001)
-  td td0 Describable @scoop$1$td$2297a60bc362ce3d8b2494a877d19cf862c59a12c3f68dc36b859a026e02eecc type-id=2551552645907048390 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[]
+  td td0 Describable @scoop$1$td$2297a60bc362ce3d8b2494a877d19cf862c59a12c3f68dc36b859a026e02eecc type-id=2551552645907048390 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
   td td2 ULong @scoop$1$td$6540713f4816f1b567f9b6748e3a56db61b978601d8b31e9ddb964c4defb6f04 type-id=1551972451261988531 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td3 Int16 @scoop$1$td$6847006b21faa1b2f6581e828d7316cdcb56ea55d63fad2d5ab4d54fbc66a67d type-id=6090757864100470475 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td4 Int @scoop$1$td$6b87a07c3203f405ad126d1a0a8d440a3e0dea6bc0395d44602821b3a87e5816 type-id=6878802435704108962 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]

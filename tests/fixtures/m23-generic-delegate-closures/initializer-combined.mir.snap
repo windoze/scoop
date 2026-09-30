@@ -7,12 +7,20 @@ Module
   class Payload vtable=0 itables=0
   class Trace vtable=0 itables=0
   class ReaderSlot<Int> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn6 captures=1
+    bridge function_type1 -> @fn12 id=1080e8f7569cabc28048da70c797c46727d2585c29d3cd0efb9cad89cae97b82
   closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn7 captures=0
+    bridge function_type1 -> @fn13 id=38adde319d1a5a8fe564d90188ab5373b3521b90baac0555903b8e8a92b9b6e6
   closure cc2 $Closure$lambda2 type=function_type0 invoke=@fn9 captures=2
+    bridge function_type1 -> @fn14 id=a228502d239c57e68cdcfa412b15f073e4150f38b0f9b8bc78564a102d8cc4cb
   generated_exact_type get0 location=closure0 nominal_id=b43eaf6ae1a1d7ae9f0eb727e880116bdefba4eefb74932679c28538f52eb846 exact_id=535b6ac2960bcbb1c29f50303944766762f245c8e504252f93833cb46e0a6eb2
   generated_exact_type get1 location=closure1 nominal_id=770a4e75c7cf48386f4125fe755abb076feb1a341497f83e457da21ebd5d56e0 exact_id=ad1ded9db56453314c8c2581b44994d2fefd25a6acbeef94bfacac538827a40d
   generated_exact_type get2 location=closure2 nominal_id=1f2d5cc3b741495cc5f195f40891cdb23d6d98e763b32772ece777138d2a543f exact_id=bbd5c52f7f446671bc80b1164ef7fd87075d023110fc7875cfcd83d85fa00caf
+  generated_exact_type get3 location=class4 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn12 id=1080e8f7569cabc28048da70c797c46727d2585c29d3cd0efb9cad89cae97b82
+  generated_callable gc1 function=@fn13 id=38adde319d1a5a8fe564d90188ab5373b3521b90baac0555903b8e8a92b9b6e6
+  generated_callable gc2 function=@fn14 id=a228502d239c57e68cdcfa412b15f073e4150f38b0f9b8bc78564a102d8cc4cb
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -559,6 +567,36 @@ Module
         Type () -> Int
         Local read
       return
+  fun function_bridge.$Closure$lambda0.() -> Any @fn12($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.() -> Any @fn13($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.() -> Any @fn14($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn1 <- exercise
   instance mi1 function=@fn2 <- $extension.initializerCombined
   instance mi2 function=@fn3 <- getValue

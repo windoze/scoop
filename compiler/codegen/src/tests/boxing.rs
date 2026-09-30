@@ -48,6 +48,7 @@ pub(super) fn descriptor(
     .unwrap();
     let vtable = scoop_lir::VtableRecord::new(&identity, vec![]).unwrap();
     let id = meta.type_descriptors.alloc(TypeDescriptor {
+        relations: Default::default(),
         diagnostic_name: name.into(),
         identity,
         instance_layout: scoop_lir::LayoutIdentity::managed_object(

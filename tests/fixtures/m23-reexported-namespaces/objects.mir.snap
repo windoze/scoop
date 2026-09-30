@@ -1,8 +1,12 @@
 Module
   global0 $singleton$9efd2a4d04abf0bea401f1027890d8eefbb81fe48ca79d8b3f94a4bf04422f49: Tools imported provider=e429b7993b201ed951fc2cbd33a5e0b8f530943b78e1a45bfb328774c95b3116 storage=833aa6a09ee66f44a5e67c2358df7947ee31151d1ae5dffe1904b4edf6c20261
   class Tools vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
   closure cc0 $Closure$reference0 type=function_type0 invoke=@fn4 captures=0
+    bridge function_type1 -> @fn5 id=358e658b1ba88d287c2fae0dd41e08452cbd893d47d979e4822725fa0176239d
   generated_exact_type get0 location=closure0 nominal_id=023cfb62d2083e71222c19a7b3e615a366dff50425f3a238c2f719d73eca1170 exact_id=36cc74f01ff9965e91358e0dfe88323f3642ec99672ff20b873ff053a39bc38f
+  generated_exact_type get1 location=class1 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn5 id=358e658b1ba88d287c2fae0dd41e08452cbd893d47d979e4822725fa0176239d
   fun readInt @fn0(value: Int) -> Int
     bb0 entry
       return
@@ -113,6 +117,20 @@ Module
       return
         Type Int
         Local $call.1
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn5($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn2 <- exercise
   instance mi1 function=@fn3 <- keep
   output library

@@ -19,6 +19,8 @@ Module
   class MutableArrayIterator<() -> Int> vtable=0 itables=1
   class ArrayIterator<Pair<Int>> vtable=0 itables=1
   class ArrayIterator<Pieces<Int>> vtable=0 itables=1
+  class box<Int> vtable=0 itables=0
+  class box<Pair<Int>> vtable=0 itables=0
   interface Iterable<() -> Int>
   interface Iterator<() -> Int>
   interface Iterable<Pair<Int>>
@@ -26,17 +28,31 @@ Module
   interface Iterable<Pieces<Int>>
   interface Iterator<Pieces<Int>>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
-  closure cc1 $Closure$lambda1 type=function_type1 invoke=@fn6 captures=1
-  closure cc2 $Closure$lambda2 type=function_type2 invoke=@fn7 captures=1
-  closure cc3 $Closure$lambda3 type=function_type2 invoke=@fn8 captures=1
-  closure cc4 $Closure$lambda4 type=function_type2 invoke=@fn10 captures=1
-  closure cc5 $Closure$lambda5 type=function_type2 invoke=@fn11 captures=1
+    bridge function_type1 -> @fn25 id=5bbfcfc9effeb2192223aada1441f22f52c6aea548eb442dc230d0943467b538
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn6 captures=1
+    bridge function_type1 -> @fn26 id=b5190e3f8e605fe04ba680b819a3de75c98204c6bafdbb2846981da4ad0952b8
+  closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn7 captures=1
+    bridge function_type4 -> @fn27 id=f004fcbeca625faaf528b045f9dad9afa6cad717ee6a7c5854a12447e22f8d30
+  closure cc3 $Closure$lambda3 type=function_type3 invoke=@fn8 captures=1
+    bridge function_type4 -> @fn28 id=bb359fddec67a6303c669e001360ed3e4d25eb012f1774912d35d828c0f69d37
+  closure cc4 $Closure$lambda4 type=function_type3 invoke=@fn10 captures=1
+    bridge function_type4 -> @fn29 id=efc0dabb4446d0f0bea8b741c74b8cdd7b6da913186555fc76edcad963189d2f
+  closure cc5 $Closure$lambda5 type=function_type3 invoke=@fn11 captures=1
+    bridge function_type4 -> @fn30 id=e0339caf6f57c051e3ba8bf5c37ef9c9d12c66e88dbf483956e4545536ef5771
   generated_exact_type get0 location=closure1 nominal_id=56f2842a05e776982807180c72d143de471122edfa9586bb08a8e74a506e2f7f exact_id=3d3a2cb6c5dcb702ab1481260e9a740e5269d3598714e2016429c0d5851c623a
   generated_exact_type get1 location=closure3 nominal_id=6281b08118c87f43326f2473dcf5cb66aaa96bafaf8dc42547b9ef9b93d55951 exact_id=7c459d9187ed6e93439d9ef6ecda025ab3009c3950fd8a0167bfcd960d20583c
-  generated_exact_type get2 location=closure5 nominal_id=01c79668a7fdebc609c20eed19bda28369406f670b58354b15d5bb2f6e34b14d exact_id=cf451698fa608845b8016deb0e793f2077862cc4ca9d543b170f9adc8f39842c
-  generated_exact_type get3 location=closure2 nominal_id=33d19e76ee47cad4ec6bae8faa42f83204a5aef7dc06b1c4c31014af34f10dbc exact_id=d3e24b654b82ab865388bc91fbcb0a5bfa7f5d85a8be3a3d592bd9f7544effd3
-  generated_exact_type get4 location=closure4 nominal_id=04e4132020e6130bf2d3e57ba594d15cfe6fff08e16185077d11407a8648d68f exact_id=d97169c644ac496f68b3c0e01de555b37eaf98063f7a951826f61babc50e854b
-  generated_exact_type get5 location=closure0 nominal_id=356de00666c2bea72c2add37fe729a9345fb8790e08977f5a3e7c4ebd8c27dfc exact_id=e1595d194cddbc8c5752122252cdc74086027b5fce2e6f9c223f5f643dc4c494
+  generated_exact_type get2 location=class11 nominal_id=07b8deebdbc2890c6bbf7fe2a08fc1e285a9408acad41203f11ed9505eb6a309 exact_id=bc97e0b777818517ff09d9a59b6d38eaa5b5742c69894f14b1ef9adae02f3e0f
+  generated_exact_type get3 location=closure5 nominal_id=01c79668a7fdebc609c20eed19bda28369406f670b58354b15d5bb2f6e34b14d exact_id=cf451698fa608845b8016deb0e793f2077862cc4ca9d543b170f9adc8f39842c
+  generated_exact_type get4 location=closure2 nominal_id=33d19e76ee47cad4ec6bae8faa42f83204a5aef7dc06b1c4c31014af34f10dbc exact_id=d3e24b654b82ab865388bc91fbcb0a5bfa7f5d85a8be3a3d592bd9f7544effd3
+  generated_exact_type get5 location=closure4 nominal_id=04e4132020e6130bf2d3e57ba594d15cfe6fff08e16185077d11407a8648d68f exact_id=d97169c644ac496f68b3c0e01de555b37eaf98063f7a951826f61babc50e854b
+  generated_exact_type get6 location=closure0 nominal_id=356de00666c2bea72c2add37fe729a9345fb8790e08977f5a3e7c4ebd8c27dfc exact_id=e1595d194cddbc8c5752122252cdc74086027b5fce2e6f9c223f5f643dc4c494
+  generated_exact_type get7 location=class10 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn25 id=5bbfcfc9effeb2192223aada1441f22f52c6aea548eb442dc230d0943467b538
+  generated_callable gc1 function=@fn26 id=b5190e3f8e605fe04ba680b819a3de75c98204c6bafdbb2846981da4ad0952b8
+  generated_callable gc2 function=@fn28 id=bb359fddec67a6303c669e001360ed3e4d25eb012f1774912d35d828c0f69d37
+  generated_callable gc3 function=@fn30 id=e0339caf6f57c051e3ba8bf5c37ef9c9d12c66e88dbf483956e4545536ef5771
+  generated_callable gc4 function=@fn29 id=efc0dabb4446d0f0bea8b741c74b8cdd7b6da913186555fc76edcad963189d2f
+  generated_callable gc5 function=@fn27 id=f004fcbeca625faaf528b045f9dad9afa6cad717ee6a7c5854a12447e22f8d30
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -92,7 +108,7 @@ Module
         Local $dependency.parameter.left
         Type Int
         Local $dependency.parameter.right
-      call $dependency.receiver: Int = <closure:function_type1> closure[function_type1]
+      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type (Pair<Int>) -> Int
         Local $callable.receiver
         Type Pair<Int>
@@ -438,7 +454,7 @@ Module
         Type IndexOutOfBoundsException
         Local $new.9
     bb23 if.merge.23
-      call $call.10: Int = <closure:function_type2> closure[function_type2]
+      call $call.10: Int = <closure:function_type3> closure[function_type3]
         Type () -> Int
         ArrayGet MutableArray<() -> Int>
           Type MutableArray<() -> Int>
@@ -1267,6 +1283,74 @@ Module
           Local left
           Type Int
           Local right
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn25($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn26($source: (Pair<Int>) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Pair<Int>) -> Int
+        Local $source
+        Type Pair<Int>
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.() -> Any @fn27($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda3.() -> Any @fn28($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda4.() -> Any @fn29($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda5.() -> Any @fn30($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn2 <- exercise
   instance mi1 function=@fn3 <- iterator
   instance mi2 function=@fn4 <- iterator

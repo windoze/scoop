@@ -10,12 +10,18 @@ Module
   class Throwable vtable=0 itables=0
   class ArrayIterator<Int> vtable=0 itables=1
   class MutableArrayIterator<Int> vtable=0 itables=1
+  class box<Int> vtable=0 itables=0
   interface Iterable<Int>
   interface Iterator<Int>
-  closure cc0 $Closure$lambda0 type=function_type1 invoke=@fn12 captures=1
+  closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn12 captures=1
+    bridge function_type3 -> @fn17 id=fd0ddbca48e3ca0a9f36073ba40d5e318406667c2e6be677a49e96777ed33059
   closure cc1 $Closure$reference0 type=function_type0 invoke=@fn14 captures=0
+    bridge function_type1 -> @fn18 id=ec65beaa950d69e223384e7fd6e11a52610383ba3af8e055fb2600b431dd2e23
   generated_exact_type get0 location=closure1 nominal_id=c059c0a7fec7b7d7fb96daec9bffdced2c0e28a7c1f009b1a08ca90b28f59afe exact_id=2f2805e5610ebb5302c9504418ad0657dfed6b59e60d00b091050dc8b65086ae
   generated_exact_type get1 location=closure0 nominal_id=7cd217e9c3d8a9071ecb84d28526558cce3f6f79919efac68f05d58d26201c7a exact_id=cb87b9191b4dd05e4fb56330fbdc37ad7108ef2df846a0a13faeb3ee1ca97a25
+  generated_exact_type get2 location=class7 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn18 id=ec65beaa950d69e223384e7fd6e11a52610383ba3af8e055fb2600b431dd2e23
+  generated_callable gc1 function=@fn17 id=fd0ddbca48e3ca0a9f36073ba40d5e318406667c2e6be677a49e96777ed33059
   fun readInt @fn0(value: Int) -> Int
     bb0 entry
       return
@@ -2043,7 +2049,7 @@ Module
       call $dependency.local.2: Array<Int> = @fn13 direct
         Type MutableArray<Int>
         Local source
-      call $dependency.local.3: Array<Int> = <closure:function_type1> closure[function_type1]
+      call $dependency.local.3: Array<Int> = <closure:function_type2> closure[function_type2]
         Type () -> Array<Int>
         Local $dependency.local.1
       branch bb1 bb2
@@ -2129,6 +2135,30 @@ Module
         Type Long
         Local index
       return
+  fun function_bridge.$Closure$lambda0.() -> Any @fn17($source: () -> Array<Int>) -> Any
+    bb0 entry
+      call $call.1: Array<Int> = <closure:function_type2> closure[function_type2]
+        Type () -> Array<Int>
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type Array<Int>
+          Local $call.1
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn18($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn2 <- iterator
   instance mi1 function=@fn3 <- iterator
   instance mi2 function=@fn4 <- defaultSnapshot

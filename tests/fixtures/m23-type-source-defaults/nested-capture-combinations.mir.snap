@@ -1,8 +1,13 @@
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn37 captures=1
+    bridge function_type1 -> @fn54 id=e26cb629d7f55b591921e64ed8d608f8edb7d9508bf30c9a9fb333f8a3466eb0
   closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn38 captures=1
+    bridge function_type1 -> @fn55 id=6698b8341c7b9a8d25f02156d128465e22092fc74ec038d096d2695c463384ba
   closure cc2 $Closure$lambda4 type=function_type0 invoke=@fn40 captures=1
+    bridge function_type1 -> @fn56 id=7f1701c9a7a0b48cd4c953f4b3369f21fcfecd5d5dd4b95ca9cc486f5937d904
   closure cc3 $Closure$reference0 type=function_type0 invoke=@fn43 captures=1
+    bridge function_type1 -> @fn57 id=a64569ecdd7fee9d4ac087001e51d3c6c12ca940c937c386a6e4f7862851aaef
   closure cc4 $Closure$reference1 type=function_type0 invoke=@fn44 captures=1
+    bridge function_type1 -> @fn58 id=47b3c454299fd4405e1b1a5548deecc7dbfdb3e493e470b86cfae3480880bfdf
   fun localDefault @fn24(seed: String) -> String
     bb0 entry
       branch bb1 bb2

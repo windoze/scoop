@@ -4,12 +4,16 @@ Module
   class PlainDerived vtable=1 itables=2
   class PlainBase vtable=1 itables=2
   class box<Value> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
   interface Readable
   interface Marker
   interface Extra
   closure cc0 $Closure$reference0 type=function_type0 invoke=@fn5 captures=1
+    bridge function_type1 -> @fn7 id=c8e40dc8ed2e82d383bc0c901abf813b4aea1552b444e2c5de54ad4c32a9fb37
   generated_exact_type get0 location=class2 nominal_id=9cc9453226cdb33bdda5f2d900216ed77b3c4948dbd704e64450134dafee2105 exact_id=1a0c1a1106e0de695937665878aa7994e910db279b145925146be8bcce29c279
   generated_exact_type get1 location=closure0 nominal_id=8030df68a567238ff197e15dd3b13dd7195d83cbe552960441a302e9f7d04f9c exact_id=8550a90fe4e0d15bd20958963b122c7f1baa1a7f6315be76b0577ab73f114270
+  generated_exact_type get2 location=class3 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn7 id=c8e40dc8ed2e82d383bc0c901abf813b4aea1552b444e2c5de54ad4c32a9fb37
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -256,6 +260,16 @@ Module
           Local payload
           Type Int
           Local number
+  fun function_bridge.$Closure$reference0.() -> Any @fn7($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   instance mi0 function=@fn1 <- exercise
   instance mi1 function=@fn2 <- read
   instance mi2 function=@fn3 <- readReference

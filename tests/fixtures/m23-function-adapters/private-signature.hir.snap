@@ -1,0 +1,49 @@
+Module
+  class LocalResult(value: Int)
+    field0 property0: Int
+    property0 val value: Int getter0=storage <stored field0 init=parameter0>
+  class UnusedResult(value: Int)
+    field1 property1: Int
+    property1 val value: Int getter1=storage <stored field1 init=parameter1>
+  fun exercise<T>(seed: T0, read: (T0) -> Int): Int
+    val local2
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        Local seed : T0
+    val local3
+      Local $argument.0 : Int
+    val local4
+      ClassInit LocalResult : LocalResult
+        Local $parameter.value : Int
+    val local5
+      Lambda lambda0 invoke=$lambda.0 captures=1 : ((LocalResult, T0)) -> LocalResult
+        capture result binding6 : LocalResult
+    val local6
+      ReferenceUpcast : Any
+        Local source : ((LocalResult, T0)) -> LocalResult
+    val local7
+      Cast ((LocalResult, T0)) -> Any optional=false : ((LocalResult, T0)) -> Any
+        Local erased : Any
+    return
+      FieldAccess class field value : Int
+        Cast LocalResult optional=false : LocalResult
+          CallableCall function_type2 : Any
+            Local adapted : ((LocalResult, T0)) -> Any
+            TupleLiteral : (LocalResult, T0)
+              Local result : LocalResult
+              Local seed : T0
+  fun result(): Int
+    val local0
+      IntegerLiteral 42 : Int
+    val local1
+      Lambda lambda1 invoke=$lambda.1 captures=0 : (Int) -> Int
+    val local2
+      Local $argument.0 : Int
+    val local3
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.seed : Int
+        Local $parameter.read : (Int) -> Int
+  output library
+  instance exercise<Int>

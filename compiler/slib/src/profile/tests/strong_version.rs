@@ -62,12 +62,12 @@ fn shared_provider_references_reject_retired_and_cross_profile_versions_in_every
                 ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
                 ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
             ][..],
-            &[1, 2, 3, 4, 6, 11, 12, 13, 14][..],
+            &[1, 2, 3, 4, 6, 11, 12, 13, 14, 15][..],
         ),
         (
             lir_cone_production_capability(),
             &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC][..],
-            &[1][..],
+            &[1, 2][..],
         ),
         (
             lir_cross_cone_layout_abi_capability(),

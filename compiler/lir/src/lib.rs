@@ -57,6 +57,9 @@ pub use module::*;
 mod metadata;
 pub use metadata::*;
 
+mod type_relations;
+pub use type_relations::*;
+
 mod scan;
 pub use scan::*;
 

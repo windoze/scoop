@@ -17,16 +17,24 @@ Module
   class Throwable vtable=0 itables=0
   class ArrayIterator<Int> vtable=0 itables=1
   class IndexOutOfBoundsException vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
   interface Iterable<Int>
   interface Iterator<Int>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
+    bridge function_type1 -> @fn22 id=514211169cd7629f8a51b94865d52eef6978d37fbcc418ac1dab7d08ab2b7e95
   closure cc1 $Closure$reference0 type=function_type0 invoke=@fn18 captures=2
+    bridge function_type1 -> @fn23 id=80d1c63825ebfd2ea24e43087bdffeab67d78fa677c2b7591dc1417373e4fb0c
   closure cc2 $Closure$reference1 type=function_type0 invoke=@fn19 captures=2
+    bridge function_type1 -> @fn24 id=5f3ae6a1cd756d5d2e5c7143ae0f5df4d5d8e3451459d0c4232d8f969fb77552
   generated_exact_type get0 location=closure0 nominal_id=21e1f5921d30e6805833a6257784e99dd21d3ebc85c2f358e496c393890798f7 exact_id=419f2dd3da24d834a1bd9c88844f9e585bcabdd2511ffc3994be364b5abcb833
   generated_exact_type get1 location=closure2 nominal_id=c1c0be209e1ec1779babb38bd45114097e5da9beaee5138137775c994d648574 exact_id=a3fd28d5b3a04f58988be22105ac7e27cf130551037fd6a80d2a46d535c12192
   generated_exact_type get2 location=enum2 nominal_id=9c4cf09fd5f04cc9eb9a51e309d5ec1710bd6dbc8e1340eb687b9dd3fd24e7f8 exact_id=b71a6d3bcc7c3b9751e298ead8304907da781e5647fbefd51be30cf330bf79c4
   generated_exact_type get3 location=enum3 nominal_id=5f1b81920d01bc520798b619c8e961e8cf8db038d96b21b6b1b0652cd8d8177b exact_id=bcc1a711d654e87d852451e247a3172cba89b321d8212382b131ea97b3681153
-  generated_exact_type get4 location=closure1 nominal_id=7243ee2c2d76ac9c88b95452361084bbc7a7fa296623de91a6366c3dee6936a2 exact_id=eb2f4b2b86b532aa2abe246283df11e80a5d81130905af75855b5c34f865b46d
+  generated_exact_type get4 location=class7 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get5 location=closure1 nominal_id=7243ee2c2d76ac9c88b95452361084bbc7a7fa296623de91a6366c3dee6936a2 exact_id=eb2f4b2b86b532aa2abe246283df11e80a5d81130905af75855b5c34f865b46d
+  generated_callable gc0 function=@fn22 id=514211169cd7629f8a51b94865d52eef6978d37fbcc418ac1dab7d08ab2b7e95
+  generated_callable gc1 function=@fn24 id=5f3ae6a1cd756d5d2e5c7143ae0f5df4d5d8e3451459d0c4232d8f969fb77552
+  generated_callable gc2 function=@fn23 id=80d1c63825ebfd2ea24e43087bdffeab67d78fa677c2b7591dc1417373e4fb0c
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -1184,6 +1192,48 @@ Module
         Type Long
         Local index
       return
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn22($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn23($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference1.(Any) -> Any @fn24($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
   coroutine_step cs0 CoroutineStep<Trace> result=Trace
   coroutine_slot cl0 CoroutineSlot<Trace> value=Trace
   instance mi0 function=@fn2 <- exercise

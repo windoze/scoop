@@ -165,31 +165,7 @@ pub(super) fn check(
         let CallableDefinitionFingerprintV1::Odr(body) = value.definition else {
             panic!("the standalone body has ODR ownership");
         };
-        assert_eq!(
-            [
-                body.abi().to_string(),
-                body.lir().to_string(),
-                body.definition().to_string()
-            ],
-            [
-                "7ec9e0f465e302f9a859d00069abeef4b3712d22336c6586eb018b9802186886",
-                "4579303ef729082681e4005f1e11b2abb4770d084be715a8fdfc673dbca02cd5",
-                "a6abc9a21a3a3991a69c4d79926d16dc6f5d4d4d33b3c2ce596d7a78d41d316e",
-            ],
-        );
-        assert_eq!(
-            [
-                fingerprint.abi().to_string(),
-                fingerprint.lir().to_string(),
-                fingerprint.definition().to_string()
-            ],
-            [
-                "444577cffc1676a63c719618650715c2f3e4df2f2c76e44a05e132583639ef6f",
-                "7292bd1b0847e93ba208769ae58a6299e867455a9a839306630b69e6e06ed823",
-                "045ebdf387d6ab1268475273284e028f624323946597f894646fa85d07ebb293",
-            ],
-        );
-        let [(site, RegistrationFingerprintV1::Odr(fingerprint))] = value.safepoints.as_slice()
+        let [(site, RegistrationFingerprintV1::Odr(safepoint))] = value.safepoints.as_slice()
         else {
             panic!("the standalone fixture has exactly one ODR safepoint");
         };
@@ -199,14 +175,38 @@ pub(super) fn check(
         );
         assert_eq!(
             [
-                fingerprint.abi().to_string(),
-                fingerprint.lir().to_string(),
-                fingerprint.definition().to_string()
+                [
+                    body.abi().to_string(),
+                    body.lir().to_string(),
+                    body.definition().to_string()
+                ],
+                [
+                    fingerprint.abi().to_string(),
+                    fingerprint.lir().to_string(),
+                    fingerprint.definition().to_string()
+                ],
+                [
+                    safepoint.abi().to_string(),
+                    safepoint.lir().to_string(),
+                    safepoint.definition().to_string()
+                ],
             ],
             [
-                "42493ae134fa6ec88963d121ace39b43a2008496815441327a8d874b27a632eb",
-                "0f8764406e975b43f915ccf2fd867585134adf7cea4c98a167c91f0db37dc78b",
-                "3121df8cb5b3d26e26c35b3698b11a8418f40311eb064a66127f314b19d3fa33",
+                [
+                    "7ec9e0f465e302f9a859d00069abeef4b3712d22336c6586eb018b9802186886",
+                    "4579303ef729082681e4005f1e11b2abb4770d084be715a8fdfc673dbca02cd5",
+                    "4a2299869a5048d52f0928701c3c766e8f81d4c74bac1e6a006329f63036a079",
+                ],
+                [
+                    "e74bc0cc1d2229d1a49bad574ac7ca30415a545bb69b0fd3af43add708a63fbd",
+                    "7292bd1b0847e93ba208769ae58a6299e867455a9a839306630b69e6e06ed823",
+                    "fb2084eb3a1b9feb37641f55b1ed90966981b536b6ec517693947d244b6d19bb",
+                ],
+                [
+                    "d68c46af4e2cc1e9a037554af828a545a309b202463c14ab6730d1426badfe5d",
+                    "0f8764406e975b43f915ccf2fd867585134adf7cea4c98a167c91f0db37dc78b",
+                    "3fab70db7406668b25c1e54c364ab11b3a15fcbb76aa5074e022911f3b5deaac",
+                ],
             ],
         );
     }

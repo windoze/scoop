@@ -434,11 +434,13 @@ fn coroutine_support_callables_are_bound_to_the_exact_step_result() {
     let continuation = interfaces.alloc(InterfaceDef {
         name: "Continuation".to_string(),
         type_arguments: vec![result.clone()],
+        parents: Vec::new(),
         methods: Vec::new(),
     });
     let task = interfaces.alloc(InterfaceDef {
         name: "SuspendTask".to_string(),
         type_arguments: vec![result.clone()],
+        parents: Vec::new(),
         methods: Vec::new(),
     });
     module.interfaces = interfaces;

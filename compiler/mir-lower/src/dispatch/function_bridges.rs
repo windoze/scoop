@@ -3,46 +3,37 @@ use super::*;
 impl Lowerer {
     pub(crate) fn finalize_function_bridges(&mut self, module: &hir::Module) -> bool {
         let classes: Vec<_> = self.closure_classes.iter().map(|(id, _)| id).collect();
-        let targets = self.function_bridge_targets.clone();
         let mut added = false;
         for class in classes {
             let source = self.closure_classes[class].function_type;
-            for &target in &targets {
-                if self.finalized_function_bridges.contains(&(class, target))
-                    || !self.mir_type_is_subtype(
-                        module,
-                        &mir::Type::Function(source),
-                        &mir::Type::Function(target),
-                    )
-                {
-                    continue;
-                }
-                let (function, identity) = if source == target {
-                    let invoke = self.closure_classes[class].invoke;
-                    (self.closure_invokes[invoke].function, None)
-                } else {
-                    let (function, identity) =
-                        self.build_function_bridge(module, class, source, target);
-                    (function, Some(identity))
-                };
-                self.closure_classes[class]
-                    .bridges
-                    .push(mir::FunctionBridge { target, function });
-                if let Some(identity) = identity {
-                    self.function_bridges.push(
-                        mir::FunctionBridgeMaterialization::checked(
-                            class,
-                            &self.closure_classes[class],
-                            target,
-                            function,
-                            identity,
-                        )
-                        .expect("a generated function bridge has one physical dispatch entry"),
-                    );
-                }
-                self.finalized_function_bridges.insert((class, target));
-                added = true;
+            let target = types::dynamic_function_type(module, source);
+            if !self.finalized_function_bridges.insert((class, target)) {
+                continue;
             }
+            let (function, identity) = if source == target {
+                let invoke = self.closure_classes[class].invoke;
+                (self.closure_invokes[invoke].function, None)
+            } else {
+                let (function, identity) =
+                    self.build_function_bridge(module, class, source, target);
+                (function, Some(identity))
+            };
+            self.closure_classes[class]
+                .bridges
+                .push(mir::FunctionBridge { target, function });
+            if let Some(identity) = identity {
+                self.function_bridges.push(
+                    mir::FunctionBridgeMaterialization::checked(
+                        class,
+                        &self.closure_classes[class],
+                        target,
+                        function,
+                        identity,
+                    )
+                    .expect("a closure owns one fixed dynamic invoke entry"),
+                );
+            }
+            added = true;
         }
         added
     }
@@ -56,7 +47,6 @@ impl Lowerer {
     ) -> (mir::FunctionId, mir::FunctionBridgeIdentity) {
         let source_signature = self.shell.function_types[source].clone();
         let target_signature = self.shell.function_types[target].clone();
-        let (source_identity, _) = exact_function_identity(module, source);
         let (target_identity, _) = exact_function_identity(module, target);
         let mut locals = Arena::new();
         let closure = locals.alloc(mir::Local {
@@ -86,11 +76,9 @@ impl Lowerer {
                 ty: target_ty.clone(),
                 local,
             });
-            args.push(self.adapt_variance_bridge(
+            args.push(self.dynamic_unbox(
                 module,
                 smir::Expr::local(local, target_ty.clone()),
-                target_ty,
-                target_identity.parameters()[index],
                 source_ty,
             ));
         }
@@ -107,31 +95,12 @@ impl Lowerer {
                 return_ty: source_signature.return_type.clone(),
             }),
         );
-        let statements = if target_signature.return_type == mir::Type::Unit {
-            vec![
-                smir::Statement {
-                    kind: smir::StatementKind::Expr(call),
-                    span: Span { start: 0, end: 0 },
-                },
-                smir::Statement {
-                    kind: smir::StatementKind::Return { value: None },
-                    span: Span { start: 0, end: 0 },
-                },
-            ]
-        } else {
-            vec![smir::Statement {
-                kind: smir::StatementKind::Return {
-                    value: Some(self.adapt_variance_bridge(
-                        module,
-                        call,
-                        &source_signature.return_type,
-                        source_identity.result(),
-                        &target_signature.return_type,
-                    )),
-                },
-                span: Span { start: 0, end: 0 },
-            }]
-        };
+        let statements = vec![smir::Statement {
+            kind: smir::StatementKind::Return {
+                value: Some(self.dynamic_box(call)),
+            },
+            span: Span::new(0, 0),
+        }];
         let source_name = &self.closure_classes[class].name;
         let target_name = mir::type_name(&self.shell, &mir::Type::Function(target));
         let name = format!("function_bridge.{source_name}.{target_name}");

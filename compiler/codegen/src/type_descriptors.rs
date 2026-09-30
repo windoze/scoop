@@ -221,27 +221,52 @@ fn emit_type_descriptor<'ctx>(
             .const_int(descriptor.diagnostic_name.len() as u64, false)
             .into(),
     ]);
+    let function_pointer =
+        |reference: &Option<TypeDescriptorRef>| -> Result<PointerValue<'ctx>, CodegenError> {
+            reference
+                .map(|reference| {
+                    type_descriptor_global(reference, type_globals)
+                        .map(|global| global.as_pointer_value())
+                })
+                .unwrap_or_else(|| Ok(ptr.const_null()))
+        };
+    let related_types = descriptor
+        .relations
+        .related_types()
+        .iter()
+        .map(function_pointer)
+        .collect::<Result<Vec<_>, _>>()?;
+    let function_result = descriptor
+        .relations
+        .result()
+        .map(function_pointer)
+        .transpose()?
+        .unwrap_or_else(|| ptr.const_null());
+    let mut fields = vec![
+        i64_ty
+            .const_int(
+                descriptor.identity.runtime_type().runtime_type().get(),
+                false,
+            )
+            .into(),
+        instance_shape.into(),
+        object_scan,
+        parent,
+        vtable,
+        itables,
+        i64_ty.const_int(itable_count, false).into(),
+        diagnostic_name.into(),
+        i32_ty
+            .const_int(u64::from(descriptor.relations.runtime_kind()), false)
+            .into(),
+        i32_ty.const_int(related_types.len() as u64, false).into(),
+        function_result.into(),
+    ];
+    if !related_types.is_empty() {
+        fields.push(ptr.const_array(&related_types).into());
+    }
     global.set_constant(true);
-    global.set_initializer(
-        &context.const_struct(
-            &[
-                i64_ty
-                    .const_int(
-                        descriptor.identity.runtime_type().runtime_type().get(),
-                        false,
-                    )
-                    .into(),
-                instance_shape.into(),
-                object_scan,
-                parent,
-                vtable,
-                itables,
-                i64_ty.const_int(itable_count, false).into(),
-                diagnostic_name.into(),
-            ],
-            false,
-        ),
-    );
+    global.set_initializer(&context.const_struct(&fields, false));
     shapes.record_atom(definition.primary_atom(), global);
     shapes.record_atom(
         descriptor_diagnostic_atom(emission.surface, descriptor.identity.exact_type())?,

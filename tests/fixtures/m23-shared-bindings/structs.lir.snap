@@ -183,7 +183,7 @@ Module
     ret integer<Int>(0x00000002)
   block if.merge.7
     store local24 -> local49
-    call managed-direct-target0 sp<managed-call:1> live=[] t21 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target0 sp<managed-call:1> live=[] t21 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td1, machine<byte-size>(ByteSize(24)))
     t22 = function_address @scoop$1$cb$813278835bc58bd237f3e78c63b2af1bf6d38c10b3619801319461d931a504cb : ptr
     heap_store t21 +16 t22
     store t21 -> local50
@@ -333,10 +333,23 @@ Module
   block entry
     t0 = aggregate (param0, param1) : struct2
     ret t0
-  td td0 g(r=00000001;i=167830b9ed3967dc3a696b65aef668e8899e9606a03bb2910fa11768b8e6c93b) @scoop$1$td$9db0f2bc721c97548aba16d09f87b138f79a3351df7a64e66fd43f20a13ee31b type-id=7101777329418240726 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td1 a(n(c=dev.example%3Ageneric-member-structs%3A0.1.0;p=consumer.bindings;o=-;k=S;x=LocalPair);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$1330085e66e5b524766de47c293b7f41f5e25a3ee03deebd65cfc7ef41e2cc1a type-id=5632624447593623580 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td2 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.bindings;o=-;k=S;x=Nested);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$1fb6140252a25fc6925db97f77c8fc7f2e401f55a75864bcb22cac950483ae24 type-id=9958563509498317034 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
-  td td3 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.bindings;o=-;k=S;x=Pair);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$a69e7d2900478879f191d0f7098412ec1d679ac4d29c7fb6b58dca38a0c4d01d type-id=16443423772847977060 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  fun @scoop$1$cb$1be9354e49e4f78be599bd7f6e06719af19467456a49327829a9d3317eb579e2(ptr<managed>, ptr<managed>) -> ptr<managed>
+    local %0 $call.1: i32
+    local %1 $box.1: i32
+    local %2 $box.2: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    unbox_value external-td0, param1 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, i32) -> i32 dispatch[Closure:2] param0(param0, local1)
+    store t0 -> local0
+    store local0 -> local2
+    t1 = box_value external-td0, local2 scan=none sp<managed-call:1> live=[]
+    ret t1
+  td td0 f(o;[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)) @scoop$1$td$23935e22ada5206ddbde55e993e7c8ab4bb4428a0f9a361c61c6565ee1902d69 type-id=15845947979171618166 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary(external-td0)->external-td0
+  td td1 g(r=00000001;i=167830b9ed3967dc3a696b65aef668e8899e9606a03bb2910fa11768b8e6c93b) @scoop$1$td$9db0f2bc721c97548aba16d09f87b138f79a3351df7a64e66fd43f20a13ee31b type-id=7101777329418240726 shape=FixedObject minimum-size=24 align=8 parent=td0 vtable=[local-fn10] itables=[]
+  td td2 a(n(c=dev.example%3Ageneric-member-structs%3A0.1.0;p=consumer.bindings;o=-;k=S;x=LocalPair);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$1330085e66e5b524766de47c293b7f41f5e25a3ee03deebd65cfc7ef41e2cc1a type-id=5632624447593623580 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td3 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.bindings;o=-;k=S;x=Nested);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$1fb6140252a25fc6925db97f77c8fc7f2e401f55a75864bcb22cac950483ae24 type-id=9958563509498317034 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  td td4 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.bindings;o=-;k=S;x=Pair);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$a69e7d2900478879f191d0f7098412ec1d679ac4d29c7fb6b58dca38a0c4d01d type-id=16443423772847977060 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Pair size=8 align=4 refs=[]
   layout Nested size=12 align=4 refs=[]
   layout LocalPair size=8 align=4 refs=[]

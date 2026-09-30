@@ -56,7 +56,7 @@ fn emits_closed_descriptors_scans_initial_state_and_zero_patch_sites() {
             .unwrap()
             .into_struct_value();
         assert_eq!(constant_u64(prefix, 0), STATIC_STORAGE_DESCRIPTOR_MAGIC);
-        assert_eq!(constant_u64(prefix, 1), 1);
+        assert_eq!(constant_u64(prefix, 1), 2);
         assert_eq!(constant_u64(prefix, 2), STATIC_STORAGE_DESCRIPTOR_SIZE);
         assert_eq!(
             constant_u64(initializer, 2),
