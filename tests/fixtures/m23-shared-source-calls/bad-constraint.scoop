@@ -1,0 +1,2 @@
+import upstream.sourcecalls.scalar
+public fun broken(value: String): String = scalar<String>(value)

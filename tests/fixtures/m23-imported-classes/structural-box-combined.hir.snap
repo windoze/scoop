@@ -5,26 +5,26 @@ Module
     val local1
       Local $dependency.argument.0 : Long
     val local2
-      ImportedDependencyCall #0 : Counter
+      Call external #0 : Counter
         Local $dependency.parameter.value : Long
     val local3
       IntegerLiteral 21 : Long
     val local4
       Local $dependency.argument.0 : Long
     val local5
-      ImportedDependencyCall #0 : Counter
+      Call external #0 : Counter
         Local $dependency.parameter.value : Long
     val local6
       IntegerLiteral 22 : Long
     val local7
       Local $dependency.argument.0 : Long
     val local8
-      ImportedDependencyCall #0 : Counter
+      Call external #0 : Counter
         Local $dependency.parameter.value : Long
     val local9
       Box : Any
         TupleLiteral : (Token, (Counter, Counter, Counter))
-          ImportedDependencyCall #1 : Token
+          Call external #1 : Token
           TupleLiteral : (Counter, Counter, Counter)
             Local first : Counter
             Local second : Counter
@@ -34,7 +34,7 @@ Module
     val local11
       Local $dependency.argument.0 : Long
     val local12
-      ImportedDependencyCall #0 : Counter
+      Call external #0 : Counter
         Local $dependency.parameter.value : Long
     val local13
       Unbox : (Token, (Counter, Counter, Counter))
@@ -70,12 +70,12 @@ Module
     val local25
       Local left : Counter
     val local27
-      ImportedDependencyCall #2 : Long
+      Call external #2 : Long
         Local $dependency.receiver : Counter
     val local26
       Local middle : Counter
     val local28
-      ImportedDependencyCall #2 : Long
+      Call external #2 : Long
         Local $dependency.receiver : Counter
     val local29
       Local $dependency.argument.0 : Long
@@ -86,7 +86,7 @@ Module
     val local30
       Local right : Counter
     val local32
-      ImportedDependencyCall #2 : Long
+      Call external #2 : Long
         Local $dependency.receiver : Counter
     val local33
       Local $dependency.argument.0 : Long
@@ -105,7 +105,7 @@ Module
     val local37
       Local pressure : Counter
     val local39
-      ImportedDependencyCall #2 : Long
+      Call external #2 : Long
         Local $dependency.receiver : Counter
     val local40
       Local $dependency.argument.0 : Long
@@ -116,6 +116,6 @@ Module
     val local42
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #0 : Counter
+      Call external #0 : Counter
         Local $dependency.parameter.value : Long
   output library

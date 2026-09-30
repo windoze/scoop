@@ -5,7 +5,7 @@ Module
     val local2
       Local $dependency.argument.0 : Readable
     return
-      ImportedDependencyCall #0 : Readable
+      Call external #0 : Readable
         Local $dependency.parameter.value : Readable
   fun primary(): Counter
     val local0
@@ -13,7 +13,7 @@ Module
     val local1
       Local $dependency.argument.0 : Long
     val local2
-      ImportedDependencyCall #1 : Readable
+      Call external #1 : Readable
         Local $dependency.parameter.value : Long
     val local3
       Local $argument.0 : Readable
@@ -23,12 +23,12 @@ Module
     val local5
       IntegerLiteral 1 : Long
     val local6
-      ImportedDependencyCall #2 interface[1] : Long
+      Call external #2 interface[1] : Long
         Local $dependency.receiver : Readable
         Local $dependency.parameter.extra : Long
     val local7
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #3 : Counter
+      Call external #3 : Counter
         Local $dependency.parameter.value : Long
   output library

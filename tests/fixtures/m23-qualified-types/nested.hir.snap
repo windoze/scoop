@@ -11,7 +11,7 @@ Module
     val local2
       Local $dependency.argument.0 : Int
     val local3
-      ImportedDependencyCall #0 : Nested
+      Call external #0 : Nested
         Local $dependency.parameter.number : Int
     val local4
       Local value : T0
@@ -28,7 +28,7 @@ Module
     val local9
       Local $dependency.argument.0 : Int
     val local10
-      ImportedDependencyCall #1 : Nested
+      Call external #1 : Nested
         Local $dependency.parameter.number : Int
     val local11
       Local second : Nested
@@ -52,7 +52,7 @@ Module
     val local19
       Local $dependency.argument.0 : Int
     val local20
-      ImportedDependencyCall #2 : Deep
+      Call external #2 : Deep
         Local $dependency.parameter.number : Int
     val local21
       Local deep : Deep

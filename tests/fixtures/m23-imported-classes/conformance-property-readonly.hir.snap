@@ -19,10 +19,10 @@ Module
       Box : Valued
         VariantConstruct Marker.Only : Marker
     val local4
-      ImportedDependencyCall #0 interface[0] : Long
+      Call external #0 interface[0] : Long
         Local value : Valued
     val local5
-      ImportedDependencyCall #0 interface[0] : Long
+      Call external #0 interface[0] : Long
         Local marker : Valued
     val local6
       Local $dependency.argument.0 : Long
@@ -33,6 +33,6 @@ Module
     val local8
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #1 : Counter
+      Call external #1 : Counter
         Local $dependency.parameter.value : Long
   output library

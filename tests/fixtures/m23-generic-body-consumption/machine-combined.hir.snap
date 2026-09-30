@@ -10,7 +10,7 @@ Module
     val local1
       Local $dependency.argument.0 : Int
     return
-      ImportedGenericCall identity<Int> : Int
+      Call identity<Int> : Int
         Local $dependency.parameter.value : Int
   fun localValue(): Int
     val local0
@@ -28,7 +28,7 @@ Module
     val local5
       Local $dependency.argument.0 : LocalValue
     val local6
-      ImportedGenericCall identity<LocalValue> : LocalValue
+      Call identity<LocalValue> : LocalValue
         Local $dependency.parameter.value : LocalValue
     val local7
       IntegerLiteral 2 : Int
@@ -38,7 +38,7 @@ Module
       Local $dependency.argument.1 : Int
     return
       FieldAccess field 0 : Int
-        ImportedGenericCall checked<LocalValue> : LocalValue
+        Call checked<LocalValue> : LocalValue
           Local $dependency.parameter.value : LocalValue
           Local $dependency.parameter.count : Int
   fun relay<T>(value: T0): T0
@@ -47,7 +47,7 @@ Module
     val local2
       Local $dependency.argument.0 : T0
     return
-      ImportedGenericCall identity<T0> : T0
+      Call identity<T0> : T0
         Local $dependency.parameter.value : T0
   fun relayValue(): Int
     val local0
@@ -64,12 +64,12 @@ Module
     val local5
       Local $dependency.argument.1 : Int
     return
-      ImportedGenericCall checked<Int> : Int
+      Call checked<Int> : Int
         Local $dependency.parameter.value : Int
         Local $dependency.parameter.count : Int
   fun recovery(): Int
     val local0
-      ImportedDependencyCall #0 : Throwable
+      Call external #0 : Throwable
     val local1
       IntegerLiteral 44 : Int
     val local2
@@ -77,7 +77,7 @@ Module
     val local3
       Local $dependency.argument.1 : Int
     return
-      ImportedGenericCall recover<Int> : Int
+      Call recover<Int> : Int
         Local $dependency.parameter.error : Throwable
         Local $dependency.parameter.fallback : Int
   fun defaultValue(): Int
@@ -91,7 +91,7 @@ Module
       val local4
         Local $default.local.2 : Int
       assign $default.local.4
-        ImportedGenericCall identity<Int> : Int
+        Call identity<Int> : Int
           Local $default.local.3 : Int
     finally
       val local6
@@ -99,12 +99,12 @@ Module
       val local7
         Local $default.local.5 : Int
       val local2
-        ImportedGenericCall identity<Int> : Int
+        Call identity<Int> : Int
           Local $default.local.6 : Int
     val local8
       Local $default.local.4 : Int
     return
-      ImportedGenericCall defaulted<Int> : Int
+      Call defaulted<Int> : Int
         Local $dependency.parameter.value : Int
         Local $dependency.parameter.second : Int
   output library

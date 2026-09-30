@@ -12,13 +12,13 @@ Module
     val local4
       Local selected : RebuiltDefaults
     val local6
-      ImportedDependencyCall #0 interface[0] : Long
+      Call external #0 interface[0] : Long
         Local $dependency.receiver : RebuiltDefaults
     val local5
       Box : RebuiltDefaults
         Local boolean : Boolean
     val local7
-      ImportedDependencyCall #0 interface[0] : Long
+      Call external #0 interface[0] : Long
         Local $dependency.receiver : RebuiltDefaults
     val local8
       Local $dependency.argument.0 : Long
@@ -30,7 +30,7 @@ Module
       ReferenceUpcast : RebuiltDefaults
         Local text : String
     val local11
-      ImportedDependencyCall #0 interface[0] : Long
+      Call external #0 interface[0] : Long
         Local $dependency.receiver : RebuiltDefaults
     val local12
       Local $dependency.argument.0 : Long
@@ -49,6 +49,6 @@ Module
     val local17
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #1 : Counter
+      Call external #1 : Counter
         Local $dependency.parameter.value : Long
   output library

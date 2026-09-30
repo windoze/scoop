@@ -1,12 +1,12 @@
   object LocalTools <object0 type0 value0 root0 init0>
     property10 val enabled: Boolean getter10=constant <const Boolean(true)>
   fun userCoreDependency(): Unit
-    ImportedDependencyCall #0 : Unit
+    Call external #0 : Unit
   fun userCoreCombined(flag: Boolean): Unit
     if
       Binary And : Boolean
         Local flag : Boolean
         BoolLiteral true : Boolean
-      ImportedDependencyCall #0 : Unit
+      Call external #0 : Unit
     else
-      ImportedDependencyCall #0 : Unit
+      Call external #0 : Unit

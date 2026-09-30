@@ -211,7 +211,7 @@ Module
       val local77
         Local $dependency.argument.0 : Long
       return
-        ImportedDependencyCall #0 : Counter
+        Call external #0 : Counter
           Local $dependency.parameter.value : Long
     val local78
       Local total : Long
@@ -229,13 +229,13 @@ Module
       val local82
         Local $dependency.argument.0 : Long
       return
-        ImportedDependencyCall #0 : Counter
+        Call external #0 : Counter
           Local $dependency.parameter.value : Long
     val local83
       IntegerLiteral 21 : Long
     val local84
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #0 : Counter
+      Call external #0 : Counter
         Local $dependency.parameter.value : Long
   output library

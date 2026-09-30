@@ -94,7 +94,7 @@ Module
     val local37
       Local $dependency.argument.1 : Nested<LocalKey<T0>>
     val local38
-      ImportedGenericCall compareNested<LocalKey<T0>> : Boolean
+      Call compareNested<LocalKey<T0>> : Boolean
         Local $dependency.parameter.left : Nested<LocalKey<T0>>
         Local $dependency.parameter.right : Nested<LocalKey<T0>>
     if

@@ -700,8 +700,9 @@ fn module_integer_type(module: &hir::Module, kind: hir::IntegerKind) -> hir::Typ
 fn call(h: &Harness, function: hir::FunctionId, args: Vec<hir::Expr>) -> hir::Expr {
     expr(
         hir::ExprKind::Call {
+            binding: None,
             receiver: scoop_hir::SourceCallReceiver::NoReceiver,
-            callee: hir::Callable::Function(function),
+            callee: (hir::Callable::Function(function)).into(),
             args,
         },
         h.unit,
@@ -714,8 +715,9 @@ fn call(h: &Harness, function: hir::FunctionId, args: Vec<hir::Expr>) -> hir::Ex
 fn call_typed(function: hir::FunctionId, args: Vec<hir::Expr>, ty: hir::TypeId) -> hir::Expr {
     expr(
         hir::ExprKind::Call {
+            binding: None,
             receiver: scoop_hir::SourceCallReceiver::NoReceiver,
-            callee: hir::Callable::Function(function),
+            callee: (hir::Callable::Function(function)).into(),
             args,
         },
         ty,
@@ -795,8 +797,9 @@ fn generic_call(
 ) -> hir::Expr {
     expr(
         hir::ExprKind::Call {
+            binding: None,
             receiver: scoop_hir::SourceCallReceiver::NoReceiver,
-            callee: hir::Callable::Generic(resolved),
+            callee: (hir::Callable::Generic(resolved)).into(),
             args,
         },
         ty,

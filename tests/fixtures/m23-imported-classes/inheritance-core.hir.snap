@@ -9,6 +9,6 @@ Module
     val local2
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #3 : Counter
+      Call external #3 : Counter
         Local $dependency.parameter.value : Long
   output library

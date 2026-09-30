@@ -302,7 +302,7 @@ impl Lowerer {
                 self.collect_no_gc_expr_violations(operand, out, requirements);
             }
             ExprKind::Call { callee, args, .. } => {
-                self.check_no_gc_callee(*callee, expr.span, out);
+                self.check_no_gc_call_target(*callee, expr.span, out);
                 for arg in args {
                     self.collect_no_gc_expr_violations(arg, out, requirements);
                 }
@@ -315,29 +315,7 @@ impl Lowerer {
             } => {
                 let span = expr.origin.concrete().evaluation.span;
                 if let Some(target) = callee.declared_callable() {
-                    let is_no_gc = match target {
-                        hir::CallableTarget::Local(callable) => {
-                            let function = self.callable_function_id(callable);
-                            self.functions[function].attributes.gc_effect == hir::GcEffect::NoGc
-                        }
-                        hir::CallableTarget::Application(application) => {
-                            self.imported_generic_templates
-                                [self.imported_generic_applications[application].template]
-                                .attributes
-                                .gc_effect
-                                == hir::GcEffect::NoGc
-                        }
-                        hir::CallableTarget::Dependency(callee) => {
-                            let reference = self.imported_dependency_callables[callee].reference();
-                            self.dependencies
-                                .as_ref()
-                                .and_then(|dependencies| dependencies.resolve_callable(reference))
-                                .expect("a bound member retains its selected declaration")
-                                .capability()
-                                .gc_effect()
-                                == scoop_identity::GcEffect::NoGc
-                        }
-                    };
+                    let is_no_gc = self.callable_target_is_no_gc(target);
                     if !is_no_gc {
                         out.push((
                             span,
@@ -374,56 +352,11 @@ impl Lowerer {
             ExprKind::ImportedGenericCall {
                 application, args, ..
             } => {
-                let template = &self.imported_generic_templates
-                    [self.imported_generic_applications[*application].template];
-                if template.attributes.gc_effect != hir::GcEffect::NoGc {
-                    out.push((
-                        expr.span,
-                        "calling a managed dependency function is not allowed in `@NoGC` code"
-                            .to_string(),
-                    ));
-                }
-                for arg in args {
-                    self.collect_no_gc_expr_violations(arg, out, requirements);
-                }
-            }
-            ExprKind::ImportedDependencyCall { callee, args, .. } => {
-                let reference = self.imported_dependency_callables[*callee].reference();
-                let selected = self
-                    .dependencies
-                    .as_ref()
-                    .and_then(|dependencies| dependencies.resolve_callable(reference))
-                    .expect("a dependency call references its committed selection");
-                let primary_value_constructor = match (
-                    selected.interface().declaration(),
-                    selected.interface().owner(),
-                ) {
-                    (
-                        scoop_identity::CallableTemplateOrigin::Constructor(constructor),
-                        hir::PublicDeclarationOwnerV1::Nominal(hir::SourceNominalId::Concrete(
-                            owner,
-                        )),
-                    ) => self
-                        .dependencies
-                        .as_ref()
-                        .and_then(|dependencies| dependencies.nominal(owner))
-                        .is_some_and(|nominal| {
-                            nominal
-                                .interface
-                                .declaration_details()
-                                .primary_value_constructor()
-                                == Some(constructor)
-                        }),
-                    _ => false,
-                };
-                if !primary_value_constructor
-                    && selected.capability().gc_effect() != scoop_identity::GcEffect::NoGc
-                {
-                    out.push((
-                        expr.span,
-                        "managed dependency calls are not allowed in `@NoGC` code".to_string(),
-                    ));
-                }
+                self.check_no_gc_call_target(
+                    hir::CallableTarget::Application(*application),
+                    expr.span,
+                    out,
+                );
                 for arg in args {
                     self.collect_no_gc_expr_violations(arg, out, requirements);
                 }

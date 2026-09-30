@@ -1,14 +1,14 @@
 Module
   fun exercise<T>(value: T0): Int
-    ImportedDependencyCall #0 : Unit
+    Call external #0 : Unit
     val local1
       Local value : T0
     val local2
       Local $dependency.argument.0 : T0
     val local3
-      ImportedDependencyCall #1 : Int
+      Call external #1 : Int
     val local4
-      ImportedGenericCall defaults<T0> : Int
+      Call defaults<T0> : Int
         Local $dependency.parameter.value : T0
         Local $dependency.parameter.amount : Int
     val local5
@@ -32,7 +32,7 @@ Module
       val local10
         Local $dependency.argument.1 : Int
       val local11
-        ImportedGenericCall defaults<T0> : Int
+        Call defaults<T0> : Int
           Local $dependency.parameter.value : T0
           Local $dependency.parameter.amount : Int
       val local12
@@ -48,19 +48,19 @@ Module
       Local $shortCircuit.0 : Boolean
       return
         IntegerLiteral 1 : Int
-    ImportedDependencyCall #2 : Unit
+    Call external #2 : Unit
       IntegerLiteral 10 : Int
     val local15
       Local value : T0
     val local16
       Local $dependency.argument.0 : T0
     val local17
-      ImportedDependencyCall #1 : Int
+      Call external #1 : Int
     val local18
-      ImportedGenericCall defaults<T0> : Int
+      Call defaults<T0> : Int
         Local $dependency.parameter.value : T0
         Local $dependency.parameter.amount : Int
-    ImportedDependencyCall #2 : Unit
+    Call external #2 : Unit
       IntegerLiteral 40 : Int
     val local19
       Local changed : Int

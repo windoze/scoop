@@ -23,7 +23,7 @@ Module
     val local7
       Local $dependency.argument.0 : Long
     val local9
-      ImportedDependencyCall #0 interface[1] : Long
+      Call external #0 interface[1] : Long
         Local $dependency.receiver : ParameterSource
         Local $dependency.parameter.value : Long
     val local10
@@ -35,6 +35,6 @@ Module
     val local12
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #1 : Counter
+      Call external #1 : Counter
         Local $dependency.parameter.value : Long
   output library

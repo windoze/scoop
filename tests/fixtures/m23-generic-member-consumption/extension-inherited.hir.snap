@@ -6,7 +6,7 @@ Module
     val local1
       Local $dependency.argument.0 : Int
     return
-      ImportedGenericCall extensionValue<Int> : Int
+      Call extensionValue<Int> : Int
         ReferenceUpcast : Box<Int>
           ImportedConstructorInit Inherited : Inherited<Int>
             Local $dependency.parameter.value : Int
@@ -16,7 +16,7 @@ Module
     val local2
       Local $dependency.argument.0 : T0
     return
-      ImportedGenericCall extensionValue<T0> : T0
+      Call extensionValue<T0> : T0
         ReferenceUpcast : Box<T0>
           ImportedConstructorInit Inherited : Inherited<T0>
             Local $dependency.parameter.value : T0

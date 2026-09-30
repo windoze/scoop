@@ -21,7 +21,7 @@ Module
       Local $dependency.argument.0 : Int
     val local7
       CallableReference reference2 target=dependency #1 captures=0 : () -> Int
-        ImportedDependencyCall #0 : Plain
+        Call external #0 : Plain
           Local $dependency.parameter.number : Int
     LocalFunction local1 body=$local.1.read captures=1
     val local8

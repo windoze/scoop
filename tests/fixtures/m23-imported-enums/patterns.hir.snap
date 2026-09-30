@@ -84,7 +84,7 @@ Module
     val local3
       Local $dependency.argument.1 : Long
     val local4
-      ImportedDependencyCall #0 : Choice
+      Call external #0 : Choice
         Local $dependency.parameter.left : Long
         Local $dependency.parameter.right : Long
     val local5
@@ -98,7 +98,7 @@ Module
       Call score : Long
         Local $parameter.value : Choice
     val local8
-      ImportedDependencyCall #1 : Packet
+      Call external #1 : Packet
     val local9
       Local $argument.0 : Packet
     val local11
@@ -111,7 +111,7 @@ Module
         Local $dependency.receiver : Long
         Local $dependency.parameter.other : Long
     val local13
-      ImportedDependencyCall #2 : Choice
+      Call external #2 : Choice
     val local14
       Local $argument.0 : Choice
     when
@@ -144,7 +144,7 @@ Module
         Local $dependency.receiver : Long
         Local $dependency.parameter.other : Long
     val local25
-      ImportedDependencyCall #3 : Flag
+      Call external #3 : Flag
     val local26
       Local $argument.0 : Flag
     val local28

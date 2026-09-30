@@ -18,34 +18,34 @@ Module
       Local value : Int
   fun outside(): Any
     val local0
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
     val local1
       ReferenceUpcast : Any
         StringLiteral "receiver" : String
     val local2
-      ImportedDependencyCall #6 : Any
+      Call external #6 : Any
         Local $dependency.receiver : Any
     val local3
       Local accepted : Any
     val local4
       Local $dependency.argument.0 : Any
-    ImportedDependencyCall #8 : Unit
+    Call external #8 : Unit
       ReferenceUpcast : Any
         StringLiteral "write" : String
-      ImportedDependencyCall #7 : Any
+      Call external #7 : Any
         Local $dependency.parameter.value : Any
     val local5
-      ImportedDependencyCall #9 : Any
+      Call external #9 : Any
         ReferenceUpcast : Any
           StringLiteral "read" : String
     val local6
       ReferenceUpcast : Any
         StringLiteral "provider-default" : String
     val local7
-      ImportedDependencyCall #6 : Any
+      Call external #6 : Any
         Local $default.local.0 : Any
     val local8
-      ImportedDependencyCall #10 : Any
+      Call external #10 : Any
         Local $dependency.parameter.value : Any
     val local9
       Box : Any
@@ -53,7 +53,7 @@ Module
     val local10
       Local $dependency.argument.0 : Any
     val local11
-      ImportedDependencyCall #7 : Any
+      Call external #7 : Any
         Local $dependency.parameter.value : Any
     val local12
       Box : Any
@@ -61,21 +61,21 @@ Module
     val local13
       Local $dependency.argument.0 : Any
     val local14
-      ImportedDependencyCall #7 : Any
+      Call external #7 : Any
         Local $dependency.parameter.value : Any
     val local15
       Local selected : Any
     val local16
       Local $dependency.argument.0 : Any
     return
-      ImportedDependencyCall #7 : Any
+      Call external #7 : Any
         Local $dependency.parameter.value : Any
   fun unusedDefault(value: Int): Int
     return
       Local value : Int
   fun $init$body$0(): Unit
     val local0
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
     assign global localDefault
       Call defaultRead : Int
         Local $parameter.value : Int
@@ -101,10 +101,10 @@ Module
     if
       BoolLiteral true : Boolean
       assign $result.0
-        ImportedDependencyCall #0 : Int
+        Call external #0 : Int
     else
       assign $result.0
-        ImportedDependencyCall #0 : Int
+        Call external #0 : Int
     assign global localTwice
       Local $result.0 : Int
   fun $init$ensure$2(): Unit
@@ -115,13 +115,13 @@ Module
   fun $init$body$3(): Unit
     if
       BoolLiteral true : Boolean
-      ImportedDependencyCall #1 : Unit
+      Call external #1 : Unit
         IntegerLiteral 4 : Int
       assign $result.1
-        ImportedDependencyCall #0 : Int
+        Call external #0 : Int
     else
       assign $result.1
-        ImportedDependencyCall #0 : Int
+        Call external #0 : Int
     assign global localWrite
       Local $result.1 : Int
   fun $init$ensure$3(): Unit
@@ -131,7 +131,7 @@ Module
       GlobalRead localWrite : Int
   fun $init$body$4(): Unit
     assign global localComputed
-      ImportedDependencyCall #2 : Int
+      Call external #2 : Int
   fun $init$ensure$4(): Unit
   fun $get$localComputed(): Int
     ensure init4 top-level:localComputed
@@ -139,7 +139,7 @@ Module
       GlobalRead localComputed : Int
   fun $init$body$5(): Unit
     assign global localImage
-      ImportedDependencyCall #3 : Int
+      Call external #3 : Int
   fun $init$ensure$5(): Unit
   fun $get$localImage(): Int
     ensure init5 top-level:localImage
@@ -148,13 +148,13 @@ Module
   fun $init$body$6(): Unit
     if
       BoolLiteral true : Boolean
-      ImportedDependencyCall #4 : Unit
+      Call external #4 : Unit
         IntegerLiteral 6 : Int
       assign $result.2
-        ImportedDependencyCall #5 : Int
+        Call external #5 : Int
     else
       assign $result.2
-        ImportedDependencyCall #5 : Int
+        Call external #5 : Int
     assign global localImageWrite
       Local $result.2 : Int
   fun $init$ensure$6(): Unit

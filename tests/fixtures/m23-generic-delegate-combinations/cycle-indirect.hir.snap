@@ -1,7 +1,7 @@
 Module
   fun leftFailure<T>(): Int
     try
-      ImportedGenericCall cycleLeft<T0> : Int
+      Call cycleLeft<T0> : Int
         ImportedConstructorInit Token : Token<T0>
       assign $result.0
         IntegerLiteral 0 : Int
@@ -12,7 +12,7 @@ Module
       Local $result.0 : Int
   fun rightFailure<T>(): Int
     try
-      ImportedGenericCall cycleRight<T0> : Int
+      Call cycleRight<T0> : Int
         ImportedConstructorInit Token : Token<T0>
       assign $result.1
         IntegerLiteral 0 : Int
@@ -24,12 +24,12 @@ Module
   fun exercise<T>(value: T0): Int
     val local1
       ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
-    ImportedDependencyCall #0 : Unit
+    Call external #0 : Unit
       Local $property_receiver.2 : Trace
       IntegerLiteral 0 : Int
     val local2
       ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
-    ImportedDependencyCall #1 : Unit
+    Call external #1 : Unit
       Local $property_receiver.3 : Trace
       IntegerLiteral 0 : Int
     val local3
@@ -38,7 +38,7 @@ Module
       IntegerLiteral 0 : Int
     val local5
       Local $dependency.argument.0 : Int
-    ImportedDependencyCall #2 : Payload
+    Call external #2 : Payload
       Local $dependency.parameter.value : Int
     val local6
       Call rightFailure<T0> : Int
@@ -68,7 +68,7 @@ Module
     if
       Local $shortCircuit.4 : Boolean
       val local14
-        ImportedDependencyCall #3 : Int
+        Call external #3 : Int
           ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
       val local15
         IntegerLiteral 1 : Int
@@ -84,7 +84,7 @@ Module
     if
       Local $shortCircuit.5 : Boolean
       val local18
-        ImportedDependencyCall #4 : Int
+        Call external #4 : Int
           ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
       val local19
         IntegerLiteral 1 : Int

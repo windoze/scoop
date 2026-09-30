@@ -25,7 +25,7 @@ Module
         Local $dependency.parameter.left : Counter<T0>
         Local $dependency.parameter.right : Counter<T0>
     val local11
-      ImportedGenericCall defaultCompare<T0> : Int
+      Call defaultCompare<T0> : Int
         Local $dependency.parameter.left : Counter<T0>
         Local $dependency.parameter.right : Counter<T0>
         Local $dependency.parameter.same : Boolean
@@ -58,7 +58,7 @@ Module
     val local21
       Local $dependency.argument.2 : Boolean
     val local22
-      ImportedGenericCall defaultCompare<T0> : Int
+      Call defaultCompare<T0> : Int
         Local $dependency.parameter.left : Counter<T0>
         Local $dependency.parameter.right : Counter<T0>
         Local $dependency.parameter.same : Boolean
@@ -91,7 +91,7 @@ Module
         Local $dependency.parameter.left : Counter<T0>
         Local $dependency.parameter.right : Counter<T0>
     return
-      ImportedGenericCall defaultCompare<T0> : Int
+      Call defaultCompare<T0> : Int
         Local $dependency.parameter.left : Counter<T0>
         Local $dependency.parameter.right : Counter<T0>
         Local $dependency.parameter.same : Boolean

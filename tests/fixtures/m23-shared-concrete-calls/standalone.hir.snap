@@ -8,17 +8,17 @@ Module
     val local3
       Local $dependency.argument.0 : T0
     val local4
-      ImportedGenericCall identity<T0> : T0
+      Call identity<T0> : T0
         Local $dependency.parameter.value : T0
     val local5
       Local $dependency.argument.0 : T0
     val local6
-      ImportedGenericCall nested<T0> : T0
+      Call nested<T0> : T0
         Local $dependency.parameter.value : T0
     val local7
       Local $dependency.argument.0 : T0
     val local8
-      ImportedGenericCall identity<T0> : T0
+      Call identity<T0> : T0
         Local $dependency.parameter.value : T0
     val local9
       Local $argument.0 : T0
@@ -33,7 +33,7 @@ Module
     val local1
       Local $dependency.argument.0 : String
     val local4
-      ImportedGenericCall identity<String> : String
+      Call identity<String> : String
         Local $dependency.parameter.value : String
     val local2
       StringLiteral "call" : String
@@ -48,7 +48,7 @@ Module
       Local $dependency.argument.0 : String
     if
       Unary Not : Boolean
-        ImportedDependencyCall #0 : Boolean
+        Call external #0 : Boolean
           Local $dependency.receiver : String
           Local $dependency.parameter.other : String
       return
@@ -57,7 +57,7 @@ Module
       UnitLiteral : Unit
     val local9
       Local $dependency.argument.0 : Unit
-    ImportedGenericCall identity<Unit> : Unit
+    Call identity<Unit> : Unit
       Local $dependency.parameter.value : Unit
     val local10
       UnitLiteral : Unit
@@ -70,14 +70,14 @@ Module
     val local13
       Local $dependency.argument.0 : Int
     val local16
-      ImportedGenericCall identity<Int> : Int
+      Call identity<Int> : Int
         Local $dependency.parameter.value : Int
     val local14
       IntegerLiteral 2 : Int
     val local15
       Local $dependency.argument.0 : Int
     val local17
-      ImportedGenericCall identity<Int> : Int
+      Call identity<Int> : Int
         Local $dependency.parameter.value : Int
     val local18
       Local $dependency.argument.0 : Int

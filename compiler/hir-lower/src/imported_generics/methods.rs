@@ -1,6 +1,35 @@
 use super::*;
 
 impl Lowerer {
+    pub(crate) fn resolved_template_call(
+        &self,
+        application: hir::ImportedGenericCallableApplicationId,
+        kind: hir::ImportedGenericCallKind,
+        binding: Option<std::sync::Arc<hir::DirectImportedTargetBinding>>,
+        args: Vec<hir::Expr>,
+        receiver: hir::SourceCallReceiver<hir::TypeId>,
+    ) -> hir::ExprKind {
+        if matches!(
+            self.imported_generic_applications[application].arguments,
+            hir::ImportedCallableArguments::Method { .. }
+        ) {
+            hir::ExprKind::ImportedGenericCall {
+                application,
+                kind,
+                binding,
+                args,
+                receiver,
+            }
+        } else {
+            hir::ExprKind::Call {
+                callee: hir::CallableTarget::Application(application),
+                binding,
+                args,
+                receiver,
+            }
+        }
+    }
+
     pub(super) fn imported_template_method_dispatch(
         &mut self,
         declaration: &hir::ImportedCallableDeclaration,

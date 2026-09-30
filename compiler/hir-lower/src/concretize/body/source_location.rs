@@ -12,7 +12,12 @@ impl Concretizer<'_> {
         let export::CoreProtocols::Defined(protocols) = self.core else {
             return None;
         };
-        let export::ExprKind::Call { callee, args, .. } = &source.kind else {
+        let export::ExprKind::Call {
+            callee: export::CallableTarget::Local(callee),
+            args,
+            ..
+        } = &source.kind
+        else {
             return None;
         };
         if !args.is_empty()

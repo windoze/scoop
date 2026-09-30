@@ -14,7 +14,7 @@ Module
         Element
           Local $dependency.argument.1 : T0
     val local5
-      ImportedGenericCall pack<T0> : Array<T0>
+      Call pack<T0> : Array<T0>
         Local $dependency.parameter.values : Array<T0>
     val local6
       ArrayLen : Long
@@ -65,7 +65,7 @@ Module
     val local19
       Local $dependency.argument.1 : (T0) -> Int
     return
-      ImportedGenericCall exercise<T0> : Int
+      Call exercise<T0> : Int
         Local $dependency.parameter.seed : T0
         Local $dependency.parameter.read : (T0) -> Int
   fun result(): Int
@@ -80,7 +80,7 @@ Module
         Element
           Local $dependency.argument.1 : Int
     val local3
-      ImportedGenericCall pack<Int> : Array<Int>
+      Call pack<Int> : Array<Int>
         Local $dependency.parameter.values : Array<Int>
     val local4
       IntegerLiteral 42 : Int
@@ -93,7 +93,7 @@ Module
         CopyArray
           Local $dependency.argument.1 : Array<Int>
     val local7
-      ImportedGenericCall pack<Int> : Array<Int>
+      Call pack<Int> : Array<Int>
         Local $dependency.parameter.values : Array<Int>
     val local8
       ArrayLiteral : Array<Int>
@@ -104,7 +104,7 @@ Module
     val local11
       Local $dependency.argument.0 : Array<Int>
     val local12
-      ImportedGenericCall whole<Int> : Array<Int>
+      Call whole<Int> : Array<Int>
         Local $dependency.parameter.seed : Int
         Local $dependency.parameter.values : Array<Int>
     val local13
@@ -201,7 +201,7 @@ Module
         Element
           Local $dependency.argument.2 : Long
     val local38
-      ImportedGenericCall pack<Long> : Array<Long>
+      Call pack<Long> : Array<Long>
         Local $dependency.parameter.values : Array<Long>
     val local39
       ArrayLiteral : Array<Long>
@@ -218,7 +218,7 @@ Module
         Element
           Local $dependency.argument.2 : Long
     val local43
-      ImportedGenericCall pack<Long> : Array<Long>
+      Call pack<Long> : Array<Long>
         Local $dependency.parameter.values : Array<Long>
     val local44
       Local wide : Array<Long>
@@ -304,7 +304,7 @@ Module
         Element
           Local $dependency.argument.2 : ULong
     val local68
-      ImportedGenericCall pack<ULong> : Array<ULong>
+      Call pack<ULong> : Array<ULong>
         Local $dependency.parameter.values : Array<ULong>
     val local69
       Local unsigned : Array<ULong>
@@ -352,7 +352,7 @@ Module
       return
         IntegerLiteral 3 : Int
     val local82
-      ImportedGenericCall empty<Int> : Array<Int>
+      Call empty<Int> : Array<Int>
     val local83
       IntegerLiteral 42 : Int
     val local84
@@ -360,7 +360,7 @@ Module
     val local85
       Local $dependency.argument.1 : Int
     val local86
-      ImportedGenericCall arrayOrSeed<Int> : Int
+      Call arrayOrSeed<Int> : Int
         Local $dependency.parameter.values : Array<Int>
         Local $dependency.parameter.seed : Int
     val local87
@@ -389,7 +389,7 @@ Module
       val local94
         Local $dependency.argument.1 : Int
       val local95
-        ImportedGenericCall arrayOrSeed<Int> : Int
+        Call arrayOrSeed<Int> : Int
           Local $dependency.parameter.values : Array<Int>
           Local $dependency.parameter.seed : Int
       val local96
@@ -414,7 +414,7 @@ Module
     val local102
       Local $dependency.argument.1 : Int
     val local103
-      ImportedGenericCall mutableOrSeed<Int> : Int
+      Call mutableOrSeed<Int> : Int
         Local $dependency.parameter.values : MutableArray<Int>
         Local $dependency.parameter.seed : Int
     val local104
@@ -443,7 +443,7 @@ Module
       val local111
         Local $dependency.argument.1 : Int
       val local112
-        ImportedGenericCall mutableOrSeed<Int> : Int
+        Call mutableOrSeed<Int> : Int
           Local $dependency.parameter.values : MutableArray<Int>
           Local $dependency.parameter.seed : Int
       val local113
@@ -476,7 +476,7 @@ Module
     val local123
       Local $dependency.argument.3 : String
     val local124
-      ImportedGenericCall two<Int, String> : Int
+      Call two<Int, String> : Int
         Local $dependency.parameter.left : Array<Int>
         Local $dependency.parameter.right : Array<String>
         Local $dependency.parameter.first : Int
@@ -503,7 +503,7 @@ Module
         Element
           Local $dependency.argument.1 : Int
     val local130
-      ImportedGenericCall pack<Int> : Array<Int>
+      Call pack<Int> : Array<Int>
         Local $dependency.parameter.values : Array<Int>
     val local131
       IntegerLiteral 42 : Int
@@ -512,7 +512,7 @@ Module
         Element
           Local $dependency.argument.0 : Int
     val local133
-      ImportedGenericCall pack<Int> : Array<Int>
+      Call pack<Int> : Array<Int>
         Local $dependency.parameter.values : Array<Int>
     val local134
       Local source : Array<Int>
@@ -523,7 +523,7 @@ Module
     val local137
       Local $dependency.argument.0 : Array<Int>
     val local138
-      ImportedGenericCall whole<Int> : Array<Int>
+      Call whole<Int> : Array<Int>
         Local $dependency.parameter.seed : Int
         Local $dependency.parameter.values : Array<Int>
     val local139

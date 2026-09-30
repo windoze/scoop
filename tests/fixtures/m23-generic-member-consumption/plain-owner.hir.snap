@@ -1,7 +1,7 @@
 Module
   fun result(): Int
     val local0
-      ImportedDependencyCall #0 : Plain
+      Call external #0 : Plain
     val local1
       IntegerLiteral 42 : Int
     val local2
@@ -12,7 +12,7 @@ Module
         Local $dependency.parameter.value : Int
   fun make<T>(value: T0): T0
     val local1
-      ImportedDependencyCall #0 : Plain
+      Call external #0 : Plain
     val local2
       Local value : T0
     val local3

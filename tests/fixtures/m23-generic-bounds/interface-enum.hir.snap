@@ -5,14 +5,14 @@ Module
     val local2
       Local $dependency.argument.0 : T0
     val local3
-      ImportedGenericCall defaultTag<T0> : DefaultTag<T0>
+      Call defaultTag<T0> : DefaultTag<T0>
         Local $dependency.parameter.value : T0
     val local4
       Local receiver : DefaultTag<T0>
     val local5
       Local $dependency.argument.0 : DefaultTag<T0>
     val local6
-      ImportedGenericCall readBound<DefaultTag<T0>> : Int
+      Call readBound<DefaultTag<T0>> : Int
         Local $dependency.parameter.value : DefaultTag<T0>
     val local7
       IntegerLiteral 42 : Int
@@ -30,7 +30,7 @@ Module
     val local10
       Local $dependency.argument.0 : DefaultTag<T0>
     val local11
-      ImportedGenericCall readReference<DefaultTag<T0>> : () -> Int
+      Call readReference<DefaultTag<T0>> : () -> Int
         Local $dependency.parameter.value : DefaultTag<T0>
     return
       CallableCall function_type0 : Int

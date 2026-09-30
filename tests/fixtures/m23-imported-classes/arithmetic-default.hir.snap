@@ -11,11 +11,11 @@ Module
         Local $dependency.default.local.0 : Long
         Local $dependency.default.local.2 : Long
     val local4
-      ImportedDependencyCall #0 : Long
+      Call external #0 : Long
         Local $dependency.parameter.value : Long
     val local5
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #1 : Counter
+      Call external #1 : Counter
         Local $dependency.parameter.value : Long
   output library

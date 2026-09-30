@@ -93,7 +93,7 @@ Module
       Local $dependency.argument.0 : T0
     val local21
       ReferenceUpcast : View<Unit, T0>
-        ImportedGenericCall reference<T0> : Swap<T0, Unit>
+        Call reference<T0> : Swap<T0, Unit>
           Local $dependency.parameter.value : T0
     val local22
       Local $dependency.argument.0 : View<Unit, T0>

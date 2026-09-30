@@ -25,7 +25,7 @@ Module
     val local5
       Local $dependency.argument.0 : Int
     return
-      ImportedDependencyCall #0 : Plain
+      Call external #0 : Plain
         Local $dependency.parameter.number : Int
   fun exercise<T>(value: T0): Int
     Call resetEvaluations : Unit
@@ -37,7 +37,7 @@ Module
     val local3
       Local $dependency.argument.0 : Int
     val local4
-      ImportedDependencyCall #0 : Plain
+      Call external #0 : Plain
         Local $dependency.parameter.number : Int
     val local5
       CallableReference reference1 target=dependency #1 captures=0 : () -> Int
@@ -47,7 +47,7 @@ Module
     val local7
       Local $dependency.argument.0 : Int
     assign current
-      ImportedDependencyCall #0 : Plain
+      Call external #0 : Plain
         Local $dependency.parameter.number : Int
     val local8
       CallableReference reference2 target=imported choose captures=0 : (T0) -> T0
@@ -151,7 +151,7 @@ Module
       val local33
         Local current : Plain
       val local34
-        ImportedDependencyCall #1 : Int
+        Call external #1 : Int
           Local $dependency.receiver : Plain
       val local35
         IntegerLiteral 1 : Int

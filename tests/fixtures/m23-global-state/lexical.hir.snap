@@ -1,19 +1,19 @@
 Module
   fun exercise<T>(value: T0): Int
-    ImportedDependencyCall #0 : Unit
+    Call external #0 : Unit
     val local1
       Local value : T0
     val local2
       Local $dependency.argument.0 : T0
     val local3
-      ImportedGenericCall makeStep<T0> : () -> Int
+      Call makeStep<T0> : () -> Int
         Local $dependency.parameter.value : T0
     val local4
       IntegerLiteral 0 : Int
     val local5
       Local $dependency.argument.0 : Int
     val local6
-      ImportedGenericCall makeStep<Int> : () -> Int
+      Call makeStep<Int> : () -> Int
         Local $dependency.parameter.value : Int
     val local7
       CallableCall function_type0 : Int
@@ -65,7 +65,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local18
-        ImportedDependencyCall #1 : Int
+        Call external #1 : Int
       val local19
         IntegerLiteral 3 : Int
       val local20

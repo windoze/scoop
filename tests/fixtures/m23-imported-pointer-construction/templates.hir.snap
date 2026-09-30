@@ -13,14 +13,14 @@ Module
     val local3
       Local $dependency.argument.0 : ULong
     val local4
-      ImportedGenericCall reencode<T0> : ULong
+      Call reencode<T0> : ULong
         Local $dependency.parameter.raw : ULong
     val local5
       Local raw : ULong
     val local6
       Local $dependency.argument.0 : ULong
     val local7
-      ImportedGenericCall reconstruct<T0> : Ptr<T0>
+      Call reconstruct<T0> : Ptr<T0>
         Local $dependency.parameter.raw : ULong
     return
       PtrLoad : T0
@@ -58,7 +58,7 @@ Module
     val local12
       Local $dependency.argument.0 : Int
     return
-      ImportedGenericCall copy<Int> : Int
+      Call copy<Int> : Int
         Local $dependency.parameter.value : Int
   fun result(): Int
     val local0

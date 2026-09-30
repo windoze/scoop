@@ -11,7 +11,7 @@ Module
       val local2
         IntegerLiteral 1 : Long
       return
-        ImportedDependencyCall #2 interface[1] : Long
+        Call external #2 interface[1] : Long
           Local $dependency.receiver : Readable
           Local $dependency.parameter.extra : Long
   fun localReader(): LocalReader
@@ -27,6 +27,6 @@ Module
     val local2
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #1 : Counter
+      Call external #1 : Counter
         Local $dependency.parameter.value : Long
   output library

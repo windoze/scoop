@@ -1,6 +1,6 @@
 Module
   fun primary(): Counter
     return
-      ImportedDependencyCall #0 : Counter
+      Call external #0 : Counter
         ImportedSingletonValue 4167c4a090aec4c3e1538cc083d70dee606516c594617066a6559df08422b3c7 : Nested
   output library

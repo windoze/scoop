@@ -116,7 +116,7 @@ Module
     val local48
       Local $dependency.argument.1 : Wide<Tracked<T0>>
     if
-      ImportedGenericCall compareWide<Tracked<T0>> : Boolean
+      Call compareWide<Tracked<T0>> : Boolean
         Local $dependency.parameter.left : Wide<Tracked<T0>>
         Local $dependency.parameter.right : Wide<Tracked<T0>>
       val local52
@@ -181,7 +181,7 @@ Module
     val local62
       Local $dependency.argument.1 : Tracked<T0>
     val local65
-      ImportedGenericCall pair<Tracked<T0>> : Choice<Tracked<T0>>
+      Call pair<Tracked<T0>> : Choice<Tracked<T0>>
         Local $dependency.parameter.first : Tracked<T0>
         Local $dependency.parameter.second : Tracked<T0>
     val local63
@@ -191,7 +191,7 @@ Module
     if
       MethodCall Choice<Tracked<T>>.equals <derived> : Boolean
         Local $equality.lhs : Choice<Tracked<T0>>
-        ImportedGenericCall single<Tracked<T0>> : Choice<Tracked<T0>>
+        Call single<Tracked<T0>> : Choice<Tracked<T0>>
           Local $dependency.parameter.value : Tracked<T0>
       val local69
         BoolLiteral true : Boolean
@@ -221,7 +221,7 @@ Module
     val local73
       Local $dependency.argument.1 : Tracked<T0>
     val local78
-      ImportedGenericCall pair<Tracked<T0>> : Choice<Tracked<T0>>
+      Call pair<Tracked<T0>> : Choice<Tracked<T0>>
         Local $dependency.parameter.first : Tracked<T0>
         Local $dependency.parameter.second : Tracked<T0>
     val local74
@@ -233,7 +233,7 @@ Module
     val local77
       Local $dependency.argument.1 : Tracked<T0>
     val local79
-      ImportedGenericCall pair<Tracked<T0>> : Choice<Tracked<T0>>
+      Call pair<Tracked<T0>> : Choice<Tracked<T0>>
         Local $dependency.parameter.first : Tracked<T0>
         Local $dependency.parameter.second : Tracked<T0>
     val local80
@@ -241,7 +241,7 @@ Module
     val local81
       Local $dependency.argument.1 : Choice<Tracked<T0>>
     if
-      ImportedGenericCall compareChoices<Tracked<T0>> : Boolean
+      Call compareChoices<Tracked<T0>> : Boolean
         Local $dependency.parameter.left : Choice<Tracked<T0>>
         Local $dependency.parameter.right : Choice<Tracked<T0>>
       val local85

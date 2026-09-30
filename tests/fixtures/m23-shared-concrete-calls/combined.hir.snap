@@ -4,13 +4,13 @@ Module
       Local value : T0
   fun exercise<T>(seed: T0, read: (T0) -> Int): Int
     val local2
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
     val local3
       Local seed : T0
     val local4
       Local $dependency.argument.0 : T0
     val local5
-      ImportedGenericCall identity<T0> : T0
+      Call identity<T0> : T0
         Local $dependency.parameter.value : T0
     val local6
       Local $dependency.argument.0 : T0
@@ -19,10 +19,10 @@ Module
     val local8
       Local $default.local.1 : T0
     val local9
-      ImportedGenericCall nested<T0> : T0
+      Call nested<T0> : T0
         Local $default.local.2 : T0
     val local10
-      ImportedGenericCall defaulted<T0> : T0
+      Call defaulted<T0> : T0
         Local $dependency.parameter.value : T0
         Local $dependency.parameter.other : T0
     val local11
@@ -33,9 +33,9 @@ Module
     val local13
       Lambda lambda0 invoke=$lambda.0 captures=1 : () -> T0
         capture value binding22 : T0
-    ImportedDependencyCall #1 : Unit
+    Call external #1 : Unit
     val local17
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
     val local14
       Local before : Int
     val local15
@@ -67,7 +67,7 @@ Module
     val local24
       Local $dependency.argument.1 : (T0) -> Int
     return
-      ImportedGenericCall action<T0> : Int
+      Call action<T0> : Int
         Local $dependency.parameter.value : T0
         Local $dependency.parameter.read : (T0) -> Int
   fun result(): Int

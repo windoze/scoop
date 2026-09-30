@@ -162,7 +162,11 @@ fn overload_probes_lambda_candidates_transactionally() {
         panic!("main body")
     };
     let init = local_init(main, "result");
-    let hir::ExprKind::Call { callee, .. } = &init.kind else {
+    let hir::ExprKind::Call {
+        callee: hir::CallableTarget::Local(callee),
+        ..
+    } = &init.kind
+    else {
         panic!("resolved overload call")
     };
     assert_eq!(

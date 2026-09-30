@@ -8,14 +8,14 @@ Module
     val local2
       Local boxed : Hash
     val local4
-      ImportedDependencyCall #0 interface[0] : Long
+      Call external #0 interface[0] : Long
         Local $dependency.receiver : Hash
     val local3
       Local value : Long
     val local5
       Local $equality.lhs : Long
     val local6
-      ImportedDependencyCall #1 : Long
+      Call external #1 : Long
         Local $dependency.receiver : Long
     val local7
       Local $dependency.argument.0 : Long
@@ -33,6 +33,6 @@ Module
     val local10
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #2 : Counter
+      Call external #2 : Counter
         Local $dependency.parameter.value : Long
   output library

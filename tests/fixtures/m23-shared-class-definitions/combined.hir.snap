@@ -162,7 +162,7 @@ Module
     val local39
       Local $dependency.argument.0 : T0
     val local40
-      ImportedGenericCall make<T0> : Link<T0>
+      Call make<T0> : Link<T0>
         Local $dependency.parameter.value : T0
     val local41
       Local $dependency.argument.0 : Link<T0>
@@ -184,7 +184,7 @@ Module
     val local48
       Local $dependency.argument.0 : T0
     val local49
-      ImportedGenericCall make<T0> : Link<T0>
+      Call make<T0> : Link<T0>
         Local $dependency.parameter.value : T0
     val local50
       Local $dependency.argument.0 : Link<T0>
@@ -294,7 +294,7 @@ Module
     val local80
       CallableCall function_type2 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall readLink<T0> : T0
+        Call readLink<T0> : T0
           Local $dependency.parameter.value : T0
           Local $dependency.parameter.link : Link<T0>
     val local81

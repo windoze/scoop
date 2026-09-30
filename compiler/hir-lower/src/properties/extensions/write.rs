@@ -87,7 +87,8 @@ impl Lowerer {
         self.check_call_effects(callee, span);
         Some(hir::StatementKind::Expr(hir::Expr {
             kind: hir::ExprKind::Call {
-                callee,
+                binding: None,
+                callee: callee.into(),
                 receiver: hir::SourceCallReceiver::Receiver {
                     static_type: receiver.static_type,
                 },

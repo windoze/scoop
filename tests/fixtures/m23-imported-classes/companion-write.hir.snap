@@ -6,11 +6,11 @@ Module
       IntegerLiteral 21 : Long
     val local2
       Local $dependency.argument.0 : Long
-    ImportedDependencyCall #3 : Unit
+    Call external #3 : Unit
       Local $property_receiver.0 : Factory
-      ImportedDependencyCall #2 : Counter
+      Call external #2 : Counter
         Local $dependency.parameter.value : Long
     return
-      ImportedDependencyCall #4 : Counter
+      Call external #4 : Counter
         ImportedSingletonValue 3ca804d0bb794190ef49b0abd87f860ba6754a981affcd63098f759564570ebf : Factory
   output library

@@ -7,7 +7,7 @@ Module
     val local3
       Local $dependency.argument.0 : T0
     val local4
-      ImportedGenericCall singleton<T0> : Chain<T0>
+      Call singleton<T0> : Chain<T0>
         Local $dependency.parameter.value : T0
     val local5
       Call $get$empty : Chain<Int>
@@ -18,7 +18,7 @@ Module
     val local8
       Local $dependency.argument.1 : (Int) -> Int
     val local9
-      ImportedGenericCall total<Int> : Int
+      Call total<Int> : Int
         Local $dependency.parameter.value : Chain<Int>
         Local $dependency.parameter.read : (Int) -> Int
     val local10
@@ -41,7 +41,7 @@ Module
     val local15
       Local $dependency.argument.1 : (T0) -> Int
     val local16
-      ImportedGenericCall total<T0> : Int
+      Call total<T0> : Int
         Local $dependency.parameter.value : Chain<T0>
         Local $dependency.parameter.read : (T0) -> Int
     val local17

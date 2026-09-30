@@ -9,12 +9,12 @@ Module
     val local1
       Local value : ReferenceParent
     val local2
-      ImportedDependencyCall #5 : ReferenceAggregate
+      Call external #5 : ReferenceAggregate
         Local value : ReferenceParent
     val local3
       Local $dependency.argument.0 : ReferenceAggregate
     val local4
-      ImportedDependencyCall #1 virtual[0] : ReferenceAggregate
+      Call external #1 virtual[0] : ReferenceAggregate
         Local $dependency.receiver : ReferenceParent
         Local $dependency.parameter.input : ReferenceAggregate
     val local5
@@ -22,14 +22,14 @@ Module
     val local6
       Local $dependency.argument.0 : Long
     val local7
-      ImportedDependencyCall #2 : MutableCell
+      Call external #2 : MutableCell
         Local $dependency.parameter.value : Long
     val local8
-      ImportedDependencyCall #6 : Long
+      Call external #6 : Long
         FieldAccess field 0 : MutableCell
           Local result : ReferenceAggregate
     val local9
-      ImportedDependencyCall #6 : Long
+      Call external #6 : Long
         FieldAccess field 1 : MutableCell
           Local result : ReferenceAggregate
     val local10
@@ -48,7 +48,7 @@ Module
         Local $dependency.receiver : Long
         Local $dependency.parameter.other : Long
     val local15
-      ImportedDependencyCall #6 : Long
+      Call external #6 : Long
         Local scratch : MutableCell
     val local16
       Local $dependency.argument.0 : Long
@@ -59,6 +59,6 @@ Module
     val local18
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #7 : Counter
+      Call external #7 : Counter
         Local $dependency.parameter.value : Long
   output library

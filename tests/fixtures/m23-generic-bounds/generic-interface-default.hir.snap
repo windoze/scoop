@@ -12,14 +12,14 @@ Module
     val local5
       Local $dependency.argument.0 : StoredHolder<T0>
     val local6
-      ImportedGenericCall inheritedReference<StoredHolder<T0>, T0> : () -> T0
+      Call inheritedReference<StoredHolder<T0>, T0> : () -> T0
         Local $dependency.parameter.value : StoredHolder<T0>
     val local7
       Local receiver : StoredHolder<T0>
     val local8
       Local $dependency.argument.0 : StoredHolder<T0>
     val local9
-      ImportedGenericCall genericInterfaceGet<StoredHolder<T0>, T0> : T0
+      Call genericInterfaceGet<StoredHolder<T0>, T0> : T0
         Local $dependency.parameter.value : StoredHolder<T0>
     val local10
       IntegerLiteral 42 : Int
@@ -78,14 +78,14 @@ Module
     val local4
       Local $dependency.argument.0 : StoredHolder<Int>
     val local5
-      ImportedGenericCall inheritedReference<StoredHolder<Int>, Int> : () -> Int
+      Call inheritedReference<StoredHolder<Int>, Int> : () -> Int
         Local $dependency.parameter.value : StoredHolder<Int>
     val local6
       Local receiver : StoredHolder<Int>
     val local7
       Local $dependency.argument.0 : StoredHolder<Int>
     val local8
-      ImportedGenericCall genericInterfaceGet<StoredHolder<Int>, Int> : Int
+      Call genericInterfaceGet<StoredHolder<Int>, Int> : Int
         Local $dependency.parameter.value : StoredHolder<Int>
     val local9
       IntegerLiteral 42 : Int

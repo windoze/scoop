@@ -2,7 +2,7 @@ Module
   fun primary(): Counter
     val local0
       Box : Any
-        ImportedDependencyCall #0 : Token
+        Call external #0 : Token
     val local1
       Unbox : Token
         Cast Token optional=false : Token
@@ -16,7 +16,7 @@ Module
     val local5
       Local $dependency.argument.1 : Long
     return
-      ImportedDependencyCall #1 : Counter
+      Call external #1 : Counter
         Local $dependency.parameter.marker : Token
         Local $dependency.parameter.value : Long
   output library

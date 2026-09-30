@@ -1,7 +1,7 @@
 Module
   fun failure<T>(): Int
     try
-      ImportedGenericCall cycleDirect<T0> : Int
+      Call cycleDirect<T0> : Int
         ImportedConstructorInit Token : Token<T0>
       assign $result.0
         IntegerLiteral 0 : Int
@@ -13,7 +13,7 @@ Module
   fun exercise<T>(value: T0): Int
     val local1
       ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
-    ImportedDependencyCall #0 : Unit
+    Call external #0 : Unit
       Local $property_receiver.1 : Trace
       IntegerLiteral 0 : Int
     val local2
@@ -22,7 +22,7 @@ Module
       IntegerLiteral 0 : Int
     val local4
       Local $dependency.argument.0 : Int
-    ImportedDependencyCall #1 : Payload
+    Call external #1 : Payload
       Local $dependency.parameter.value : Int
     val local5
       Call failure<T0> : Int
@@ -52,7 +52,7 @@ Module
     if
       Local $shortCircuit.2 : Boolean
       val local13
-        ImportedDependencyCall #2 : Int
+        Call external #2 : Int
           ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
       val local14
         IntegerLiteral 1 : Int

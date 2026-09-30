@@ -328,8 +328,16 @@ pub(in super::super) fn collect_expr_types(
             out.push(*check_ty);
             collect_expr_types(lowerer, operand, out);
         }
-        ExprKind::Call { callee, args, .. } => {
-            collect_callable_types(lowerer, *callee, out);
+        ExprKind::Call {
+            callee,
+            args,
+            receiver,
+            ..
+        } => {
+            collect_callable_target_types(lowerer, *callee, out);
+            if let hir::SourceCallReceiver::Receiver { static_type } = receiver {
+                out.push(*static_type);
+            }
             for argument in args {
                 collect_expr_types(lowerer, argument, out);
             }
@@ -360,11 +368,6 @@ pub(in super::super) fn collect_expr_types(
             if let hir::SourceCallReceiver::Receiver { static_type } = receiver {
                 out.push(*static_type);
             }
-            for argument in args {
-                collect_expr_types(lowerer, argument, out);
-            }
-        }
-        ExprKind::ImportedDependencyCall { args, .. } => {
             for argument in args {
                 collect_expr_types(lowerer, argument, out);
             }

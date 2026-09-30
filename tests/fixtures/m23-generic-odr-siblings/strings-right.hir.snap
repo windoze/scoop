@@ -1,19 +1,19 @@
 Module
   fun right(): String
     return
-      ImportedGenericCall constant<Int> : String
+      Call constant<Int> : String
   fun rightOther(): String
     return
-      ImportedGenericCall otherConstant<Int> : String
+      Call otherConstant<Int> : String
   fun rightSelected(first: Boolean): String
     val local1
       Local first : Boolean
     val local2
       Local $dependency.argument.0 : Boolean
     return
-      ImportedGenericCall selectedConstant<Int> : String
+      Call selectedConstant<Int> : String
         Local $dependency.parameter.first : Boolean
   fun distinct(): String
     return
-      ImportedGenericCall constant<Long> : String
+      Call constant<Long> : String
   output library

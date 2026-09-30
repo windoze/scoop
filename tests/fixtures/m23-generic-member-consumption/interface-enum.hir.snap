@@ -6,7 +6,7 @@ Module
       Local $dependency.argument.0 : Int
     val local2
       Box : Chooser<Int>
-        ImportedGenericCall interfaceTag<Int> : InterfaceTag<Int>
+        Call interfaceTag<Int> : InterfaceTag<Int>
           Local $dependency.parameter.value : Int
     val local3
       Local chooser : Chooser<Int>
@@ -25,7 +25,7 @@ Module
       Local $dependency.argument.0 : T0
     val local3
       Box : Chooser<T0>
-        ImportedGenericCall interfaceTag<T0> : InterfaceTag<T0>
+        Call interfaceTag<T0> : InterfaceTag<T0>
           Local $dependency.parameter.value : T0
     val local4
       Local chooser : Chooser<T0>

@@ -69,7 +69,7 @@ Module
     val local29
       Local $dependency.argument.1 : Payload<Key<T0>>
     val local30
-      ImportedGenericCall comparePayloads<Key<T0>> : Boolean
+      Call comparePayloads<Key<T0>> : Boolean
         Local $dependency.parameter.left : Payload<Key<T0>>
         Local $dependency.parameter.right : Payload<Key<T0>>
     if
@@ -96,7 +96,7 @@ Module
     val local38
       Local $dependency.argument.1 : Payload<Key<T0>>
     if
-      ImportedGenericCall comparePayloads<Key<T0>> : Boolean
+      Call comparePayloads<Key<T0>> : Boolean
         Local $dependency.parameter.left : Payload<Key<T0>>
         Local $dependency.parameter.right : Payload<Key<T0>>
       return

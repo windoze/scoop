@@ -12,7 +12,7 @@ Module
     val local5
       Local $dependency.argument.1 : T0
     val local6
-      ImportedGenericCall prefer<T0> : T0
+      Call prefer<T0> : T0
         Local $dependency.parameter.value : Option<T0>
         Local $dependency.parameter.seed : T0
     val local7
@@ -24,7 +24,7 @@ Module
     val local10
       Local $dependency.argument.1 : T0
     val local11
-      ImportedGenericCall viaReference<T0> : T0
+      Call viaReference<T0> : T0
         Local $dependency.parameter.action : (T0) -> T0
         Local $dependency.parameter.seed : T0
     val local12
@@ -71,7 +71,7 @@ Module
     val local26
       Local $dependency.argument.1 : (T0) -> Int
     return
-      ImportedGenericCall exercise<T0> : Int
+      Call exercise<T0> : Int
         Local $dependency.parameter.seed : T0
         Local $dependency.parameter.read : (T0) -> Int
   fun result(): Int
@@ -84,7 +84,7 @@ Module
     val local3
       Local $dependency.argument.1 : Int
     val local4
-      ImportedGenericCall applyTo<Int> : Int
+      Call applyTo<Int> : Int
         Local $dependency.parameter.action : (Int) -> Int
         Local $dependency.parameter.seed : Int
     val local5
@@ -112,7 +112,7 @@ Module
     val local12
       Local $dependency.argument.1 : Reference
     val local13
-      ImportedGenericCall applyTo<Reference> : Int
+      Call applyTo<Reference> : Int
         Local $dependency.parameter.action : (Reference) -> Int
         Local $dependency.parameter.seed : Reference
     val local14
@@ -135,7 +135,7 @@ Module
     val local19
       Local $dependency.argument.1 : Int
     val local20
-      ImportedGenericCall viaReference<Int> : Int
+      Call viaReference<Int> : Int
         Local $dependency.parameter.action : (Int) -> Int
         Local $dependency.parameter.seed : Int
     val local21
@@ -158,7 +158,7 @@ Module
     val local26
       Local $dependency.argument.1 : Int
     val local27
-      ImportedGenericCall prefer<Int> : Int
+      Call prefer<Int> : Int
         Local $dependency.parameter.value : Option<Int>
         Local $dependency.parameter.seed : Int
     val local28
@@ -182,7 +182,7 @@ Module
       val local33
         Local $dependency.argument.1 : Int
       val local34
-        ImportedGenericCall prefer<Int> : Int
+        Call prefer<Int> : Int
           Local $dependency.parameter.value : Option<Int>
           Local $dependency.parameter.seed : Int
       val local35
@@ -249,7 +249,7 @@ Module
       val local55
         Local $dependency.argument.0 : Array<Int>
       val local56
-        ImportedGenericCall fromEmpty<Int> : Int
+        Call fromEmpty<Int> : Int
           Local $dependency.receiver : Int
           Local $dependency.parameter.values : Array<Int>
       val local57
@@ -276,7 +276,7 @@ Module
       Local $dependency.argument.1 : Reference
     return
       FieldAccess class field number : Int
-        ImportedGenericCall viaReference<Reference> : Reference
+        Call viaReference<Reference> : Reference
           Local $dependency.parameter.action : (Reference) -> Reference
           Local $dependency.parameter.seed : Reference
   output library

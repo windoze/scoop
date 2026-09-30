@@ -4,7 +4,7 @@ Module
       IntegerLiteral 4 : Int
     val local5
       Local $dependency.argument.0 : Int
-    ImportedDependencyCall #0 : Int
+    Call external #0 : Int
       Local $dependency.parameter.digit : Int
     val local6
       Local copied : Array<T0>
@@ -15,7 +15,7 @@ Module
     val local9
       Local $dependency.argument.1 : T0
     return
-      ImportedGenericCall arrayOrSeed<T0> : T0
+      Call arrayOrSeed<T0> : T0
         Local $dependency.parameter.values : Array<T0>
         Local $dependency.parameter.seed : T0
   fun localPack<T>(values: Array<T0>, after: Int): Array<T0>
@@ -23,7 +23,7 @@ Module
       IntegerLiteral 5 : Int
     val local3
       Local $dependency.argument.0 : Int
-    ImportedDependencyCall #0 : Int
+    Call external #0 : Int
       Local $dependency.parameter.digit : Int
     return
       Local values : Array<T0>
@@ -63,7 +63,7 @@ Module
     val local16
       Local $dependency.parameter.values : Array<T0>
     val local17
-      ImportedGenericCall ordered<T0> : T0
+      Call ordered<T0> : T0
         Local $dependency.parameter.values : Array<T0>
         Local $dependency.parameter.seed : T0
         Local $dependency.parameter.after : Int
@@ -91,7 +91,7 @@ Module
     val local26
       Local $dependency.argument.1 : Int
     val local27
-      ImportedGenericCall orderedPack<T0> : Array<T0>
+      Call orderedPack<T0> : Array<T0>
         Local $dependency.parameter.values : Array<T0>
         Local $dependency.parameter.after : Int
     val local28
@@ -163,21 +163,21 @@ Module
     return
       Local $result.1 : Int
   fun result(): Int
-    ImportedDependencyCall #1 : Unit
+    Call external #1 : Unit
       IntegerLiteral 0 : Int
     val local0
       IntegerLiteral 1 : Int
     val local1
       Local $dependency.argument.0 : Int
     val local4
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
         Local $dependency.parameter.digit : Int
     val local2
       IntegerLiteral 2 : Int
     val local3
       Local $dependency.argument.0 : Int
     val local5
-      ImportedGenericCall deferredEmpty<Int> : Array<Int>
+      Call deferredEmpty<Int> : Array<Int>
         Local $dependency.parameter.digit : Int
     val local6
       Local $argument.1 : Array<Int>
@@ -188,7 +188,7 @@ Module
     val local9
       Local $dependency.argument.0 : Int
     val local10
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
         Local $dependency.parameter.digit : Int
     val local11
       Local $parameter.values : Array<Int>
@@ -213,7 +213,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local16
-        ImportedDependencyCall #2 : Int
+        Call external #2 : Int
       val local17
         IntegerLiteral 1234 : Int
       val local18
@@ -227,21 +227,21 @@ Module
       Local $shortCircuit.2 : Boolean
       return
         IntegerLiteral 3 : Int
-    ImportedDependencyCall #1 : Unit
+    Call external #1 : Unit
       IntegerLiteral 0 : Int
     val local20
       IntegerLiteral 1 : Int
     val local21
       Local $dependency.argument.0 : Int
     val local24
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
         Local $dependency.parameter.digit : Int
     val local22
       IntegerLiteral 2 : Int
     val local23
       Local $dependency.argument.0 : Int
     val local25
-      ImportedGenericCall deferredEmpty<Int> : Array<Int>
+      Call deferredEmpty<Int> : Array<Int>
         Local $dependency.parameter.digit : Int
     val local26
       Local $dependency.argument.1 : Array<Int>
@@ -252,12 +252,12 @@ Module
     val local29
       Local $default.local.2 : Int
     val local30
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
         Local $default.local.3 : Int
     val local31
       Local $dependency.parameter.values : Array<Int>
     val local32
-      ImportedGenericCall ordered<Int> : Int
+      Call ordered<Int> : Int
         Local $dependency.parameter.values : Array<Int>
         Local $dependency.parameter.seed : Int
         Local $dependency.parameter.after : Int
@@ -277,7 +277,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local36
-        ImportedDependencyCall #2 : Int
+        Call external #2 : Int
       val local37
         IntegerLiteral 1234 : Int
       val local38
@@ -291,28 +291,28 @@ Module
       Local $shortCircuit.3 : Boolean
       return
         IntegerLiteral 4 : Int
-    ImportedDependencyCall #1 : Unit
+    Call external #1 : Unit
       IntegerLiteral 0 : Int
     val local40
       IntegerLiteral 1 : Int
     val local41
       Local $dependency.argument.0 : Int
     val local46
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
         Local $dependency.parameter.digit : Int
     val local42
       IntegerLiteral 2 : Int
     val local43
       Local $dependency.argument.0 : Int
     val local47
-      ImportedDependencyCall #3 : Array<Int>
+      Call external #3 : Array<Int>
         Local $dependency.parameter.digit : Int
     val local44
       IntegerLiteral 3 : Int
     val local45
       Local $dependency.argument.0 : Int
     val local48
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
         Local $dependency.parameter.digit : Int
     val local49
       ArrayAssembly : Array<Int>
@@ -366,7 +366,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local62
-        ImportedDependencyCall #2 : Int
+        Call external #2 : Int
       val local63
         IntegerLiteral 1235 : Int
       val local64
@@ -380,28 +380,28 @@ Module
       Local $shortCircuit.5 : Boolean
       return
         IntegerLiteral 5 : Int
-    ImportedDependencyCall #1 : Unit
+    Call external #1 : Unit
       IntegerLiteral 0 : Int
     val local66
       IntegerLiteral 1 : Int
     val local67
       Local $dependency.argument.0 : Int
     val local72
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
         Local $dependency.parameter.digit : Int
     val local68
       IntegerLiteral 2 : Int
     val local69
       Local $dependency.argument.0 : Int
     val local73
-      ImportedDependencyCall #3 : Array<Int>
+      Call external #3 : Array<Int>
         Local $dependency.parameter.digit : Int
     val local70
       IntegerLiteral 3 : Int
     val local71
       Local $dependency.argument.0 : Int
     val local74
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
         Local $dependency.parameter.digit : Int
     val local75
       ArrayAssembly : Array<Int>
@@ -412,7 +412,7 @@ Module
     val local76
       Local $dependency.argument.2 : Int
     val local77
-      ImportedGenericCall orderedPack<Int> : Array<Int>
+      Call orderedPack<Int> : Array<Int>
         Local $dependency.parameter.values : Array<Int>
         Local $dependency.parameter.after : Int
     val local78
@@ -455,7 +455,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local88
-        ImportedDependencyCall #2 : Int
+        Call external #2 : Int
       val local89
         IntegerLiteral 1235 : Int
       val local90
@@ -472,7 +472,7 @@ Module
     val local92
       ArrayLiteral : Array<Int>
         IntegerLiteral 42 : Int
-    ImportedDependencyCall #1 : Unit
+    Call external #1 : Unit
       IntegerLiteral 0 : Int
     val local93
       Local values : Array<Int>
@@ -483,7 +483,7 @@ Module
     val local96
       Local $dependency.argument.0 : Int
     val local97
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
         Local $dependency.parameter.digit : Int
     val local98
       Call localPack<Int> : Array<Int>
@@ -497,7 +497,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local99
-        ImportedDependencyCall #2 : Int
+        Call external #2 : Int
       val local100
         IntegerLiteral 45 : Int
       val local101
@@ -511,7 +511,7 @@ Module
       Local $shortCircuit.8 : Boolean
       return
         IntegerLiteral 7 : Int
-    ImportedDependencyCall #1 : Unit
+    Call external #1 : Unit
       IntegerLiteral 0 : Int
     val local103
       Local values : Array<Int>
@@ -522,10 +522,10 @@ Module
     val local106
       Local $default.local.1 : Int
     val local107
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
         Local $default.local.2 : Int
     val local108
-      ImportedGenericCall orderedPack<Int> : Array<Int>
+      Call orderedPack<Int> : Array<Int>
         Local $dependency.parameter.values : Array<Int>
         Local $dependency.parameter.after : Int
     if
@@ -536,7 +536,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local109
-        ImportedDependencyCall #2 : Int
+        Call external #2 : Int
       val local110
         IntegerLiteral 45 : Int
       val local111
@@ -550,7 +550,7 @@ Module
       Local $shortCircuit.9 : Boolean
       return
         IntegerLiteral 8 : Int
-    ImportedDependencyCall #1 : Unit
+    Call external #1 : Unit
       IntegerLiteral 0 : Int
     val local113
       ArrayAssembly : Array<Int>
@@ -559,7 +559,7 @@ Module
     val local115
       Local $dependency.argument.0 : Int
     val local116
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
         Local $dependency.parameter.digit : Int
     val local117
       Call localPack<Int> : Array<Int>
@@ -581,7 +581,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local121
-        ImportedDependencyCall #2 : Int
+        Call external #2 : Int
       val local122
         IntegerLiteral 45 : Int
       val local123
@@ -595,7 +595,7 @@ Module
       Local $shortCircuit.10 : Boolean
       return
         IntegerLiteral 9 : Int
-    ImportedDependencyCall #1 : Unit
+    Call external #1 : Unit
       IntegerLiteral 0 : Int
     val local125
       ArrayAssembly : Array<Int>
@@ -604,10 +604,10 @@ Module
     val local127
       Local $default.local.1 : Int
     val local128
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
         Local $default.local.2 : Int
     val local129
-      ImportedGenericCall orderedPack<Int> : Array<Int>
+      Call orderedPack<Int> : Array<Int>
         Local $dependency.parameter.values : Array<Int>
         Local $dependency.parameter.after : Int
     val local130
@@ -622,7 +622,7 @@ Module
         Local $dependency.receiver : Long
         Local $dependency.parameter.other : Long
       val local133
-        ImportedDependencyCall #2 : Int
+        Call external #2 : Int
       val local134
         IntegerLiteral 45 : Int
       val local135

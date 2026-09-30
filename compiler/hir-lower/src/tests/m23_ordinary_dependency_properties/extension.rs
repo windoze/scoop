@@ -49,7 +49,7 @@ fn getter_setter_and_update_support_explicit_and_implicit_receivers() {
         let output = output.expect("dependency extension properties must lower on both paths");
         assert_eq!(output.imported_dependencies().callable_count(), 2);
         let dump = scoop_hir::dump(&output.output().export);
-        assert_eq!(dump.matches("ImportedDependencyCall").count(), 6, "{dump}");
+        assert_eq!(dump.matches("Call external").count(), 6, "{dump}");
         assert_eq!(
             output
                 .imported_dependencies()
@@ -99,7 +99,7 @@ fn dependency_extension_property_and_invoke_compose_in_one_call() {
         let output = output.expect("dependency property and extension invoke must compose");
         assert_eq!(output.imported_dependencies().callable_count(), 2);
         let dump = scoop_hir::dump(&output.output().export);
-        assert_eq!(dump.matches("ImportedDependencyCall").count(), 2, "{dump}");
+        assert_eq!(dump.matches("Call external").count(), 2, "{dump}");
     });
 }
 
@@ -123,7 +123,7 @@ fn direct_assignment_selects_only_the_dependency_setter() {
         let output = output.expect("a dependency extension setter must lower");
         assert_eq!(output.imported_dependencies().callable_count(), 1);
         let dump = scoop_hir::dump(&output.output().export);
-        assert_eq!(dump.matches("ImportedDependencyCall").count(), 1, "{dump}");
+        assert_eq!(dump.matches("Call external").count(), 1, "{dump}");
     });
 }
 
@@ -186,7 +186,7 @@ fn inapplicable_exact_dependency_extension_falls_through_to_current_package() {
         let output = output.expect("an inapplicable dependency layer must fall through");
         assert_eq!(output.imported_dependencies().callable_count(), 0);
         let dump = scoop_hir::dump(&output.output().export);
-        assert!(!dump.contains("ImportedDependencyCall"), "{dump}");
+        assert!(!dump.contains("Call external"), "{dump}");
     });
 }
 

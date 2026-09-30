@@ -19,7 +19,7 @@ Module
     val local7
       Local $dependency.argument.1 : Holder<Any>
     val local8
-      ImportedGenericCall choose<Any, Holder<Any>> : Any
+      Call choose<Any, Holder<Any>> : Any
         Local $dependency.parameter.value : Any
         Local $dependency.parameter.source : Holder<Any>
     val local9
@@ -57,7 +57,7 @@ Module
     val local20
       Local $dependency.argument.1 : (T0) -> Int
     return
-      ImportedGenericCall delayed<T0, Holder<T0>> : Int
+      Call delayed<T0, Holder<T0>> : Int
         Local $dependency.parameter.source : Holder<T0>
         Local $dependency.parameter.read : (T0) -> Int
   fun result(): Int

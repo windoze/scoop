@@ -10,7 +10,7 @@ Module
       PtrLoad : Int
         Local $default.local.1 : Ptr<Int>
     return
-      ImportedGenericCall loadDefault<Int> : Int
+      Call loadDefault<Int> : Int
         Local $dependency.parameter.value : Int
         Local $dependency.parameter.next : Int
   fun result(): Int

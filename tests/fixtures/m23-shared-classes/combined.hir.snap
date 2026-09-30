@@ -17,7 +17,7 @@ Module
     val local3
       Local $dependency.argument.0 : T0
     val local5
-      ImportedGenericCall create<T0> : Remote<T0>
+      Call create<T0> : Remote<T0>
         Local $dependency.parameter.value : T0
     val local6
       Local $argument.0 : T0

@@ -146,7 +146,7 @@ fn top_level_getter_setter_and_update_use_two_dependency_accessors() {
         );
         assert_eq!(output.output().local.imported_dependency_callables.len(), 2);
         let dump = scoop_hir::dump(&output.output().export);
-        assert_eq!(dump.matches("ImportedDependencyCall").count(), 4, "{dump}");
+        assert_eq!(dump.matches("Call external").count(), 4, "{dump}");
         assert_eq!(
             output
                 .imported_dependencies()

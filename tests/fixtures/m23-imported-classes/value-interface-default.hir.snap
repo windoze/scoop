@@ -6,20 +6,20 @@ Module
       Local $default.local.0 : Long
     val local2
       Box : Readable
-        ImportedDependencyCall #2 : StructReader
+        Call external #2 : StructReader
           Local $default.local.1 : Long
     val local3
-      ImportedDependencyCall #3 : Readable
+      Call external #3 : Readable
         Local $dependency.parameter.value : Readable
     val local4
       IntegerLiteral 1 : Long
     val local5
-      ImportedDependencyCall #4 interface[1] : Long
+      Call external #4 interface[1] : Long
         Local $dependency.receiver : Readable
         Local $dependency.parameter.extra : Long
     val local6
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #5 : Counter
+      Call external #5 : Counter
         Local $dependency.parameter.value : Long
   output library

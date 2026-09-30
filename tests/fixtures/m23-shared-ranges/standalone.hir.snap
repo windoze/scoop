@@ -9,13 +9,13 @@ Module
     val local3
       Local $dependency.argument.0 : Int
     val local4
-      ImportedDependencyCall #1 : IntRange
+      Call external #1 : IntRange
         Local $dependency.receiver : Int
         Local $dependency.parameter.endpoint : Int
     val local5
       Local $for.source.0 : IntRange
     val local6
-      ImportedDependencyCall #0 : Iterator<Int>
+      Call external #0 : Iterator<Int>
         Local $dependency.receiver : IntRange
     val local7
       Local $for.iterator.result.1 : Iterator<Int>
@@ -64,13 +64,13 @@ Module
     val local5
       Local $dependency.argument.0 : Int
     val local6
-      ImportedDependencyCall #2 : IntRange
+      Call external #2 : IntRange
         Local $dependency.receiver : Int
         Local $dependency.parameter.endpoint : Int
     val local7
       Local $for.source.5 : IntRange
     val local8
-      ImportedDependencyCall #0 : Iterator<Int>
+      Call external #0 : Iterator<Int>
         Local $dependency.receiver : IntRange
     val local9
       Local $for.iterator.result.6 : Iterator<Int>

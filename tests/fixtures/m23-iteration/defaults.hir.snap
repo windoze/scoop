@@ -12,7 +12,7 @@ Module
     val local5
       Local $dependency.argument.1 : (T0) -> Int
     return
-      ImportedGenericCall exercise<T0> : Int
+      Call exercise<T0> : Int
         Local $dependency.parameter.seed : T0
         Local $dependency.parameter.read : (T0) -> Int
   fun readInt(value: Int): Int
@@ -79,7 +79,7 @@ Module
     val local16
       Local $default.local.13 : Int
     val local17
-      ImportedGenericCall defaultPick<Int> : Int
+      Call defaultPick<Int> : Int
         Local $dependency.parameter.values : Array<Int>
         Local $dependency.parameter.fallback : Int
         Local $dependency.parameter.chosen : Int
@@ -165,7 +165,7 @@ Module
       Local $default.local.13 : Reference
     if
       Binary RefNe : Boolean
-        ImportedGenericCall defaultPick<Reference> : Reference
+        Call defaultPick<Reference> : Reference
           Local $dependency.parameter.values : Array<Reference>
           Local $dependency.parameter.fallback : Reference
           Local $dependency.parameter.chosen : Reference
@@ -227,7 +227,7 @@ Module
       Local $default.local.13 : Reference
     if
       Binary RefNe : Boolean
-        ImportedGenericCall defaultPick<Reference> : Reference
+        Call defaultPick<Reference> : Reference
           Local $dependency.parameter.values : Array<Reference>
           Local $dependency.parameter.fallback : Reference
           Local $dependency.parameter.chosen : Reference
@@ -250,7 +250,7 @@ Module
     val local64
       Local $dependency.argument.2 : (Int) -> Int
     val local65
-      ImportedGenericCall totalPack<Int> : Int
+      Call totalPack<Int> : Int
         Local $dependency.parameter.values : Array<Int>
         Local $dependency.parameter.read : (Int) -> Int
     val local66
@@ -275,7 +275,7 @@ Module
     val local71
       Local $dependency.argument.1 : (Int) -> Int
     val local72
-      ImportedGenericCall totalPack<Int> : Int
+      Call totalPack<Int> : Int
         Local $dependency.parameter.values : Array<Int>
         Local $dependency.parameter.read : (Int) -> Int
     val local73
@@ -300,7 +300,7 @@ Module
     val local78
       Local $dependency.argument.1 : (Int) -> Int
     val local79
-      ImportedGenericCall totalPack<Int> : Int
+      Call totalPack<Int> : Int
         Local $dependency.parameter.values : Array<Int>
         Local $dependency.parameter.read : (Int) -> Int
     val local80

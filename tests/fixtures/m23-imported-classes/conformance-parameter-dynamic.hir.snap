@@ -7,7 +7,7 @@ Module
       ReferenceUpcast : ParameterSource
         Local $receiver : LocalDefaults
     val local2
-      ImportedDependencyCall #0 interface[0] : Long
+      Call external #0 interface[0] : Long
         Local $dependency.default.local.1 : ParameterSource
     val local3
       IntegerLiteral 1 : Long
@@ -24,6 +24,6 @@ Module
     val local7
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #1 : Counter
+      Call external #1 : Counter
         Local $dependency.parameter.value : Long
   output library

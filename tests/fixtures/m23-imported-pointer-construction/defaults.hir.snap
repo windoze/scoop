@@ -39,7 +39,7 @@ Module
       PtrFromNonZeroULong : Ptr<Int>
         Local $dependency.parameter.raw : ULong
     val local11
-      ImportedGenericCall loadDefault<Int> : Int
+      Call loadDefault<Int> : Int
         Local $dependency.parameter.raw : ULong
         Local $dependency.parameter.pointer : Ptr<Int>
     val local12

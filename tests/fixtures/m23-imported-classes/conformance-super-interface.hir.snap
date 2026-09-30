@@ -6,7 +6,7 @@ Module
         ReferenceUpcast : FirstChoice
           Local this : LocalDefault
       val local2
-        ImportedDependencyCall #1 : Long
+        Call external #1 : Long
           Local $dependency.receiver : FirstChoice
       val local3
         IntegerLiteral 1 : Long
@@ -28,6 +28,6 @@ Module
     val local3
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #0 : Counter
+      Call external #0 : Counter
         Local $dependency.parameter.value : Long
   output library

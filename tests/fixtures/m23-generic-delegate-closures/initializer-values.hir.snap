@@ -1,7 +1,7 @@
 Module
   fun exercise<T>(value: T0): Int
     val local1
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
         ImportedSingletonValue fe35bdb595f00ecd37544603e244cd6f4d633824079c387c9c2d69d2c7623d18 : TraceMore
     val local2
       Local value : T0
@@ -11,14 +11,14 @@ Module
       ImportedConstructorInit Receiver : Receiver<T0>
         Local $dependency.parameter.value : T0
     val local5
-      ImportedGenericCall initializerValues<T0> : Int
+      Call initializerValues<T0> : Int
         Local receiver : Receiver<T0>
     val local6
       IntegerLiteral 0 : Int
     val local7
       Local $dependency.argument.0 : Int
     val local8
-      ImportedDependencyCall #1 : Payload
+      Call external #1 : Payload
         Local $dependency.parameter.value : Int
     val local9
       Local answer : Int
@@ -35,7 +35,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local12
-        ImportedDependencyCall #2 : Int
+        Call external #2 : Int
           Local allocated : Payload
       val local13
         IntegerLiteral 0 : Int
@@ -51,7 +51,7 @@ Module
       return
         IntegerLiteral 1 : Int
     val local16
-      ImportedGenericCall initializerValues<T0> : Int
+      Call initializerValues<T0> : Int
         Local receiver : Receiver<T0>
     val local17
       IntegerLiteral 42 : Int
@@ -66,7 +66,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local22
-        ImportedDependencyCall #0 : Int
+        Call external #0 : Int
           ImportedSingletonValue fe35bdb595f00ecd37544603e244cd6f4d633824079c387c9c2d69d2c7623d18 : TraceMore
       val local19
         Local before : Int

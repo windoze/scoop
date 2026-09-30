@@ -25,14 +25,14 @@ Module
       val local9
         ImportedSingletonValue 9efd2a4d04abf0bea401f1027890d8eefbb81fe48ca79d8b3f94a4bf04422f49 : Tools
       val local10
-        ImportedDependencyCall #0 : Int
+        Call external #0 : Int
           ImportedSingletonValue 9efd2a4d04abf0bea401f1027890d8eefbb81fe48ca79d8b3f94a4bf04422f49 : Tools
       val local11
         Local $dependency.argument.0 : Int
       val local12
         IntegerLiteral 2 : Int
       assign $result.0
-        ImportedDependencyCall #1 : Int
+        Call external #1 : Int
           Local $dependency.receiver : Tools
           Local $dependency.parameter.value : Int
           Local $dependency.parameter.delta : Int

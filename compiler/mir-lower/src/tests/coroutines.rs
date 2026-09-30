@@ -796,8 +796,9 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
             locals,
             statements: vec![expr_stmt(expr(
                 hir::ExprKind::Call {
+                    binding: None,
                     receiver: scoop_hir::SourceCallReceiver::NoReceiver,
-                    callee: hir::Callable::Generic(start),
+                    callee: (hir::Callable::Generic(start)).into(),
                     args: vec![
                         local_ref(task, task_ty),
                         local_ref(completion, completion_ty),

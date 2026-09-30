@@ -402,14 +402,7 @@ pub enum ExprKind {
     /// kind is in `Expr::ty`.
     ArrayClone(Box<Expr>),
     Call {
-        callee: Callable,
-        args: Vec<Expr>,
-        receiver: crate::SourceCallReceiver<TypeId>,
-    },
-    /// Direct call to a callable selected from a dependency artifact.
-    /// Its typed arena use resolves through the output's selected declarations.
-    ImportedDependencyCall {
-        callee: ImportedDependencyCallableUseId,
+        callee: CallableTarget,
         /// Namespace lookup routes when this occurrence used an import.
         /// A member is resolved directly from its nominal declaration.
         binding: Option<std::sync::Arc<DirectImportedTargetBinding>>,

@@ -120,8 +120,8 @@ impl Lowerer {
         kind: MemberCallKind,
     ) -> Result<hir::ExprKind, ImportedDefaultMaterializationError> {
         let callee = self.imported_default_callable_target(callee, kind)?;
-        Ok(hir::ExprKind::ImportedDependencyCall {
-            callee,
+        Ok(hir::ExprKind::Call {
+            callee: hir::CallableTarget::Dependency(callee),
             binding: None,
             args,
             receiver,

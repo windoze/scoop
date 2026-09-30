@@ -9,9 +9,9 @@ Module
         Local $default.local.0 : Long
       val local3
         ReferenceUpcast : Throwable
-          ImportedDependencyCall #0 : RebuiltFailure
+          Call external #0 : RebuiltFailure
             Local $default.local.1 : Long
-      ImportedDependencyCall #1 : Unit
+      Call external #1 : Unit
         Local $dependency.parameter.value : Throwable
     catch error: Throwable
       assign code
@@ -32,6 +32,6 @@ Module
     val local9
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #2 : Counter
+      Call external #2 : Counter
         Local $dependency.parameter.value : Long
   output library

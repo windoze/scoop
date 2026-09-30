@@ -16,12 +16,12 @@ Module
     val local2
       Local $dependency.argument.0 : T0
     val local3
-      ImportedGenericCall pack<T0> : Parcel<T0>
+      Call pack<T0> : Parcel<T0>
         Local $dependency.parameter.value : T0
     val local4
       Local $dependency.argument.0 : Parcel<T0>
     val local5
-      ImportedGenericCall relay<T0> : Parcel<T0>
+      Call relay<T0> : Parcel<T0>
         Local $dependency.parameter.value : Parcel<T0>
     val local6
       Local value : T0
@@ -30,7 +30,7 @@ Module
     val local8
       Local $dependency.argument.1 : T0
     return
-      ImportedGenericCall unpack<T0> : T0
+      Call unpack<T0> : T0
         Local $dependency.parameter.value : Parcel<T0>
         Local $dependency.parameter.fallback : T0
   fun result(): Int
@@ -81,21 +81,21 @@ Module
     val local18
       Local $dependency.argument.0 : Wide
     val local21
-      ImportedGenericCall nested<Wide> : Parcel<Parcel<Wide>>
+      Call nested<Wide> : Parcel<Parcel<Wide>>
         Local $dependency.parameter.value : Wide
     val local19
       Local fallback : Wide
     val local20
       Local $dependency.argument.0 : Wide
     val local22
-      ImportedGenericCall pack<Wide> : Parcel<Wide>
+      Call pack<Wide> : Parcel<Wide>
         Local $dependency.parameter.value : Wide
     val local23
       Local $dependency.argument.0 : Parcel<Parcel<Wide>>
     val local24
       Local $dependency.argument.1 : Parcel<Wide>
     val local25
-      ImportedGenericCall unpack<Parcel<Wide>> : Parcel<Wide>
+      Call unpack<Parcel<Wide>> : Parcel<Wide>
         Local $dependency.parameter.value : Parcel<Parcel<Wide>>
         Local $dependency.parameter.fallback : Parcel<Wide>
     val local26
@@ -105,7 +105,7 @@ Module
     val local28
       Local $dependency.argument.1 : Wide
     val local29
-      ImportedGenericCall unpack<Wide> : Wide
+      Call unpack<Wide> : Wide
         Local $dependency.parameter.value : Parcel<Wide>
         Local $dependency.parameter.fallback : Wide
     val local30

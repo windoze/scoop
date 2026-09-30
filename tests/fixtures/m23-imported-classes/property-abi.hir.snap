@@ -2,22 +2,22 @@ Module
   fun fill(cells: ValueCells, token: Token, wide: WideValue, reference: Counter): Unit
     val local4
       Local cells : ValueCells
-    ImportedDependencyCall #0 : Unit
+    Call external #0 : Unit
       Local $place.0 : ValueCells
       Local token : Token
     val local5
       Local cells : ValueCells
-    ImportedDependencyCall #1 : Unit
+    Call external #1 : Unit
       Local $place.1 : ValueCells
       Local wide : WideValue
     val local6
       Local cells : ValueCells
-    ImportedDependencyCall #2 : Unit
+    Call external #2 : Unit
       Local $place.2 : ValueCells
       Local reference : Counter
   fun primary(): Counter
     val local8
-      ImportedDependencyCall #3 : Token
+      Call external #3 : Token
     val local0
       IntegerLiteral 0 : Long
     val local1
@@ -31,7 +31,7 @@ Module
     val local5
       Local $dependency.argument.2 : Long
     val local9
-      ImportedDependencyCall #4 : WideValue
+      Call external #4 : WideValue
         Local $dependency.parameter.first : Long
         Local $dependency.parameter.second : Long
         Local $dependency.parameter.third : Long
@@ -40,7 +40,7 @@ Module
     val local7
       Local $dependency.argument.0 : Long
     val local10
-      ImportedDependencyCall #5 : Counter
+      Call external #5 : Counter
         Local $dependency.parameter.value : Long
     val local11
       Local $dependency.argument.0 : Token
@@ -49,14 +49,14 @@ Module
     val local13
       Local $dependency.argument.2 : Counter
     val local14
-      ImportedDependencyCall #6 : ValueCells
+      Call external #6 : ValueCells
         Local $dependency.parameter.token : Token
         Local $dependency.parameter.wide : WideValue
         Local $dependency.parameter.reference : Counter
     val local23
       Local cells : ValueCells
     val local24
-      ImportedDependencyCall #3 : Token
+      Call external #3 : Token
     val local15
       IntegerLiteral 20 : Long
     val local16
@@ -70,7 +70,7 @@ Module
     val local20
       Local $dependency.argument.2 : Long
     val local25
-      ImportedDependencyCall #4 : WideValue
+      Call external #4 : WideValue
         Local $dependency.parameter.first : Long
         Local $dependency.parameter.second : Long
         Local $dependency.parameter.third : Long
@@ -79,7 +79,7 @@ Module
     val local22
       Local $dependency.argument.0 : Long
     val local26
-      ImportedDependencyCall #5 : Counter
+      Call external #5 : Counter
         Local $dependency.parameter.value : Long
     val local27
       Local $argument.0 : ValueCells
@@ -95,26 +95,26 @@ Module
       Local $parameter.wide : WideValue
       Local $parameter.reference : Counter
     val local31
-      ImportedDependencyCall #7 : Counter
+      Call external #7 : Counter
         Local cells : ValueCells
     val local32
-      ImportedDependencyCall #8 : Token
+      Call external #8 : Token
         Local cells : ValueCells
     val local33
       Local $dependency.argument.0 : Counter
     val local34
       Local $dependency.argument.1 : Token
     val local35
-      ImportedDependencyCall #9 : Holder
+      Call external #9 : Holder
         Local $dependency.parameter.value : Counter
         Local $dependency.parameter.marker : Token
     val local36
       FieldAccess dependency field a6e667338d6a7c8709831e2641beea58046fd7bd174a847d5aad95e82427307b : Long
-        ImportedDependencyCall #10 : WideValue
+        Call external #10 : WideValue
           Local cells : ValueCells
     val local37
       FieldAccess dependency field a154bc246556a30baee37980783da76c9a3268cb6d1c4e7d505aefd389466a83 : Long
-        ImportedDependencyCall #10 : WideValue
+        Call external #10 : WideValue
           Local cells : ValueCells
     val local38
       Local $dependency.argument.0 : Long
@@ -133,12 +133,12 @@ Module
     val local42
       Local moved : Holder
     val local43
-      ImportedDependencyCall #11 : Counter
+      Call external #11 : Counter
         Local $dependency.receiver : Holder
     val local45
       Local $equality.lhs : Long
     val local46
-      ImportedDependencyCall #12 : Long
+      Call external #12 : Long
         Local $dependency.receiver : Counter
     val local47
       Local $dependency.argument.0 : Long
@@ -149,7 +149,7 @@ Module
       val local48
         Local moved : Holder
       assign $result.3
-        ImportedDependencyCall #11 : Counter
+        Call external #11 : Counter
           Local $dependency.receiver : Holder
     else
       val local49
@@ -157,7 +157,7 @@ Module
       val local50
         Local $dependency.argument.0 : Long
       assign $result.3
-        ImportedDependencyCall #5 : Counter
+        Call external #5 : Counter
           Local $dependency.parameter.value : Long
     return
       Local $result.3 : Counter

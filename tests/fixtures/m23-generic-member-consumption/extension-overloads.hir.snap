@@ -8,7 +8,7 @@ Module
       ImportedConstructorInit Box : Box<Int>
         Local $dependency.parameter.value : Int
     val local3
-      ImportedGenericCall extensionKind<Box<Int>> : Int
+      Call extensionKind<Box<Int>> : Int
         Local box : Box<Int>
     val local4
       IntegerLiteral 1 : Int
@@ -22,7 +22,7 @@ Module
       return
         IntegerLiteral 0 : Int
     val local6
-      ImportedGenericCall extensionSelect<Int> : Int
+      Call extensionSelect<Int> : Int
         Local box : Box<Int>
     val local7
       IntegerLiteral 42 : Int
@@ -36,7 +36,7 @@ Module
       return
         IntegerLiteral 0 : Int
     return
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
         ImportedGenericCall value<Int> : Int
           Local box : Box<Int>
   fun make<T>(value: T0): T0
@@ -48,9 +48,9 @@ Module
       ImportedConstructorInit Box : Box<T0>
         Local $dependency.parameter.value : T0
     val local4
-      ImportedGenericCall extensionSelect<T0> : Int
+      Call extensionSelect<T0> : Int
         Local box : Box<T0>
     return
-      ImportedGenericCall extensionValue<T0> : T0
+      Call extensionValue<T0> : T0
         Local box : Box<T0>
   output library

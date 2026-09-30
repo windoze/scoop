@@ -120,7 +120,7 @@ Module
     val local34
       Local $dependency.argument.1 : (T0) -> Int
     return
-      ImportedGenericCall fromDefinition<T0> : Int
+      Call fromDefinition<T0> : Int
         Local $dependency.parameter.pair : Pair<T0>
         Local $dependency.parameter.read : (T0) -> Int
   fun result(): Int

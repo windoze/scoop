@@ -60,7 +60,7 @@ Module
       val local8
         Local $dependency.argument.0 : Int
       assign $result.0
-        ImportedDependencyCall #0 : Int
+        Call external #0 : Int
           Local $dependency.parameter.value : Int
     else
       assign $result.0
@@ -92,7 +92,7 @@ Module
       val local6
         Local $dependency.argument.0 : Int
       val local7
-        ImportedDependencyCall #0 : Int
+        Call external #0 : Int
           Local $dependency.parameter.value : Int
       val local8
         IntegerLiteral 42 : Int
@@ -133,7 +133,7 @@ Module
       val local17
         Local $dependency.argument.0 : Any
       val local18
-        ImportedDependencyCall #1 : Int
+        Call external #1 : Int
           Local $dependency.parameter.value : Any
       val local19
         IntegerLiteral 42 : Int
@@ -172,7 +172,7 @@ Module
       val local28
         Local $dependency.argument.0 : Int
       val local29
-        ImportedDependencyCall #2 : Int
+        Call external #2 : Int
           Local $dependency.parameter.value : Int
       val local30
         IntegerLiteral 42 : Int
@@ -211,7 +211,7 @@ Module
       val local39
         Local $dependency.argument.0 : Int
       val local40
-        ImportedDependencyCall #3 : Int
+        Call external #3 : Int
           Local $dependency.parameter.value : Int
       val local41
         IntegerLiteral 42 : Int
@@ -251,8 +251,8 @@ Module
       val local50
         Local $dependency.argument.0 : Int
       val local51
-        ImportedDependencyCall #5 : Int
-          ImportedDependencyCall #4 : Choice
+        Call external #5 : Int
+          Call external #4 : Choice
             Local $dependency.parameter.number : Int
       val local52
         IntegerLiteral 42 : Int
@@ -293,7 +293,7 @@ Module
       val local61
         Local $dependency.argument.0 : Any
       val local62
-        ImportedDependencyCall #6 : Int
+        Call external #6 : Int
           Local $dependency.parameter.value : Any
       val local63
         IntegerLiteral 42 : Int

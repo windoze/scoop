@@ -131,7 +131,8 @@ impl Lowerer {
                 };
                 let read = hir::Expr {
                     kind: hir::ExprKind::Call {
-                        callee,
+                        binding: None,
+                        callee: callee.into(),
                         receiver: resolved.source_receiver,
                         args: resolved.args,
                     },
@@ -204,7 +205,10 @@ impl Lowerer {
             unreachable!("only a current property carries a prepared local read")
         };
         let callee = match read.kind {
-            hir::ExprKind::Call { callee, .. } => callee,
+            hir::ExprKind::Call {
+                callee: hir::CallableTarget::Local(callee),
+                ..
+            } => callee,
             _ => unreachable!("a current extension property read is a call"),
         };
         self.check_call_effects(callee, name.span);

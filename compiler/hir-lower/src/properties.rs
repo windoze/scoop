@@ -72,9 +72,8 @@ pub(crate) enum DelegateCallEffect {
 #[derive(Clone)]
 pub(crate) enum LocalDelegateDispatch {
     Member(hir::MethodCallee),
-    Extension(hir::Callable),
-    ImportedDependency {
-        callee: hir::ImportedDependencyCallableUseId,
+    Call {
+        callee: hir::CallableTarget,
         binding: Option<std::sync::Arc<hir::DirectImportedTargetBinding>>,
         receiver: hir::SourceCallReceiver<TypeId>,
     },
@@ -193,8 +192,9 @@ impl Lowerer {
                     }
                     (None, None) => Some(hir::Expr {
                         kind: hir::ExprKind::Call {
+                            binding: None,
                             receiver: hir::SourceCallReceiver::NoReceiver,
-                            callee: hir::Callable::Function(function),
+                            callee: (hir::Callable::Function(function)).into(),
                             args: Vec::new(),
                         },
                         ty,
@@ -265,8 +265,9 @@ impl Lowerer {
                     }
                     (None, None) => hir::Expr {
                         kind: hir::ExprKind::Call {
+                            binding: None,
                             receiver: hir::SourceCallReceiver::NoReceiver,
-                            callee: hir::Callable::Function(function),
+                            callee: (hir::Callable::Function(function)).into(),
                             args: vec![value],
                         },
                         ty: self.unit,

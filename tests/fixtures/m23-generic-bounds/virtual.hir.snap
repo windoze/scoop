@@ -2,20 +2,20 @@ Module
   fun exercise<T>(value: T0): Int
     val local1
       ReferenceUpcast : PlainBase
-        ImportedDependencyCall #3 : PlainDerived
+        Call external #3 : PlainDerived
     val local2
       Local receiver : PlainBase
     val local3
       Local $dependency.argument.0 : PlainBase
     val local4
-      ImportedGenericCall readReference<PlainBase> : () -> Int
+      Call readReference<PlainBase> : () -> Int
         Local $dependency.parameter.value : PlainBase
     val local5
       Local receiver : PlainBase
     val local6
       Local $dependency.argument.0 : PlainBase
     val local7
-      ImportedGenericCall classReference<PlainBase> : () -> Int
+      Call classReference<PlainBase> : () -> Int
         Local $dependency.parameter.value : PlainBase
     val local8
       Local value : T0
@@ -34,7 +34,7 @@ Module
     val local14
       Local $dependency.argument.0 : PlainBase
     val local15
-      ImportedGenericCall readBound<PlainBase> : Int
+      Call readBound<PlainBase> : Int
         Local $dependency.parameter.value : PlainBase
     val local16
       IntegerLiteral 42 : Int
@@ -53,7 +53,7 @@ Module
       val local19
         Local $dependency.argument.0 : PlainBase
       val local20
-        ImportedGenericCall classBound<PlainBase> : Int
+        Call classBound<PlainBase> : Int
           Local $dependency.parameter.value : PlainBase
       val local21
         IntegerLiteral 42 : Int

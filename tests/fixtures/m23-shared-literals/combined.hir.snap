@@ -106,7 +106,7 @@ Module
     val local32
       Local $default.local.9 : Int
     val local33
-      ImportedGenericCall defaulted<T0> : Int
+      Call defaulted<T0> : Int
         Local $dependency.parameter.value : T0
         Local $dependency.parameter.read : (T0) -> Int
         Local $dependency.parameter.score : Int
@@ -145,7 +145,7 @@ Module
     val local45
       Local $dependency.argument.1 : (T0) -> Int
     return
-      ImportedGenericCall inspect<T0> : Int
+      Call inspect<T0> : Int
         Local $dependency.parameter.value : Tagged<T0>
         Local $dependency.parameter.read : (T0) -> Int
   fun result(): Int

@@ -3,15 +3,15 @@ Module
     val local0
       ImportedSingletonValue 3ca804d0bb794190ef49b0abd87f860ba6754a981affcd63098f759564570ebf : Factory
     val local1
-      ImportedDependencyCall #2 : Token
+      Call external #2 : Token
     val local2
       Local $dependency.argument.0 : Token
     val local3
-      ImportedDependencyCall #3 : Counter
+      Call external #3 : Counter
         Local $dependency.receiver : Factory
         Local $dependency.parameter.marker : Token
     val local4
-      ImportedDependencyCall #4 : Counter
+      Call external #4 : Counter
         ImportedSingletonValue 3ca804d0bb794190ef49b0abd87f860ba6754a981affcd63098f759564570ebf : Factory
     if
       Binary RefEq : Boolean
@@ -25,7 +25,7 @@ Module
       val local6
         Local $dependency.argument.0 : Long
       assign $result.0
-        ImportedDependencyCall #5 : Counter
+        Call external #5 : Counter
           Local $dependency.parameter.value : Long
     return
       Local $result.0 : Counter

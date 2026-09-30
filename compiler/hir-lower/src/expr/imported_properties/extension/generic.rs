@@ -145,9 +145,8 @@ impl Lowerer {
                     arguments: hir::ImportedCallableArguments::Function(arguments.to_vec()),
                 });
         hir::Expr {
-            kind: hir::ExprKind::ImportedGenericCall {
-                application,
-                kind: hir::ImportedGenericCallKind::Ordinary,
+            kind: hir::ExprKind::Call {
+                callee: hir::CallableTarget::Application(application),
                 binding: None,
                 args,
                 receiver: source_receiver,

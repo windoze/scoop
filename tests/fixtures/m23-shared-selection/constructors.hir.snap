@@ -40,13 +40,13 @@ Module
     val local13
       Local $dependency.argument.0 : Int
     val local14
-      ImportedDependencyCall #0 : Base
+      Call external #0 : Base
         Local $dependency.parameter.value : Int
     val local15
       FieldAccess class field number : Int
         Local local : LocalBase
     val local16
-      ImportedDependencyCall #1 : Int
+      Call external #1 : Int
         Local external : Base
     val local17
       Local $dependency.argument.0 : Int
@@ -55,7 +55,7 @@ Module
         Local $dependency.receiver : Int
         Local $dependency.parameter.other : Int
       assign $result.0
-        ImportedDependencyCall #1 : Int
+        Call external #1 : Int
           Local external : Base
     else
       assign $result.0
@@ -88,8 +88,8 @@ Module
       val local6
         Local $dependency.argument.0 : Int
       val local7
-        ImportedDependencyCall #1 : Int
-          ImportedDependencyCall #0 : Base
+        Call external #1 : Int
+          Call external #0 : Base
             Local $dependency.parameter.value : Int
       val local8
         IntegerLiteral 42 : Int
@@ -129,8 +129,8 @@ Module
       val local17
         Local $dependency.argument.0 : String
       val local18
-        ImportedDependencyCall #1 : Int
-          ImportedDependencyCall #2 : Base
+        Call external #1 : Int
+          Call external #2 : Base
             Local $dependency.parameter.label : String
       val local19
         IntegerLiteral 42 : Int
@@ -161,7 +161,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local25
-        ImportedDependencyCall #1 : Int
+        Call external #1 : Int
           ReferenceUpcast : Base
             ClassInit ExternalDerived : ExternalDerived
       val local26
@@ -202,8 +202,8 @@ Module
       val local35
         Local $dependency.argument.0 : Int
       val local36
-        ImportedDependencyCall #4 : Int
-          ImportedDependencyCall #3 : Variadic
+        Call external #4 : Int
+          Call external #3 : Variadic
             Local $dependency.parameter.number : Int
       val local37
         IntegerLiteral 42 : Int

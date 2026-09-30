@@ -59,7 +59,7 @@ Module
       Local $dependency.argument.0 : Number
     return
       FieldAccess field 0 : Int
-        ImportedGenericCall lexicalCopy<Number> : Number
+        Call lexicalCopy<Number> : Number
           Local $dependency.parameter.value : Number
   fun result(): Int
     val local0

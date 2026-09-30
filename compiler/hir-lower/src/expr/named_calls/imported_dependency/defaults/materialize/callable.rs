@@ -86,35 +86,25 @@ impl Lowerer {
         kind: MemberCallKind,
         context: &ImportedDefaultContext<'_>,
     ) -> Result<hir::ExprKind, ImportedDefaultMaterializationError> {
-        Ok(
-            match self.materialize_imported_callable_target(callee, kind, context)? {
-                hir::CallableTarget::Local(callee) => hir::ExprKind::Call {
-                    callee,
-                    args,
-                    receiver,
+        let callee = self.materialize_imported_callable_target(callee, kind, context)?;
+        Ok(match callee {
+            hir::CallableTarget::Application(application) => self.resolved_template_call(
+                application,
+                match kind {
+                    MemberCallKind::Ordinary => hir::ImportedGenericCallKind::Ordinary,
+                    MemberCallKind::DirectSuper => hir::ImportedGenericCallKind::DirectSuper,
                 },
-                hir::CallableTarget::Application(application) => {
-                    hir::ExprKind::ImportedGenericCall {
-                        application,
-                        kind: match kind {
-                            MemberCallKind::Ordinary => hir::ImportedGenericCallKind::Ordinary,
-                            MemberCallKind::DirectSuper => {
-                                hir::ImportedGenericCallKind::DirectSuper
-                            }
-                        },
-                        binding: None,
-                        args,
-                        receiver,
-                    }
-                }
-                hir::CallableTarget::Dependency(callee) => hir::ExprKind::ImportedDependencyCall {
-                    callee,
-                    binding: None,
-                    args,
-                    receiver,
-                },
+                None,
+                args,
+                receiver,
+            ),
+            callee => hir::ExprKind::Call {
+                callee,
+                binding: None,
+                args,
+                receiver,
             },
-        )
+        })
     }
 
     pub(super) fn materialize_imported_callable_target(

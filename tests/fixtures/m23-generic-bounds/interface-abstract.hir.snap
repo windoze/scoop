@@ -13,7 +13,7 @@ Module
     val local5
       Local $dependency.argument.0 : AbstractReader<T0>
     val local6
-      ImportedGenericCall readBound<AbstractReader<T0>> : Int
+      Call readBound<AbstractReader<T0>> : Int
         Local $dependency.parameter.value : AbstractReader<T0>
     val local7
       IntegerLiteral 42 : Int
@@ -31,7 +31,7 @@ Module
     val local10
       Local $dependency.argument.0 : AbstractReader<T0>
     val local11
-      ImportedGenericCall readReference<AbstractReader<T0>> : () -> Int
+      Call readReference<AbstractReader<T0>> : () -> Int
         Local $dependency.parameter.value : AbstractReader<T0>
     return
       CallableCall function_type0 : Int

@@ -10,14 +10,14 @@ Module
     val local5
       Local $dependency.argument.1 : (T0) -> Int
     return
-      ImportedGenericCall exercise<T0> : Int
+      Call exercise<T0> : Int
         Local $dependency.parameter.seed : T0
         Local $dependency.parameter.read : (T0) -> Int
   fun readInt(value: Int): Int
     return
       Local value : Int
   fun result(): Int
-    ImportedDependencyCall #0 : Unit
+    Call external #0 : Unit
     val local0
       IntegerLiteral 0 : Int
     val local1
@@ -27,7 +27,7 @@ Module
     val local2
       Local $dependency.argument.0 : Array<Int>
     val local3
-      ImportedGenericCall marked<Int> : Sequence<Int>
+      Call marked<Int> : Sequence<Int>
         Local $dependency.parameter.values : Array<Int>
     val local4
       Local $for.source.0 : Sequence<Int>
@@ -73,7 +73,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local16
-        ImportedDependencyCall #1 : Int
+        Call external #1 : Int
       val local17
         IntegerLiteral 1 : Int
       val local18
@@ -89,7 +89,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local20
-        ImportedDependencyCall #2 : Int
+        Call external #2 : Int
       val local21
         IntegerLiteral 1 : Int
       val local22
@@ -105,7 +105,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local24
-        ImportedDependencyCall #3 : Int
+        Call external #3 : Int
       val local25
         IntegerLiteral 3 : Int
       val local26
@@ -119,7 +119,7 @@ Module
       Local $shortCircuit.7 : Boolean
       return
         IntegerLiteral 1 : Int
-    ImportedDependencyCall #0 : Unit
+    Call external #0 : Unit
     val local28
       IntegerLiteral 0 : Int
     val local29
@@ -132,7 +132,7 @@ Module
     val local31
       Local $dependency.argument.0 : Array<Int>
     val local32
-      ImportedGenericCall marked<Int> : Sequence<Int>
+      Call marked<Int> : Sequence<Int>
         Local $dependency.parameter.values : Array<Int>
     val local33
       Local $for.source.8 : Sequence<Int>
@@ -198,7 +198,7 @@ Module
             Local $dependency.receiver : Int
             Local $dependency.parameter.other : Int
     val local51
-      ImportedDependencyCall #1 : Int
+      Call external #1 : Int
     val local52
       IntegerLiteral 1 : Int
     val local53
@@ -212,7 +212,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local54
-        ImportedDependencyCall #2 : Int
+        Call external #2 : Int
       val local55
         IntegerLiteral 1 : Int
       val local56
@@ -228,7 +228,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local58
-        ImportedDependencyCall #3 : Int
+        Call external #3 : Int
       val local59
         IntegerLiteral 3 : Int
       val local60

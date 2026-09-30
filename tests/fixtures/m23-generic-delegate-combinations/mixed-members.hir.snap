@@ -20,7 +20,7 @@ Module
       IntegerLiteral 0 : Int
     val local7
       Local $dependency.argument.0 : Int
-    ImportedDependencyCall #1 : Payload
+    Call external #1 : Payload
       Local $dependency.parameter.value : Int
     val local9
       Local inherited : Int

@@ -67,7 +67,7 @@ Module
     val local5
       Local $dependency.argument.1 : (T0) -> Int
     return
-      ImportedGenericCall exercise<T0> : Int
+      Call exercise<T0> : Int
         Local $dependency.parameter.seed : T0
         Local $dependency.parameter.read : (T0) -> Int
   fun result(): Int
@@ -188,7 +188,7 @@ Module
         Element
           Local $dependency.argument.1 : Large
     val local39
-      ImportedGenericCall pack<Large> : Array<Large>
+      Call pack<Large> : Array<Large>
         Local $dependency.parameter.values : Array<Large>
     val local40
       ArrayLiteral : Array<Large>
@@ -213,7 +213,7 @@ Module
         Element
           Local $dependency.argument.1 : Array<Large>
     val local48
-      ImportedGenericCall pack<Array<Large>> : Array<Array<Large>>
+      Call pack<Array<Large>> : Array<Array<Large>>
         Local $dependency.parameter.values : Array<Array<Large>>
     val local49
       ArrayLiteral : Array<Unit>
@@ -230,7 +230,7 @@ Module
         Element
           Local $dependency.argument.2 : Unit
     val local53
-      ImportedGenericCall pack<Unit> : Array<Unit>
+      Call pack<Unit> : Array<Unit>
         Local $dependency.parameter.values : Array<Unit>
     val local54
       ArrayLen : Long

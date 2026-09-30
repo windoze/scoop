@@ -85,7 +85,7 @@ fn ordinary_dependency_calls_commit_one_reused_typed_hir_use() {
     assert_eq!(output.output().local.imported_dependency_callables.len(), 1);
     assert_eq!(
         scoop_hir::dump(&output.output().export)
-            .matches("ImportedDependencyCall #0")
+            .matches("Call external #0")
             .count(),
         2
     );
@@ -131,7 +131,7 @@ fn direct_dependency_function_is_visible_in_the_split_current_package() {
         .expect("a direct dependency contributes to the current split package");
 
     assert_eq!(output.imported_dependencies().callable_count(), 1);
-    assert!(scoop_hir::dump(&output.output().export).contains("ImportedDependencyCall #0"));
+    assert!(scoop_hir::dump(&output.output().export).contains("Call external #0"));
 }
 
 #[test]

@@ -11,19 +11,19 @@ Module
     val local3
       Local number : ToString
     val local5
-      ImportedDependencyCall #0 interface[0] : String
+      Call external #0 interface[0] : String
         Local $dependency.receiver : ToString
     val local4
       Local reference : ToString
     val local6
       Local $equality.lhs : String
     val local7
-      ImportedDependencyCall #0 interface[0] : String
+      Call external #0 interface[0] : String
         Local $dependency.receiver : ToString
     val local8
       Local $dependency.argument.0 : String
     if
-      ImportedDependencyCall #1 : Boolean
+      Call external #1 : Boolean
         Local $dependency.receiver : String
         Local $dependency.parameter.other : String
       val local9
@@ -31,7 +31,7 @@ Module
       val local10
         Binary RefEq : Boolean
           Local text : String
-          ImportedDependencyCall #0 interface[0] : String
+          Call external #0 interface[0] : String
             Local $dependency.receiver : ToString
     else
       val local10
@@ -48,6 +48,6 @@ Module
     val local13
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #2 : Counter
+      Call external #2 : Counter
         Local $dependency.parameter.value : Long
   output library

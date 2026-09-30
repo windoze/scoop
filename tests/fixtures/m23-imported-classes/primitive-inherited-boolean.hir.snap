@@ -3,12 +3,12 @@ Module
     val local0
       BoolLiteral false : Boolean
     val local2
-      ImportedDependencyCall #0 : Long
+      Call external #0 : Long
     val local1
       Box : RebuiltDefaults
         Local value : Boolean
     val local3
-      ImportedDependencyCall #1 interface[0] : Long
+      Call external #1 interface[0] : Long
         Local $dependency.receiver : RebuiltDefaults
     val local4
       Local $dependency.argument.0 : Long
@@ -27,6 +27,6 @@ Module
     val local9
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #2 : Counter
+      Call external #2 : Counter
         Local $dependency.parameter.value : Long
   output library

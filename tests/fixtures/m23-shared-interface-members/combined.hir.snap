@@ -1,7 +1,7 @@
 Module
   fun result(): Int
     val local0
-      ImportedDependencyCall #1 : NumberReader
+      Call external #1 : NumberReader
     val local1
       Local reader : NumberReader
     val local2
@@ -9,7 +9,7 @@ Module
     val local3
       Local $dependency.argument.0 : Int
     val local4
-      ImportedDependencyCall #2 : Int
+      Call external #2 : Int
         Local $dependency.receiver : NumberReader
         Local $dependency.parameter.fallback : Int
     val local5
@@ -42,7 +42,7 @@ Module
       val local12
         Local reader : NumberReader
       assign $result.1
-        ImportedDependencyCall #0 : Int
+        Call external #0 : Int
           Local $dependency.receiver : NumberReader
     else
       assign $result.1

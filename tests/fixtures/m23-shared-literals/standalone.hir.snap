@@ -24,7 +24,7 @@ Module
     val local11
       Local $dependency.argument.1 : (T0) -> Int
     val local12
-      ImportedGenericCall inspect<T0> : Int
+      Call inspect<T0> : Int
         Local $dependency.parameter.value : Tagged<T0>
         Local $dependency.parameter.read : (T0) -> Int
     val local13
@@ -62,7 +62,7 @@ Module
     val local24
       Local $dependency.argument.1 : (T0) -> Int
     val local25
-      ImportedGenericCall inspect<T0> : Int
+      Call inspect<T0> : Int
         Local $dependency.parameter.value : Tagged<T0>
         Local $dependency.parameter.read : (T0) -> Int
     val local26
@@ -112,7 +112,7 @@ Module
     val local40
       Local $default.local.9 : Int
     val local41
-      ImportedGenericCall defaulted<T0> : Int
+      Call defaulted<T0> : Int
         Local $dependency.parameter.value : T0
         Local $dependency.parameter.read : (T0) -> Int
         Local $dependency.parameter.score : Int
@@ -151,7 +151,7 @@ Module
     val local53
       Local $dependency.argument.1 : (T0) -> Int
     return
-      ImportedGenericCall inspect<T0> : Int
+      Call inspect<T0> : Int
         Local $dependency.parameter.value : Tagged<T0>
         Local $dependency.parameter.read : (T0) -> Int
   fun result(): Int

@@ -5,6 +5,6 @@ Module
     val local1
       Local $dependency.argument.0 : Int
     return
-      ImportedGenericCall identity<Int> : Int
+      Call identity<Int> : Int
         Local $dependency.parameter.value : Int
   output library

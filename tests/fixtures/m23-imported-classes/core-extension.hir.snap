@@ -5,10 +5,10 @@ Module
     val local1
       Local $dependency.argument.0 : Long
     val local2
-      ImportedDependencyCall #1 : RebuiltCounter
+      Call external #1 : RebuiltCounter
         Local $dependency.parameter.value : Long
     val local3
-      ImportedDependencyCall #0 : Long
+      Call external #0 : Long
         Local $dependency.receiver : RebuiltCounter
     val local4
       VariantConstruct RebuiltFlag.Ready : RebuiltFlag
@@ -20,15 +20,15 @@ Module
         val local6
           Local $dependency.argument.0 : Long
         val local7
-          ImportedDependencyCall #1 : RebuiltCounter
+          Call external #1 : RebuiltCounter
             Local $dependency.parameter.value : Long
         val local8
-          ImportedDependencyCall #0 : Long
+          Call external #0 : Long
             Local $dependency.receiver : RebuiltCounter
         val local9
           Local $dependency.argument.0 : Long
         assign $result.0
-          ImportedDependencyCall #2 : Counter
+          Call external #2 : Counter
             Local $dependency.parameter.value : Long
       arm variant1()
         val local10
@@ -36,7 +36,7 @@ Module
         val local11
           Local $dependency.argument.0 : Long
         assign $result.0
-          ImportedDependencyCall #2 : Counter
+          Call external #2 : Counter
             Local $dependency.parameter.value : Long
       impossible <enum pattern matrix for RebuiltFlag>
     return

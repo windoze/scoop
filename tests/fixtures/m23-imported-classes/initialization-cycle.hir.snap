@@ -50,7 +50,7 @@ Module
       val local2
         Local $dependency.argument.0 : Long
       assign $result.0
-        ImportedDependencyCall #0 : RebuiltFailure
+        Call external #0 : RebuiltFailure
           Local $dependency.parameter.code : Long
     catch error: RebuiltFailure
       assign $result.0
@@ -65,12 +65,12 @@ Module
     val local2
       Local $dependency.argument.0 : Long
     val local3
-      ImportedDependencyCall #1 : Counter
+      Call external #1 : Counter
         Local $dependency.parameter.value : Long
     val local4
       Call failure : RebuiltFailure
     val local5
-      ImportedDependencyCall #2 : Long
+      Call external #2 : Long
         Local first : RebuiltFailure
     val local6
       IntegerLiteral 21 : Long
@@ -81,7 +81,7 @@ Module
         Local $dependency.receiver : Long
         Local $dependency.parameter.other : Long
       val local8
-        ImportedDependencyCall #2 : Long
+        Call external #2 : Long
           Local second : RebuiltFailure
       val local9
         IntegerLiteral 21 : Long
@@ -115,7 +115,7 @@ Module
       val local16
         Local allocated : Counter
       val local17
-        ImportedDependencyCall #3 : Long
+        Call external #3 : Long
           Local $dependency.receiver : Counter
       val local18
         IntegerLiteral 14 : Long
@@ -131,12 +131,12 @@ Module
     if
       Local $shortCircuit.3 : Boolean
       val local21
-        ImportedDependencyCall #2 : Long
+        Call external #2 : Long
           Local second : RebuiltFailure
       val local22
         Local $dependency.argument.0 : Long
       assign $result.4
-        ImportedDependencyCall #1 : Counter
+        Call external #1 : Counter
           Local $dependency.parameter.value : Long
     else
       val local23
@@ -144,7 +144,7 @@ Module
       val local24
         Local $dependency.argument.0 : Long
       assign $result.4
-        ImportedDependencyCall #1 : Counter
+        Call external #1 : Counter
           Local $dependency.parameter.value : Long
     return
       Local $result.4 : Counter

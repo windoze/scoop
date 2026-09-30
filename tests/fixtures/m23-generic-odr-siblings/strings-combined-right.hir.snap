@@ -21,7 +21,7 @@ Module
         Local $dependency.receiver : Named<Int>
   fun rightExtension(): String
     return
-      ImportedGenericCall constantText<Int> : String
+      Call constantText<Int> : String
         IntegerLiteral 22 : Int
   fun rightNested(): String
     val local0
@@ -29,7 +29,7 @@ Module
     val local1
       Local $dependency.argument.0 : Int
     return
-      ImportedGenericCall nestedConstant<Int> : String
+      Call nestedConstant<Int> : String
         Local $dependency.parameter.value : Int
   fun distinct(): String
     val local0

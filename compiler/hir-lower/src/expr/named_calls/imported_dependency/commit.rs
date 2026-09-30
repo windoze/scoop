@@ -356,17 +356,19 @@ impl Lowerer {
                             return None;
                         }
                     };
-                    bound.unwrap_or(hir::ExprKind::ImportedGenericCall {
-                        application,
-                        kind: match kind {
-                            MemberCallKind::Ordinary => hir::ImportedGenericCallKind::Ordinary,
-                            MemberCallKind::DirectSuper => {
-                                hir::ImportedGenericCallKind::DirectSuper
-                            }
-                        },
-                        binding,
-                        args,
-                        receiver: source_receiver,
+                    bound.unwrap_or_else(|| {
+                        self.resolved_template_call(
+                            application,
+                            match kind {
+                                MemberCallKind::Ordinary => hir::ImportedGenericCallKind::Ordinary,
+                                MemberCallKind::DirectSuper => {
+                                    hir::ImportedGenericCallKind::DirectSuper
+                                }
+                            },
+                            binding,
+                            args,
+                            source_receiver,
+                        )
                     })
                 }
                 super::generic::ImportedGenericTarget::Constructor(template) => {
@@ -424,8 +426,8 @@ impl Lowerer {
             }
         };
         Some(hir::Expr {
-            kind: bound.unwrap_or(hir::ExprKind::ImportedDependencyCall {
-                callee,
+            kind: bound.unwrap_or(hir::ExprKind::Call {
+                callee: hir::CallableTarget::Dependency(callee),
                 binding,
                 args,
                 receiver: source_receiver,

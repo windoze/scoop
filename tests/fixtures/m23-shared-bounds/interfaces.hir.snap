@@ -48,7 +48,7 @@ Module
     val local10
       Local $dependency.argument.0 : Holder<T0>
     val local11
-      ImportedGenericCall readBound<T0, Holder<T0>> : T0
+      Call readBound<T0, Holder<T0>> : T0
         Local $dependency.parameter.value : Holder<T0>
     val local12
       Local imported : T0
@@ -60,7 +60,7 @@ Module
     val local15
       Local $dependency.argument.0 : Bridge<T0>
     val local16
-      ImportedGenericCall readBound<T0, Bridge<T0>> : T0
+      Call readBound<T0, Bridge<T0>> : T0
         Local $dependency.parameter.value : Bridge<T0>
     return
       CallableCall function_type0 : Int

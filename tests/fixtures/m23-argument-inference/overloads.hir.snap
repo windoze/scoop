@@ -9,7 +9,7 @@ Module
     val local5
       Local $dependency.argument.1 : (T0) -> Int
     return
-      ImportedGenericCall exercise<T0> : Int
+      Call exercise<T0> : Int
         Local $dependency.parameter.seed : T0
         Local $dependency.parameter.read : (T0) -> Int
   fun result(): Int
@@ -26,7 +26,7 @@ Module
     val local5
       Local $dependency.argument.2 : Int
     val local6
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
         Local $dependency.parameter.action : (Int) -> Int
         Local $dependency.parameter.values : Array<Int>
         Local $dependency.parameter.seed : Int
@@ -43,7 +43,7 @@ Module
     val local12
       Local $dependency.argument.2 : Int
     val local13
-      ImportedGenericCall route<Int> : Int
+      Call route<Int> : Int
         Local $dependency.parameter.action : (Int) -> Int
         Local $dependency.parameter.values : Array<Int>
         Local $dependency.parameter.seed : Int
@@ -60,7 +60,7 @@ Module
     val local19
       Local $dependency.argument.0 : Int
     val local20
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
         Local $dependency.parameter.action : (Int) -> Int
         Local $dependency.parameter.values : Array<Int>
         Local $dependency.parameter.seed : Int

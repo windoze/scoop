@@ -15,7 +15,7 @@ Module
     val local2
       Local $dependency.argument.0 : Long
     val local3
-      ImportedDependencyCall #0 : Counter
+      Call external #0 : Counter
         Local $dependency.parameter.value : Long
     val local4
       FieldAccess class field value : Counter
@@ -27,7 +27,7 @@ Module
       val local5
         Local allocated : Counter
       val local6
-        ImportedDependencyCall #1 : Long
+        Call external #1 : Long
           Local $dependency.receiver : Counter
       val local7
         IntegerLiteral 14 : Long
@@ -50,7 +50,7 @@ Module
       val local11
         Local $dependency.argument.0 : Long
       assign $result.1
-        ImportedDependencyCall #0 : Counter
+        Call external #0 : Counter
           Local $dependency.parameter.value : Long
     return
       Local $result.1 : Counter

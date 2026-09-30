@@ -12,11 +12,11 @@ Module
       ImportedConstructorInit Receiver : Receiver<Int, Boolean>
         Local $dependency.parameter.left : Int
         Local $dependency.parameter.right : Boolean
-    ImportedGenericCall shared<Int, Boolean> : Unit
+    Call shared<Int, Boolean> : Unit
       Local receiver : Receiver<Int, Boolean>
       IntegerLiteral 42 : Int
     return
-      ImportedGenericCall shared<Int, Boolean> : Int
+      Call shared<Int, Boolean> : Int
         Local receiver : Receiver<Int, Boolean>
   fun failure(): Failure
     try
@@ -28,7 +28,7 @@ Module
         Local $dependency.argument.0 : Int
       val local3
         Local $dependency.argument.1 : Boolean
-      ImportedGenericCall broken<Int, Boolean> : Int
+      Call broken<Int, Boolean> : Int
         ImportedConstructorInit Receiver : Receiver<Int, Boolean>
           Local $dependency.parameter.left : Int
           Local $dependency.parameter.right : Boolean
@@ -43,6 +43,6 @@ Module
       VariantConstruct Option.Some<String> : Option<String>
         Local $default.local.1 : String
     throw
-      ImportedDependencyCall #0 : IllegalStateException
+      Call external #0 : IllegalStateException
         Local $dependency.parameter.message : Option<String>
   output library

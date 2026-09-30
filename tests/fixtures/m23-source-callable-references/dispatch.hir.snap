@@ -2,13 +2,13 @@ Module
   fun exercise<T>(value: T0): Int
     val local1
       ReferenceUpcast : Base
-        ImportedDependencyCall #3 : Derived
+        Call external #3 : Derived
     val local2
       CallableReference reference0 target=dependency #1 captures=0 : () -> Int
         Local base : Base
     val local3
       ReferenceUpcast : Readable
-        ImportedDependencyCall #5 : Reader
+        Call external #5 : Reader
     val local4
       CallableReference reference1 target=dependency #6 captures=0 : () -> Int
         Local reader : Readable

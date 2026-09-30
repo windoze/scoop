@@ -8,9 +8,9 @@ Module
       ImportedConstructorInit Receiver : Receiver<T0>
         Local $dependency.parameter.value : T0
     val local4
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
     val local5
-      ImportedGenericCall shared<T0> : Int
+      Call shared<T0> : Int
         Local receiver : Receiver<T0>
     val local6
       IntegerLiteral 42 : Int
@@ -29,7 +29,7 @@ Module
       val local9
         Local $dependency.argument.0 : T0
       val local10
-        ImportedGenericCall shared<T0> : Int
+        Call shared<T0> : Int
           ImportedConstructorInit Receiver : Receiver<T0>
             Local $dependency.parameter.value : T0
       val local11
@@ -46,7 +46,7 @@ Module
       return
         IntegerLiteral 1 : Int
     val local14
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
     val local15
       Local after : Int
     val local16
@@ -87,11 +87,11 @@ Module
       return
         IntegerLiteral 2 : Int
     val local25
-      ImportedDependencyCall #1 : Int
+      Call external #1 : Int
     val local26
       IntegerLiteral 0 : Int
     try
-      ImportedGenericCall broken<T0> : Int
+      Call broken<T0> : Int
         Local receiver : Receiver<T0>
     catch error: Failed
       val local28
@@ -107,13 +107,13 @@ Module
           Local $dependency.receiver : Int
           Local $dependency.parameter.other : Int
     val local32
-      ImportedDependencyCall #1 : Int
+      Call external #1 : Int
     try
       val local33
         Local value : T0
       val local34
         Local $dependency.argument.0 : T0
-      ImportedGenericCall broken<T0> : Int
+      Call broken<T0> : Int
         ImportedConstructorInit Receiver : Receiver<T0>
           Local $dependency.parameter.value : T0
     catch error: Failed
@@ -183,7 +183,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local53
-        ImportedDependencyCall #1 : Int
+        Call external #1 : Int
       val local54
         Local failedAfter : Int
       val local55

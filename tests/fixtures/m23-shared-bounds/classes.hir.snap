@@ -39,7 +39,7 @@ Module
     val local10
       Local $dependency.argument.0 : Child<T0>
     val local11
-      ImportedGenericCall readClass<T0, Child<T0>> : T0
+      Call readClass<T0, Child<T0>> : T0
         Local $dependency.parameter.value : Child<T0>
     return
       CallableCall function_type0 : Int

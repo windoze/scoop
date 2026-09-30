@@ -542,10 +542,20 @@ pub(in super::super) fn collect_expr_type_occurrences(
             collect_expr_type_occurrences(lowerer, index, out);
             collect_expr_type_occurrences(lowerer, value, out);
         }
-        ExprKind::Call { callee, args, .. } => {
+        ExprKind::Call {
+            callee,
+            args,
+            receiver,
+            ..
+        } => {
             push_types_at_expression(
                 expression,
-                |types| collect_callable_types(lowerer, *callee, types),
+                |types| {
+                    collect_callable_target_types(lowerer, *callee, types);
+                    if let hir::SourceCallReceiver::Receiver { static_type } = receiver {
+                        types.push(*static_type);
+                    }
+                },
                 out,
             );
             for argument in args {
@@ -588,11 +598,6 @@ pub(in super::super) fn collect_expr_type_occurrences(
                 },
                 out,
             );
-            for argument in args {
-                collect_expr_type_occurrences(lowerer, argument, out);
-            }
-        }
-        ExprKind::ImportedDependencyCall { args, .. } => {
             for argument in args {
                 collect_expr_type_occurrences(lowerer, argument, out);
             }

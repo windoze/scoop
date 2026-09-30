@@ -22,7 +22,7 @@ Module
     val local9
       Local $dependency.argument.0 : Ptr<Int>
     val local11
-      ImportedGenericCall typeAddress<Int> : ULong
+      Call typeAddress<Int> : ULong
         Local $dependency.parameter.pointer : Ptr<Int>
     val local10
       Local inferred : Ptr<Int>

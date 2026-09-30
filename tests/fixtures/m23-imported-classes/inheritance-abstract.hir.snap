@@ -9,10 +9,10 @@ Module
     val local1
       Local value : AbstractParent
     val local2
-      ImportedDependencyCall #1 virtual[0] : Long
+      Call external #1 virtual[0] : Long
         Local $dependency.receiver : AbstractParent
     val local3
-      ImportedDependencyCall #3 virtual[1] : Long
+      Call external #3 virtual[1] : Long
         Local value : AbstractParent
     val local4
       Local $dependency.argument.0 : Long
@@ -31,6 +31,6 @@ Module
     val local9
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #7 : Counter
+      Call external #7 : Counter
         Local $dependency.parameter.value : Long
   output library

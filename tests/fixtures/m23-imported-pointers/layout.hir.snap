@@ -35,7 +35,7 @@ Module
       return
         IntegerLiteral 1 : Int
     val local8
-      ImportedGenericCall bytes<UInt8> : ULong
+      Call bytes<UInt8> : ULong
     val local9
       IntegerLiteral 1uL : ULong
     val local10
@@ -49,7 +49,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local11
-        ImportedGenericCall bytes<Long> : ULong
+        Call bytes<Long> : ULong
       val local12
         IntegerLiteral 8uL : ULong
       val local13
@@ -64,7 +64,7 @@ Module
       return
         IntegerLiteral 2 : Int
     val local15
-      ImportedGenericCall bytes<Managed> : ULong
+      Call bytes<Managed> : ULong
     val local16
       IntegerLiteral 16uL : ULong
     val local17
@@ -78,7 +78,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local18
-        ImportedGenericCall alignment<Managed> : ULong
+        Call alignment<Managed> : ULong
       val local19
         IntegerLiteral 8uL : ULong
       val local20
@@ -97,7 +97,7 @@ Module
     val local23
       AlignOf Managed : ULong
     val local24
-      ImportedGenericCall layoutDefault<Managed> : ULong
+      Call layoutDefault<Managed> : ULong
         Local $dependency.parameter.size : ULong
         Local $dependency.parameter.alignment : ULong
     val local25

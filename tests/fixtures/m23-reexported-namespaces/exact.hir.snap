@@ -30,7 +30,7 @@ Module
     val local10
       Local $dependency.argument.0 : Int
     val local11
-      ImportedDependencyCall #0 : Leaf
+      Call external #0 : Leaf
         Local $dependency.parameter.number : Int
     return
       FieldAccess field 0 : Int

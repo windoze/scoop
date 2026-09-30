@@ -36,7 +36,7 @@ Module
       IntegerLiteral 0 : Int
     val local11
       Local $dependency.argument.0 : Int
-    ImportedDependencyCall #0 : Payload
+    Call external #0 : Payload
       Local $dependency.parameter.value : Int
     val local12
       Local value : T0
@@ -62,7 +62,7 @@ Module
     val local1
       Local $dependency.argument.0 : Int
     val local2
-      ImportedDependencyCall #0 : Payload
+      Call external #0 : Payload
         Local $dependency.parameter.value : Int
     val local3
       Local $argument.0 : Payload

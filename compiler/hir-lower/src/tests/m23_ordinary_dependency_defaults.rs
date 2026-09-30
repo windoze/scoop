@@ -238,7 +238,7 @@ fn imported_helper_expression(module: &scoop_hir::Module) -> &scoop_hir::Expr {
             scoop_hir::StatementKind::ValDecl { init, .. }
                 if matches!(
                     &init.kind,
-                    scoop_hir::ExprKind::ImportedDependencyCall { args, .. } if args.len() == 1
+                    scoop_hir::ExprKind::Call { callee: scoop_hir::CallableTarget::Dependency(_), args, .. } if args.len() == 1
                 ) =>
             {
                 Some(init)

@@ -12,14 +12,14 @@ Module
     val local5
       Local $dependency.argument.0 : HolderImpl<T0>
     val local6
-      ImportedGenericCall inheritedReference<HolderImpl<T0>, T0> : () -> T0
+      Call inheritedReference<HolderImpl<T0>, T0> : () -> T0
         Local $dependency.parameter.value : HolderImpl<T0>
     val local7
       Local receiver : HolderImpl<T0>
     val local8
       Local $dependency.argument.0 : HolderImpl<T0>
     val local9
-      ImportedGenericCall genericInterfaceGet<HolderImpl<T0>, T0> : T0
+      Call genericInterfaceGet<HolderImpl<T0>, T0> : T0
         Local $dependency.parameter.value : HolderImpl<T0>
     val local10
       IntegerLiteral 42 : Int

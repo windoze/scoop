@@ -14,7 +14,7 @@ Module
     val local5
       Local $dependency.argument.0 : ULong
     val local6
-      ImportedDependencyCall #0 : Ptr<Int>
+      Call external #0 : Ptr<Int>
         Local $dependency.parameter.raw : ULong
     val local7
       PtrFromNonZeroULong : Ptr<Int>

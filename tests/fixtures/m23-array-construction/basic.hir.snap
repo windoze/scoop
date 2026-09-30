@@ -12,7 +12,7 @@ Module
     val local5
       Local $dependency.argument.1 : (T0) -> Int
     return
-      ImportedGenericCall exercise<T0> : Int
+      Call exercise<T0> : Int
         Local $dependency.parameter.seed : T0
         Local $dependency.parameter.read : (T0) -> Int
   fun result(): Int
@@ -273,14 +273,14 @@ Module
       Local $shortCircuit.4 : Boolean
       return
         IntegerLiteral 4 : Int
-    ImportedDependencyCall #0 : Unit
+    Call external #0 : Unit
       IntegerLiteral 0 : Int
     val local76
       IntegerLiteral 2 : Int
     val local77
       Local $dependency.argument.0 : Int
     val local78
-      ImportedDependencyCall #1 : MutableArray<Int>
+      Call external #1 : MutableArray<Int>
         Local $dependency.parameter.digit : Int
     val local79
       Local $argument.0 : MutableArray<Int>
@@ -288,7 +288,7 @@ Module
       ArrayClone : Array<Int>
         Local $parameter.source : MutableArray<Int>
     val local81
-      ImportedDependencyCall #2 : Int
+      Call external #2 : Int
     val local82
       IntegerLiteral 2 : Int
     val local83
@@ -324,14 +324,14 @@ Module
       Local $shortCircuit.5 : Boolean
       return
         IntegerLiteral 5 : Int
-    ImportedDependencyCall #0 : Unit
+    Call external #0 : Unit
       IntegerLiteral 0 : Int
     val local91
       IntegerLiteral 3 : Int
     val local92
       Local $dependency.argument.0 : Int
     val local93
-      ImportedDependencyCall #1 : MutableArray<Int>
+      Call external #1 : MutableArray<Int>
         Local $dependency.parameter.digit : Int
     val local94
       Local $dependency.argument.0 : MutableArray<Int>
@@ -343,11 +343,11 @@ Module
       ArrayClone : Array<Int>
         Local $default.local.2 : MutableArray<Int>
     val local98
-      ImportedGenericCall defaultSnapshot<Int> : Array<Int>
+      Call defaultSnapshot<Int> : Array<Int>
         Local $dependency.parameter.source : MutableArray<Int>
         Local $dependency.parameter.copied : Array<Int>
     val local99
-      ImportedDependencyCall #2 : Int
+      Call external #2 : Int
     val local100
       IntegerLiteral 3 : Int
     val local101

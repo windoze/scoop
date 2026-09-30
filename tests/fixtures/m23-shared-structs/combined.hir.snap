@@ -17,7 +17,7 @@ Module
     val local3
       Local $dependency.argument.0 : T0
     val local5
-      ImportedGenericCall create<T0> : RemoteCell<T0>
+      Call create<T0> : RemoteCell<T0>
         Local $dependency.parameter.value : T0
     val local6
       Local $argument.0 : T0
@@ -108,7 +108,7 @@ Module
     val local27
       Local $dependency.argument.1 : Int
     val local28
-      ImportedDependencyCall #0 : NativePair
+      Call external #0 : NativePair
         Local $dependency.parameter.left : Int
         Local $dependency.parameter.right : Int
     val local29

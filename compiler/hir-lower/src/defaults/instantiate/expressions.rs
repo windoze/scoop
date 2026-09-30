@@ -297,22 +297,12 @@ impl Lowerer {
             }
             hir::ExprKind::Call {
                 callee,
+                binding,
                 args,
                 receiver,
             } => hir::ExprKind::Call {
                 receiver: receiver.map(|ty| self.instantiate_method_ty(ty, &context.bindings)),
-                callee: self.instantiate_default_callable(*callee, context),
-                args: self.instantiate_default_exprs(args, context),
-            },
-
-            hir::ExprKind::ImportedDependencyCall {
-                callee,
-                binding,
-                args,
-                receiver,
-            } => hir::ExprKind::ImportedDependencyCall {
-                receiver: receiver.map(|ty| self.instantiate_method_ty(ty, &context.bindings)),
-                callee: *callee,
+                callee: self.instantiate_default_callable_target(*callee, context),
                 binding: binding.clone(),
                 args: self.instantiate_default_exprs(args, context),
             },

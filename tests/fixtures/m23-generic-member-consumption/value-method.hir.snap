@@ -8,7 +8,7 @@ Module
       ImportedConstructorInit Cell : Cell<Int>
         Local $dependency.parameter.value : Int
     val local3
-      ImportedGenericCall emptyChoice<String> : Choice<String>
+      Call emptyChoice<String> : Choice<String>
     val local4
       Local cell : Cell<Int>
     val local11

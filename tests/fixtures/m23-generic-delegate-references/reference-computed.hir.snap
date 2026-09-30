@@ -1,10 +1,10 @@
 Module
   fun exercise<T>(value: T0): Int
     val local1
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
         ImportedSingletonValue 5a65a7ae2eb3532b4836102c2f8336701e2b7ffa47eb26503352bf49d6b6124f : Trace
     val local2
-      ImportedDependencyCall #1 : Int
+      Call external #1 : Int
         ImportedSingletonValue 5a65a7ae2eb3532b4836102c2f8336701e2b7ffa47eb26503352bf49d6b6124f : Trace
     val local3
       Local value : T0
@@ -14,14 +14,14 @@ Module
       ImportedConstructorInit Receiver : Receiver<T0>
         Local $dependency.parameter.value : T0
     val local6
-      ImportedGenericCall referenceComputed<T0> : Int
+      Call referenceComputed<T0> : Int
         Local receiver : Receiver<T0>
     val local7
       IntegerLiteral 0 : Int
     val local8
       Local $dependency.argument.0 : Int
     val local9
-      ImportedDependencyCall #2 : Payload
+      Call external #2 : Payload
         Local $dependency.parameter.value : Int
     val local10
       Local answer : Int
@@ -38,7 +38,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local13
-        ImportedDependencyCall #3 : Int
+        Call external #3 : Int
           Local allocated : Payload
       val local14
         IntegerLiteral 0 : Int
@@ -54,7 +54,7 @@ Module
       return
         IntegerLiteral 1 : Int
     val local17
-      ImportedGenericCall referenceComputed<T0> : Int
+      Call referenceComputed<T0> : Int
         Local receiver : Receiver<T0>
     val local18
       IntegerLiteral 42 : Int
@@ -69,7 +69,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local23
-        ImportedDependencyCall #0 : Int
+        Call external #0 : Int
           ImportedSingletonValue 5a65a7ae2eb3532b4836102c2f8336701e2b7ffa47eb26503352bf49d6b6124f : Trace
       val local20
         Local before : Int
@@ -95,7 +95,7 @@ Module
       return
         IntegerLiteral 2 : Int
     val local31
-      ImportedDependencyCall #1 : Int
+      Call external #1 : Int
         ImportedSingletonValue 5a65a7ae2eb3532b4836102c2f8336701e2b7ffa47eb26503352bf49d6b6124f : Trace
     val local28
       Local beforeReceivers : Int

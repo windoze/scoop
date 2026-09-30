@@ -1,6 +1,6 @@
 Module
   fun primary(value: Factory): Counter
     return
-      ImportedDependencyCall #2 : Counter
+      Call external #2 : Counter
         Local value : Factory
   output library

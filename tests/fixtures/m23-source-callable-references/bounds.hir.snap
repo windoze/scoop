@@ -54,7 +54,7 @@ Module
         Local first : T0
         Local second : T0
     val local12
-      ImportedDependencyCall #2 : Reader
+      Call external #2 : Reader
     val local13
       Local $argument.0 : Reader
     val local14

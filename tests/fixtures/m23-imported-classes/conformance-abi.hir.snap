@@ -8,7 +8,7 @@ Module
     val local1
       Local $dependency.argument.0 : Long
     val local2
-      ImportedDependencyCall #0 : Counter
+      Call external #0 : Counter
         Local $dependency.parameter.value : Long
     val local3
       Local $argument.0 : Counter
@@ -19,20 +19,20 @@ Module
     val local7
       Local reader : ValueReader
     val local8
-      ImportedDependencyCall #1 : Token
+      Call external #1 : Token
     val local5
       IntegerLiteral 1 : Long
     val local6
       Local $dependency.argument.0 : Long
     val local9
-      ImportedDependencyCall #0 : Counter
+      Call external #0 : Counter
         Local $dependency.parameter.value : Long
     val local10
       Local $dependency.argument.0 : Token
     val local11
       Local $dependency.argument.1 : Counter
     val local12
-      ImportedDependencyCall #2 interface[0] : WideValue
+      Call external #2 interface[0] : WideValue
         Local $dependency.receiver : ValueReader
         Local $dependency.parameter.marker : Token
         Local $dependency.parameter.input : Counter
@@ -60,6 +60,6 @@ Module
     val local20
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #0 : Counter
+      Call external #0 : Counter
         Local $dependency.parameter.value : Long
   output library

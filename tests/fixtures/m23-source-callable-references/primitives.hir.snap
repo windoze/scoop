@@ -251,7 +251,7 @@ Module
         Local $dependency.argument.0 : String
       val local60
         Unary Not : Boolean
-          ImportedDependencyCall #0 : Boolean
+          Call external #0 : Boolean
             Local $dependency.receiver : String
             Local $dependency.parameter.other : String
     if

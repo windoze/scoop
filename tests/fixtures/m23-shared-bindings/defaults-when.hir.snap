@@ -36,7 +36,7 @@ Module
     val local14
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall chosen<T0> : T0
+        Call chosen<T0> : T0
           Local $dependency.parameter.pair : Pair<T0>
           Local $dependency.parameter.value : T0
     val local15
@@ -65,7 +65,7 @@ Module
     val local22
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall matched<T0> : T0
+        Call matched<T0> : T0
           Local $dependency.parameter.pair : Pair<T0>
           Local $dependency.parameter.value : T0
     val local23
@@ -88,7 +88,7 @@ Module
     val local28
       Local $dependency.argument.1 : (T0) -> Int
     val local29
-      ImportedGenericCall patternBody<T0> : Int
+      Call patternBody<T0> : Int
         Local $dependency.parameter.pair : Pair<T0>
         Local $dependency.parameter.read : (T0) -> Int
     val local30

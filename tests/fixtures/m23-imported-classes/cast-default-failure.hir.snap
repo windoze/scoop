@@ -7,7 +7,7 @@ Module
         Local $dependency.argument.0 : Long
       val local2
         ReferenceUpcast : Any
-          ImportedDependencyCall #0 : Other
+          Call external #0 : Other
             Local $dependency.parameter.value : Long
       val local3
         Local $dependency.argument.0 : Any
@@ -15,7 +15,7 @@ Module
         Cast Counter optional=false : Counter
           Local $dependency.parameter.input : Any
       return
-        ImportedDependencyCall #1 : Counter
+        Call external #1 : Counter
           Local $dependency.parameter.input : Any
           Local $dependency.parameter.value : Counter
     catch error: ClassCastException
@@ -24,6 +24,6 @@ Module
       val local7
         Local $dependency.argument.0 : Long
       return
-        ImportedDependencyCall #2 : Counter
+        Call external #2 : Counter
           Local $dependency.parameter.value : Long
   output library

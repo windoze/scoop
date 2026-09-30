@@ -5,7 +5,7 @@ Module
     val local3
       Local $dependency.argument.0 : T0
     val local4
-      ImportedGenericCall pack<T0> : Choice<T0>
+      Call pack<T0> : Choice<T0>
         Local $dependency.parameter.value : T0
     val local5
       Local read : (T0) -> Int
@@ -14,7 +14,7 @@ Module
     val local7
       Local $dependency.argument.1 : (T0) -> Int
     return
-      ImportedGenericCall score<T0> : Int
+      Call score<T0> : Int
         Local $dependency.parameter.value : Choice<T0>
         Local $dependency.parameter.read : (T0) -> Int
   fun result(): Int

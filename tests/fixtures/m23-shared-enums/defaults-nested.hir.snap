@@ -73,7 +73,7 @@ Module
         val local27
           Local $default.local.5 : T0
         assign $result.0
-          ImportedGenericCall select<T0> : T0
+          Call select<T0> : T0
             Local $dependency.parameter.value : Choice<T0>
             Local $dependency.parameter.fallback : T0
             Local $dependency.parameter.selected : T0
@@ -104,7 +104,7 @@ Module
         val local37
           Local $default.local.5 : T0
         assign $result.0
-          ImportedGenericCall select<T0> : T0
+          Call select<T0> : T0
             Local $dependency.parameter.value : Choice<T0>
             Local $dependency.parameter.fallback : T0
             Local $dependency.parameter.selected : T0

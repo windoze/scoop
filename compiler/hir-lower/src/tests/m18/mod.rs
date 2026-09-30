@@ -111,7 +111,10 @@ fn direct_method_name<'a>(module: &'a hir::Module, expr: &hir::Expr) -> &'a str 
 
 fn direct_callable_name<'a>(module: &'a hir::Module, expr: &hir::Expr) -> &'a str {
     let callee = match &expr.kind {
-        hir::ExprKind::Call { callee, .. } => *callee,
+        hir::ExprKind::Call {
+            callee: hir::CallableTarget::Local(callee),
+            ..
+        } => *callee,
         hir::ExprKind::MethodCall { callee, .. } => {
             let hir::MethodCallee::Callable(callee) = callee else {
                 panic!("expected an ordinary callable method");
@@ -2272,7 +2275,11 @@ fn class_destructuring_uses_a_typed_extension_component_action() {
                 return None;
             };
             let local = binding_local(pattern)?;
-            let hir::ExprKind::Call { callee, .. } = &init.kind else {
+            let hir::ExprKind::Call {
+                callee: hir::CallableTarget::Local(callee),
+                ..
+            } = &init.kind
+            else {
                 return None;
             };
             let function = module.callable_function(*callee);
@@ -2380,7 +2387,12 @@ fn assert_adapted_extension_component(
     let [(component, call)] = components.as_slice() else {
         panic!("one written position must have exactly one component result")
     };
-    let hir::ExprKind::Call { callee, args, .. } = &call.kind else {
+    let hir::ExprKind::Call {
+        callee: hir::CallableTarget::Local(callee),
+        args,
+        ..
+    } = &call.kind
+    else {
         panic!("an extension component must remain a direct typed call")
     };
     let [argument] = args.as_slice() else {

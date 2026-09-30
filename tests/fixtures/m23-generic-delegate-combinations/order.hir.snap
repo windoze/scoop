@@ -3,7 +3,7 @@ Module
     val local1
       ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
     val local2
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
         ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
     val local3
       IntegerLiteral 10 : Int
@@ -17,7 +17,7 @@ Module
       IntegerLiteral 1 : Int
     val local7
       Local $dependency.argument.0 : Int
-    ImportedDependencyCall #1 : Unit
+    Call external #1 : Unit
       Local $property_receiver.0 : Trace
       IntegerOperation int.add <no-gc> : Int
         Local $dependency.receiver : Int
@@ -33,7 +33,7 @@ Module
     val local1
       ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
     val local2
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
         ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
     val local3
       IntegerLiteral 10 : Int
@@ -47,7 +47,7 @@ Module
       IntegerLiteral 2 : Int
     val local7
       Local $dependency.argument.0 : Int
-    ImportedDependencyCall #1 : Unit
+    Call external #1 : Unit
       Local $property_receiver.1 : Trace
       IntegerOperation int.add <no-gc> : Int
         Local $dependency.receiver : Int
@@ -57,15 +57,15 @@ Module
     val local9
       Local $dependency.argument.0 : Int
     val local10
-      ImportedDependencyCall #2 : Payload
+      Call external #2 : Payload
         Local $dependency.parameter.value : Int
     return
-      ImportedDependencyCall #3 : Int
+      Call external #3 : Int
         Local allocated : Payload
   fun exercise<T>(value: T0): Int
     val local1
       ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
-    ImportedDependencyCall #1 : Unit
+    Call external #1 : Unit
       Local $property_receiver.2 : Trace
       IntegerLiteral 0 : Int
     val local2
@@ -76,13 +76,13 @@ Module
       IntegerLiteral 42 : Int
     val local5
       Local $argument.0 : Int
-    ImportedGenericCall ordered<T0> : Unit
+    Call ordered<T0> : Unit
       Call receiver<T0> : Receiver<T0>
         Local $parameter.value : T0
       Call rhs : Int
         Local $parameter.value : Int
     val local6
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
         ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
     val local7
       IntegerLiteral 12345 : Int
@@ -97,7 +97,7 @@ Module
         IntegerLiteral 1 : Int
     val local9
       ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
-    ImportedDependencyCall #1 : Unit
+    Call external #1 : Unit
       Local $property_receiver.3 : Trace
       IntegerLiteral 0 : Int
     val local10
@@ -108,7 +108,7 @@ Module
       Call receiver<T0> : Receiver<T0>
         Local $parameter.value : T0
     val local13
-      ImportedGenericCall compound<T0> : Int
+      Call compound<T0> : Int
         Local $place.4 : Receiver<T0>
     val local16
       Local $old.5 : Int
@@ -121,13 +121,13 @@ Module
         Local $parameter.value : Int
     val local18
       Local $dependency.argument.0 : Int
-    ImportedGenericCall compound<T0> : Unit
+    Call compound<T0> : Unit
       Local $place.4 : Receiver<T0>
       IntegerOperation int.add <no-gc> : Int
         Local $dependency.receiver : Int
         Local $dependency.parameter.other : Int
     val local19
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
         ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
     val local20
       IntegerLiteral 134625 : Int
@@ -142,7 +142,7 @@ Module
         IntegerLiteral 2 : Int
     val local22
       ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
-    ImportedDependencyCall #1 : Unit
+    Call external #1 : Unit
       Local $property_receiver.6 : Trace
       IntegerLiteral 0 : Int
     val local23
@@ -153,20 +153,20 @@ Module
       Call receiver<T0> : Receiver<T0>
         Local $parameter.value : T0
     val local26
-      ImportedGenericCall compound<T0> : Int
+      Call compound<T0> : Int
         Local $place.7 : Receiver<T0>
     val local27
       Local $old.8 : Int
     val local28
       IntegerOperation int.inc <no-gc> : Int
         Local $dependency.receiver : Int
-    ImportedGenericCall compound<T0> : Unit
+    Call compound<T0> : Unit
       Local $place.7 : Receiver<T0>
       Local $new.9 : Int
     val local29
       Local $old.8 : Int
     val local30
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
         ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
     val local31
       IntegerLiteral 165 : Int
@@ -197,7 +197,7 @@ Module
         IntegerLiteral 3 : Int
     val local37
       ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
-    ImportedDependencyCall #1 : Unit
+    Call external #1 : Unit
       Local $property_receiver.11 : Trace
       IntegerLiteral 0 : Int
     val local38
@@ -208,20 +208,20 @@ Module
       Call receiver<T0> : Receiver<T0>
         Local $parameter.value : T0
     val local41
-      ImportedGenericCall compound<T0> : Int
+      Call compound<T0> : Int
         Local $place.12 : Receiver<T0>
     val local42
       Local $old.13 : Int
     val local43
       IntegerOperation int.inc <no-gc> : Int
         Local $dependency.receiver : Int
-    ImportedGenericCall compound<T0> : Unit
+    Call compound<T0> : Unit
       Local $place.12 : Receiver<T0>
       Local $new.14 : Int
     val local44
       Local $new.14 : Int
     val local45
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
         ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
     val local46
       IntegerLiteral 165 : Int
@@ -252,7 +252,7 @@ Module
         IntegerLiteral 4 : Int
     val local52
       ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
-    ImportedDependencyCall #1 : Unit
+    Call external #1 : Unit
       Local $property_receiver.16 : Trace
       IntegerLiteral 0 : Int
     val local53
@@ -260,11 +260,11 @@ Module
     val local54
       Local $argument.0 : T0
     val local55
-      ImportedGenericCall ordered<T0> : Int
+      Call ordered<T0> : Int
         Call receiver<T0> : Receiver<T0>
           Local $parameter.value : T0
     val local56
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
         ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
     val local57
       IntegerLiteral 16 : Int

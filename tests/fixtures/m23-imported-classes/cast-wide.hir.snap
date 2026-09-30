@@ -14,7 +14,7 @@ Module
       Local $dependency.argument.2 : Long
     val local6
       Box : Any
-        ImportedDependencyCall #0 : WideValue
+        Call external #0 : WideValue
           Local $dependency.parameter.first : Long
           Local $dependency.parameter.second : Long
           Local $dependency.parameter.third : Long
@@ -28,6 +28,6 @@ Module
     val local9
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #1 : Counter
+      Call external #1 : Counter
         Local $dependency.parameter.value : Long
   output library

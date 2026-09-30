@@ -41,17 +41,17 @@ Module
     val local17
       Local $dependency.argument.0 : Key<T0>
     val local18
-      ImportedGenericCall single<Key<T0>> : Choice<Key<T0>>
+      Call single<Key<T0>> : Choice<Key<T0>>
         Local $dependency.parameter.value : Key<T0>
     val local19
       Local same : Key<T0>
     val local20
       Local $dependency.argument.0 : Key<T0>
     val local21
-      ImportedGenericCall single<Key<T0>> : Choice<Key<T0>>
+      Call single<Key<T0>> : Choice<Key<T0>>
         Local $dependency.parameter.value : Key<T0>
     val local22
-      ImportedGenericCall emptyChoice<Key<T0>> : Choice<Key<T0>>
+      Call emptyChoice<Key<T0>> : Choice<Key<T0>>
     val local23
       Local left : Choice<Key<T0>>
     val local24
@@ -61,7 +61,7 @@ Module
     val local26
       Local $dependency.argument.1 : Choice<Key<T0>>
     val local27
-      ImportedGenericCall compareChoices<Key<T0>> : Boolean
+      Call compareChoices<Key<T0>> : Boolean
         Local $dependency.parameter.left : Choice<Key<T0>>
         Local $dependency.parameter.right : Choice<Key<T0>>
     if
@@ -79,7 +79,7 @@ Module
       Binary Or : Boolean
         MethodCall Choice<Key<T>>.equals <derived> : Boolean
           Local $equality.lhs : Choice<Key<T0>>
-          ImportedGenericCall single<Key<T0>> : Choice<Key<T0>>
+          Call single<Key<T0>> : Choice<Key<T0>>
             Local $dependency.parameter.value : Key<T0>
         MethodCall Choice<Key<T>>.equals <derived> : Boolean
           Local left : Choice<Key<T0>>
@@ -90,7 +90,7 @@ Module
       Unary Not : Boolean
         MethodCall Choice<Key<T>>.equals <derived> : Boolean
           Local empty : Choice<Key<T0>>
-          ImportedGenericCall emptyChoice<Key<T0>> : Choice<Key<T0>>
+          Call emptyChoice<Key<T0>> : Choice<Key<T0>>
       return
         IntegerLiteral 3 : Int
     val local31
@@ -102,7 +102,7 @@ Module
     val local34
       Local $dependency.argument.1 : Key<T0>
     val local35
-      ImportedGenericCall pair<Key<T0>> : Choice<Key<T0>>
+      Call pair<Key<T0>> : Choice<Key<T0>>
         Local $dependency.parameter.first : Key<T0>
         Local $dependency.parameter.second : Key<T0>
     val local40
@@ -116,7 +116,7 @@ Module
     val local39
       Local $dependency.argument.1 : Key<T0>
     val local41
-      ImportedGenericCall pair<Key<T0>> : Choice<Key<T0>>
+      Call pair<Key<T0>> : Choice<Key<T0>>
         Local $dependency.parameter.first : Key<T0>
         Local $dependency.parameter.second : Key<T0>
     val local42
@@ -124,7 +124,7 @@ Module
     val local43
       Local $dependency.argument.1 : Choice<Key<T0>>
     val local44
-      ImportedGenericCall compareChoices<Key<T0>> : Boolean
+      Call compareChoices<Key<T0>> : Boolean
         Local $dependency.parameter.left : Choice<Key<T0>>
         Local $dependency.parameter.right : Choice<Key<T0>>
     if
@@ -146,7 +146,7 @@ Module
       Binary Or : Boolean
         MethodCall Choice<Key<T>>.equals <derived> : Boolean
           Local $equality.lhs : Choice<Key<T0>>
-          ImportedGenericCall pair<Key<T0>> : Choice<Key<T0>>
+          Call pair<Key<T0>> : Choice<Key<T0>>
             Local $dependency.parameter.first : Key<T0>
             Local $dependency.parameter.second : Key<T0>
         MethodCall Choice<Key<T>>.equals <derived> : Boolean

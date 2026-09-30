@@ -10,7 +10,7 @@ Module
     val local3
       Local $dependency.argument.0 : T0
     when
-      ImportedGenericCall pack<T0> : Choice<T0>
+      Call pack<T0> : Choice<T0>
         Local $dependency.parameter.value : T0
       arm variant0()
         assign $result.0

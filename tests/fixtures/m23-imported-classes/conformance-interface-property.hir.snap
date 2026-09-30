@@ -5,7 +5,7 @@ Module
   interface LocalValue : Valued
     fun inherited(): Long <default>
       return
-        ImportedDependencyCall #1 interface[0] : Long
+        Call external #1 interface[0] : Long
           ReferenceUpcast : Valued
             Local this : LocalValue
   fun localValue(): LocalValue
@@ -21,6 +21,6 @@ Module
     val local2
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #0 : Counter
+      Call external #0 : Counter
         Local $dependency.parameter.value : Long
   output library

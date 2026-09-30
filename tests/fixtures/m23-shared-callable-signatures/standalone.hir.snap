@@ -8,7 +8,7 @@ Module
     val local2
       Local $dependency.argument.0 : T0
     return
-      ImportedGenericCall delayed<T0> : T0
+      Call delayed<T0> : T0
         Local $dependency.parameter.value : T0
   fun nativeNumber(value: Int): Int <no-gc cdecl>
     val local1
@@ -16,7 +16,7 @@ Module
     val local2
       Local $dependency.argument.0 : Int
     return
-      ImportedGenericCall scalar<Int> : Int
+      Call scalar<Int> : Int
         Local $dependency.parameter.value : Int
   fun exercise<T>(seed: T0, read: (T0) -> Int): Int
     val local2
@@ -29,14 +29,14 @@ Module
     val local5
       Local $dependency.argument.0 : T0
     val local6
-      ImportedGenericCall identity<T0> : T0
+      Call identity<T0> : T0
         Local $dependency.parameter.value : T0
     val local7
       Local $dependency.argument.0 : T0
     val local8
       ImportedLambda<T0> captures=0 : (T0) -> T0
     val local9
-      ImportedGenericCall defaulted<T0> : T0
+      Call defaulted<T0> : T0
         Local $dependency.parameter.value : T0
         Local $dependency.parameter.select : (T0) -> T0
     val local10
@@ -46,7 +46,7 @@ Module
     return
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall unchecked<T0> : T0
+        Call unchecked<T0> : T0
           Local $dependency.parameter.value : T0
   fun result(): Int
     val local0
@@ -54,7 +54,7 @@ Module
     val local1
       Local $dependency.argument.0 : String
     val local4
-      ImportedGenericCall identity<String> : String
+      Call identity<String> : String
         Local $dependency.parameter.value : String
     val local2
       StringLiteral "signature" : String
@@ -69,7 +69,7 @@ Module
       Local $dependency.argument.0 : String
     if
       Unary Not : Boolean
-        ImportedDependencyCall #0 : Boolean
+        Call external #0 : Boolean
           Local $dependency.receiver : String
           Local $dependency.parameter.other : String
       return
@@ -78,7 +78,7 @@ Module
       UnitLiteral : Unit
     val local9
       Local $dependency.argument.0 : Unit
-    ImportedGenericCall scalar<Unit> : Unit
+    Call scalar<Unit> : Unit
       Local $dependency.parameter.value : Unit
     val local10
       IntegerLiteral 42 : Int

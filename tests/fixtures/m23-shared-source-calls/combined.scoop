@@ -1,0 +1,21 @@
+package consumer.sourcecalls
+import upstream.sourcecalls.*
+import upstream.sourcecalls.identity as first
+import upstream.sourcecalls.identity as second
+
+public fun <T> localDefault(value: T, copy: T = choose<T>(value)): T = copy
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    reset()
+    val ordered = take(third = step(3), first = step(1))
+    if (ordered != 6 || state() != 312) { return 1 }
+    val selected = relay<T>(localDefault<T>(second<T>(seed)))
+    fun local(value: T): T = first<T>(value.echo())
+    return read(local(selected))
+}
+
+public fun result(): Int {
+    if (exercise<String>("source", { value -> 42 }) != 42) { return 1 }
+    if (exercise<Unit>(Unit, { value -> 42 }) != 42) { return 2 }
+    return exercise<Int>(42, { value -> value })
+}

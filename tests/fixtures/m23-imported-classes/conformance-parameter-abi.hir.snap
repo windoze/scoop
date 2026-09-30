@@ -4,18 +4,18 @@ Module
     val local0
       StructInit LocalDefaults : LocalDefaults
     val local1
-      ImportedDependencyCall #0 : Token
+      Call external #0 : Token
     val local2
       IntegerLiteral 10 : Long
     val local3
       Local $dependency.default.local.2 : Long
     val local4
-      ImportedDependencyCall #1 : Counter
+      Call external #1 : Counter
         Local $dependency.default.local.3 : Long
     val local5
       Local $parameter.input : Counter
     val local6
-      ImportedDependencyCall #2 : Long
+      Call external #2 : Long
         Local $dependency.default.local.3 : Counter
     val local7
       IntegerLiteral 1 : Long
@@ -35,6 +35,6 @@ Module
     val local11
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #1 : Counter
+      Call external #1 : Counter
         Local $dependency.parameter.value : Long
   output library

@@ -39,6 +39,36 @@ impl ReferenceCollector<'_> {
         self.record_callable(target, origin);
     }
 
+    fn direct_call_target(
+        &mut self,
+        callee: hir::CallableTarget,
+        result_type: hir::TypeId,
+        origin: hir::DefinitionOrigin,
+    ) {
+        if let hir::CallableTarget::Dependency(callee) = callee {
+            let reference = self.lowerer.imported_dependency_callables[callee].reference();
+            let selected = self
+                .lowerer
+                .dependencies
+                .as_ref()
+                .and_then(|dependencies| dependencies.resolve_callable(reference))
+                .expect("a call retains its selected declaration");
+            if let scoop_identity::CallableTemplateOrigin::Constructor(declaration) =
+                selected.interface().declaration()
+            {
+                self.constructor_use(
+                    hir::ExportDefaultConstructorTarget::Imported {
+                        declaration,
+                        owner_type: result_type,
+                    },
+                    origin,
+                );
+                return;
+            }
+        }
+        self.callable_target(callee, origin);
+    }
+
     fn imported_callable_shape(
         &mut self,
         callee: hir::CallableTarget,
@@ -350,44 +380,9 @@ impl ReferenceCollector<'_> {
                 callee,
                 args,
                 receiver,
-            } => {
-                self.callable_use(*callee, origin);
-                self.expressions(args);
-                if let hir::SourceCallReceiver::Receiver { static_type } = receiver {
-                    self.type_reference(*static_type, origin);
-                }
-            }
-
-            hir::ExprKind::ImportedDependencyCall {
-                callee,
-                args,
-                receiver,
                 ..
             } => {
-                let reference = self.lowerer.imported_dependency_callables[*callee].reference();
-                let selected = self
-                    .lowerer
-                    .dependencies
-                    .as_ref()
-                    .expect("imported calls retain their dependency declarations")
-                    .resolve_callable(reference)
-                    .expect("an imported call retains its selected declaration");
-                if let scoop_identity::CallableTemplateOrigin::Constructor(declaration) =
-                    selected.interface().declaration()
-                {
-                    self.constructor_use(
-                        hir::ExportDefaultConstructorTarget::Imported {
-                            declaration,
-                            owner_type: expression.ty,
-                        },
-                        origin,
-                    );
-                } else {
-                    self.record_callable(
-                        hir::ExportDefaultCallableTarget::ImportedDependency(*callee),
-                        origin,
-                    );
-                }
+                self.direct_call_target(*callee, expression.ty, origin);
                 self.expressions(args);
                 if let hir::SourceCallReceiver::Receiver { static_type } = receiver {
                     self.type_reference(*static_type, origin);

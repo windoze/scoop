@@ -273,8 +273,8 @@ impl Lowerer {
             })
             .ok()?;
         Some(hir::Expr {
-            kind: hir::ExprKind::ImportedDependencyCall {
-                callee,
+            kind: hir::ExprKind::Call {
+                callee: hir::CallableTarget::Dependency(callee),
                 binding: None,
                 args,
                 receiver: hir::SourceCallReceiver::Receiver { static_type },

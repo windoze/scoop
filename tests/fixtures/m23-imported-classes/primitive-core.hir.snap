@@ -8,11 +8,11 @@ Module
     val local2
       Local value : RebuiltReadable
     val local3
-      ImportedDependencyCall #0 interface[0] : Long
+      Call external #0 interface[0] : Long
         Local $dependency.receiver : RebuiltReadable
     val local4
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #1 : Counter
+      Call external #1 : Counter
         Local $dependency.parameter.value : Long
   output library

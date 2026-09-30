@@ -18,7 +18,7 @@ Module
         Local first : Factory
         Local second : Factory
       assign $result.0
-        ImportedDependencyCall #2 : Counter
+        Call external #2 : Counter
           Local first : Factory
     else
       val local4
@@ -26,7 +26,7 @@ Module
       val local5
         Local $dependency.argument.0 : Long
       assign $result.0
-        ImportedDependencyCall #3 : Counter
+        Call external #3 : Counter
           Local $dependency.parameter.value : Long
     return
       Local $result.0 : Counter

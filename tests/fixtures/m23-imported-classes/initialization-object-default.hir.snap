@@ -3,7 +3,7 @@ Module
     val local0
       ImportedSingletonValue 9535237219aa547bc75b4666fc281f9696da641e4b0d8efc8257387b274c5dff : SharedHolder
     return
-      ImportedDependencyCall #1 : Counter
-        ImportedDependencyCall #0 : SharedHolder
+      Call external #1 : Counter
+        Call external #0 : SharedHolder
           Local $dependency.parameter.value : SharedHolder
   output library

@@ -13,12 +13,12 @@ Module
     val local3
       Local $dependency.argument.0 : Number
     val local4
-      ImportedGenericCall pack<Number> : Parcel<Number>
+      Call pack<Number> : Parcel<Number>
         Local $dependency.parameter.value : Number
     val local5
       Local $dependency.argument.0 : Parcel<Number>
     val local6
-      ImportedGenericCall relay<Number> : Parcel<Number>
+      Call relay<Number> : Parcel<Number>
         Local $dependency.parameter.value : Parcel<Number>
     val local7
       IntegerLiteral 1 : Int
@@ -30,7 +30,7 @@ Module
     val local10
       Local $dependency.argument.0 : Number
     val local11
-      ImportedGenericCall pack<Number> : Parcel<Number>
+      Call pack<Number> : Parcel<Number>
         Local $dependency.parameter.value : Number
     val local14
       Local first : Parcel<Number>
@@ -47,7 +47,7 @@ Module
       Local $dependency.argument.1 : Number
     val local24
       FieldAccess class field value : Int
-        ImportedGenericCall unpack<Number> : Number
+        Call unpack<Number> : Number
           Local $dependency.parameter.value : Parcel<Number>
           Local $dependency.parameter.fallback : Number
     val local20
@@ -65,7 +65,7 @@ Module
       Local $dependency.argument.1 : Number
     val local25
       FieldAccess class field value : Int
-        ImportedGenericCall unpack<Number> : Number
+        Call unpack<Number> : Number
           Local $dependency.parameter.value : Parcel<Number>
           Local $dependency.parameter.fallback : Number
     val local26

@@ -16,7 +16,7 @@ Module
     val local4
       Local view : MutableValue
     val local5
-      ImportedDependencyCall #0 interface[0] : Long
+      Call external #0 interface[0] : Long
         Local $place.0 : MutableValue
     val local6
       Local $old.1 : Long
@@ -24,7 +24,7 @@ Module
       IntegerLiteral 1 : Long
     val local8
       Local $dependency.argument.0 : Long
-    ImportedDependencyCall #1 interface[1] : Unit
+    Call external #1 interface[1] : Unit
       Local $place.0 : MutableValue
       IntegerOperation long.add <no-gc> : Long
         Local $dependency.receiver : Long
@@ -35,6 +35,6 @@ Module
     val local10
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #2 : Counter
+      Call external #2 : Counter
         Local $dependency.parameter.value : Long
   output library

@@ -8,14 +8,14 @@ Module
       ImportedConstructorInit Receiver : Receiver<T0>
         Local $dependency.parameter.value : T0
     val local4
-      ImportedGenericCall initializerPlain<T0> : Int
+      Call initializerPlain<T0> : Int
         Local receiver : Receiver<T0>
     val local5
       IntegerLiteral 0 : Int
     val local6
       Local $dependency.argument.0 : Int
     val local7
-      ImportedDependencyCall #0 : Payload
+      Call external #0 : Payload
         Local $dependency.parameter.value : Int
     val local8
       Local answer : Int
@@ -32,7 +32,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local11
-        ImportedDependencyCall #1 : Int
+        Call external #1 : Int
           Local allocated : Payload
       val local12
         IntegerLiteral 0 : Int
@@ -52,7 +52,7 @@ Module
     val local16
       Local $dependency.argument.0 : T0
     return
-      ImportedGenericCall initializerPlain<T0> : Int
+      Call initializerPlain<T0> : Int
         ImportedConstructorInit Receiver : Receiver<T0>
           Local $dependency.parameter.value : T0
   fun result(): Int

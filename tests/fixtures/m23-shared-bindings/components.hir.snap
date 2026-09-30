@@ -5,7 +5,7 @@ Module
     property0 val first: T0 getter0=storage <stored field0 init=parameter0>
     property1 val second: Int getter1=storage <stored field1 init=parameter1>
   fun exercise<T>(seed: T0, read: (T0) -> Int): Int
-    ImportedDependencyCall #0 : Unit
+    Call external #0 : Unit
     val local2
       Local seed : T0
     val local3
@@ -31,7 +31,7 @@ Module
       ImportedGenericCall component2<T0> : Int
         Local $dependency.receiver : Pieces<T0>
     val local12
-      ImportedDependencyCall #1 : Int
+      Call external #1 : Int
     val local13
       IntegerLiteral 12 : Int
     val local14
@@ -106,7 +106,7 @@ Module
     val local36
       Local $binding.subject.6 : ExtensionPieces<T0>
     val local37
-      ImportedGenericCall component1<T0> : T0
+      Call component1<T0> : T0
         Local $dependency.receiver : ExtensionPieces<T0>
     val local38
       Local $binding.component.7 : T0
@@ -115,7 +115,7 @@ Module
         Local read : (T0) -> Int
         Local extended : T0
   fun result(): Int
-    ImportedDependencyCall #0 : Unit
+    Call external #0 : Unit
     val local0
       IntegerLiteral 42 : Int
     val local1
@@ -161,7 +161,7 @@ Module
       ImportedGenericCall component2<Pieces<Int>> : Int
         Local $dependency.receiver : Pieces<Pieces<Int>>
     val local18
-      ImportedDependencyCall #1 : Int
+      Call external #1 : Int
     val local19
       IntegerLiteral 1122 : Int
     val local20

@@ -12,25 +12,25 @@ Module
         Local $dependency.argument.0 : Long
       val local3
         ReferenceUpcast : Throwable
-          ImportedDependencyCall #0 : RebuiltFailure
+          Call external #0 : RebuiltFailure
             Local $dependency.parameter.code : Long
       val local4
         Local $dependency.argument.0 : Throwable
-      ImportedDependencyCall #1 : Unit
+      Call external #1 : Unit
         Local $dependency.parameter.value : Throwable
       val local5
         IntegerLiteral 0 : Long
       val local6
         Local $dependency.argument.0 : Long
       val local9
-        ImportedDependencyCall #0 : RebuiltFailure
+        Call external #0 : RebuiltFailure
           Local $dependency.parameter.code : Long
       val local7
         IntegerLiteral 0 : Long
       val local8
         Local $dependency.argument.0 : Long
       val local10
-        ImportedDependencyCall #4 : StructReader
+        Call external #4 : StructReader
           Local $dependency.parameter.value : Long
       val local11
         Local $argument.0 : RebuiltFailure
@@ -49,7 +49,7 @@ Module
       val local14
         Local $dependency.argument.0 : Long
       val local16
-        ImportedDependencyCall #4 : StructReader
+        Call external #4 : StructReader
           Local $dependency.parameter.value : Long
       val local17
         Local $argument.0 : RebuiltFailure
@@ -71,18 +71,18 @@ Module
     val local2
       IntegerLiteral 1 : Long
     val local3
-      ImportedDependencyCall #5 interface[1] : Long
+      Call external #5 interface[1] : Long
         Local $dependency.receiver : Readable
         Local $dependency.parameter.extra : Long
     val local4
       Local $dependency.argument.0 : Long
     val local5
-      ImportedDependencyCall #6 : Counter
+      Call external #6 : Counter
         Local $dependency.parameter.value : Long
     val local6
       Local allocated : Counter
     val local7
-      ImportedDependencyCall #7 : Long
+      Call external #7 : Long
         Local $dependency.receiver : Counter
     val local8
       IntegerLiteral 42 : Long
@@ -93,13 +93,13 @@ Module
         Local $dependency.receiver : Long
         Local $dependency.parameter.other : Long
       val local10
-        ImportedDependencyCall #8 : Long
+        Call external #8 : Long
           FieldAccess class field error : RebuiltFailure
             Local value : Saved
       val local11
         Local $dependency.argument.0 : Long
       assign $result.1
-        ImportedDependencyCall #6 : Counter
+        Call external #6 : Counter
           Local $dependency.parameter.value : Long
     else
       val local12
@@ -107,7 +107,7 @@ Module
       val local13
         Local $dependency.argument.0 : Long
       assign $result.1
-        ImportedDependencyCall #6 : Counter
+        Call external #6 : Counter
           Local $dependency.parameter.value : Long
     return
       Local $result.1 : Counter

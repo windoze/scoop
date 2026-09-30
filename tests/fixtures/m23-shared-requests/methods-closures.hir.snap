@@ -111,7 +111,7 @@ Module
     val local38
       Local $dependency.argument.0 : T0
     val local39
-      ImportedGenericCall factory<T0> : () -> T0
+      Call factory<T0> : () -> T0
         Local $dependency.parameter.value : T0
     val local40
       CallableCall function_type6 : T0
@@ -125,7 +125,7 @@ Module
     return
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall defaulted<T0> : T0
+        Call defaulted<T0> : T0
           Local $dependency.parameter.value : T0
           Local $dependency.parameter.select : (T0) -> T0
   fun result(): Int

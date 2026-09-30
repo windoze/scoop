@@ -5,7 +5,7 @@ Module
     val local2
       Local $dependency.argument.0 : Int
     val local3
-      ImportedGenericCall initialized<Int> : Int
+      Call initialized<Int> : Int
         Local $dependency.parameter.value : Int
     val local4
       IntegerLiteral 42 : Int
@@ -23,7 +23,7 @@ Module
     val local7
       Local $dependency.argument.0 : T0
     return
-      ImportedGenericCall initialized<T0> : Int
+      Call initialized<T0> : Int
         Local $dependency.parameter.value : T0
   fun result(): Int
     val local0

@@ -9,7 +9,7 @@ Module
     val local2
       Local $dependency.argument.0 : Int
     val local3
-      ImportedDependencyCall #0 : Point
+      Call external #0 : Point
         Local $dependency.parameter.number : Int
     val local4
       IntegerLiteral 2 : Int
@@ -33,7 +33,7 @@ Module
     val local11
       Local $dependency.argument.0 : Int
     val local12
-      ImportedDependencyCall #1 : Nested
+      Call external #1 : Nested
         Local $dependency.parameter.number : Int
     return
       FieldAccess field 0 : Int

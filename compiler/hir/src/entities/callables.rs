@@ -136,6 +136,12 @@ pub enum CallableTarget {
     Dependency(ImportedDependencyCallableUseId),
 }
 
+impl From<Callable> for CallableTarget {
+    fn from(callable: Callable) -> Self {
+        Self::Local(callable)
+    }
+}
+
 pub(crate) fn callable_function(module: &Module, callable: Callable) -> FunctionId {
     match callable {
         Callable::Function(function) => function,

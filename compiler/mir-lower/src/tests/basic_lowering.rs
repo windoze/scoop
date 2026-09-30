@@ -177,8 +177,9 @@ fn repeated_literals_get_separate_constants_deterministically() {
     body.statements.push(hir::Statement {
         kind: hir::StatementKind::Expr(hir::Expr {
             kind: hir::ExprKind::Call {
+                binding: None,
                 receiver: scoop_hir::SourceCallReceiver::NoReceiver,
-                callee: hir::Callable::Function(println),
+                callee: (hir::Callable::Function(println)).into(),
                 args: vec![hir::Expr {
                     kind: hir::ExprKind::StringLiteral {
                         value: "hello, world".to_string(),

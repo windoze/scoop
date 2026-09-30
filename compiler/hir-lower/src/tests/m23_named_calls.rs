@@ -203,7 +203,10 @@ fn local_origin<'a>(body: &'a hir::Body, mut expression: &'a hir::Expr) -> &'a h
 
 fn assert_marker(module: &hir::Module, expression: &hir::Expr, marker: u32) {
     let callable = match &expression.kind {
-        hir::ExprKind::Call { callee, .. } => *callee,
+        hir::ExprKind::Call {
+            callee: hir::CallableTarget::Local(callee),
+            ..
+        } => *callee,
         hir::ExprKind::MethodCall {
             callee: hir::MethodCallee::Callable(callee),
             ..

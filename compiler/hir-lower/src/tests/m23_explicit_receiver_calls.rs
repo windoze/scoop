@@ -190,7 +190,10 @@ fn chosen(output: &hir::Output) -> &hir::Expr {
 
 fn assert_marker(module: &hir::Module, expression: &hir::Expr, expected: i64) {
     let callable = match &expression.kind {
-        hir::ExprKind::Call { callee, .. } => *callee,
+        hir::ExprKind::Call {
+            callee: hir::CallableTarget::Local(callee),
+            ..
+        } => *callee,
         hir::ExprKind::MethodCall {
             callee: hir::MethodCallee::Callable(callee),
             ..

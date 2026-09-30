@@ -403,7 +403,10 @@ fn integer_method(module: &hir::Module, kind: hir::IntegerKind, name: &str) -> h
 
 fn callee_function(module: &hir::Module, expression: &hir::Expr) -> hir::FunctionId {
     match &expression.kind {
-        hir::ExprKind::Call { callee, .. } => module.callable_function(*callee),
+        hir::ExprKind::Call {
+            callee: hir::CallableTarget::Local(callee),
+            ..
+        } => module.callable_function(*callee),
         hir::ExprKind::MethodCall { callee, .. } => module.callable_function(*callee),
         other => panic!("expected a resolved call, found {other:?}"),
     }

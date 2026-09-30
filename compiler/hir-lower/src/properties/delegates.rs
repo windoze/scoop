@@ -185,24 +185,13 @@ impl Lowerer {
                 callee,
                 args,
             },
-            LocalDelegateDispatch::Extension(callee) => {
-                let source_receiver = hir::SourceCallReceiver::Receiver {
-                    static_type: receiver.ty,
-                };
-                args.insert(0, receiver);
-                hir::ExprKind::Call {
-                    callee,
-                    args,
-                    receiver: source_receiver,
-                }
-            }
-            LocalDelegateDispatch::ImportedDependency {
+            LocalDelegateDispatch::Call {
                 callee,
                 binding,
                 receiver: source_receiver,
             } => {
                 args.insert(0, receiver);
-                hir::ExprKind::ImportedDependencyCall {
+                hir::ExprKind::Call {
                     callee,
                     binding,
                     args,
@@ -338,12 +327,6 @@ fn local_delegate_accessor(resolved: ResolvedDelegateRoleCall) -> LocalDelegateA
             args,
         } => (LocalDelegateDispatch::Member(callee), receiver.ty, args),
         hir::ExprKind::Call {
-            callee, mut args, ..
-        } => {
-            let receiver = args.remove(0);
-            (LocalDelegateDispatch::Extension(callee), receiver.ty, args)
-        }
-        hir::ExprKind::ImportedDependencyCall {
             callee,
             binding,
             receiver,
@@ -351,7 +334,7 @@ fn local_delegate_accessor(resolved: ResolvedDelegateRoleCall) -> LocalDelegateA
         } => {
             let value = args.remove(0);
             (
-                LocalDelegateDispatch::ImportedDependency {
+                LocalDelegateDispatch::Call {
                     callee,
                     binding,
                     receiver,

@@ -6,7 +6,7 @@ Module
       Local $dependency.argument.0 : Long
     val local2
       ReferenceUpcast : Any
-        ImportedDependencyCall #0 : Counter
+        Call external #0 : Counter
           Local $dependency.parameter.value : Long
     return
       Cast Counter optional=false : Counter

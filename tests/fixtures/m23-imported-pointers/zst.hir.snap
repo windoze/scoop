@@ -51,7 +51,7 @@ Module
     val local17
       Local $dependency.argument.0 : Unit
     val local20
-      ImportedGenericCall copy<Unit> : Unit
+      Call copy<Unit> : Unit
         Local $dependency.parameter.value : Unit
     val local21
       Local $dependency.argument.0 : Long

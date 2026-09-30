@@ -22,7 +22,7 @@ Module
     val local4
       IntegerLiteral 42 : Int
     val local5
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
         Local $dependency.parameter.action : (Int) -> Int
         Local $dependency.parameter.value : Int
     val local6
@@ -80,7 +80,7 @@ Module
     val local7
       IntegerLiteral 42 : Int
     val local8
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
         Local $dependency.parameter.action : (Int) -> Int
         Local $dependency.parameter.value : Int
     val local9
@@ -119,7 +119,7 @@ Module
     val local17
       Local $dependency.argument.0 : (Int) -> Any
     val local18
-      ImportedDependencyCall #1 : Int
+      Call external #1 : Int
         Local $dependency.parameter.action : (Int) -> Any
     val local19
       IntegerLiteral 42 : Int
@@ -160,7 +160,7 @@ Module
       val local28
         Local $dependency.argument.0 : (Int) -> Any
       val local29
-        ImportedDependencyCall #1 : Int
+        Call external #1 : Int
           Local $dependency.parameter.action : (Int) -> Any
       val local30
         IntegerLiteral 42 : Int
@@ -176,7 +176,7 @@ Module
       return
         IntegerLiteral 6 : Int
     val local33
-      ImportedDependencyCall #2 : FixedHost
+      Call external #2 : FixedHost
     val local34
       Local host : FixedHost
     val local35
@@ -187,7 +187,7 @@ Module
     val local37
       IntegerLiteral 42 : Int
     return
-      ImportedDependencyCall #3 : Int
+      Call external #3 : Int
         Local $dependency.receiver : FixedHost
         Local $dependency.parameter.action : (Int) -> Int
         Local $dependency.parameter.value : Int

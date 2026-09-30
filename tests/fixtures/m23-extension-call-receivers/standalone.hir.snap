@@ -3,15 +3,15 @@ Module
   val localValue: Int <global0 managed>
   fun outside(): Int
     val local0
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
     val local1
       StringLiteral "standalone" : String
     return
-      ImportedDependencyCall #1 : Int
+      Call external #1 : Int
         Local $dependency.receiver : String
   fun $init$body$0(): Unit
     assign global localValue
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
   fun $init$ensure$0(): Unit
   fun $get$localValue(): Int
     ensure init0 top-level:localValue

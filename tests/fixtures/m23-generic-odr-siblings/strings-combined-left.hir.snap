@@ -21,7 +21,7 @@ Module
         Local $dependency.receiver : Named<Int>
   fun leftExtension(): String
     return
-      ImportedGenericCall constantText<Int> : String
+      Call constantText<Int> : String
         IntegerLiteral 20 : Int
   fun leftNested(): String
     val local0
@@ -29,7 +29,7 @@ Module
     val local1
       Local $dependency.argument.0 : Int
     return
-      ImportedGenericCall nestedConstant<Int> : String
+      Call nestedConstant<Int> : String
         Local $dependency.parameter.value : Int
   fun forwarded<T>(value: T0): String
     val local1

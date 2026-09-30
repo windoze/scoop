@@ -8,5 +8,5 @@ Module
       Local value : (Int, Boolean)
   fun namedResult(): Int
     return
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
   output library

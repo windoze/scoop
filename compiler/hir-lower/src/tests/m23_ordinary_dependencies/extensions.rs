@@ -40,7 +40,7 @@ fn dependency_extension_functions_support_explicit_and_implicit_receivers() {
         let output = output.expect("core-closed dependency extensions must lower");
         assert_eq!(output.imported_dependencies().callable_count(), 1);
         let dump = scoop_hir::dump(&output.output().export);
-        assert_eq!(dump.matches("ImportedDependencyCall").count(), 2, "{dump}");
+        assert_eq!(dump.matches("Call external").count(), 2, "{dump}");
     });
 }
 
@@ -101,7 +101,7 @@ fn dependency_extension_operator_is_visible_from_every_scope_layer() {
             let output = output.expect("dependency operators are selected by typed role");
             assert_eq!(output.imported_dependencies().callable_count(), 1);
             let dump = scoop_hir::dump(&output.output().export);
-            assert_eq!(dump.matches("ImportedDependencyCall").count(), 1, "{dump}");
+            assert_eq!(dump.matches("Call external").count(), 1, "{dump}");
             assert!(dump.contains("IntegerOperation int.add <no-gc>"), "{dump}");
         });
     }
@@ -151,7 +151,7 @@ fn dependency_extension_get_and_set_use_typed_operator_roles() {
         let output = output.expect("dependency get/set operators lower through their typed roles");
         assert_eq!(output.imported_dependencies().callable_count(), 2);
         let dump = scoop_hir::dump(&output.output().export);
-        assert_eq!(dump.matches("ImportedDependencyCall").count(), 2, "{dump}");
+        assert_eq!(dump.matches("Call external").count(), 2, "{dump}");
     });
 }
 
@@ -188,7 +188,7 @@ fn dependency_extension_invoke_applies_to_a_current_property_value() {
         let output = output.expect("dependency extension invoke applies after the property read");
         assert_eq!(output.imported_dependencies().callable_count(), 1);
         let dump = scoop_hir::dump(&output.output().export);
-        assert_eq!(dump.matches("ImportedDependencyCall").count(), 1, "{dump}");
+        assert_eq!(dump.matches("Call external").count(), 1, "{dump}");
     });
 }
 
@@ -232,7 +232,7 @@ fn inapplicable_exact_dependency_extension_falls_through_to_current_package() {
         let output = output.expect("an inapplicable exact extension must not shadow current code");
         assert!(output.imported_dependencies().is_empty());
         let dump = scoop_hir::dump(&output.output().export);
-        assert!(!dump.contains("ImportedDependencyCall"), "{dump}");
+        assert!(!dump.contains("Call external"), "{dump}");
     });
 }
 

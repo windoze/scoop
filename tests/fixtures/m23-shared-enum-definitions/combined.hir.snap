@@ -91,7 +91,7 @@ Module
     val local18
       Local $dependency.argument.0 : T0
     val local19
-      ImportedGenericCall singleton<T0> : Chain<T0>
+      Call singleton<T0> : Chain<T0>
         Local $dependency.parameter.value : T0
     val local20
       Local $dependency.argument.0 : Chain<T0>

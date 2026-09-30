@@ -39,7 +39,7 @@ Module
     val local17
       Local $dependency.argument.1 : Int
     val local18
-      ImportedGenericCall restore<Int> : Int
+      Call restore<Int> : Int
         Local $dependency.parameter.value : Option<Int>
         Local $dependency.parameter.fallback : Int
     val local19

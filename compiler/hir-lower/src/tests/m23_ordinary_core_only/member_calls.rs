@@ -31,7 +31,7 @@ fn imported_core_members_normalize_through_shared_source_candidates() {
             dump.contains("IntegerConversion Long -> Int <no-gc> : Int"),
             "{dump}"
         );
-        assert!(!dump.contains("ImportedDependencyCall"));
+        assert!(!dump.contains("Call external"));
     });
 }
 

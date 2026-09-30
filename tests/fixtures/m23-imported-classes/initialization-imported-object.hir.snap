@@ -8,7 +8,7 @@ Module
   fun $init$ensure$0(): Unit
   fun primary(): Counter
     val local0
-      ImportedDependencyCall #0 : Counter
+      Call external #0 : Counter
         FieldAccess class field holder : SharedHolder
           SingletonValue Saved : Saved
     val local1
@@ -16,10 +16,10 @@ Module
     val local2
       Local $dependency.argument.0 : Long
     val local3
-      ImportedDependencyCall #1 : Counter
+      Call external #1 : Counter
         Local $dependency.parameter.value : Long
     val local4
-      ImportedDependencyCall #0 : Counter
+      Call external #0 : Counter
         ImportedSingletonValue 9535237219aa547bc75b4666fc281f9696da641e4b0d8efc8257387b274c5dff : SharedHolder
     if
       Binary RefEq : Boolean
@@ -28,7 +28,7 @@ Module
       val local5
         Local allocated : Counter
       val local6
-        ImportedDependencyCall #2 : Long
+        Call external #2 : Long
           Local $dependency.receiver : Counter
       val local7
         IntegerLiteral 14 : Long
@@ -51,7 +51,7 @@ Module
       val local11
         Local $dependency.argument.0 : Long
       assign $result.1
-        ImportedDependencyCall #1 : Counter
+        Call external #1 : Counter
           Local $dependency.parameter.value : Long
     return
       Local $result.1 : Counter

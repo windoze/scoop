@@ -10,7 +10,7 @@ Module
     val local3
       Local $dependency.argument.0 : T0
     val local4
-      ImportedGenericCall make<T0> : Cell<T0>
+      Call make<T0> : Cell<T0>
         Local $dependency.parameter.value : T0
     val local5
       Local seed : T0
@@ -65,7 +65,7 @@ Module
     val local24
       Local $dependency.argument.0 : Cell<T0>
     if
-      ImportedGenericCall hasNext<T0> : Boolean
+      Call hasNext<T0> : Boolean
         Local $dependency.parameter.value : Cell<T0>
       val local28
         BoolLiteral true : Boolean
@@ -76,7 +76,7 @@ Module
       val local26
         Local $dependency.argument.0 : Cell<T0>
       val local27
-        ImportedGenericCall hasNext<T0> : Boolean
+        Call hasNext<T0> : Boolean
           Local $dependency.parameter.value : Cell<T0>
       val local28
         PrimitiveUnary BooleanNot : Boolean
@@ -158,7 +158,7 @@ Module
     val local48
       Local $dependency.argument.0 : Cell<T0>
     if
-      ImportedGenericCall hasNext<T0> : Boolean
+      Call hasNext<T0> : Boolean
         Local $dependency.parameter.value : Cell<T0>
       return
         IntegerLiteral 3 : Int
@@ -173,7 +173,7 @@ Module
     val local1
       Local $dependency.argument.0 : Int
     val local2
-      ImportedGenericCall make<Int> : Cell<Int>
+      Call make<Int> : Cell<Int>
         Local $dependency.parameter.value : Int
     val local3
       IntegerLiteral 42 : Int
@@ -183,7 +183,7 @@ Module
       Local $dependency.argument.1 : Int
     val local6
       FieldAccess field 0 : Int
-        ImportedGenericCall replace<Int> : Cell<Int>
+        Call replace<Int> : Cell<Int>
           Local $dependency.parameter.base : Cell<Int>
           Local $dependency.parameter.value : Int
     val local7

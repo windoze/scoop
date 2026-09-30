@@ -200,7 +200,8 @@ impl Lowerer {
                 state.check_call_effects(callee, call.span);
                 hir::Expr {
                     kind: hir::ExprKind::Call {
-                        callee,
+                        binding: None,
+                        callee: callee.into(),
                         receiver: resolved.source_receiver,
                         args: resolved.args,
                     },

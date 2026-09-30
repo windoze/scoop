@@ -33,7 +33,7 @@ Module
       ImportedConstructorInit Scalar : Scalar<Scalar<T0>>
         Local $default.local.2 : Scalar<T0>
     val local9
-      ImportedGenericCall pack<Scalar<T0>> : Scalar<Scalar<T0>>
+      Call pack<Scalar<T0>> : Scalar<Scalar<T0>>
         Local $dependency.parameter.value : Scalar<T0>
         Local $dependency.parameter.scalar : Scalar<Scalar<T0>>
     val local10
@@ -75,7 +75,7 @@ Module
     val local23
       Local $dependency.argument.0 : Phantom<Managed>
     val local24
-      ImportedGenericCall hidden<Phantom<Managed>> : Int
+      Call hidden<Phantom<Managed>> : Int
         Local $dependency.parameter.value : Phantom<Managed>
     val local25
       IntegerLiteral 42 : Int

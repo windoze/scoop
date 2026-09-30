@@ -15,7 +15,7 @@ Module
     val local5
       Local $dependency.argument.0 : Int
     val local6
-      ImportedDependencyCall #0 : Point
+      Call external #0 : Point
         Local $dependency.parameter.number : Int
     val local7
       FieldAccess field 0 : Int

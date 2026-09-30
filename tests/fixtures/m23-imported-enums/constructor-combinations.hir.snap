@@ -16,7 +16,7 @@ Module
     val local2
       Local $dependency.argument.0 : Choice
     return
-      ImportedDependencyCall #1 : Long
+      Call external #1 : Long
         Local $dependency.parameter.value : Choice
   fun defaultFlag(value: Flag): Long <no-gc cdecl>
     when
@@ -43,7 +43,7 @@ Module
     val local0
       IntegerLiteral 17 : Long
     val local1
-      ImportedDependencyCall #0 : Token
+      Call external #0 : Token
     val local2
       IntegerLiteral -29 : Long
     val local3
@@ -59,8 +59,8 @@ Module
         Local $dependency.parameter.right : Long
     val local7
       TupleLiteral : (Token, Token)
-        ImportedDependencyCall #0 : Token
-        ImportedDependencyCall #0 : Token
+        Call external #0 : Token
+        Call external #0 : Token
     val local8
       Local $argument.0 : Choice
     val local9
@@ -85,7 +85,7 @@ Module
     val local14
       Local $dependency.argument.0 : Long
     val local15
-      ImportedDependencyCall #0 : Token
+      Call external #0 : Token
     val local16
       Local $dependency.parameter.left : Long
     val local17
@@ -123,7 +123,7 @@ Module
         val local30
           Local $dependency.argument.0 : Choice
         val local47
-          ImportedDependencyCall #1 : Long
+          Call external #1 : Long
             Local $dependency.parameter.value : Choice
         when
           Local draft : Draft

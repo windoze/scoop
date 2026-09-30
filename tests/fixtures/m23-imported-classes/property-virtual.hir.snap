@@ -6,17 +6,17 @@ Module
       Local $dependency.argument.0 : Long
     val local2
       ReferenceUpcast : MutableBase
-        ImportedDependencyCall #6 : ComputedValue
+        Call external #6 : ComputedValue
           Local $dependency.parameter.initial : Long
     val local3
       Local cell : MutableBase
-    ImportedDependencyCall #3 virtual[1] : Unit
+    Call external #3 virtual[1] : Unit
       Local $place.0 : MutableBase
       IntegerLiteral 10 : Long
     val local4
       Local cell : MutableBase
     val local5
-      ImportedDependencyCall #1 virtual[0] : Long
+      Call external #1 virtual[0] : Long
         Local $place.1 : MutableBase
     val local6
       Local $old.2 : Long
@@ -24,13 +24,13 @@ Module
       IntegerLiteral 1 : Long
     val local8
       Local $dependency.argument.0 : Long
-    ImportedDependencyCall #3 virtual[1] : Unit
+    Call external #3 virtual[1] : Unit
       Local $place.1 : MutableBase
       IntegerOperation long.add <no-gc> : Long
         Local $dependency.receiver : Long
         Local $dependency.parameter.other : Long
     val local9
-      ImportedDependencyCall #1 virtual[0] : Long
+      Call external #1 virtual[0] : Long
         Local cell : MutableBase
     val local10
       IntegerLiteral 45 : Long
@@ -50,6 +50,6 @@ Module
     val local14
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #7 : Counter
+      Call external #7 : Counter
         Local $dependency.parameter.value : Long
   output library

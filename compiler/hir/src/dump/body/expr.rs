@@ -419,15 +419,8 @@ pub(super) fn dump_expr(
             struct_field_index(module, *owner, *field),
         )),
         ExprKind::Call { callee, args, .. } => {
-            let (function, type_args) = callable_dump_parts(module, *callee);
-            let callee = &module.functions[function];
-            let type_args = if type_args.is_empty() {
-                String::new()
-            } else {
-                let args: Vec<String> = type_args.iter().map(|t| type_name(module, *t)).collect();
-                format!("<{}>", args.join(", "))
-            };
-            out.push_str(&format!("{pad}Call {}{type_args} : {ty}\n", callee.name));
+            let callee = callable_target_name(module, *callee);
+            out.push_str(&format!("{pad}Call {callee} : {ty}\n"));
             for arg in args {
                 dump_expr(module, locals, arg, indent + 1, out);
             }
@@ -674,41 +667,10 @@ pub(super) fn dump_expr(
         ExprKind::ImportedGenericCall {
             application, args, ..
         } => {
-            let application = &module.imported_generic_applications[*application];
-            let template = &module.imported_generic_templates[application.template];
-            let arguments = application
-                .arguments
-                .substitution(
-                    &module.types,
-                    &module.enum_applications,
-                    &module.struct_applications,
-                    &module.class_applications,
-                    &module.interface_applications,
-                )
-                .iter()
-                .map(|ty| type_name(module, *ty))
-                .collect::<Vec<_>>()
-                .join(", ");
-            out.push_str(&format!(
-                "{pad}ImportedGenericCall {}<{arguments}> : {ty}\n",
-                template.name
-            ));
+            let callee = callable_application_name(module, *application);
+            out.push_str(&format!("{pad}ImportedGenericCall {callee} : {ty}\n"));
             for argument in args {
                 dump_expr(module, locals, argument, indent + 1, out);
-            }
-        }
-        ExprKind::ImportedDependencyCall { callee, args, .. } => {
-            let dispatch = match module.imported_dependency_callables[*callee].dispatch() {
-                ImportedDependencyDispatch::Direct => String::new(),
-                ImportedDependencyDispatch::Virtual { slot } => format!(" virtual[{slot}]"),
-                ImportedDependencyDispatch::Interface { slot, .. } => format!(" interface[{slot}]"),
-            };
-            out.push_str(&format!(
-                "{pad}ImportedDependencyCall #{}{dispatch} : {ty}\n",
-                callee.into_raw().into_u32()
-            ));
-            for arg in args {
-                dump_expr(module, locals, arg, indent + 1, out);
             }
         }
         ExprKind::SomeWrap(operand) => {

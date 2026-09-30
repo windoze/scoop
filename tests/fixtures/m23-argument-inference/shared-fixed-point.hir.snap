@@ -64,7 +64,7 @@ Module
         Local $parameter.values : Array<T0>
         Local $parameter.seed : T0
     val local7
-      ImportedGenericCall empty<T0> : Array<T0>
+      Call empty<T0> : Array<T0>
     val local8
       Local seed : T0
     val local9
@@ -72,7 +72,7 @@ Module
     val local10
       Local $dependency.argument.1 : T0
     val local11
-      ImportedGenericCall arrayOrSeed<T0> : T0
+      Call arrayOrSeed<T0> : T0
         Local $dependency.parameter.values : Array<T0>
         Local $dependency.parameter.seed : T0
     val local12
@@ -96,7 +96,7 @@ Module
     val local20
       Local $dependency.argument.1 : T0
     val local21
-      ImportedGenericCall viaReference<T0> : T0
+      Call viaReference<T0> : T0
         Local $dependency.parameter.action : (T0) -> T0
         Local $dependency.parameter.seed : T0
     val local22
@@ -279,7 +279,7 @@ Module
     val local74
       Local $dependency.argument.1 : T0
     val local76
-      ImportedGenericCall viaReference<T0> : T0
+      Call viaReference<T0> : T0
         Local $dependency.parameter.action : (T0) -> T0
         Local $dependency.parameter.seed : T0
     val local77
@@ -374,7 +374,7 @@ Module
     val local33
       Local $dependency.argument.1 : (Int) -> Int
     val local34
-      ImportedGenericCall arrayOrSeed<(Int) -> Int> : (Int) -> Int
+      Call arrayOrSeed<(Int) -> Int> : (Int) -> Int
         Local $dependency.parameter.values : Array<(Int) -> Int>
         Local $dependency.parameter.seed : (Int) -> Int
     when

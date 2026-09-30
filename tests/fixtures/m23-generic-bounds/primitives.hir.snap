@@ -5,7 +5,7 @@ Module
     val local2
       Local $dependency.argument.0 : Int8
     val local3
-      ImportedGenericCall stringBound<Int8> : String
+      Call stringBound<Int8> : String
         Local $dependency.parameter.value : Int8
     val local4
       StringLiteral "-128" : String
@@ -13,7 +13,7 @@ Module
       Local $dependency.argument.0 : String
     if
       Unary Not : Boolean
-        ImportedDependencyCall #0 : Boolean
+        Call external #0 : Boolean
           Local $dependency.receiver : String
           Local $dependency.parameter.other : String
       return
@@ -23,7 +23,7 @@ Module
     val local7
       Local $dependency.argument.0 : Int16
     val local8
-      ImportedGenericCall stringBound<Int16> : String
+      Call stringBound<Int16> : String
         Local $dependency.parameter.value : Int16
     val local9
       StringLiteral "-32768" : String
@@ -31,7 +31,7 @@ Module
       Local $dependency.argument.0 : String
     if
       Unary Not : Boolean
-        ImportedDependencyCall #0 : Boolean
+        Call external #0 : Boolean
           Local $dependency.receiver : String
           Local $dependency.parameter.other : String
       return
@@ -41,7 +41,7 @@ Module
     val local12
       Local $dependency.argument.0 : Int
     val local13
-      ImportedGenericCall stringBound<Int> : String
+      Call stringBound<Int> : String
         Local $dependency.parameter.value : Int
     val local14
       StringLiteral "-2147483648" : String
@@ -49,7 +49,7 @@ Module
       Local $dependency.argument.0 : String
     if
       Unary Not : Boolean
-        ImportedDependencyCall #0 : Boolean
+        Call external #0 : Boolean
           Local $dependency.receiver : String
           Local $dependency.parameter.other : String
       return
@@ -59,7 +59,7 @@ Module
     val local17
       Local $dependency.argument.0 : Long
     val local18
-      ImportedGenericCall stringBound<Long> : String
+      Call stringBound<Long> : String
         Local $dependency.parameter.value : Long
     val local19
       StringLiteral "-9223372036854775808" : String
@@ -67,7 +67,7 @@ Module
       Local $dependency.argument.0 : String
     if
       Unary Not : Boolean
-        ImportedDependencyCall #0 : Boolean
+        Call external #0 : Boolean
           Local $dependency.receiver : String
           Local $dependency.parameter.other : String
       return
@@ -77,7 +77,7 @@ Module
     val local22
       Local $dependency.argument.0 : UInt8
     val local23
-      ImportedGenericCall stringBound<UInt8> : String
+      Call stringBound<UInt8> : String
         Local $dependency.parameter.value : UInt8
     val local24
       StringLiteral "255" : String
@@ -85,7 +85,7 @@ Module
       Local $dependency.argument.0 : String
     if
       Unary Not : Boolean
-        ImportedDependencyCall #0 : Boolean
+        Call external #0 : Boolean
           Local $dependency.receiver : String
           Local $dependency.parameter.other : String
       return
@@ -95,7 +95,7 @@ Module
     val local27
       Local $dependency.argument.0 : UInt16
     val local28
-      ImportedGenericCall stringBound<UInt16> : String
+      Call stringBound<UInt16> : String
         Local $dependency.parameter.value : UInt16
     val local29
       StringLiteral "65535" : String
@@ -103,7 +103,7 @@ Module
       Local $dependency.argument.0 : String
     if
       Unary Not : Boolean
-        ImportedDependencyCall #0 : Boolean
+        Call external #0 : Boolean
           Local $dependency.receiver : String
           Local $dependency.parameter.other : String
       return
@@ -113,7 +113,7 @@ Module
     val local32
       Local $dependency.argument.0 : UInt
     val local33
-      ImportedGenericCall stringBound<UInt> : String
+      Call stringBound<UInt> : String
         Local $dependency.parameter.value : UInt
     val local34
       StringLiteral "4294967295" : String
@@ -121,7 +121,7 @@ Module
       Local $dependency.argument.0 : String
     if
       Unary Not : Boolean
-        ImportedDependencyCall #0 : Boolean
+        Call external #0 : Boolean
           Local $dependency.receiver : String
           Local $dependency.parameter.other : String
       return
@@ -131,7 +131,7 @@ Module
     val local37
       Local $dependency.argument.0 : ULong
     val local38
-      ImportedGenericCall stringBound<ULong> : String
+      Call stringBound<ULong> : String
         Local $dependency.parameter.value : ULong
     val local39
       StringLiteral "18446744073709551615" : String
@@ -139,7 +139,7 @@ Module
       Local $dependency.argument.0 : String
     if
       Unary Not : Boolean
-        ImportedDependencyCall #0 : Boolean
+        Call external #0 : Boolean
           Local $dependency.receiver : String
           Local $dependency.parameter.other : String
       return
@@ -149,7 +149,7 @@ Module
     val local42
       Local $dependency.argument.0 : Boolean
     val local43
-      ImportedGenericCall stringBound<Boolean> : String
+      Call stringBound<Boolean> : String
         Local $dependency.parameter.value : Boolean
     val local44
       StringLiteral "true" : String
@@ -157,7 +157,7 @@ Module
       Local $dependency.argument.0 : String
     if
       Unary Not : Boolean
-        ImportedDependencyCall #0 : Boolean
+        Call external #0 : Boolean
           Local $dependency.receiver : String
           Local $dependency.parameter.other : String
       val local51
@@ -168,7 +168,7 @@ Module
       val local47
         Local $dependency.argument.0 : String
       val local48
-        ImportedGenericCall stringBound<String> : String
+        Call stringBound<String> : String
           Local $dependency.parameter.value : String
       val local49
         StringLiteral "bound" : String
@@ -176,7 +176,7 @@ Module
         Local $dependency.argument.0 : String
       val local51
         Unary Not : Boolean
-          ImportedDependencyCall #0 : Boolean
+          Call external #0 : Boolean
             Local $dependency.receiver : String
             Local $dependency.parameter.other : String
     if
@@ -190,14 +190,14 @@ Module
     val local54
       Local $dependency.argument.0 : Int
     val local56
-      ImportedGenericCall hashBound<Int> : Long
+      Call hashBound<Int> : Long
         Local $dependency.parameter.value : Int
     val local55
       Local number : Int
     val local57
       Local $equality.lhs : Long
     val local58
-      ImportedDependencyCall #1 : Long
+      Call external #1 : Long
         Local $dependency.receiver : Int
     val local59
       Local $dependency.argument.0 : Long

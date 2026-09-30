@@ -8,7 +8,7 @@ Module
     val local2
       Local $dependency.argument.0 : T0
     val local3
-      ImportedGenericCall capture<T0> : () -> Option<T0>
+      Call capture<T0> : () -> Option<T0>
         Local $dependency.parameter.value : T0
     LocalFunction local0 body=$local.0.local captures=1
     val local4
@@ -50,7 +50,7 @@ Module
     val local17
       Local $dependency.argument.0 : Option<T0>
     val local18
-      ImportedGenericCall force<T0> : T0
+      Call force<T0> : T0
         Local $dependency.parameter.value : Option<T0>
     val local19
       CallableCall function_type1 : Option<T0>
@@ -58,7 +58,7 @@ Module
     val local20
       Local $dependency.argument.0 : Option<T0>
     val local21
-      ImportedGenericCall force<T0> : T0
+      Call force<T0> : T0
         Local $dependency.parameter.value : Option<T0>
     val local22
       IntegerLiteral 0 : Int
@@ -124,7 +124,7 @@ Module
         Local $dependency.argument.0 : String
       val local37
         Unary Not : Boolean
-          ImportedDependencyCall #0 : Boolean
+          Call external #0 : Boolean
             Local $dependency.receiver : String
             Local $dependency.parameter.other : String
     if
@@ -150,7 +150,7 @@ Module
       Local $dependency.argument.0 : String
     if
       Unary Not : Boolean
-        ImportedDependencyCall #0 : Boolean
+        Call external #0 : Boolean
           Local $dependency.receiver : String
           Local $dependency.parameter.other : String
       val local48
@@ -215,7 +215,7 @@ Module
     val local56
       Local $dependency.argument.0 : Option<Int>
     val local57
-      ImportedGenericCall force<Int> : Int
+      Call force<Int> : Int
         Local $dependency.parameter.value : Option<Int>
     val local58
       FieldAccess class field number : Int

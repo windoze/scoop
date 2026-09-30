@@ -70,7 +70,7 @@ Module
       Local cell : ExtensionTrace<Int>
     val local8
       Local $argument.0 : ExtensionTrace<Int>
-    ImportedGenericCall extensionTracked<Int> : Unit
+    Call extensionTracked<Int> : Unit
       Call receiver : ExtensionTrace<Int>
         Local $parameter.cell : ExtensionTrace<Int>
       Call rhs : Int
@@ -119,7 +119,7 @@ Module
       Call receiver : ExtensionTrace<Int>
         Local $parameter.cell : ExtensionTrace<Int>
     val local20
-      ImportedGenericCall extensionTracked<Int> : Int
+      Call extensionTracked<Int> : Int
         Local $place.4 : ExtensionTrace<Int>
     val local23
       Local $old.5 : Int
@@ -132,7 +132,7 @@ Module
         Local $parameter.cell : ExtensionTrace<Int>
     val local25
       Local $dependency.argument.0 : Int
-    ImportedGenericCall extensionTracked<Int> : Unit
+    Call extensionTracked<Int> : Unit
       Local $place.4 : ExtensionTrace<Int>
       IntegerOperation int.add <no-gc> : Int
         Local $dependency.receiver : Int
@@ -181,14 +181,14 @@ Module
       Call receiver : ExtensionTrace<Int>
         Local $parameter.cell : ExtensionTrace<Int>
     val local37
-      ImportedGenericCall extensionTracked<Int> : Int
+      Call extensionTracked<Int> : Int
         Local $place.8 : ExtensionTrace<Int>
     val local38
       Local $old.9 : Int
     val local39
       IntegerOperation int.inc <no-gc> : Int
         Local $dependency.receiver : Int
-    ImportedGenericCall extensionTracked<Int> : Unit
+    Call extensionTracked<Int> : Unit
       Local $place.8 : ExtensionTrace<Int>
       Local $new.10 : Int
     val local40
@@ -253,14 +253,14 @@ Module
       Call receiver : ExtensionTrace<Int>
         Local $parameter.cell : ExtensionTrace<Int>
     val local56
-      ImportedGenericCall extensionTracked<Int> : Int
+      Call extensionTracked<Int> : Int
         Local $place.14 : ExtensionTrace<Int>
     val local57
       Local $old.15 : Int
     val local58
       IntegerOperation int.inc <no-gc> : Int
         Local $dependency.receiver : Int
-    ImportedGenericCall extensionTracked<Int> : Unit
+    Call extensionTracked<Int> : Unit
       Local $place.14 : ExtensionTrace<Int>
       Local $new.16 : Int
     val local59
@@ -328,10 +328,10 @@ Module
       ImportedConstructorInit ExtensionTrace : ExtensionTrace<T0>
         Local $dependency.parameter.value : T0
         Local $dependency.parameter.order : Int
-    ImportedGenericCall extensionTracked<T0> : Unit
+    Call extensionTracked<T0> : Unit
       Local cell : ExtensionTrace<T0>
       Local value : T0
     return
-      ImportedGenericCall extensionTracked<T0> : T0
+      Call extensionTracked<T0> : T0
         Local cell : ExtensionTrace<T0>
   output library

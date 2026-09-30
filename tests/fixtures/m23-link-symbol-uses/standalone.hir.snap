@@ -4,7 +4,7 @@ Module
   fun nativeIdentity(arg1: Int): Int <unsafe no-gc cdecl> <extern0 abi=c symbol=scoop_test_identity>
   fun outside(): Int
     return
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
   fun linkLabel(): String
     return
       StringLiteral "link-symbol-uses" : String
@@ -18,7 +18,7 @@ Module
         Local $parameter.value : Int
   fun $init$body$0(): Unit
     assign global localValue
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
   fun $init$ensure$0(): Unit
   fun $get$localValue(): Int
     ensure init0 top-level:localValue

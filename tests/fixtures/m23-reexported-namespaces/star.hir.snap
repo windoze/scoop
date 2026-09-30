@@ -12,7 +12,7 @@ Module
     val local6
       Local $dependency.argument.0 : Int
     val local7
-      ImportedDependencyCall #0 : Leaf
+      Call external #0 : Leaf
         Local $dependency.parameter.number : Int
     val local8
       CallableCall function_type0 : Int

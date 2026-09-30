@@ -63,7 +63,11 @@ fn print_and_println_use_the_ordinary_to_string_bound() {
     let write = core_write(&module);
     let body = body_of(&module, print);
     let value = expression_statement(body, 0);
-    let hir::ExprKind::Call { callee, .. } = &value.kind else {
+    let hir::ExprKind::Call {
+        callee: hir::CallableTarget::Local(callee),
+        ..
+    } = &value.kind
+    else {
         panic!("expected a call")
     };
     assert_eq!(module.callable_function(*callee), write);
@@ -177,7 +181,11 @@ fn intrinsic_value_members_resolve_from_their_source_declaration() {
     assert_eq!(module.functions[target].name, "Int.toString");
     let body = body_of(&module, target);
     let value = return_value(&body.statements);
-    let hir::ExprKind::Call { callee, .. } = value.kind else {
+    let hir::ExprKind::Call {
+        callee: hir::CallableTarget::Local(callee),
+        ..
+    } = value.kind
+    else {
         panic!("the core method body must call its representation helper")
     };
     let helper = module.callable_function(callee);

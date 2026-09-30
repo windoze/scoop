@@ -124,7 +124,7 @@ fn ordinary_calls_select_one_strong_core_binding_and_reuse_its_typed_use() {
     assert_eq!(output.output().local.imported_dependency_callables.len(), 1);
     assert_eq!(
         scoop_hir::dump(&output.output().export)
-            .matches("ImportedDependencyCall #0")
+            .matches("Call external #0")
             .count(),
         2
     );

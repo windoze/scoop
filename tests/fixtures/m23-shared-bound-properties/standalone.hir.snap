@@ -17,7 +17,7 @@ Module
     val local7
       Local $dependency.argument.0 : Remote<T0>
     val local8
-      ImportedGenericCall stored<T0, Remote<T0>> : T0
+      Call stored<T0, Remote<T0>> : T0
         Local $dependency.parameter.box : Remote<T0>
     val local9
       Local box : Remote<T0>
@@ -28,7 +28,7 @@ Module
     val local12
       Local $dependency.argument.1 : T0
     val local13
-      ImportedGenericCall exchange<T0, Remote<T0>> : T0
+      Call exchange<T0, Remote<T0>> : T0
         Local $dependency.parameter.box : Remote<T0>
         Local $dependency.parameter.next : T0
     val local14
@@ -39,7 +39,7 @@ Module
       ImportedMethodCall Callable(Application(Idx::<ImportedGenericCallableApplication>(7))) : T0
         Local $dependency.parameter.box : Remote<T0>
     val local17
-      ImportedGenericCall defaultRead<T0, Remote<T0>> : T0
+      Call defaultRead<T0, Remote<T0>> : T0
         Local $dependency.parameter.box : Remote<T0>
         Local $dependency.parameter.previous : T0
     val local18
@@ -52,14 +52,14 @@ Module
     val local21
       Local $dependency.argument.0 : Option<Remote<T0>>
     val local22
-      ImportedGenericCall optional<T0, Remote<T0>> : Option<T0>
+      Call optional<T0, Remote<T0>> : Option<T0>
         Local $dependency.parameter.box : Option<Remote<T0>>
     val local23
       VariantConstruct Option.None<Remote<T0>> : Option<Remote<T0>>
     val local24
       Local $dependency.argument.0 : Option<Remote<T0>>
     when
-      ImportedGenericCall optional<T0, Remote<T0>> : Option<T0>
+      Call optional<T0, Remote<T0>> : Option<T0>
         Local $dependency.parameter.box : Option<Remote<T0>>
       arm variant1()
         assign $result.0
@@ -98,7 +98,7 @@ Module
     val local36
       Local $dependency.argument.1 : Int
     val local37
-      ImportedGenericCall exchange<Int, Remote<Int>> : Int
+      Call exchange<Int, Remote<Int>> : Int
         Local $dependency.parameter.box : Remote<Int>
         Local $dependency.parameter.next : Int
     val local38
@@ -157,7 +157,7 @@ Module
     val local51
       Local $dependency.argument.0 : Box<Int>
     val local52
-      ImportedGenericCall advance<Box<Int>> : Int
+      Call advance<Box<Int>> : Int
         Local $dependency.parameter.box : Box<Int>
     val local53
       IntegerLiteral 42 : Int
@@ -180,7 +180,7 @@ Module
     val local58
       Local $dependency.argument.0 : Box<() -> Int>
     return
-      ImportedGenericCall invoke<Box<() -> Int>> : Int
+      Call invoke<Box<() -> Int>> : Int
         Local $dependency.parameter.box : Box<() -> Int>
   fun result(): Int
     val local0

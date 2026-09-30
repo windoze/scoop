@@ -11,7 +11,7 @@ Module
     val local2
       Local $dependency.argument.0 : T0
     val local3
-      ImportedGenericCall delayed<T0> : T0
+      Call delayed<T0> : T0
         Local $dependency.parameter.value : T0
     val local4
       Local $dependency.argument.0 : T0
@@ -27,7 +27,7 @@ Module
     val local2
       Local $dependency.argument.0 : Int
     return
-      ImportedGenericCall scalar<Int> : Int
+      Call scalar<Int> : Int
         Local $dependency.parameter.value : Int
   fun exercise<T>(seed: T0, read: (T0) -> Int): Int
     val local2
@@ -64,7 +64,7 @@ Module
     val local14
       Local $dependency.argument.0 : T0
     val local15
-      ImportedGenericCall nested<T0> : () -> T0
+      Call nested<T0> : () -> T0
         Local $dependency.parameter.value : T0
     val local16
       CallableCall function_type2 : T0
@@ -74,7 +74,7 @@ Module
     val local18
       ImportedLambda<T0> captures=0 : (T0) -> T0
     val local19
-      ImportedGenericCall defaulted<T0> : T0
+      Call defaulted<T0> : T0
         Local $dependency.parameter.value : T0
         Local $dependency.parameter.select : (T0) -> T0
     val local20
@@ -100,7 +100,7 @@ Module
     val local28
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall unchecked<T0> : T0
+        Call unchecked<T0> : T0
           Local $dependency.parameter.value : T0
     val local29
       Local selected : Int

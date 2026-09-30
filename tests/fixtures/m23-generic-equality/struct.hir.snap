@@ -30,7 +30,7 @@ Module
     val local13
       Local $dependency.argument.1 : Counter<T0>
     val local14
-      ImportedGenericCall compareCounters<T0> : Boolean
+      Call compareCounters<T0> : Boolean
         Local $dependency.parameter.left : Counter<T0>
         Local $dependency.parameter.right : Counter<T0>
     if
@@ -47,7 +47,7 @@ Module
     val local18
       Local $dependency.argument.1 : Counter<T0>
     if
-      ImportedGenericCall compareCounters<T0> : Boolean
+      Call compareCounters<T0> : Boolean
         Local $dependency.parameter.left : Counter<T0>
         Local $dependency.parameter.right : Counter<T0>
       return

@@ -15,7 +15,7 @@ Module
     val local1
       Local $dependency.argument.0 : Unit
     val local2
-      ImportedGenericCall extensionValueOnly<Unit> : Unit
+      Call extensionValueOnly<Unit> : Unit
         ImportedConstructorInit Box : Box<Unit>
           Local $dependency.parameter.value : Unit
     val local3
@@ -25,11 +25,11 @@ Module
     val local5
       ImportedConstructorInit PropertyItem : PropertyItem<Unit>
         Local $dependency.parameter.value : Unit
-    ImportedGenericCall extensionState<Unit> : Unit
+    Call extensionState<Unit> : Unit
       Local empty : PropertyItem<Unit>
       Local token : Unit
     val local6
-      ImportedGenericCall extensionState<Unit> : Unit
+      Call extensionState<Unit> : Unit
         Local empty : PropertyItem<Unit>
     val local7
       IntegerLiteral 1 : Int
@@ -95,19 +95,19 @@ Module
       Local $argument.1 : Reference
     val local33
       Local $argument.2 : Reference
-    ImportedGenericCall extensionState<Large> : Unit
+    Call extensionState<Large> : Unit
       Local cell : PropertyItem<Large>
       StructInit Large : Large
         Local $parameter.first : Reference
         Local $parameter.second : Reference
         Local $parameter.third : Reference
     val local34
-      ImportedGenericCall extensionState<Large> : Large
+      Call extensionState<Large> : Large
         Local cell : PropertyItem<Large>
     val local35
       Local $dependency.argument.0 : Large
     val local36
-      ImportedGenericCall extensionValue<Large> : Large
+      Call extensionValue<Large> : Large
         ImportedConstructorInit Box : Box<Large>
           Local $dependency.parameter.value : Large
     val local37
@@ -156,16 +156,16 @@ Module
     val local3
       ImportedConstructorInit PropertyItem : PropertyItem<T0>
         Local $dependency.parameter.value : T0
-    ImportedGenericCall extensionState<T0> : Unit
+    Call extensionState<T0> : Unit
       Local cell : PropertyItem<T0>
       Local value : T0
     val local4
-      ImportedGenericCall extensionState<T0> : T0
+      Call extensionState<T0> : T0
         Local cell : PropertyItem<T0>
     val local5
       Local $dependency.argument.0 : T0
     return
-      ImportedGenericCall extensionValue<T0> : T0
+      Call extensionValue<T0> : T0
         ImportedConstructorInit Box : Box<T0>
           Local $dependency.parameter.value : T0
   output library

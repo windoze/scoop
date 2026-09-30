@@ -53,8 +53,8 @@ Module
     ret
   td td0 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.members;o=-;k=C;x=Box);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$8bcd439f6f1acd61b1a534cc82ee15e7e6c27f6fcb3a4507b3d00fe95550aae0 type-id=15150344362566973760 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td1 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.members;o=-;k=C;x=Inherited);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$842098d494cf291389655dedc6a582d523ecac7a7b7cd277835b5bc0afe4f175 type-id=6754416861151497033 shape=FixedObject minimum-size=24 align=8 parent=td0 vtable=[] itables=[]
-  layout Box value size=8 align=8 refs=[0]
-  layout Box size=24 align=8 refs=[]
   layout Inherited value size=8 align=8 refs=[0]
   layout Inherited size=24 align=8 refs=[]
+  layout Box value size=8 align=8 refs=[0]
+  layout Box size=24 align=8 refs=[]
   output library

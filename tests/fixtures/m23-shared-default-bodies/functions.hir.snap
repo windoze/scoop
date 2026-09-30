@@ -9,7 +9,7 @@ Module
     val local4
       CallableReference reference0 target=dependency #0 captures=0 : (Int) -> Int
     val local5
-      ImportedDependencyCall #1 : Int
+      Call external #1 : Int
         Local $dependency.parameter.value : Int
         Local $dependency.parameter.next : (Int) -> Int
     val local6
@@ -27,9 +27,9 @@ Module
       IntegerLiteral 0 : Int
     val local9
       FunctionCoercion coercion0 (Any) -> Int -> (Int) -> Int : (Int) -> Int
-        ImportedDependencyCall #2 : (Any) -> Int
+        Call external #2 : (Any) -> Int
     val local10
-      ImportedDependencyCall #3 : Int
+      Call external #3 : Int
         Local $dependency.parameter.value : Int
         Local $dependency.parameter.next : (Int) -> Int
     val local11
@@ -53,7 +53,7 @@ Module
     val local16
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall generic<T0> : T0
+        Call generic<T0> : T0
           Local $dependency.parameter.value : T0
           Local $dependency.parameter.next : () -> T0
     val local17
@@ -77,7 +77,7 @@ Module
     val local22
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall anonymous<T0> : T0
+        Call anonymous<T0> : T0
           Local $dependency.parameter.value : T0
           Local $dependency.parameter.next : () -> T0
     val local23
@@ -103,7 +103,7 @@ Module
     val local29
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall chained<T0> : T0
+        Call chained<T0> : T0
           Local $dependency.parameter.value : T0
           Local $dependency.parameter.first : () -> T0
           Local $dependency.parameter.second : () -> T0
@@ -128,7 +128,7 @@ Module
     return
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall nested<T0> : T0
+        Call nested<T0> : T0
           Local $dependency.parameter.value : T0
           Local $dependency.parameter.next : () -> T0
   fun result(): Int
@@ -140,7 +140,7 @@ Module
       ImportedLambda<> captures=1 : () -> Int
         Local $dependency.parameter.value : Int
     val local3
-      ImportedDependencyCall #4 : Int
+      Call external #4 : Int
         Local $dependency.parameter.value : Int
         Local $dependency.parameter.next : () -> Int
     val local4
@@ -160,7 +160,7 @@ Module
       ImportedLambda<> captures=1 : () -> Int
         Local $dependency.parameter.value : Int
     val local8
-      ImportedDependencyCall #4 : Int
+      Call external #4 : Int
         Local $dependency.parameter.value : Int
         Local $dependency.parameter.next : () -> Int
     val local9
@@ -179,7 +179,7 @@ Module
     val local12
       CallableReference reference1 target=dependency #0 captures=0 : (Int) -> Int
     val local13
-      ImportedDependencyCall #1 : Int
+      Call external #1 : Int
         Local $dependency.parameter.value : Int
         Local $dependency.parameter.next : (Int) -> Int
     val local14

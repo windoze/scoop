@@ -16,7 +16,7 @@ Module
     val local2
       Local $dependency.argument.0 : T0
     val local3
-      ImportedGenericCall wrap<T0> : Option<T0>
+      Call wrap<T0> : Option<T0>
         Local $dependency.parameter.value : T0
     val local4
       IntegerLiteral 10 : Int
@@ -97,7 +97,7 @@ Module
     val local35
       Local $dependency.argument.0 : Option<T0>
     val local36
-      ImportedGenericCall force<T0> : T0
+      Call force<T0> : T0
         Local $dependency.parameter.value : Option<T0>
     when
       Local empty : Option<Empty>
@@ -130,14 +130,14 @@ Module
     val local42
       Local $dependency.argument.0 : Option<Wide>
     val local43
-      ImportedGenericCall force<Wide> : Wide
+      Call force<Wide> : Wide
         Local $dependency.parameter.value : Option<Wide>
     val local44
       Local tuple : Option<(Cell, Int)>
     val local45
       Local $dependency.argument.0 : Option<(Cell, Int)>
     val local46
-      ImportedGenericCall force<(Cell, Int)> : (Cell, Int)
+      Call force<(Cell, Int)> : (Cell, Int)
         Local $dependency.parameter.value : Option<(Cell, Int)>
     val local47
       Local callback : Option<() -> Int>
@@ -145,7 +145,7 @@ Module
       Local $dependency.argument.0 : Option<() -> Int>
     val local49
       CallableCall function_type0 : Int
-        ImportedGenericCall force<() -> Int> : () -> Int
+        Call force<() -> Int> : () -> Int
           Local $dependency.parameter.value : Option<() -> Int>
     val local50
       IntegerLiteral 42 : Int

@@ -4,7 +4,7 @@ Module
       Local value : ChildReader
   fun primary(): Counter
     val local0
-      ImportedDependencyCall #0 : ChildReader
+      Call external #0 : ChildReader
     val local1
       Local $argument.0 : ChildReader
     val local2
@@ -12,7 +12,7 @@ Module
         Call retainChild : ChildReader
           Local $parameter.value : ChildReader
     val local3
-      ImportedDependencyCall #1 interface[0] : Long
+      Call external #1 interface[0] : Long
         Local $dependency.receiver : ParentReader
     val local4
       IntegerLiteral 1 : Long
@@ -25,6 +25,6 @@ Module
     val local7
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #2 : Counter
+      Call external #2 : Counter
         Local $dependency.parameter.value : Long
   output library

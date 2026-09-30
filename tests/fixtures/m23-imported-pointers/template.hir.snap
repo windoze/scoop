@@ -5,10 +5,10 @@ Module
     val local2
       Local $dependency.argument.0 : Int
     val local3
-      ImportedGenericCall copy<Int> : Int
+      Call copy<Int> : Int
         Local $dependency.parameter.value : Int
     val local4
-      ImportedGenericCall bytes<Int> : ULong
+      Call bytes<Int> : ULong
     val local5
       IntegerLiteral 4uL : ULong
     val local6
@@ -22,7 +22,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local7
-        ImportedGenericCall alignment<Int> : ULong
+        Call alignment<Int> : ULong
       val local8
         IntegerLiteral 4uL : ULong
       val local9
@@ -42,7 +42,7 @@ Module
       val local12
         AlignOf Int : ULong
       val local13
-        ImportedGenericCall layoutDefault<Int> : ULong
+        Call layoutDefault<Int> : ULong
           Local $dependency.parameter.size : ULong
           Local $dependency.parameter.alignment : ULong
       val local14
@@ -75,7 +75,7 @@ Module
     val local23
       Local $dependency.argument.1 : Int
     return
-      ImportedGenericCall replace<Int> : Int
+      Call replace<Int> : Int
         Local $dependency.parameter.value : Int
         Local $dependency.parameter.replacement : Int
   fun result(): Int
@@ -92,7 +92,7 @@ Module
     val local2
       Local $dependency.argument.0 : T0
     return
-      ImportedGenericCall copy<T0> : T0
+      Call copy<T0> : T0
         Local $dependency.parameter.value : T0
   output library
   instance exercise<Int>

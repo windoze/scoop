@@ -12,7 +12,7 @@ Module
     val local2
       Local $dependency.argument.0 : T0
     val local3
-      ImportedGenericCall reorderedWrap<T0> : Option<T0>
+      Call reorderedWrap<T0> : Option<T0>
         Local $dependency.parameter.value : T0
     val local4
       Local held : Option<T0>
@@ -32,7 +32,7 @@ Module
     val local10
       Local $dependency.argument.0 : Option<T0>
     val local11
-      ImportedGenericCall reorderedForce<T0> : T0
+      Call reorderedForce<T0> : T0
         Local $dependency.parameter.value : Option<T0>
     val local12
       Local value : T0
@@ -46,7 +46,7 @@ Module
       VariantConstruct Option.Some<T0> : Option<T0>
         Local $default.local.2 : T0
     val local17
-      ImportedGenericCall reorderedDefault<T0> : T0
+      Call reorderedDefault<T0> : T0
         Local $dependency.parameter.value : T0
         Local $dependency.parameter.wrapped : Option<T0>
     when
@@ -115,7 +115,7 @@ Module
     val local32
       Local $dependency.argument.0 : Cell
     val local33
-      ImportedGenericCall reorderedWrap<Cell> : Option<Cell>
+      Call reorderedWrap<Cell> : Option<Cell>
         Local $dependency.parameter.value : Cell
     val local34
       IntegerLiteral 0 : Int
@@ -131,7 +131,7 @@ Module
         VariantConstruct Option.None<Int> : Option<Int>
       val local39
         Local $dependency.argument.0 : Option<Int>
-      ImportedGenericCall reorderedForce<Int> : Int
+      Call reorderedForce<Int> : Int
         Local $dependency.parameter.value : Option<Int>
     catch error: UnwrapException
       assign caught
@@ -162,7 +162,7 @@ Module
       Local $dependency.argument.0 : Option<Cell>
     val local47
       FieldAccess class field number : Int
-        ImportedGenericCall reorderedForce<Cell> : Cell
+        Call reorderedForce<Cell> : Cell
           Local $dependency.parameter.value : Option<Cell>
     val local48
       Local $dependency.argument.0 : Int

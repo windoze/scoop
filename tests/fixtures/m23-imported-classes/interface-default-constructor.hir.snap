@@ -6,17 +6,17 @@ Module
       Local $default.local.0 : Long
     val local2
       ReferenceUpcast : Readable
-        ImportedDependencyCall #2 : Reader
+        Call external #2 : Reader
           Local $default.local.1 : Long
     val local3
-      ImportedDependencyCall #3 : Readable
+      Call external #3 : Readable
         Local $dependency.parameter.value : Readable
     val local4
-      ImportedDependencyCall #4 interface[0] : Long
+      Call external #4 interface[0] : Long
         Local $dependency.receiver : Readable
     val local5
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #5 : Counter
+      Call external #5 : Counter
         Local $dependency.parameter.value : Long
   output library

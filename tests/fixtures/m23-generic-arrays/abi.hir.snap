@@ -79,7 +79,7 @@ Module
     val local5
       Local $dependency.argument.1 : (T0) -> Int
     return
-      ImportedGenericCall exercise<T0> : Int
+      Call exercise<T0> : Int
         Local $dependency.parameter.seed : T0
         Local $dependency.parameter.read : (T0) -> Int
   fun result(): Int
@@ -213,21 +213,21 @@ Module
         CopyArray
           Local $dependency.argument.1 : Array<Large>
     val local43
-      ImportedGenericCall pack<Large> : Array<Large>
+      Call pack<Large> : Array<Large>
         Local $dependency.parameter.values : Array<Large>
     val local44
       Local original : Array<Large>
     val local45
       Local $dependency.argument.0 : Array<Large>
     val local46
-      ImportedGenericCall copy<Large> : MutableArray<Large>
+      Call copy<Large> : MutableArray<Large>
         Local $dependency.parameter.values : Array<Large>
     val local47
       Local mutable : MutableArray<Large>
     val local48
       Local $dependency.argument.0 : MutableArray<Large>
     val local49
-      ImportedGenericCall freeze<Large> : Array<Large>
+      Call freeze<Large> : Array<Large>
         Local $dependency.parameter.values : MutableArray<Large>
     val local62
       Local mutable : MutableArray<Large>
@@ -271,7 +271,7 @@ Module
       Local $dependency.argument.1 : Long
     val local67
       Local $dependency.argument.2 : Large
-    ImportedGenericCall mutate<Large> : Large
+    Call mutate<Large> : Large
       Local $dependency.parameter.values : MutableArray<Large>
       Local $dependency.parameter.index : Long
       Local $dependency.parameter.value : Large
@@ -282,7 +282,7 @@ Module
     val local70
       IntegerLiteral 0 : Long
     val local71
-      ImportedGenericCall first<Large> : Large
+      Call first<Large> : Large
         Local $dependency.parameter.values : Array<Large>
         Local $dependency.parameter.index : Long
     val local72
@@ -309,7 +309,7 @@ Module
       val local78
         IntegerLiteral 0 : Long
       val local79
-        ImportedGenericCall first<Large> : Large
+        Call first<Large> : Large
           Local $dependency.parameter.values : Array<Large>
           Local $dependency.parameter.index : Long
       val local80
@@ -335,14 +335,14 @@ Module
     val local86
       Local $dependency.argument.0 : MutableArray<Large>
     val local87
-      ImportedGenericCall freeze<Large> : Array<Large>
+      Call freeze<Large> : Array<Large>
         Local $dependency.parameter.values : MutableArray<Large>
     val local88
       Local $dependency.argument.0 : Array<Large>
     val local89
       IntegerLiteral 0 : Long
     val local90
-      ImportedGenericCall first<Large> : Large
+      Call first<Large> : Large
         Local $dependency.parameter.values : Array<Large>
         Local $dependency.parameter.index : Long
     val local91
@@ -377,7 +377,7 @@ Module
         CopyArray
           Local $dependency.argument.1 : Array<Array<Large>>
     val local98
-      ImportedGenericCall pack<Array<Large>> : Array<Array<Large>>
+      Call pack<Array<Large>> : Array<Array<Large>>
         Local $dependency.parameter.values : Array<Array<Large>>
     val local99
       IntegerLiteral 0 : Int
@@ -395,7 +395,7 @@ Module
     val local105
       Local $dependency.argument.1 : Long
     val local106
-      ImportedGenericCall first<Array<Large>> : Array<Large>
+      Call first<Array<Large>> : Array<Large>
         Local $dependency.parameter.values : Array<Array<Large>>
         Local $dependency.parameter.index : Long
     val local107
@@ -403,7 +403,7 @@ Module
     val local108
       IntegerLiteral 0 : Long
     val local109
-      ImportedGenericCall first<Large> : Large
+      Call first<Large> : Large
         Local $dependency.parameter.values : Array<Large>
         Local $dependency.parameter.index : Long
     val local110

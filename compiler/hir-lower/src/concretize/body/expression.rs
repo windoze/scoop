@@ -494,12 +494,13 @@ impl Concretizer<'_> {
             )),
             export::ExprKind::Call {
                 callee,
+                binding,
                 args,
                 receiver,
             } => concrete::ExprKind::Call {
-                binding: None,
+                binding: binding.clone(),
                 receiver: receiver.map(|ty| self.lower_type(ty, substitution)),
-                callee: concrete::CallableTarget::Local(self.lower_callable(*callee, substitution)),
+                callee: self.lower_callable_target(*callee, substitution),
                 args: args
                     .iter()
                     .map(|argument| self.lower_expr(argument, substitution, locals))
@@ -556,22 +557,6 @@ impl Concretizer<'_> {
                     }
                 }
             }
-            export::ExprKind::ImportedDependencyCall {
-                callee,
-                binding,
-                args,
-                receiver,
-            } => concrete::ExprKind::Call {
-                receiver: receiver.map(|ty| self.lower_type(ty, substitution)),
-                callee: concrete::CallableTarget::Imported(
-                    self.imported_dependency_callable_map[callee],
-                ),
-                binding: binding.clone(),
-                args: args
-                    .iter()
-                    .map(|argument| self.lower_expr(argument, substitution, locals))
-                    .collect(),
-            },
             export::ExprKind::LocalFunctionCall {
                 local_function,
                 callee,

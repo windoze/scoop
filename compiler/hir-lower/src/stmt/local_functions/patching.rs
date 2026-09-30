@@ -176,7 +176,6 @@ fn patch_local_function_call_expr(
         | hir::ExprKind::ClassInit { args: elements, .. }
         | hir::ExprKind::VariantConstruct { args: elements, .. }
         | hir::ExprKind::Call { args: elements, .. }
-        | hir::ExprKind::ImportedDependencyCall { args: elements, .. }
         | hir::ExprKind::ImportedConstructorInit { args: elements, .. }
         | hir::ExprKind::ImportedGenericCall { args: elements, .. } => {
             for element in elements {

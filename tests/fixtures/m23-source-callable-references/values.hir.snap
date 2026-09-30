@@ -5,21 +5,21 @@ Module
     val local2
       Local $dependency.argument.0 : Int
     val local7
-      ImportedDependencyCall #0 : Plain
+      Call external #0 : Plain
         Local $dependency.parameter.number : Int
     val local3
       IntegerLiteral 14 : Int
     val local4
       Local $dependency.argument.0 : Int
     val local8
-      ImportedDependencyCall #0 : Plain
+      Call external #0 : Plain
         Local $dependency.parameter.number : Int
     val local5
       IntegerLiteral 14 : Int
     val local6
       Local $dependency.argument.0 : Int
     val local9
-      ImportedDependencyCall #0 : Plain
+      Call external #0 : Plain
         Local $dependency.parameter.number : Int
     val local10
       Local $dependency.argument.0 : Plain
@@ -28,7 +28,7 @@ Module
     val local12
       Local $dependency.argument.2 : Plain
     val local13
-      ImportedDependencyCall #1 : Triple
+      Call external #1 : Triple
         Local $dependency.parameter.first : Plain
         Local $dependency.parameter.second : Plain
         Local $dependency.parameter.third : Plain
@@ -40,21 +40,21 @@ Module
     val local16
       Local $dependency.argument.0 : Int
     val local21
-      ImportedDependencyCall #0 : Plain
+      Call external #0 : Plain
         Local $dependency.parameter.number : Int
     val local17
       IntegerLiteral 0 : Int
     val local18
       Local $dependency.argument.0 : Int
     val local22
-      ImportedDependencyCall #0 : Plain
+      Call external #0 : Plain
         Local $dependency.parameter.number : Int
     val local19
       IntegerLiteral 0 : Int
     val local20
       Local $dependency.argument.0 : Int
     val local23
-      ImportedDependencyCall #0 : Plain
+      Call external #0 : Plain
         Local $dependency.parameter.number : Int
     val local24
       Local $dependency.argument.0 : Plain
@@ -63,13 +63,13 @@ Module
     val local26
       Local $dependency.argument.2 : Plain
     assign triple
-      ImportedDependencyCall #1 : Triple
+      Call external #1 : Triple
         Local $dependency.parameter.first : Plain
         Local $dependency.parameter.second : Plain
         Local $dependency.parameter.third : Plain
     val local27
       CallableReference reference1 target=dependency #4 captures=0 : () -> Int
-        ImportedDependencyCall #3 : Empty
+        Call external #3 : Empty
     val local28
       Local value : T0
     val local29
@@ -88,7 +88,7 @@ Module
     val local33
       Local triple : Triple
     val local34
-      ImportedDependencyCall #2 : Int
+      Call external #2 : Int
         Local $dependency.receiver : Triple
     val local35
       IntegerLiteral 0 : Int

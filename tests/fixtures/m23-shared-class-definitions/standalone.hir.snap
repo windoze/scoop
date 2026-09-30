@@ -5,7 +5,7 @@ Module
     val local3
       Local $dependency.argument.0 : T0
     val local4
-      ImportedGenericCall make<T0> : Link<T0>
+      Call make<T0> : Link<T0>
         Local $dependency.parameter.value : T0
     val local7
       Local value : T0
@@ -208,12 +208,12 @@ Module
     val local61
       Local $default.local.1 : T0
     val local62
-      ImportedGenericCall make<T0> : Link<T0>
+      Call make<T0> : Link<T0>
         Local $default.local.2 : T0
     return
       CallableCall function_type0 : Int
         Local read : (T0) -> Int
-        ImportedGenericCall readLink<T0> : T0
+        Call readLink<T0> : T0
           Local $dependency.parameter.value : T0
           Local $dependency.parameter.link : Link<T0>
   fun result(): Int
@@ -268,7 +268,7 @@ Module
     val local15
       Local $dependency.argument.0 : Int
     val local16
-      ImportedGenericCall make<Int> : Link<Int>
+      Call make<Int> : Link<Int>
         Local $dependency.parameter.value : Int
     val local17
       ImportedGenericCall value<Int> : Int

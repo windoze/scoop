@@ -3,7 +3,7 @@ Module
   fun exercise<T>(value: T0): Int
     val local1
       ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
-    ImportedDependencyCall #2 : Unit
+    Call external #2 : Unit
       Local $property_receiver.0 : Trace
       IntegerLiteral 0 : Int
     val local2
@@ -17,7 +17,7 @@ Module
       Local $receiver : Receiver<T0>
       IntegerLiteral 42 : Int
     val local5
-      ImportedDependencyCall #3 : Int
+      Call external #3 : Int
         ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
     val local6
       IntegerLiteral 45 : Int
@@ -34,7 +34,7 @@ Module
       IntegerLiteral 0 : Int
     val local9
       Local $dependency.argument.0 : Int
-    ImportedDependencyCall #4 : Payload
+    Call external #4 : Payload
       Local $dependency.parameter.value : Int
     val local10
       Local value : T0
@@ -47,7 +47,7 @@ Module
       Call $get$foreign<T0> : Int
         Local $receiver : Receiver<T0>
     val local14
-      ImportedDependencyCall #3 : Int
+      Call external #3 : Int
         ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
     val local15
       IntegerLiteral 456 : Int
@@ -74,19 +74,19 @@ Module
         Local $parameter.value : Int
   fun $init$body$0<T>(): Unit
     assign delegate foreign<T0>
-      ImportedDependencyCall #1 : ExtensionSlot
-        ImportedDependencyCall #0 : ExtensionSeed
+      Call external #1 : ExtensionSlot
+        Call external #0 : ExtensionSeed
   fun $init$ensure$0<T>(): Unit
   fun $get$foreign<T>(this: Receiver<T0>): Int
     ensure delegate foreign<T0>
     return
-      ImportedDependencyCall #5 : Int
+      Call external #5 : Int
         DelegateStorageRead foreign<T0> : ExtensionSlot
         ReferenceUpcast : Any
           Local this : Receiver<T0>
   fun $set$foreign<T>(this: Receiver<T0>, value: Int): Unit
     ensure delegate foreign<T0>
-    ImportedDependencyCall #6 : Unit
+    Call external #6 : Unit
       DelegateStorageRead foreign<T0> : ExtensionSlot
       ReferenceUpcast : Any
         Local this : Receiver<T0>

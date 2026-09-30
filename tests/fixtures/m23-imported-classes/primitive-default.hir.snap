@@ -6,17 +6,17 @@ Module
       Box : Hash
         IntegerLiteral 21 : Int
     val local2
-      ImportedDependencyCall #0 : Hash
+      Call external #0 : Hash
         Local $dependency.parameter.value : Hash
     val local4
-      ImportedDependencyCall #1 interface[0] : Long
+      Call external #1 interface[0] : Long
         Local $dependency.receiver : Hash
     val local3
       Local value : Long
     val local5
       Local $equality.lhs : Long
     val local6
-      ImportedDependencyCall #2 : Long
+      Call external #2 : Long
         Local $dependency.receiver : Long
     val local7
       Local $dependency.argument.0 : Long
@@ -34,6 +34,6 @@ Module
     val local10
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #3 : Counter
+      Call external #3 : Counter
         Local $dependency.parameter.value : Long
   output library

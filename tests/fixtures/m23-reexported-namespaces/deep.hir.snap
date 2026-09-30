@@ -6,7 +6,7 @@ Module
     val local3
       Local $dependency.argument.0 : Int
     val local4
-      ImportedDependencyCall #0 : Deep
+      Call external #0 : Deep
         Local $dependency.parameter.number : Int
     val local5
       Local value : T0

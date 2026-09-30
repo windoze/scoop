@@ -17,16 +17,16 @@ Module
     val local7
       Local $dependency.argument.0 : GenericValue<T0>
     val local8
-      ImportedGenericCall readReference<GenericValue<T0>> : () -> Int
+      Call readReference<GenericValue<T0>> : () -> Int
         Local $dependency.parameter.value : GenericValue<T0>
     val local9
-      ImportedDependencyCall #3 : PlainDerived
+      Call external #3 : PlainDerived
     val local10
       Local receiver : GenericValue<T0>
     val local11
       Local $dependency.argument.0 : GenericValue<T0>
     val local12
-      ImportedGenericCall readBound<GenericValue<T0>> : Int
+      Call readBound<GenericValue<T0>> : Int
         Local $dependency.parameter.value : GenericValue<T0>
     val local13
       IntegerLiteral 42 : Int
@@ -43,7 +43,7 @@ Module
       val local15
         Local allocated : PlainDerived
       val local16
-        ImportedDependencyCall #2 : Int
+        Call external #2 : Int
           Local $dependency.receiver : PlainDerived
       val local17
         IntegerLiteral 42 : Int
@@ -63,12 +63,12 @@ Module
     val local21
       Local $dependency.argument.0 : Int
     val local22
-      ImportedDependencyCall #6 : Value
+      Call external #6 : Value
         Local $dependency.parameter.number : Int
     val local23
       Local $dependency.argument.0 : Value
     val local24
-      ImportedGenericCall combined<Value> : Int
+      Call combined<Value> : Int
         Local $dependency.parameter.value : Value
     val local25
       IntegerLiteral 42 : Int

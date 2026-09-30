@@ -7,17 +7,17 @@ Module
         Local $dependency.argument.0 : Long
       val local3
         ReferenceUpcast : Throwable
-          ImportedDependencyCall #0 : RebuiltFailure
+          Call external #0 : RebuiltFailure
             Local $dependency.parameter.code : Long
       val local4
         Local $dependency.argument.0 : Throwable
-      ImportedDependencyCall #1 : Unit
+      Call external #1 : Unit
         Local $dependency.parameter.value : Throwable
       assign $result.0
         IntegerLiteral 0 : Long
     catch error: RebuiltFailure
       assign $result.0
-        ImportedDependencyCall #2 : Long
+        Call external #2 : Long
           Local error : RebuiltFailure
     val local6
       Local $result.0 : Long
@@ -26,6 +26,6 @@ Module
     val local8
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #3 : Counter
+      Call external #3 : Counter
         Local $dependency.parameter.value : Long
   output library

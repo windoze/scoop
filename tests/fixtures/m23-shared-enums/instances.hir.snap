@@ -76,7 +76,7 @@ Module
     val local26
       Local $dependency.argument.0 : T0
     val local27
-      ImportedGenericCall pack<T0> : Choice<T0>
+      Call pack<T0> : Choice<T0>
         Local $dependency.parameter.value : T0
     val local28
       Local original : Choice<T0>
@@ -119,7 +119,7 @@ Module
     val local40
       Local $dependency.argument.1 : (T0) -> Int
     val local41
-      ImportedGenericCall score<T0> : Int
+      Call score<T0> : Int
         Local $dependency.parameter.value : Choice<T0>
         Local $dependency.parameter.read : (T0) -> Int
     val local42

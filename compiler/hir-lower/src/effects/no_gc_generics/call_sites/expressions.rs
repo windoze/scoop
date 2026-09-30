@@ -259,7 +259,13 @@ impl Lowerer {
                 }
             }
             ExprKind::Call { callee, args, .. } => {
-                record(*callee);
+                match callee {
+                    hir::CallableTarget::Local(callee) => record(*callee),
+                    hir::CallableTarget::Application(application) => {
+                        out.push(self.imported_body_generic_call(*application, expr.span));
+                    }
+                    hir::CallableTarget::Dependency(_) => {}
+                }
                 for arg in args {
                     self.collect_generic_calls_in_expr(arg, out);
                 }
@@ -324,11 +330,6 @@ impl Lowerer {
                 }
                 for capture in &reference.captures {
                     self.collect_generic_calls_in_expr(&capture.source, out);
-                }
-            }
-            ExprKind::ImportedDependencyCall { args, .. } => {
-                for arg in args {
-                    self.collect_generic_calls_in_expr(arg, out);
                 }
             }
             ExprKind::LocalFunctionCall {

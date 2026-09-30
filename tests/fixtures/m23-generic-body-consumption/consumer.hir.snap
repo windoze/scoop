@@ -8,12 +8,12 @@ Module
     val local1
       Local $dependency.argument.0 : Int
     val local2
-      ImportedGenericCall identity<Int> : Int
+      Call identity<Int> : Int
         Local $dependency.parameter.value : Int
     val local3
       Local $dependency.argument.0 : Int
     return
-      ImportedGenericCall identity<Int> : Int
+      Call identity<Int> : Int
         Local $dependency.parameter.value : Int
   fun consumerLocalValue(): Int
     val local0
@@ -27,7 +27,7 @@ Module
       Local $dependency.argument.0 : LocalValue
     return
       FieldAccess field 0 : Int
-        ImportedGenericCall identity<LocalValue> : LocalValue
+        Call identity<LocalValue> : LocalValue
           Local $dependency.parameter.value : LocalValue
   fun relay<T>(value: T0): T0
     val local3
@@ -37,14 +37,14 @@ Module
     val local2
       Local $dependency.argument.0 : T0
     val local4
-      ImportedGenericCall identity<T0> : T0
+      Call identity<T0> : T0
         Local $dependency.parameter.value : T0
     val local5
       Local $dependency.argument.0 : T0
     val local6
       Local $dependency.argument.1 : T0
     return
-      ImportedGenericCall choose<T0> : T0
+      Call choose<T0> : T0
         Local $dependency.parameter.first : T0
         Local $dependency.parameter.second : T0
   fun useRelay(): Int
@@ -59,7 +59,7 @@ Module
     val local0
       IntegerLiteral 45 : Int
     return
-      ImportedGenericCall echo<Int> : Int
+      Call echo<Int> : Int
         Local $dependency.receiver : Int
   fun defaults(): Int
     val local0
@@ -71,10 +71,10 @@ Module
     val local3
       Local $default.local.1 : Int
     val local4
-      ImportedGenericCall identity<Int> : Int
+      Call identity<Int> : Int
         Local $default.local.2 : Int
     return
-      ImportedGenericCall defaulted<Int> : Int
+      Call defaulted<Int> : Int
         Local $dependency.parameter.first : Int
         Local $dependency.parameter.second : Int
   fun consumerLocalDefault(): Int
@@ -92,11 +92,11 @@ Module
     val local5
       Local $default.local.1 : LocalValue
     val local6
-      ImportedGenericCall identity<LocalValue> : LocalValue
+      Call identity<LocalValue> : LocalValue
         Local $default.local.2 : LocalValue
     return
       FieldAccess field 0 : Int
-        ImportedGenericCall defaulted<LocalValue> : LocalValue
+        Call defaulted<LocalValue> : LocalValue
           Local $dependency.parameter.first : LocalValue
           Local $dependency.parameter.second : LocalValue
   fun nativeCall(): Int <no-gc cdecl>
@@ -105,7 +105,7 @@ Module
     val local1
       Local $dependency.argument.0 : Int
     return
-      ImportedGenericCall nativeIdentity<Int> : Int
+      Call nativeIdentity<Int> : Int
         Local $dependency.parameter.value : Int
   fun recursiveCall(): Int
     val local0
@@ -117,7 +117,7 @@ Module
     val local3
       Local $dependency.argument.1 : Boolean
     return
-      ImportedGenericCall recursive<Int> : Int
+      Call recursive<Int> : Int
         Local $dependency.parameter.value : Int
         Local $dependency.parameter.again : Boolean
   fun pointerRoundtrip(pointer: Ptr<Int>): Ptr<Int>
@@ -126,7 +126,7 @@ Module
     val local2
       Local $dependency.argument.0 : Ptr<Int>
     return
-      ImportedGenericCall pointerIdentity<Int> : Ptr<Int>
+      Call pointerIdentity<Int> : Ptr<Int>
         Local $dependency.parameter.pointer : Ptr<Int>
   output library
   instance relay<Int>

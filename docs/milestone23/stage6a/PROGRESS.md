@@ -335,3 +335,12 @@
 - 新增 `m23-shared-concrete-calls` 两组正例和六份阶段快照，覆盖别名复用、当前／依赖泛型、默认值、嵌套调用、闭包、原提供方状态及 consumer-local class／String／Int／Unit。源码移走后再次发布和普通／移动 GC 运行通过，六份快照关闭更新开关复验成功。
 - 全仓 fmt／clippy 无警告；862 项 HIR、1327 项 HIR lowering、114 项 MIR lowering 单元测试均已覆盖成功。既有 receiver 测试按实际目标区分本次物化调用与外部定义，修正其旧节点选择器后单独复验通过，外部 receiver／参数断言保持。14 组不同真实产物回归全部严格通过，包含完整 core 三组 MIR／LIR 闭包、签名与挂起约束、成员、访问器、初始化、引用、默认值和名义条件；既有快照无需修改。
 - 最终日志前缀 `/tmp/scoop-m23-6a-shared-concrete-calls-`，结果见 `unit.log`、`receiver-verified.log`、`mir-unit.log` 与 `verified-artifacts.json`。具体化表达式模块降至 692 行，依赖调用查询和新单元模块分别为 286、83 行；确认没有 cargo／rustc 占用后清理约 879.1 MiB 旧增量缓存，继续复用 `target/m23-6a`。wire 与 runtime ABI 未改变，Export HIR 调用、完整候选和正文存储继续迁移。
+
+
+## Export HIR 共用直接调用与原使用点绑定
+
+- 删除 Export HIR 的 `ImportedDependencyCall`；当前 callable、普通外部定义及非成员模板 application 共用 `Call` 与已有 typed target。默认值替换、GC／pointee 条件、引用收集、委托访问器及具体化消费共同目标，原名称绑定和静态 receiver 随替换保留。成员和限定 super 仍保留既定派发，本批未把剩余成员操作或全部候选迁移记为完成。
+- 新增 `m23-shared-source-calls` 两组正例、三个反例与九份快照，覆盖别名、当前／依赖泛型、默认值、扩展、局部函数、closure 和具副作用的逆序命名实参。真实源码移走、再次发布及 consumer-local class／String／Int／Unit 在普通／移动 GC 运行通过；反例保留 managed 调用与泛型 GC 条件的准确源码诊断。
+- 全仓 fmt／clippy 无警告，862 项 HIR、1329 项 HIR lowering 和 114 项 MIR lowering 单元全部通过。74 组泛型真实产物测试关闭所有快照更新开关复验通过；完整 core 三组 MIR／LIR 导出闭包亦通过。378 份既有快照中，375 份只修改调用标签；另外三份同步两处临时 TypeId 与静态 receiver 类型先处理带来的 class／layout 枚举顺序，原身份、签名、布局内容与机器指令保持。
+- 扩展回归中的包可见性反例暴露 reader 对无初始化入口产物仍要求 Unit exact record；上一批冻结编译器复现同一错误，证据为 `baseline-visibility.log`。该问题继续作为独立初始化需求修复处理，没有删掉反例或放宽产物校验。其余最终证据前缀 `/tmp/scoop-m23-6a-shared-source-calls-`，结果见 `unit.log`、`verified-artifacts.json` 与 `snapshot-audit.json`。
+- 按实际职责拆出 96 行的共同调用效果检查和 52 行的调用名称输出；原效果表达式降至 508 行，默认引用收集为 455 行。wire payload 与 runtime ABI 保持。确认没有 cargo／rustc 占用后清理约 1697.0 MiB 旧增量缓存，继续复用 `target/m23-6a`。

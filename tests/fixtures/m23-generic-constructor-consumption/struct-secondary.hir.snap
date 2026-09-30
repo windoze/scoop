@@ -8,7 +8,7 @@ Module
     val local1
       Local $dependency.argument.0 : Int
     val local2
-      ImportedDependencyCall #0 : Trace
+      Call external #0 : Trace
         Local $dependency.parameter.count : Int
     val local3
       IntegerLiteral 37 : Int
@@ -46,7 +46,7 @@ Module
         FieldAccess field 0 : Payload
           Local value : Observed<Payload>
     val local17
-      ImportedDependencyCall #1 : Int
+      Call external #1 : Int
         Local trace : Trace
     val local18
       Local $dependency.argument.0 : Int

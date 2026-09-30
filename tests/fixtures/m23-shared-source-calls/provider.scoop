@@ -1,0 +1,14 @@
+package upstream.sourcecalls
+
+private var trace: Int = 0
+public fun reset(): Unit { trace = 0 }
+public fun state(): Int = trace
+public fun step(value: Int): Int { trace = trace * 10 + value; return value }
+public fun take(first: Int, second: Int = step(2), third: Int = step(3)): Int =
+    first + second + third
+
+public fun <T> identity(value: T): T = value
+public fun <T> choose(value: T, copy: T = identity<T>(value)): T = copy
+public fun <T> relay(value: T, callback: () -> T = { choose<T>(value) }): T = callback()
+public fun <T> T.echo(): T = identity<T>(this)
+@NoGC public fun <T> scalar(value: T): T = value

@@ -4,10 +4,10 @@ Module
   typealias Zero = Token
   fun token(): Token <no-gc cdecl>
     return
-      ImportedDependencyCall #1 : Token
+      Call external #1 : Token
   fun primary(): Wide <no-gc cdecl>
     val local0
-      ImportedDependencyCall #1 : Token
+      Call external #1 : Token
     val local1
       IntegerLiteral 53 : Long
     val local2
@@ -23,7 +23,7 @@ Module
     val local7
       Local $dependency.argument.0 : Token
     return
-      ImportedDependencyCall #2 : Wide
+      Call external #2 : Wide
         Local $dependency.parameter.first : Long
         Local $dependency.parameter.second : Long
         Local $dependency.parameter.third : Long
@@ -37,7 +37,7 @@ Module
       IntegerLiteral 2 : Long
     val local3
       FieldAccess field 0 : Long
-        ImportedDependencyCall #0 : Wide
+        Call external #0 : Wide
           Local $dependency.parameter.seed : Long
           Local $dependency.parameter.step : Long
     val local4
@@ -55,7 +55,7 @@ Module
     val local9
       Local $dependency.argument.1 : Long
     return
-      ImportedDependencyCall #0 : Wide
+      Call external #0 : Wide
         Local $dependency.parameter.seed : Long
         Local $dependency.parameter.step : Long
   fun defaults(): Long <no-gc cdecl>
@@ -72,9 +72,9 @@ Module
     val local5
       Local $dependency.argument.2 : Long
     val local6
-      ImportedDependencyCall #1 : Token
+      Call external #1 : Token
     val local7
-      ImportedDependencyCall #2 : Wide
+      Call external #2 : Wide
         Local $dependency.parameter.first : Long
         Local $dependency.parameter.second : Long
         Local $dependency.parameter.third : Long
@@ -82,12 +82,12 @@ Module
     val local8
       Local $dependency.argument.0 : Wide
     return
-      ImportedDependencyCall #3 : Long
+      Call external #3 : Long
         Local $dependency.parameter.value : Wide
   fun republished(value: Wide): Long <no-gc cdecl>
     val local1
       Local value : Wide
     return
-      ImportedDependencyCall #4 : Long
+      Call external #4 : Long
         Local $dependency.receiver : Wide
   output library

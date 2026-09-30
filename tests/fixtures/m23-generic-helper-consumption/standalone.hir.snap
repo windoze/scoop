@@ -11,7 +11,7 @@ Module
     val local1
       Local $dependency.argument.0 : Int
     val local2
-      ImportedGenericCall definitionSite<Int> : Int
+      Call definitionSite<Int> : Int
         Local $dependency.parameter.value : Int
     val local3
       Local $argument.0 : Int
@@ -21,7 +21,7 @@ Module
     val local5
       Local $dependency.argument.0 : Result
     val local6
-      ImportedGenericCall retain<Result> : Result
+      Call retain<Result> : Result
         Local $dependency.parameter.value : Result
     val local7
       IntegerLiteral 0 : Int
@@ -33,7 +33,7 @@ Module
     val local10
       Local $dependency.argument.0 : Result
     val local11
-      ImportedGenericCall retain<Result> : Result
+      Call retain<Result> : Result
         Local $dependency.parameter.value : Result
     val local12
       FieldAccess class field number : Int

@@ -82,7 +82,11 @@ impl Lowerer {
             },
         )?;
         let (target, args) = match resolved.value.kind {
-            hir::ExprKind::ImportedDependencyCall { callee, args, .. } => (
+            hir::ExprKind::Call {
+                callee: hir::CallableTarget::Dependency(callee),
+                args,
+                ..
+            } => (
                 hir::BaseInitializerTarget::Imported {
                     owner,
                     callable: callee,

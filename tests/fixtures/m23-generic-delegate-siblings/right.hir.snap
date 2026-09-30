@@ -9,7 +9,7 @@ Module
     val local3
       Local $dependency.argument.1 : Boolean
     return
-      ImportedGenericCall shared<Int, Boolean> : Int
+      Call shared<Int, Boolean> : Int
         ImportedConstructorInit Receiver : Receiver<Int, Boolean>
           Local $dependency.parameter.left : Int
           Local $dependency.parameter.right : Boolean
@@ -23,7 +23,7 @@ Module
     val local3
       Local $dependency.argument.1 : Boolean
     return
-      ImportedGenericCall shared<Boolean, Boolean> : Int
+      Call shared<Boolean, Boolean> : Int
         ImportedConstructorInit Receiver : Receiver<Boolean, Boolean>
           Local $dependency.parameter.left : Boolean
           Local $dependency.parameter.right : Boolean
@@ -37,7 +37,7 @@ Module
     val local3
       Local $dependency.argument.1 : Int
     return
-      ImportedGenericCall shared<Int, Int> : Int
+      Call shared<Int, Int> : Int
         ImportedConstructorInit Receiver : Receiver<Int, Int>
           Local $dependency.parameter.left : Int
           Local $dependency.parameter.right : Int
@@ -51,7 +51,7 @@ Module
         Local $dependency.argument.0 : Int
       val local3
         Local $dependency.argument.1 : Boolean
-      ImportedGenericCall broken<Int, Boolean> : Int
+      Call broken<Int, Boolean> : Int
         ImportedConstructorInit Receiver : Receiver<Int, Boolean>
           Local $dependency.parameter.left : Int
           Local $dependency.parameter.right : Boolean
@@ -66,7 +66,7 @@ Module
       VariantConstruct Option.Some<String> : Option<String>
         Local $default.local.1 : String
     throw
-      ImportedDependencyCall #0 : IllegalStateException
+      Call external #0 : IllegalStateException
         Local $dependency.parameter.message : Option<String>
   fun otherFailure(): Failure
     try
@@ -78,7 +78,7 @@ Module
         Local $dependency.argument.0 : Boolean
       val local3
         Local $dependency.argument.1 : Boolean
-      ImportedGenericCall broken<Boolean, Boolean> : Int
+      Call broken<Boolean, Boolean> : Int
         ImportedConstructorInit Receiver : Receiver<Boolean, Boolean>
           Local $dependency.parameter.left : Boolean
           Local $dependency.parameter.right : Boolean
@@ -93,6 +93,6 @@ Module
       VariantConstruct Option.Some<String> : Option<String>
         Local $default.local.1 : String
     throw
-      ImportedDependencyCall #0 : IllegalStateException
+      Call external #0 : IllegalStateException
         Local $dependency.parameter.message : Option<String>
   output library

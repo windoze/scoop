@@ -2,10 +2,10 @@ Module
   fun primary(): Counter
     val local0
       Box : ChildReader
-        ImportedDependencyCall #2 : ZeroReader
+        Call external #2 : ZeroReader
     val local1
       Box : Any
-        ImportedDependencyCall #2 : ZeroReader
+        Call external #2 : ZeroReader
     if
       Binary RefEq : Boolean
         Local first : ChildReader
@@ -15,16 +15,16 @@ Module
       val local3
         Local $dependency.argument.0 : Long
       return
-        ImportedDependencyCall #3 : Counter
+        Call external #3 : Counter
           Local $dependency.parameter.value : Long
     val local4
       Local first : ChildReader
     val local5
-      ImportedDependencyCall #4 interface[1] : Long
+      Call external #4 interface[1] : Long
         Local $dependency.receiver : ChildReader
     val local6
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #3 : Counter
+      Call external #3 : Counter
         Local $dependency.parameter.value : Long
   output library

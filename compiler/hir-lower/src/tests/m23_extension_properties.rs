@@ -188,7 +188,10 @@ fn body<'a>(module: &'a hir::Module, name: &str) -> &'a hir::Body {
 
 fn called_function(module: &hir::Module, expression: &hir::Expr) -> hir::FunctionId {
     let callable = match expression.kind {
-        hir::ExprKind::Call { callee, .. } => callee,
+        hir::ExprKind::Call {
+            callee: hir::CallableTarget::Local(callee),
+            ..
+        } => callee,
         hir::ExprKind::MethodCall {
             callee: hir::MethodCallee::Callable(callee),
             ..
@@ -255,7 +258,11 @@ fn setter_markers(module: &hir::Module, body: &hir::Body) -> Vec<i64> {
             let hir::StatementKind::Expr(expression) = &statement.kind else {
                 return None;
             };
-            let hir::ExprKind::Call { callee, .. } = expression.kind else {
+            let hir::ExprKind::Call {
+                callee: hir::CallableTarget::Local(callee),
+                ..
+            } = expression.kind
+            else {
                 return None;
             };
             let function = module.callable_function(callee);

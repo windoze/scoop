@@ -41,7 +41,7 @@ Module
     val local10
       Local $dependency.argument.1 : (T0) -> Int
     val local11
-      ImportedGenericCall captured<T0> : Int
+      Call captured<T0> : Int
         Local $dependency.parameter.value : T0
         Local $dependency.parameter.read : (T0) -> Int
     val local12

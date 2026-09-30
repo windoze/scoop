@@ -7,11 +7,11 @@ Module
     val local1
       Local reader : ChildReader
     val local2
-      ImportedDependencyCall #2 interface[1] : Long
+      Call external #2 interface[1] : Long
         Local $dependency.receiver : ChildReader
     val local3
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #3 : Counter
+      Call external #3 : Counter
         Local $dependency.parameter.value : Long
   output library

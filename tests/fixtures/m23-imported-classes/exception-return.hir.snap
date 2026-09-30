@@ -7,18 +7,18 @@ Module
         Local $dependency.argument.0 : Long
       val local3
         ReferenceUpcast : Throwable
-          ImportedDependencyCall #0 : RebuiltFailure
+          Call external #0 : RebuiltFailure
             Local $dependency.parameter.code : Long
       val local4
         Local $dependency.argument.0 : Throwable
-      ImportedDependencyCall #1 : Unit
+      Call external #1 : Unit
         Local $dependency.parameter.value : Throwable
       val local5
         IntegerLiteral 0 : Long
       val local6
         Local $dependency.argument.0 : Long
       assign $result.0
-        ImportedDependencyCall #0 : RebuiltFailure
+        Call external #0 : RebuiltFailure
           Local $dependency.parameter.code : Long
     catch error: RebuiltFailure
       assign $result.0
@@ -33,12 +33,12 @@ Module
     val local2
       Local $dependency.argument.0 : Long
     val local3
-      ImportedDependencyCall #2 : Counter
+      Call external #2 : Counter
         Local $dependency.parameter.value : Long
     val local4
       Local allocated : Counter
     val local5
-      ImportedDependencyCall #3 : Long
+      Call external #3 : Long
         Local $dependency.receiver : Counter
     val local6
       IntegerLiteral 14 : Long
@@ -49,12 +49,12 @@ Module
         Local $dependency.receiver : Long
         Local $dependency.parameter.other : Long
       val local8
-        ImportedDependencyCall #4 : Long
+        Call external #4 : Long
           Local error : RebuiltFailure
       val local9
         Local $dependency.argument.0 : Long
       assign $result.1
-        ImportedDependencyCall #2 : Counter
+        Call external #2 : Counter
           Local $dependency.parameter.value : Long
     else
       val local10
@@ -62,7 +62,7 @@ Module
       val local11
         Local $dependency.argument.0 : Long
       assign $result.1
-        ImportedDependencyCall #2 : Counter
+        Call external #2 : Counter
           Local $dependency.parameter.value : Long
     return
       Local $result.1 : Counter

@@ -80,7 +80,7 @@ fn struct_copy_materializes_base_and_rhs_then_reconstructs_in_declaration_order(
         .iter()
         .map(|expression| match expression.kind {
             hir::ExprKind::Call {
-                callee: hir::Callable::Function(function),
+                callee: hir::CallableTarget::Local(hir::Callable::Function(function)),
                 ..
             } => module.functions[function].name.as_str(),
             ref other => panic!("copy RHS must initialize from a call, found {other:?}"),

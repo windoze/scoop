@@ -11,7 +11,7 @@ Module
       ImportedConstructorInit Receiver : Receiver<(T0, Boolean)>
         Local $dependency.parameter.value : (T0, Boolean)
     val local4
-      ImportedGenericCall flat<(T0, Boolean)> : Long
+      Call flat<(T0, Boolean)> : Long
         Local receiver : Receiver<(T0, Boolean)>
     val local5
       IntegerLiteral 42 : Long
@@ -36,7 +36,7 @@ Module
     val local1
       Local $dependency.argument.0 : (Int, Boolean)
     val local2
-      ImportedGenericCall flat<(Int, Boolean)> : Long
+      Call flat<(Int, Boolean)> : Long
         ImportedConstructorInit Receiver : Receiver<(Int, Boolean)>
           Local $dependency.parameter.value : (Int, Boolean)
     val local3

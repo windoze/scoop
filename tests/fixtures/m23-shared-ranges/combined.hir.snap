@@ -25,13 +25,13 @@ Module
     val local11
       Local $dependency.argument.0 : Long
     val local12
-      ImportedDependencyCall #1 : LongRange
+      Call external #1 : LongRange
         Local $dependency.receiver : Long
         Local $dependency.parameter.endpoint : Long
     val local13
       Local $for.source.0 : LongRange
     val local14
-      ImportedDependencyCall #0 : Iterator<Long>
+      Call external #0 : Iterator<Long>
         Local $dependency.receiver : LongRange
     val local15
       Local $for.iterator.result.1 : Iterator<Long>
@@ -67,13 +67,13 @@ Module
     val local25
       Local $dependency.argument.0 : UInt
     val local26
-      ImportedDependencyCall #3 : UIntRange
+      Call external #3 : UIntRange
         Local $dependency.receiver : UInt
         Local $dependency.parameter.endpoint : UInt
     val local27
       Local $for.source.5 : UIntRange
     val local28
-      ImportedDependencyCall #2 : Iterator<UInt>
+      Call external #2 : Iterator<UInt>
         Local $dependency.receiver : UIntRange
     val local29
       Local $for.iterator.result.6 : Iterator<UInt>
@@ -109,13 +109,13 @@ Module
     val local39
       Local $dependency.argument.0 : ULong
     val local40
-      ImportedDependencyCall #5 : ULongRange
+      Call external #5 : ULongRange
         Local $dependency.receiver : ULong
         Local $dependency.parameter.endpoint : ULong
     val local41
       Local $for.source.10 : ULongRange
     val local42
-      ImportedDependencyCall #4 : Iterator<ULong>
+      Call external #4 : Iterator<ULong>
         Local $dependency.receiver : ULongRange
     val local43
       Local $for.iterator.result.11 : Iterator<ULong>
@@ -201,13 +201,13 @@ Module
     val local5
       Local $dependency.argument.0 : Int
     val local6
-      ImportedDependencyCall #7 : IntRange
+      Call external #7 : IntRange
         Local $dependency.receiver : Int
         Local $dependency.parameter.endpoint : Int
     val local7
       Local $for.source.18 : IntRange
     val local8
-      ImportedDependencyCall #6 : Iterator<Int>
+      Call external #6 : Iterator<Int>
         Local $dependency.receiver : IntRange
     val local9
       Local $for.iterator.result.19 : Iterator<Int>
@@ -281,7 +281,7 @@ Module
       val local29
         Local $dependency.argument.1 : (T0) -> Int
       assign $result.24
-        ImportedGenericCall ranged<T0> : Int
+        Call ranged<T0> : Int
           Local $dependency.parameter.value : T0
           Local $dependency.parameter.read : (T0) -> Int
     else

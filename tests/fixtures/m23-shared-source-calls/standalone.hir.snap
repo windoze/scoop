@@ -1,0 +1,138 @@
+Module
+  fun localDefault<T>(value: T0, copy: T0): T0
+    return
+      Local copy : T0
+  fun checked(value: Int): Int <no-gc cdecl>
+    val local1
+      Local value : Int
+    val local2
+      Local $dependency.argument.0 : Int
+    return
+      Call scalar<Int> : Int
+        Local $dependency.parameter.value : Int
+  fun exercise<T>(seed: T0, read: (T0) -> Int): Int
+    val local2
+      Local seed : T0
+    val local3
+      Local $dependency.argument.0 : T0
+    val local4
+      Call identity<T0> : T0
+        Local $dependency.parameter.value : T0
+    val local5
+      Local $dependency.argument.0 : T0
+    val local6
+      Call identity<T0> : T0
+        Local $dependency.parameter.value : T0
+    val local7
+      Local $argument.0 : T0
+    val local8
+      Local $parameter.value : T0
+    val local9
+      Local $dependency.argument.0 : T0
+    val local10
+      Local $dependency.parameter.value : T0
+    val local11
+      Local $default.local.1 : T0
+    val local12
+      Call identity<T0> : T0
+        Local $default.local.2 : T0
+    val local13
+      Call choose<T0> : T0
+        Local $dependency.parameter.value : T0
+        Local $dependency.parameter.copy : T0
+    return
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        Call localDefault<T0> : T0
+          Local $parameter.value : T0
+          Local $parameter.copy : T0
+  fun result(): Int
+    val local0
+      StringLiteral "source" : String
+    val local1
+      Lambda lambda0 invoke=$lambda.0 captures=0 : (String) -> Int
+    val local2
+      Local $argument.0 : String
+    val local3
+      Local $argument.1 : (String) -> Int
+    val local4
+      Call exercise<String> : Int
+        Local $parameter.seed : String
+        Local $parameter.read : (String) -> Int
+    val local5
+      IntegerLiteral 42 : Int
+    val local6
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 1 : Int
+    val local7
+      UnitLiteral : Unit
+    val local8
+      Lambda lambda1 invoke=$lambda.1 captures=0 : (Unit) -> Int
+    val local9
+      Local $argument.0 : Unit
+    val local10
+      Local $argument.1 : (Unit) -> Int
+    val local11
+      Call exercise<Unit> : Int
+        Local $parameter.seed : Unit
+        Local $parameter.read : (Unit) -> Int
+    val local12
+      IntegerLiteral 42 : Int
+    val local13
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 2 : Int
+    Call external #0 : Unit
+    val local14
+      IntegerLiteral 42 : Int
+    val local15
+      Local $argument.0 : Int
+    val local16
+      Call checked : Int
+        Local $parameter.value : Int
+    val local17
+      Local $dependency.argument.0 : Int
+    val local18
+      Call external #1 : Int
+        Local $dependency.parameter.value : Int
+    val local19
+      Call external #2 : Int
+    val local20
+      IntegerLiteral 42 : Int
+    val local21
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 3 : Int
+    val local22
+      Local value : Int
+    val local23
+      Lambda lambda2 invoke=$lambda.2 captures=0 : (Int) -> Int
+    val local24
+      Local $argument.0 : Int
+    val local25
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.seed : Int
+        Local $parameter.read : (Int) -> Int
+  output library
+  instance localDefault<T0>
+  instance exercise<String>
+  instance exercise<Unit>
+  instance exercise<Int>

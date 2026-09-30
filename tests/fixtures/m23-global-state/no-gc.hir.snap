@@ -1,11 +1,11 @@
 Module
   fun leaf<T>(): Int <no-gc cdecl>
     return
-      ImportedGenericCall leafStep<T0> : Int
+      Call leafStep<T0> : Int
   fun exercise<T>(value: T0): Int
-    ImportedDependencyCall #0 : Unit
+    Call external #0 : Unit
     val local1
-      ImportedDependencyCall #1 : Int
+      Call external #1 : Int
     val local2
       IntegerLiteral 1 : Int
     val local3
@@ -51,7 +51,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local12
-        ImportedDependencyCall #2 : Int
+        Call external #2 : Int
       val local13
         IntegerLiteral 3 : Int
       val local14

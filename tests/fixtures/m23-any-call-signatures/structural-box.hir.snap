@@ -10,7 +10,7 @@ Module
     val local2
       Local $dependency.argument.0 : Any
     val local3
-      ImportedDependencyCall #0 : Any
+      Call external #0 : Any
         Local $dependency.parameter.value : Any
     val local4
       Unbox : (Long, String)

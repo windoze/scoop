@@ -25,7 +25,7 @@ Module
       ImportedConstructorInit Scalar : Scalar<T0>
         Local $default.local.2 : T0
     val local7
-      ImportedGenericCall pack<T0> : Scalar<T0>
+      Call pack<T0> : Scalar<T0>
         Local $dependency.parameter.value : T0
         Local $dependency.parameter.scalar : Scalar<T0>
     val local8
@@ -62,7 +62,7 @@ Module
     val local20
       Local $dependency.argument.0 : Scalar<Phantom<String>>
     val local21
-      ImportedGenericCall hidden<Scalar<Phantom<String>>> : Int
+      Call hidden<Scalar<Phantom<String>>> : Int
         Local $dependency.parameter.value : Scalar<Phantom<String>>
     val local22
       IntegerLiteral 42 : Int
@@ -106,7 +106,7 @@ Module
     val local6
       Local $dependency.argument.0 : Scalar<Choice<Int>>
     val local7
-      ImportedGenericCall hidden<Scalar<Choice<Int>>> : Int
+      Call hidden<Scalar<Choice<Int>>> : Int
         Local $dependency.parameter.value : Scalar<Choice<Int>>
     val local8
       IntegerLiteral 42 : Int
@@ -124,7 +124,7 @@ Module
     val local11
       Local $dependency.argument.0 : Unit
     val local12
-      ImportedGenericCall hiddenChoice<Unit> : Int
+      Call hiddenChoice<Unit> : Int
         Local $dependency.parameter.value : Unit
     val local13
       IntegerLiteral 42 : Int

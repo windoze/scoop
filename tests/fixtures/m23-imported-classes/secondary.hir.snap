@@ -1,13 +1,13 @@
 Module
   fun primary(): Counter
     val local0
-      ImportedDependencyCall #0 : Token
+      Call external #0 : Token
     val local1
       Local $dependency.argument.0 : Token
     val local2
       IntegerLiteral 21 : Long
     return
-      ImportedDependencyCall #1 : Counter
+      Call external #1 : Counter
         Local $dependency.parameter.marker : Token
         Local $dependency.parameter.value : Long
   output library

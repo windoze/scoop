@@ -1,6 +1,6 @@
 Module
   fun exercise<T>(value: T0): Int
-    ImportedDependencyCall #0 : Unit
+    Call external #0 : Unit
     val local1
       Local value : T0
     val local2
@@ -9,7 +9,7 @@ Module
       ImportedConstructorInit Probe : Probe<T0>
         Local $dependency.parameter.value : T0
     val local4
-      ImportedDependencyCall #1 : Int
+      Call external #1 : Int
     val local5
       IntegerLiteral 1 : Int
     val local6
@@ -42,7 +42,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local12
-        ImportedDependencyCall #1 : Int
+        Call external #1 : Int
       val local13
         IntegerLiteral 2 : Int
       val local14

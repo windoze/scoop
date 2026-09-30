@@ -1,6 +1,6 @@
 Module
-  class Box<Int> vtable=0 itables=0
   class Inherited<Int> vtable=0 itables=0
+  class Box<Int> vtable=0 itables=0
   fun result @fn0() -> Int
     bb0 entry
       val $dependency.argument.0: Int

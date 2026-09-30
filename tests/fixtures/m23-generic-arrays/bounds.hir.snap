@@ -53,7 +53,7 @@ Module
     val local5
       Local $dependency.argument.1 : (T0) -> Int
     return
-      ImportedGenericCall exercise<T0> : Int
+      Call exercise<T0> : Int
         Local $dependency.parameter.seed : T0
         Local $dependency.parameter.read : (T0) -> Int
   fun result(): Int
@@ -66,7 +66,7 @@ Module
         Element
           Local $dependency.argument.0 : Int
     val local3
-      ImportedGenericCall pack<Int> : Array<Int>
+      Call pack<Int> : Array<Int>
         Local $dependency.parameter.values : Array<Int>
     try
       val local4
@@ -77,7 +77,7 @@ Module
         Local $dependency.argument.0 : Array<Int>
       val local7
         Local $dependency.argument.1 : Long
-      ImportedGenericCall first<Int> : Int
+      Call first<Int> : Int
         Local $dependency.parameter.values : Array<Int>
         Local $dependency.parameter.index : Long
     catch error: IndexOutOfBoundsException
@@ -101,7 +101,7 @@ Module
         Local $dependency.argument.0 : Array<Int>
       val local15
         Local $dependency.argument.1 : Long
-      ImportedGenericCall first<Int> : Int
+      Call first<Int> : Int
         Local $dependency.parameter.values : Array<Int>
         Local $dependency.parameter.index : Long
     catch error: IndexOutOfBoundsException
@@ -120,7 +120,7 @@ Module
     val local21
       Local $dependency.argument.0 : Array<Int>
     val local22
-      ImportedGenericCall copy<Int> : MutableArray<Int>
+      Call copy<Int> : MutableArray<Int>
         Local $dependency.parameter.values : Array<Int>
     try
       val local23
@@ -135,7 +135,7 @@ Module
         Local $dependency.argument.1 : () -> Long
       val local28
         Local $dependency.argument.2 : () -> Int
-      ImportedGenericCall mutateComputed<Int> : Int
+      Call mutateComputed<Int> : Int
         Local $dependency.parameter.values : MutableArray<Int>
         Local $dependency.parameter.index : () -> Long
         Local $dependency.parameter.value : () -> Int
@@ -173,13 +173,13 @@ Module
       val local39
         ArrayAssembly : Array<Unit>
       val local40
-        ImportedGenericCall pack<Unit> : Array<Unit>
+        Call pack<Unit> : Array<Unit>
           Local $dependency.parameter.values : Array<Unit>
       val local41
         Local $dependency.argument.0 : Array<Unit>
       val local42
         IntegerLiteral 0 : Long
-      ImportedGenericCall first<Unit> : Unit
+      Call first<Unit> : Unit
         Local $dependency.parameter.values : Array<Unit>
         Local $dependency.parameter.index : Long
     catch error: IndexOutOfBoundsException
@@ -223,14 +223,14 @@ Module
       val local55
         Local $dependency.argument.0 : MutableArray<Int>
       val local56
-        ImportedGenericCall freeze<Int> : Array<Int>
+        Call freeze<Int> : Array<Int>
           Local $dependency.parameter.values : MutableArray<Int>
       val local57
         Local $dependency.argument.0 : Array<Int>
       val local58
         IntegerLiteral 0 : Long
       val local59
-        ImportedGenericCall first<Int> : Int
+        Call first<Int> : Int
           Local $dependency.parameter.values : Array<Int>
           Local $dependency.parameter.index : Long
       val local60

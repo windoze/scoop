@@ -2,19 +2,19 @@ Module
   fun exercise<T>(value: T0): Int
     val local1
       ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
-    ImportedDependencyCall #0 : Unit
+    Call external #0 : Unit
       Local $property_receiver.0 : Trace
       IntegerLiteral 0 : Int
     val local2
       Local value : T0
     val local3
       Local $dependency.argument.0 : T0
-    ImportedGenericCall writeOnly<T0> : Unit
+    Call writeOnly<T0> : Unit
       ImportedConstructorInit Receiver : Receiver<T0>
         Local $dependency.parameter.value : T0
       IntegerLiteral 42 : Int
     val local4
-      ImportedDependencyCall #1 : Int
+      Call external #1 : Int
         ImportedSingletonValue 5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce : Trace
     val local5
       IntegerLiteral 345 : Int

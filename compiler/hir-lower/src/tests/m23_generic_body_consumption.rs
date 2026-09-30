@@ -33,6 +33,7 @@ mod references;
 mod requests;
 mod selection;
 mod shared_defaults;
+mod source_calls;
 mod structs;
 mod value_layouts;
 

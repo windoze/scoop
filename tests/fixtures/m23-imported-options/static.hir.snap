@@ -35,7 +35,7 @@ Module
     val local2
       Local $dependency.argument.0 : T0
     val local3
-      ImportedGenericCall wrap<T0> : Option<T0>
+      Call wrap<T0> : Option<T0>
         Local $dependency.parameter.value : T0
     Call $set$stored : Unit
       VariantConstruct Option.None<Int> : Option<Int>

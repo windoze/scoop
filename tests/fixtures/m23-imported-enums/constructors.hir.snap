@@ -9,7 +9,7 @@ Module
     val local2
       Local $dependency.argument.0 : Choice
     return
-      ImportedDependencyCall #1 : Long
+      Call external #1 : Long
         Local $dependency.parameter.value : Choice
   fun defaultFlag(value: Flag): Long <no-gc cdecl>
     when
@@ -78,7 +78,7 @@ Module
     val local0
       IntegerLiteral -29 : Long
     val local1
-      ImportedDependencyCall #0 : Token
+      Call external #0 : Token
     val local2
       IntegerLiteral 17 : Long
     val local3
@@ -102,7 +102,7 @@ Module
     val local10
       Local $dependency.argument.0 : Choice
     val local11
-      ImportedDependencyCall #1 : Long
+      Call external #1 : Long
         Local $dependency.parameter.value : Choice
     val local12
       IntegerLiteral -12 : Long
@@ -150,7 +150,7 @@ Module
     val local24
       IntegerLiteral 47 : Long
     val local25
-      ImportedDependencyCall #0 : Token
+      Call external #0 : Token
     val local26
       IntegerLiteral 48 : Long
     val local27
@@ -183,7 +183,7 @@ Module
     val local35
       IntegerLiteral 42 : Long
     val local36
-      ImportedDependencyCall #0 : Token
+      Call external #0 : Token
     val local37
       IntegerLiteral 53 : Long
     val local38
@@ -218,7 +218,7 @@ Module
     val local47
       Local $dependency.argument.0 : Long
     val local48
-      ImportedDependencyCall #0 : Token
+      Call external #0 : Token
     val local49
       Local $dependency.parameter.left : Long
     val local50
@@ -257,7 +257,7 @@ Module
     val local60
       Local $dependency.argument.1 : Long
     val local61
-      ImportedDependencyCall #0 : Token
+      Call external #0 : Token
     val local62
       Local $dependency.argument.0 : Long
     val local63
@@ -284,7 +284,7 @@ Module
     val local68
       IntegerLiteral 0 : Long
     val local69
-      ImportedDependencyCall #0 : Token
+      Call external #0 : Token
     val local70
       IntegerLiteral 0 : Long
     val local71
@@ -303,7 +303,7 @@ Module
     val local76
       Local $dependency.argument.0 : Choice
     val local77
-      ImportedDependencyCall #1 : Long
+      Call external #1 : Long
         Local $dependency.parameter.value : Choice
     val local78
       IntegerLiteral 0 : Long
@@ -321,7 +321,7 @@ Module
     val local81
       Local $dependency.argument.0 : Choice
     val local82
-      ImportedDependencyCall #1 : Long
+      Call external #1 : Long
         Local $dependency.parameter.value : Choice
     val local83
       IntegerLiteral 0 : Long

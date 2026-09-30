@@ -47,7 +47,7 @@ Module
     val local17
       Local $dependency.argument.0 : Pair
     val local18
-      ImportedGenericCall copy<Pair> : Pair
+      Call copy<Pair> : Pair
         Local $dependency.parameter.value : Pair
     val local19
       FieldAccess field 0 : Int
@@ -101,7 +101,7 @@ Module
     val local33
       Local $dependency.argument.1 : Pair
     val local34
-      ImportedGenericCall replace<Pair> : Pair
+      Call replace<Pair> : Pair
         Local $dependency.parameter.value : Pair
         Local $dependency.parameter.replacement : Pair
     val local35

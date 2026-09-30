@@ -5,7 +5,7 @@ Module
     val local2
       Local $dependency.argument.0 : T0
     val local3
-      ImportedGenericCall make<T0> : Box<T0>
+      Call make<T0> : Box<T0>
         Local $dependency.parameter.value : T0
     val local4
       FieldAccess field 0 : T0
@@ -15,7 +15,7 @@ Module
     val local6
       Local $dependency.argument.0 : Int
     val local7
-      ImportedDependencyCall #0 : Point
+      Call external #0 : Point
         Local $dependency.parameter.number : Int
     val local8
       FieldAccess field 0 : Int

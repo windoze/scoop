@@ -9,7 +9,7 @@ Module
     val local5
       Local $dependency.argument.1 : (T0) -> Int
     return
-      ImportedGenericCall exercise<T0> : Int
+      Call exercise<T0> : Int
         Local $dependency.parameter.seed : T0
         Local $dependency.parameter.read : (T0) -> Int
   fun result(): Int
@@ -21,7 +21,7 @@ Module
     val local2
       Local $dependency.argument.0 : MutableArray<Int>
     val local3
-      ImportedDependencyCall #0 : Array<Int>
+      Call external #0 : Array<Int>
         Local $dependency.parameter.source : MutableArray<Int>
     val local4
       IntegerLiteral 0 : Long
@@ -94,7 +94,7 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 3 : Int
-    ImportedDependencyCall #1 : Unit
+    Call external #1 : Unit
       IntegerLiteral 0 : Int
     val local25
       Local source : MutableArray<Int>
@@ -104,7 +104,7 @@ Module
       ArrayClone : Array<Int>
         Local $parameter.source : MutableArray<Int>
     val local28
-      ImportedDependencyCall #2 : Int
+      Call external #2 : Int
     val local29
       IntegerLiteral 0 : Int
     val local30

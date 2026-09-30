@@ -19,18 +19,18 @@ Module
     val local6
       Local $dependency.argument.2 : Long
     val local8
-      ImportedDependencyCall #2 : WideValue
+      Call external #2 : WideValue
         Local $dependency.parameter.first : Long
         Local $dependency.parameter.second : Long
         Local $dependency.parameter.third : Long
     val local9
-      ImportedDependencyCall #4 : Token
+      Call external #4 : Token
     val local10
       Local $dependency.argument.0 : WideValue
     val local11
       Local $dependency.argument.1 : Token
     val local12
-      ImportedDependencyCall #1 virtual[0] : WideValue
+      Call external #1 virtual[0] : WideValue
         Local $dependency.receiver : WideParent
         Local $dependency.parameter.input : WideValue
         Local $dependency.parameter.marker : Token
@@ -58,6 +58,6 @@ Module
     val local20
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #5 : Counter
+      Call external #5 : Counter
         Local $dependency.parameter.value : Long
   output library

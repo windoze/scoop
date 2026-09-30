@@ -133,7 +133,11 @@ fn overload_resolution_prefers_the_literal_default_kind_only_when_present() {
     .expect("literal default kinds must break only the default-width overload tie");
     let body = main_body(&module);
     for (name, expected_parameter) in [("signed", "Int"), ("unsigned", "UInt")] {
-        let hir::ExprKind::Call { callee, .. } = local_init(body, name).kind else {
+        let hir::ExprKind::Call {
+            callee: hir::CallableTarget::Local(callee),
+            ..
+        } = local_init(body, name).kind
+        else {
             panic!("selection must be a direct call")
         };
         let function = &module.functions[module.callable_function(callee)];
@@ -191,7 +195,11 @@ fn literal_default_preference_is_a_per_argument_pareto_tie_break() {
         ),
     ]))
     .expect("one differing default-exact literal parameter must dominate");
-    let hir::ExprKind::Call { callee, .. } = local_init(main_body(&module), "selected").kind else {
+    let hir::ExprKind::Call {
+        callee: hir::CallableTarget::Local(callee),
+        ..
+    } = local_init(main_body(&module), "selected").kind
+    else {
         panic!("selected must be a direct call")
     };
     let selected = &module.functions[module.callable_function(callee)];

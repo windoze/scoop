@@ -9,7 +9,7 @@ Module
     val local5
       Local $dependency.argument.1 : (T0) -> Int
     return
-      ImportedGenericCall exercise<T0> : Int
+      Call exercise<T0> : Int
         Local $dependency.parameter.seed : T0
         Local $dependency.parameter.read : (T0) -> Int
   fun readInt(value: Int): Int
@@ -28,7 +28,7 @@ Module
     val local3
       Local $dependency.argument.1 : (Int) -> Int
     val local4
-      ImportedGenericCall total<Int> : Int
+      Call total<Int> : Int
         Local $dependency.parameter.values : Iterable<Int>
         Local $dependency.parameter.read : (Int) -> Int
     val local5
@@ -57,7 +57,7 @@ Module
     val local11
       Local $dependency.argument.1 : (Int) -> Int
     val local12
-      ImportedGenericCall total<Int> : Int
+      Call total<Int> : Int
         Local $dependency.parameter.values : Iterable<Int>
         Local $dependency.parameter.read : (Int) -> Int
     val local13
@@ -83,7 +83,7 @@ Module
     val local19
       Local $dependency.argument.1 : (Int) -> Int
     val local20
-      ImportedGenericCall total<Int> : Int
+      Call total<Int> : Int
         Local $dependency.parameter.values : Iterable<Int>
         Local $dependency.parameter.read : (Int) -> Int
     val local21
@@ -106,7 +106,7 @@ Module
     val local25
       Local $dependency.argument.0 : Array<Int>
     val local26
-      ImportedGenericCall marked<Int> : Sequence<Int>
+      Call marked<Int> : Sequence<Int>
         Local $dependency.parameter.values : Array<Int>
     val local27
       Local $for.source.0 : Sequence<Int>

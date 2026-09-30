@@ -3,17 +3,17 @@ Module
   val localValue: Int <global0 managed>
   fun outside(value: Any): Any
     val local1
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
     val local2
       Local value : Any
     val local3
       Local $dependency.argument.0 : Any
     return
-      ImportedDependencyCall #1 : Any
+      Call external #1 : Any
         Local $dependency.parameter.value : Any
   fun $init$body$0(): Unit
     assign global localValue
-      ImportedDependencyCall #0 : Int
+      Call external #0 : Int
   fun $init$ensure$0(): Unit
   fun $get$localValue(): Int
     ensure init0 top-level:localValue

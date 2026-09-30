@@ -66,7 +66,7 @@ Module
     val local0
       ClassInit LocalHost : LocalHost
     val local1
-      ImportedDependencyCall #0 : Host
+      Call external #0 : Host
     val local2
       Local local : LocalHost
     val local3
@@ -96,7 +96,7 @@ Module
       val local10
         Local $dependency.argument.0 : Int
       val local11
-        ImportedDependencyCall #1 : Int
+        Call external #1 : Int
           Local $dependency.receiver : Host
           Local $dependency.parameter.value : Int
       val local12
@@ -143,7 +143,7 @@ Module
       val local23
         Local $dependency.argument.0 : Any
       val local24
-        ImportedDependencyCall #2 : Int
+        Call external #2 : Int
           Local $dependency.receiver : Host
           Local $dependency.parameter.value : Any
       val local25
@@ -188,7 +188,7 @@ Module
       val local36
         Local $dependency.argument.0 : Int
       val local37
-        ImportedDependencyCall #3 : Int
+        Call external #3 : Int
           Local $dependency.receiver : Host
           Local $dependency.parameter.value : Int
       val local38
@@ -233,7 +233,7 @@ Module
       val local49
         Local $dependency.argument.0 : Int
       val local50
-        ImportedDependencyCall #4 : Int
+        Call external #4 : Int
           Local $dependency.receiver : Host
           Local $dependency.parameter.value : Int
       val local51
@@ -265,7 +265,7 @@ Module
       val local58
         Local external : Host
       assign $result.5
-        ImportedDependencyCall #5 : Int
+        Call external #5 : Int
           Local $dependency.receiver : Host
     else
       assign $result.5

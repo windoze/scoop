@@ -2,13 +2,13 @@ Module
   fun exercise<T>(value: T0): Int
     val local1
       ReferenceUpcast : Readable
-        ImportedDependencyCall #3 : PlainDerived
+        Call external #3 : PlainDerived
     val local2
       Local receiver : Readable
     val local3
       Local $dependency.argument.0 : Readable
     val local4
-      ImportedGenericCall readReference<Readable> : () -> Int
+      Call readReference<Readable> : () -> Int
         Local $dependency.parameter.value : Readable
     val local5
       IntegerLiteral 42 : Int
@@ -16,14 +16,14 @@ Module
       Local $dependency.argument.0 : Int
     val local7
       Box : Readable
-        ImportedDependencyCall #6 : Value
+        Call external #6 : Value
           Local $dependency.parameter.number : Int
     val local8
       Local boxed : Readable
     val local9
       Local $dependency.argument.0 : Readable
     val local10
-      ImportedGenericCall readReference<Readable> : () -> Int
+      Call readReference<Readable> : () -> Int
         Local $dependency.parameter.value : Readable
     val local11
       Local value : T0
@@ -42,7 +42,7 @@ Module
     val local17
       Local $dependency.argument.0 : Readable
     val local18
-      ImportedGenericCall readBound<Readable> : Int
+      Call readBound<Readable> : Int
         Local $dependency.parameter.value : Readable
     val local19
       IntegerLiteral 42 : Int
@@ -61,7 +61,7 @@ Module
       val local22
         Local $dependency.argument.0 : Readable
       val local23
-        ImportedGenericCall readBound<Readable> : Int
+        Call readBound<Readable> : Int
           Local $dependency.parameter.value : Readable
       val local24
         IntegerLiteral 42 : Int

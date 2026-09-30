@@ -6,16 +6,16 @@ Module
       Local $dependency.argument.0 : Long
     val local2
       Box : RebuiltReadable
-        ImportedDependencyCall #1 : RebuiltValueReader
+        Call external #1 : RebuiltValueReader
           Local $dependency.parameter.value : Long
     val local3
       Local value : RebuiltReadable
     val local4
-      ImportedDependencyCall #2 interface[0] : Long
+      Call external #2 interface[0] : Long
         Local $dependency.receiver : RebuiltReadable
     val local5
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #3 : Counter
+      Call external #3 : Counter
         Local $dependency.parameter.value : Long
   output library

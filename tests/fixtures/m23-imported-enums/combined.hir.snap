@@ -23,13 +23,13 @@ Module
     val local3
       Local $dependency.argument.1 : Long
     val local4
-      ImportedDependencyCall #0 : Choice
+      Call external #0 : Choice
         Local $dependency.parameter.left : Long
         Local $dependency.parameter.right : Long
     val local5
       TupleLiteral : (Token, Token)
-        ImportedDependencyCall #1 : Token
-        ImportedDependencyCall #1 : Token
+        Call external #1 : Token
+        Call external #1 : Token
     val local6
       Local $argument.0 : Choice
     val local7
@@ -68,7 +68,7 @@ Module
         val local18
           Local $dependency.argument.0 : Choice
         assign $result.0
-          ImportedDependencyCall #2 : Long
+          Call external #2 : Long
             Local $dependency.parameter.value : Choice
       impossible <enum pattern matrix for Wrapper>
     val local20
@@ -84,7 +84,7 @@ Module
     val local24
       Local $dependency.argument.1 : Long
     val local25
-      ImportedDependencyCall #0 : Choice
+      Call external #0 : Choice
         Local $dependency.parameter.left : Long
         Local $dependency.parameter.right : Long
     val local26
@@ -95,7 +95,7 @@ Module
     val local28
       Local $dependency.argument.0 : Choice
     val local30
-      ImportedDependencyCall #2 : Long
+      Call external #2 : Long
         Local $dependency.parameter.value : Choice
     val local31
       Local $dependency.argument.0 : Long
@@ -104,7 +104,7 @@ Module
         Local $dependency.receiver : Long
         Local $dependency.parameter.other : Long
     val local32
-      ImportedDependencyCall #3 : Flag
+      Call external #3 : Flag
     val local33
       Local $argument.0 : Flag
     val local34
@@ -113,7 +113,7 @@ Module
     val local35
       Local $dependency.argument.0 : Flag
     val local37
-      ImportedDependencyCall #4 : Long
+      Call external #4 : Long
         Local $dependency.parameter.value : Flag
     val local38
       Local $dependency.argument.0 : Long

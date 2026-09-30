@@ -155,7 +155,10 @@ fn body<'a>(module: &'a hir::Module, name: &str) -> &'a hir::Body {
 fn selected_getter(module: &hir::Module) -> hir::FunctionId {
     let expression = local_init(body(module, "main"), "observed");
     match expression.kind {
-        hir::ExprKind::Call { callee, .. } => module.callable_function(callee),
+        hir::ExprKind::Call {
+            callee: hir::CallableTarget::Local(callee),
+            ..
+        } => module.callable_function(callee),
         hir::ExprKind::MethodCall { callee, .. } => module.callable_function(callee),
         ref other => panic!("delegate read is a resolved role call, found {other:?}"),
     }

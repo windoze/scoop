@@ -216,7 +216,10 @@ fn concrete_body<'module>(
 
 fn export_callee_name<'module>(module: &'module hir::Module, expr: &hir::Expr) -> &'module str {
     let function = match &expr.kind {
-        hir::ExprKind::Call { callee, .. } => module.callable_function(*callee),
+        hir::ExprKind::Call {
+            callee: hir::CallableTarget::Local(callee),
+            ..
+        } => module.callable_function(*callee),
         hir::ExprKind::MethodCall { callee, .. } => module.callable_function(*callee),
         other => panic!("expected a resolved call, found {other:?}"),
     };

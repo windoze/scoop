@@ -332,18 +332,23 @@ impl BodyProjection<'_, '_> {
                 callee,
                 args,
                 receiver,
-            } => DefaultExpressionKindV1::Call {
-                callee: self.entities.callable(*callee, self.binders)?,
-                receiver: receiver.try_map(|ty| self.type_key(ty))?,
-                arguments: self.expressions(args)?,
-            },
-
-            ExprKind::ImportedDependencyCall {
-                callee,
-                args,
-                receiver,
                 ..
-            } => self.imported_call(*callee, args, *receiver, result_type)?,
+            } => match callee {
+                crate::CallableTarget::Local(_) => DefaultExpressionKindV1::Call {
+                    callee: self.callable_target(*callee)?,
+                    receiver: receiver.try_map(|ty| self.type_key(ty))?,
+                    arguments: self.expressions(args)?,
+                },
+                crate::CallableTarget::Application(application) => self.imported_generic_call(
+                    *application,
+                    args,
+                    *receiver,
+                    crate::ImportedGenericCallKind::Ordinary,
+                )?,
+                crate::CallableTarget::Dependency(callee) => {
+                    self.imported_call(*callee, args, *receiver, result_type)?
+                }
+            },
             ExprKind::ImportedGenericCall {
                 application,
                 kind,

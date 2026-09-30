@@ -21,19 +21,19 @@ Module
     val local1
       Local $dependency.argument.0 : Int
     val local2
-      ImportedDependencyCall #0 : FixedLocalSlot
+      Call external #0 : FixedLocalSlot
         Local $dependency.parameter.stored : Int
     val local3
       IntegerLiteral 42 : Int
     val local4
       Local $argument.0 : Int
-    ImportedDependencyCall #2 : Unit
+    Call external #2 : Unit
       Local $delegate.1 : FixedLocalSlot
       UnitLiteral : Unit
       Call echo<Int> : Int
         Local $parameter.value : Int
     return
-      ImportedDependencyCall #1 : Int
+      Call external #1 : Int
         Local $delegate.1 : FixedLocalSlot
         UnitLiteral : Unit
   output library

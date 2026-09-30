@@ -9,7 +9,7 @@ Module
     val local4
       Local $dependency.argument.1 : Boolean
     val local5
-      ImportedGenericCall ordered<T0> : Int
+      Call ordered<T0> : Int
         Local $dependency.parameter.value : T0
         Local $dependency.parameter.fail : Boolean
     val local6
@@ -32,7 +32,7 @@ Module
     val local11
       Local $dependency.argument.1 : Boolean
     return
-      ImportedGenericCall ordered<T0> : Int
+      Call ordered<T0> : Int
         Local $dependency.parameter.value : T0
         Local $dependency.parameter.fail : Boolean
   fun result(): Int

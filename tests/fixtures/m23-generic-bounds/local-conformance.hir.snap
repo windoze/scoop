@@ -15,7 +15,7 @@ Module
     val local5
       Local $dependency.argument.0 : Local<T0>
     val local6
-      ImportedGenericCall readReference<Local<T0>> : () -> Int
+      Call readReference<Local<T0>> : () -> Int
         Local $dependency.parameter.value : Local<T0>
     val local7
       Local value : T0
@@ -34,7 +34,7 @@ Module
     val local13
       Local $dependency.argument.0 : Local<T0>
     val local14
-      ImportedGenericCall readBound<Local<T0>> : Int
+      Call readBound<Local<T0>> : Int
         Local $dependency.parameter.value : Local<T0>
     val local15
       IntegerLiteral 42 : Int

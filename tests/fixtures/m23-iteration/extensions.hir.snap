@@ -9,11 +9,11 @@ Module
     val local5
       Local $dependency.argument.1 : (T0) -> Int
     return
-      ImportedGenericCall exercise<T0> : Int
+      Call exercise<T0> : Int
         Local $dependency.parameter.seed : T0
         Local $dependency.parameter.read : (T0) -> Int
   fun result(): Int
-    ImportedDependencyCall #0 : Unit
+    Call external #0 : Unit
     val local0
       IntegerLiteral 0 : Int
     val local1
@@ -28,7 +28,7 @@ Module
     val local4
       Local $for.source.0 : Items<Int>
     val local5
-      ImportedGenericCall iterator<Int> : Iterator<Int>
+      Call iterator<Int> : Iterator<Int>
         Local $dependency.receiver : Items<Int>
     val local6
       Local $for.iterator.result.1 : Iterator<Int>
@@ -69,7 +69,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local16
-        ImportedDependencyCall #1 : Int
+        Call external #1 : Int
       val local17
         IntegerLiteral 1 : Int
       val local18
@@ -85,7 +85,7 @@ Module
         BoolLiteral true : Boolean
     else
       val local20
-        ImportedDependencyCall #2 : Int
+        Call external #2 : Int
       val local21
         IntegerLiteral 3 : Int
       val local22
@@ -99,7 +99,7 @@ Module
       Local $shortCircuit.6 : Boolean
       return
         IntegerLiteral 1 : Int
-    ImportedDependencyCall #0 : Unit
+    Call external #0 : Unit
     assign sum
       IntegerLiteral 0 : Int
     val local24
@@ -114,7 +114,7 @@ Module
     val local27
       Local $for.source.7 : ValueItems<Int>
     val local28
-      ImportedGenericCall iterator<Int> : ValueCursor<Int>
+      Call iterator<Int> : ValueCursor<Int>
         Local $dependency.receiver : ValueItems<Int>
     val local29
       Box : Iterator<Int>
@@ -152,7 +152,7 @@ Module
         Local $dependency.receiver : Int
         Local $dependency.parameter.other : Int
       val local39
-        ImportedDependencyCall #1 : Int
+        Call external #1 : Int
       val local40
         IntegerLiteral 1 : Int
       val local41
@@ -167,7 +167,7 @@ Module
     if
       Local $shortCircuit.12 : Boolean
       val local43
-        ImportedDependencyCall #2 : Int
+        Call external #2 : Int
       val local44
         IntegerLiteral 3 : Int
       val local45

@@ -24,11 +24,11 @@ Module
       ImportedConstructorInit Receiver : Receiver<Int, Boolean>
         Local $dependency.parameter.left : Int
         Local $dependency.parameter.right : Boolean
-    ImportedGenericCall shared<Int, Boolean> : Unit
+    Call shared<Int, Boolean> : Unit
       Local first : Receiver<Int, Boolean>
       IntegerLiteral 42 : Int
     return
-      ImportedGenericCall shared<Int, Boolean> : Int
+      Call shared<Int, Boolean> : Int
         Local second : Receiver<Int, Boolean>
   fun otherFirst(): Int
     val local0
@@ -40,7 +40,7 @@ Module
     val local3
       Local $dependency.argument.1 : Boolean
     return
-      ImportedGenericCall shared<Boolean, Boolean> : Int
+      Call shared<Boolean, Boolean> : Int
         ImportedConstructorInit Receiver : Receiver<Boolean, Boolean>
           Local $dependency.parameter.left : Boolean
           Local $dependency.parameter.right : Boolean
@@ -54,7 +54,7 @@ Module
     val local3
       Local $dependency.argument.1 : Int
     return
-      ImportedGenericCall shared<Int, Int> : Int
+      Call shared<Int, Int> : Int
         ImportedConstructorInit Receiver : Receiver<Int, Int>
           Local $dependency.parameter.left : Int
           Local $dependency.parameter.right : Int

@@ -8,7 +8,7 @@ Module
     val local1
       Local $dependency.argument.0 : Long
     val local2
-      ImportedDependencyCall #0 : Readable
+      Call external #0 : Readable
         Local $dependency.parameter.value : Long
     val local3
       Local $argument.0 : Readable
@@ -16,11 +16,11 @@ Module
       Call identityView : Readable
         Local $parameter.value : Readable
     val local5
-      ImportedDependencyCall #1 interface[0] : Long
+      Call external #1 interface[0] : Long
         Local $dependency.receiver : Readable
     val local6
       Local $dependency.argument.0 : Long
     return
-      ImportedDependencyCall #2 : Counter
+      Call external #2 : Counter
         Local $dependency.parameter.value : Long
   output library

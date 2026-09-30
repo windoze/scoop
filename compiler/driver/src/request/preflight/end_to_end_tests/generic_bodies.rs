@@ -39,6 +39,7 @@ mod shared_literals;
 mod shared_requests;
 mod shared_structs;
 mod siblings;
+mod source_calls;
 mod value_layouts;
 
 #[test]
