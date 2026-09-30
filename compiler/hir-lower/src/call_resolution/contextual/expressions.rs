@@ -17,6 +17,7 @@ pub(crate) enum ArgumentExpression<'a> {
 pub(crate) struct ArgumentExpressionFailure {
     pub(crate) source_index: usize,
     pub(crate) expected: Option<hir::TypeId>,
+    pub(crate) context_dependent: bool,
     pub(crate) span: ast::Span,
     pub(crate) reason: String,
 }
@@ -31,7 +32,7 @@ impl ArgumentExpression<'_> {
     /// frames; only a default-seed attempt needs to own a rollback state.
     pub(super) fn try_default(self, state: &Lowerer, source_index: usize) -> ArgumentAttempt {
         let mut attempt = Box::new(state.clone());
-        let result = self.lower(&mut attempt, source_index, None);
+        let result = self.lower(&mut attempt, source_index, None, false);
         ArgumentAttempt {
             state: attempt,
             result,
@@ -57,7 +58,15 @@ impl ArgumentExpression<'_> {
         state: &mut Lowerer,
         source_index: usize,
         expected: Option<hir::TypeId>,
+        contextual: bool,
     ) -> Result<(hir::Expr, Vec<hir::Statement>), ArgumentExpressionFailure> {
+        let context_dependent = contextual
+            && match self {
+                Self::Source(ast::Expr::Var(_)) => {
+                    expected.is_some_and(|ty| matches!(state.types[ty], hir::Type::Enum(_)))
+                }
+                _ => true,
+            };
         let before = state.diagnostics.len();
         let mut sink = Vec::new();
         let (value, span) = match self {
@@ -97,6 +106,7 @@ impl ArgumentExpression<'_> {
         Err(ArgumentExpressionFailure {
             source_index,
             expected,
+            context_dependent,
             span: diagnostics
                 .first()
                 .and_then(|diagnostic| diagnostic.span)

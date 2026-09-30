@@ -25,7 +25,6 @@ use crate::expr::ResolvedCallTypeArgument;
 use crate::{CallableCandidate, CallableCandidateSource, Lowerer};
 
 mod diagnostics;
-mod inference;
 mod named;
 mod probe;
 mod specificity;
@@ -125,7 +124,6 @@ struct Candidate {
     owner: crate::CallableCandidateOwner,
     source: CallableCandidateSource,
     params: Vec<TypeId>,
-    return_ty: TypeId,
     /// Parameters declared by the function/method itself. Owner-only
     /// genericity does not make an otherwise concrete overload generic for
     /// MSC tie-breaking.
@@ -318,31 +316,6 @@ impl Lowerer {
         let mut applicable = Vec::new();
         let mut failures = Vec::new();
         for (index, candidate) in prepared.iter().enumerate() {
-            if !candidate.explicit_arity_match {
-                failures.push(probe::CandidateProbeFailure {
-                    candidate: index,
-                    state: Box::new(self.clone()),
-                    arguments: Vec::new(),
-                    kind: probe::CandidateProbeFailureKind::Shape(
-                        probe::CandidateShapeFailure::TypeArgumentArity {
-                            expected: candidate.own_type_param_count,
-                            supplied: explicit_type_args.len(),
-                        },
-                    ),
-                });
-                continue;
-            }
-            if let Err(failure) = &candidate.argument_map {
-                failures.push(probe::CandidateProbeFailure {
-                    candidate: index,
-                    state: Box::new(self.clone()),
-                    arguments: Vec::new(),
-                    kind: probe::CandidateProbeFailureKind::Shape(
-                        probe::CandidateShapeFailure::Argument(failure.clone()),
-                    ),
-                });
-                continue;
-            }
             match self.probe_overload_candidate(
                 index,
                 candidate,

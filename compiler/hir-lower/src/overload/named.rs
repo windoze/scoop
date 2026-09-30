@@ -151,15 +151,15 @@ impl Lowerer {
             NamedCallReceiver::Extension(receiver) => Some(receiver),
             NamedCallReceiver::None | NamedCallReceiver::Member(_) => None,
         };
-        if prepared.explicit_arity_match && prepared.argument_map.is_ok() {
-            if let Ok(transaction) = self.probe_overload_candidate(
-                0,
-                &prepared,
-                inference_receiver,
-                call.explicit_type_args,
-                &arguments,
-                call.expected_result,
-            ) {
+        let failed = match self.probe_overload_candidate(
+            0,
+            &prepared,
+            inference_receiver,
+            call.explicit_type_args,
+            &arguments,
+            call.expected_result,
+        ) {
+            Ok(transaction) => {
                 return Ok(NamedCallableProbe {
                     prepared,
                     transaction,
@@ -167,23 +167,19 @@ impl Lowerer {
                     materialize_arguments,
                 });
             }
-        }
-        // The ordinary singleton resolver owns the established detailed
-        // shape/constraint diagnostic. Its entire failure stays scratch.
+            Err(failure) => *failure,
+        };
         let mut failure = self.clone();
-        let mut sink = Vec::new();
-        failure.resolve_overload_with_receiver(
+        failure.candidate_failures_diagnostic(
             name,
-            &[target],
-            OverloadResolution {
-                receiver: receiver.into_overload_receiver(),
+            std::slice::from_ref(&prepared),
+            &mut [failed],
+            diagnostics::CandidateFailureContext {
+                arguments: &arguments,
+                extension_receiver: inference_receiver,
                 explicit_type_args: call.explicit_type_args,
-                arguments,
                 span: call.span,
-                expected_result: call.expected_result,
-                argument_protocol: call.argument_protocol,
             },
-            &mut sink,
         );
         Err(Box::new(failure))
     }
@@ -265,7 +261,6 @@ impl Lowerer {
             owner: source.owner.clone(),
             source: view.dispatch,
             params,
-            return_ty: view.return_type,
             own_type_param_count,
             owner_arguments,
             explicit_arity_match: explicit_type_args.is_empty()

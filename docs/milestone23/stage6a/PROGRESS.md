@@ -451,3 +451,11 @@
 - 新增 `m23-shared-argument-materialization` 两组正例、四个反例、六份阶段快照与四份诊断快照。覆盖接收者副作用、逆序命名实参、前置参数默认值、成员／扩展 invoke、泛型构造与 variant、vararg 组合，以及随循环条件重复执行的默认值 setup。源码移走后再次发布，下游本地 class／String／Int／Unit 与普通／moving GC 运行通过。
 - 全仓 fmt／clippy 无警告，2898 项 HIR／HIR lowering／MIR lowering／slib 单元测试全部通过；86 项真实泛型产物与完整 core 回归全部关闭快照更新开关通过。既有 HIR／MIR／LIR／诊断快照均未变化。证据前缀 `/tmp/scoop-m23-6a-argument-materialization-`，结果见 `unit.log`、`generate-results.json`、`all-verified-results.json` 和 `invoke-before.log`。
 - 参数协议、声明适配、共同求值模块分别为 103、117、119 行，依赖提交模块降为 373 行；wire payload 与 runtime ABI 保持。确认无文件占用后清理约 1483.8 MiB 闲置 `target/debug`，继续复用 `target/m23-6a`。完整候选和 probe／commit 调度仍需统一，6a 尚未完成。
+
+## 共同候选类型探测与失败事务复用
+
+- 当前 callable、nominal、普通依赖及泛型依赖共用完整约束输入、上下文固定点、声明实参代换与值适配；`infer_contextual_arguments` 仅由共同探测器调用。普通函数显式参数绑定 callable 组，构造器与 variant 绑定 owner 组；依赖构造不再伪装成函数参数组，期望 nominal application、声明上界与完整结果检查走相同约束过程。已由求解器验证的普通实参不再逐个重做子类型检查，intrinsic 的额外实际签名要求保留。
+- 当前调用的形态失败也直接返回原事务，命名调用不再为了诊断重新运行 singleton resolver。实际表达式探测记录诊断是否依赖期望类型，诊断只复用结果；未知变量继续给出聚焦错误，enum 上下文和重载相关错误保留候选信息。两项既有诊断单元在迁移中发现的回归已修复，最初证据保存在 `unit-before-diagnostics.log`。
+- 新增 `m23-shared-call-probes` 两组正例、四个反例、六份阶段快照与四份诊断快照，覆盖无实参构造的期望类型、完整宿主／方法参数、`_`、延迟 lambda、函数值与匿名函数、失败重载事务、generic variant 和 kind bound。源码移走后再次发布，下游本地 class／String／Int／Unit 与普通／moving GC 运行通过。
+- 全仓 fmt／clippy 无警告，2898 项 HIR／HIR lowering／MIR lowering／slib 单元测试全部通过；87 项真实泛型产物与完整 core 回归全部关闭快照更新开关通过。既有 HIR／MIR／LIR／诊断快照均未变化。最终证据前缀 `/tmp/scoop-m23-6a-call-probes-`，结果见 `unit.log`、`generate-results.json` 和 `all-verified-results.json`。
+- 共同探测器 115 行，声明约束模块 225 行；函数引用签名检查与依赖诊断分别拆为 130、144 行，依赖泛型探测模块降至 294 行。确认全部验证结束且无文件占用后清理约 1484.0 MiB 闲置 `target/debug`。wire payload 与 runtime ABI 不变；完整声明参数视图、引用适用性与最终内存／wire 等价及 workspace／runtime 完成门仍需落实。

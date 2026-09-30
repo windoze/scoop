@@ -3,13 +3,15 @@
 
 use super::*;
 
+mod diagnostics;
 mod signature;
-use crate::call_resolution::applicability::CallableApplicabilityInput;
-use crate::call_resolution::constraints::{Constraint, ConstraintOrigin, TypeTerm};
-use crate::call_resolution::contextual::{
-    ArgumentExpression, ArgumentInferenceFailureKind, ArgumentInferenceInput, ArgumentPattern,
-    InferredArguments,
+use crate::call_resolution::applicability::{
+    DeclarationApplicabilityInput, DeclarationTypeArguments,
 };
+use crate::call_resolution::contextual::{
+    ArgumentExpression, ArgumentInferenceFailureKind, ArgumentPattern,
+};
+use crate::call_resolution::probe::{CallInferenceInput, InferredCall};
 pub(in crate::expr) use signature::{ImportedGenericTarget, ImportedInferenceSignature};
 
 impl Lowerer {
@@ -42,7 +44,11 @@ impl Lowerer {
             Some(arguments) => arguments,
             None => return Err(self),
         };
-        let owner_arguments = if signature.owner_parameters.is_empty() {
+        let nominal = matches!(
+            template,
+            ImportedGenericTarget::Constructor(_) | ImportedGenericTarget::Variant(_)
+        );
+        let owner_arguments = if nominal || signature.owner_parameters.is_empty() {
             Vec::new()
         } else {
             let ImportedCallReceiver::Member { value, .. } = &receiver else {
@@ -63,30 +69,22 @@ impl Lowerer {
             }
             _ => None,
         };
-        let (mut session, environment) =
-            self.callable_applicability_session(CallableApplicabilityInput {
-                owner_parameters: &signature.owner_parameters,
-                callable_parameters: &signature.type_parameters,
-                owner_arguments: &owner_arguments,
-                explicit_arguments: &explicit,
-                bound_receiver,
-            });
-        let expected_result = expected.map(|expected| (signature.return_type, expected));
-        let expected_result = if matches!(
-            template,
-            ImportedGenericTarget::Constructor(_) | ImportedGenericTarget::Variant(_)
-        ) && let Some((result, expected)) = expected_result
-            && let Some(result_application) = self.nominal_application(result)
-            && let Some(expected_application) = self.nominal_application(expected)
-            && result_application.template == expected_application.template
-        {
-            session.push(
-                Constraint::Equal(TypeTerm::Type(result), TypeTerm::Rigid(expected)),
-                ConstraintOrigin::ExpectedResult,
-            );
-            None
+        let expected_application = expected.and_then(|ty| self.nominal_application(ty));
+        let type_arguments = if nominal {
+            let result = self
+                .nominal_application(signature.return_type)
+                .expect("a nominal candidate retains its full result application");
+            DeclarationTypeArguments::Nominal {
+                template: result.template,
+                expected_arguments: expected_application
+                    .as_ref()
+                    .filter(|application| application.template == result.template)
+                    .map(|application| application.arguments.as_slice()),
+            }
         } else {
-            expected_result
+            DeclarationTypeArguments::Callable {
+                owner_arguments: &owner_arguments,
+            }
         };
         let mut source_patterns = Vec::new();
         for (index, pattern) in argument_map.source_parameters().iter().enumerate() {
@@ -130,23 +128,33 @@ impl Lowerer {
         } else {
             expressions
         };
-        let parameters = signature
-            .owner_parameters
+        let declared_parameters = signature
+            .parameters
             .iter()
-            .chain(&signature.type_parameters)
-            .map(|parameter| parameter.id)
+            .skip(usize::from(signature.receiver.is_some()))
+            .map(|parameter| parameter.1)
             .collect::<Vec<_>>();
-        let InferredArguments {
+        let InferredCall {
             types: solution,
-            values: mut source_args,
+            bindings,
+            values: source_args,
             sinks: argument_sinks,
-        } = match self.infer_contextual_arguments(ArgumentInferenceInput {
+            parameter_types,
+            return_type: result_type,
+            integer_arguments,
+        } = match self.infer_call_arguments(CallInferenceInput {
+            declaration: DeclarationApplicabilityInput {
+                owner_parameters: &signature.owner_parameters,
+                callable_parameters: &signature.type_parameters,
+                type_arguments,
+                explicit_arguments: &explicit,
+                bound_receiver,
+            },
+            parameter_types: &declared_parameters,
+            return_type: signature.return_type,
             expressions: &expressions,
             patterns: &source_patterns,
-            parameters: &parameters,
-            session: &mut session,
-            environment,
-            expected_result,
+            expected_result: if nominal { None } else { expected },
             forced_hint: None,
         }) {
             Ok(arguments) => arguments,
@@ -157,31 +165,6 @@ impl Lowerer {
                 return Err(self);
             }
         };
-        let integer_arguments = source_args
-            .iter()
-            .map(|value| match self.types[value.ty] {
-                hir::Type::Integer(kind) => Some(kind),
-                _ => None,
-            })
-            .collect();
-        let bindings = signature
-            .owner_parameters
-            .iter()
-            .chain(&signature.type_parameters)
-            .zip(solution.owner.iter().chain(&solution.callable))
-            .map(|(p, a)| (p.id, *a))
-            .collect::<Vec<_>>();
-        let parameter_types = signature
-            .parameters
-            .iter()
-            .skip(usize::from(signature.receiver.is_some()))
-            .map(|parameter| self.instantiate_method_ty(parameter.1, &bindings))
-            .collect::<Vec<_>>();
-        let result_type = self.instantiate_method_ty(signature.return_type, &bindings);
-        for (value, pattern) in source_args.iter_mut().zip(&source_patterns) {
-            let ty = self.instantiate_method_ty(pattern.ty, &bindings);
-            *value = self.adapt_to(value.clone(), ty);
-        }
         let receiver = match receiver {
             ImportedCallReceiver::Member {
                 value: ImportedMemberReceiver::Value(value),
@@ -281,6 +264,9 @@ impl Lowerer {
                         method_arguments: solution.callable,
                     }
                 }
+                ImportedGenericTarget::Constructor(_) | ImportedGenericTarget::Variant(_) => {
+                    hir::ImportedCallableArguments::Function(solution.owner)
+                }
                 _ => hir::ImportedCallableArguments::Function(solution.callable),
             };
             ImportedCallImplementation::Generic {
@@ -304,143 +290,5 @@ impl Lowerer {
             integer_arguments,
             call_span: call.span,
         })
-    }
-
-    fn imported_generic_inference_error(
-        &mut self,
-        name: &ast::Ident,
-        call: ImportedProbeCall<'_>,
-        signature: &ImportedInferenceSignature,
-        failure: &crate::call_resolution::constraints::ConstraintFailure,
-    ) {
-        let message = self.render_imported_constraint_failure(
-            &signature.owner_parameters,
-            &signature.type_parameters,
-            failure,
-        );
-        let span = match failure.origin {
-            ConstraintOrigin::Argument(input) => call.arguments.span(input.index()),
-            ConstraintOrigin::ExplicitTypeArgument(index) => call.type_args[index as usize].span(),
-            _ => call.span,
-        };
-        self.error(
-            span,
-            format!("dependency function `{}`: {message}", name.text),
-        );
-    }
-
-    pub(in crate::expr) fn render_imported_constraint_failure(
-        &self,
-        owner_parameters: &[hir::TypeParamDecl],
-        callable_parameters: &[hir::TypeParamDecl],
-        failure: &crate::call_resolution::constraints::ConstraintFailure,
-    ) -> String {
-        use crate::call_resolution::constraints::ConstraintFailureKind as Kind;
-        let all_parameters = owner_parameters
-            .iter()
-            .chain(callable_parameters)
-            .cloned()
-            .collect::<Vec<_>>();
-        let parameter = |variable: crate::call_resolution::constraints::InferenceVariableId| {
-            let parameters = match variable {
-                crate::call_resolution::constraints::InferenceVariableId::Owner(_) => {
-                    owner_parameters
-                }
-                crate::call_resolution::constraints::InferenceVariableId::Callable(_) => {
-                    callable_parameters
-                }
-            };
-            &parameters[variable.group_index()].name
-        };
-        let type_term = |term: TypeTerm| match term {
-            TypeTerm::Variable(variable) => parameter(variable).clone(),
-            TypeTerm::Type(ty) | TypeTerm::Rigid(ty) => {
-                self.type_name_with_params(ty, &all_parameters)
-            }
-        };
-        match &failure.kind {
-            Kind::Kind {
-                variable,
-                solution,
-                required,
-            } => format!(
-                "type argument `{}` for `{}` must satisfy `{}`",
-                self.type_name(*solution),
-                parameter(*variable),
-                match required {
-                    hir::TypeParamKind::Any => "any",
-                    hir::TypeParamKind::Value => "value",
-                    hir::TypeParamKind::Ref => "ref",
-                }
-            ),
-            Kind::ClassBound {
-                variable,
-                solution,
-                required,
-            }
-            | Kind::InterfaceBound {
-                variable,
-                solution,
-                required,
-            } => format!(
-                "type argument `{}` for `{}` must satisfy upper bound `{}`",
-                self.type_name(*solution),
-                parameter(*variable),
-                self.type_name(*required)
-            ),
-            Kind::UnresolvedTerm(TypeTerm::Variable(variable))
-            | Kind::NoUniqueSolution { variable, .. } => format!(
-                "cannot infer a unique type argument for `{}`",
-                parameter(*variable)
-            ),
-            Kind::ConflictingExactBounds {
-                variable,
-                first,
-                second,
-            } => format!(
-                "conflicting types for `{}`: {} and {}",
-                parameter(*variable),
-                self.type_name(*first),
-                self.type_name(*second)
-            ),
-            Kind::Relation {
-                relation,
-                left,
-                right,
-            } => format!(
-                "{} {} {}",
-                type_term(*left),
-                match relation {
-                    crate::call_resolution::constraints::RelationKind::Equal => "is not equal to",
-                    crate::call_resolution::constraints::RelationKind::Subtype =>
-                        "is not a subtype of",
-                },
-                type_term(*right),
-            ),
-            Kind::CallableShape(mismatch) => match mismatch {
-                crate::call_resolution::constraints::CallableShapeMismatch::ExpectedCallable => {
-                    "expected a callable type".into()
-                }
-                crate::call_resolution::constraints::CallableShapeMismatch::Suspend => {
-                    "ordinary and suspend callable shapes differ".into()
-                }
-                crate::call_resolution::constraints::CallableShapeMismatch::Arity {
-                    expected,
-                    actual,
-                } => format!(
-                    "callable shape expects {expected} parameter(s), but the actual type has {actual}"
-                ),
-            },
-            Kind::ForeignVariable(_) => {
-                "candidate references an inference variable from another session".into()
-            }
-            Kind::ForeignTypeParameter(_) => {
-                "candidate references a type parameter outside its declaration".into()
-            }
-            Kind::UnresolvedTerm(term) => format!("cannot resolve type term {}", type_term(*term)),
-            Kind::NonConcreteApplication(_) => {
-                "candidate result is not a complete concrete type application".into()
-            }
-        }
     }
 }

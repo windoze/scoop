@@ -4,15 +4,16 @@ use super::*;
 
 mod context;
 
-use crate::call_resolution::applicability::NominalApplicabilityInput;
+use crate::call_resolution::applicability::{
+    DeclarationApplicabilityInput, DeclarationTypeArguments,
+};
 use crate::call_resolution::candidates::{NominalConstructorSource, NominalConstructorView};
 use crate::call_resolution::constraints::{ConstraintFailure, ConstraintOrigin};
-use crate::call_resolution::contextual::{
-    ArgumentExpression, ArgumentInferenceFailureKind, ArgumentInferenceInput, InferredArguments,
-};
+use crate::call_resolution::contextual::{ArgumentExpression, ArgumentInferenceFailureKind};
 use crate::call_resolution::diagnostics::{
     nominal_source_signature, render_nominal_constraint_failure,
 };
+use crate::call_resolution::probe::{CallInferenceInput, InferredCall};
 
 impl Lowerer {
     pub(crate) fn lower_nominal_arguments(
@@ -33,29 +34,34 @@ impl Lowerer {
             .map(|argument| ArgumentExpression::Source(&argument.expression))
             .collect::<Vec<_>>();
         let patterns = argument_map.inference_patterns(&view.value_parameters);
-        let parameters = view
-            .owner_parameters
+        let parameter_types = view
+            .value_parameters
             .iter()
-            .map(|parameter| parameter.id)
+            .map(|parameter| parameter.ty)
             .collect::<Vec<_>>();
-        let (mut session, environment) =
-            self.nominal_applicability_session(NominalApplicabilityInput {
-                view,
-                argument_map,
-                explicit_arguments,
-                expected_arguments,
-                argument_types: &vec![None; expressions.len()],
-            });
-        let InferredArguments {
+        let InferredCall {
             types,
             values,
             sinks,
-        } = match self.infer_contextual_arguments(ArgumentInferenceInput {
+            ..
+        } = match self.infer_call_arguments(CallInferenceInput {
+            declaration: DeclarationApplicabilityInput {
+                owner_parameters: &view.owner_parameters,
+                callable_parameters: &[],
+                type_arguments: DeclarationTypeArguments::Nominal {
+                    template: self
+                        .nominal_application(view.result_type)
+                        .expect("a nominal candidate retains its full result application")
+                        .template,
+                    expected_arguments,
+                },
+                explicit_arguments,
+                bound_receiver: None,
+            },
+            parameter_types: &parameter_types,
+            return_type: view.result_type,
             expressions: &expressions,
             patterns: &patterns,
-            parameters: &parameters,
-            session: &mut session,
-            environment,
             expected_result: None,
             forced_hint: None,
         }) {

@@ -9,11 +9,12 @@ use super::super::{
     ImportedCallableCandidate, ImportedDependencyCallProbe, ImportedProbeCall,
 };
 use crate::Lowerer;
-use crate::call_resolution::applicability::CallableApplicabilityInput;
-use crate::call_resolution::constraints::ConstraintOrigin;
-use crate::call_resolution::contextual::{
-    ArgumentInferenceFailureKind, ArgumentInferenceInput, ArgumentPattern, InferredArguments,
+use crate::call_resolution::applicability::{
+    DeclarationApplicabilityInput, DeclarationTypeArguments,
 };
+use crate::call_resolution::constraints::ConstraintOrigin;
+use crate::call_resolution::contextual::{ArgumentInferenceFailureKind, ArgumentPattern};
+use crate::call_resolution::probe::{CallInferenceInput, InferredCall};
 use crate::imported_core::{ImportedSignatureTypeError, ImportedTypeBindings};
 
 struct ResolvedNativeSignature {
@@ -79,24 +80,27 @@ impl Lowerer {
                 return Err(self);
             }
         };
-        let (mut session, environment) =
-            self.callable_applicability_session(CallableApplicabilityInput {
+        let InferredCall {
+            values: source_args,
+            sinks: argument_sinks,
+            parameter_types,
+            return_type: result_type,
+            integer_arguments,
+            ..
+        } = match self.infer_call_arguments(CallInferenceInput {
+            declaration: DeclarationApplicabilityInput {
                 owner_parameters: &[],
                 callable_parameters: &[],
-                owner_arguments: &[],
+                type_arguments: DeclarationTypeArguments::Callable {
+                    owner_arguments: &[],
+                },
                 explicit_arguments: &[],
                 bound_receiver: None,
-            });
-        let InferredArguments {
-            values,
-            sinks: argument_sinks,
-            ..
-        } = match self.infer_contextual_arguments(ArgumentInferenceInput {
+            },
+            parameter_types: &signature.parameters,
+            return_type: signature.result,
             expressions: &call.arguments.expressions(),
             patterns: &signature.patterns,
-            parameters: &[],
-            session: &mut session,
-            environment,
             expected_result: None,
             forced_hint: None,
         }) {
@@ -125,18 +129,6 @@ impl Lowerer {
                 return Err(self);
             }
         };
-        let integer_arguments = values
-            .iter()
-            .map(|value| match self.types[value.ty] {
-                hir::Type::Integer(kind) => Some(kind),
-                _ => None,
-            })
-            .collect();
-        let source_args = values
-            .into_iter()
-            .zip(signature.patterns)
-            .map(|(value, pattern)| self.adapt_to(value, pattern.ty))
-            .collect();
         if !candidate.executable() {
             self.imported_dependency_capability_error(
                 &candidate,
@@ -164,8 +156,8 @@ impl Lowerer {
             argument_sinks,
             argument_map,
             default_plan,
-            parameter_types: signature.parameters,
-            result_type: signature.result,
+            parameter_types,
+            result_type,
             integer_arguments,
             call_span: call.span,
         })

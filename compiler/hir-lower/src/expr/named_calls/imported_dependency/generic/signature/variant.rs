@@ -61,8 +61,8 @@ impl ImportedVariantSignature {
         Ok(Self {
             declaration,
             signature: ImportedInferenceSignature {
-                owner_parameters: Vec::new(),
-                type_parameters,
+                owner_parameters: type_parameters,
+                type_parameters: Vec::new(),
                 parameters,
                 receiver: None,
                 return_type,

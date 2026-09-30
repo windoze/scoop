@@ -140,9 +140,18 @@ impl ImportedDependencyCallProbe {
                 .cloned()
                 .collect::<Vec<_>>();
             let binders = all_parameters.as_slice();
+            let explicit_parameters = if matches!(
+                template,
+                generic::ImportedGenericTarget::Constructor(_)
+                    | generic::ImportedGenericTarget::Variant(_)
+            ) {
+                &signature.owner_parameters
+            } else {
+                &signature.type_parameters
+            };
             let type_parameters = crate::call_resolution::diagnostics::render_type_parameters(
                 state,
-                &signature.type_parameters,
+                explicit_parameters,
                 binders,
             );
             let receiver = signature

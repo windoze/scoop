@@ -1,0 +1,3 @@
+span=97..115
+expression=Reference<Int>(42)
+dependency function `Reference`: type argument `Int` for `T` must satisfy `ref`

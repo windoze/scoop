@@ -69,26 +69,16 @@ impl Lowerer {
                 && failures[1..]
                     .iter()
                     .all(|failure| failure.state.diagnostics[baseline..] == diagnostics);
-            let all_unhinted = failures.iter().all(|failure| {
+            let independent_of_context = failures.iter().all(|failure| {
                 matches!(
                     failure.kind,
-                    CandidateProbeFailureKind::Expression { expected: None, .. }
+                    CandidateProbeFailureKind::Expression {
+                        context_dependent: false,
+                        ..
+                    }
                 )
             });
-            let fails_identically_without_context = match (arguments, &failures[0].kind) {
-                (
-                    OverloadArguments::Source(expressions),
-                    CandidateProbeFailureKind::Expression { source_index, .. },
-                ) => {
-                    let mut probe = self.clone();
-                    let mut sink = Vec::new();
-                    let before = probe.diagnostics.len();
-                    probe.lower_expr(&expressions[*source_index].expression, &mut sink, None);
-                    probe.diagnostics[before..] == diagnostics
-                }
-                _ => false,
-            };
-            if same_diagnostics && (all_unhinted || fails_identically_without_context) {
+            if same_diagnostics && independent_of_context {
                 self.diagnostics.extend(diagnostics);
                 return;
             }

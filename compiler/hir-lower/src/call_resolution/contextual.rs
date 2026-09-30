@@ -115,7 +115,7 @@ impl Lowerer {
                 continue;
             }
             let expected = self.try_substitute(patterns[index].ty, &initial_hints);
-            match expression.lower(self, index, expected) {
+            match expression.lower(self, index, expected, false) {
                 Ok((value, sink)) => {
                     patterns[index].constrain(session, index, value.ty);
                     previous = None;
@@ -159,7 +159,7 @@ impl Lowerer {
                     .map(|(_, hint)| hint)
                     .or_else(|| self.try_substitute(patterns[index].ty, &hints));
                 let Some(hint) = hint else { continue };
-                match expression.lower(self, index, Some(hint)) {
+                match expression.lower(self, index, Some(hint), true) {
                     Ok((value, sink)) => {
                         patterns[index].constrain(session, index, value.ty);
                         values[index] = Some(value);

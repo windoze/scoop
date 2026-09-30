@@ -110,8 +110,8 @@ impl ImportedGenericTarget {
                 let signature = &template.signature;
                 (
                     ImportedInferenceSignature {
-                        owner_parameters: Vec::new(),
-                        type_parameters: signature.type_parameters.clone(),
+                        owner_parameters: signature.type_parameters.clone(),
+                        type_parameters: Vec::new(),
                         parameters: signature
                             .parameters
                             .iter()

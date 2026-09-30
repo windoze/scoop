@@ -1,0 +1,3 @@
+span=97..104
+expression=Empty()
+dependency function `Empty`: cannot infer a unique type argument for `T`

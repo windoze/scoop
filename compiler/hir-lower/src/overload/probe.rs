@@ -1,9 +1,10 @@
 use super::*;
 
-use crate::call_resolution::applicability::CallableApplicabilityInput;
-use crate::call_resolution::contextual::{
-    ArgumentExpression, ArgumentInferenceFailureKind, ArgumentInferenceInput, InferredArguments,
+use crate::call_resolution::applicability::{
+    DeclarationApplicabilityInput, DeclarationTypeArguments,
 };
+use crate::call_resolution::contextual::{ArgumentExpression, ArgumentInferenceFailureKind};
+use crate::call_resolution::probe::{CallInferenceInput, InferredCall};
 use crate::expr::ResolvedCallTypeArgument;
 
 pub(super) struct ApplicableCandidate {
@@ -32,6 +33,7 @@ pub(super) enum CandidateProbeFailureKind {
     Expression {
         source_index: usize,
         expected: Option<TypeId>,
+        context_dependent: bool,
         span: Span,
         reason: String,
     },
@@ -53,7 +55,27 @@ impl Lowerer {
         expected_result: Option<TypeId>,
     ) -> Result<ApplicableCandidate, Box<CandidateProbeFailure>> {
         let mut state = self.clone();
-        let receiver_offset = usize::from(receiver.is_some());
+        let shape = if !candidate.explicit_arity_match {
+            Some(CandidateShapeFailure::TypeArgumentArity {
+                expected: candidate.own_type_param_count,
+                supplied: explicit_type_args.len(),
+            })
+        } else {
+            candidate
+                .argument_map
+                .as_ref()
+                .err()
+                .cloned()
+                .map(CandidateShapeFailure::Argument)
+        };
+        if let Some(shape) = shape {
+            return Err(Box::new(CandidateProbeFailure {
+                candidate: candidate_index,
+                state: Box::new(state),
+                arguments: Vec::new(),
+                kind: CandidateProbeFailureKind::Shape(shape),
+            }));
+        }
         let argument_map = candidate
             .argument_map
             .as_ref()
@@ -98,39 +120,42 @@ impl Lowerer {
                 .collect::<Vec<_>>(),
         };
         let patterns = argument_map.inference_patterns(&candidate.view.value_parameters);
-        let parameters = candidate
+        let parameter_types = candidate
             .view
-            .owner_parameters
+            .value_parameters
             .iter()
-            .chain(&candidate.view.callable_parameters)
-            .map(|parameter| parameter.id)
+            .map(|parameter| parameter.ty)
             .collect::<Vec<_>>();
-        let (mut session, environment) =
-            state.callable_applicability_session(CallableApplicabilityInput {
+        let bound_receiver = receiver.map(|receiver| {
+            let crate::call_resolution::candidates::ReceiverShape::Extension(expected) =
+                candidate.view.receiver
+            else {
+                unreachable!("direct call applicability binds only extension receivers")
+            };
+            (expected, receiver.ty)
+        });
+        let InferredCall {
+            types,
+            bindings,
+            mut values,
+            sinks: argument_sinks,
+            return_type: return_ty,
+            ..
+        } = match state.infer_call_arguments(CallInferenceInput {
+            declaration: DeclarationApplicabilityInput {
                 owner_parameters: &candidate.view.owner_parameters,
                 callable_parameters: &candidate.view.callable_parameters,
-                owner_arguments: &candidate.owner_arguments,
+                type_arguments: DeclarationTypeArguments::Callable {
+                    owner_arguments: &candidate.owner_arguments,
+                },
                 explicit_arguments: explicit_type_args,
-                bound_receiver: receiver.map(|receiver| {
-                    let crate::call_resolution::candidates::ReceiverShape::Extension(expected) =
-                        candidate.view.receiver
-                    else {
-                        unreachable!("direct call applicability binds only extension receivers")
-                    };
-                    (expected, receiver.ty)
-                }),
-            });
-        let InferredArguments {
-            types,
-            values,
-            sinks: argument_sinks,
-        } = match state.infer_contextual_arguments(ArgumentInferenceInput {
+                bound_receiver,
+            },
+            parameter_types: &parameter_types,
+            return_type: candidate.view.return_type,
             expressions: &expressions,
             patterns: &patterns,
-            parameters: &parameters,
-            session: &mut session,
-            environment,
-            expected_result: expected_result.map(|expected| (candidate.view.return_type, expected)),
+            expected_result,
             forced_hint: intrinsic_argument_expected,
         }) {
             Ok(arguments) => arguments,
@@ -143,6 +168,7 @@ impl Lowerer {
                         CandidateProbeFailureKind::Expression {
                             source_index: failure.source_index,
                             expected: failure.expected,
+                            context_dependent: failure.context_dependent,
                             span: failure.span,
                             reason: failure.reason,
                         }
@@ -166,50 +192,20 @@ impl Lowerer {
             .into_iter()
             .chain(types.callable)
             .collect::<Vec<_>>();
-        let lowered = receiver
-            .cloned()
-            .into_iter()
-            .chain(values)
-            .collect::<Vec<_>>();
-
-        let mut args = Vec::with_capacity(lowered.len());
-        for (index, argument) in lowered.into_iter().enumerate() {
-            let source_index = index.saturating_sub(receiver_offset);
-            let expected = (receiver_offset == 0)
-                .then_some(intrinsic_argument_expected)
-                .flatten()
-                .and_then(|(expected_source, expected)| {
-                    (source_index == expected_source).then_some(expected)
-                })
-                .unwrap_or_else(|| {
-                    state.substitute_call_level(candidate.params[index], &type_args)
-                });
-            if !state.is_subtype(argument.ty, expected) {
-                let reason = format!(
-                    "expression has type {}, expected {}",
-                    state.type_name(argument.ty),
-                    state.type_name(expected)
-                );
-                return Err(Box::new(CandidateProbeFailure {
-                    candidate: candidate_index,
-                    state: Box::new(state),
-                    arguments: args.into_iter().map(Some).collect(),
-                    kind: CandidateProbeFailureKind::Expression {
-                        source_index,
-                        expected: Some(expected),
-                        span: argument.span,
-                        reason,
-                    },
-                }));
-            }
-            args.push(state.adapt_to(argument, expected));
+        if let Some(receiver) = receiver {
+            let expected = state.instantiate_method_ty(
+                bound_receiver
+                    .expect("an extension receiver has a declaration type")
+                    .0,
+                &bindings,
+            );
+            values.insert(0, state.adapt_to(receiver.clone(), expected));
         }
-        let return_ty = state.substitute_call_level(candidate.return_ty, &type_args);
         Ok(ApplicableCandidate {
             candidate: candidate_index,
             state: Box::new(state),
             type_args,
-            args,
+            args: values,
             argument_sinks,
             return_ty,
         })
