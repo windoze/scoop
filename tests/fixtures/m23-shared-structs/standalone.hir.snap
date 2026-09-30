@@ -1,0 +1,144 @@
+Module
+  fun exercise<T>(value: T0, read: (T0) -> Int): Int
+    val local2
+      Local value : T0
+    val local3
+      Local $dependency.argument.0 : T0
+    val local4
+      ImportedGenericCall create<T0> : RemoteCell<T0>
+        Local $dependency.parameter.value : T0
+    val local5
+      Box : Reader<T0>
+        Local remote : RemoteCell<T0>
+    val local6
+      Local receiver : Reader<T0>
+    val local7
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        ImportedGenericCall read<T0> : T0
+          Local $dependency.receiver : Reader<T0>
+    val local8
+      IntegerLiteral 42 : Int
+    val local9
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 1 : Int
+    val local10
+      FieldAccess field 1 : Option<T0>
+        Local remote : RemoteCell<T0>
+    if
+      IsSome : Boolean
+        Local $opt.0 : Option<T0>
+      val local11
+        Unwrap trap=false : T0
+          Local $opt.0 : Option<T0>
+    else
+      val local11
+        Local value : T0
+    val local12
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        Local $res.1 : T0
+    val local13
+      IntegerLiteral 42 : Int
+    val local14
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 2 : Int
+    val local15
+      IntegerLiteral 20 : Int
+    val local16
+      IntegerLiteral 22 : Int
+    val local17
+      Local $dependency.argument.0 : Int
+    val local18
+      Local $dependency.argument.1 : Int
+    val local19
+      ImportedDependencyCall #0 : NativePair
+        Local $dependency.parameter.left : Int
+        Local $dependency.parameter.right : Int
+    val local20
+      FieldAccess field 0 : Int
+        Local pair : NativePair
+    val local21
+      FieldAccess field 1 : Int
+        Local pair : NativePair
+    val local22
+      Local $dependency.argument.0 : Int
+    return
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+  fun result(): Int
+    val local0
+      StringLiteral "value" : String
+    val local1
+      Lambda lambda0 invoke=$lambda.0 captures=0 : (String) -> Int
+    val local2
+      Local $argument.0 : String
+    val local3
+      Local $argument.1 : (String) -> Int
+    val local4
+      Call exercise<String> : Int
+        Local $parameter.value : String
+        Local $parameter.read : (String) -> Int
+    val local5
+      IntegerLiteral 42 : Int
+    val local6
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 1 : Int
+    val local7
+      UnitLiteral : Unit
+    val local8
+      Lambda lambda1 invoke=$lambda.1 captures=0 : (Unit) -> Int
+    val local9
+      Local $argument.0 : Unit
+    val local10
+      Local $argument.1 : (Unit) -> Int
+    val local11
+      Call exercise<Unit> : Int
+        Local $parameter.value : Unit
+        Local $parameter.read : (Unit) -> Int
+    val local12
+      IntegerLiteral 42 : Int
+    val local13
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 2 : Int
+    val local14
+      IntegerLiteral 42 : Int
+    val local15
+      Lambda lambda2 invoke=$lambda.2 captures=0 : (Int) -> Int
+    val local16
+      Local $argument.0 : Int
+    val local17
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+        Local $parameter.read : (Int) -> Int
+  output library
+  instance exercise<String>
+  instance exercise<Unit>
+  instance exercise<Int>

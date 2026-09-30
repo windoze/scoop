@@ -27,6 +27,7 @@ mod references;
 mod requests;
 mod selection;
 mod shared_defaults;
+mod structs;
 
 const PROVIDER: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),

@@ -1,0 +1,18 @@
+package upstream.structs
+
+public interface Readable<T> {
+    public fun get(): T
+}
+
+public interface Reader<T>: Readable<T> {
+    public fun read(): T = this.get()
+}
+
+public struct RemoteCell<T>(val value: T, val optional: T?): Reader<T> {
+    public override fun get(): T = this.value
+}
+
+@CLayout
+public struct NativePair(val left: Int, val right: Int)
+
+public fun <T> create(value: T): RemoteCell<T> = RemoteCell(value, Some(value))

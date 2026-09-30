@@ -1,0 +1,202 @@
+Module
+  struct LocalCell<T> : Reader<T0>
+    field0 value: T0
+    field1 remote: RemoteCell<T0>
+    property0 val value: T0 getter0=storage <stored struct0-field0>
+    property1 val remote: RemoteCell<T0> getter1=storage <stored struct0-field1>
+  struct LocalNative <c-layout aligned=0 packed=0>
+    field0 left: Int
+    field1 right: Int
+    property2 val left: Int getter2=storage <stored struct1-field0>
+    property3 val right: Int getter3=storage <stored struct1-field1>
+  fun exercise<T>(value: T0, read: (T0) -> Int): Int
+    val local4
+      Local value : T0
+    val local2
+      Local value : T0
+    val local3
+      Local $dependency.argument.0 : T0
+    val local5
+      ImportedGenericCall create<T0> : RemoteCell<T0>
+        Local $dependency.parameter.value : T0
+    val local6
+      Local $argument.0 : T0
+    val local7
+      Local $argument.1 : RemoteCell<T0>
+    val local8
+      StructInit LocalCell : LocalCell<T0>
+        Local $parameter.value : T0
+        Local $parameter.remote : RemoteCell<T0>
+    val local9
+      Box : Reader<T0>
+        Local local : LocalCell<T0>
+    val local10
+      Box : Readable<T0>
+        FieldAccess field 1 : RemoteCell<T0>
+          Local local : LocalCell<T0>
+    val local11
+      Local current : Reader<T0>
+    val local12
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        ImportedGenericCall read<T0> : T0
+          Local $dependency.receiver : Reader<T0>
+    val local13
+      IntegerLiteral 42 : Int
+    val local14
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 1 : Int
+    val local15
+      Local remote : Readable<T0>
+    val local16
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        ImportedGenericCall Readable.get<T0> : T0
+          Local $dependency.receiver : Readable<T0>
+    val local17
+      IntegerLiteral 42 : Int
+    val local18
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 2 : Int
+    val local19
+      FieldAccess field 1 : Option<T0>
+        FieldAccess field 1 : RemoteCell<T0>
+          Local local : LocalCell<T0>
+    if
+      IsSome : Boolean
+        Local $opt.0 : Option<T0>
+      val local20
+        Unwrap trap=false : T0
+          Local $opt.0 : Option<T0>
+    else
+      val local20
+        FieldAccess field 0 : T0
+          Local local : LocalCell<T0>
+    val local21
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        Local $res.1 : T0
+    val local22
+      IntegerLiteral 42 : Int
+    val local23
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 3 : Int
+    val local24
+      IntegerLiteral 20 : Int
+    val local25
+      IntegerLiteral 22 : Int
+    val local26
+      Local $dependency.argument.0 : Int
+    val local27
+      Local $dependency.argument.1 : Int
+    val local28
+      ImportedDependencyCall #0 : NativePair
+        Local $dependency.parameter.left : Int
+        Local $dependency.parameter.right : Int
+    val local29
+      FieldAccess field 0 : Int
+        Local first : NativePair
+    val local30
+      FieldAccess field 1 : Int
+        Local first : NativePair
+    val local31
+      Local $argument.0 : Int
+    val local32
+      Local $argument.1 : Int
+    val local33
+      StructInit LocalNative : LocalNative
+        Local $parameter.left : Int
+        Local $parameter.right : Int
+    val local34
+      FieldAccess field 0 : Int
+        Local second : LocalNative
+    val local35
+      FieldAccess field 1 : Int
+        Local second : LocalNative
+    val local36
+      Local $dependency.argument.0 : Int
+    return
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+  fun result(): Int
+    val local0
+      StringLiteral "value" : String
+    val local1
+      Lambda lambda0 invoke=$lambda.0 captures=0 : (String) -> Int
+    val local2
+      Local $argument.0 : String
+    val local3
+      Local $argument.1 : (String) -> Int
+    val local4
+      Call exercise<String> : Int
+        Local $parameter.value : String
+        Local $parameter.read : (String) -> Int
+    val local5
+      IntegerLiteral 42 : Int
+    val local6
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 1 : Int
+    val local7
+      UnitLiteral : Unit
+    val local8
+      Lambda lambda1 invoke=$lambda.1 captures=0 : (Unit) -> Int
+    val local9
+      Local $argument.0 : Unit
+    val local10
+      Local $argument.1 : (Unit) -> Int
+    val local11
+      Call exercise<Unit> : Int
+        Local $parameter.value : Unit
+        Local $parameter.read : (Unit) -> Int
+    val local12
+      IntegerLiteral 42 : Int
+    val local13
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 2 : Int
+    val local14
+      IntegerLiteral 42 : Int
+    val local15
+      Lambda lambda2 invoke=$lambda.2 captures=0 : (Int) -> Int
+    val local16
+      Local $argument.0 : Int
+    val local17
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.value : Int
+        Local $parameter.read : (Int) -> Int
+  output library
+  instance exercise<String>
+  instance exercise<Unit>
+  instance exercise<Int>

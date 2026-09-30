@@ -30,6 +30,7 @@ mod shared_bounds;
 mod shared_defaults;
 mod shared_enums;
 mod shared_requests;
+mod shared_structs;
 mod siblings;
 
 #[test]

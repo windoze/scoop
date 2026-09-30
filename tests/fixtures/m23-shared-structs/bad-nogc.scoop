@@ -1,0 +1,7 @@
+package consumer.structs
+import upstream.structs.RemoteCell
+
+@NoGC
+private struct Invalid(val value: RemoteCell<String>)
+
+public fun result(): Int = 42

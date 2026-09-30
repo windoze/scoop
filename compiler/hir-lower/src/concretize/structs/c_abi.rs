@@ -1,3 +1,5 @@
+//! C boundary projection from the actual core declaration.
+
 use super::*;
 
 impl Concretizer<'_> {

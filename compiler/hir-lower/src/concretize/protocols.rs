@@ -79,10 +79,16 @@ impl Concretizer<'_> {
 
         let fundamental_types = concrete::IntrinsicTypeCore {
             integers: export::IntegerTypeCore::new(export::IntegerKind::ALL.map(|kind| {
-                self.struct_by_key[&(protocols.fundamental_types.integers.owner(kind), Vec::new())]
+                let declaration = protocols.fundamental_types.integers.owner(kind);
+                let origin = self.source.nominal_identities[declaration].declaration_id();
+                self.struct_by_key[&(origin, Vec::new())]
             }))
             .expect("validated integer owners remain distinct after concretization"),
-            boolean: self.struct_by_key[&(protocols.fundamental_types.boolean, Vec::new())],
+            boolean: self.struct_by_key[&(
+                self.source.nominal_identities[protocols.fundamental_types.boolean]
+                    .declaration_id(),
+                Vec::new(),
+            )],
             string: self.class_by_key[&(protocols.fundamental_types.string, Vec::new())],
         };
 

@@ -33,6 +33,7 @@ mod protocols;
 mod requests;
 mod run;
 mod runtime_exceptions;
+mod structs;
 mod types;
 mod variants;
 
@@ -111,8 +112,7 @@ struct Concretizer<'a> {
     function_type_by_signature:
         HashMap<(bool, Vec<concrete::TypeId>, concrete::TypeId), concrete::FunctionTypeId>,
     structs: Arena<concrete::StructDef>,
-    struct_by_key: HashMap<(export::StructId, Vec<concrete::TypeId>), concrete::StructId>,
-    imported_structs: HashMap<(export::SourceNominalId, Vec<concrete::TypeId>), concrete::StructId>,
+    struct_by_key: HashMap<(export::SourceNominalId, Vec<concrete::TypeId>), concrete::StructId>,
     imported_classes: HashMap<(export::SourceNominalId, Vec<concrete::TypeId>), concrete::ClassId>,
     imported_interface_families: HashMap<export::SourceNominalId, concrete::InterfaceFamilyId>,
     imported_interfaces:
@@ -305,7 +305,6 @@ impl<'a> Concretizer<'a> {
             function_type_by_signature: HashMap::new(),
             structs: Arena::new(),
             struct_by_key: HashMap::new(),
-            imported_structs: HashMap::new(),
             imported_classes: HashMap::new(),
             imported_interfaces: HashMap::new(),
             imported_interface_families: HashMap::new(),

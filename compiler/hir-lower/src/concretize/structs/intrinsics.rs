@@ -1,4 +1,4 @@
-//! Imported intrinsic declarations use the same concrete nominal arenas.
+//! Primitive boxing requests share struct allocation and preserve external implementations.
 
 use super::*;
 
@@ -27,47 +27,13 @@ impl Concretizer<'_> {
             .imported_intrinsic_types
             .get(&family)
             .expect("boxed primitive HIR retains its complete dependency declaration");
-        self.lower_imported_intrinsic_struct(source, family, ty, application);
-    }
-
-    fn lower_imported_intrinsic_struct(
-        &mut self,
-        source: &export::ImportedIntrinsicType,
-        family: export::IntrinsicTypeKind,
-        ty: concrete::TypeId,
-        application: concrete::IntrinsicTypeRepresentation,
-    ) {
-        let declaration = &source.declaration;
-        let identity = (declaration.owner(), Vec::new());
-        if self.imported_structs.contains_key(&identity) {
+        let key = (source.declaration.owner(), Vec::new());
+        if self.struct_by_key.contains_key(&key) {
             return;
         }
-        let id = self.structs.alloc(concrete::StructDef {
-            origin: export::HirNominalIdentity::Source(declaration.identity.clone()),
-            canonical_type: ty,
-            name: declaration.name().to_owned(),
-            owner: None,
-            type_arguments: Vec::new(),
-            gc_free: true,
-            representation: concrete::StructRepresentation::Intrinsic {
-                declaration: family,
-                application,
-            },
-            direct_interfaces: Vec::new(),
-            interfaces: Vec::new(),
-            // The provider owns the callable bodies and boxing adapters.
-            interface_implementations: Vec::new(),
-            methods: Vec::new(),
-            span: scoop_ast::Span::new(0, 0),
-        });
-        self.imported_structs.insert(identity, id);
-        self.struct_type.insert(id, ty);
-        self.structs[id].direct_interfaces = source
-            .interfaces
-            .iter()
-            .map(|interface| self.lower_type(*interface, &[]))
-            .collect();
-        self.structs[id].interfaces = self.lower_imported_value_interfaces(&source.interfaces, &[]);
+        let definition = ResolvedStructDefinition::from_intrinsic(source, family, application);
+        let id = self.allocate_struct_definition(&definition, Vec::new());
+        self.complete_struct_definition(id, definition, &[]);
     }
 
     pub(in crate::concretize) fn ensure_coercion_box_sources(

@@ -208,3 +208,11 @@
 - 新增 `m23-shared-enums/instances` 及 HIR／MIR／LIR 快照，覆盖本地／依赖 enum、别名、嵌套 Option 与 enum payload、引用／Int／Unit、泛型调用及下游再次发布。原四组快照无需修改；完整五组正例关闭更新开关复验通过，单元测试同时验证原身份加完整实参唯一、payload 替换及 GC 属性。
 - 全仓 fmt／clippy、最终 1314 项 HIR lowering 单元测试及九项不同真实产物回归均已覆盖成功，包含普通 enum、Option、重建 core、派生相等、构造和接口成员组合。最终日志前缀 `/tmp/scoop-m23-6a-constructor-applications-`，结果见 `unit.log`、`verified-artifacts.log` 和 `enums-verified.log`；早期新 fixture 验证见 `/tmp/scoop-m23-6a-enum-definitions-shared-verified.log`。
 - 具体化主文件从 631 行按实际编排职责拆为 384 行主模块和 253 行运行模块，enum 具体化与声明读取分别为 126、110 行。前端 nominal application 与完整声明存储的来源表示仍须继续迁移，本批只统一已经消费已检查声明的实际具体化算法；wire 与 runtime ABI 未改变。
+
+## 共同 struct 具体化、内建表示与 C ABI
+
+- struct 的声明读取后共用实例分配、字段替换、GC 属性及接口记录，缓存统一使用原声明身份与完整实参；构造器身份和 core 协议查找同步使用该键。递归字段先取得同一实例身份，字段与 GC 完成后再请求方法、接口和既有自动构造器；删除两份来源专用流程及重复的 NoGC／参数数目断言。
+- 整数、Boolean、Ptr、FunPtr 的既定机器表示进入同一 struct 分配过程，保留 canonical type、实际 C 布局和 C ABI 投影。接口闭包从已具体化的父类型读取；primitive 普通方法与装箱适配仍由提供方拥有，未复制外部实现、增加物化根或重复选择成员。
+- 新增 `m23-shared-structs` 两组正例及两个反例，覆盖本地／依赖字段、嵌套 Option、别名、接口默认方法与继承、C 布局、引用／Int／Unit 和下游本地 class。真实发布、源码移走、再次发布及普通／移动 GC 运行全部通过；六份阶段快照和两份诊断快照关闭更新开关复验通过。
+- 全仓 fmt／clippy、1315 项 HIR lowering 单元测试及 11 项不同真实产物回归全部通过，包含泛型构造器、接口成员、解构、指针、interior mutability、装箱与普通 C ABI、派生相等及完整 core 源码三组导出闭包。既有快照无需修改。日志前缀 `/tmp/scoop-m23-6a-struct-definitions-`，结果见 `unit.log`、`shared-verified.log` 和 `artifacts.log`。
+- struct 具体化、声明读取和 primitive 请求分别为 179、177、67 行；原 nominal 文件降至 156 行。完整声明／application 的前端来源表示与 class／interface 具体化继续迁移，wire 与 runtime ABI 未改变。
