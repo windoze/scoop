@@ -13,24 +13,6 @@ pub struct CallableReferenceIdentity {
 }
 
 impl CallableReferenceIdentity {
-    pub fn from_record(
-        callable: GeneratedCallableRecord,
-        context: CallableMaterializationContext,
-    ) -> Option<Self> {
-        if !matches!(
-            callable.key(),
-            GeneratedCallableKey::CallableReferenceInvoke { .. }
-        ) {
-            return None;
-        }
-        let materialization =
-            CallableMaterialization::new(CallableTemplateOwner::Generated(callable.id()), context);
-        Some(Self {
-            callable,
-            materialization,
-        })
-    }
-
     pub fn new(
         parent: LexicalCallableParent,
         path: StructuralDefinitionPath,

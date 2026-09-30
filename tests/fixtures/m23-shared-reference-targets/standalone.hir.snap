@@ -14,67 +14,92 @@ Module
         capture alternate binding7 : (Unit) -> Int
   fun exercise<T>(seed: T0, inspect: (T0) -> Int): Int
     val local2
-      CallableReference reference3 target=external #0 captures=0 : () -> Int
-    val local3
-      CallableReference reference4 target=identity<T0> captures=0 : (T0) -> T0
-    val local4
-      CallableReference reference5 target=retain<T0> captures=0 : () -> T0
-        Local seed : T0
-    val local5
-      CallableReference reference6 target=retain<T0> captures=0 : (T0) -> T0
-    val local6
       Local seed : T0
+    val local3
+      Local inspect : (T0) -> Int
+    val local4
+      Local $argument.0 : T0
+    val local5
+      Local $argument.1 : (T0) -> Int
+    val local6
+      Call localRecursiveReference<T0> : Int
+        Local $parameter.seed : T0
+        Local $parameter.inspect : (T0) -> Int
     val local7
-      Local $dependency.argument.0 : T0
+      CallableCall function_type2 : Int
+        Local inspect : (T0) -> Int
+        Local seed : T0
     val local8
-      CallableReference reference7 target=read<T0> captures=0 : () -> T0
-        ImportedConstructorInit Box : Box<T0>
-          Local $dependency.parameter.value : T0
-    val local9
-      CallableReference reference8 target=intrinsic Integer(NoGcOperation { kind: IntegerKind { signedness: Signed, width: W32 }, operation: Equals }) captures=0 : (Int) -> Boolean
-        IntegerLiteral 42 : Int
-    val local10
-      CallableCall function_type1 : Int
-        Local plain : () -> Int
-    val local11
-      IntegerLiteral 42 : Int
-    val local12
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
         IntegerOperation int.equals <no-gc> : Boolean
           Local $dependency.receiver : Int
           Local $dependency.parameter.other : Int
-      val local14
+      return
+        IntegerLiteral 6 : Int
+    val local9
+      CallableReference reference3 target=external #0 captures=0 : () -> Int
+    val local10
+      CallableReference reference4 target=identity<T0> captures=0 : (T0) -> T0
+    val local11
+      CallableReference reference5 target=retain<T0> captures=0 : () -> T0
+        Local seed : T0
+    val local12
+      CallableReference reference6 target=retain<T0> captures=0 : (T0) -> T0
+    val local13
+      Local seed : T0
+    val local14
+      Local $dependency.argument.0 : T0
+    val local15
+      CallableReference reference7 target=read<T0> captures=0 : () -> T0
+        ImportedConstructorInit Box : Box<T0>
+          Local $dependency.parameter.value : T0
+    val local16
+      CallableReference reference8 target=intrinsic Integer(NoGcOperation { kind: IntegerKind { signedness: Signed, width: W32 }, operation: Equals }) captures=0 : (Int) -> Boolean
+        IntegerLiteral 42 : Int
+    val local17
+      CallableCall function_type1 : Int
+        Local plain : () -> Int
+    val local18
+      IntegerLiteral 42 : Int
+    val local19
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local21
         BoolLiteral true : Boolean
     else
-      val local13
-        CallableCall function_type8 : Boolean
+      val local20
+        CallableCall function_type9 : Boolean
           Local intrinsic : (Int) -> Boolean
           IntegerLiteral 42 : Int
-      val local14
+      val local21
         PrimitiveUnary BooleanNot : Boolean
           Local $dependency.receiver : Boolean
     if
       Binary Or : Boolean
         Local $shortCircuit.0 : Boolean
-        CallableCall function_type8 : Boolean
+        CallableCall function_type9 : Boolean
           Local intrinsic : (Int) -> Boolean
           IntegerLiteral 1 : Int
       return
         IntegerLiteral 1 : Int
-    val local15
-      CallableCall function_type2 : Int
-        Local inspect : (T0) -> Int
-        CallableCall function_type6 : T0
-          Local copy : (T0) -> T0
-          Local seed : T0
-    val local16
+    val local22
       CallableCall function_type2 : Int
         Local inspect : (T0) -> Int
         CallableCall function_type7 : T0
+          Local copy : (T0) -> T0
+          Local seed : T0
+    val local23
+      CallableCall function_type2 : Int
+        Local inspect : (T0) -> Int
+        CallableCall function_type8 : T0
           Local bound : () -> T0
-    val local17
+    val local24
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -83,18 +108,18 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 2 : Int
-    val local18
-      CallableCall function_type2 : Int
-        Local inspect : (T0) -> Int
-        CallableCall function_type6 : T0
-          Local unbound : (T0) -> T0
-          Local seed : T0
-    val local19
+    val local25
       CallableCall function_type2 : Int
         Local inspect : (T0) -> Int
         CallableCall function_type7 : T0
+          Local unbound : (T0) -> T0
+          Local seed : T0
+    val local26
+      CallableCall function_type2 : Int
+        Local inspect : (T0) -> Int
+        CallableCall function_type8 : T0
           Local member : () -> T0
-    val local20
+    val local27
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -103,53 +128,53 @@ Module
           Local $dependency.parameter.other : Int
       return
         IntegerLiteral 3 : Int
-    val local21
-      IntegerLiteral 42 : Int
-    val local22
-      Lambda lambda1 invoke=$lambda.1 captures=0 : (Int) -> Int
-    val local23
-      Local $argument.0 : Int
-    val local24
-      Local $argument.1 : (Int) -> Int
-    val local25
-      Call localCaptured<Int, T0> : () -> Int
-        Local $parameter.seed : Int
-        Local $parameter.inspect : (Int) -> Int
-    val local26
-      IntegerLiteral 43 : Int
-    val local27
-      Lambda lambda2 invoke=$lambda.2 captures=0 : (Int) -> Int
     val local28
-      Local $argument.0 : Int
+      IntegerLiteral 42 : Int
     val local29
-      Local $argument.1 : (Int) -> Int
+      Lambda lambda1 invoke=$lambda.1 captures=0 : (Int) -> Int
     val local30
+      Local $argument.0 : Int
+    val local31
+      Local $argument.1 : (Int) -> Int
+    val local32
       Call localCaptured<Int, T0> : () -> Int
         Local $parameter.seed : Int
         Local $parameter.inspect : (Int) -> Int
-    val local31
+    val local33
+      IntegerLiteral 43 : Int
+    val local34
+      Lambda lambda2 invoke=$lambda.2 captures=0 : (Int) -> Int
+    val local35
+      Local $argument.0 : Int
+    val local36
+      Local $argument.1 : (Int) -> Int
+    val local37
+      Call localCaptured<Int, T0> : () -> Int
+        Local $parameter.seed : Int
+        Local $parameter.inspect : (Int) -> Int
+    val local38
       CallableCall function_type1 : Int
         Local first : () -> Int
-    val local32
+    val local39
       IntegerLiteral 42 : Int
-    val local33
+    val local40
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
         IntegerOperation int.equals <no-gc> : Boolean
           Local $dependency.receiver : Int
           Local $dependency.parameter.other : Int
-      val local37
+      val local44
         BoolLiteral true : Boolean
     else
-      val local34
+      val local41
         CallableCall function_type1 : Int
           Local second : () -> Int
-      val local35
+      val local42
         IntegerLiteral 45 : Int
-      val local36
+      val local43
         Local $dependency.argument.0 : Int
-      val local37
+      val local44
         Unary Not : Boolean
           IntegerOperation int.equals <no-gc> : Boolean
             Local $dependency.receiver : Int
@@ -158,37 +183,37 @@ Module
       Local $shortCircuit.1 : Boolean
       return
         IntegerLiteral 4 : Int
-    val local38
+    val local45
       Local seed : T0
-    val local39
+    val local46
       Local inspect : (T0) -> Int
-    val local40
+    val local47
       Local $argument.0 : T0
-    val local41
+    val local48
       Local $argument.1 : (T0) -> Int
-    val local42
+    val local49
       Call localCaptured<T0, Int> : () -> Int
         Local $parameter.seed : T0
         Local $parameter.inspect : (T0) -> Int
-    val local43
+    val local50
       Local seed : T0
-    val local44
+    val local51
       Local inspect : (T0) -> Int
-    val local45
+    val local52
       Local $argument.0 : T0
-    val local46
+    val local53
       Local $argument.1 : (T0) -> Int
-    val local47
+    val local54
       Call localCaptured<T0, Unit> : () -> Int
         Local $parameter.seed : T0
         Local $parameter.inspect : (T0) -> Int
-    val local48
+    val local55
       CallableCall function_type1 : Int
         Local inherited : () -> Int
-    val local49
+    val local56
       CallableCall function_type1 : Int
         Local distinct : () -> Int
-    val local50
+    val local57
       Local $dependency.argument.0 : Int
     if
       Unary Not : Boolean
@@ -200,6 +225,21 @@ Module
     return
       CallableCall function_type1 : Int
         Local inherited : () -> Int
+  fun localRecursiveReference<T>(seed: T0, inspect: (T0) -> Int): Int
+    LocalFunction local1 body=$local.1.descend captures=1
+    val local2
+      IntegerLiteral 2 : Int
+    val local3
+      Local $argument.0 : Int
+    val local4
+      LocalFunctionCall local1 $local.1.descend<T0> captures=1 : Box<T0>
+        Local seed : T0
+        Local $parameter.depth : Int
+    return
+      CallableCall function_type3 : Int
+        Local inspect : (T0) -> Int
+        MethodCall read<T0> : T0
+          Local $dependency.receiver : Box<T0>
   fun result(): Int
     val local0
       IntegerLiteral 42 : Int
@@ -216,7 +256,9 @@ Module
   output library
   instance $local.0.value<T0, T1, Int>
   instance $local.0.value<T0, T1, Unit>
+  instance localRecursiveReference<T0>
   instance localCaptured<Int, T0>
   instance localCaptured<T0, Int>
   instance localCaptured<T0, Unit>
+  instance $local.1.descend<T0>
   instance exercise<Int>

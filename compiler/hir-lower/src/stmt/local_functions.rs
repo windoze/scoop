@@ -257,7 +257,12 @@ impl Lowerer {
                 }
             };
             let captures = self.finish_current_captures(declaration_origin);
-            patch_local_function_calls(&mut statements, local, &captures);
+            patch_local_function_calls(
+                &mut statements,
+                local,
+                &captures,
+                &mut self.callable_references,
+            );
             let mut abi_params = Vec::with_capacity(captures.len() + params.len());
             for capture in &captures {
                 let capture_local = self.alloc_synthetic_local(

@@ -6,6 +6,7 @@ private class LocalValue(val value: Int)
 private fun <T> throughDefault(value: T, copy: (T) -> T = ::identity): T = copy(value)
 
 public fun <T> exercise(seed: T, inspect: (T) -> Int): Int {
+    if (recursiveReference<T>(seed, inspect) != inspect(seed)) { return 8 }
     if (inspect(declarationOnly<T>(seed)) != inspect(seed)) { return 7 }
     val inherited = captured<T, Int>(seed, inspect)
     val distinct = captured<T, Unit>(seed, inspect)

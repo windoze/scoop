@@ -40,7 +40,7 @@ mod variants;
 
 use automatic::AutomaticNominalRoots;
 use callback_slots::{PendingForeignCallbackRegistration, finish_foreign_callback_slots};
-use closures::{CallableReferenceSource, PendingCallableReference, finish_callable_references};
+use closures::{PendingCallableReference, finish_callable_references};
 use constructor_slots::{
     PendingClassConstructor, PendingStructConstructor, finish_class_constructor_slots,
     finish_struct_constructor_slots,

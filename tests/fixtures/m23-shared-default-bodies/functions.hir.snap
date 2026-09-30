@@ -7,7 +7,7 @@ Module
     val local3
       IntegerLiteral 40 : Int
     val local4
-      CallableReference reference0 target=external #0 captures=0 : (Int) -> Int
+      CallableReference reference1 target=external #0 captures=0 : (Int) -> Int
     val local5
       Call external #1 : Int
         Local $dependency.parameter.value : Int
@@ -177,7 +177,7 @@ Module
     val local11
       IntegerLiteral 40 : Int
     val local12
-      CallableReference reference1 target=external #0 captures=0 : (Int) -> Int
+      CallableReference reference2 target=external #0 captures=0 : (Int) -> Int
     val local13
       Call external #1 : Int
         Local $dependency.parameter.value : Int

@@ -188,7 +188,7 @@ impl Lowerer {
             .next(scoop_identity::StructuralDefinitionSiteRole::CallableConversion);
         let owner_type_arguments = self.ambient_type_args(self.type_params_in_scope.len());
         let id = self.callable_references.alloc(hir::CallableReference {
-            definition_root: self.current_definition_root(),
+            definition_root: hir::CallableReferenceRoot::Source(self.current_definition_root()),
             definition_path,
             target: resolved.target,
             function_type,
@@ -431,7 +431,7 @@ impl Lowerer {
             .next(scoop_identity::StructuralDefinitionSiteRole::CallableConversion);
         let owner_type_arguments = self.ambient_type_args(self.type_params_in_scope.len());
         let id = self.callable_references.alloc(hir::CallableReference {
-            definition_root: self.current_definition_root(),
+            definition_root: hir::CallableReferenceRoot::Source(self.current_definition_root()),
             definition_path,
             target: resolved.target,
             function_type,
@@ -525,7 +525,7 @@ impl Lowerer {
             .next(scoop_identity::StructuralDefinitionSiteRole::CallableConversion);
         let owner_type_arguments = self.ambient_type_args(self.type_params_in_scope.len());
         let id = self.callable_references.alloc(hir::CallableReference {
-            definition_root: self.current_definition_root(),
+            definition_root: hir::CallableReferenceRoot::Source(self.current_definition_root()),
             definition_path,
             target: hir::CallableReferenceTarget::Local {
                 definition_path: self.local_functions[local_function].definition_path.clone(),

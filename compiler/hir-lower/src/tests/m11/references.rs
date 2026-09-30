@@ -61,7 +61,7 @@ fn top_level_reference_is_a_distinct_typed_entity() {
         .expect("reference entity");
     assert_eq!(
         reference.definition_root,
-        hir::LexicalDefinitionRoot::Function(module.entry())
+        hir::CallableReferenceRoot::Source(hir::LexicalDefinitionRoot::Function(module.entry()))
     );
     assert_eq!(
         definition_path(&reference.definition_path),

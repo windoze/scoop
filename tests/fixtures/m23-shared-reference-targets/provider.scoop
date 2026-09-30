@@ -9,6 +9,17 @@ public fun <T> declarationOnly(seed: T): T {
     return seed
 }
 
+public fun <T> recursiveReference(seed: T, inspect: (T) -> Int): Int {
+    fun descend(depth: Int): Box<T> {
+        if (depth > 0) {
+            val read: () -> T = descend(depth - 1)::read
+            return Box<T>(read())
+        }
+        return Box<T>(seed)
+    }
+    return inspect(descend(2).read())
+}
+
 public class Box<T> public constructor(public val value: T) {
     public fun read(): T = value
 }

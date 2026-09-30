@@ -17,6 +17,12 @@ pub(crate) fn visit_source_callable_reference_keys(
     let entities = DefaultEntityProjector::new(export, None);
 
     for (_, reference) in export.callable_references.iter() {
+        if matches!(
+            reference.definition_root,
+            crate::CallableReferenceRoot::Persistent(_)
+        ) {
+            continue;
+        }
         let key = entities
             .callable_reference_key(reference.definition_root, &reference.definition_path)
             .map_err(|e| Error::SourceCallableReference(Box::new(e)))?;

@@ -10,6 +10,7 @@ private fun <T, U> localCaptured(seed: T, inspect: (T) -> Int): () -> Int {
 }
 
 public fun <T> exercise(seed: T, inspect: (T) -> Int): Int {
+    if (localRecursiveReference<T>(seed, inspect) != inspect(seed)) { return 6 }
     val plain: () -> Int = ::answer
     val copy: (T) -> T = ::identity
     val bound: () -> T = seed::retain
@@ -26,6 +27,17 @@ public fun <T> exercise(seed: T, inspect: (T) -> Int): Int {
     val distinct = localCaptured<T, Unit>(seed, inspect)
     if (inherited() != distinct()) { return 5 }
     return inherited()
+}
+
+private fun <T> localRecursiveReference(seed: T, inspect: (T) -> Int): Int {
+    fun descend(depth: Int): Box<T> {
+        if (depth > 0) {
+            val read: () -> T = descend(depth - 1)::read
+            return Box<T>(read())
+        }
+        return Box<T>(seed)
+    }
+    return inspect(descend(2).read())
 }
 
 public fun result(): Int = exercise<Int>(42, { value -> value })

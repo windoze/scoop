@@ -8,8 +8,6 @@ mod delegates;
 pub use delegates::*;
 mod closures;
 pub use closures::*;
-mod references;
-pub use references::*;
 
 /// A dependency implementation in the consumer's type and value domains.
 /// Its kind and executable nodes are shared with current declarations.

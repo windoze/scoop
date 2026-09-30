@@ -3,17 +3,8 @@ use super::*;
 mod references;
 
 #[derive(Debug)]
-pub(super) enum CallableReferenceSource {
-    Local(export::CallableReferenceId),
-    Imported {
-        parent: scoop_identity::CallableTemplateOwner,
-        definition: concrete::GeneratedCallableRecord,
-    },
-}
-
-#[derive(Debug)]
 pub(super) struct PendingCallableReference {
-    pub(super) source: CallableReferenceSource,
+    pub(super) source: export::CallableReferenceId,
     pub(super) owner_arguments: Vec<concrete::TypeId>,
     target: concrete::CallableReferenceTarget,
     function_type: concrete::FunctionTypeId,
@@ -198,7 +189,7 @@ impl Concretizer<'_> {
         let target =
             self.lower_reference_target(&source.target, function_type, substitution, locals);
         let value = PendingCallableReference {
-            source: CallableReferenceSource::Local(source_id),
+            source: source_id,
             owner_arguments: source
                 .owner_type_arguments
                 .iter()

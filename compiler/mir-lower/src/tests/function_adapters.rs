@@ -236,7 +236,9 @@ fn signature_changing_closure_dispatch_keeps_its_generated_bridge_identity() {
     let entry = executable.entry();
     let mut source = executable.into_module();
     let reference = source.callable_references.alloc(hir::CallableReference {
-        definition_root: hir::LexicalDefinitionRoot::Function(main),
+        definition_root: hir::CallableReferenceRoot::Source(hir::LexicalDefinitionRoot::Function(
+            main,
+        )),
         definition_path: scoop_identity::StructuralDefinitionPath::from_first(
             scoop_identity::StructuralPathSegment::new(
                 scoop_identity::StructuralDefinitionSiteRole::CallableConversion,

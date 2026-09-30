@@ -99,7 +99,7 @@ impl LocalFunction {
 
 #[derive(Debug, Clone)]
 pub struct CallableReference {
-    pub definition_root: LexicalDefinitionRoot,
+    pub definition_root: CallableReferenceRoot,
     /// Stable definition-site path of the generated invoke wrapper.
     pub definition_path: scoop_identity::StructuralDefinitionPath,
     pub target: CallableReferenceTarget,
@@ -113,6 +113,15 @@ pub struct CallableReference {
     /// expression's evaluation provenance.
     pub origin: DefinitionOrigin,
     pub span: Span,
+}
+
+/// Two storage locations for the same lexical parent. A source root resolves
+/// through current declaration identities; a persisted parent already carries
+/// its original typed identity. Neither changes the reference's semantics.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CallableReferenceRoot {
+    Source(LexicalDefinitionRoot),
+    Persistent(scoop_identity::LexicalCallableParent),
 }
 
 #[derive(Debug, Clone)]

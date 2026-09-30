@@ -154,14 +154,6 @@ impl Concretizer<'_> {
                 self.lower_imported_closure(closure, source.span, substitution, locals)
             }
 
-            export::ExprKind::ImportedCallableReference(reference) => {
-                concrete::ExprKind::CallableReference(self.lower_imported_reference(
-                    reference,
-                    source.span,
-                    substitution,
-                    locals,
-                ))
-            }
             export::ExprKind::Lambda(id) => {
                 concrete::ExprKind::Lambda(self.ensure_lambda(*id, substitution, locals))
             }

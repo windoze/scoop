@@ -193,7 +193,13 @@ impl ReferenceCollector<'_> {
         );
         self.function_type_reference(reference.function_type, origin);
         self.reference_target(&reference.target, origin);
+        for &ty in &reference.owner_type_arguments {
+            self.type_reference(ty, origin);
+        }
         self.capture_shapes(&reference.captures);
+        for capture in &reference.captures {
+            self.expression(&capture.source);
+        }
     }
 
     fn lexical_callable_shape(

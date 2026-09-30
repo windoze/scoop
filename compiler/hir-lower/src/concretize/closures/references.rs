@@ -1,43 +1,6 @@
 use super::*;
 
 impl Concretizer<'_> {
-    pub(in crate::concretize) fn lower_imported_reference(
-        &mut self,
-        source: &export::ImportedCallableReference,
-        span: scoop_ast::Span,
-        substitution: &[concrete::TypeId],
-        locals: &[concrete::LocalId],
-    ) -> concrete::CallableReferenceId {
-        let function_type = self.lower_function_type(source.function_type, substitution);
-        let target =
-            self.lower_reference_target(&source.target, function_type, substitution, locals);
-        let pending = PendingCallableReference {
-            source: CallableReferenceSource::Imported {
-                parent: source.parent,
-                definition: source.definition.clone(),
-            },
-            owner_arguments: source
-                .owner_type_arguments
-                .iter()
-                .map(|ty| self.lower_type(*ty, substitution))
-                .collect(),
-            target,
-            function_type,
-            captures: source
-                .captures
-                .iter()
-                .map(|capture| self.lower_capture(capture, substitution, locals))
-                .collect(),
-            origin: source.origin,
-            span,
-        };
-        let id = concrete::CallableReferenceId::from_raw(
-            (self.callable_reference_slots.len() as u32).into(),
-        );
-        self.callable_reference_slots.push(pending);
-        id
-    }
-
     pub(super) fn lower_reference_target(
         &mut self,
         target: &export::CallableReferenceTarget,

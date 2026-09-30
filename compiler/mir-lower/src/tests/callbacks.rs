@@ -241,7 +241,9 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
         [],
     );
     let reference = source.callable_references.alloc(hir::CallableReference {
-        definition_root: hir::LexicalDefinitionRoot::Function(target),
+        definition_root: hir::CallableReferenceRoot::Source(hir::LexicalDefinitionRoot::Function(
+            target,
+        )),
         definition_path,
         target: hir::CallableReferenceTarget::Named(hir::Callable::Function(target).into()),
         function_type,

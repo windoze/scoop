@@ -8,17 +8,24 @@ impl Lowerer {
         creation: hir::ExpressionOrigin,
         context: &mut ImportedDefaultContext<'_>,
     ) -> Result<hir::ExprKind, ImportedDefaultMaterializationError> {
-        let parent = context.parent;
         let definition = self
             .dependencies
             .as_ref()
             .and_then(|dependencies| dependencies.generated_callable_definition(source.invoke()))
-            .cloned()
             .ok_or_else(|| {
                 ImportedDefaultMaterializationError::Plan(
                     "dependency callable reference is missing its invoke definition".into(),
                 )
             })?;
+        let scoop_identity::GeneratedCallableKey::CallableReferenceInvoke { parent, path } =
+            definition.key()
+        else {
+            return Err(ImportedDefaultMaterializationError::Plan(
+                "dependency callable reference requires an invoke definition".into(),
+            ));
+        };
+        let definition_root = hir::CallableReferenceRoot::Persistent(*parent);
+        let definition_path = path.clone();
         let definition_origin = self
             .dependencies
             .as_ref()
@@ -112,17 +119,18 @@ impl Lowerer {
         let owner_type_arguments = context.lexical_arguments.clone();
         let function_type =
             self.materialize_imported_function_type(source.function_type(), context)?;
-        Ok(hir::ExprKind::ImportedCallableReference(Box::new(
-            hir::ImportedCallableReference {
-                definition,
-                parent,
+        Ok(hir::ExprKind::CallableReference(
+            self.callable_references.alloc(hir::CallableReference {
+                definition_root,
+                definition_path,
                 owner_type_arguments,
                 target,
                 function_type,
                 captures,
                 origin,
-            },
-        )))
+                span: origin.span,
+            }),
+        ))
     }
 
     fn imported_reference_intrinsic(

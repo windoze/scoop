@@ -149,11 +149,6 @@ impl BodyProjection<'_, '_> {
             },
             ExprKind::Lambda(lambda) => DefaultExpressionKindV1::Lambda(self.lambda(*lambda)?),
             ExprKind::ImportedClosure(closure) => self.imported_closure(closure)?,
-            ExprKind::ImportedCallableReference(reference) => {
-                DefaultExpressionKindV1::CallableReference(
-                    self.imported_callable_reference(reference)?,
-                )
-            }
             ExprKind::AnonymousFunction(function) => {
                 DefaultExpressionKindV1::AnonymousFunction(self.anonymous_function(*function)?)
             }

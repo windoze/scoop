@@ -184,17 +184,6 @@ impl ReferenceCollector<'_> {
                     self.expression(&capture.source);
                 }
             }
-            hir::ExprKind::ImportedCallableReference(reference) => {
-                self.reference_target(&reference.target, origin);
-                self.function_type_reference(reference.function_type, origin);
-                for ty in &reference.owner_type_arguments {
-                    self.type_reference(*ty, origin);
-                }
-                for capture in &reference.captures {
-                    self.type_reference(capture.ty, origin);
-                    self.expression(&capture.source);
-                }
-            }
             hir::ExprKind::AnonymousFunction(function) => {
                 self.anonymous_function_descriptor(*function, origin);
             }

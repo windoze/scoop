@@ -9,27 +9,6 @@ use crate::{
 use super::BodyProjection;
 
 impl BodyProjection<'_, '_> {
-    pub(super) fn imported_callable_reference(
-        &mut self,
-        reference: &crate::ImportedCallableReference,
-    ) -> Result<DefaultCallableReferenceV1, super::super::DefaultBodyProjectionError> {
-        let target = self.reference_target(&reference.target)?;
-        let scoop_identity::GeneratedCallableKey::CallableReferenceInvoke { path, .. } =
-            reference.definition.key()
-        else {
-            unreachable!("an imported reference retains its invoke definition");
-        };
-        DefaultCallableReferenceV1::try_new(
-            reference.definition.id(),
-            path.clone(),
-            target,
-            self.function_type(reference.function_type)?,
-            self.captures(&reference.captures)?,
-            owner_parameter_count(reference.owner_type_arguments.len())?,
-        )
-        .map_err(super::super::DefaultBodyProjectionError::CallableReference)
-    }
-
     fn reference_target(
         &mut self,
         target: &crate::CallableReferenceTarget,

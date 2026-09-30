@@ -375,3 +375,11 @@
 - 新增 `m23-shared-reference-targets` 两组正例、四个反例、六份阶段快照与四份诊断快照。覆盖局部泛型、完整且未使用的 owner 实参、重复引用、不同捕获值、可变接收者快照、成员／扩展／intrinsic 引用及函数值默认参数；源码移走后再次发布，下游本地 class／String／Int／Unit 和普通／移动 GC 运行通过。单元还核对原定义 span、捕获参数身份与未用局部声明不发射。
 - 全仓 fmt／clippy 无警告，2307 项 HIR／HIR lowering／MIR lowering 单元测试通过；79 项真实泛型产物及完整 core 回归已全部关闭更新开关覆盖成功。18 份既有 HIR 快照的 55 处变化仅为目标显示，MIR／LIR／诊断快照不变。最终证据前缀 `/tmp/scoop-m23-6a-shared-references-`，结果见 `unit.log`、`all-verified-results.json`、`snapshot-verified-results.json` 和 `snapshot-review.json`。
 - 共同词法记录 192 行，默认值 closure／引用替换 314 行，新增局部声明读取 89 行，引用目标具体化 121 行；清理闲置增量缓存约 1605.4 MiB，继续复用 `target/m23-6a`。wire 与 runtime ABI 保持，剩余词法引用根和完整候选继续按 6a 设计迁移。
+
+## 共同引用节点与递归接收者捕获
+
+- 删除 `ImportedCallableReference` 及其独立表达式、默认替换、效果遍历、投影和具体化分支。当前与解码引用直接进入同一 `CallableReference` arena；存储根只保存当前 typed 根或原 persistent parent，目标、路径、完整宿主实参、签名和捕获使用共同记录。读取时保留原生成声明的位置和 parent，不复制一份生成记录，不以消费者的词法根代替原定义。
+- 局部递归调用的隐藏捕获补齐现在同时遍历共同引用实体的接收者及捕获表达式。新真实源码在捕获首次出现之前，以递归调用结果创建成员引用；修复前接收者只传一个参数，而实际函数需要两个，修复后源码和产物两条路径均保留最终捕获。默认展开仍按原规则产生调用点 invoke 身份，模板展开保留原身份与完整代换。
+- 扩展 `m23-shared-reference-targets` 的独立／组合正例和六份阶段快照，覆盖递归接收者创建引用，再次发布以及消费方本地类型、String／Int／Unit 和普通／移动 GC 运行。单元检查共同 arena 中两种存储根，以及实际递归目标的参数数量和捕获签名；既有四个反例诊断保持。
+- 全仓 fmt／clippy 无警告，2308 项 HIR／HIR lowering／MIR lowering 单元测试通过。79 项真实泛型产物及完整 core 回归全部关闭更新开关覆盖成功；仅一份旧 HIR 快照的两个引用编号发生变化，更新后完整组严格复验通过。最终证据前缀 `/tmp/scoop-m23-6a-reference-roots-`，结果见 `before.log`、`unit.log`、`all-verified-results.json` 与 `snapshot-verified-results.json`。
+- 共同词法记录 201 行、默认 closure／引用替换 263 行、引用读取 166 行、引用具体化 84 行、局部调用捕获补齐 336 行。确认无 cargo／rustc 占用后清理约 225.4 MiB 闲置增量缓存，继续复用 `target/m23-6a`。wire 与 runtime ABI 保持，剩余 closure／构造节点和完整候选继续迁移。

@@ -210,7 +210,7 @@ impl DefaultEntityProjector<'_> {
 
     pub(in crate::production::default_templates) fn callable_reference_invoke(
         &self,
-        root: LexicalDefinitionRoot,
+        root: crate::CallableReferenceRoot,
         path: &scoop_identity::StructuralDefinitionPath,
     ) -> Result<PersistentGeneratedCallableId, super::super::DefaultEntityProjectionError> {
         let key = self.callable_reference_key(root, path)?;
@@ -220,9 +220,18 @@ impl DefaultEntityProjector<'_> {
 
     pub(in crate::production::default_templates) fn callable_reference_key(
         &self,
-        root: LexicalDefinitionRoot,
+        root: crate::CallableReferenceRoot,
         path: &scoop_identity::StructuralDefinitionPath,
     ) -> Result<GeneratedCallableKey, super::super::DefaultEntityProjectionError> {
+        let root = match root {
+            crate::CallableReferenceRoot::Source(root) => root,
+            crate::CallableReferenceRoot::Persistent(parent) => {
+                return Ok(GeneratedCallableKey::CallableReferenceInvoke {
+                    parent,
+                    path: path.clone(),
+                });
+            }
+        };
         let sites = self
             .export
             .local_functions

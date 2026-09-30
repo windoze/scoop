@@ -45,26 +45,24 @@ impl CallableIdentityBuilder<'_> {
             );
         }
         for pending in &self.concretizer.callable_reference_slots {
-            let source = match pending.source {
-                CallableReferenceSource::Local(source) => source,
-                CallableReferenceSource::Imported { parent, .. } => {
+            let source = &self.concretizer.source.callable_references[pending.source];
+            match source.definition_root {
+                export::CallableReferenceRoot::Persistent(parent) => {
                     self.collect_loaded_default_scopes(
-                        parent,
+                        parent.template(),
                         &pending.owner_arguments,
                         &mut seen,
                         &mut scopes,
                     );
-                    continue;
                 }
-            };
-            let source = &self.concretizer.source.callable_references[source];
-            self.collect_default_local_scopes(
-                source.definition_root,
-                &source.definition_path,
-                &pending.owner_arguments,
-                &mut seen,
-                &mut scopes,
-            );
+                export::CallableReferenceRoot::Source(root) => self.collect_default_local_scopes(
+                    root,
+                    &source.definition_path,
+                    &pending.owner_arguments,
+                    &mut seen,
+                    &mut scopes,
+                ),
+            }
         }
         scopes
     }

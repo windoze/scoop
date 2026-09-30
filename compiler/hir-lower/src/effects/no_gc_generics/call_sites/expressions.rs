@@ -151,6 +151,9 @@ impl Lowerer {
                 if let Some(receiver) = reference.target.receiver() {
                     self.collect_generic_calls_in_expr(receiver, out);
                 }
+                for capture in &reference.captures {
+                    self.collect_generic_calls_in_expr(&capture.source, out);
+                }
             }
             ExprKind::IntegerOperation { arguments, .. } => match arguments {
                 hir::HirIntegerOperationArguments::Unary(operand) => {
@@ -297,19 +300,6 @@ impl Lowerer {
             ExprKind::ImportedClosure(closure) => {
                 out.push(self.imported_body_generic_call(closure.application, expr.span));
                 for capture in &closure.captures {
-                    self.collect_generic_calls_in_expr(&capture.source, out);
-                }
-            }
-            ExprKind::ImportedCallableReference(reference) => {
-                if let Some(hir::CallableTarget::Application(application)) =
-                    reference.target.callee(&self.bound_callable_refs)
-                {
-                    out.push(self.imported_body_generic_call(application, expr.span));
-                }
-                if let Some(receiver) = reference.target.receiver() {
-                    self.collect_generic_calls_in_expr(receiver, out);
-                }
-                for capture in &reference.captures {
                     self.collect_generic_calls_in_expr(&capture.source, out);
                 }
             }

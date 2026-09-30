@@ -135,6 +135,7 @@ pub(super) fn collect_callable_reference_types(
 ) {
     let reference = &lowerer.callable_references[reference];
     collect_function_type_types(lowerer, reference.function_type, out);
+    out.extend(reference.owner_type_arguments.iter().copied());
     out.extend(reference.captures.iter().map(|capture| capture.ty));
     for capture in &reference.captures {
         collect_expr_types(lowerer, &capture.source, out);

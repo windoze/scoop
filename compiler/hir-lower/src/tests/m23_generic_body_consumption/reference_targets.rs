@@ -18,7 +18,25 @@ fn local_reference_instances_reuse_definitions_and_preserve_capture_signatures()
             |output, _, _, _, _| {
                 let export = output.output().export.module();
                 let module = output.output().local.module();
+                assert!(
+                    export
+                        .callable_references
+                        .iter()
+                        .any(|(_, reference)| matches!(
+                            reference.definition_root,
+                            hir::CallableReferenceRoot::Source(_)
+                        ))
+                );
                 if case == "combined" {
+                    assert!(
+                        export
+                            .callable_references
+                            .iter()
+                            .any(|(_, reference)| matches!(
+                                reference.definition_root,
+                                hir::CallableReferenceRoot::Persistent(_)
+                            ))
+                    );
                     assert!(export.local_functions.iter().any(|(_, declaration)| {
                         let hir::LocalFunctionDefinition::Template(template) =
                             declaration.definition
@@ -85,6 +103,57 @@ fn local_reference_instances_reuse_definitions_and_preserve_capture_signatures()
                 assert!(
                     references.len() > 1,
                     "{case}: complete arguments keep distinct implementations"
+                );
+            },
+        )
+        .unwrap_or_else(|errors| panic!("{case}: {errors:?}"));
+    }
+}
+
+#[test]
+fn recursive_reference_receivers_keep_the_final_capture_arguments() {
+    use hir::concrete::{Callable, CallableReferenceTarget, CallableTarget, ExprKind};
+    for case in ["standalone", "combined"] {
+        with_provider_consumer(
+            &fixture("provider"),
+            &fixture(case),
+            |output, _, _, _, _| {
+                let module = output.output().local.module();
+                let mut observed = 0;
+                for (_, reference) in module.callable_references.iter() {
+                    let CallableReferenceTarget::BoundMember { receiver, .. } = &reference.target
+                    else {
+                        continue;
+                    };
+                    let (callee, argument_count) = match &receiver.kind {
+                        ExprKind::LocalFunctionCall {
+                            callee: Callable::Function(function),
+                            captures,
+                            args,
+                            ..
+                        } => (*function, captures.len() + args.len()),
+                        ExprKind::Call {
+                            callee: CallableTarget::Local(Callable::Function(function)),
+                            args,
+                            ..
+                        } => (*function, args.len()),
+                        _ => continue,
+                    };
+                    let function = &module.functions[callee];
+                    if !function.name.ends_with("descend") {
+                        continue;
+                    }
+                    assert_eq!(
+                        argument_count,
+                        function.params.len(),
+                        "{case}: recursive receiver retains hidden captures"
+                    );
+                    assert_eq!(function.capture_parameters.len(), 1);
+                    observed += 1;
+                }
+                assert!(
+                    observed > 0,
+                    "{case}: recursive calls occur in reference receivers"
                 );
             },
         )

@@ -33,57 +33,6 @@ impl Lowerer {
         }
     }
 
-    pub(super) fn instantiate_default_imported_reference(
-        &mut self,
-        source: &hir::ImportedCallableReference,
-        context: &mut InstantiationContext,
-    ) -> hir::ExprKind {
-        let origin = instantiate_origin(
-            hir::ExpressionOrigin::Definition(source.origin),
-            context.evaluation,
-        );
-        let target = self.instantiate_default_reference_target(&source.target, origin, context);
-        let function_type = self.instantiate_default_function_type(source.function_type, context);
-        let captures = source
-            .captures
-            .iter()
-            .map(|capture| self.instantiate_default_capture(capture, context))
-            .collect();
-        if matches!(context.evaluation, InstantiationEvaluation::Concrete(_)) {
-            let owner_type_arguments = self.ambient_type_args(self.type_params_in_scope.len());
-            let definition_root = self.current_definition_root();
-            let definition_path = self
-                .definition_paths
-                .next(scoop_identity::StructuralDefinitionSiteRole::CallableConversion);
-            let origin = self.definition_origin(context.statement_span);
-            return hir::ExprKind::CallableReference(self.callable_references.alloc(
-                hir::CallableReference {
-                    definition_root,
-                    definition_path,
-                    owner_type_arguments,
-                    target,
-                    function_type,
-                    captures,
-                    origin,
-                    span: origin.span,
-                },
-            ));
-        }
-        hir::ExprKind::ImportedCallableReference(Box::new(hir::ImportedCallableReference {
-            definition: source.definition.clone(),
-            parent: source.parent,
-            owner_type_arguments: source
-                .owner_type_arguments
-                .iter()
-                .map(|ty| self.instantiate_method_ty(*ty, &context.bindings))
-                .collect(),
-            target,
-            function_type,
-            captures,
-            origin: source.origin,
-        }))
-    }
-
     fn instantiate_default_reference_target(
         &mut self,
         target: &hir::CallableReferenceTarget,
@@ -254,7 +203,7 @@ impl Lowerer {
                     source.origin,
                 ),
                 InstantiationEvaluation::Concrete(_) => (
-                    self.current_definition_root(),
+                    hir::CallableReferenceRoot::Source(self.current_definition_root()),
                     self.definition_paths
                         .next(scoop_identity::StructuralDefinitionSiteRole::CallableConversion),
                     self.ambient_type_args(self.type_params_in_scope.len()),

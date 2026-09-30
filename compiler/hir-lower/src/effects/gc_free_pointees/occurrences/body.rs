@@ -316,23 +316,6 @@ pub(in super::super) fn collect_expr_type_occurrences(
                 collect_expr_type_occurrences(lowerer, &capture.source, out);
             }
         }
-        ExprKind::ImportedCallableReference(reference) => {
-            push_types_at_expression(
-                expression,
-                |types| {
-                    collect_reference_target_types(lowerer, &reference.target, types);
-                    types.extend(reference.owner_type_arguments.iter().copied());
-                    types.extend(reference.captures.iter().map(|capture| capture.ty));
-                },
-                out,
-            );
-            if let Some(receiver) = reference.target.receiver() {
-                collect_expr_type_occurrences(lowerer, receiver, out);
-            }
-            for capture in &reference.captures {
-                collect_expr_type_occurrences(lowerer, &capture.source, out);
-            }
-        }
         ExprKind::AnonymousFunction(function) => {
             for capture in &lowerer.anonymous_functions[*function].captures {
                 collect_expr_type_occurrences(lowerer, &capture.source, out);
@@ -345,7 +328,11 @@ pub(in super::super) fn collect_expr_type_occurrences(
             }
             push_types_at_expression(
                 expression,
-                |types| collect_reference_target_types(lowerer, &reference.target, types),
+                |types| {
+                    collect_reference_target_types(lowerer, &reference.target, types);
+                    types.extend(reference.owner_type_arguments.iter().copied());
+                    types.extend(reference.captures.iter().map(|capture| capture.ty));
+                },
                 out,
             );
             if let Some(receiver) = reference.target.receiver() {
