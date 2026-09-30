@@ -487,3 +487,9 @@
 - 新增 `m23-shared-callable-order` 两组正例和六份阶段快照，覆盖 callee 与实参副作用、嵌套默认值、异常、实参期间重绑定函数变量以及后续实参修改此前实参读取的变量。源码移走后再次发布，下游本地 class／String／Int／Unit 与普通／moving GC 均通过；修复前冻结编译器实际运行返回用例错误，证据为 `/tmp/scoop-m23-6a-callable-order-before-generate-function_values_preserve_callee_and_argument_evaluation_order.log`。
 - 全仓 fmt／clippy 无警告，2900 项 HIR／HIR lowering／MIR lowering／slib 单元通过；90 项真实泛型产物与完整 core 回归全部使用同一最终配套编译器、关闭更新开关覆盖通过。29 组受到快照变化影响的场景全部严格复验成功，161 份旧快照的类型、函数与 callback 声明头逐项保持一致；HIR／MIR 中增加普通临时保存，LIR 与局部编号相应变化，既有诊断快照不变。证据前缀 `/tmp/scoop-m23-6a-callable-order-`，结果见 `unit.log`、`all-verified-results.json`、`snapshot-verified-results.json` 与 `snapshot-review.json`。
 - 函数值调用拆为 123 行的独立模块，调用分类主模块降至 252 行。所有验证完成后清理约 1725.8 MiB 闲置 `target/debug`，前一宿主属性批次另清理 1725.0 MiB，继续复用热缓存。wire payload 结构与 runtime ABI 保持；完整 workspace／runtime 验收和已确认的 core bootstrap 旧断言仍待完成。
+
+## core bootstrap 按真实封闭应用验证
+
+- 核对实际 core 源码和 LIR 确认旧断言已过时：四个整数范围族各自实现完整 `Iterable<T>`／`Iterator<T>`，其迭代结果使用对应 `Option<T>`，再加既有 `Option<String>`，共 13 个真实泛型应用。原测试只允许一个 application、固定七个 ODR member，并试图按旧诊断名称排除 iterator，不能验证已经实现的共同父类型与迭代能力。
+- 测试现在按实际 exact ID 关联 MIR 与 LIR，对全部预期应用核对原 specialization group、HIR 归属、OdrWeak linkage 和匹配布局，保留 HIR foundation 的角色边界检查。删除过时数量和 iterator 排除断言，没有只把常量七改成九十一。检查独立放入 `bootstrap/application_shapes.rs`，主 bootstrap 模块同步缩短；生产代码不变。
+- 全仓 fmt／clippy 无警告，最终配套编译器上的 core bootstrap 检查通过，证据为 `/tmp/scoop-m23-6a-workspace-bootstrap-verified.log`。完整 `cargo test --workspace --no-fail-fast` 已启动，快照更新开关全部关闭，继续完成 runtime 与其余 workspace 检查。

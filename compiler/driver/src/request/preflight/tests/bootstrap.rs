@@ -1,3 +1,4 @@
+mod application_shapes;
 mod shape_sources;
 
 use super::*;
@@ -306,51 +307,12 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
             assert_eq!(boxed.type_descriptor(), boxed.exact());
         }
     }
-    let lir_counts = real_lir.foundation().as_canonical().counts();
-    assert_eq!(lir_counts.odr_groups, 0);
-    assert_eq!(lir_counts.odr_members, 7);
-    let applications: Vec<_> = real_lir
-        .module()
-        .meta
-        .type_descriptors
-        .iter()
-        .filter_map(|(_, descriptor)| {
-            descriptor
-                .identity
-                .odr_member_record()
-                .map(|member| (descriptor, member))
-        })
-        .collect();
-    assert_eq!(applications.len(), 1);
-    let (descriptor, member) = applications[0];
-    let source = real_mir
-        .strong
-        .module()
-        .meta
-        .source_exact_types
-        .get_by_identity(descriptor.identity.exact_type())
-        .unwrap();
-    assert_eq!(
-        source.owner(),
-        scoop_mir::SourceExactTypeOwner::NominalApplication(member.key().group())
-    );
-    assert_eq!(
-        descriptor.identity.symbol_request().linkage(),
-        scoop_identity::LinkageClass::OdrWeak
-    );
-    assert!(real_lir.module().meta.layouts.iter().any(|(_, layout)| {
-        layout.identity.layout_record().key().exact_type() == descriptor.identity.exact_type()
-    }));
-    assert!(
-        !real_lir
-            .module()
-            .meta
-            .type_descriptors
-            .iter()
-            .any(
-                |(_, descriptor)| descriptor.diagnostic_name.starts_with("Iterable<")
-                    || descriptor.diagnostic_name.starts_with("Iterator<")
-            )
+    assert_eq!(real_lir.foundation().as_canonical().counts().odr_groups, 0);
+    application_shapes::check(
+        &output.hir,
+        &output.foundation,
+        real_mir.strong.module(),
+        real_lir.module(),
     );
 
     let production = real_lir
@@ -366,22 +328,6 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         production_shape_support.closures().len(),
         expected_shape_roots
     );
-    let hir_counts = output.foundation.counts();
-    assert_eq!(hir_counts.callable_applications, 0);
-    let groups: std::collections::HashSet<_> = output
-        .hir
-        .output()
-        .local
-        .module()
-        .exact_type_identities
-        .nominal_specialization_records()
-        .iter()
-        .map(|record| record.id())
-        .collect();
-    assert!(!groups.is_empty());
-    assert!(groups.contains(&member.key().group()));
-    assert_eq!(hir_counts.odr_groups, groups.len());
-    assert_eq!(hir_counts.odr_members, 0);
 }
 
 #[test]
