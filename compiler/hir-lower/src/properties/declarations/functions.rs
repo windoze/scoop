@@ -41,20 +41,23 @@ impl Lowerer {
             |owner| format!("{}.{}", owner.describe_name(self), declaration.name.text),
         );
         let function = self.functions.alloc(Function {
-            name,
+            signature: hir::CallableSignature {
+                name,
+                is_suspend: false,
+                modifiers: hir::CallableModifiers::default(),
+                params: Vec::new(),
+                return_ty: self.unit,
+                attributes: checked.attributes,
+                span: declaration.span,
+            },
+
             access,
             genericity: hir::FunctionGenericity::Plain,
-            is_suspend: false,
-            modifiers: hir::CallableModifiers::default(),
-            params: Vec::new(),
-            return_ty: self.unit,
-            attributes: checked.attributes,
             kind: FunctionKind::User(hir::Body {
                 locals: la_arena::Arena::new(),
                 statements: Vec::new(),
             }),
             method,
-            span: declaration.span,
         });
         if let Some(owner) = method_owner {
             self.function_owner.insert(function, owner);

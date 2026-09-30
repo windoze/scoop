@@ -150,17 +150,19 @@ impl Harness {
             return_type: self.unit,
         });
         let id = self.functions.alloc(hir::Function {
-            name: "write".to_string(),
+            signature: hir::CallableSignature {
+                name: "write".to_string(),
+                is_suspend: false,
+                modifiers: hir::CallableModifiers::default(),
+                params: Vec::new(),
+                return_ty: self.unit,
+                attributes: hir::FunctionAttributes::default(),
+                span: SPAN,
+            },
             access: hir::DeclarationAccess::public(),
             genericity: hir::FunctionGenericity::Plain,
-            is_suspend: false,
-            modifiers: hir::CallableModifiers::default(),
-            params: Vec::new(),
-            return_ty: self.unit,
-            attributes: hir::FunctionAttributes::default(),
             kind: hir::FunctionKind::Extern(extern_id),
             method: None,
-            span: SPAN,
         });
         self.top_level.push(id);
         self.write = Some(id);
@@ -186,17 +188,19 @@ impl Harness {
             return_type: self.string,
         });
         let id = self.functions.alloc(hir::Function {
-            name: "coreLongToString".to_string(),
+            signature: hir::CallableSignature {
+                name: "coreLongToString".to_string(),
+                is_suspend: false,
+                modifiers: hir::CallableModifiers::default(),
+                params: Vec::new(),
+                return_ty: self.string,
+                attributes: hir::FunctionAttributes::default(),
+                span: SPAN,
+            },
             access: hir::DeclarationAccess::public(),
             genericity: hir::FunctionGenericity::Plain,
-            is_suspend: false,
-            modifiers: hir::CallableModifiers::default(),
-            params: Vec::new(),
-            return_ty: self.string,
-            attributes: hir::FunctionAttributes::default(),
             kind: hir::FunctionKind::Extern(extern_id),
             method: None,
-            span: SPAN,
         });
         self.top_level.push(id);
         self.long_to_string = Some(id);
@@ -221,17 +225,19 @@ impl Harness {
             return_type: self.string,
         });
         let id = self.functions.alloc(hir::Function {
-            name: "coreBooleanToString".to_string(),
+            signature: hir::CallableSignature {
+                name: "coreBooleanToString".to_string(),
+                is_suspend: false,
+                modifiers: hir::CallableModifiers::default(),
+                params: Vec::new(),
+                return_ty: self.string,
+                attributes: hir::FunctionAttributes::default(),
+                span: SPAN,
+            },
             access: hir::DeclarationAccess::public(),
             genericity: hir::FunctionGenericity::Plain,
-            is_suspend: false,
-            modifiers: hir::CallableModifiers::default(),
-            params: Vec::new(),
-            return_ty: self.string,
-            attributes: hir::FunctionAttributes::default(),
             kind: hir::FunctionKind::Extern(extern_id),
             method: None,
-            span: SPAN,
         });
         self.top_level.push(id);
         self.bool_to_string = Some(id);

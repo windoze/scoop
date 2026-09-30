@@ -23,7 +23,7 @@ fn imported_generic_extension_properties_preserve_accessor_applications() {
                     .values()
                     .filter_map(|template| match template.declaration {
                         hir::ImportedCallableTemplateOrigin::ExtensionAccessor(id) => {
-                            Some((id, template.signature.parameters.len()))
+                            Some((id, template.signature.params.len()))
                         }
                         _ => None,
                     })

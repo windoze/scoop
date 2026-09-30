@@ -220,20 +220,22 @@ fn source_key(name: &str, type_parameter_count: u32) -> SourceDeclarationKey {
 
 fn function(name: &str) -> Function {
     Function {
-        name: name.to_string(),
+        signature: crate::CallableSignature {
+            name: name.to_string(),
+            is_suspend: false,
+            modifiers: CallableModifiers::default(),
+            params: Vec::new(),
+            return_ty: crate::TypeId::from_raw(0_u32.into()),
+            attributes: FunctionAttributes::default(),
+            span: Span { start: 0, end: 0 },
+        },
         access: DeclarationAccess::public(),
         genericity: FunctionGenericity::Plain,
-        is_suspend: false,
-        modifiers: CallableModifiers::default(),
-        params: Vec::new(),
-        return_ty: crate::TypeId::from_raw(0_u32.into()),
-        attributes: FunctionAttributes::default(),
         kind: FunctionKind::User(crate::Body {
             locals: Arena::new(),
             statements: Vec::new(),
         }),
         method: None,
-        span: Span { start: 0, end: 0 },
     }
 }
 

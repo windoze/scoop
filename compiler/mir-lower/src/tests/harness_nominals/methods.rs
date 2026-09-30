@@ -107,14 +107,17 @@ impl Harness {
             _ => hir::MethodDispatch::Direct,
         };
         let function = self.functions.alloc(hir::Function {
-            name: name.to_string(),
+            signature: hir::CallableSignature {
+                name: name.to_string(),
+                is_suspend: false,
+                modifiers: hir::CallableModifiers::default(),
+                params,
+                return_ty,
+                attributes: hir::FunctionAttributes::default(),
+                span: SPAN,
+            },
             access: hir::DeclarationAccess::public(),
             genericity,
-            is_suspend: false,
-            modifiers: hir::CallableModifiers::default(),
-            params,
-            return_ty,
-            attributes: hir::FunctionAttributes::default(),
             kind: hir::FunctionKind::User(body),
             method: Some(hir::Method {
                 owner: method_of,
@@ -125,7 +128,6 @@ impl Harness {
                 },
                 dispatch,
             }),
-            span: SPAN,
         });
         match self.types[method_of] {
             hir::Type::Class(application) => {

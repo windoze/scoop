@@ -113,16 +113,18 @@ impl Lowerer {
         Ok(PreparedImportedGeneric {
             signature: hir::ImportedGenericCallableSignature {
                 declaration: identity,
-                name: format!("{}.{member_name}", nominal.name()),
+                signature: hir::CallableSignature::from_source_effects(
+                    format!("{}.{member_name}", nominal.name()),
+                    parameters,
+                    return_type,
+                    declaration.interface().effects(),
+                    span,
+                ),
                 type_parameters: hir::ImportedCallableTypeParameters::Declared(type_parameters),
                 no_gc_type_params: Vec::new(),
                 gc_free_pointee_requirements: Vec::new(),
-                parameters,
-                return_type,
                 receiver: Some(receiver),
-                effects: declaration.interface().effects(),
                 origin,
-                span,
             },
             source,
             bindings,

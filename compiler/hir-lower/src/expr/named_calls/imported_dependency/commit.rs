@@ -80,6 +80,15 @@ impl Lowerer {
             );
             return None;
         }
+        if candidate.interface().effects().execution() == scoop_identity::Effect::Suspend {
+            let declaration = self
+                .dependencies
+                .as_ref()
+                .expect("a dependency call has its declaration catalog")
+                .callable_declaration(candidate.interface().declaration())
+                .expect("a selected call retains its original declaration");
+            self.check_suspend_context(declaration.name(), call_span);
+        }
         if candidate.interface().effects().safety() == hir::CallableSafetyV1::Unsafe {
             self.require_unsafe_operation(
                 call_span,

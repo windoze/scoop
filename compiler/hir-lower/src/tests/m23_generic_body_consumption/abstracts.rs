@@ -69,7 +69,7 @@ fn dependency_abstract_slots_compose_with_generic_overrides_and_references() {
                     };
                     abstract_count += 1;
                     abstract_names.push(template.name.as_str());
-                    assert_eq!(locals.len(), template.parameters.len());
+                    assert_eq!(locals.len(), template.params.len());
                 }
             }
             assert!(abstract_count > 0);

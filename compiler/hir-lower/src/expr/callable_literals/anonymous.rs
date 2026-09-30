@@ -212,20 +212,23 @@ impl Lowerer {
             let type_params = self.type_params_in_scope.clone();
             let access = self.local_declaration_access();
             let function = self.functions.alloc(hir::Function {
-                name: self.current_fn_name.clone(),
+                signature: hir::CallableSignature {
+                    name: self.current_fn_name.clone(),
+                    is_suspend,
+                    modifiers: hir::CallableModifiers::default(),
+                    params: abi_params,
+                    return_ty,
+                    attributes: hir::FunctionAttributes::default(),
+                    span,
+                },
+
                 access,
                 genericity: hir::FunctionGenericity::Plain,
-                is_suspend,
-                modifiers: hir::CallableModifiers::default(),
-                params: abi_params,
-                return_ty,
-                attributes: hir::FunctionAttributes::default(),
                 kind: hir::FunctionKind::User(hir::Body {
                     locals: std::mem::take(&mut self.locals),
                     statements,
                 }),
                 method: None,
-                span,
             });
             if !type_params.is_empty() {
                 self.register_generic(function, type_params.clone());

@@ -1,0 +1,3 @@
+import upstream.signatures.delayed
+
+public fun invalid(value: Int = delayed<Int>(42)): Int = value

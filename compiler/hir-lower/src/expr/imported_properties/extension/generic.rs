@@ -123,7 +123,7 @@ impl Lowerer {
         span: ast::Span,
     ) -> hir::Expr {
         let signature = self.imported_generic_templates[template].signature.clone();
-        if signature.effects.safety() == hir::CallableSafetyV1::Unsafe {
+        if signature.attributes.safety == hir::Safety::Unsafe {
             self.require_unsafe_operation(span, "accessing an unsafe dependency property");
         }
         let bindings = signature
@@ -132,7 +132,7 @@ impl Lowerer {
             .into_iter()
             .zip(arguments.iter().copied())
             .collect::<Vec<_>>();
-        let result_type = self.instantiate_method_ty(signature.return_type, &bindings);
+        let result_type = self.instantiate_method_ty(signature.return_ty, &bindings);
         let source_receiver = hir::SourceCallReceiver::Receiver {
             static_type: receiver.static_type,
         };

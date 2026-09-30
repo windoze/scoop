@@ -1,16 +1,10 @@
 use super::*;
 
 pub(super) struct ResolvedFunctionDefinition<'a> {
-    pub name: &'a str,
-    pub is_suspend: bool,
-    pub modifiers: export::CallableModifiers,
-    pub parameters: &'a [export::Param],
+    pub signature: &'a export::CallableSignature,
     pub capture_bindings: Vec<export::BindingId>,
-    pub return_type: export::TypeId,
-    pub attributes: export::FunctionAttributes,
     pub implementation: &'a export::FunctionKind,
     pub receiver: DefinitionReceiver,
-    pub span: scoop_ast::Span,
 }
 
 pub(super) enum DefinitionReceiver {
@@ -49,16 +43,10 @@ impl<'input> Concretizer<'input> {
                     None => DefinitionReceiver::None,
                 };
                 ResolvedFunctionDefinition {
-                    name: &source.name,
-                    is_suspend: source.is_suspend,
-                    modifiers: source.modifiers,
-                    parameters: &source.params,
+                    signature: &source.signature,
                     capture_bindings: self.local_capture_bindings(id),
-                    return_type: source.return_ty,
-                    attributes: source.attributes,
                     implementation: &source.kind,
                     receiver,
-                    span: source.span,
                 }
             }
             FunctionSource::Imported(id) => {
@@ -84,16 +72,10 @@ impl<'input> Concretizer<'input> {
                     _ => Vec::new(),
                 };
                 ResolvedFunctionDefinition {
-                    name: &source.name,
-                    is_suspend: source.effects.execution() == scoop_identity::Effect::Suspend,
-                    modifiers: source.effects.callable_modifiers(),
-                    parameters: &source.parameters,
+                    signature: &source.signature.signature,
                     capture_bindings,
-                    return_type: source.return_type,
-                    attributes: source.effects.function_attributes(),
                     implementation: &source.implementation,
                     receiver,
-                    span: source.span,
                 }
             }
         }

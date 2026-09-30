@@ -72,16 +72,18 @@ impl Lowerer {
                 template,
                 owner: owner(InitializationCallableRole::Initializer)?,
             },
-            name: format!("{}$initialize", delegate.diagnostic_path()),
+            signature: hir::CallableSignature::from_source_effects(
+                format!("{}$initialize", delegate.diagnostic_path()),
+                Vec::new(),
+                return_type,
+                body.effects(),
+                origin.span,
+            ),
             type_parameters: hir::ImportedCallableTypeParameters::Substitution(parameters),
             no_gc_type_params,
             gc_free_pointee_requirements,
-            parameters: Vec::new(),
-            return_type,
-            effects: body.effects(),
             receiver: None,
             origin,
-            span: origin.span,
         };
         let mut ensure_signature = initializer_signature.clone();
         ensure_signature.declaration = hir::ImportedCallableTemplateOrigin::Initialization {

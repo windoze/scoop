@@ -32,16 +32,26 @@ impl std::ops::Deref for ImportedGenericCallableTemplate {
 #[derive(Debug, Clone)]
 pub struct ImportedGenericCallableSignature {
     pub declaration: ImportedCallableTemplateOrigin,
-    pub name: String,
+    pub signature: crate::CallableSignature,
     pub type_parameters: ImportedCallableTypeParameters,
     pub no_gc_type_params: Vec<crate::TypeParamId>,
     pub gc_free_pointee_requirements: Vec<crate::RequiresGcFreePointee>,
-    pub parameters: Vec<crate::Param>,
-    pub return_type: crate::TypeId,
-    pub effects: crate::CallableSourceEffectsV1,
     pub receiver: Option<crate::TypeId>,
     pub origin: crate::DefinitionOrigin,
-    pub span: crate::Span,
+}
+
+impl std::ops::Deref for ImportedGenericCallableSignature {
+    type Target = crate::CallableSignature;
+
+    fn deref(&self) -> &Self::Target {
+        &self.signature
+    }
+}
+
+impl std::ops::DerefMut for ImportedGenericCallableSignature {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.signature
+    }
 }
 
 /// A lexical body keeps its source declaration and enclosing application.

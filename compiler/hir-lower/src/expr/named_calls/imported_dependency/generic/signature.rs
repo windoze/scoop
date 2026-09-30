@@ -93,12 +93,12 @@ impl ImportedGenericTarget {
                         owner_parameters: owner.to_vec(),
                         type_parameters: callable.to_vec(),
                         parameters: template
-                            .parameters
+                            .params
                             .iter()
                             .map(|p| (p.name.clone(), p.ty))
                             .collect(),
                         receiver: template.receiver,
-                        return_type: template.return_type,
+                        return_type: template.return_ty,
                         origin: template.origin,
                         span: template.span,
                     },

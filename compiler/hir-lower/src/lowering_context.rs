@@ -223,14 +223,8 @@ impl Lowerer {
         self.safety_contexts.pop();
     }
 
-    /// Diagnose a suspend call made from a declaration body whose ABI has
-    /// no continuation. The resolved callable, including a generic
-    /// instantiation, always leads back to exactly one function entity.
-    pub(crate) fn check_suspend_call(&mut self, callable: hir::Callable, span: Span) {
-        let function = self.callable_function_id(callable);
-        if !self.functions[function].is_suspend {
-            return;
-        }
+    /// Diagnose a selected suspend call in a body whose ABI has no continuation.
+    pub(crate) fn check_suspend_context(&mut self, callee: &str, span: Span) {
         let context = *self
             .suspension_contexts
             .last()
@@ -238,7 +232,6 @@ impl Lowerer {
         let SuspensionContext::Forbidden(reason) = context else {
             return;
         };
-        let callee = self.functions[function].name.clone();
         let location = match reason {
             ForbiddenSuspendContext::TopLevel => "a non-suspend declaration".to_string(),
             ForbiddenSuspendContext::Function => {
@@ -259,8 +252,10 @@ impl Lowerer {
     }
 
     pub(crate) fn check_call_effects(&mut self, callable: hir::Callable, span: Span) {
-        self.check_suspend_call(callable, span);
         let function = self.callable_function_id(callable);
+        if self.functions[function].is_suspend {
+            self.check_suspend_context(&self.functions[function].name.clone(), span);
+        }
         if self.functions[function].attributes.safety != hir::Safety::Unsafe {
             return;
         }

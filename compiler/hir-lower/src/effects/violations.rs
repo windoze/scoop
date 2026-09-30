@@ -315,19 +315,18 @@ impl Lowerer {
             } => {
                 let span = expr.origin.concrete().evaluation.span;
                 if let Some(target) = callee.declared_callable() {
-                    let effect = match target {
+                    let is_no_gc = match target {
                         hir::CallableTarget::Local(callable) => {
                             let function = self.callable_function_id(callable);
-                            match self.functions[function].attributes.gc_effect {
-                                hir::GcEffect::NoGc => scoop_identity::GcEffect::NoGc,
-                                hir::GcEffect::Managed => scoop_identity::GcEffect::Managed,
-                            }
+                            self.functions[function].attributes.gc_effect == hir::GcEffect::NoGc
                         }
-                        hir::CallableTarget::Application(application) => self
-                            .imported_generic_templates
-                            [self.imported_generic_applications[application].template]
-                            .effects
-                            .gc_effect(),
+                        hir::CallableTarget::Application(application) => {
+                            self.imported_generic_templates
+                                [self.imported_generic_applications[application].template]
+                                .attributes
+                                .gc_effect
+                                == hir::GcEffect::NoGc
+                        }
                         hir::CallableTarget::Dependency(callee) => {
                             let reference = self.imported_dependency_callables[callee].reference();
                             self.dependencies
@@ -336,9 +335,10 @@ impl Lowerer {
                                 .expect("a bound member retains its selected declaration")
                                 .capability()
                                 .gc_effect()
+                                == scoop_identity::GcEffect::NoGc
                         }
                     };
-                    if effect != scoop_identity::GcEffect::NoGc {
+                    if !is_no_gc {
                         out.push((
                             span,
                             "managed dependency calls are not allowed in `@NoGC` code".into(),
@@ -376,7 +376,7 @@ impl Lowerer {
             } => {
                 let template = &self.imported_generic_templates
                     [self.imported_generic_applications[*application].template];
-                if template.effects.gc_effect() != scoop_identity::GcEffect::NoGc {
+                if template.attributes.gc_effect != hir::GcEffect::NoGc {
                     out.push((
                         expr.span,
                         "calling a managed dependency function is not allowed in `@NoGC` code"

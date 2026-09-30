@@ -71,20 +71,23 @@ impl Lowerer {
         let local_number = self.local_function_by_function.len();
         let access = self.local_declaration_access();
         let function = self.functions.alloc(hir::Function {
-            name: format!("$local.{local_number}.{}", decl.name.text),
+            signature: hir::CallableSignature {
+                name: format!("$local.{local_number}.{}", decl.name.text),
+                is_suspend: decl.is_suspend,
+                modifiers: hir::CallableModifiers::default(),
+                params: Vec::new(),
+                return_ty,
+                attributes,
+                span: decl.span,
+            },
+
             access,
             genericity: hir::FunctionGenericity::Plain,
-            is_suspend: decl.is_suspend,
-            modifiers: hir::CallableModifiers::default(),
-            params: Vec::new(),
-            return_ty,
-            attributes,
             kind: hir::FunctionKind::User(hir::Body {
                 locals: la_arena::Arena::new(),
                 statements: Vec::new(),
             }),
             method: None,
-            span: decl.span,
         });
         self.source_function_declarations.insert(
             function,

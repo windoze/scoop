@@ -42,17 +42,19 @@ impl Harness {
         let generic = !type_params.is_empty();
         let type_params = type_params.into_iter().map(type_param).collect();
         let id = self.functions.alloc(hir::Function {
-            name: name.to_string(),
+            signature: hir::CallableSignature {
+                name: name.to_string(),
+                is_suspend: false,
+                modifiers: hir::CallableModifiers::default(),
+                params,
+                return_ty,
+                attributes: hir::FunctionAttributes::default(),
+                span: SPAN,
+            },
             access: hir::DeclarationAccess::public(),
             genericity: hir::FunctionGenericity::Plain,
-            is_suspend: false,
-            modifiers: hir::CallableModifiers::default(),
-            params,
-            return_ty,
-            attributes: hir::FunctionAttributes::default(),
             kind: hir::FunctionKind::User(body),
             method: None,
-            span: SPAN,
         });
         if generic {
             self.register_generic(id, type_params);
@@ -100,17 +102,20 @@ impl Harness {
         let resume_receiver = resume_locals.alloc(local("this", continuation_ty));
         let resume_value = resume_locals.alloc(local("value", t));
         let continuation_resume = self.functions.alloc(hir::Function {
-            name: "Continuation.resume".to_string(),
+            signature: hir::CallableSignature {
+                name: "Continuation.resume".to_string(),
+                is_suspend: false,
+                modifiers: hir::CallableModifiers::default(),
+                params: vec![
+                    param("this", continuation_ty, resume_receiver),
+                    param("value", t, resume_value),
+                ],
+                return_ty: self.unit,
+                attributes: hir::FunctionAttributes::default(),
+                span: SPAN,
+            },
             access: hir::DeclarationAccess::public(),
             genericity: hir::FunctionGenericity::Plain,
-            is_suspend: false,
-            modifiers: hir::CallableModifiers::default(),
-            params: vec![
-                param("this", continuation_ty, resume_receiver),
-                param("value", t, resume_value),
-            ],
-            return_ty: self.unit,
-            attributes: hir::FunctionAttributes::default(),
             kind: hir::FunctionKind::Abstract {
                 locals: resume_locals,
             },
@@ -119,23 +124,25 @@ impl Harness {
                 modifier: hir::MethodModifier::Abstract,
                 dispatch: hir::MethodDispatch::Direct,
             }),
-            span: SPAN,
         });
         let mut failure_locals = Arena::new();
         let failure_receiver = failure_locals.alloc(local("this", continuation_ty));
         let failure = failure_locals.alloc(local("exception", throwable_ty));
         let continuation_resume_with_exception = self.functions.alloc(hir::Function {
-            name: "Continuation.resumeWithException".to_string(),
+            signature: hir::CallableSignature {
+                name: "Continuation.resumeWithException".to_string(),
+                is_suspend: false,
+                modifiers: hir::CallableModifiers::default(),
+                params: vec![
+                    param("this", continuation_ty, failure_receiver),
+                    param("exception", throwable_ty, failure),
+                ],
+                return_ty: self.unit,
+                attributes: hir::FunctionAttributes::default(),
+                span: SPAN,
+            },
             access: hir::DeclarationAccess::public(),
             genericity: hir::FunctionGenericity::Plain,
-            is_suspend: false,
-            modifiers: hir::CallableModifiers::default(),
-            params: vec![
-                param("this", continuation_ty, failure_receiver),
-                param("exception", throwable_ty, failure),
-            ],
-            return_ty: self.unit,
-            attributes: hir::FunctionAttributes::default(),
             kind: hir::FunctionKind::Abstract {
                 locals: failure_locals,
             },
@@ -144,7 +151,6 @@ impl Harness {
                 modifier: hir::MethodModifier::Abstract,
                 dispatch: hir::MethodDispatch::Direct,
             }),
-            span: SPAN,
         });
         for method in [
             hir::MethodSig {
@@ -199,21 +205,23 @@ impl Harness {
         let mut run_locals = Arena::new();
         let run_receiver = run_locals.alloc(local("this", suspend_task_ty));
         let suspend_task_run = self.functions.alloc(hir::Function {
-            name: "SuspendTask.run".to_string(),
+            signature: hir::CallableSignature {
+                name: "SuspendTask.run".to_string(),
+                is_suspend: true,
+                modifiers: hir::CallableModifiers::default(),
+                params: vec![param("this", suspend_task_ty, run_receiver)],
+                return_ty: t,
+                attributes: hir::FunctionAttributes::default(),
+                span: SPAN,
+            },
             access: hir::DeclarationAccess::public(),
             genericity: hir::FunctionGenericity::Plain,
-            is_suspend: true,
-            modifiers: hir::CallableModifiers::default(),
-            params: vec![param("this", suspend_task_ty, run_receiver)],
-            return_ty: t,
-            attributes: hir::FunctionAttributes::default(),
             kind: hir::FunctionKind::Abstract { locals: run_locals },
             method: Some(hir::Method {
                 owner: suspend_task_ty,
                 modifier: hir::MethodModifier::Abstract,
                 dispatch: hir::MethodDispatch::Interface(self.interfaces[suspend_task].methods[0]),
             }),
-            span: SPAN,
         });
 
         let suspend_registration = self.declare_interface(
@@ -236,14 +244,17 @@ impl Harness {
         let mut register_locals = Arena::new();
         let register_receiver = register_locals.alloc(local("this", suspend_registration_ty));
         let suspend_registration_register = self.functions.alloc(hir::Function {
-            name: "SuspendRegistration.register".to_string(),
+            signature: hir::CallableSignature {
+                name: "SuspendRegistration.register".to_string(),
+                is_suspend: false,
+                modifiers: hir::CallableModifiers::default(),
+                params: vec![param("this", suspend_registration_ty, register_receiver)],
+                return_ty: self.unit,
+                attributes: hir::FunctionAttributes::default(),
+                span: SPAN,
+            },
             access: hir::DeclarationAccess::public(),
             genericity: hir::FunctionGenericity::Plain,
-            is_suspend: false,
-            modifiers: hir::CallableModifiers::default(),
-            params: vec![param("this", suspend_registration_ty, register_receiver)],
-            return_ty: self.unit,
-            attributes: hir::FunctionAttributes::default(),
             kind: hir::FunctionKind::Abstract {
                 locals: register_locals,
             },
@@ -254,7 +265,6 @@ impl Harness {
                     self.interfaces[suspend_registration].methods[0],
                 ),
             }),
-            span: SPAN,
         });
 
         for function in [
@@ -271,36 +281,40 @@ impl Harness {
                 };
         }
         let start_coroutine = self.functions.alloc(hir::Function {
-            name: "startCoroutine".to_string(),
+            signature: hir::CallableSignature {
+                name: "startCoroutine".to_string(),
+                is_suspend: false,
+                modifiers: hir::CallableModifiers::default(),
+                params: Vec::new(),
+                return_ty: self.unit,
+                attributes: hir::FunctionAttributes::default(),
+                span: SPAN,
+            },
             access: hir::DeclarationAccess::public(),
             genericity: hir::FunctionGenericity::Plain,
-            is_suspend: false,
-            modifiers: hir::CallableModifiers::default(),
-            params: Vec::new(),
-            return_ty: self.unit,
-            attributes: hir::FunctionAttributes::default(),
             kind: hir::FunctionKind::Intrinsic(hir::IntrinsicFunction {
                 kind: hir::IntrinsicFunctionKind::CoroutineStart,
                 provider: hir::IntrinsicProviderId::from_raw(0),
             }),
             method: None,
-            span: SPAN,
         });
         let suspend_coroutine = self.functions.alloc(hir::Function {
-            name: "suspendCoroutine".to_string(),
+            signature: hir::CallableSignature {
+                name: "suspendCoroutine".to_string(),
+                is_suspend: true,
+                modifiers: hir::CallableModifiers::default(),
+                params: Vec::new(),
+                return_ty: t,
+                attributes: hir::FunctionAttributes::default(),
+                span: SPAN,
+            },
             access: hir::DeclarationAccess::public(),
             genericity: hir::FunctionGenericity::Plain,
-            is_suspend: true,
-            modifiers: hir::CallableModifiers::default(),
-            params: Vec::new(),
-            return_ty: t,
-            attributes: hir::FunctionAttributes::default(),
             kind: hir::FunctionKind::Intrinsic(hir::IntrinsicFunction {
                 kind: hir::IntrinsicFunctionKind::CoroutineSuspend,
                 provider: hir::IntrinsicProviderId::from_raw(0),
             }),
             method: None,
-            span: SPAN,
         });
         for function in [start_coroutine, suspend_coroutine] {
             self.register_generic(function, vec![type_param()]);

@@ -4,27 +4,65 @@ use super::*;
 
 #[derive(Debug, Clone)]
 pub struct Function {
-    pub name: String,
+    pub signature: CallableSignature,
     pub access: DeclarationAccess,
     /// Complete declaration identity. Generic functions carry their distinct
     /// template id directly; consumers never recover it by scanning the
     /// `generic_functions` arena or by inspecting `type_params`.
     pub genericity: FunctionGenericity,
-    /// Whether calls use the coroutine ABI rather than the ordinary ABI.
-    pub is_suspend: bool,
-    /// Language-level calling conventions shared by free functions,
-    /// extensions, local functions and members. Keeping these on the
-    /// callable (rather than on `Method`) lets every declaration kind expose
-    /// the same closed operator/infix contract.
-    pub modifiers: CallableModifiers,
-    pub params: Vec<Param>,
-    pub return_ty: TypeId,
-    pub attributes: FunctionAttributes,
     pub kind: FunctionKind,
     /// Member metadata; the receiver of a method is the first entry of
     /// `params` (named `this`). Top-level functions have `None`.
     pub method: Option<Method>,
+}
+
+impl std::ops::Deref for Function {
+    type Target = CallableSignature;
+
+    fn deref(&self) -> &Self::Target {
+        &self.signature
+    }
+}
+
+impl std::ops::DerefMut for Function {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.signature
+    }
+}
+
+/// The complete callable signature shared by source and decoded definitions.
+#[derive(Debug, Clone)]
+pub struct CallableSignature {
+    pub name: String,
+    /// Whether calls use the coroutine ABI rather than the ordinary ABI.
+    pub is_suspend: bool,
+    /// The operator/infix contract shared by free functions, extensions,
+    /// local functions and members.
+    pub modifiers: CallableModifiers,
+    pub params: Vec<Param>,
+    pub return_ty: TypeId,
+    pub attributes: FunctionAttributes,
     pub span: Span,
+}
+
+impl CallableSignature {
+    pub fn from_source_effects(
+        name: String,
+        params: Vec<Param>,
+        return_ty: TypeId,
+        effects: CallableSourceEffectsV1,
+        span: Span,
+    ) -> Self {
+        Self {
+            name,
+            is_suspend: effects.execution() == scoop_identity::Effect::Suspend,
+            modifiers: effects.callable_modifiers(),
+            params,
+            return_ty,
+            attributes: effects.function_attributes(),
+            span,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -319,17 +357,20 @@ mod tests {
 
     fn integer_intrinsic(ty: TypeId, effect: GcEffect) -> Function {
         Function {
-            name: "Int.plus".to_string(),
+            signature: CallableSignature {
+                name: "Int.plus".to_string(),
+                is_suspend: false,
+                modifiers: CallableModifiers::default(),
+                params: Vec::new(),
+                return_ty: ty,
+                attributes: FunctionAttributes {
+                    gc_effect: effect,
+                    ..FunctionAttributes::default()
+                },
+                span: Span::new(0, 0),
+            },
             access: DeclarationAccess::public(),
             genericity: FunctionGenericity::Plain,
-            is_suspend: false,
-            modifiers: CallableModifiers::default(),
-            params: Vec::new(),
-            return_ty: ty,
-            attributes: FunctionAttributes {
-                gc_effect: effect,
-                ..FunctionAttributes::default()
-            },
             kind: FunctionKind::Intrinsic(IntrinsicFunction {
                 kind: IntrinsicFunctionKind::Integer(match effect {
                     GcEffect::NoGc => IntegerIntrinsicKind::NoGcOperation {
@@ -348,7 +389,6 @@ mod tests {
                 modifier: MethodModifier::Final,
                 dispatch: MethodDispatch::Direct,
             }),
-            span: Span::new(0, 0),
         }
     }
 

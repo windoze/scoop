@@ -11,17 +11,20 @@ impl Lowerer {
     ) -> (hir::FunctionId, hir::FunctionId) {
         let allocate = |this: &mut Self, display_role: &str, kind| {
             let function = this.functions.alloc(Function {
-                name: format!("$init${display_role}${}", unit.into_raw()),
+                signature: hir::CallableSignature {
+                    name: format!("$init${display_role}${}", unit.into_raw()),
+                    is_suspend: false,
+                    modifiers: hir::CallableModifiers::default(),
+                    params: Vec::new(),
+                    return_ty: this.unit,
+                    attributes: hir::FunctionAttributes::default(),
+                    span,
+                },
+
                 access: this.local_declaration_access(),
                 genericity: hir::FunctionGenericity::Plain,
-                is_suspend: false,
-                modifiers: hir::CallableModifiers::default(),
-                params: Vec::new(),
-                return_ty: this.unit,
-                attributes: hir::FunctionAttributes::default(),
                 kind,
                 method: None,
-                span,
             });
             this.function_files.insert(function, file);
             this.signatures.insert(

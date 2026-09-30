@@ -9,6 +9,7 @@ mod abstracts;
 mod arrays;
 mod bound_properties;
 mod bounds;
+mod callable_signatures;
 mod classes;
 mod constructors;
 mod contextual;
@@ -201,7 +202,7 @@ fn imported_generic_overloads_compare_declarations_in_one_type_arena() {
     let (_, selected) = export.imported_generic_templates.iter().next().unwrap();
     assert_eq!(selected.type_parameters.len(), 2);
     assert!(matches!(
-        export.types[selected.parameters[0].ty],
+        export.types[selected.params[0].ty],
         hir::Type::Tuple(_)
     ));
 }

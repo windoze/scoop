@@ -101,7 +101,7 @@ impl Lowerer {
                     );
                 }
             }
-            let hir::FunctionKind::User(body) = function.kind else {
+            let hir::FunctionKind::User(ref body) = function.kind else {
                 continue;
             };
             let parameter_locals: HashSet<_> =

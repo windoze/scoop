@@ -114,16 +114,18 @@ impl Lowerer {
             self.imported_body_predicates(body, &bindings)?;
         let signature = hir::ImportedGenericCallableSignature {
             declaration: origin,
-            name,
+            signature: hir::CallableSignature::from_source_effects(
+                name,
+                value_parameters,
+                return_type,
+                body.effects(),
+                definition.span,
+            ),
             type_parameters: hir::ImportedCallableTypeParameters::Substitution(parameters),
             no_gc_type_params,
             gc_free_pointee_requirements,
-            parameters: value_parameters,
-            return_type,
-            effects: body.effects(),
             receiver: None,
             origin: definition,
-            span: definition.span,
         };
         Ok(PreparedImportedGeneric {
             signature,

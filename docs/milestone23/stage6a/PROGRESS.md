@@ -319,3 +319,11 @@
 - 真实 CLayout 指针组合揭示 producer 与 reader 对每个字段强求独立布局的错误。两端改为按既有 C ABI 合同仅收集实际嵌套 C struct 的布局；标量与指针沿原字段布局处理，保留原有边界核对。修复后新增组合及四组既有指针／构造回归均严格通过。
 - 全仓 fmt／clippy 无警告；862 项 HIR、1324 项 HIR lowering、114 项 MIR lowering、584 项 slib、466 项 LIR 与 142 项 LIR lowering 单元测试均已覆盖通过。34 组不同真实产物回归全部关闭更新开关成功，其中包含完整 core 的 22 组；43 份既有快照经核对只修改 `artifact=` 摘要，机器代码、runtime 和布局输出均保持。最终证据前缀 `/tmp/scoop-m23-6a-shared-nominal-conditions-`，严格产物汇总为 `verified-artifacts.json`。
 - 从原 813 行的具体化表达式模块拆出 116 行的来源位置处理，主文件降至 700 行；新的具体化条件、前端 NoGC、wire 条件模块分别为 76、119、126 行。确认没有 cargo／rustc 占用后清理约 2220.4 MiB 旧增量缓存，继续复用 `target/m23-6a`。共同可调用签名、完整候选与正文存储继续按 6a 设计迁移。
+
+## 共同可调用签名与挂起上下文
+
+- 当前函数和依赖模板直接保存同一 `CallableSignature`，保留名称、完整参数／结果、调用修饰、执行方式、属性和原位置；实现继续共用 `FunctionKind`。删除来源记录上的重复签名字段及具体化中的逐字段镜像，具体化直接借用原签名与实现。依赖效果只在解码时转换一次，泛型、接收者和词法归属保留各自原身份，wire payload 与 runtime ABI 未改变。
+- 新反例复现普通函数错误接受依赖泛型 `suspend` 调用。提交处按已选声明复用既有挂起上下文检查，普通调用、成员调用及默认参数均准确定位实际调用；该检查不参与候选筛选，不改变定义处的重载选择。原源码调用继续使用同一诊断入口。
+- 新增 `m23-shared-callable-signatures` 两组正例、五个反例、六份阶段快照及五份诊断快照，覆盖当前／依赖签名、NoGC／Unsafe／suspend、接口成员、泛型方法、默认闭包、局部泛型与捕获。再次发布后以 consumer-local class、String、Int 和 Unit 实例化，普通／移动 GC 运行通过；新增快照全部关闭更新开关复验成功。
+- 全仓 fmt／clippy 无警告，862 项 HIR、1326 项 HIR lowering、114 项 MIR lowering 单元测试全部通过。13 组不同真实产物回归全部严格成功，包括完整 core 三组 MIR／LIR 闭包、抽象与泛型成员、扩展属性、受保护成员、初始化、函数引用、默认值、共同请求和名义条件；既有快照无需修改。最终日志前缀 `/tmp/scoop-m23-6a-shared-callable-signatures-`，修复前证据为 `effects-before.log`，严格产物汇总为 `verified-artifacts.json`。
+- 函数声明、读入模板根、具体化声明视图和新增单元模块分别为 425、231、128、76 行；确认没有 cargo／rustc 占用后清理约 911.3 MiB 旧增量缓存，继续复用 `target/m23-6a`。完整候选、共同调用节点与正文存储继续按 6a 设计迁移，本批不代表里程碑完成。

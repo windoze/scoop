@@ -1,0 +1,17 @@
+package consumer.signatures
+import upstream.signatures.*
+
+public fun <T> localIdentity(value: T): T = value
+public suspend fun <T> suspended(value: T): T = delayed<T>(value)
+@NoGC private fun nativeNumber(value: Int): Int = scalar<Int>(value)
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val value = defaulted<T>(identity<T>(localIdentity<T>(seed)))
+    @Unsafe { return read(unchecked<T>(value)) }
+}
+
+public fun result(): Int {
+    if (identity<String>("signature") != localIdentity<String>("signature")) { return 1 }
+    scalar<Unit>(Unit)
+    return exercise<Int>(nativeNumber(42), { value -> value })
+}

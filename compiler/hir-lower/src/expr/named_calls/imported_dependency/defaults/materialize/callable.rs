@@ -22,7 +22,7 @@ impl Lowerer {
             capture_bindings, ..
         } = &template.declaration
         {
-            for (parameter, binding) in template.parameters.iter().zip(capture_bindings) {
+            for (parameter, binding) in template.params.iter().zip(capture_bindings) {
                 local_bindings.insert(template.locals[parameter.local].selector.clone(), *binding);
             }
         }

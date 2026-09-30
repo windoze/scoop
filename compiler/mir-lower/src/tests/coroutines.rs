@@ -641,14 +641,17 @@ fn suspend_intrinsic_keeps_machine_kinds_and_generated_loop_header_polls_distinc
     let registration = locals.alloc(local("registration", registration_ty));
     let value = locals.alloc(local("value", result));
     let caller = source.functions.alloc(hir::Function {
-        name: "suspendIntrinsicCaller".to_string(),
+        signature: hir::CallableSignature {
+            name: "suspendIntrinsicCaller".to_string(),
+            is_suspend: true,
+            modifiers: hir::CallableModifiers::default(),
+            params: vec![param("registration", registration_ty, registration)],
+            return_ty: result,
+            attributes: hir::FunctionAttributes::default(),
+            span: SPAN,
+        },
         access: hir::DeclarationAccess::public(),
         genericity: hir::FunctionGenericity::Plain,
-        is_suspend: true,
-        modifiers: hir::CallableModifiers::default(),
-        params: vec![param("registration", registration_ty, registration)],
-        return_ty: result,
-        attributes: hir::FunctionAttributes::default(),
         kind: hir::FunctionKind::User(hir::Body {
             locals,
             statements: vec![
@@ -666,7 +669,6 @@ fn suspend_intrinsic_keeps_machine_kinds_and_generated_loop_header_polls_distinc
             ],
         }),
         method: None,
-        span: SPAN,
     });
     source.top_level.push(caller);
     extend_function_identities(&mut source, preserved_functions);
@@ -776,17 +778,20 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
             type_args: vec![result],
         });
     let launcher = hir_module.functions.alloc(hir::Function {
-        name: "launcher".to_string(),
+        signature: hir::CallableSignature {
+            name: "launcher".to_string(),
+            is_suspend: false,
+            modifiers: hir::CallableModifiers::default(),
+            params: vec![
+                param("task", task_ty, task),
+                param("completion", completion_ty, completion),
+            ],
+            return_ty: hir_module.unit,
+            attributes: hir::FunctionAttributes::default(),
+            span: SPAN,
+        },
         access: hir::DeclarationAccess::public(),
         genericity: hir::FunctionGenericity::Plain,
-        is_suspend: false,
-        modifiers: hir::CallableModifiers::default(),
-        params: vec![
-            param("task", task_ty, task),
-            param("completion", completion_ty, completion),
-        ],
-        return_ty: hir_module.unit,
-        attributes: hir::FunctionAttributes::default(),
         kind: hir::FunctionKind::User(hir::Body {
             locals,
             statements: vec![expr_stmt(expr(
@@ -802,7 +807,6 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
             ))],
         }),
         method: None,
-        span: SPAN,
     });
     hir_module.top_level.push(launcher);
     extend_function_identities(&mut hir_module, preserved_functions);

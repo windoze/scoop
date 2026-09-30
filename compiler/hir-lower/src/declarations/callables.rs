@@ -72,21 +72,24 @@ impl Lowerer {
             slot_access,
         );
         let id = self.functions.alloc(Function {
-            name,
+            signature: hir::CallableSignature {
+                name,
+                is_suspend: decl.is_suspend,
+                modifiers: hir::CallableModifiers::default(),
+                params: Vec::new(),
+                return_ty: self.unit,
+                attributes: checked.attributes,
+                span: decl.span,
+            },
+
             access,
             genericity: hir::FunctionGenericity::Plain,
-            is_suspend: decl.is_suspend,
-            modifiers: hir::CallableModifiers::default(),
-            params: Vec::new(),
-            return_ty: self.unit,
-            attributes: checked.attributes,
             kind,
             method: Some(hir::Method {
                 owner: host_ty,
                 modifier,
                 dispatch: hir::MethodDispatch::Direct,
             }),
-            span: decl.span,
         });
         self.source_function_declarations.insert(
             id,
@@ -171,17 +174,20 @@ impl Lowerer {
         };
         let access = self.top_level_access(decl.visibility, decl.name.span, "function", file_index);
         let id = self.functions.alloc(Function {
-            name: decl.name.text.clone(),
+            signature: hir::CallableSignature {
+                name: decl.name.text.clone(),
+                is_suspend: decl.is_suspend,
+                modifiers: hir::CallableModifiers::default(),
+                params: Vec::new(),
+                return_ty: self.unit,
+                attributes: checked.attributes,
+                span: decl.span,
+            },
+
             access,
             genericity: hir::FunctionGenericity::Plain,
-            is_suspend: decl.is_suspend,
-            modifiers: hir::CallableModifiers::default(),
-            params: Vec::new(),
-            return_ty: self.unit,
-            attributes: checked.attributes,
             kind,
             method: None,
-            span: decl.span,
         });
         self.source_function_declarations.insert(
             id,

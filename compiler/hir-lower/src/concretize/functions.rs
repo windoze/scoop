@@ -70,6 +70,7 @@ impl Concretizer<'_> {
             );
         }
         let definition = self.resolved_function_definition(key);
+        let signature = definition.signature;
         let arguments = self.function_key_arguments(key);
         let (kind, local_map) = match definition.implementation {
             export::FunctionKind::User(body) => {
@@ -97,8 +98,8 @@ impl Concretizer<'_> {
                 (concrete::FunctionKind::InitializationEnsure, None)
             }
         };
-        let params: Vec<concrete::Param> = definition
-            .parameters
+        let params: Vec<concrete::Param> = signature
+            .params
             .iter()
             .map(|parameter| concrete::Param {
                 name: parameter.name.clone(),
@@ -109,7 +110,7 @@ impl Concretizer<'_> {
                 },
             })
             .collect();
-        let return_ty = self.lower_type(definition.return_type, &arguments);
+        let return_ty = self.lower_type(signature.return_ty, &arguments);
         let receiver = self.lower_definition_receiver(definition.receiver, &arguments);
         let capture_parameters = definition
             .capture_bindings
@@ -121,16 +122,16 @@ impl Concretizer<'_> {
             })
             .collect();
         PendingFunction {
-            name: definition.name.to_owned(),
-            is_suspend: definition.is_suspend,
-            modifiers: definition.modifiers,
+            name: signature.name.to_owned(),
+            is_suspend: signature.is_suspend,
+            modifiers: signature.modifiers,
             params,
             capture_parameters,
             return_ty,
-            attributes: definition.attributes,
+            attributes: signature.attributes,
             kind,
             receiver,
-            span: definition.span,
+            span: signature.span,
         }
     }
 
