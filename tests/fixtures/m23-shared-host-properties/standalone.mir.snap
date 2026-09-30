@@ -1,0 +1,389 @@
+Module
+  class Item<Int> vtable=0 itables=0
+  class Host<Int> vtable=0 itables=0
+  class Base<Int> vtable=0 itables=0
+  class Local<Int> vtable=0 itables=0
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
+  closure cc1 $Closure$lambda1 type=function_type1 invoke=@fn3 captures=1
+  closure cc2 $Closure$reference0 type=function_type1 invoke=@fn12 captures=1
+  generated_exact_type get0 location=closure0 nominal_id=ace10c71ecadd5f101e393093976f0e63e14451c57455e40a7a566f7c2de9fdf exact_id=0debc1805e5124351500cad5bc0070557c179514cac72fab7f5216476e5ff07c
+  generated_exact_type get1 location=closure2 nominal_id=03910f40c07521917f6ae3aec1a4a2679d18691e86ac7c99cb7013a2f3a1d589 exact_id=1327e73d2b844b582f0eb44a8a093d019c7ae2986bd491bb4edd24216868ca11
+  generated_exact_type get2 location=closure1 nominal_id=5359d3446314b7f96d3ffc5c45927c8f6b43afc0f6263f92e49aa875deb54a77 exact_id=975930b4970630bce34ee65ce6e779315bad191fe0af9088174ed1e03873e75f
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $argument.1: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      val $parameter.inspect: (Int) -> Int
+        Type (Int) -> Int
+        Local $argument.1
+      call $call.1: Int = @fn2 direct
+        Type Int
+        Local $parameter.seed
+        Type (Int) -> Int
+        Local $parameter.inspect
+      return
+        Type Int
+        Local $call.1
+  fun $lambda.1 @fn1($closure: (Int) -> Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun exercise @fn2(seed: Int, inspect: (Int) -> Int) -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local seed
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Item<Int>
+        ClassAlloc Item<Int>
+      call @fn13 direct
+        Type Item<Int>
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val item: Item<Int>
+        Type Item<Int>
+        Local $new.1
+      val $argument.0: Item<Int>
+        Type Item<Int>
+        Local item
+      val $argument.1: () -> Int
+        Type () -> Int
+        ClosureAlloc cc1 $Closure$lambda1
+          CaptureInit field=0
+            Type Int
+            Local seed
+      val $parameter.item: Item<Int>
+        Type Item<Int>
+        Local $argument.0
+      val $parameter.action: () -> Int
+        Type () -> Int
+        Local $argument.1
+      assign $new.2
+        Type Host<Int>
+        ClassAlloc Host<Int>
+      call @fn14 direct
+        Type Host<Int>
+        Local $new.2
+        Type Item<Int>
+        Local $parameter.item
+        Type () -> Int
+        Local $parameter.action
+      val host: Host<Int>
+        Type Host<Int>
+        Local $new.2
+      val $receiver: Base<Int>
+        Type Base<Int>
+        Retype Base<Int>
+          Type Host<Int>
+          Local host
+      call $call.3: Int = @fn4 direct
+        Type Base<Int>
+        Local $receiver
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local inspect
+        Type Int
+        Local $call.3
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $receiver: Host<Int>
+        Type Host<Int>
+        Local host
+      call $call.4: Int = @fn5 direct
+        Type Host<Int>
+        Local $receiver
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local inspect
+        Type Int
+        Local $call.4
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      val $receiver: Host<Int>
+        Type Host<Int>
+        Local host
+      call read: () -> Int = @fn6 direct
+        Type Host<Int>
+        Local $receiver
+      call $call.5: Int = <closure:function_type1> closure[function_type1]
+        Type () -> Int
+        Local read
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local inspect
+        Type Int
+        Local $call.5
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb5 bb6
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb5 if.then.5
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb6 if.merge.6
+      val $argument.0: Item<Int>
+        Type Item<Int>
+        Local item
+      val $parameter.item: Item<Int>
+        Type Item<Int>
+        Local $argument.0
+      assign $new.6
+        Type Local<Int>
+        ClassAlloc Local<Int>
+      call @fn15 direct
+        Type Local<Int>
+        Local $new.6
+        Type Item<Int>
+        Local $parameter.item
+      val $receiver: Local<Int>
+        Type Local<Int>
+        Local $new.6
+      call $call.7: Int = @fn7 direct
+        Type Local<Int>
+        Local $receiver
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local inspect
+        Type Int
+        Local $call.7
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb7 bb8
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb7 if.then.7
+      return
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+    bb8 if.merge.8
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun $lambda.0 @fn3($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        ClosureCapture cc1 0
+          Type () -> Int
+          Local $closure
+  fun $extension.readItem @fn4(this: Base<Int>) -> Int
+    bb0 entry
+      call $receiver: Item<Int> = @fn8 direct
+        Type Base<Int>
+        Local this
+      call $call.1: Int = @fn9 direct
+        Type Item<Int>
+        Local $receiver
+      return
+        Type Int
+        Local $call.1
+  fun $extension.readAction @fn5(this: Host<Int>) -> Int
+    bb0 entry
+      call $call.1: () -> Int = @fn10 direct
+        Type Host<Int>
+        Local this
+      call $call.2: Int = <closure:function_type1> closure[function_type1]
+        Type () -> Int
+        Local $call.1
+      return
+        Type Int
+        Local $call.2
+  fun $extension.referenceItem @fn6(this: Host<Int>) -> () -> Int
+    bb0 entry
+      call $call.1: Item<Int> = @fn8 direct
+        Type Base<Int>
+        Retype Base<Int>
+          Type Host<Int>
+          Local this
+      return
+        Type () -> Int
+        ClosureAlloc cc2 $Closure$reference0
+          CaptureInit field=0
+            Type Item<Int>
+            Local $call.1
+  fun Local.readLocal @fn7(this: Local<Int>) -> Int
+    bb0 entry
+      call $receiver: Item<Int> = @fn8 direct
+        Type Base<Int>
+        Retype Base<Int>
+          Type Local<Int>
+          Local this
+      call $call.1: Int = @fn9 direct
+        Type Item<Int>
+        Local $receiver
+      return
+        Type Int
+        Local $call.1
+  fun Base.$get$item @fn8(this: Base<Int>) -> Item<Int>
+    bb0 entry
+      return
+        Type Item<Int>
+        FieldAccess 0
+          Type Base<Int>
+          Local this
+  fun Item.read @fn9(this: Item<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn11 direct
+        Type Item<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun Host.$get$action @fn10(this: Host<Int>) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        FieldAccess 1
+          Type Host<Int>
+          Local this
+  fun Item.$get$value @fn11(this: Item<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Item<Int>
+          Local this
+  fun $reference.0 @fn12($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn9 direct
+        Type Item<Int>
+        ClosureCapture cc2 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun init.Item.$c0 @fn13(this: Item<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Item<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Host.$c2 @fn14(this: Host<Int>, item: Item<Int>, action: () -> Int) -> Unit
+    bb0 entry
+      val $argument.0: Item<Int>
+        Type Item<Int>
+        Local item
+      val $parameter.item: Item<Int>
+        Type Item<Int>
+        Local $argument.0
+      call @fn16 direct
+        Type Base<Int>
+        Retype Base<Int>
+          Type Host<Int>
+          Local this
+        Type Item<Int>
+        Local $parameter.item
+      field_set 1
+        Type Host<Int>
+        Local this
+        Type () -> Int
+        Local action
+      return
+  fun init.Local.$c4 @fn15(this: Local<Int>, item: Item<Int>) -> Unit
+    bb0 entry
+      val $argument.0: Item<Int>
+        Type Item<Int>
+        Local item
+      val $parameter.item: Item<Int>
+        Type Item<Int>
+        Local $argument.0
+      call @fn16 direct
+        Type Base<Int>
+        Retype Base<Int>
+          Type Local<Int>
+          Local this
+        Type Item<Int>
+        Local $parameter.item
+      return
+  fun init.Base.$c1 @fn16(this: Base<Int>, item: Item<Int>) -> Unit
+    bb0 entry
+      field_set 0
+        Type Base<Int>
+        Local this
+        Type Item<Int>
+        Local item
+      return
+  instance mi0 function=@fn2 <- exercise
+  instance mi1 function=@fn3 <- $lambda.0
+  instance mi2 function=@fn4 <- $extension.readItem
+  instance mi3 function=@fn5 <- $extension.readAction
+  instance mi4 function=@fn6 <- $extension.referenceItem
+  instance mi5 function=@fn7 <- Local.readLocal
+  instance mi6 function=@fn8 <- Base.$get$item
+  instance mi7 function=@fn9 <- Item.read
+  instance mi8 function=@fn10 <- Host.$get$action
+  instance mi9 function=@fn11 <- Item.$get$value
+  output library

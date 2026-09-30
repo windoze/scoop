@@ -101,72 +101,22 @@ impl Lowerer {
     /// `lower_method_call`: a bare receiver name that would resolve
     /// to `this.name` is a property access, not an enum path).
     pub(crate) fn host_has_property(&self, name: &str) -> bool {
-        match self.current_this_ty().map(|ty| self.types[ty].clone()) {
-            Some(Type::Class(application)) => {
-                let receiver_ty = self.current_this_ty().expect("member receiver type");
-                let mut class = self.class_applications[application].template;
-                let mut seen = Vec::new();
-                loop {
-                    if seen.contains(&class) {
-                        break false;
-                    }
-                    seen.push(class);
-                    if let Some(&property) = self.classes[self.class_id(class)]
-                        .properties
-                        .iter()
-                        .find(|property| self.properties[**property].name == name)
-                        && self.property_is_accessible(property, Some(receiver_ty))
-                    {
-                        break true;
-                    }
-                    let Some(base) = self.direct_base_class(self.class_id(class)) else {
-                        break self
-                            .clone()
-                            .imported_member_candidates(
-                                receiver_ty,
-                                hir::ImportedMemberLookup::PropertyGetter(name),
-                            )
-                            .is_ok_and(|candidates| !candidates.is_empty());
-                    };
-                    class = self
-                        .nominal_identity(crate::Owner::Class(base))
-                        .declaration_id();
-                }
-            }
-            Some(Type::Struct(application)) => {
-                let template = self.struct_applications[application].template;
-                match self.source_struct_id(template) {
-                    Some(id) => self.structs[id]
-                        .properties
-                        .iter()
-                        .any(|property| self.properties[*property].name == name),
-                    None => self
-                        .clone()
-                        .imported_member_candidates(
-                            self.struct_applications[application].canonical_type,
-                            hir::ImportedMemberLookup::PropertyGetter(name),
-                        )
-                        .is_ok_and(|candidates| !candidates.is_empty()),
-                }
-            }
-            Some(Type::Enum(application)) => {
-                let template = self.enum_applications[application].template;
-                match self.source_enum_id(template) {
-                    Some(id) => self.enums[id]
-                        .properties
-                        .iter()
-                        .any(|property| self.properties[*property].name == name),
-                    None => self
-                        .clone()
-                        .imported_member_candidates(
-                            self.enum_applications[application].canonical_type,
-                            hir::ImportedMemberLookup::PropertyGetter(name),
-                        )
-                        .is_ok_and(|candidates| !candidates.is_empty()),
-                }
-            }
-            _ => false,
+        let Some(receiver_ty) = self.current_this_ty() else {
+            return false;
+        };
+        let mut state = self.clone();
+        if state
+            .find_accessible_nominal_property(receiver_ty, name)
+            .is_some()
+        {
+            return true;
         }
+        state
+            .imported_member_candidates(
+                receiver_ty,
+                hir::ImportedMemberLookup::PropertyGetter(name),
+            )
+            .is_ok_and(|candidates| !candidates.is_empty())
     }
 
     pub(crate) fn materialize_method_callee(

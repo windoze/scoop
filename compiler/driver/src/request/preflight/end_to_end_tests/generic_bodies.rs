@@ -20,6 +20,7 @@ mod demanded_initialization;
 mod equality;
 mod globals;
 mod helpers;
+mod host_properties;
 mod initialization;
 mod iteration;
 mod local_calls;

@@ -1,0 +1,153 @@
+Module
+  class Item<T>(value: T0)
+    field0 property0: T0
+    property0 val value: T0 getter0=body(Item.$get$value) <stored field0 init=parameter0>
+  open class Base<T>(item: Item<T0>)
+    field1 property1: Item<T0>
+    property1 val item: Item<T0> getter1=body(Base.$get$item) <stored field1 init=parameter1>
+  class Host<T>(item: Item<T0>, action: () -> T0)
+    field2 property2: () -> T0
+    property2 val action: () -> T0 getter2=body(Host.$get$action) <stored field2 init=parameter3>
+  class Hidden<T>(item: Item<T0>)
+    field3 property3: Item<T0>
+    property3 val item: Item<T0> getter3=storage <stored field3 init=parameter4>
+  class Local<T>(item: Item<T0>)
+  fun readItem<T>(this: Base<T0>): T0
+    val local1
+      MethodCall Base.$get$item : Item<T0>
+        Local this : Base<T0>
+    return
+      MethodCall Item.read : T0
+        Local $receiver : Item<T0>
+  fun readAction<T>(this: Host<T0>): T0
+    return
+      CallableCall function_type3 : T0
+        MethodCall Host.$get$action : () -> T0
+          Local this : Host<T0>
+  fun referenceItem<T>(this: Host<T0>): () -> T0
+    return
+      CallableReference reference0 target=Item.read captures=0 : () -> T0
+        MethodCall Base.$get$item : Item<T0>
+          Local this : Host<T0>
+  fun exercise<T>(seed: T0, inspect: (T0) -> Int): Int
+    val local2
+      Local seed : T0
+    val local3
+      Local $argument.0 : T0
+    val local4
+      ClassInit Item<T0> : Item<T0>
+        Local $parameter.value : T0
+    val local5
+      Local item : Item<T0>
+    val local6
+      Lambda lambda0 invoke=$lambda.0 captures=1 : () -> T0
+        capture seed binding14 : T0
+    val local7
+      Local $argument.0 : Item<T0>
+    val local8
+      Local $argument.1 : () -> T0
+    val local9
+      ClassInit Host<T0> : Host<T0>
+        Local $parameter.item : Item<T0>
+        Local $parameter.action : () -> T0
+    val local10
+      ReferenceUpcast : Base<T0>
+        Local host : Host<T0>
+    val local11
+      CallableCall function_type2 : Int
+        Local inspect : (T0) -> Int
+        Call readItem<T0> : T0
+          Local $receiver : Base<T0>
+    val local12
+      IntegerLiteral 42 : Int
+    val local13
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 1 : Int
+    val local14
+      Local host : Host<T0>
+    val local15
+      CallableCall function_type2 : Int
+        Local inspect : (T0) -> Int
+        Call readAction<T0> : T0
+          Local $receiver : Host<T0>
+    val local16
+      IntegerLiteral 42 : Int
+    val local17
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 2 : Int
+    val local18
+      Local host : Host<T0>
+    val local19
+      Call referenceItem<T0> : () -> T0
+        Local $receiver : Host<T0>
+    val local20
+      CallableCall function_type2 : Int
+        Local inspect : (T0) -> Int
+        CallableCall function_type4 : T0
+          Local read : () -> T0
+    val local21
+      IntegerLiteral 42 : Int
+    val local22
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 3 : Int
+    val local23
+      Local item : Item<T0>
+    val local24
+      Local $argument.0 : Item<T0>
+    val local25
+      ClassInit Local<T0> : Local<T0>
+        Local $parameter.item : Item<T0>
+    val local26
+      CallableCall function_type2 : Int
+        Local inspect : (T0) -> Int
+        MethodCall Local.readLocal : T0
+          Local $receiver : Local<T0>
+    val local27
+      IntegerLiteral 42 : Int
+    val local28
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 4 : Int
+    return
+      IntegerLiteral 42 : Int
+  fun result(): Int
+    val local0
+      IntegerLiteral 42 : Int
+    val local1
+      Lambda lambda1 invoke=$lambda.1 captures=0 : (Int) -> Int
+    val local2
+      Local $argument.0 : Int
+    val local3
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.seed : Int
+        Local $parameter.inspect : (Int) -> Int
+  output library
+  instance readItem<T0>
+  instance readAction<T0>
+  instance referenceItem<T0>
+  instance exercise<Int>

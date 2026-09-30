@@ -18,6 +18,7 @@ mod constructors;
 mod contextual;
 mod delegates;
 mod equality;
+mod host_properties;
 mod interface_members;
 mod interfaces;
 mod local_calls;

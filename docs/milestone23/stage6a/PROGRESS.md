@@ -473,3 +473,10 @@
 - 新增正式消费对照测试，复用已有 core、provider 投影、身份注册、wire 编解码、HIR 与 MIR lowering；同一 provider 导出图在内存中直接导入，或经正式 foundation／interface 编解码恢复后导入。两次消费使用同一原 Cone 与实体身份、相同的 consumer 源码和依赖，不归一化身份，也不比较未导出的 provider 私有实现。
 - 四组真实 fixture 覆盖泛型正文与重载、两个构造器的公共初始化及捕获、Option 和指针默认值。逐项精确比较原导出 foundation、声明／正文接口、消费方 HIR dump、具体 MIR dump、重新发布的 foundation／interface 字节及 MIR foundation 字节，确认 wire 往返不改变选择、词法捕获或具体化身份。测试没有新增生产工厂、平行管线或重复语义验证。
 - 全仓 fmt／clippy 无警告，对照测试四组全部通过；证据为 `/tmp/scoop-m23-6a-wire-equivalence-verified.log`。本批只增加验证，生产行为与旧快照保持。声明位置审计及启用配套编译器的完整 workspace／runtime 验收继续执行。
+
+## 隐式 receiver 属性查询不再假定本地 class
+
+- 声明位置审计用实际源码复现依赖 class 的扩展函数在 `item.read()` 上访问本地 class arena 而 panic。隐式 receiver 的无诊断预查询现复用完整 nominal application 的属性与可见性查询，再查询实际依赖成员；删除按裸 class ID 遍历继承和 struct／enum 的重复属性判断。实际访问继续使用已有 getter 与成员决议，不复制依赖声明或增加候选副作用。
+- 新增 `m23-shared-host-properties` 两组正例、两个反例、六份阶段快照和两份诊断快照，覆盖本地／依赖宿主、继承泛型属性、本地派生 class、函数值属性和属性接收者上的函数引用。私有属性在两个声明位置都准确拒绝；源码移走后再次发布，下游本地 class／String／Int／Unit 与普通／moving GC 运行通过。
+- 全仓 fmt／clippy 无警告，2900 项 HIR／HIR lowering／MIR lowering／slib 单元通过；新增组及六组既有 bound、接口、扩展属性、函数引用产物回归全部关闭更新开关通过。既有快照没有变化。证据前缀 `/tmp/scoop-m23-6a-host-properties-`，原 panic 为 `before-verified.log`，最终结果见 `unit.log`、`fixture-verified-results.json` 和 `related-verified-results.json`。
+- 单独抽查 core bootstrap 测试发现旧固定数量断言期望 7 个 ODR member、实际为 91；本批修复前的冻结编译器也同样失败，证据为 `bootstrap-baseline.log`。该基线断言与实际成员的对应关系将在完整 workspace 验收中核对，不能据此宣称全仓已通过。成员决议模块由 238 行降至 188 行，新增单元仅 11 行；wire 与 runtime ABI 不变。

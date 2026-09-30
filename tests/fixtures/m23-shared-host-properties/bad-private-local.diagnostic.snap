@@ -1,0 +1,3 @@
+span=415..419
+expression=item
+unknown variable `item`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation
