@@ -351,3 +351,10 @@
 - 新增 `m23-demanded-initialization` 两组正例和六份阶段快照，覆盖只有 Int 返回值的普通库、泛型调用与实际 object 初始化组合。再次发布后以 consumer-local class、Int 和 Unit 实例化，普通／移动 GC 运行通过；全部新快照关闭更新开关复验成功。
 - 全仓 fmt／clippy 无警告，341 项 MIR 与 584 项 slib 单元测试全部通过。8 组既有真实产物回归严格通过，包含完整 core 三组 MIR／LIR 闭包、初始化来源和 ABI、object、构造、泛型 dispatch 及共同调用；实际初始化缺来源、错 provider、缺角色和签名反例保持。包可见性回归仍报另一个 exact type 缺失，不计入本批通过项。
 - 最终日志前缀 `/tmp/scoop-m23-6a-demanded-initialization-`，结果见 `unit.log`、`new-verified-results.json` 和 `verified-results.json`。初始化重放模块为 169 行，继续复用 `target/m23-6a`。
+
+## 共有继承图按槽所在产物读取类型
+
+- 定位并修复包可见性扩展回归：共有继承图重放全部 provider 的槽签名时，错误地使用依赖集合末尾产物的身份表。现按槽实际所在产物读取 receiver、完整成员代换与签名，不要求无关普通库复制其它 provider 的类型；固定 Unit 的比较直接使用原内建身份。仍只构建一次共有继承图，各产物原有引用、槽、签名与依赖检查保持。
+- 在 `m23-qualified-types` 补充 `independent` 正例，将菱形重导出、嵌套类型、泛型、值类型与独立普通函数库组合。三份新阶段快照、普通／移动 GC 运行以及三个既有包可见性反例全部关闭更新开关复验成功；原 `bad-direct-longest` 现准确报告不可访问的 `Nested`，不再提前误报产物类型缺失。
+- 全仓 fmt／clippy 无警告，862 项 HIR 与 584 项 slib 单元测试通过，另有 10 组真实产物回归严格通过，包括完整 core、槽与 callable 反例、类型策略、继承 ABI／初始化、泛型 dispatch、限定类型和初始化需求。临时定位输出已移除，旧快照无需改动，wire 与 runtime ABI 保持。
+- 最终日志前缀 `/tmp/scoop-m23-6a-inheritance-scope-`，结果见 `unit.log`、`new-verified-results.json` 与 `verified-results.json`；原失败的定位证据为 `/tmp/scoop-m23-6a-missing-type-diagnostic.log`。槽重放与组合测试模块分别为 107、233 行；旧 `target/debug/incremental` 已为空，继续复用 `target/m23-6a`。

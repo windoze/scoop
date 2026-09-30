@@ -110,55 +110,59 @@ fn qualified_dependency_types_respect_direct_package_visibility() {
         .map(|(_, artifact)| artifact.artifact().path().to_path_buf())
         .collect::<Vec<_>>();
     let support = vec![origin.artifact().path().to_path_buf()];
-    let root = sysroot.path().join("diamond");
-    write_manifest_cone(
-        &root,
-        "dev.example",
-        "qualified-diamond",
-        "library",
-        &source("diamond"),
-    );
-    write_dependency_manifest(&root, "qualified-diamond", &direct_coordinates);
-    let mut outputs = Vec::new();
-    for (kind, stage) in [
-        (StageDumpKind::Hir, "hir"),
-        (StageDumpKind::Mir, "mir"),
-        (StageDumpKind::Lir, "lir"),
-    ] {
-        let mut request = build_manifest_request(
-            sysroot.path(),
-            &target,
-            &root,
-            &sysroot.path().join("output/diamond.slib"),
-            direct.clone(),
-            support.clone(),
-        );
-        request.emit = StageDumpPolicy::Stage(kind);
-        let output = request.build_and_publish().unwrap();
-        let actual = output.emitted_dump().unwrap().text();
-        let snapshot = fixtures.join(format!("diamond.{stage}.snap"));
-        if std::env::var_os("SCOOP_UPDATE_GENERIC_BODY_SNAPSHOTS").is_some() {
-            std::fs::write(&snapshot, actual).unwrap();
+    for (case, extra) in [("diamond", false), ("independent", true)] {
+        let name = format!("qualified-{case}");
+        let mut coordinates = direct_coordinates.clone();
+        let mut artifacts = direct.clone();
+        if extra {
+            coordinates.push(&extras[1].0);
+            artifacts.push(extras[1].1.artifact().path().to_path_buf());
         }
-        assert_eq!(actual, std::fs::read_to_string(snapshot).unwrap());
-        outputs.push(output);
+        let root = sysroot.path().join(case);
+        write_manifest_cone(&root, "dev.example", &name, "library", &source(case));
+        write_dependency_manifest(&root, &name, &coordinates);
+        let mut outputs = Vec::new();
+        for (kind, stage) in [
+            (StageDumpKind::Hir, "hir"),
+            (StageDumpKind::Mir, "mir"),
+            (StageDumpKind::Lir, "lir"),
+        ] {
+            let mut request = build_manifest_request(
+                sysroot.path(),
+                &target,
+                &root,
+                &sysroot.path().join(format!("output/{case}.slib")),
+                artifacts.clone(),
+                support.clone(),
+            );
+            request.emit = StageDumpPolicy::Stage(kind);
+            let output = request.build_and_publish().unwrap();
+            let actual = output.emitted_dump().unwrap().text();
+            let snapshot = fixtures.join(format!("{case}.{stage}.snap"));
+            if std::env::var_os("SCOOP_UPDATE_GENERIC_BODY_SNAPSHOTS").is_some() {
+                std::fs::write(&snapshot, actual).unwrap();
+            }
+            assert_eq!(actual, std::fs::read_to_string(snapshot).unwrap());
+            outputs.push(output);
+        }
+        let runtime = super::super::imported_classes::runtime::build(
+            &target,
+            &sysroot.path().join("runtime"),
+        );
+        let mut libraries = vec![&core, &origin, &facades[0].1, &facades[1].1];
+        if extra {
+            libraries.push(&extras[1].1);
+        }
+        libraries.push(outputs.last().unwrap());
+        super::super::imported_classes::runtime::check(
+            &target,
+            &libraries,
+            &runtime,
+            &crate::workspace_root().join("tests/fixtures/m23-imported-classes"),
+            &sysroot.path().join(format!("run-{case}")),
+            &name,
+        );
     }
-    let runtime =
-        super::super::imported_classes::runtime::build(&target, &sysroot.path().join("runtime"));
-    super::super::imported_classes::runtime::check(
-        &target,
-        &[
-            &core,
-            &origin,
-            &facades[0].1,
-            &facades[1].1,
-            outputs.last().unwrap(),
-        ],
-        &runtime,
-        &crate::workspace_root().join("tests/fixtures/m23-imported-classes"),
-        &sysroot.path().join("run-diamond"),
-        "qualified-diamond",
-    );
 
     for (case, extra, expected) in [
         ("bad-support-package", None, "unknown type `dependency`"),

@@ -47,7 +47,7 @@ pub(super) fn validate<'a>(
             for slot in slots {
                 signatures::project(
                     &mut data,
-                    current.metadata,
+                    provider.metadata,
                     &metadata_dependencies,
                     nominal.owner(),
                     slot.declaration(),
@@ -56,7 +56,7 @@ pub(super) fn validate<'a>(
                 let target = slot.implementation().target();
                 signatures::project(
                     &mut data,
-                    current.metadata,
+                    provider.metadata,
                     &metadata_dependencies,
                     nominal.owner(),
                     target.declaration(),
@@ -65,15 +65,12 @@ pub(super) fn validate<'a>(
             }
         }
     }
-    let types = MetadataTypes {
-        current: current.metadata,
-        dependencies,
-    };
-    let unit = types.nominal_exact(
+    let unit = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(
         scoop_identity::CoreBuiltinNominal::Unit
             .identity_record()
             .id(),
-    )?;
+    ))
+    .map_err(|error| Error::Key(error.to_string()))?;
     let replay = authority::Replay {
         data: &data,
         schemas,

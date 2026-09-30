@@ -1,0 +1,99 @@
+Module
+  struct Point (number: Int)
+  struct Box<Int> (value: Int)
+  struct Nested (number: Int)
+  class Later vtable=0 itables=0
+  fun check @fn0() -> Int
+    bb0 entry
+      assign $new.1
+        Type Later
+        ClassAlloc Later
+      call @fn2 direct
+        Type Later
+        Local $new.1
+      val $argument.0: Later
+        Type Later
+        Local $new.1
+      val $parameter.value: Later
+        Type Later
+        Local $argument.0
+      call $call.2: Int = @fn1 direct
+        Type Later
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.2
+  fun exercise @fn1(value: Later) -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      call point: Point = external0 direct
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call box: Box<Int> = @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Point
+          Local point
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Box<Int>
+          Local box
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      call nested: Nested = external1 direct
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Nested
+          Local nested
+      call $dependency.argument.0: Int = external2 direct
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun init.Later.$c0 @fn2(this: Later) -> Unit
+    bb0 entry
+      return
+  fun ctor.Box.$c0 @fn3(value: Int) -> Box<Int> <no-gc>
+    bb0 entry
+      return
+        Type Box<Int>
+        StructInit Box<Int>
+          Type Int
+          Local value
+  instance mi0 function=@fn1 <- exercise
+  output library

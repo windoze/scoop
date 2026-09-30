@@ -1,0 +1,16 @@
+package consumer.paths
+
+import facade.paths.Point
+import facade.paths.IntBox
+import facade.paths.Outer
+import dependency.paths.Outer.marker
+
+public fun <T> exercise(value: T): Int {
+    val point = Point(40)
+    val box = IntBox(2)
+    val nested = Outer.Nested(point.number + box.value)
+    return nested.number + marker()
+}
+
+private class Later()
+public fun check(): Int = exercise<Later>(Later())
