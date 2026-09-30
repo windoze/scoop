@@ -153,10 +153,9 @@ impl Lowerer {
             Type::Enum(application) => {
                 let application_value = self.enum_applications[application].clone();
                 declared.extend(
-                    self.enums[self.enum_id(application_value.template)]
-                        .methods
-                        .iter()
-                        .copied()
+                    self.source_enum_id(application_value.template)
+                        .into_iter()
+                        .flat_map(|id| self.enums[id].methods.iter().copied())
                         .map(|function| {
                             (
                                 crate::CallableCandidate::method(

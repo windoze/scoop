@@ -532,7 +532,7 @@ pub(crate) fn type_contains_session_parameter(
     session: &InferenceSession,
     ty: hir::TypeId,
 ) -> bool {
-    if let Some((_, arguments)) = lowerer.types[ty].imported_nominal_application() {
+    if let Some((_, arguments)) = lowerer.dependency_nominal_application(ty) {
         return arguments
             .iter()
             .any(|argument| type_contains_session_parameter(lowerer, session, *argument));
@@ -554,7 +554,6 @@ pub(crate) fn type_contains_session_parameter(
         }
         Type::Ptr(pointee) => vec![*pointee],
         Type::ImportedStruct(_)
-        | Type::ImportedEnum(_)
         | Type::ImportedClass(_)
         | Type::ImportedInterface(_)
         | Type::Unit

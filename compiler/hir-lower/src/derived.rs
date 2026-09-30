@@ -184,6 +184,17 @@ impl Lowerer {
                 };
                 Some((function, hir::MethodOwnerApplication::Struct(application)))
             }
+            Type::ImportedStruct(_) | Type::Enum(_)
+                if self.dependency_nominal_application(ty).is_some() =>
+            {
+                let (_, arguments) = self
+                    .dependency_nominal_application(ty)
+                    .expect("an imported value retains its nominal application");
+                if arguments.is_empty() || self.has_imported_same_type_equals(ty)? {
+                    return Ok(None);
+                }
+                None
+            }
             Type::Enum(application) => {
                 let declaration =
                     &self.enums[self.enum_id(self.enum_applications[application].template)];
@@ -193,15 +204,6 @@ impl Lowerer {
                 Some((function, hir::MethodOwnerApplication::Enum(application)))
             }
             Type::Unit | Type::Tuple(_) => None,
-            Type::ImportedStruct(_) | Type::ImportedEnum(_) => {
-                let (_, arguments) = self.types[ty]
-                    .imported_nominal_application()
-                    .expect("an imported value retains its nominal application");
-                if arguments.is_empty() || self.has_imported_same_type_equals(ty)? {
-                    return Ok(None);
-                }
-                None
-            }
             _ => return Ok(None),
         };
         if let Some((function, owner)) = nominal {

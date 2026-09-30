@@ -69,17 +69,20 @@ fn enum_declaration(
         name: name.to_string(),
         owner: None,
         access: NominalAccess::public(),
-        self_application,
-        type_params: Vec::new(),
         gc_free_pointee_requirements: Vec::new(),
         no_gc: false,
-        variants,
-        interfaces: Vec::new(),
-        interface_implementations: Vec::new(),
         methods: Vec::new(),
         properties: Vec::new(),
         derived_equality: None,
         span: Span::new(0, 0),
+
+        definition: EnumDefinition {
+            self_application,
+            type_params: Vec::new(),
+            variants,
+            interfaces: Vec::new(),
+            interface_implementations: Vec::new(),
+        },
     }
 }
 

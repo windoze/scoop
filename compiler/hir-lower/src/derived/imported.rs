@@ -7,8 +7,8 @@ impl Lowerer {
         &mut self,
         ty: hir::TypeId,
     ) -> Result<bool, String> {
-        let (declaration, arguments) = self.types[ty]
-            .imported_nominal_application()
+        let (declaration, arguments) = self
+            .dependency_nominal_application(ty)
             .expect("an imported equality owner retains its declaration");
         let owner = declaration.owner();
         let bindings = arguments

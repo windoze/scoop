@@ -8,6 +8,25 @@ fn source_and_dependency_enum_instances_share_payload_and_gc_substitution() {
         &std::fs::read_to_string(root.join("provider.scoop")).unwrap(),
         &std::fs::read_to_string(root.join("instances.scoop")).unwrap(),
         |output, _, _, _, _| {
+            let export = output.output().export.module();
+            let choices = export
+                .loaded_enum_definitions
+                .values()
+                .filter(|definition| definition.declaration.name() == "Choice")
+                .collect::<Vec<_>>();
+            assert_eq!(choices.len(), 1);
+            let choice = choices[0];
+            let parameter = choice.definition.type_params[0].id;
+            let payload = choice
+                .definition
+                .variants
+                .iter()
+                .find(|variant| variant.name == "Item")
+                .unwrap();
+            assert_eq!(
+                export.types[payload.fields[0].ty],
+                hir::Type::Param(parameter)
+            );
             let module = output.output().local.module();
             let mut applications = std::collections::HashSet::new();
             for (_, enumeration) in module.enums.iter() {
@@ -44,6 +63,36 @@ fn source_and_dependency_enum_instances_share_payload_and_gc_substitution() {
         },
     )
     .unwrap();
+}
+
+#[test]
+fn enum_definitions_retain_recursive_payload_and_interface_environments() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/m23-shared-enum-definitions");
+    for case in ["standalone", "combined"] {
+        with_provider_consumer(
+            &std::fs::read_to_string(root.join("provider.scoop")).unwrap(),
+            &std::fs::read_to_string(root.join(format!("{case}.scoop"))).unwrap(),
+            |output, _, _, _, _| {
+                hir::CanonicalHirFoundation::from_dependency_output(&output).unwrap();
+                let module = output.output().local.module();
+                for (_, enumeration) in module
+                    .enums
+                    .iter()
+                    .filter(|(_, value)| value.name == "Entry" || value.name == "LocalEntry")
+                {
+                    let argument = enumeration.type_arguments[0];
+                    assert_eq!(enumeration.variants[0].fields[0].ty, argument);
+                    let implementation = &enumeration.interface_implementations[0];
+                    assert_eq!(
+                        module.interfaces[implementation.interface].type_arguments,
+                        vec![argument]
+                    );
+                }
+            },
+        )
+        .unwrap_or_else(|error| panic!("{case}: {error:?}"));
+    }
 }
 
 fn fixture(name: &str) -> String {

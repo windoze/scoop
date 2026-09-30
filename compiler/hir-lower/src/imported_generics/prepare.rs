@@ -166,22 +166,32 @@ impl Lowerer {
         }
         let mut parameters = Vec::new();
         for (binder, id) in binders.iter().zip(parameter_ids) {
-            let bounds = match binder.bounds() {
-                hir::TypeParameterBoundsV1::Unconstrained => hir::TypeParamBounds::Unconstrained,
-                hir::TypeParameterBoundsV1::Value => hir::TypeParamBounds::Value { span },
-                hir::TypeParameterBoundsV1::Ref => hir::TypeParamBounds::Ref { span },
-                hir::TypeParameterBoundsV1::Nominal(bounds) => {
-                    self.imported_generic_nominal_bounds(bounds, &bindings, span)?
-                }
-            };
-            parameters.push(hir::TypeParamDecl {
-                id,
-                name: binder.name().as_str().to_owned(),
-                bounds,
-                span,
-            });
+            parameters.push(self.resolve_imported_type_parameter(binder, id, &bindings, span)?);
         }
         Ok((parameters, bindings))
+    }
+
+    pub(crate) fn resolve_imported_type_parameter(
+        &mut self,
+        binder: &hir::TypeParameterBinderV1,
+        id: hir::TypeParamId,
+        bindings: &ImportedTypeBindings,
+        span: scoop_ast::Span,
+    ) -> Result<hir::TypeParamDecl, String> {
+        let bounds = match binder.bounds() {
+            hir::TypeParameterBoundsV1::Unconstrained => hir::TypeParamBounds::Unconstrained,
+            hir::TypeParameterBoundsV1::Value => hir::TypeParamBounds::Value { span },
+            hir::TypeParameterBoundsV1::Ref => hir::TypeParamBounds::Ref { span },
+            hir::TypeParameterBoundsV1::Nominal(bounds) => {
+                self.imported_generic_nominal_bounds(bounds, bindings, span)?
+            }
+        };
+        Ok(hir::TypeParamDecl {
+            id,
+            name: binder.name().as_str().to_owned(),
+            bounds,
+            span,
+        })
     }
 
     pub(crate) fn imported_generic_type(

@@ -1,0 +1,42 @@
+package consumer.enumdefinitions
+import upstream.enumdefinitions.*
+
+private class LocalLink<T>(public val value: T, public val tail: LocalChain<T>)
+private enum LocalChain<T> {
+    End,
+    Cons(LocalLink<T>)
+}
+
+private enum LocalEntry<T>: Readable<T> {
+    Value(T)
+
+    public override fun read(): T = when (this) {
+        Value(value) -> value
+    }
+}
+
+private fun <T> localTotal(value: LocalChain<T>, read: (T) -> Int): Int = when (value) {
+    End -> 0
+    Cons(link) -> read(link.value) + localTotal(link.tail, read)
+}
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val tail: LocalChain<T> = End
+    val local: LocalChain<T> = Cons(LocalLink(seed, tail))
+    if (localTotal(local, read) != 42) { return 1 }
+    val external: Chain<T>? = Some(singleton(seed))
+    val value: T = when (external) {
+        Some(Cons(link)) -> link.value
+        else -> seed
+    }
+    val first: Readable<T> = Entry.Value(value)
+    val second: Readable<T> = LocalEntry.Value(seed)
+    if (first.apply(read) != second.apply(read)) { return 2 }
+    return read(value)
+}
+
+public fun result(): Int {
+    if (exercise<String>("value", { item -> 42 }) != 42) { return 1 }
+    if (exercise<Unit>(Unit, { item -> 42 }) != 42) { return 2 }
+    return exercise<Int>(42, { item -> item })
+}

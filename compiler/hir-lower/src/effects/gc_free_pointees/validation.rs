@@ -169,11 +169,13 @@ impl Lowerer {
             }
             hir::Type::Enum(application) => {
                 let application = &self.enum_applications[*application];
-                self.application_pointee_is_valid(
-                    &self.enums[self.enum_id(application.template)].type_params,
-                    &self.enums[self.enum_id(application.template)].gc_free_pointee_requirements,
-                    &application.arguments,
-                ) && application
+                self.source_enum_id(application.template).is_none_or(|id| {
+                    self.application_pointee_is_valid(
+                        &self.enums[id].type_params,
+                        &self.enums[id].gc_free_pointee_requirements,
+                        &application.arguments,
+                    )
+                }) && application
                     .arguments
                     .iter()
                     .all(|argument| self.pointee_type_is_valid(*argument, visiting))

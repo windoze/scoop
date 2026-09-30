@@ -129,14 +129,23 @@ impl Lowerer {
             return None;
         };
         let enumeration = self.enum_applications[application].template;
-        self.find_variant_ref(self.enum_id(enumeration), name)
+        let crate::Owner::Enum(enumeration) = self.nominal_owners.get(&enumeration)? else {
+            unreachable!("an enum application retains its enum declaration")
+        };
+        self.find_variant_ref(*enumeration, name)
     }
 
     pub(crate) fn exact_expected_enum(&self, expected: Option<TypeId>) -> Option<EnumId> {
         let Type::Enum(application) = self.types[*expected.as_ref()?] else {
             return None;
         };
-        Some(self.enum_id(self.enum_applications[application].template))
+        let crate::Owner::Enum(enumeration) = self
+            .nominal_owners
+            .get(&self.enum_applications[application].template)?
+        else {
+            unreachable!("an enum application retains its enum declaration")
+        };
+        Some(*enumeration)
     }
 
     /// During declaration/type pass 1 this reads the provisional core enum;
@@ -154,32 +163,22 @@ impl Lowerer {
 
     /// Whether `ty` is `Option<T>`; returns `T`.
     pub(crate) fn as_option(&self, ty: TypeId) -> Option<TypeId> {
-        match &self.types[ty] {
-            Type::Enum(application) => {
-                let application = &self.enum_applications[*application];
-                (Some(application.template)
-                    == self.option_enumeration().map(|id| {
-                        self.nominal_identity(crate::Owner::Enum(id))
-                            .declaration_id()
-                    })
-                    && application.arguments.len() == 1)
-                    .then_some(application.arguments[0])
+        let Type::Enum(application) = self.types[ty] else {
+            return None;
+        };
+        let application = &self.enum_applications[application];
+        let [argument] = application.arguments.as_slice() else {
+            return None;
+        };
+        let option = match &self.core {
+            crate::CoreLoweringAuthority::Imported(protocols) => {
+                hir::SourceNominalId::GenericTemplate(protocols.option().option().persistent())
             }
-            Type::ImportedEnum(enumeration) => {
-                let crate::CoreLoweringAuthority::Imported(protocols) = &self.core else {
-                    return None;
-                };
-                let [argument] = enumeration.arguments.as_slice() else {
-                    return None;
-                };
-                (enumeration.declaration.owner()
-                    == hir::SourceNominalId::GenericTemplate(
-                        protocols.option().option().persistent(),
-                    ))
-                .then_some(*argument)
-            }
-            _ => None,
-        }
+            _ => self
+                .nominal_identity(crate::Owner::Enum(self.option_enumeration()?))
+                .declaration_id(),
+        };
+        (application.template == option).then_some(*argument)
     }
 
     /// `Option<inner>` (interned). Only called when the core `Option`

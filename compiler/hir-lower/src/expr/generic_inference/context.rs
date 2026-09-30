@@ -336,7 +336,7 @@ impl Lowerer {
     }
 
     pub(crate) fn mark_type_params(&self, ty: TypeId, bound: &mut [bool]) {
-        if let Some((_, arguments)) = self.types[ty].imported_nominal_application() {
+        if let Some((_, arguments)) = self.dependency_nominal_application(ty) {
             for argument in arguments {
                 self.mark_type_params(*argument, bound);
             }

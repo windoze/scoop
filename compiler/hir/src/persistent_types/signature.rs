@@ -60,18 +60,6 @@ impl<'a> HirSignatureTypeMapper<'a> {
                 binders,
                 visiting,
             )?,
-            Type::ImportedEnum(structure) => self.map_nominal(
-                &HirNominalIdentity::Source(structure.declaration.identity.clone()),
-                structure
-                    .declaration
-                    .interface
-                    .type_parameters()
-                    .binders()
-                    .len(),
-                &structure.arguments,
-                binders,
-                visiting,
-            )?,
             Type::ImportedClass(structure) => self.map_nominal(
                 &HirNominalIdentity::Source(structure.declaration.identity.clone()),
                 structure
@@ -238,10 +226,9 @@ impl<'a> HirSignatureTypeMapper<'a> {
                     )));
                 }
                 let application = &self.inputs.enum_applications[*application];
-                let template = self
+                let (identity, parameter_count) = self
                     .inputs
-                    .nominal_identities
-                    .enum_id(application.template)
+                    .enum_declaration(application.template)
                     .ok_or_else(|| {
                         HirSignatureTypeMappingError::InvalidApplication(raw_index(ty))
                     })?;
@@ -251,8 +238,8 @@ impl<'a> HirSignatureTypeMapper<'a> {
                     )));
                 }
                 self.map_nominal(
-                    &self.inputs.nominal_identities[template],
-                    self.inputs.enums[template].type_params.len(),
+                    &identity,
+                    parameter_count,
                     &application.arguments,
                     binders,
                     visiting,

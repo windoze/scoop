@@ -76,7 +76,7 @@ impl AppliedStructFieldRef {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Field {
     pub name: String,
     pub ty: TypeId,

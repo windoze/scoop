@@ -15,8 +15,6 @@ pub enum Type {
     /// A dependency value type with its actual declaration and resolved fields.
     /// It does not introduce a declaration into the current Cone.
     ImportedStruct(std::sync::Arc<ImportedStructType>),
-    /// A dependency enum value with the provider's complete payload types.
-    ImportedEnum(std::sync::Arc<ImportedEnumType>),
     /// A dependency reference type with its actual declaration and field types.
     ImportedClass(std::sync::Arc<ImportedClassType>),
     /// A dependency interface with complete inherited method signatures.
@@ -59,7 +57,6 @@ impl Type {
     ) -> Option<(&std::sync::Arc<ImportedNominalDeclaration>, &[TypeId])> {
         match self {
             Self::ImportedStruct(value) => Some((&value.declaration, &value.arguments)),
-            Self::ImportedEnum(value) => Some((&value.declaration, &value.arguments)),
             Self::ImportedClass(value) => Some((&value.declaration, &value.arguments)),
             Self::ImportedInterface(value) => Some((&value.declaration, &value.arguments)),
             _ => None,
@@ -129,30 +126,6 @@ pub struct ImportedInterfaceMethod {
     pub return_type: TypeId,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ImportedEnumType {
-    pub declaration: std::sync::Arc<ImportedNominalDeclaration>,
-    pub arguments: Vec<TypeId>,
-    pub variants: Vec<ImportedEnumValueVariant>,
-    pub interfaces: Vec<TypeId>,
-    pub interface_implementations: Vec<InterfaceImplementation>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ImportedEnumValueVariant {
-    pub identity: scoop_identity::PersistentEnumVariantId,
-    pub name: String,
-    pub style: EnumSourceVariantStyleV1,
-    pub fields: Vec<ImportedEnumField>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ImportedEnumField {
-    pub identity: scoop_identity::PersistentEnumVariantFieldId,
-    pub name: String,
-    pub ty: TypeId,
-}
-
 /// Canonical structural identity of an ordinary or suspend function type.
 /// Declaration-only metadata such as parameter names/defaults is absent by
 /// construction (spec 8.1.1).
@@ -177,9 +150,6 @@ pub fn types_equal(module: &Module, a: TypeId, b: TypeId) -> bool {
         (Type::Integer(x), Type::Integer(y)) => x == y,
         (Type::Struct(x), Type::Struct(y)) => x == y,
         (Type::ImportedStruct(x), Type::ImportedStruct(y)) => {
-            x.declaration.owner() == y.declaration.owner() && x.arguments == y.arguments
-        }
-        (Type::ImportedEnum(x), Type::ImportedEnum(y)) => {
             x.declaration.owner() == y.declaration.owner() && x.arguments == y.arguments
         }
         (Type::ImportedClass(x), Type::ImportedClass(y)) => {
@@ -231,7 +201,6 @@ pub(crate) fn type_name_with_params(
     };
     match &module.types[ty] {
         Type::ImportedStruct(value) => imported_name(&value.declaration, &value.arguments),
-        Type::ImportedEnum(value) => imported_name(&value.declaration, &value.arguments),
         Type::ImportedClass(value) => imported_name(&value.declaration, &value.arguments),
         Type::ImportedInterface(value) => imported_name(&value.declaration, &value.arguments),
         Type::Unit => "Unit".to_string(),
@@ -307,15 +276,14 @@ pub(crate) fn type_name_with_params(
         Type::Any => "Any".to_string(),
         Type::Enum(application) => {
             let application = &module.enum_applications[*application];
-            let template = module
-                .nominal_identities
-                .enum_id(application.template)
-                .expect("a resolved application retains its declaration");
-            let name = nominal_declaration_name(
-                module,
-                &module.enums[template].name,
-                module.enums[template].owner,
-            );
+            let name = match module.nominal_identities.enum_id(application.template) {
+                Some(template) => nominal_declaration_name(
+                    module,
+                    &module.enums[template].name,
+                    module.enums[template].owner,
+                ),
+                None => module.enum_name(application.template).to_owned(),
+            };
             let args = &application.arguments;
             if args.is_empty() {
                 name

@@ -16,7 +16,6 @@ pub(super) fn integer_domain(ty: &Type) -> Option<IntegerDomain> {
         | Type::String
         | Type::Struct(_)
         | Type::ImportedStruct(_)
-        | Type::ImportedEnum(_)
         | Type::ImportedClass(_)
         | Type::ImportedInterface(_)
         | Type::Class(_)

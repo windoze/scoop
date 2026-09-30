@@ -62,8 +62,8 @@ impl Lowerer {
         let owner = self
             .imported_member_owner_type(receiver, owner)
             .expect("the selected property occurs in the receiver hierarchy");
-        let arguments = self.types[owner]
-            .imported_nominal_application()
+        let arguments = self
+            .dependency_nominal_application(owner)
             .map(|(_, arguments)| arguments)
             .unwrap_or(&[]);
         let bindings = arguments

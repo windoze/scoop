@@ -13,6 +13,7 @@ use crate::{NativeBoundaryCAbiV1, NominalInterfaceRecordV1, SourceNominalId};
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ImportedNominalDeclaration {
     pub identity: crate::HirSourceNominalIdentity,
+    pub origin: crate::ExportDefinitionSourceV1,
     pub interface: NominalInterfaceRecordV1,
     pub field_sources: Vec<ImportedNominalFieldSource>,
     pub variant_names: Vec<ImportedEnumVariantNames>,
@@ -109,6 +110,15 @@ pub(super) fn declarations(
         .all_records()
         .map(|interface| {
             let owner = interface.declaration();
+            let subject = match owner {
+                SourceNominalId::Concrete(id) => scoop_identity::DefinitionOriginSubject::Type(id),
+                SourceNominalId::GenericTemplate(id) => {
+                    scoop_identity::DefinitionOriginSubject::GenericType(id)
+                }
+            };
+            let origin = canonical
+                .definition_origin(subject)
+                .ok_or(Error::MissingDefinitionOrigin(subject))?;
             let identity = match owner {
                 SourceNominalId::Concrete(id) => crate::HirSourceNominalIdentity::Concrete(
                     canonical
@@ -219,6 +229,7 @@ pub(super) fn declarations(
                     })
                     .collect::<Result<Vec<_>, _>>()?,
                 identity,
+                origin: crate::ExportDefinitionSourceV1::new(origin.origin().clone()),
                 interface: interface.clone(),
                 field_sources,
                 variant_names,

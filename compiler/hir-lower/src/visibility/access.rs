@@ -196,9 +196,6 @@ impl Lowerer {
             hir::Type::ImportedStruct(ref structure) => {
                 Some(self.imported_nominal_access_domain(&structure.declaration))
             }
-            hir::Type::ImportedEnum(ref structure) => {
-                Some(self.imported_nominal_access_domain(&structure.declaration))
-            }
             hir::Type::ImportedClass(ref structure) => {
                 Some(self.imported_nominal_access_domain(&structure.declaration))
             }
@@ -219,13 +216,9 @@ impl Lowerer {
                     .0
                     .clone(),
             ),
-            hir::Type::Enum(application) => Some(
-                self.enums[self.enum_id(self.enum_applications[application].template)]
-                    .access
-                    .lookup
-                    .0
-                    .clone(),
-            ),
+            hir::Type::Enum(application) => {
+                Some(self.enum_access_domain(self.enum_applications[application].template))
+            }
             hir::Type::Class(application) => Some(
                 self.classes[self.class_id(self.class_applications[application].template)]
                     .access

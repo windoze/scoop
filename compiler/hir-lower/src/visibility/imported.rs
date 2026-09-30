@@ -2,7 +2,7 @@ use super::*;
 
 impl Lowerer {
     pub(crate) fn inaccessible_imported_method_message(
-        &self,
+        &mut self,
         receiver: hir::TypeId,
         name: &str,
     ) -> Option<String> {

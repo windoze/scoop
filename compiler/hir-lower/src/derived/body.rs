@@ -74,7 +74,7 @@ impl Lowerer {
                     span,
                 )]
             }
-            Type::Enum(_) | Type::ImportedEnum(_) => self.build_derived_enum_equality(
+            Type::Enum(_) => self.build_derived_enum_equality(
                 ty,
                 this_expr,
                 other_expr,
@@ -133,20 +133,15 @@ impl Lowerer {
                 }
                 self.resolve_derived_field_member_equality(lhs, rhs, path, span)
             }
-            Type::Enum(application) => {
-                let function = self.enums
-                    [self.enum_id(self.enum_applications[application].template)]
-                .derived_equality;
-                if let Some(function) = function {
-                    let owner = hir::MethodOwnerApplication::Enum(application);
-                    match self.ensure_derived_equality_application(
-                        ty,
-                        function,
-                        hir::DerivedEqualityOrigin::Nominal(owner),
-                        span,
-                        stack,
-                    ) {
-                        Ok(application) => {
+            Type::ImportedStruct(_) | Type::Enum(_)
+                if self.dependency_nominal_application(ty).is_some() =>
+            {
+                let (_, arguments) = self
+                    .dependency_nominal_application(ty)
+                    .expect("an imported equality field retains its declaration");
+                if !arguments.is_empty() && !self.has_imported_same_type_equals(ty)? {
+                    match self.ensure_structural_derived_equality_application(ty, span, stack) {
+                        Ok((_, application)) => {
                             return Ok(self.derived_call(
                                 lhs,
                                 rhs,
@@ -164,13 +159,20 @@ impl Lowerer {
                 }
                 self.resolve_derived_field_member_equality(lhs, rhs, path, span)
             }
-            Type::ImportedStruct(_) | Type::ImportedEnum(_) => {
-                let (_, arguments) = self.types[ty]
-                    .imported_nominal_application()
-                    .expect("an imported equality field retains its declaration");
-                if !arguments.is_empty() && !self.has_imported_same_type_equals(ty)? {
-                    match self.ensure_structural_derived_equality_application(ty, span, stack) {
-                        Ok((_, application)) => {
+            Type::Enum(application) => {
+                let function = self.enums
+                    [self.enum_id(self.enum_applications[application].template)]
+                .derived_equality;
+                if let Some(function) = function {
+                    let owner = hir::MethodOwnerApplication::Enum(application);
+                    match self.ensure_derived_equality_application(
+                        ty,
+                        function,
+                        hir::DerivedEqualityOrigin::Nominal(owner),
+                        span,
+                        stack,
+                    ) {
+                        Ok(application) => {
                             return Ok(self.derived_call(
                                 lhs,
                                 rhs,

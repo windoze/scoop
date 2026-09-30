@@ -29,7 +29,7 @@ enum SymbolicType {
         parameters: Vec<SymbolicType>,
         result: Box<SymbolicType>,
     },
-    Enum(hir::EnumId, Vec<SymbolicType>),
+    Enum(hir::SourceNominalId, Vec<SymbolicType>),
     Parameter(hir::TypeParamId),
 }
 
@@ -176,14 +176,6 @@ impl Lowerer {
                     .map(|argument| self.symbolic_type(*argument, bindings))
                     .collect(),
             ),
-            hir::Type::ImportedEnum(structure) => SymbolicType::ImportedNominal(
-                structure.declaration.owner(),
-                structure
-                    .arguments
-                    .iter()
-                    .map(|argument| self.symbolic_type(*argument, bindings))
-                    .collect(),
-            ),
             hir::Type::ImportedClass(structure) => SymbolicType::ImportedNominal(
                 structure.declaration.owner(),
                 structure
@@ -273,7 +265,7 @@ impl Lowerer {
             hir::Type::Enum(application) => {
                 let application = &self.enum_applications[*application];
                 SymbolicType::Enum(
-                    self.enum_id(application.template),
+                    application.template,
                     application
                         .arguments
                         .iter()

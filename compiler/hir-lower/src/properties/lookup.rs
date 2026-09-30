@@ -55,7 +55,7 @@ impl Lowerer {
             }
             hir::Type::Enum(application) => {
                 let value = self.enum_applications[application].clone();
-                let property = self.enums[self.enum_id(value.template)]
+                let property = self.enums[self.source_enum_id(value.template)?]
                     .properties
                     .iter()
                     .copied()

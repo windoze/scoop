@@ -79,30 +79,33 @@ impl<'input> Concretizer<'input> {
 }
 
 impl<'a> ResolvedEnumDefinition<'a> {
-    pub(super) fn from_dependency(source: &'a export::ImportedEnumType) -> Self {
+    pub(super) fn from_dependency(source: &'a export::LoadedEnumDefinition) -> Self {
         Self {
             origin: export::HirNominalIdentity::Source(source.declaration.identity.clone()),
             name: source.declaration.name().to_owned(),
             owner: None,
             variants: source
+                .definition
                 .variants
                 .iter()
-                .map(|variant| ResolvedEnumVariant {
-                    identity: variant.identity,
+                .enumerate()
+                .map(|(variant_index, variant)| ResolvedEnumVariant {
+                    identity: source.variant_identity(variant_index),
                     name: &variant.name,
                     fields: variant
                         .fields
                         .iter()
-                        .map(|field| ResolvedEnumField {
-                            identity: field.identity,
+                        .enumerate()
+                        .map(|(field_index, field)| ResolvedEnumField {
+                            identity: source.field_identity(variant_index, field_index),
                             name: &field.name,
                             ty: field.ty,
                         })
                         .collect(),
                 })
                 .collect(),
-            interfaces: &source.interfaces,
-            interface_implementations: &source.interface_implementations,
+            interfaces: &source.definition.interfaces,
+            interface_implementations: &source.definition.interface_implementations,
             methods: &[],
             span: scoop_ast::Span::new(0, 0),
         }

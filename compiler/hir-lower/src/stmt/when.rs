@@ -38,7 +38,6 @@ impl Lowerer {
         if matches!(
             self.types[ty],
             Type::Enum(_)
-                | Type::ImportedEnum(_)
                 | Type::Tuple(_)
                 | Type::Struct(_)
                 | Type::ImportedStruct(_)

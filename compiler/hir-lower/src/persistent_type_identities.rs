@@ -16,6 +16,7 @@ pub(crate) fn build(
         structs: &lowerer.structs,
         struct_applications: &lowerer.struct_applications,
         enums: &lowerer.enums,
+        loaded_enum_definitions: &lowerer.loaded_enum_definitions,
         enum_applications: &lowerer.enum_applications,
         classes: &lowerer.classes,
         class_applications: &lowerer.class_applications,

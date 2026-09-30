@@ -49,7 +49,6 @@ fn type_name(lowerer: &Lowerer, type_params: &[hir::TypeParamDecl], ty: TypeId) 
     };
     match &types[ty] {
         Type::ImportedStruct(value) => imported_name(&value.declaration, &value.arguments),
-        Type::ImportedEnum(value) => imported_name(&value.declaration, &value.arguments),
         Type::ImportedClass(value) => imported_name(&value.declaration, &value.arguments),
         Type::ImportedInterface(value) => imported_name(&value.declaration, &value.arguments),
         Type::Unit => "Unit".to_string(),
@@ -147,16 +146,22 @@ fn type_name(lowerer: &Lowerer, type_params: &[hir::TypeParamDecl], ty: TypeId) 
         }
         Type::Enum(application) => {
             let application = &lowerer.enum_applications[*application];
-            let id = lowerer.enum_id(application.template);
-            let name = nominal_name(
-                structs,
-                enums,
-                classes,
-                interfaces,
-                &lowerer.objects,
-                &enums[id].name,
-                enums[id].owner,
-            );
+            let name = match lowerer.nominal_owners.get(&application.template) {
+                Some(crate::Owner::Enum(id)) => nominal_name(
+                    structs,
+                    enums,
+                    classes,
+                    interfaces,
+                    &lowerer.objects,
+                    &enums[*id].name,
+                    enums[*id].owner,
+                ),
+                Some(_) => unreachable!("an enum application retains its enum declaration"),
+                None => lowerer.loaded_enum_definitions[&application.template]
+                    .declaration
+                    .name()
+                    .to_owned(),
+            };
             let args = &application.arguments;
             if args.is_empty() {
                 name

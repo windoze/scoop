@@ -11,35 +11,31 @@ impl Concretizer<'_> {
         arguments: Vec<concrete::TypeId>,
     ) -> concrete::EnumId {
         let origin = self.source.nominal_identities[source].declaration_id();
+        self.ensure_enum_definition(origin, arguments)
+    }
+
+    pub(super) fn ensure_enum_definition(
+        &mut self,
+        origin: export::SourceNominalId,
+        arguments: Vec<concrete::TypeId>,
+    ) -> concrete::EnumId {
         let key = (origin, arguments.clone());
         if let Some(&id) = self.enum_by_key.get(&key) {
             return id;
         }
-        let definition = self.source_enum_definition(source);
+        let source = self.source.nominal_identities.enum_id(origin);
+        let definition = match source {
+            Some(source) => self.source_enum_definition(source),
+            None => ResolvedEnumDefinition::from_dependency(
+                &self.source.loaded_enum_definitions[&origin],
+            ),
+        };
         let id = self.allocate_enum_definition(&definition, arguments.clone());
-        self.enum_source.insert(id, source);
+        if let Some(source) = source {
+            self.enum_source.insert(id, source);
+        }
         self.complete_enum_definition(id, definition, &arguments);
         id
-    }
-
-    pub(super) fn lower_imported_enum(
-        &mut self,
-        source: &export::ImportedEnumType,
-        substitution: &[concrete::TypeId],
-    ) -> concrete::TypeId {
-        let arguments = source
-            .arguments
-            .iter()
-            .map(|argument| self.lower_type(*argument, substitution))
-            .collect::<Vec<_>>();
-        let key = (source.declaration.owner(), arguments.clone());
-        if let Some(id) = self.enum_by_key.get(&key) {
-            return self.enum_type[id];
-        }
-        let definition = ResolvedEnumDefinition::from_dependency(source);
-        let id = self.allocate_enum_definition(&definition, arguments);
-        self.complete_enum_definition(id, definition, substitution);
-        self.enum_type[&id]
     }
 
     fn allocate_enum_definition(

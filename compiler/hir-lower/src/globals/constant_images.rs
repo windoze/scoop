@@ -36,8 +36,7 @@ impl Lowerer {
                     fields,
                 })
             }
-            hir::Type::ImportedEnum(_)
-            | hir::Type::ImportedClass(_)
+            hir::Type::ImportedClass(_)
             | hir::Type::ImportedInterface(_)
             | hir::Type::Unit
             | hir::Type::String
@@ -53,38 +52,16 @@ impl Lowerer {
     }
 
     pub(super) fn static_none_constant(&self, ty: hir::TypeId) -> Option<hir::HirConstantImage> {
-        if matches!(self.types[ty], hir::Type::ImportedEnum(_)) && self.as_option(ty).is_some() {
-            let crate::CoreLoweringAuthority::Imported(protocols) = &self.core else {
-                unreachable!("an imported Option has its imported protocol")
-            };
-            return Some(hir::HirConstantImage::ImportedEnumUnit {
-                ty,
-                variant: protocols.option().none().persistent(),
-            });
-        }
-        let hir::Type::Enum(application) = self.types[ty] else {
-            return None;
+        self.as_option(ty)?;
+        let variant = match &self.core {
+            crate::CoreLoweringAuthority::Imported(protocols) => {
+                protocols.option().none().persistent()
+            }
+            _ => self.enum_member_identities.as_ref()?[self.option_core?.none()].id(),
         };
-        let application_value = &self.enum_applications[application];
-        let option = self.option_core?;
-        if application_value.template
-            != self
-                .nominal_identity(crate::Owner::Enum(option.enumeration()))
-                .declaration_id()
-        {
-            return None;
-        }
-        let variant = hir::AppliedEnumVariantRef::checked(
-            &self.enums,
-            &self.enum_applications,
-            self.nominal_identities
-                .as_ref()
-                .expect("nominal identities precede application references"),
-            application,
-            option.none(),
-        )
-        .expect("the exact Option application belongs to its checked None variant");
-        Some(hir::HirConstantImage::EnumUnit { variant })
+        Some(hir::HirConstantImage::EnumUnit {
+            variant: hir::EnumVariantApplication { owner: ty, variant },
+        })
     }
 
     pub(super) fn static_unit_variant_constant(
@@ -92,69 +69,31 @@ impl Lowerer {
         expression: &ast::Expr,
         expected: hir::TypeId,
     ) -> Option<hir::HirConstantImage> {
-        if matches!(self.types[expected], hir::Type::ImportedEnum(_)) {
-            if !matches!(expression, ast::Expr::Var(_) | ast::Expr::FieldAccess(_)) {
-                return None;
-            }
-            let mut sink = Vec::new();
-            let value = self.lower_expr(expression, &mut sink, Some(expected))?;
-            let hir::ExprKind::VariantConstruct { variant, args } = value.kind else {
-                return None;
-            };
-            return (args.is_empty() && sink.is_empty() && self.types_equal(value.ty, expected))
-                .then_some(hir::HirConstantImage::ImportedEnumUnit {
-                    ty: expected,
-                    variant: variant.variant,
-                });
-        }
-        let ast::Expr::Var(name) = expression else {
-            return None;
-        };
-        if self.scopes.lookup(&name.text).is_some()
-            || self.available_capture(&name.text).is_some()
-            || self.host_has_property(&name.text)
+        if !matches!(self.types[expected], hir::Type::Enum(_))
+            || !matches!(expression, ast::Expr::Var(_) | ast::Expr::FieldAccess(_))
         {
             return None;
         }
-        let hir::Type::Enum(application) = self.types[expected] else {
+        let mut probe = self.clone();
+        let mut sink = Vec::new();
+        let value = probe.lower_expr(expression, &mut sink, Some(expected))?;
+        let hir::ExprKind::VariantConstruct { variant, args } = value.kind else {
             return None;
         };
-        let application_value = &self.enum_applications[application];
-        let target = match self.lookup_value_origin(&name.text) {
-            crate::imports::lookup::LookupResult::Unique(
-                crate::imports::lookup::values::ValueOrigin::Core(
-                    crate::imports::lookup::values::ValueTarget::Variant(target),
-                ),
-            ) if target.enumeration() != self.enum_id(application_value.template)
-                || self.resolved_variant_style(target) != VariantStyle::Unit =>
-            {
-                self.contextual_variant_ref(&name.text, Some(expected))
-            }
-            crate::imports::lookup::LookupResult::Unique(origin) => {
-                match self.materialized_value_target(&origin)? {
-                    crate::imports::lookup::values::ValueTarget::Variant(target) => Some(target),
-                    _ => None,
-                }
-            }
-            crate::imports::lookup::LookupResult::Missing => {
-                self.contextual_variant_ref(&name.text, Some(expected))
-            }
-            _ => None,
-        }?;
-        if target.enumeration() != self.enum_id(application_value.template) {
+        if !args.is_empty()
+            || !sink.is_empty()
+            || !probe.types_equal(value.ty, expected)
+            || probe.diagnostics.len() != self.diagnostics.len()
+        {
             return None;
         }
-        let variant = hir::AppliedEnumVariantRef::checked(
-            &self.enums,
-            &self.enum_applications,
-            self.nominal_identities
-                .as_ref()
-                .expect("nominal identities precede application references"),
-            application,
-            target,
-        )?;
-        (self.resolved_variant_style(target) == VariantStyle::Unit)
-            .then_some(hir::HirConstantImage::EnumUnit { variant })
+        self.dependencies = probe.dependencies;
+        Some(hir::HirConstantImage::EnumUnit {
+            variant: hir::EnumVariantApplication {
+                owner: expected,
+                variant: variant.variant,
+            },
+        })
     }
 
     pub(super) fn global_constant(

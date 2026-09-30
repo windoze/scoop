@@ -149,11 +149,18 @@ impl Lowerer {
         template: hir::EnumId,
         arguments: Vec<TypeId>,
     ) -> hir::EnumApplicationId {
-        let key = (
-            self.nominal_identity(crate::Owner::Enum(template))
-                .declaration_id(),
-            arguments.clone(),
-        );
+        let template = self
+            .nominal_identity(crate::Owner::Enum(template))
+            .declaration_id();
+        self.intern_enum_application(template, arguments)
+    }
+
+    pub(crate) fn intern_enum_application(
+        &mut self,
+        template: hir::SourceNominalId,
+        arguments: Vec<TypeId>,
+    ) -> hir::EnumApplicationId {
+        let key = (template, arguments.clone());
         if let Some(&application) = self.enum_application_by_key.get(&key) {
             return application;
         }

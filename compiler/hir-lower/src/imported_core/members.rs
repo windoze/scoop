@@ -27,7 +27,7 @@ impl Lowerer {
     }
 
     pub(crate) fn imported_member_candidates(
-        &self,
+        &mut self,
         receiver: hir::TypeId,
         lookup: hir::ImportedMemberLookup<'_>,
     ) -> Result<Vec<hir::ImportedCallableDeclaration>, hir::ImportedDependencyCandidateError> {
@@ -35,14 +35,14 @@ impl Lowerer {
     }
 
     pub(crate) fn imported_member_candidates_for_receiver(
-        &self,
+        &mut self,
         receiver: hir::TypeId,
         access_receiver: Option<hir::TypeId>,
         lookup: hir::ImportedMemberLookup<'_>,
     ) -> Result<Vec<hir::ImportedCallableDeclaration>, hir::ImportedDependencyCandidateError> {
-        let Some(dependencies) = &self.dependencies else {
+        if self.dependencies.is_none() {
             return Ok(Vec::new());
-        };
+        }
         let effective = match &self.types[receiver] {
             hir::Type::ImportedInterface(interface) => Some(
                 interface
@@ -100,12 +100,12 @@ impl Lowerer {
                 }
                 hir::Type::Enum(application) => {
                     let declaration =
-                        &self.enums[self.enum_id(self.enum_applications[*application].template)];
-                    pending.extend(declaration.interfaces.iter().rev().copied());
+                        self.enum_definition(self.enum_applications[*application].template);
                     suppress_local_implementations(
                         &declaration.interface_implementations,
                         &mut suppressed_slots,
                     );
+                    pending.extend(self.direct_nominal_supertypes(ty).into_iter().rev());
                 }
                 hir::Type::Interface(application) => {
                     let declaration = &self.interfaces
@@ -130,9 +130,6 @@ impl Lowerer {
                 }
                 hir::Type::ImportedStruct(structure) => {
                     pending.extend(structure.interfaces.iter().rev().copied())
-                }
-                hir::Type::ImportedEnum(enumeration) => {
-                    pending.extend(enumeration.interfaces.iter().rev().copied())
                 }
                 hir::Type::Integer(_) | hir::Type::Boolean | hir::Type::String => {
                     let kind = match self.types[ty] {
@@ -173,7 +170,12 @@ impl Lowerer {
                         .copied(),
                 );
             }
-            for candidate in dependencies.member_callable_candidates(owner, lookup)? {
+            for candidate in self
+                .dependencies
+                .as_ref()
+                .expect("dependency candidates have a catalog")
+                .member_callable_candidates(owner, lookup)?
+            {
                 let declaration = candidate.interface();
                 if !self.imported_callable_is_accessible(declaration, access_receiver) {
                     continue;

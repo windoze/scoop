@@ -51,10 +51,12 @@ impl Lowerer {
         owner: TypeId,
         name: &str,
     ) -> Option<usize> {
-        let Type::ImportedEnum(enumeration) = &self.types[owner] else {
+        let Type::Enum(application) = self.types[owner] else {
             return None;
         };
-        enumeration
+        self.loaded_enum_definitions
+            .get(&self.enum_applications[application].template)?
+            .definition
             .variants
             .iter()
             .position(|variant| variant.name == name)
@@ -70,11 +72,11 @@ impl Lowerer {
             unreachable!("a dependency variant binding retains its typed variant identity")
         };
         if let Some(owner) = expected
-            && let Type::ImportedEnum(enumeration) = &self.types[owner]
-            && let Some(index) = enumeration
-                .variants
-                .iter()
-                .position(|value| value.identity == variant.persistent())
+            && let Type::Enum(application) = self.types[owner]
+            && let Some(enumeration) = self
+                .loaded_enum_definitions
+                .get(&self.enum_applications[application].template)
+            && let Some(index) = enumeration.variant_index(variant.persistent())
         {
             return self.lower_imported_unit_variant(owner, index, name);
         }
@@ -101,13 +103,11 @@ impl Lowerer {
                 return None;
             }
         };
-        let Type::ImportedEnum(enumeration) = &self.types[owner] else {
+        let Type::Enum(application) = self.types[owner] else {
             unreachable!("the shared variant declaration has its enum result type")
         };
-        let index = enumeration
-            .variants
-            .iter()
-            .position(|value| value.identity == variant.persistent())
+        let index = self.loaded_enum_definitions[&self.enum_applications[application].template]
+            .variant_index(variant.persistent())
             .expect("the shared enum contains its declared variant");
         self.lower_imported_unit_variant(owner, index, name)
     }
@@ -118,17 +118,18 @@ impl Lowerer {
         index: usize,
         name: &ast::Ident,
     ) -> Option<hir::Expr> {
-        let Type::ImportedEnum(enumeration) = &self.types[owner] else {
+        let Type::Enum(application) = self.types[owner] else {
             unreachable!("the selected variant has a dependency enum owner")
         };
+        let enumeration = self.enum_definition(self.enum_applications[application].template);
         let variant = &enumeration.variants[index];
-        if variant.style != hir::EnumSourceVariantStyleV1::Unit {
+        if variant.style != hir::VariantStyle::Unit {
             self.error(
                 name.span,
                 format!(
                     "variant `{}` of `{}` takes arguments; use `{}(...)` to construct it",
                     name.text,
-                    enumeration.declaration.name(),
+                    self.type_name(owner),
                     name.text,
                 ),
             );
@@ -136,10 +137,7 @@ impl Lowerer {
         }
         Some(hir::Expr {
             kind: ExprKind::VariantConstruct {
-                variant: hir::EnumVariantApplication {
-                    owner,
-                    variant: variant.identity,
-                },
+                variant: self.enum_variant_at(application, index as u32),
                 args: Vec::new(),
             },
             ty: owner,
@@ -157,11 +155,12 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
-        let Type::ImportedEnum(enumeration) = &self.types[owner] else {
+        let Type::Enum(application) = self.types[owner] else {
             unreachable!("the selected variant has a dependency enum owner")
         };
-        let declaration =
-            CallableTemplateOrigin::VariantConstructor(enumeration.variants[index].identity);
+        let declaration = CallableTemplateOrigin::VariantConstructor(
+            self.enum_variant_at(application, index as u32).variant,
+        );
         let candidate = match self
             .dependencies
             .as_ref()

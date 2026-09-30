@@ -269,3 +269,11 @@
 - 候选环境直接接收宿主／callable 形参组、已知宿主实参、显式类型实参及已绑定 receiver 关系，不再要求源码 `CallableView`。普通源码调用、依赖普通／泛型调用和 callable reference 共用该入口，删除各自重建形参上界、宿主绑定和显式参数约束的代码；构造结果与函数引用的精确签名约束保持原角色。
 - 全仓 fmt／clippy、全部 1318 项 HIR lowering 单元测试与 7 组真实产物回归全部通过。覆盖构造、bound、函数引用、默认值、数组、指针 intrinsic 与 consumer-local pointee，已有快照无需修改。日志前缀 `/tmp/scoop-m23-6a-callable-environments-`，结果见 `unit.log`、`build.log` 与 `artifacts.json`。
 - 本批生产代码净减少 34 行；依赖泛型调用主文件降至 446 行。剩余候选目标和声明存储仍按阶段设计继续统一，没有将环境合并等同于全部候选迁移完成。
+
+## enum 共用 application 与带形参的 payload 定义
+
+- 删除 `Type::ImportedEnum`、`ImportedEnumType` 及依赖专用的单位 variant 常量。当前和依赖 enum 统一使用原声明身份加完整实参的 `EnumApplication`，变体、payload、直接接口及既定接口实现保存在共同 `EnumDefinition` 中；依赖记录在声明的形参环境中解码一次，应用不再复制预替换的 payload。
+- 统一 variant 查询、字段替换、类型身份、GC 分类、父接口查询和具体化入口。递归签名先登记同一原身份，再完成字段与接口记录；具体化使用声明实参替换，普通外部方法保持原归属。单位 variant 的静态 image 与普通表达式共用原 variant 身份和完整 owner，常量探测复用已有表达式处理及失败事务。
+- 新增 `m23-shared-enum-definitions` 两组正例和六份阶段快照，覆盖 enum／class 递归引用、静态单位 variant、泛型接口及默认方法、嵌套 Option、本地与依赖声明对照。发布后移走源码，下游再次发布，consumer-local 类型、引用／Int／Unit 及普通／移动 GC 运行均通过；新快照关闭全部更新开关复验通过。原 enum 实例单元同时验证依赖 payload 保留声明 binder，并由多组完整实参复用。
+- 全仓 fmt／clippy、859 项 HIR、1319 项 HIR lowering、114 项 MIR lowering 单元测试全部通过。15 组不同真实产物回归均通过，包括新递归定义、既有 enum 正反例、Option 与重建 core、普通 enum、派生相等、完整成员模板、bound、指针、数组、构造及完整 core 三组 MIR／LIR 导出闭包；既有快照无需修改。日志前缀 `/tmp/scoop-m23-6a-shared-enum-types-`，结果见 `unit.log`、`build.log`、`new-verified.log` 与 `artifacts.json`。
+- enum 声明、依赖定义解码、常量处理和具体化主文件分别为 356、145、228、122 行。确认没有 cargo／rustc 占用后清理 204.7 MiB 旧增量缓存，继续复用 `target/m23-6a`。本批未修改 wire payload 或 runtime ABI；其余 nominal 类型、完整声明成员／条件、候选及正文存储继续按 6a 设计统一。

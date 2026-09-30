@@ -121,6 +121,7 @@ impl Lowerer {
                     }
                     let Some(base) = self.direct_base_class(self.class_id(class)) else {
                         break self
+                            .clone()
                             .imported_member_candidates(
                                 receiver_ty,
                                 hir::ImportedMemberLookup::PropertyGetter(name),
@@ -137,11 +138,22 @@ impl Lowerer {
             .properties
             .iter()
             .any(|property| self.properties[*property].name == name),
-            Some(Type::Enum(application)) => self.enums
-                [self.enum_id(self.enum_applications[application].template)]
-            .properties
-            .iter()
-            .any(|property| self.properties[*property].name == name),
+            Some(Type::Enum(application)) => {
+                let template = self.enum_applications[application].template;
+                match self.source_enum_id(template) {
+                    Some(id) => self.enums[id]
+                        .properties
+                        .iter()
+                        .any(|property| self.properties[*property].name == name),
+                    None => self
+                        .clone()
+                        .imported_member_candidates(
+                            self.enum_applications[application].canonical_type,
+                            hir::ImportedMemberLookup::PropertyGetter(name),
+                        )
+                        .is_ok_and(|candidates| !candidates.is_empty()),
+                }
+            }
             _ => false,
         }
     }

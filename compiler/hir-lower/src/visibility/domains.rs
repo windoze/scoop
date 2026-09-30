@@ -1,6 +1,16 @@
 use super::*;
 
 impl Lowerer {
+    pub(super) fn enum_access_domain(&self, template: hir::SourceNominalId) -> hir::AccessDomain {
+        match self.nominal_owners.get(&template) {
+            Some(crate::Owner::Enum(id)) => self.enums[*id].access.lookup.0.clone(),
+            Some(_) => unreachable!("an enum application retains its enum declaration"),
+            None => self.imported_nominal_access_domain(
+                &self.loaded_enum_definitions[&template].declaration,
+            ),
+        }
+    }
+
     pub(super) fn intrinsic_type_access_domain(
         &self,
         kind: hir::IntrinsicTypeKind,
@@ -19,9 +29,6 @@ impl Lowerer {
     ) {
         let provided = match self.types[ty] {
             hir::Type::ImportedStruct(ref structure) => {
-                Some(self.imported_nominal_access_domain(&structure.declaration))
-            }
-            hir::Type::ImportedEnum(ref structure) => {
                 Some(self.imported_nominal_access_domain(&structure.declaration))
             }
             hir::Type::ImportedClass(ref structure) => {
@@ -44,13 +51,9 @@ impl Lowerer {
                     .0
                     .clone(),
             ),
-            hir::Type::Enum(application) => Some(
-                self.enums[self.enum_id(self.enum_applications[application].template)]
-                    .access
-                    .lookup
-                    .0
-                    .clone(),
-            ),
+            hir::Type::Enum(application) => {
+                Some(self.enum_access_domain(self.enum_applications[application].template))
+            }
             hir::Type::Class(application) => Some(
                 self.classes[self.class_id(self.class_applications[application].template)]
                     .access
@@ -119,7 +122,6 @@ impl Lowerer {
             }
             hir::Type::Ptr(pointee) => self.collect_type_dependencies(pointee, dependencies),
             hir::Type::ImportedStruct(_)
-            | hir::Type::ImportedEnum(_)
             | hir::Type::ImportedClass(_)
             | hir::Type::ImportedInterface(_)
             | hir::Type::Unit

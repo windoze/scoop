@@ -159,27 +159,16 @@ impl Lowerer {
                     .collect();
                 self.classify_c_struct_fields(resolved, fields, path, visiting, signatures)
             }
-            hir::Type::ImportedEnum(_) => Err(CAbiError {
-                path,
-                reason: "enum types have no M12 C ABI representation".to_string(),
-            }),
-            hir::Type::Enum(application) => {
-                let application = self.enum_applications[application].clone();
-                if Some(application.template)
-                    != self.option_enumeration().map(|id| {
-                        self.nominal_identity(crate::Owner::Enum(id))
-                            .declaration_id()
-                    })
-                    || application.arguments.len() != 1
-                {
+            hir::Type::Enum(_) => {
+                let Some(argument) = self.as_option(resolved) else {
                     return Err(CAbiError {
                         path,
                         reason: "enum types have no M12 C ABI representation".to_string(),
                     });
-                }
-                match self.types[application.arguments[0]] {
+                };
+                match self.types[argument] {
                     hir::Type::Ptr(_) | hir::Type::FunPtr(_) => self.classify_c_ffi_type_inner(
-                        application.arguments[0],
+                        argument,
                         substitution,
                         false,
                         path,
@@ -325,7 +314,6 @@ impl Lowerer {
             | hir::Type::Ptr(_)
             | hir::Type::FunPtr(_)
             | hir::Type::Enum(_)
-            | hir::Type::ImportedEnum(_)
             | hir::Type::ImportedClass(_)
             | hir::Type::ImportedInterface(_) => Some(false),
             hir::Type::Param(_) => None,
@@ -390,7 +378,6 @@ impl Lowerer {
             | hir::Type::Ptr(_)
             | hir::Type::FunPtr(_)
             | hir::Type::ImportedStruct(_)
-            | hir::Type::ImportedEnum(_)
             | hir::Type::ImportedClass(_)
             | hir::Type::ImportedInterface(_)
             | hir::Type::Struct(_)

@@ -37,7 +37,8 @@ impl Lowerer {
             }
             Type::Enum(application) => {
                 let application = self.enum_applications[application].clone();
-                let interfaces = self.enums[self.enum_id(application.template)]
+                let interfaces = self
+                    .enum_definition(application.template)
                     .interfaces
                     .clone();
                 interfaces
@@ -70,7 +71,6 @@ impl Lowerer {
             Type::Boolean => self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::Boolean),
             Type::String => self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::String),
             Type::ImportedStruct(value) => value.interfaces.clone(),
-            Type::ImportedEnum(value) => value.interfaces.clone(),
             Type::ImportedInterface(value) => value.parents.clone(),
             Type::ImportedClass(value) => value
                 .base_class

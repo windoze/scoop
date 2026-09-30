@@ -343,7 +343,7 @@ impl Lowerer {
             };
             receiver
                 .and_then(|receiver| state.imported_member_owner_type(receiver, owner))
-                .and_then(|ty| state.types[ty].imported_nominal_application())
+                .and_then(|ty| state.dependency_nominal_application(ty))
                 .map(|(_, arguments)| arguments.to_vec())
                 .unwrap_or_default()
         };

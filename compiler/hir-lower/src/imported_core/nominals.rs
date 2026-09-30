@@ -4,6 +4,7 @@ use super::*;
 use std::sync::Arc;
 
 mod dispatch;
+mod enums;
 mod source;
 mod values;
 
@@ -20,6 +21,12 @@ impl Lowerer {
         owner: hir::SourceNominalId,
         arguments: Vec<hir::TypeId>,
     ) -> Result<hir::TypeId, ImportedSignatureTypeError> {
+        if let Some(application) = self
+            .enum_application_by_key
+            .get(&(owner, arguments.clone()))
+        {
+            return Ok(self.enum_applications[*application].canonical_type);
+        }
         if let Some((id, _)) = self.types.iter().find(|(_, ty)| {
             ty.imported_nominal_application()
                 .is_some_and(|(declaration, existing)| {
@@ -60,9 +67,7 @@ impl Lowerer {
             hir::NominalSourceShapeV1::Struct(_) => {
                 self.imported_struct_type(declaration, arguments, &bindings)
             }
-            hir::NominalSourceShapeV1::Enum(_) => {
-                self.imported_enum_type(declaration, arguments, &bindings)
-            }
+            hir::NominalSourceShapeV1::Enum(_) => self.imported_enum_type(declaration, arguments),
             hir::NominalSourceShapeV1::Intrinsic(representation)
                 if representation.family() == hir::IntrinsicTypeKind::Ptr =>
             {

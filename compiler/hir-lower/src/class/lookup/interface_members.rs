@@ -28,7 +28,7 @@ impl Lowerer {
             Type::Enum(application) => {
                 let application = &self.enum_applications[application];
                 (
-                    self.enums[self.enum_id(application.template)]
+                    self.enum_definition(application.template)
                         .interface_implementations
                         .clone(),
                     application.arguments.clone(),

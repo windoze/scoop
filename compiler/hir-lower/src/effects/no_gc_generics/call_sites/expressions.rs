@@ -14,7 +14,11 @@ impl Lowerer {
                 .type_parameters
                 .ids()
                 .into_iter()
-                .zip(application.arguments.substitution(&self.types))
+                .zip(
+                    application
+                        .arguments
+                        .substitution(&self.types, &self.enum_applications),
+                )
                 .collect(),
             span,
         }
@@ -261,8 +265,8 @@ impl Lowerer {
             ExprKind::ImportedConstructorInit { application, args } => {
                 let application = &self.imported_constructor_applications[*application];
                 let template = &self.imported_constructor_templates[application.template].signature;
-                let (_, arguments) = self.types[application.owner]
-                    .imported_nominal_application()
+                let (_, arguments) = self
+                    .dependency_nominal_application(application.owner)
                     .expect("constructor applications retain their owner arguments");
                 out.push(GenericCall {
                     callee: GenericCallable::ImportedConstructor(application.template),

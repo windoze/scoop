@@ -190,7 +190,6 @@ impl Module {
     fn source_context_type_name(&self, ty: TypeId) -> String {
         match self.types[ty] {
             Type::ImportedStruct(ref structure) => structure.declaration.name().to_owned(),
-            Type::ImportedEnum(ref structure) => structure.declaration.name().to_owned(),
             Type::ImportedClass(ref structure) => structure.declaration.name().to_owned(),
             Type::ImportedInterface(ref structure) => structure.declaration.name().to_owned(),
             Type::Struct(application) => self.structs[self
@@ -217,12 +216,9 @@ impl Module {
                 .expect("a nominal application retains its declaration")]
             .name
             .clone(),
-            Type::Enum(application) => self.enums[self
-                .nominal_identities
-                .enum_id(self.enum_applications[application].template)
-                .expect("a nominal application retains its declaration")]
-            .name
-            .clone(),
+            Type::Enum(application) => self
+                .enum_name(self.enum_applications[application].template)
+                .to_owned(),
             Type::Unit
             | Type::Integer(_)
             | Type::Boolean

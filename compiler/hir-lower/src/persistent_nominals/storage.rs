@@ -17,6 +17,14 @@ impl Lowerer {
         }
     }
 
+    pub(crate) fn source_enum_id(&self, declaration: hir::SourceNominalId) -> Option<hir::EnumId> {
+        match self.nominal_owners.get(&declaration) {
+            Some(Owner::Enum(id)) => Some(*id),
+            Some(_) => unreachable!("an enum application identifies an enum declaration"),
+            None => None,
+        }
+    }
+
     pub(crate) fn class_id(&self, declaration: hir::SourceNominalId) -> hir::ClassId {
         match self.nominal_owners[&declaration] {
             Owner::Class(id) => id,

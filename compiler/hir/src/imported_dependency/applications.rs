@@ -12,7 +12,11 @@ pub enum ImportedCallableArguments {
 }
 
 impl ImportedCallableArguments {
-    pub fn substitution(&self, types: &la_arena::Arena<Type>) -> Vec<TypeId> {
+    pub fn substitution(
+        &self,
+        types: &la_arena::Arena<Type>,
+        enums: &la_arena::Arena<crate::EnumApplication>,
+    ) -> Vec<TypeId> {
         match self {
             Self::Function(arguments) => arguments.clone(),
             Self::Method {
@@ -21,6 +25,7 @@ impl ImportedCallableArguments {
             } => {
                 let owner_arguments = match &types[*owner] {
                     Type::Ptr(pointee) => std::slice::from_ref(pointee),
+                    Type::Enum(application) => &enums[*application].arguments,
                     owner => {
                         owner
                             .imported_nominal_application()

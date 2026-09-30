@@ -62,13 +62,7 @@ impl Concretizer<'_> {
             .iter()
             .map(|argument| self.lower_type(*argument, substitution))
             .collect();
-        self.ensure_enum(
-            self.source
-                .nominal_identities
-                .enum_id(application.template)
-                .expect("an application retains its declaration"),
-            arguments,
-        )
+        self.ensure_enum_definition(application.template, arguments)
     }
 
     pub(super) fn lower_class_application(
@@ -176,9 +170,6 @@ impl Concretizer<'_> {
             export::Type::String => self.intern_type(concrete::TypeKind::String, false),
             export::Type::ImportedStruct(structure) => {
                 self.lower_imported_struct(&structure, substitution)
-            }
-            export::Type::ImportedEnum(enumeration) => {
-                self.lower_imported_enum(&enumeration, substitution)
             }
             export::Type::ImportedClass(class) => self.lower_imported_class(&class, substitution),
             export::Type::ImportedInterface(interface) => {

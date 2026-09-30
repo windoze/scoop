@@ -29,12 +29,10 @@ impl Projection<'_> {
         self.export
             .types
             .iter()
-            .filter_map(|(_, ty)| match ty {
-                Type::ImportedClass(class) => Some(&class.declaration),
-                Type::ImportedInterface(interface) => Some(&interface.declaration),
-                Type::ImportedStruct(structure) => Some(&structure.declaration),
-                Type::ImportedEnum(enumeration) => Some(&enumeration.declaration),
-                _ => None,
+            .filter_map(|(ty, _)| {
+                self.export
+                    .dependency_nominal_application(ty)
+                    .map(|(declaration, _)| declaration)
             })
             .flat_map(|declaration| {
                 declaration

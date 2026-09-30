@@ -1,21 +1,52 @@
 use super::*;
 
+mod queries;
+
 #[derive(Debug, Clone)]
 pub struct EnumDecl {
     pub name: String,
     pub owner: Option<NominalOwner>,
     pub access: NominalAccess,
-    pub self_application: EnumApplicationId,
-    pub type_params: Vec<TypeParamDecl>,
+    pub definition: EnumDefinition,
     pub gc_free_pointee_requirements: Vec<RequiresGcFreePointee>,
     pub no_gc: bool,
-    pub variants: Vec<Variant>,
-    pub interfaces: Vec<TypeId>,
-    pub interface_implementations: Vec<InterfaceImplementation>,
     pub methods: Vec<FunctionId>,
     pub properties: Vec<PropertyId>,
     pub derived_equality: Option<FunctionId>,
     pub span: Span,
+}
+
+/// Checked payload and conformance types, expressed in the declaration's
+/// binder domain. Every application substitutes this same definition.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EnumDefinition {
+    pub self_application: EnumApplicationId,
+    pub type_params: Vec<TypeParamDecl>,
+    pub variants: Vec<Variant>,
+    pub interfaces: Vec<TypeId>,
+    pub interface_implementations: Vec<InterfaceImplementation>,
+}
+
+impl std::ops::Deref for EnumDecl {
+    type Target = EnumDefinition;
+
+    fn deref(&self) -> &Self::Target {
+        &self.definition
+    }
+}
+
+impl std::ops::DerefMut for EnumDecl {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.definition
+    }
+}
+
+/// A decoded definition retains the provider's declaration and uses the same
+/// symbolic payload types as a definition produced from current source.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LoadedEnumDefinition {
+    pub declaration: std::sync::Arc<ImportedNominalDeclaration>,
+    pub definition: EnumDefinition,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -304,7 +335,7 @@ impl OptionCore {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Variant {
     pub name: String,
     /// Validated source declaration shape. This is semantic call/pattern

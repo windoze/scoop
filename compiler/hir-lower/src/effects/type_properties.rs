@@ -68,27 +68,6 @@ impl Lowerer {
                 visiting.remove(&ty);
                 Some(requirements)
             }
-            hir::Type::ImportedEnum(structure) => {
-                if !visiting.insert(ty) {
-                    return None;
-                }
-                let mut requirements = HashSet::new();
-                for field in structure
-                    .variants
-                    .iter()
-                    .flat_map(|variant| &variant.fields)
-                {
-                    let Some(required) =
-                        self.gc_free_requirements_inner(field.ty, environment, visiting)
-                    else {
-                        visiting.remove(&ty);
-                        return None;
-                    };
-                    requirements.extend(required);
-                }
-                visiting.remove(&ty);
-                Some(requirements)
-            }
             hir::Type::Unit
             | hir::Type::Integer(_)
             | hir::Type::Boolean
@@ -156,7 +135,8 @@ impl Lowerer {
                     return None;
                 }
                 let nested = TypeEnvironment {
-                    bindings: self.enums[self.enum_id(id)]
+                    bindings: self
+                        .enum_definition(id)
                         .type_params
                         .iter()
                         .zip(application.arguments.iter().copied())
@@ -165,7 +145,8 @@ impl Lowerer {
                     parent: environment,
                 };
                 let mut requirements = HashSet::new();
-                for field in self.enums[self.enum_id(id)]
+                for field in self
+                    .enum_definition(id)
                     .variants
                     .iter()
                     .flat_map(|variant| &variant.fields)
@@ -227,7 +208,8 @@ impl Lowerer {
                     return false;
                 }
                 let nested = TypeEnvironment {
-                    bindings: self.enums[self.enum_id(id)]
+                    bindings: self
+                        .enum_definition(id)
                         .type_params
                         .iter()
                         .zip(application.arguments.iter().copied())
@@ -235,7 +217,7 @@ impl Lowerer {
                         .collect(),
                     parent: environment,
                 };
-                let result = self.enums[self.enum_id(id)].variants.iter().any(|variant| {
+                let result = self.enum_definition(id).variants.iter().any(|variant| {
                     variant.fields.iter().any(|field| {
                         self.requires_unsafe_use_inner(field.ty, Some(&nested), visiting)
                     })

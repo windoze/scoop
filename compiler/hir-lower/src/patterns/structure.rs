@@ -65,9 +65,7 @@ impl Lowerer {
                     None
                 }
             }
-            Type::Enum(_) | Type::ImportedEnum(_) => {
-                self.resolve_enum_pattern_path(path, matched_ty, span)
-            }
+            Type::Enum(_) => self.resolve_enum_pattern_path(path, matched_ty, span),
             _ if path.is_empty() => {
                 self.error(
                     span,

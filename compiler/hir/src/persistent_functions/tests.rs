@@ -78,6 +78,7 @@ impl Fixture {
             structs: &structs,
             struct_applications: &struct_applications,
             enums: &enums,
+            loaded_enum_definitions: &std::collections::HashMap::new(),
             enum_applications: &enum_applications,
             classes: &classes,
             class_applications: &class_applications,

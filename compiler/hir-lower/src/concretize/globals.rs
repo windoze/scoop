@@ -147,16 +147,16 @@ impl Concretizer<'_> {
         value: &export::HirConstantImage,
     ) -> concrete::HirConstantImage {
         match value {
-            export::HirConstantImage::ImportedEnumUnit { ty, variant } => {
-                let ty = self.lower_type(*ty, &[]);
+            export::HirConstantImage::EnumUnit { variant } => {
+                let ty = self.lower_type(variant.owner, &[]);
                 let concrete::TypeKind::Enum(enumeration) = self.types[ty].kind else {
-                    unreachable!("an imported enum constant retains its enum type")
+                    unreachable!("an enum constant retains its enum type")
                 };
                 let index = self.enums[enumeration]
                     .variants
                     .iter()
-                    .position(|value| value.identity == *variant)
-                    .expect("an imported enum constant retains its declared unit variant");
+                    .position(|value| value.identity == variant.variant)
+                    .expect("an enum constant retains its declared unit variant");
                 concrete::HirConstantImage::EnumUnit {
                     variant: concrete::EnumVariantRef::checked(
                         &self.enums,
@@ -189,11 +189,6 @@ impl Concretizer<'_> {
                     export::HirPointerNullKind::Raw => concrete::HirPointerNullKind::Raw,
                     export::HirPointerNullKind::Code => concrete::HirPointerNullKind::Code,
                 })
-            }
-            export::HirConstantImage::EnumUnit { variant } => {
-                concrete::HirConstantImage::EnumUnit {
-                    variant: self.lower_applied_enum_variant_ref(*variant, &[]),
-                }
             }
             export::HirConstantImage::Struct {
                 application,

@@ -7,10 +7,7 @@ use std::path::{Component, Path};
 use crate::call_resolution::applicability::NominalApplicabilityInput;
 use crate::call_resolution::arguments::CandidateArgumentMap;
 use crate::call_resolution::candidates::{NominalConstructorSource, NominalConstructorView};
-use crate::{
-    FnSig, ForbiddenSuspendContext, Function, FunctionKind, Lowerer, SuspensionContext,
-    VariantStyle,
-};
+use crate::{FnSig, ForbiddenSuspendContext, Function, FunctionKind, Lowerer, SuspensionContext};
 
 mod constant_images;
 mod consts;

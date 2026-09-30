@@ -24,31 +24,34 @@ impl Harness {
             owner: None,
             name: "Option".to_string(),
             access: hir::NominalAccess::public(),
-            self_application: option_self_application,
-            type_params: vec![type_param("T")],
             gc_free_pointee_requirements: Vec::new(),
             no_gc: false,
-            variants: vec![
-                hir::Variant {
-                    name: "Some".to_string(),
-                    style: hir::VariantStyle::Positional,
-                    fields: vec![hir::Field {
-                        name: "_1".to_string(),
-                        ty: t,
-                    }],
-                },
-                hir::Variant {
-                    name: "None".to_string(),
-                    style: hir::VariantStyle::Unit,
-                    fields: Vec::new(),
-                },
-            ],
-            interfaces: Vec::new(),
-            interface_implementations: Vec::new(),
             methods: Vec::new(),
             properties: Vec::new(),
             derived_equality: None,
             span: SPAN,
+
+            definition: hir::EnumDefinition {
+                self_application: option_self_application,
+                type_params: vec![type_param("T")],
+                variants: vec![
+                    hir::Variant {
+                        name: "Some".to_string(),
+                        style: hir::VariantStyle::Positional,
+                        fields: vec![hir::Field {
+                            name: "_1".to_string(),
+                            ty: t,
+                        }],
+                    },
+                    hir::Variant {
+                        name: "None".to_string(),
+                        style: hir::VariantStyle::Unit,
+                        fields: Vec::new(),
+                    },
+                ],
+                interfaces: Vec::new(),
+                interface_implementations: Vec::new(),
+            },
         });
         let option_self_type = hir::TypeId::from_raw((types.len() as u32).into());
         let actual_option_self_application = enum_applications.alloc(hir::EnumApplication {

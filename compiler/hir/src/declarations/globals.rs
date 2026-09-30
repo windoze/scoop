@@ -47,11 +47,7 @@ pub enum HirConstantImage {
     String(String),
     NullPointer(HirPointerNullKind),
     EnumUnit {
-        variant: AppliedEnumVariantRef,
-    },
-    ImportedEnumUnit {
-        ty: TypeId,
-        variant: scoop_identity::PersistentEnumVariantId,
+        variant: EnumVariantApplication,
     },
     Struct {
         application: StructApplicationId,

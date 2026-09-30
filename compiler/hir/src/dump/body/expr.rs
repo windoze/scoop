@@ -140,7 +140,7 @@ pub(super) fn dump_expr(
             let application = &module.imported_generic_applications[closure.application];
             let arguments = application
                 .arguments
-                .substitution(&module.types)
+                .substitution(&module.types, &module.enum_applications)
                 .iter()
                 .map(|ty| type_name(module, *ty))
                 .collect::<Vec<_>>()
@@ -672,7 +672,7 @@ pub(super) fn dump_expr(
             let template = &module.imported_generic_templates[application.template];
             let arguments = application
                 .arguments
-                .substitution(&module.types)
+                .substitution(&module.types, &module.enum_applications)
                 .iter()
                 .map(|ty| type_name(module, *ty))
                 .collect::<Vec<_>>()

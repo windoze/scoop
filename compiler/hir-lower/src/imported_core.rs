@@ -29,8 +29,7 @@ impl Lowerer {
                 core.fundamental_types().ptr().persistent(),
             ));
         }
-        self.types[ty]
-            .imported_nominal_application()
+        self.dependency_nominal_application(ty)
             .map(|(declaration, _)| declaration.owner())
             .or_else(|| {
                 self.imported_nominal_declaration(ty)
@@ -41,24 +40,15 @@ impl Lowerer {
     pub(crate) fn imported_owner_arguments(&self, ty: hir::TypeId) -> &[hir::TypeId] {
         match &self.types[ty] {
             hir::Type::Ptr(pointee) => std::slice::from_ref(pointee),
-            ty => ty
-                .imported_nominal_application()
+            _ => self
+                .dependency_nominal_application(ty)
                 .map_or(&[], |(_, args)| args),
         }
     }
 
     pub(crate) fn imported_nominal_declaration(&self, ty: hir::TypeId) -> Option<PersistentTypeId> {
-        if let hir::Type::ImportedStruct(ty) = &self.types[ty] {
-            return ty.declaration.identity.concrete_id();
-        }
-        if let hir::Type::ImportedEnum(ty) = &self.types[ty] {
-            return ty.declaration.identity.concrete_id();
-        }
-        if let hir::Type::ImportedClass(ty) = &self.types[ty] {
-            return ty.declaration.identity.concrete_id();
-        }
-        if let hir::Type::ImportedInterface(ty) = &self.types[ty] {
-            return ty.declaration.identity.concrete_id();
+        if let Some((declaration, _)) = self.dependency_nominal_application(ty) {
+            return declaration.identity.concrete_id();
         }
         let CoreLoweringAuthority::Imported(authority) = &self.core else {
             return None;
@@ -73,7 +63,6 @@ impl Lowerer {
                 .identity_record()
                 .id(),
             hir::Type::ImportedStruct(_)
-            | hir::Type::ImportedEnum(_)
             | hir::Type::ImportedClass(_)
             | hir::Type::ImportedInterface(_)
             | hir::Type::Struct(_)

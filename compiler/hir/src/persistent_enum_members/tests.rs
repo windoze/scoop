@@ -32,24 +32,27 @@ fn enum_declaration() -> EnumDecl {
         name: "Choice".to_string(),
         owner: None,
         access: NominalAccess::public(),
-        self_application: EnumApplicationId::from_raw(0_u32.into()),
-        type_params: Vec::new(),
         gc_free_pointee_requirements: Vec::new(),
         no_gc: false,
-        variants: vec![Variant {
-            name: "Value".to_string(),
-            style: crate::VariantStyle::Named,
-            fields: vec![Field {
-                name: "payload".to_string(),
-                ty: crate::TypeId::from_raw(0_u32.into()),
-            }],
-        }],
-        interfaces: Vec::new(),
-        interface_implementations: Vec::new(),
         methods: Vec::new(),
         properties: Vec::new(),
         derived_equality: None,
         span: Span::new(0, 0),
+
+        definition: crate::EnumDefinition {
+            self_application: EnumApplicationId::from_raw(0_u32.into()),
+            type_params: Vec::new(),
+            variants: vec![Variant {
+                name: "Value".to_string(),
+                style: crate::VariantStyle::Named,
+                fields: vec![Field {
+                    name: "payload".to_string(),
+                    ty: crate::TypeId::from_raw(0_u32.into()),
+                }],
+            }],
+            interfaces: Vec::new(),
+            interface_implementations: Vec::new(),
+        },
     }
 }
 

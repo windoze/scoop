@@ -47,7 +47,8 @@ impl Lowerer {
                         ))
                     }
                     hir::Type::Enum(application) => {
-                        let id = self.enum_id(self.enum_applications[*application].template);
+                        let id =
+                            self.source_enum_id(self.enum_applications[*application].template)?;
                         (self.enums[id].no_gc && !self.enums[id].type_params.is_empty())
                             .then_some((ty, "enum", id.into_raw().into_u32(), self.enums[id].span))
                     }

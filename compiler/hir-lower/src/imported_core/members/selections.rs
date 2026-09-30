@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 use scoop_identity::{CallableTemplateOrigin, PersistentDispatchSlotId};
 
@@ -9,13 +10,13 @@ pub(super) type SelectedInterfaceSources =
 
 impl Lowerer {
     pub(super) fn record_selected_interface_sources(
-        &self,
+        &mut self,
         ty: hir::TypeId,
         selected: &mut SelectedInterfaceSources,
     ) {
         let (declaration, mut pending) = match &self.types[ty] {
             hir::Type::ImportedClass(value) => (
-                &value.declaration,
+                Arc::clone(&value.declaration),
                 value
                     .interfaces
                     .iter()
@@ -23,8 +24,19 @@ impl Lowerer {
                     .chain(value.base_class)
                     .collect(),
             ),
-            hir::Type::ImportedStruct(value) => (&value.declaration, value.interfaces.clone()),
-            hir::Type::ImportedEnum(value) => (&value.declaration, value.interfaces.clone()),
+            hir::Type::ImportedStruct(value) => {
+                (Arc::clone(&value.declaration), value.interfaces.clone())
+            }
+            hir::Type::Enum(application) => {
+                let Some(definition) = self
+                    .loaded_enum_definitions
+                    .get(&self.enum_applications[*application].template)
+                else {
+                    return;
+                };
+                let declaration = Arc::clone(&definition.declaration);
+                (declaration, self.direct_nominal_supertypes(ty))
+            }
             hir::Type::Integer(_) | hir::Type::Boolean | hir::Type::String => {
                 let kind = match self.types[ty] {
                     hir::Type::Integer(kind) => hir::IntrinsicTypeKind::Integer(kind),
@@ -35,7 +47,7 @@ impl Lowerer {
                 let Some(value) = self.imported_intrinsic_types.get(&kind) else {
                     return;
                 };
-                (&value.declaration, value.interfaces.clone())
+                (Arc::clone(&value.declaration), value.interfaces.clone())
             }
             _ => return,
         };

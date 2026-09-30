@@ -323,9 +323,9 @@ impl Lowerer {
             Type::Struct(application) => Some(NominalTarget::Struct(
                 self.struct_id(self.struct_applications[application].template),
             )),
-            Type::Enum(application) => Some(NominalTarget::Enum(
-                self.enum_id(self.enum_applications[application].template),
-            )),
+            Type::Enum(application) => self
+                .source_enum_id(self.enum_applications[application].template)
+                .map(NominalTarget::Enum),
             Type::Class(application) => {
                 let class = self.class_applications[application].template;
                 Some(
@@ -344,7 +344,6 @@ impl Lowerer {
             Type::Ptr(_) => self.ffi_ptr.map(NominalTarget::Struct),
             Type::FunPtr(_) => self.ffi_fun_ptr.map(NominalTarget::Struct),
             Type::ImportedStruct(_)
-            | Type::ImportedEnum(_)
             | Type::ImportedClass(_)
             | Type::ImportedInterface(_)
             | Type::Unit

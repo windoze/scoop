@@ -177,9 +177,12 @@ impl Lowerer {
             }
             Type::Enum(application) => {
                 let application = &self.enum_applications[*application];
-                let target = ValueLayoutTemplate::Enum(self.enum_id(application.template));
+                let Some(id) = self.source_enum_id(application.template) else {
+                    return;
+                };
+                let target = ValueLayoutTemplate::Enum(id);
                 let relevant = &relevance[&target];
-                for (parameter, &argument) in self.enums[self.enum_id(application.template)]
+                for (parameter, &argument) in self.enums[id]
                     .type_params
                     .iter()
                     .zip(&application.arguments)
@@ -194,7 +197,6 @@ impl Lowerer {
             // not stored inline and therefore do not make parameters layout
             // relevant.
             Type::ImportedStruct(_)
-            | Type::ImportedEnum(_)
             | Type::ImportedClass(_)
             | Type::ImportedInterface(_)
             | Type::Unit
@@ -244,12 +246,15 @@ impl Lowerer {
             }
             Type::Enum(application) => {
                 let application = &self.enum_applications[*application];
-                let target = ValueLayoutTemplate::Enum(self.enum_id(application.template));
+                let Some(id) = self.source_enum_id(application.template) else {
+                    return;
+                };
+                let target = ValueLayoutTemplate::Enum(id);
                 if seen.insert(target) {
                     out.push(target);
                 }
                 let relevant = &relevance[&target];
-                for (parameter, &argument) in self.enums[self.enum_id(application.template)]
+                for (parameter, &argument) in self.enums[id]
                     .type_params
                     .iter()
                     .zip(&application.arguments)
@@ -260,7 +265,6 @@ impl Lowerer {
                 }
             }
             Type::ImportedStruct(_)
-            | Type::ImportedEnum(_)
             | Type::ImportedClass(_)
             | Type::ImportedInterface(_)
             | Type::Unit

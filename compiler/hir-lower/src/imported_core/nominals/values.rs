@@ -48,63 +48,6 @@ impl Lowerer {
         Ok(ty)
     }
 
-    pub(super) fn imported_enum_type(
-        &mut self,
-        declaration: Arc<hir::ImportedNominalDeclaration>,
-        arguments: Vec<hir::TypeId>,
-        bindings: &ImportedTypeBindings,
-    ) -> Result<hir::TypeId, ImportedSignatureTypeError> {
-        let hir::NominalSourceShapeV1::Enum(shape) = declaration.interface.source_shape() else {
-            return Err(ImportedSignatureTypeError::Structural);
-        };
-        let mut enumeration = hir::ImportedEnumType {
-            declaration: Arc::clone(&declaration),
-            arguments,
-            variants: Vec::new(),
-            interfaces: Vec::new(),
-            interface_implementations: Vec::new(),
-        };
-        let ty = self.intern_type(hir::Type::ImportedEnum(Arc::new(enumeration.clone())));
-        enumeration.variants = shape
-            .variants()
-            .iter()
-            .zip(&declaration.variant_names)
-            .map(|(variant, names)| {
-                let fields = variant
-                    .fields()
-                    .iter()
-                    .zip(&names.fields)
-                    .map(|(field, name)| {
-                        Ok(hir::ImportedEnumField {
-                            identity: field.field(),
-                            name: name.clone(),
-                            ty: self.imported_signature_type_with_bindings(
-                                field.value_type(),
-                                bindings,
-                            )?,
-                        })
-                    })
-                    .collect::<Result<Vec<_>, ImportedSignatureTypeError>>()?;
-                Ok(hir::ImportedEnumValueVariant {
-                    identity: variant.variant(),
-                    name: names.name.clone(),
-                    style: variant.style(),
-                    fields,
-                })
-            })
-            .collect::<Result<Vec<_>, ImportedSignatureTypeError>>()?;
-        self.types[ty] = hir::Type::ImportedEnum(Arc::new(enumeration.clone()));
-        enumeration.interfaces = self.imported_value_interfaces(&declaration, bindings)?;
-        self.types[ty] = hir::Type::ImportedEnum(Arc::new(enumeration.clone()));
-        enumeration.interface_implementations = self.resolve_imported_interface_implementations(
-            ty,
-            &declaration,
-            &enumeration.interfaces,
-        )?;
-        self.types[ty] = hir::Type::ImportedEnum(Arc::new(enumeration));
-        Ok(ty)
-    }
-
     fn imported_value_interfaces(
         &mut self,
         declaration: &hir::ImportedNominalDeclaration,

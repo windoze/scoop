@@ -101,10 +101,7 @@ impl Lowerer {
                 // enum has a variant with the same name. `Unit` / `()` reach
                 // this stage as literal patterns and remain rejected below.
                 let unmatched_enum = if ctx.in_when {
-                    if matches!(
-                        self.types[matched_ty],
-                        Type::Enum(_) | Type::ImportedEnum(_)
-                    ) {
+                    if matches!(self.types[matched_ty], Type::Enum(_)) {
                         if let Some(application) = self.named_enum_variant(matched_ty, &name.text) {
                             return self.bare_variant_pattern(name, application, ctx);
                         }

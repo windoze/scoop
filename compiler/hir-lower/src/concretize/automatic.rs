@@ -42,7 +42,6 @@ impl Concretizer<'_> {
     pub(super) fn automatic_type(&self, ty: export::TypeId) -> bool {
         match &self.source.types[ty] {
             export::Type::ImportedStruct(_)
-            | export::Type::ImportedEnum(_)
             | export::Type::ImportedClass(_)
             | export::Type::ImportedInterface(_)
             | export::Type::Unit
@@ -98,13 +97,13 @@ impl Concretizer<'_> {
             export::Type::Enum(application) => {
                 let application = &self.source.enum_applications[*application];
                 (!application.arguments.is_empty()
-                    || self.automatic_nominal(
-                        &self.source.nominal_identities[self
-                            .source
-                            .nominal_identities
-                            .enum_id(application.template)
-                            .expect("an application retains its declaration")],
-                    ))
+                    || self
+                        .source
+                        .nominal_identities
+                        .enum_id(application.template)
+                        .is_none_or(|id| {
+                            self.automatic_nominal(&self.source.nominal_identities[id])
+                        }))
                     && application
                         .arguments
                         .iter()

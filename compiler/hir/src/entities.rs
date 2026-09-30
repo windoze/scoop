@@ -171,6 +171,7 @@ pub struct Module {
     /// stores a declaration id and an unrelated argument vector.
     pub struct_applications: Arena<StructApplication>,
     pub enums: Arena<EnumDecl>,
+    pub loaded_enum_definitions: std::collections::HashMap<SourceNominalId, LoadedEnumDefinition>,
     pub enum_applications: Arena<EnumApplication>,
     pub classes: Arena<ClassDecl>,
     pub class_fields: Arena<ClassField>,

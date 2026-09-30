@@ -393,6 +393,7 @@ impl Lowerer {
             struct_constructor_applications: self.struct_constructor_applications,
             struct_applications: self.struct_applications,
             enums: self.enums,
+            loaded_enum_definitions: self.loaded_enum_definitions,
             enum_applications: self.enum_applications,
             classes: self.classes,
             class_fields: self.class_fields,

@@ -62,9 +62,7 @@ impl Lowerer {
             return Some(hir::ExhaustivenessProof::IrrefutableArm { subject_ty });
         }
         match self.types[subject_ty] {
-            Type::Enum(_) | Type::ImportedEnum(_) => {
-                Some(hir::ExhaustivenessProof::EnumPatternMatrix { subject_ty })
-            }
+            Type::Enum(_) => Some(hir::ExhaustivenessProof::EnumPatternMatrix { subject_ty }),
             Type::ImportedStruct(_)
             | Type::ImportedClass(_)
             | Type::ImportedInterface(_)
@@ -216,7 +214,7 @@ impl Lowerer {
                     field_types: structure.fields.iter().map(|field| field.ty).collect(),
                 }])
             }
-            Type::Enum(_) | Type::ImportedEnum(_) => ConstructorSpace::Closed(
+            Type::Enum(_) => ConstructorSpace::Closed(
                 self.enum_variants(ty)
                     .into_iter()
                     .enumerate()

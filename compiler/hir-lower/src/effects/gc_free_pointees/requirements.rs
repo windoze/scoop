@@ -99,12 +99,14 @@ impl Lowerer {
             }
             hir::Type::Enum(application) => {
                 let application = &self.enum_applications[*application];
-                self.collect_application_pointee_parameters(
-                    &self.enums[self.enum_id(application.template)].type_params,
-                    &self.enums[self.enum_id(application.template)].gc_free_pointee_requirements,
-                    &application.arguments,
-                    out,
-                );
+                if let Some(id) = self.source_enum_id(application.template) {
+                    self.collect_application_pointee_parameters(
+                        &self.enums[id].type_params,
+                        &self.enums[id].gc_free_pointee_requirements,
+                        &application.arguments,
+                        out,
+                    );
+                }
                 for &argument in &application.arguments {
                     self.collect_pointee_parameters(argument, visiting, out);
                 }
@@ -122,11 +124,10 @@ impl Lowerer {
                 self.collect_pointee_parameters(function.return_type, visiting, out);
             }
             hir::Type::ImportedStruct(_)
-            | hir::Type::ImportedEnum(_)
             | hir::Type::ImportedClass(_)
             | hir::Type::ImportedInterface(_) => {
-                let (_, arguments) = self.types[ty]
-                    .imported_nominal_application()
+                let (_, arguments) = self
+                    .dependency_nominal_application(ty)
                     .expect("matched imported nominal");
                 for &argument in arguments {
                     self.collect_pointee_parameters(argument, visiting, out);

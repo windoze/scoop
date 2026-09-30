@@ -9,9 +9,6 @@ pub(in crate::production) fn from_type(
         crate::Type::ImportedStruct(structure) => {
             return Some(structure.declaration.owner());
         }
-        crate::Type::ImportedEnum(structure) => {
-            return Some(structure.declaration.owner());
-        }
         crate::Type::ImportedClass(structure) => {
             return Some(structure.declaration.owner());
         }
