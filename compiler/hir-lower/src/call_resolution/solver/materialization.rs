@@ -62,15 +62,22 @@ impl Lowerer {
         ty: hir::TypeId,
         origin: ConstraintOrigin,
     ) -> Result<Option<hir::TypeId>, ConstraintFailure> {
-        if let Some((declaration, arguments)) =
-            self.types[ty].clone().imported_nominal_application()
-        {
-            let Some(arguments) = self.materialize_types(session, bindings, arguments, origin)?
+        if let Some(application) = self.nominal_application(ty) {
+            let Some(arguments) =
+                self.materialize_types(session, bindings, &application.arguments, origin)?
             else {
                 return Ok(None);
             };
+            if self.ffi_fun_ptr.is_some_and(|id| {
+                self.nominal_identity(crate::Owner::Struct(id))
+                    .declaration_id()
+                    == application.template
+            }) && !matches!(arguments.as_slice(), [function] if matches!(self.types[*function], Type::Function(_)))
+            {
+                return Ok(None);
+            }
             return self
-                .imported_nominal_application(declaration.owner(), arguments)
+                .apply_nominal_type(application.template, arguments)
                 .map(Some)
                 .map_err(|_| ConstraintFailure {
                     origin,
@@ -84,58 +91,6 @@ impl Lowerer {
                     kind: ConstraintFailureKind::ForeignTypeParameter(parameter),
                 })?;
                 self.binding_for(session, bindings, variable, origin)
-            }
-            Type::Struct(application) => {
-                let application = self.struct_applications[application].clone();
-                let Some(arguments) =
-                    self.materialize_types(session, bindings, &application.arguments, origin)?
-                else {
-                    return Ok(None);
-                };
-                if Some(application.template) == self.ffi_fun_ptr {
-                    let [function] = arguments.as_slice() else {
-                        return Ok(None);
-                    };
-                    let Type::Function(function) = self.types[*function] else {
-                        return Ok(None);
-                    };
-                    return Ok(Some(self.intern_type(Type::FunPtr(function))));
-                }
-                Ok(Some(
-                    self.struct_application(application.template, arguments),
-                ))
-            }
-            Type::Class(application) => {
-                let application = self.class_applications[application].clone();
-                let Some(arguments) =
-                    self.materialize_types(session, bindings, &application.arguments, origin)?
-                else {
-                    return Ok(None);
-                };
-                Ok(Some(
-                    self.class_application(application.template, arguments),
-                ))
-            }
-            Type::Interface(application) => {
-                let application = self.interface_applications[application].clone();
-                let Some(arguments) =
-                    self.materialize_types(session, bindings, &application.arguments, origin)?
-                else {
-                    return Ok(None);
-                };
-                Ok(Some(self.intern_interface_application(
-                    application.template,
-                    arguments,
-                )))
-            }
-            Type::Enum(application) => {
-                let application = self.enum_applications[application].clone();
-                let Some(arguments) =
-                    self.materialize_types(session, bindings, &application.arguments, origin)?
-                else {
-                    return Ok(None);
-                };
-                Ok(Some(self.enum_application(application.template, arguments)))
             }
             Type::Tuple(elements) => {
                 let Some(elements) =

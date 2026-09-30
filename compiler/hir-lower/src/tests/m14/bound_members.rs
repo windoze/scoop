@@ -219,7 +219,12 @@ fn bound_member_inherits_through_exact_parent_application() {
         panic!("Parent is reached through an interface bound")
     };
     assert_eq!(
-        output.export.interfaces[output.export.interface_applications[root].template].name,
+        output.export.interfaces[output
+            .export
+            .nominal_identities
+            .interface_id(output.export.interface_applications[root].template)
+            .expect("an application retains its declaration")]
+        .name,
         "Child"
     );
     assert_eq!(
@@ -241,8 +246,12 @@ fn bound_member_inherits_through_exact_parent_application() {
             else {
                 return false;
             };
-            output.export.interfaces[output.export.interface_applications[application].template]
-                .name
+            output.export.interfaces[output
+                .export
+                .nominal_identities
+                .interface_id(output.export.interface_applications[application].template)
+                .expect("an application retains its declaration")]
+            .name
                 == "Child"
         })
         .expect("Child conformance");

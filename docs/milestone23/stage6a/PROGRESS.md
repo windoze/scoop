@@ -249,3 +249,11 @@
 - 全仓 fmt／clippy 与全部 1318 项 HIR lowering 单元测试通过；新增单元检查 getter／setter 保留声明方完整实参和原 receiver。9 组相关真实产物回归全部覆盖通过，包含泛型成员、扩展属性、受保护成员、默认值、class／interface 及继承初始化 ABI。
 - 两组旧快照差异经上一个已验证编译器复现，实际输出与本批一致；14 份旧快照只同步抽象访问器名称及既定函数顺序，完整两组更新后再次关闭开关通过。最终日志前缀 `/tmp/scoop-m23-6a-bound-properties-`，结果见 `all-unit.log`、`artifact-verified.log`、`regressions.log` 和两个 `snapshot-verified-*.log`。
 - 属性主文件从 625 行拆为 394 行；查找、存储读写和访问器目标按实际职责分别为 125、130、26 行。继续复用 4.0 GiB 的 `target/m23-6a`，没有删除活动构建目录。完整 nominal application 与声明存储迁移继续推进。
+
+## 名义应用保留原声明身份
+
+- struct／enum／class／interface 的符号化 application 直接保存原 `SourceNominalId` 和完整实参，四种 application ID 保持独立。原身份通过已有声明关系定位存储；字段、variant、构造与 core 协议的引用核对同步使用原身份。新增声明 arena 重排测试，证明 application 仍定位同一原 enum，并拒绝重排后落在旧位置的其他声明。
+- 完整替换、方法参数替换、部分推断提示和求解器的类型项物化共用 nominal application 查询与重新应用入口，删除四种 nominal 在各替换器中的重复分支。类型替换文件从 325 行降至 176 行；FunPtr 的完整函数签名继续正规化为既定表示，没有新增机器根或修改 wire。
+- 原 1500 行左右的 nominal 声明文件按 struct、enum、class、字段、成员、构造、intrinsic 和测试职责拆分，生产子模块均不超过 325 行。MIR 测试构造器使用相同的原声明关系，未增加另一套编译或身份生成路径。
+- 全仓 fmt／clippy、859 项 HIR、1318 项 HIR lowering 和 114 项 MIR lowering 单元测试全部通过。13 组真实产物回归全部关闭快照更新开关通过，覆盖四类 nominal、构造、指针、函数引用、默认值、数组、bound、属性及完整 core 的三组 MIR／LIR 导出闭包；既有快照无需改动。日志前缀 `/tmp/scoop-m23-6a-application-origins-`，结果见 `unit.log`、`build.log` 与 `artifacts.json`。
+- 确认没有 cargo／rustc 占用后清理 1764.0 MiB 旧增量缓存，继续复用 `target/m23-6a`。本批完成 application 原身份和共同替换；其余来源专用类型及完整声明存储继续迁移，不据此宣告 6a 完成。

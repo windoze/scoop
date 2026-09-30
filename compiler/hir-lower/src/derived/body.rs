@@ -103,8 +103,9 @@ impl Lowerer {
                 Ok(self.derived_call(lhs, rhs, application, self.boolean, span))
             }
             Type::Struct(application) => {
-                let function =
-                    self.structs[self.struct_applications[application].template].derived_equality;
+                let function = self.structs
+                    [self.struct_id(self.struct_applications[application].template)]
+                .derived_equality;
                 if let Some(function) = function {
                     let owner = hir::MethodOwnerApplication::Struct(application);
                     match self.ensure_derived_equality_application(
@@ -133,8 +134,9 @@ impl Lowerer {
                 self.resolve_derived_field_member_equality(lhs, rhs, path, span)
             }
             Type::Enum(application) => {
-                let function =
-                    self.enums[self.enum_applications[application].template].derived_equality;
+                let function = self.enums
+                    [self.enum_id(self.enum_applications[application].template)]
+                .derived_equality;
                 if let Some(function) = function {
                     let owner = hir::MethodOwnerApplication::Enum(application);
                     match self.ensure_derived_equality_application(

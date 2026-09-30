@@ -177,14 +177,16 @@ impl Lowerer {
     ) -> Result<Option<DerivedEqualityCandidate>, String> {
         let nominal = match self.types[ty].clone() {
             Type::Struct(application) => {
-                let declaration = &self.structs[self.struct_applications[application].template];
+                let declaration =
+                    &self.structs[self.struct_id(self.struct_applications[application].template)];
                 let Some(function) = declaration.derived_equality else {
                     return Ok(None);
                 };
                 Some((function, hir::MethodOwnerApplication::Struct(application)))
             }
             Type::Enum(application) => {
-                let declaration = &self.enums[self.enum_applications[application].template];
+                let declaration =
+                    &self.enums[self.enum_id(self.enum_applications[application].template)];
                 let Some(function) = declaration.derived_equality else {
                     return Ok(None);
                 };

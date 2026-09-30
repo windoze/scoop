@@ -29,7 +29,7 @@ fn assert_variant(module: &hir::Module, expression: &hir::Expr, owner: &str, nam
     };
     assert_eq!(
         module.enum_applications[application].template,
-        declaration.enumeration()
+        module.nominal_identities[declaration.enumeration()].declaration_id()
     );
     assert_eq!(module.enums[declaration.enumeration()].name, owner);
     assert_eq!(

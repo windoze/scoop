@@ -24,7 +24,14 @@ fn class_construction_lowers_to_class_init() {
         } => {
             let application = module.class_constructor_applications[*constructor].owner;
             let class_id = module.class_applications[application].template;
-            assert_eq!(module.classes[class_id].name, "C");
+            assert_eq!(
+                module.classes[module
+                    .nominal_identities
+                    .class_id(class_id)
+                    .expect("an application retains its declaration")]
+                .name,
+                "C"
+            );
             assert!(matches!(
                 module.types[local_init(main, "c").ty],
                 hir::Type::Class(found) if found == application

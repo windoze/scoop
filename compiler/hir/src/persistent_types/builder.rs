@@ -250,15 +250,18 @@ impl<'a> TypeIdentityBuilder<'a> {
             return self.unknown(ty, HirTypeRelation::StructApplication, id);
         }
         let application = self.inputs.struct_applications[id].clone();
-        if application.canonical_type != ty
-            || local_index(application.template) >= self.inputs.structs.len()
-        {
+        let template = self
+            .inputs
+            .nominal_identities
+            .struct_id(application.template)
+            .ok_or(HirTypeIdentityError::InvalidApplication { ty: raw_index(ty) })?;
+        if application.canonical_type != ty {
             return Err(HirTypeIdentityError::InvalidApplication { ty: raw_index(ty) });
         }
         self.nominal_application(
             ty,
-            self.inputs.nominal_identities[application.template].clone(),
-            self.inputs.structs[application.template].type_params.len(),
+            self.inputs.nominal_identities[template].clone(),
+            self.inputs.structs[template].type_params.len(),
             &application.arguments,
         )
     }
@@ -272,15 +275,18 @@ impl<'a> TypeIdentityBuilder<'a> {
             return self.unknown(ty, HirTypeRelation::EnumApplication, id);
         }
         let application = self.inputs.enum_applications[id].clone();
-        if application.canonical_type != ty
-            || local_index(application.template) >= self.inputs.enums.len()
-        {
+        let template = self
+            .inputs
+            .nominal_identities
+            .enum_id(application.template)
+            .ok_or(HirTypeIdentityError::InvalidApplication { ty: raw_index(ty) })?;
+        if application.canonical_type != ty {
             return Err(HirTypeIdentityError::InvalidApplication { ty: raw_index(ty) });
         }
         self.nominal_application(
             ty,
-            self.inputs.nominal_identities[application.template].clone(),
-            self.inputs.enums[application.template].type_params.len(),
+            self.inputs.nominal_identities[template].clone(),
+            self.inputs.enums[template].type_params.len(),
             &application.arguments,
         )
     }
@@ -294,12 +300,15 @@ impl<'a> TypeIdentityBuilder<'a> {
             return self.unknown(ty, HirTypeRelation::ClassApplication, id);
         }
         let application = self.inputs.class_applications[id].clone();
-        if application.canonical_type != ty
-            || local_index(application.template) >= self.inputs.classes.len()
-        {
+        let template = self
+            .inputs
+            .nominal_identities
+            .class_id(application.template)
+            .ok_or(HirTypeIdentityError::InvalidApplication { ty: raw_index(ty) })?;
+        if application.canonical_type != ty {
             return Err(HirTypeIdentityError::InvalidApplication { ty: raw_index(ty) });
         }
-        if let Some(&object) = self.object_by_backing_class.get(&application.template) {
+        if let Some(&object) = self.object_by_backing_class.get(&template) {
             return self.nominal_application(
                 ty,
                 self.inputs.nominal_identities[object].clone(),
@@ -309,8 +318,8 @@ impl<'a> TypeIdentityBuilder<'a> {
         }
         self.nominal_application(
             ty,
-            self.inputs.nominal_identities[application.template].clone(),
-            self.inputs.classes[application.template].type_params.len(),
+            self.inputs.nominal_identities[template].clone(),
+            self.inputs.classes[template].type_params.len(),
             &application.arguments,
         )
     }
@@ -324,17 +333,18 @@ impl<'a> TypeIdentityBuilder<'a> {
             return self.unknown(ty, HirTypeRelation::InterfaceApplication, id);
         }
         let application = self.inputs.interface_applications[id].clone();
-        if application.canonical_type != ty
-            || local_index(application.template) >= self.inputs.interfaces.len()
-        {
+        let template = self
+            .inputs
+            .nominal_identities
+            .interface_id(application.template)
+            .ok_or(HirTypeIdentityError::InvalidApplication { ty: raw_index(ty) })?;
+        if application.canonical_type != ty {
             return Err(HirTypeIdentityError::InvalidApplication { ty: raw_index(ty) });
         }
         self.nominal_application(
             ty,
-            self.inputs.nominal_identities[application.template].clone(),
-            self.inputs.interfaces[application.template]
-                .type_params
-                .len(),
+            self.inputs.nominal_identities[template].clone(),
+            self.inputs.interfaces[template].type_params.len(),
             &application.arguments,
         )
     }

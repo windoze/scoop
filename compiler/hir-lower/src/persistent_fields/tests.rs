@@ -103,6 +103,7 @@ fn identities(
         let applied = hir::AppliedStructFieldRef::checked(
             &output.export.structs,
             &output.export.struct_applications,
+            &output.export.nominal_identities,
             structure.self_application,
             u32::try_from(index).unwrap(),
         )

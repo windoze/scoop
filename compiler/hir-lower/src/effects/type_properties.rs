@@ -128,7 +128,7 @@ impl Lowerer {
                     return None;
                 }
                 let nested = TypeEnvironment {
-                    bindings: self.structs[id]
+                    bindings: self.structs[self.struct_id(id)]
                         .type_params
                         .iter()
                         .zip(application.arguments.iter().copied())
@@ -137,7 +137,7 @@ impl Lowerer {
                     parent: environment,
                 };
                 let mut requirements = HashSet::new();
-                for field in self.structs[id].semantic_fields() {
+                for field in self.structs[self.struct_id(id)].semantic_fields() {
                     let Some(required) =
                         self.gc_free_requirements_inner(field.ty, Some(&nested), visiting)
                     else {
@@ -156,7 +156,7 @@ impl Lowerer {
                     return None;
                 }
                 let nested = TypeEnvironment {
-                    bindings: self.enums[id]
+                    bindings: self.enums[self.enum_id(id)]
                         .type_params
                         .iter()
                         .zip(application.arguments.iter().copied())
@@ -165,7 +165,7 @@ impl Lowerer {
                     parent: environment,
                 };
                 let mut requirements = HashSet::new();
-                for field in self.enums[id]
+                for field in self.enums[self.enum_id(id)]
                     .variants
                     .iter()
                     .flat_map(|variant| &variant.fields)
@@ -198,14 +198,14 @@ impl Lowerer {
             hir::Type::Struct(application) => {
                 let application = &self.struct_applications[*application];
                 let id = application.template;
-                if self.structs[id].attributes.interior_mutable {
+                if self.structs[self.struct_id(id)].attributes.interior_mutable {
                     return true;
                 }
                 if !visiting.insert(ty) {
                     return false;
                 }
                 let nested = TypeEnvironment {
-                    bindings: self.structs[id]
+                    bindings: self.structs[self.struct_id(id)]
                         .type_params
                         .iter()
                         .zip(application.arguments.iter().copied())
@@ -213,7 +213,7 @@ impl Lowerer {
                         .collect(),
                     parent: environment,
                 };
-                let result = self.structs[id]
+                let result = self.structs[self.struct_id(id)]
                     .semantic_fields()
                     .iter()
                     .any(|field| self.requires_unsafe_use_inner(field.ty, Some(&nested), visiting));
@@ -227,7 +227,7 @@ impl Lowerer {
                     return false;
                 }
                 let nested = TypeEnvironment {
-                    bindings: self.enums[id]
+                    bindings: self.enums[self.enum_id(id)]
                         .type_params
                         .iter()
                         .zip(application.arguments.iter().copied())
@@ -235,7 +235,7 @@ impl Lowerer {
                         .collect(),
                     parent: environment,
                 };
-                let result = self.enums[id].variants.iter().any(|variant| {
+                let result = self.enums[self.enum_id(id)].variants.iter().any(|variant| {
                     variant.fields.iter().any(|field| {
                         self.requires_unsafe_use_inner(field.ty, Some(&nested), visiting)
                     })

@@ -48,6 +48,9 @@ impl Lowerer {
         let reference = hir::AppliedEnumVariantRef::checked_index(
             &self.enums,
             &self.enum_applications,
+            self.nominal_identities
+                .as_ref()
+                .expect("nominal identities precede application references"),
             application,
             index,
         )

@@ -187,7 +187,10 @@ impl Lowerer {
             match self.types[interface_ty].clone() {
                 Type::Interface(application) => {
                     let value = self.interface_applications[application].clone();
-                    for property in self.interfaces[value.template].properties.clone() {
+                    for property in self.interfaces[self.interface_id(value.template)]
+                        .properties
+                        .clone()
+                    {
                         let declaration = &self.properties[property];
                         if declaration.name != name
                             || !self.property_is_accessible(property, Some(receiver_ty))

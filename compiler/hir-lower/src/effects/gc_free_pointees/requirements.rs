@@ -62,8 +62,9 @@ impl Lowerer {
             hir::Type::Struct(application) => {
                 let application = &self.struct_applications[*application];
                 self.collect_application_pointee_parameters(
-                    &self.structs[application.template].type_params,
-                    &self.structs[application.template].gc_free_pointee_requirements,
+                    &self.structs[self.struct_id(application.template)].type_params,
+                    &self.structs[self.struct_id(application.template)]
+                        .gc_free_pointee_requirements,
                     &application.arguments,
                     out,
                 );
@@ -74,8 +75,8 @@ impl Lowerer {
             hir::Type::Class(application) => {
                 let application = &self.class_applications[*application];
                 self.collect_application_pointee_parameters(
-                    &self.classes[application.template].type_params,
-                    &self.classes[application.template].gc_free_pointee_requirements,
+                    &self.classes[self.class_id(application.template)].type_params,
+                    &self.classes[self.class_id(application.template)].gc_free_pointee_requirements,
                     &application.arguments,
                     out,
                 );
@@ -86,8 +87,9 @@ impl Lowerer {
             hir::Type::Interface(application) => {
                 let application = &self.interface_applications[*application];
                 self.collect_application_pointee_parameters(
-                    &self.interfaces[application.template].type_params,
-                    &self.interfaces[application.template].gc_free_pointee_requirements,
+                    &self.interfaces[self.interface_id(application.template)].type_params,
+                    &self.interfaces[self.interface_id(application.template)]
+                        .gc_free_pointee_requirements,
                     &application.arguments,
                     out,
                 );
@@ -98,8 +100,8 @@ impl Lowerer {
             hir::Type::Enum(application) => {
                 let application = &self.enum_applications[*application];
                 self.collect_application_pointee_parameters(
-                    &self.enums[application.template].type_params,
-                    &self.enums[application.template].gc_free_pointee_requirements,
+                    &self.enums[self.enum_id(application.template)].type_params,
+                    &self.enums[self.enum_id(application.template)].gc_free_pointee_requirements,
                     &application.arguments,
                     out,
                 );

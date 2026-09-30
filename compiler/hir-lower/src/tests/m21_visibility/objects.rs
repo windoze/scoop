@@ -31,7 +31,11 @@ fn objects_and_companions_use_backing_classes_for_protected_access() {
             };
             format!(
                 "{name} : {}\n",
-                module.classes[module.class_applications[base].template].name
+                module.classes[module
+                    .nominal_identities
+                    .class_id(module.class_applications[base].template)
+                    .expect("an application retains its declaration")]
+                .name
             )
         })
         .collect::<Vec<_>>();

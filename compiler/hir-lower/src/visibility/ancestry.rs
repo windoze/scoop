@@ -56,7 +56,7 @@ impl Lowerer {
                 .map(|ty| match &self.types[ty] {
                     hir::Type::Class(application) => self
                         .nominal_identity(Owner::Class(
-                            self.class_applications[*application].template,
+                            self.class_id(self.class_applications[*application].template),
                         ))
                         .declaration_id(),
                     hir::Type::ImportedClass(class) => class.declaration.owner(),

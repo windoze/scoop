@@ -83,9 +83,10 @@ impl Lowerer {
     ) -> Option<(StructCopyTarget, Vec<PlannedField<'a>>)> {
         let application_value = self.struct_applications[application].clone();
         let declaration = application_value.template;
-        let hir::StructRepresentation::Declared(declaration_fields) =
-            self.structs[declaration].representation.clone()
-        else {
+        let hir::StructRepresentation::Declared(declaration_fields) = self.structs
+            [self.struct_id(declaration)]
+        .representation
+        .clone() else {
             let found = self.type_name(application_value.canonical_type);
             self.error(
                 updates.first().field.span,
@@ -102,6 +103,9 @@ impl Lowerer {
             let reference = hir::AppliedStructFieldRef::checked(
                 &self.structs,
                 &self.struct_applications,
+                self.nominal_identities
+                    .as_ref()
+                    .expect("nominal identities precede application references"),
                 application,
                 index as u32,
             )
@@ -121,7 +125,8 @@ impl Lowerer {
                     update.field.span,
                     format!(
                         "struct `{}` has no field `{}`",
-                        self.structs[declaration].name, update.field.text
+                        self.structs[self.struct_id(declaration)].name,
+                        update.field.text
                     ),
                 );
                 return None;

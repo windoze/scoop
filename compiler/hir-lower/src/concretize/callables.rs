@@ -477,8 +477,11 @@ impl Concretizer<'_> {
         while let Some(base) = current {
             let fields = match &self.source.types[base] {
                 export::Type::Class(application) => {
-                    let class =
-                        &self.source.classes[self.source.class_applications[*application].template];
+                    let class = &self.source.classes[self
+                        .source
+                        .nominal_identities
+                        .class_id(self.source.class_applications[*application].template)
+                        .expect("an application retains its declaration")];
                     current = class.base_class;
                     class.fields.len()
                 }

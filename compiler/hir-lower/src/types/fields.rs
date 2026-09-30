@@ -21,7 +21,7 @@ impl Lowerer {
         match self.types[ty].clone() {
             Type::Struct(application) => {
                 let value = self.struct_applications[application].clone();
-                let declaration = &self.structs[value.template];
+                let declaration = &self.structs[self.struct_id(value.template)];
                 let name = declaration.name.clone();
                 let fields = declaration.semantic_fields().to_vec();
                 let fields = fields

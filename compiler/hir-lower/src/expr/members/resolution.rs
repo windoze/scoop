@@ -111,7 +111,7 @@ impl Lowerer {
                         break false;
                     }
                     seen.push(class);
-                    if let Some(&property) = self.classes[class]
+                    if let Some(&property) = self.classes[self.class_id(class)]
                         .properties
                         .iter()
                         .find(|property| self.properties[**property].name == name)
@@ -119,7 +119,7 @@ impl Lowerer {
                     {
                         break true;
                     }
-                    let Some(base) = self.direct_base_class(class) else {
+                    let Some(base) = self.direct_base_class(self.class_id(class)) else {
                         break self
                             .imported_member_candidates(
                                 receiver_ty,
@@ -127,19 +127,21 @@ impl Lowerer {
                             )
                             .is_ok_and(|candidates| !candidates.is_empty());
                     };
-                    class = base;
+                    class = self
+                        .nominal_identity(crate::Owner::Class(base))
+                        .declaration_id();
                 }
             }
             Some(Type::Struct(application)) => self.structs
-                [self.struct_applications[application].template]
-                .properties
-                .iter()
-                .any(|property| self.properties[*property].name == name),
+                [self.struct_id(self.struct_applications[application].template)]
+            .properties
+            .iter()
+            .any(|property| self.properties[*property].name == name),
             Some(Type::Enum(application)) => self.enums
-                [self.enum_applications[application].template]
-                .properties
-                .iter()
-                .any(|property| self.properties[*property].name == name),
+                [self.enum_id(self.enum_applications[application].template)]
+            .properties
+            .iter()
+            .any(|property| self.properties[*property].name == name),
             _ => false,
         }
     }

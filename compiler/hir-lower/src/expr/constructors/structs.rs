@@ -36,7 +36,11 @@ impl Lowerer {
                 return None;
             };
             let application = &self.struct_applications[application];
-            (application.template == struct_id && application.arguments.len() == type_param_count)
+            (application.template
+                == self
+                    .nominal_identity(crate::Owner::Struct(struct_id))
+                    .declaration_id()
+                && application.arguments.len() == type_param_count)
                 .then(|| application.arguments.clone())
         });
         let candidates = constructors

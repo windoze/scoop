@@ -107,7 +107,9 @@ impl Lowerer {
         match self.types[ty].clone() {
             Type::Struct(application) => {
                 let application = self.struct_applications[application].clone();
-                let parameters = self.structs[application.template].type_params.clone();
+                let parameters = self.structs[self.struct_id(application.template)]
+                    .type_params
+                    .clone();
                 self.check_type_argument_kinds(
                     &parameters,
                     &application.arguments,
@@ -123,7 +125,9 @@ impl Lowerer {
             }
             Type::Enum(application) => {
                 let application = self.enum_applications[application].clone();
-                let parameters = self.enums[application.template].type_params.clone();
+                let parameters = self.enums[self.enum_id(application.template)]
+                    .type_params
+                    .clone();
                 self.check_type_argument_kinds(
                     &parameters,
                     &application.arguments,
@@ -139,7 +143,9 @@ impl Lowerer {
             }
             Type::Class(application) => {
                 let application = self.class_applications[application].clone();
-                let parameters = self.classes[application.template].type_params.clone();
+                let parameters = self.classes[self.class_id(application.template)]
+                    .type_params
+                    .clone();
                 self.check_type_argument_kinds(
                     &parameters,
                     &application.arguments,
@@ -155,7 +161,9 @@ impl Lowerer {
             }
             Type::Interface(application) => {
                 let application = self.interface_applications[application].clone();
-                let parameters = self.interfaces[application.template].type_params.clone();
+                let parameters = self.interfaces[self.interface_id(application.template)]
+                    .type_params
+                    .clone();
                 self.check_type_argument_kinds(
                     &parameters,
                     &application.arguments,

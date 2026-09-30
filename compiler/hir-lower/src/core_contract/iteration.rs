@@ -28,6 +28,7 @@ impl Lowerer {
                 &self.enums,
                 &self.enum_applications,
                 &self.types,
+                self.nominal_identities.as_ref().expect("nominal declarations precede core protocols"),
                 option,
                 iterator,
                 *next,
@@ -106,7 +107,10 @@ impl Lowerer {
             && declaration.parents.is_empty()
             && declaration.private_methods.is_empty()
             && declaration.properties.is_empty()
-            && self_application.template == iterable
+            && self_application.template
+                == self
+                    .nominal_identity(crate::Owner::Interface(iterable))
+                    .declaration_id()
             && matches!(self_application.arguments.as_slice(), [argument] if matches!(self.types[*argument], Type::Param(found) if found == parameter.id))
             && self_application.canonical_type == receiver.ty
             && matches!(self.types[self_application.canonical_type], Type::Interface(found) if found == declaration.self_application)
@@ -134,7 +138,10 @@ impl Lowerer {
             && receiver_local.ty == receiver.ty
             && !receiver_local.mutable
             && locals.len() == 1
-            && result.template == core.iterator()
+            && result.template
+                == self
+                    .nominal_identity(crate::Owner::Interface(core.iterator()))
+                    .declaration_id()
             && result.arguments.as_slice() == self_application.arguments.as_slice()
             && result.canonical_type == function.return_ty
             && matches!(self.types[result.canonical_type], Type::Interface(found) if found == result_id)

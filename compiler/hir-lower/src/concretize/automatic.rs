@@ -54,8 +54,13 @@ impl Concretizer<'_> {
             export::Type::Struct(application) => {
                 let application = &self.source.struct_applications[*application];
                 (!application.arguments.is_empty()
-                    || self
-                        .automatic_nominal(&self.source.nominal_identities[application.template]))
+                    || self.automatic_nominal(
+                        &self.source.nominal_identities[self
+                            .source
+                            .nominal_identities
+                            .struct_id(application.template)
+                            .expect("an application retains its declaration")],
+                    ))
                     && application
                         .arguments
                         .iter()
@@ -63,7 +68,13 @@ impl Concretizer<'_> {
             }
             export::Type::Class(application) => {
                 let application = &self.source.class_applications[*application];
-                (!application.arguments.is_empty() || self.automatic_class(application.template))
+                (!application.arguments.is_empty()
+                    || self.automatic_class(
+                        self.source
+                            .nominal_identities
+                            .class_id(application.template)
+                            .expect("an application retains its declaration"),
+                    ))
                     && application
                         .arguments
                         .iter()
@@ -72,8 +83,13 @@ impl Concretizer<'_> {
             export::Type::Interface(application) => {
                 let application = &self.source.interface_applications[*application];
                 (!application.arguments.is_empty()
-                    || self
-                        .automatic_nominal(&self.source.nominal_identities[application.template]))
+                    || self.automatic_nominal(
+                        &self.source.nominal_identities[self
+                            .source
+                            .nominal_identities
+                            .interface_id(application.template)
+                            .expect("an application retains its declaration")],
+                    ))
                     && application
                         .arguments
                         .iter()
@@ -82,8 +98,13 @@ impl Concretizer<'_> {
             export::Type::Enum(application) => {
                 let application = &self.source.enum_applications[*application];
                 (!application.arguments.is_empty()
-                    || self
-                        .automatic_nominal(&self.source.nominal_identities[application.template]))
+                    || self.automatic_nominal(
+                        &self.source.nominal_identities[self
+                            .source
+                            .nominal_identities
+                            .enum_id(application.template)
+                            .expect("an application retains its declaration")],
+                    ))
                     && application
                         .arguments
                         .iter()

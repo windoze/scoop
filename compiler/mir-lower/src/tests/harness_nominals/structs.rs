@@ -116,8 +116,9 @@ impl Harness {
             span: SPAN,
         });
         let representation = kind.application(&[]);
+        let template = self.nominal_identities()[strukt].declaration_id();
         let actual = self.struct_applications.alloc(hir::StructApplication {
-            template: strukt,
+            template,
             arguments: Vec::new(),
             canonical_type,
             representation: hir::StructApplicationRepresentation::Intrinsic(representation),
@@ -165,8 +166,9 @@ impl Harness {
                 true,
             ),
         };
+        let template = self.nominal_identities()[class].declaration_id();
         let actual = self.class_applications.alloc(hir::ClassApplication {
-            template: class,
+            template,
             arguments: self_arguments.clone(),
             canonical_type,
             representation: hir::ClassApplicationRepresentation::Intrinsic(representation),
@@ -190,7 +192,7 @@ impl Harness {
             let hir::Type::Interface(application) = self.types[interface] else {
                 panic!("test harness interface lists are fully applied")
             };
-            let template = self.interface_applications[application].template;
+            let template = self.interface_id(self.interface_applications[application].template);
             let mut methods = Vec::new();
             for member in self.interfaces[template].methods.clone() {
                 let declaration = &self.interface_methods[member];

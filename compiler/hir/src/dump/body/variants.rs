@@ -11,7 +11,7 @@ pub(super) fn enum_variant_names(
                 .enum_member_identities
                 .variant_declaration(application.variant)
                 .expect("a current variant has its declaration identity");
-            let declaration = &module.enums[owner.template];
+            let declaration = &module.enums[variant.enumeration()];
             (
                 &declaration.name,
                 &declaration.variants[variant.local_index() as usize].name,

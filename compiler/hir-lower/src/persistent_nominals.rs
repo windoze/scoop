@@ -2,6 +2,8 @@
 
 use std::fmt;
 
+mod storage;
+
 use scoop_ast::Span;
 use scoop_hir as hir;
 use scoop_identity::{

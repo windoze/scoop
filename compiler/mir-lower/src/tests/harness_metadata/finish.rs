@@ -134,13 +134,21 @@ impl Harness {
             hir::OptionCore::checked(&self.enums, &self.types, option_some_payload, option_none)
                 .expect("test Option has the core shape");
         let iteration_core = self.test_iteration_core(option_core);
+        let nominal_identities = test_nominal_identities_without_objects(
+            &self.structs,
+            &self.enums,
+            &self.classes,
+            &self.interfaces,
+        );
         let callback_mode_application = self.enums[callback_mode].self_application;
         let callback_modes = hir::ForeignCallbackModes::checked(
             &self.enums,
             &self.enum_applications,
+            &nominal_identities,
             hir::AppliedEnumVariantRef::checked_index(
                 &self.enums,
                 &self.enum_applications,
+                &nominal_identities,
                 callback_mode_application,
                 0,
             )
@@ -148,6 +156,7 @@ impl Harness {
             hir::AppliedEnumVariantRef::checked_index(
                 &self.enums,
                 &self.enum_applications,
+                &nominal_identities,
                 callback_mode_application,
                 1,
             )
@@ -159,6 +168,7 @@ impl Harness {
             hir::AppliedEnumVariantRef::checked_index(
                 &self.enums,
                 &self.enum_applications,
+                &nominal_identities,
                 callback_state_application,
                 index,
             )
@@ -167,6 +177,7 @@ impl Harness {
         let callback_states = hir::ForeignCallbackStates::checked(
             &self.enums,
             &self.enum_applications,
+            &nominal_identities,
             callback_state_ref(0),
             callback_state_ref(1),
             callback_state_ref(2),
@@ -178,6 +189,7 @@ impl Harness {
         let callback_failure_some = hir::AppliedEnumVariantRef::checked(
             &self.enums,
             &self.enum_applications,
+            &nominal_identities,
             callback_failure_application,
             option_core.some(),
         )
@@ -185,11 +197,13 @@ impl Harness {
         let callback_failure_result = hir::ForeignCallbackFailureResult::checked(
             &self.enums,
             &self.enum_applications,
+            &nominal_identities,
             option_core,
             throwable,
             hir::AppliedEnumVariantFieldRef::checked(
                 &self.enums,
                 &self.enum_applications,
+                &nominal_identities,
                 callback_failure_some,
                 option_core.some_payload().local_index(),
             )
@@ -197,18 +211,14 @@ impl Harness {
             hir::AppliedEnumVariantRef::checked(
                 &self.enums,
                 &self.enum_applications,
+                &nominal_identities,
                 callback_failure_application,
                 option_core.none(),
             )
             .expect("test callback failure has None"),
         )
         .expect("test callback failure has the core shape");
-        let nominal_identities = test_nominal_identities_without_objects(
-            &self.structs,
-            &self.enums,
-            &self.classes,
-            &self.interfaces,
-        );
+
         let property_identities = crate::tests::harness_nominals::test_property_identities(
             &self.properties,
             &Arena::new(),

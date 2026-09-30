@@ -38,7 +38,7 @@ impl Lowerer {
                 .iter()
                 .filter_map(|(ty, kind)| match kind {
                     hir::Type::Struct(application) => {
-                        let id = self.struct_applications[*application].template;
+                        let id = self.struct_id(self.struct_applications[*application].template);
                         self.structs[id].attributes.no_gc.then_some((
                             ty,
                             "struct",
@@ -47,7 +47,7 @@ impl Lowerer {
                         ))
                     }
                     hir::Type::Enum(application) => {
-                        let id = self.enum_applications[*application].template;
+                        let id = self.enum_id(self.enum_applications[*application].template);
                         (self.enums[id].no_gc && !self.enums[id].type_params.is_empty())
                             .then_some((ty, "enum", id.into_raw().into_u32(), self.enums[id].span))
                     }

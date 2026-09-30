@@ -18,7 +18,8 @@ impl Lowerer {
     ) -> Option<hir::EnumVariantApplication> {
         match &self.types[owner] {
             Type::Enum(application) => {
-                let declaration = &self.enums[self.enum_applications[*application].template];
+                let declaration =
+                    &self.enums[self.enum_id(self.enum_applications[*application].template)];
                 let index = declaration
                     .variants
                     .iter()
@@ -44,7 +45,7 @@ impl Lowerer {
         match self.types[application.owner].clone() {
             Type::Enum(owner) => {
                 let owner = self.enum_applications[owner].clone();
-                let declaration = &self.enums[owner.template];
+                let declaration = &self.enums[self.enum_id(owner.template)];
                 let owner_name = declaration.name.clone();
                 let variant = declaration.variants[index].clone();
                 let fields = variant
@@ -88,7 +89,8 @@ impl Lowerer {
     pub(crate) fn enum_variants(&mut self, owner: TypeId) -> Vec<EnumVariant> {
         let applications = match &self.types[owner] {
             Type::Enum(application) => {
-                let declaration = &self.enums[self.enum_applications[*application].template];
+                let declaration =
+                    &self.enums[self.enum_id(self.enum_applications[*application].template)];
                 (0..declaration.variants.len())
                     .map(|index| self.enum_variant_at(*application, index as u32))
                     .collect::<Vec<_>>()

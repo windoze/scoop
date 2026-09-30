@@ -121,7 +121,7 @@ impl Lowerer {
         let members = match self.types[ty].clone() {
             Type::Interface(application) => {
                 let application = self.interface_applications[application].clone();
-                let declaration = self.interfaces[application.template].clone();
+                let declaration = self.interfaces[self.interface_id(application.template)].clone();
                 for parent in declaration.parents {
                     let parent = self.instantiate_ty(parent, &application.arguments);
                     self.collect_conformance_members(parent, seen, out);

@@ -10,7 +10,7 @@ impl Lowerer {
         let application_value = self.class_applications[application].clone();
         let class = application_value.template;
         let receiver = self.initializing_receiver_type()?;
-        if let Some(&property_id) = self.classes[class]
+        if let Some(&property_id) = self.classes[self.class_id(class)]
             .properties
             .iter()
             .find(|property| self.properties[**property].name == name)
@@ -39,7 +39,7 @@ impl Lowerer {
                 mutable,
             ));
         }
-        let base = self.classes[class].base_class?;
+        let base = self.classes[self.class_id(class)].base_class?;
         let base = self.instantiate_ty(base, &application_value.arguments);
         match self.types[base] {
             Type::Class(application) => self.find_initializing_class_field(application, name),
@@ -146,7 +146,8 @@ impl Lowerer {
                         name.span,
                         format!(
                             "class `{}` has no field `{}`",
-                            self.classes[class].name, name.text
+                            self.classes[self.class_id(class)].name,
+                            name.text
                         ),
                     );
                     return None;
@@ -179,13 +180,14 @@ impl Lowerer {
             InitializingReceiver::Struct { application } => {
                 let application_value = self.struct_applications[application].clone();
                 let structure = application_value.template;
-                let fields = self.structs[structure].semantic_fields();
+                let fields = self.structs[self.struct_id(structure)].semantic_fields();
                 let Some(index) = fields.iter().position(|field| field.name == name.text) else {
                     self.error(
                         name.span,
                         format!(
                             "struct `{}` has no field `{}`",
-                            self.structs[structure].name, name.text
+                            self.structs[self.struct_id(structure)].name,
+                            name.text
                         ),
                     );
                     return None;
@@ -219,7 +221,7 @@ impl Lowerer {
                 .is_some(),
             InitializingReceiver::Struct { application } => {
                 let structure = self.struct_applications[application].template;
-                self.structs[structure]
+                self.structs[self.struct_id(structure)]
                     .semantic_fields()
                     .iter()
                     .any(|field| field.name == name)

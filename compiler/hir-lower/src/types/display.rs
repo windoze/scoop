@@ -24,47 +24,17 @@ impl Lowerer {
         ty: TypeId,
         type_params: &[hir::TypeParamDecl],
     ) -> String {
-        type_name(
-            &self.types,
-            &self.function_types,
-            &self.structs,
-            &self.enums,
-            &self.classes,
-            &self.interfaces,
-            NominalApplications {
-                structs: &self.struct_applications,
-                enums: &self.enum_applications,
-                classes: &self.class_applications,
-                interfaces: &self.interface_applications,
-                objects: &self.objects,
-            },
-            type_params,
-            ty,
-        )
+        type_name(self, type_params, ty)
     }
 }
 
-#[derive(Clone, Copy)]
-struct NominalApplications<'a> {
-    structs: &'a Arena<hir::StructApplication>,
-    enums: &'a Arena<hir::EnumApplication>,
-    classes: &'a Arena<hir::ClassApplication>,
-    interfaces: &'a Arena<hir::InterfaceApplication>,
-    objects: &'a Arena<hir::ObjectDecl>,
-}
-
-#[allow(clippy::too_many_arguments)]
-fn type_name(
-    types: &Arena<Type>,
-    function_types: &Arena<hir::FunctionType>,
-    structs: &Arena<StructDecl>,
-    enums: &Arena<EnumDecl>,
-    classes: &Arena<ClassDecl>,
-    interfaces: &Arena<InterfaceDecl>,
-    applications: NominalApplications<'_>,
-    type_params: &[hir::TypeParamDecl],
-    ty: TypeId,
-) -> String {
+fn type_name(lowerer: &Lowerer, type_params: &[hir::TypeParamDecl], ty: TypeId) -> String {
+    let types = &lowerer.types;
+    let function_types = &lowerer.function_types;
+    let structs = &lowerer.structs;
+    let enums = &lowerer.enums;
+    let classes = &lowerer.classes;
+    let interfaces = &lowerer.interfaces;
     let imported_name = |declaration: &hir::ImportedNominalDeclaration, arguments: &[TypeId]| {
         let name = declaration.name();
         if arguments.is_empty() {
@@ -72,19 +42,7 @@ fn type_name(
         } else {
             let arguments = arguments
                 .iter()
-                .map(|argument| {
-                    type_name(
-                        types,
-                        function_types,
-                        structs,
-                        enums,
-                        classes,
-                        interfaces,
-                        applications,
-                        type_params,
-                        *argument,
-                    )
-                })
+                .map(|argument| type_name(lowerer, type_params, *argument))
                 .collect::<Vec<_>>();
             format!("{name}<{}>", arguments.join(", "))
         }
@@ -99,15 +57,15 @@ fn type_name(
         Type::Boolean => "Boolean".to_string(),
         Type::String => "String".to_string(),
         Type::Struct(application) => {
-            let application = &applications.structs[*application];
-            let id = application.template;
+            let application = &lowerer.struct_applications[*application];
+            let id = lowerer.struct_id(application.template);
             let args = &application.arguments;
             let name = nominal_name(
                 structs,
                 enums,
                 classes,
                 interfaces,
-                applications.objects,
+                &lowerer.objects,
                 &structs[id].name,
                 structs[id].owner,
             );
@@ -116,33 +74,21 @@ fn type_name(
             } else {
                 let inner: Vec<String> = args
                     .iter()
-                    .map(|t| {
-                        type_name(
-                            types,
-                            function_types,
-                            structs,
-                            enums,
-                            classes,
-                            interfaces,
-                            applications,
-                            type_params,
-                            *t,
-                        )
-                    })
+                    .map(|t| type_name(lowerer, type_params, *t))
                     .collect();
                 format!("{}<{}>", name, inner.join(", "))
             }
         }
         Type::Class(application) => {
-            let application = &applications.classes[*application];
-            let id = application.template;
+            let application = &lowerer.class_applications[*application];
+            let id = lowerer.class_id(application.template);
             let args = &application.arguments;
             let name = nominal_name(
                 structs,
                 enums,
                 classes,
                 interfaces,
-                applications.objects,
+                &lowerer.objects,
                 &classes[id].name,
                 classes[id].owner,
             );
@@ -151,34 +97,22 @@ fn type_name(
             } else {
                 let inner = args
                     .iter()
-                    .map(|ty| {
-                        type_name(
-                            types,
-                            function_types,
-                            structs,
-                            enums,
-                            classes,
-                            interfaces,
-                            applications,
-                            type_params,
-                            *ty,
-                        )
-                    })
+                    .map(|ty| type_name(lowerer, type_params, *ty))
                     .collect::<Vec<_>>()
                     .join(", ");
                 format!("{name}<{inner}>")
             }
         }
         Type::Interface(application) => {
-            let application = &applications.interfaces[*application];
-            let id = application.template;
+            let application = &lowerer.interface_applications[*application];
+            let id = lowerer.interface_id(application.template);
             let args = &application.arguments;
             let name = nominal_name(
                 structs,
                 enums,
                 classes,
                 interfaces,
-                applications.objects,
+                &lowerer.objects,
                 &interfaces[id].name,
                 interfaces[id].owner,
             );
@@ -187,36 +121,14 @@ fn type_name(
             } else {
                 let inner: Vec<String> = args
                     .iter()
-                    .map(|t| {
-                        type_name(
-                            types,
-                            function_types,
-                            structs,
-                            enums,
-                            classes,
-                            interfaces,
-                            applications,
-                            type_params,
-                            *t,
-                        )
-                    })
+                    .map(|t| type_name(lowerer, type_params, *t))
                     .collect();
                 format!("{}<{}>", name, inner.join(", "))
             }
         }
         Type::Any => "Any".to_string(),
         Type::Ptr(pointee) => {
-            let inner = type_name(
-                types,
-                function_types,
-                structs,
-                enums,
-                classes,
-                interfaces,
-                applications,
-                type_params,
-                *pointee,
-            );
+            let inner = type_name(lowerer, type_params, *pointee);
             format!("Ptr<{inner}>")
         }
         Type::FunPtr(id) => {
@@ -224,31 +136,9 @@ fn type_name(
             let parameters: Vec<_> = function
                 .parameter_types
                 .iter()
-                .map(|ty| {
-                    type_name(
-                        types,
-                        function_types,
-                        structs,
-                        enums,
-                        classes,
-                        interfaces,
-                        applications,
-                        type_params,
-                        *ty,
-                    )
-                })
+                .map(|ty| type_name(lowerer, type_params, *ty))
                 .collect();
-            let return_type = type_name(
-                types,
-                function_types,
-                structs,
-                enums,
-                classes,
-                interfaces,
-                applications,
-                type_params,
-                function.return_type,
-            );
+            let return_type = type_name(lowerer, type_params, function.return_type);
             let suspend = if function.is_suspend { "suspend " } else { "" };
             format!(
                 "FunPtr<{suspend}({}) -> {return_type}>",
@@ -256,14 +146,14 @@ fn type_name(
             )
         }
         Type::Enum(application) => {
-            let application = &applications.enums[*application];
-            let id = application.template;
+            let application = &lowerer.enum_applications[*application];
+            let id = lowerer.enum_id(application.template);
             let name = nominal_name(
                 structs,
                 enums,
                 classes,
                 interfaces,
-                applications.objects,
+                &lowerer.objects,
                 &enums[id].name,
                 enums[id].owner,
             );
@@ -273,19 +163,7 @@ fn type_name(
             } else {
                 let inner: Vec<String> = args
                     .iter()
-                    .map(|t| {
-                        type_name(
-                            types,
-                            function_types,
-                            structs,
-                            enums,
-                            classes,
-                            interfaces,
-                            applications,
-                            type_params,
-                            *t,
-                        )
-                    })
+                    .map(|t| type_name(lowerer, type_params, *t))
                     .collect();
                 format!("{}<{}>", name, inner.join(", "))
             }
@@ -293,19 +171,7 @@ fn type_name(
         Type::Tuple(elements) => {
             let inner: Vec<String> = elements
                 .iter()
-                .map(|t| {
-                    type_name(
-                        types,
-                        function_types,
-                        structs,
-                        enums,
-                        classes,
-                        interfaces,
-                        applications,
-                        type_params,
-                        *t,
-                    )
-                })
+                .map(|t| type_name(lowerer, type_params, *t))
                 .collect();
             format!("({})", inner.join(", "))
         }
@@ -314,31 +180,9 @@ fn type_name(
             let parameters: Vec<String> = function
                 .parameter_types
                 .iter()
-                .map(|ty| {
-                    type_name(
-                        types,
-                        function_types,
-                        structs,
-                        enums,
-                        classes,
-                        interfaces,
-                        applications,
-                        type_params,
-                        *ty,
-                    )
-                })
+                .map(|ty| type_name(lowerer, type_params, *ty))
                 .collect();
-            let return_type = type_name(
-                types,
-                function_types,
-                structs,
-                enums,
-                classes,
-                interfaces,
-                applications,
-                type_params,
-                function.return_type,
-            );
+            let return_type = type_name(lowerer, type_params, function.return_type);
             let suspend = if function.is_suspend { "suspend " } else { "" };
             format!("{suspend}({}) -> {return_type}", parameters.join(", "))
         }

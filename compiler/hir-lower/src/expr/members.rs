@@ -53,12 +53,13 @@ impl Lowerer {
             return None;
         };
         let current = self.class_applications[application].clone();
-        let Some(base) = self.classes[current.template].base_class else {
+        let Some(base) = self.classes[self.class_id(current.template)].base_class else {
             self.error(
                 call.span,
                 format!(
                     "class `{}` has no direct base for `super.{}`",
-                    self.classes[current.template].name, name.text
+                    self.classes[self.class_id(current.template)].name,
+                    name.text
                 ),
             );
             return None;

@@ -14,9 +14,10 @@ impl Harness {
     ) -> hir::FunctionId {
         let genericity = match self.types[method_of] {
             hir::Type::Class(application) => {
-                let parameters = self.classes[self.class_applications[application].template]
-                    .type_params
-                    .clone();
+                let parameters = self.classes
+                    [self.class_id(self.class_applications[application].template)]
+                .type_params
+                .clone();
                 if parameters.is_empty() {
                     hir::FunctionGenericity::Plain
                 } else {
@@ -28,9 +29,10 @@ impl Harness {
                 }
             }
             hir::Type::Struct(application) => {
-                let parameters = self.structs[self.struct_applications[application].template]
-                    .type_params
-                    .clone();
+                let parameters = self.structs
+                    [self.struct_id(self.struct_applications[application].template)]
+                .type_params
+                .clone();
                 if parameters.is_empty() {
                     hir::FunctionGenericity::Plain
                 } else {
@@ -42,9 +44,10 @@ impl Harness {
                 }
             }
             hir::Type::Enum(application) => {
-                let parameters = self.enums[self.enum_applications[application].template]
-                    .type_params
-                    .clone();
+                let parameters = self.enums
+                    [self.enum_id(self.enum_applications[application].template)]
+                .type_params
+                .clone();
                 if parameters.is_empty() {
                     hir::FunctionGenericity::Plain
                 } else {
@@ -56,9 +59,10 @@ impl Harness {
                 }
             }
             hir::Type::Interface(application) => {
-                let parameters = self.interfaces[self.interface_applications[application].template]
-                    .type_params
-                    .clone();
+                let parameters = self.interfaces
+                    [self.interface_id(self.interface_applications[application].template)]
+                .type_params
+                .clone();
                 if parameters.is_empty() {
                     hir::FunctionGenericity::Plain
                 } else {
@@ -74,7 +78,7 @@ impl Harness {
         };
         let dispatch = match self.types[method_of] {
             hir::Type::Class(application) => {
-                let class = self.class_applications[application].template;
+                let class = self.class_id(self.class_applications[application].template);
                 self.inherited_virtual_dispatch(class, name, &params, return_ty)
                     .unwrap_or_else(|| {
                         hir::MethodDispatch::Virtual(hir::VirtualMethodId::from_raw(
@@ -83,7 +87,8 @@ impl Harness {
                     })
             }
             hir::Type::Interface(application) => {
-                let interface = self.interface_applications[application].template;
+                let interface =
+                    self.interface_id(self.interface_applications[application].template);
                 let member = self.interfaces[interface]
                     .methods
                     .iter()
@@ -123,18 +128,18 @@ impl Harness {
             span: SPAN,
         });
         match self.types[method_of] {
-            hir::Type::Class(application) => self.classes
-                [self.class_applications[application].template]
-                .methods
-                .push(function),
-            hir::Type::Struct(application) => self.structs
-                [self.struct_applications[application].template]
-                .methods
-                .push(function),
-            hir::Type::Enum(application) => self.enums
-                [self.enum_applications[application].template]
-                .methods
-                .push(function),
+            hir::Type::Class(application) => {
+                let owner = self.class_id(self.class_applications[application].template);
+                self.classes[owner].methods.push(function);
+            }
+            hir::Type::Struct(application) => {
+                let owner = self.struct_id(self.struct_applications[application].template);
+                self.structs[owner].methods.push(function);
+            }
+            hir::Type::Enum(application) => {
+                let owner = self.enum_id(self.enum_applications[application].template);
+                self.enums[owner].methods.push(function);
+            }
             hir::Type::Interface(_) | hir::Type::Any => {}
             _ => unreachable!(),
         }
@@ -153,7 +158,7 @@ impl Harness {
             let hir::Type::Class(application) = self.types[*base] else {
                 panic!("test harness class bases are class applications")
             };
-            self.class_applications[application].template
+            self.class_id(self.class_applications[application].template)
         });
         while let Some(class) = base {
             if let Some(dispatch) = self.classes[class]
@@ -171,7 +176,7 @@ impl Harness {
                 let hir::Type::Class(application) = self.types[*base] else {
                     panic!("test harness class bases are class applications")
                 };
-                self.class_applications[application].template
+                self.class_id(self.class_applications[application].template)
             });
         }
         None
@@ -184,15 +189,15 @@ impl Harness {
     ) {
         let implementations = match self.types[owner] {
             hir::Type::Class(application) => {
-                let owner = self.class_applications[application].template;
+                let owner = self.class_id(self.class_applications[application].template);
                 self.classes[owner].interface_implementations.clone()
             }
             hir::Type::Struct(application) => {
-                let owner = self.struct_applications[application].template;
+                let owner = self.struct_id(self.struct_applications[application].template);
                 self.structs[owner].interface_implementations.clone()
             }
             hir::Type::Enum(application) => {
-                let owner = self.enum_applications[application].template;
+                let owner = self.enum_id(self.enum_applications[application].template);
                 self.enums[owner].interface_implementations.clone()
             }
             hir::Type::Interface(_) | hir::Type::Any => return,
@@ -232,21 +237,21 @@ impl Harness {
         };
         match self.types[owner] {
             hir::Type::Class(owner_application) => {
-                let owner = self.class_applications[owner_application].template;
+                let owner = self.class_id(self.class_applications[owner_application].template);
                 for (implementation, method) in matches {
                     self.classes[owner].interface_implementations[implementation].methods[method]
                         .target = target;
                 }
             }
             hir::Type::Struct(owner_application) => {
-                let owner = self.struct_applications[owner_application].template;
+                let owner = self.struct_id(self.struct_applications[owner_application].template);
                 for (implementation, method) in matches {
                     self.structs[owner].interface_implementations[implementation].methods[method]
                         .target = target;
                 }
             }
             hir::Type::Enum(owner_application) => {
-                let owner = self.enum_applications[owner_application].template;
+                let owner = self.enum_id(self.enum_applications[owner_application].template);
                 for (implementation, method) in matches {
                     self.enums[owner].interface_implementations[implementation].methods[method]
                         .target = target;

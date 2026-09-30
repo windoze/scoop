@@ -16,7 +16,11 @@ impl Lowerer {
         let expected_arguments = expected.and_then(|ty| match self.types[ty].clone() {
             Type::Enum(application) => {
                 let application = &self.enum_applications[application];
-                (application.template == enum_id && application.arguments.len() == arity)
+                (application.template
+                    == self
+                        .nominal_identity(crate::Owner::Enum(enum_id))
+                        .declaration_id()
+                    && application.arguments.len() == arity)
                     .then(|| application.arguments.clone())
             }
             _ => None,
@@ -48,6 +52,9 @@ impl Lowerer {
         let variant = hir::AppliedEnumVariantRef::checked(
             &self.enums,
             &self.enum_applications,
+            self.nominal_identities
+                .as_ref()
+                .expect("nominal identities precede application references"),
             application,
             target,
         )
@@ -129,7 +136,11 @@ impl Lowerer {
                 return None;
             };
             let application = &self.enum_applications[application];
-            (application.template == enum_id && application.arguments.len() == type_param_count)
+            (application.template
+                == self
+                    .nominal_identity(crate::Owner::Enum(enum_id))
+                    .declaration_id()
+                && application.arguments.len() == type_param_count)
                 .then(|| application.arguments.clone())
         });
         let inferred = self.lower_nominal_arguments(NominalArgumentInput {
@@ -157,6 +168,9 @@ impl Lowerer {
         let variant = hir::AppliedEnumVariantRef::checked(
             &self.enums,
             &self.enum_applications,
+            self.nominal_identities
+                .as_ref()
+                .expect("nominal identities precede application references"),
             application,
             target,
         )

@@ -134,7 +134,7 @@ impl Lowerer {
                 _ => unreachable!("resolved class bases have class types"),
             };
             let base = self.class_applications[base_application].template;
-            if seen.contains(&base) {
+            if seen.contains(&self.class_id(base)) {
                 let name = self.classes[id].name.clone();
                 self.error(
                     span,
@@ -142,8 +142,8 @@ impl Lowerer {
                 );
                 return;
             }
-            seen.push(base);
-            current = base;
+            seen.push(self.class_id(base));
+            current = self.class_id(base);
         }
     }
 }

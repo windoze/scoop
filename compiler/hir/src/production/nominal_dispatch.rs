@@ -70,9 +70,12 @@ impl<'a> Projection<'a> {
                 return Ok(result);
             };
             current = match &self.export.types[base] {
-                Type::Class(application) => {
-                    ClassChainEntry::Local(self.export.class_applications[*application].template)
-                }
+                Type::Class(application) => ClassChainEntry::Local(
+                    self.export
+                        .nominal_identities
+                        .class_id(self.export.class_applications[*application].template)
+                        .expect("a class application retains its declaration"),
+                ),
                 Type::ImportedClass(_) => ClassChainEntry::Imported(base),
                 _ => return Err(invalid("class base does not resolve to a class type")),
             };

@@ -26,7 +26,11 @@ impl Projection<'_> {
         for ty in self.interface_postorder(ty)? {
             match &self.export.types[ty] {
                 Type::Interface(application) => {
-                    let owner = self.export.interface_applications[*application].template;
+                    let owner = self
+                        .export
+                        .nominal_identities
+                        .interface_id(self.export.interface_applications[*application].template)
+                        .expect("an interface application retains its declaration");
                     for member in &self.export.interfaces[owner].methods {
                         self.push(&mut members, InterfaceMethodReference::Local(*member))?;
                         for reference in &self.export.interface_methods[*member].overrides {
@@ -76,7 +80,11 @@ impl Projection<'_> {
             }
             let parents = match &self.export.types[ty] {
                 Type::Interface(application) => {
-                    let owner = self.export.interface_applications[*application].template;
+                    let owner = self
+                        .export
+                        .nominal_identities
+                        .interface_id(self.export.interface_applications[*application].template)
+                        .expect("an interface application retains its declaration");
                     &self.export.interfaces[owner].parents
                 }
                 Type::ImportedInterface(interface) => &interface.parents,

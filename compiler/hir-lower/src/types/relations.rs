@@ -127,9 +127,12 @@ impl Lowerer {
                 (crate::CoreLoweringAuthority::Defined, Type::Interface(application)) => {
                     self.interface_applications[*application].template
                         == self
-                            .iteration_core
-                            .expect("the defining core was checked")
-                            .iterator()
+                            .nominal_identity(crate::Owner::Interface(
+                                self.iteration_core
+                                    .expect("the defining core was checked")
+                                    .iterator(),
+                            ))
+                            .declaration_id()
                 }
                 (
                     crate::CoreLoweringAuthority::Imported(core),
@@ -167,7 +170,7 @@ impl Lowerer {
             }
             &Type::Class(application) => {
                 let template = self.class_applications[application].template;
-                self.classes[template].modifier != hir::ClassModifier::Final
+                self.classes[self.class_id(template)].modifier != hir::ClassModifier::Final
                     && matches!(
                         self.types[b],
                         Type::Interface(..) | Type::ImportedInterface(_)

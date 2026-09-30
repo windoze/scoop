@@ -45,7 +45,10 @@ impl Lowerer {
             return false;
         };
         let application = &self.interface_applications[application];
-        application.template == interface
+        application.template
+            == self
+                .nominal_identity(crate::Owner::Interface(interface))
+                .declaration_id()
             && matches!(application.arguments.as_slice(), [arg] if self.is_type_param(*arg, index))
     }
 
@@ -65,7 +68,7 @@ impl Lowerer {
                     .as_ref()
                     .and_then(|base| match self.types[*base] {
                         Type::Class(application) => {
-                            Some(self.class_applications[application].template)
+                            Some(self.class_id(self.class_applications[application].template))
                         }
                         Type::ImportedClass(_) => None,
                         _ => unreachable!("resolved class bases have class types"),

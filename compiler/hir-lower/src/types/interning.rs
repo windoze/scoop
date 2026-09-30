@@ -118,7 +118,7 @@ impl Lowerer {
             }
         };
         let application = self.struct_applications.alloc(hir::StructApplication {
-            template,
+            template: key.0,
             arguments,
             canonical_type,
             representation,
@@ -159,7 +159,7 @@ impl Lowerer {
         }
         let canonical_type = hir::TypeId::from_raw((self.types.len() as u32).into());
         let application = self.enum_applications.alloc(hir::EnumApplication {
-            template,
+            template: key.0,
             arguments,
             canonical_type,
         });
@@ -215,7 +215,7 @@ impl Lowerer {
             }
         };
         let application = self.class_applications.alloc(hir::ClassApplication {
-            template,
+            template: key.0,
             arguments,
             canonical_type,
             representation,
@@ -254,7 +254,7 @@ impl Lowerer {
         }
         debug_assert_eq!(
             self.class_constructors[constructor].owner,
-            self.class_applications[owner].template
+            self.class_id(self.class_applications[owner].template)
         );
         let application = self
             .class_constructor_applications
@@ -275,7 +275,7 @@ impl Lowerer {
         }
         debug_assert_eq!(
             self.struct_constructors[constructor].owner,
-            self.struct_applications[owner].template
+            self.struct_id(self.struct_applications[owner].template)
         );
         let application = self
             .struct_constructor_applications
@@ -302,7 +302,7 @@ impl Lowerer {
         let application = self
             .interface_applications
             .alloc(hir::InterfaceApplication {
-                template,
+                template: key.0,
                 arguments,
                 canonical_type,
             });

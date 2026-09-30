@@ -41,7 +41,9 @@ fn generic_class_constructors_and_used_members_have_complete_instances() {
         .export
         .class_applications
         .iter()
-        .filter(|(_, application)| application.template == export_box_id)
+        .filter(|(_, application)| {
+            application.template == output.export.nominal_identities[export_box_id].declaration_id()
+        })
         .collect::<Vec<_>>();
     assert_eq!(applications.len(), 3, "Box<T>, Box<Int>, Box<String>");
     assert!(applications.iter().all(|(id, application)| {

@@ -38,6 +38,7 @@ fn struct_methods_and_bare_field_access() {
             let expected = hir::AppliedStructFieldRef::checked(
                 &module.structs,
                 &module.struct_applications,
+                &module.nominal_identities,
                 module.structs[struct_id].self_application,
                 0,
             )

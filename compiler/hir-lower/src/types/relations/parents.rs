@@ -11,7 +11,7 @@ impl Lowerer {
         match ty {
             Type::Class(application) => {
                 let application = self.class_applications[application].clone();
-                let declaration = self.classes[application.template].clone();
+                let declaration = self.classes[self.class_id(application.template)].clone();
                 let mut result = declaration
                     .base_class
                     .map(|base| self.instantiate_ty(base, &application.arguments))
@@ -27,7 +27,9 @@ impl Lowerer {
             }
             Type::Struct(application) => {
                 let application = self.struct_applications[application].clone();
-                let interfaces = self.structs[application.template].interfaces.clone();
+                let interfaces = self.structs[self.struct_id(application.template)]
+                    .interfaces
+                    .clone();
                 interfaces
                     .into_iter()
                     .map(|interface| self.instantiate_ty(interface, &application.arguments))
@@ -35,7 +37,9 @@ impl Lowerer {
             }
             Type::Enum(application) => {
                 let application = self.enum_applications[application].clone();
-                let interfaces = self.enums[application.template].interfaces.clone();
+                let interfaces = self.enums[self.enum_id(application.template)]
+                    .interfaces
+                    .clone();
                 interfaces
                     .into_iter()
                     .map(|interface| self.instantiate_ty(interface, &application.arguments))
@@ -43,7 +47,9 @@ impl Lowerer {
             }
             Type::Interface(application) => {
                 let application = self.interface_applications[application].clone();
-                let parents = self.interfaces[application.template].parents.clone();
+                let parents = self.interfaces[self.interface_id(application.template)]
+                    .parents
+                    .clone();
                 parents
                     .into_iter()
                     .map(|parent| self.instantiate_ty(parent, &application.arguments))

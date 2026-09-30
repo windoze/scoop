@@ -126,28 +126,40 @@ impl Harness {
     ) -> (&'a hir::HirNominalIdentity, &'a [hir::TypeParamDecl]) {
         match self.types[ty] {
             hir::Type::Struct(application) => {
-                let owner = self.struct_applications[application].template;
+                let owner = inputs
+                    .nominal_identities
+                    .struct_id(self.struct_applications[application].template)
+                    .expect("a test application retains its declaration");
                 (
                     &inputs.nominal_identities[owner],
                     &self.structs[owner].type_params,
                 )
             }
             hir::Type::Class(application) => {
-                let owner = self.class_applications[application].template;
+                let owner = inputs
+                    .nominal_identities
+                    .class_id(self.class_applications[application].template)
+                    .expect("a test application retains its declaration");
                 (
                     &inputs.nominal_identities[owner],
                     &self.classes[owner].type_params,
                 )
             }
             hir::Type::Enum(application) => {
-                let owner = self.enum_applications[application].template;
+                let owner = inputs
+                    .nominal_identities
+                    .enum_id(self.enum_applications[application].template)
+                    .expect("a test application retains its declaration");
                 (
                     &inputs.nominal_identities[owner],
                     &self.enums[owner].type_params,
                 )
             }
             hir::Type::Interface(application) => {
-                let owner = self.interface_applications[application].template;
+                let owner = inputs
+                    .nominal_identities
+                    .interface_id(self.interface_applications[application].template)
+                    .expect("a test application retains its declaration");
                 (
                     &inputs.nominal_identities[owner],
                     &self.interfaces[owner].type_params,

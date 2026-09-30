@@ -32,7 +32,7 @@ impl Harness {
                 let hir::Type::Class(application) = self.types[*base] else {
                     panic!("test harness class bases are class applications")
                 };
-                let base = self.class_applications[application].template;
+                let base = self.class_id(self.class_applications[application].template);
                 self.classes[base].interface_implementations.clone()
             })
             .unwrap_or_default();

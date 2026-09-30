@@ -35,7 +35,7 @@ impl Lowerer {
             let class = match self.types[ty].clone() {
                 Type::Class(application) => {
                     let application = self.class_applications[application].clone();
-                    current = self.classes[application.template]
+                    current = self.classes[self.class_id(application.template)]
                         .base_class
                         .map(|base| self.instantiate_ty(base, &application.arguments));
                     continue;

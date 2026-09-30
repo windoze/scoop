@@ -240,10 +240,14 @@ pub(crate) fn type_name_with_params(
         Type::String => "String".to_string(),
         Type::Struct(application) => {
             let application = &module.struct_applications[*application];
+            let template = module
+                .nominal_identities
+                .struct_id(application.template)
+                .expect("a resolved application retains its declaration");
             let name = nominal_declaration_name(
                 module,
-                &module.structs[application.template].name,
-                module.structs[application.template].owner,
+                &module.structs[template].name,
+                module.structs[template].owner,
             );
             let args = &application.arguments;
             if args.is_empty() {
@@ -258,10 +262,14 @@ pub(crate) fn type_name_with_params(
         }
         Type::Class(application) => {
             let application = &module.class_applications[*application];
+            let template = module
+                .nominal_identities
+                .class_id(application.template)
+                .expect("a resolved application retains its declaration");
             let name = nominal_declaration_name(
                 module,
-                &module.classes[application.template].name,
-                module.classes[application.template].owner,
+                &module.classes[template].name,
+                module.classes[template].owner,
             );
             let args = &application.arguments;
             if args.is_empty() {
@@ -276,10 +284,14 @@ pub(crate) fn type_name_with_params(
         }
         Type::Interface(application) => {
             let application = &module.interface_applications[*application];
+            let template = module
+                .nominal_identities
+                .interface_id(application.template)
+                .expect("a resolved application retains its declaration");
             let name = nominal_declaration_name(
                 module,
-                &module.interfaces[application.template].name,
-                module.interfaces[application.template].owner,
+                &module.interfaces[template].name,
+                module.interfaces[template].owner,
             );
             let args = &application.arguments;
             if args.is_empty() {
@@ -295,10 +307,14 @@ pub(crate) fn type_name_with_params(
         Type::Any => "Any".to_string(),
         Type::Enum(application) => {
             let application = &module.enum_applications[*application];
+            let template = module
+                .nominal_identities
+                .enum_id(application.template)
+                .expect("a resolved application retains its declaration");
             let name = nominal_declaration_name(
                 module,
-                &module.enums[application.template].name,
-                module.enums[application.template].owner,
+                &module.enums[template].name,
+                module.enums[template].owner,
             );
             let args = &application.arguments;
             if args.is_empty() {

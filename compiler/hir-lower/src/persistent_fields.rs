@@ -102,8 +102,12 @@ impl Lowerer {
     ) -> hir::FieldRef {
         let application = &self.struct_applications[application];
         let owner = application.canonical_type;
-        let reference = hir::StructFieldRef::checked(&self.structs, application.template, index)
-            .expect("the field belongs to its declaring struct");
+        let reference = hir::StructFieldRef::checked(
+            &self.structs,
+            self.struct_id(application.template),
+            index,
+        )
+        .expect("the field belongs to its declaring struct");
         let field = self
             .field_identity_builder
             .struct_field(

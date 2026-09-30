@@ -38,32 +38,33 @@ impl Lowerer {
             }
             hir::Type::String => self.intrinsic_type_access_domain(hir::IntrinsicTypeKind::String),
             hir::Type::Struct(application) => Some(
-                self.structs[self.struct_applications[application].template]
+                self.structs[self.struct_id(self.struct_applications[application].template)]
                     .access
                     .lookup
                     .0
                     .clone(),
             ),
             hir::Type::Enum(application) => Some(
-                self.enums[self.enum_applications[application].template]
+                self.enums[self.enum_id(self.enum_applications[application].template)]
                     .access
                     .lookup
                     .0
                     .clone(),
             ),
             hir::Type::Class(application) => Some(
-                self.classes[self.class_applications[application].template]
+                self.classes[self.class_id(self.class_applications[application].template)]
                     .access
                     .lookup
                     .0
                     .clone(),
             ),
             hir::Type::Interface(application) => Some(
-                self.interfaces[self.interface_applications[application].template]
-                    .access
-                    .lookup
-                    .0
-                    .clone(),
+                self.interfaces
+                    [self.interface_id(self.interface_applications[application].template)]
+                .access
+                .lookup
+                .0
+                .clone(),
             ),
             hir::Type::Ptr(_) => self
                 .ffi_ptr
@@ -209,11 +210,11 @@ impl Lowerer {
             },
             hir::FieldRef::StructField { owner, .. } => match self.types[owner] {
                 hir::Type::Struct(application) => self.structs
-                    [self.struct_applications[application].template]
-                    .access
-                    .lookup
-                    .0
-                    .clone(),
+                    [self.struct_id(self.struct_applications[application].template)]
+                .access
+                .lookup
+                .0
+                .clone(),
                 hir::Type::ImportedStruct(_) => hir::AccessDomain::universal(),
                 _ => unreachable!("a struct field retains its declaring struct"),
             },

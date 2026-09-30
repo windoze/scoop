@@ -161,18 +161,26 @@ impl Projection<'_> {
     pub(super) fn target(&self, application: MethodApplicationId) -> Result<Selection, Error> {
         let application = &self.export.method_applications[application];
         let owner = match application.owner {
-            MethodOwnerApplication::Class(id) => {
-                NominalOwner::Class(self.export.class_applications[id].template)
-            }
-            MethodOwnerApplication::Struct(id) => {
-                NominalOwner::Struct(self.export.struct_applications[id].template)
-            }
-            MethodOwnerApplication::Enum(id) => {
-                NominalOwner::Enum(self.export.enum_applications[id].template)
-            }
-            MethodOwnerApplication::Interface(id) => {
-                NominalOwner::Interface(self.export.interface_applications[id].template)
-            }
+            MethodOwnerApplication::Class(id) => self
+                .export
+                .nominal_identities
+                .declaration(self.export.class_applications[id].template)
+                .ok_or_else(|| invalid("selected method application has no declaration"))?,
+            MethodOwnerApplication::Struct(id) => self
+                .export
+                .nominal_identities
+                .declaration(self.export.struct_applications[id].template)
+                .ok_or_else(|| invalid("selected method application has no declaration"))?,
+            MethodOwnerApplication::Enum(id) => self
+                .export
+                .nominal_identities
+                .declaration(self.export.enum_applications[id].template)
+                .ok_or_else(|| invalid("selected method application has no declaration"))?,
+            MethodOwnerApplication::Interface(id) => self
+                .export
+                .nominal_identities
+                .declaration(self.export.interface_applications[id].template)
+                .ok_or_else(|| invalid("selected method application has no declaration"))?,
             MethodOwnerApplication::Object(id) => {
                 NominalOwner::Object(self.export.object_types[id].declaration)
             }

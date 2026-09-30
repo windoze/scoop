@@ -243,12 +243,12 @@ impl Lowerer {
                         continue;
                     }
                     let base_id = self.class_applications[application].template;
-                    if self.classes[base_id].modifier == hir::ClassModifier::Final {
+                    if self.classes[self.class_id(base_id)].modifier == hir::ClassModifier::Final {
                         self.error(
                             spec.ty.span,
                             format!(
                                 "class `{}` is final and cannot be inherited",
-                                self.classes[base_id].name
+                                self.classes[self.class_id(base_id)].name
                             ),
                         );
                         continue;

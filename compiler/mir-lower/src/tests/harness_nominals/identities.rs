@@ -1,7 +1,7 @@
 use la_arena::Arena;
 use scoop_hir as hir;
 
-fn test_source_nominal_identity(
+pub(in crate::tests) fn test_source_nominal_identity(
     name: &str,
     kind: scoop_identity::SourceNominalKind,
     type_parameter_count: usize,
@@ -24,6 +24,44 @@ fn test_source_nominal_identity(
             .expect("test declaration type parameter count fits u32"),
     ))
     .expect("the test source nominal identity is valid")
+}
+
+impl super::super::Harness {
+    pub(in crate::tests) fn struct_id(&self, declaration: hir::SourceNominalId) -> hir::StructId {
+        self.nominal_identities()
+            .struct_id(declaration)
+            .expect("a test application retains its declaration")
+    }
+
+    pub(in crate::tests) fn enum_id(&self, declaration: hir::SourceNominalId) -> hir::EnumId {
+        self.nominal_identities()
+            .enum_id(declaration)
+            .expect("a test application retains its declaration")
+    }
+
+    pub(in crate::tests) fn class_id(&self, declaration: hir::SourceNominalId) -> hir::ClassId {
+        self.nominal_identities()
+            .class_id(declaration)
+            .expect("a test application retains its declaration")
+    }
+
+    pub(in crate::tests) fn interface_id(
+        &self,
+        declaration: hir::SourceNominalId,
+    ) -> hir::InterfaceId {
+        self.nominal_identities()
+            .interface_id(declaration)
+            .expect("a test application retains its declaration")
+    }
+
+    pub(in crate::tests) fn nominal_identities(&self) -> hir::HirNominalIdentities {
+        test_nominal_identities_without_objects(
+            &self.structs,
+            &self.enums,
+            &self.classes,
+            &self.interfaces,
+        )
+    }
 }
 
 /// The MIR unit harness assembles nominal arenas directly rather than parsing

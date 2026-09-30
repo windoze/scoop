@@ -128,7 +128,7 @@ fn class_and_interface_structure() {
     let point = &module.classes[point_id];
     let base = point.base_class.as_ref().expect("Point has a base");
     assert!(matches!(module.types[*base], hir::Type::Class(application)
-        if module.class_applications[application].template == shape_id
+        if module.class_applications[application].template == module.nominal_identities[shape_id].declaration_id()
             && module.class_applications[application].arguments.is_empty()));
     let hir::ClassConstructorKind::Primary {
         base:
@@ -166,7 +166,7 @@ fn class_and_interface_structure() {
     assert!(matches!(
         module.types[iface_method.method.expect("a method").owner],
         hir::Type::Interface(application)
-            if module.interface_applications[application].template == describable_id
+            if module.interface_applications[application].template == module.nominal_identities[describable_id].declaration_id()
                 && module.interface_applications[application].arguments.is_empty()
     ));
 

@@ -180,7 +180,8 @@ fn is_cast_and_ref_eq() {
                 let application = &module.enum_applications[*application];
                 assert_eq!(
                     application.template,
-                    defined_export_core(&module).option.enumeration()
+                    module.nominal_identities[defined_export_core(&module).option.enumeration()]
+                        .declaration_id()
                 );
                 assert_eq!(application.arguments.len(), 1);
                 assert!(matches!(

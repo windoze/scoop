@@ -40,22 +40,20 @@ pub(in crate::production) fn from_type(
             ));
         }
         crate::Type::Struct(application) => {
-            let application = super::arena_get(&export.struct_applications, *application)?;
-            export.nominal_identities.get_struct(application.template)?
+            return Some(super::arena_get(&export.struct_applications, *application)?.template);
         }
         crate::Type::Enum(application) => {
-            let application = super::arena_get(&export.enum_applications, *application)?;
-            export.nominal_identities.get_enum(application.template)?
+            return Some(super::arena_get(&export.enum_applications, *application)?.template);
         }
         crate::Type::Interface(application) => {
-            let application = super::arena_get(&export.interface_applications, *application)?;
-            export
-                .nominal_identities
-                .get_interface(application.template)?
+            return Some(super::arena_get(&export.interface_applications, *application)?.template);
         }
         crate::Type::Class(application) => {
             let application = super::arena_get(&export.class_applications, *application)?;
-            class_or_object_identity(export, application.template)?
+            class_or_object_identity(
+                export,
+                export.nominal_identities.class_id(application.template)?,
+            )?
         }
         crate::Type::Ptr(_) => {
             return intrinsic_generic_owner(export, IntrinsicGenericType::Pointer);

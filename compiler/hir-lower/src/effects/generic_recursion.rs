@@ -207,7 +207,7 @@ impl Lowerer {
             hir::Type::Struct(application) => {
                 let application = &self.struct_applications[*application];
                 SymbolicType::Struct(
-                    application.template,
+                    self.struct_id(application.template),
                     application
                         .arguments
                         .iter()
@@ -218,7 +218,7 @@ impl Lowerer {
             hir::Type::Class(application) => {
                 let application = &self.class_applications[*application];
                 SymbolicType::Class(
-                    application.template,
+                    self.class_id(application.template),
                     application
                         .arguments
                         .iter()
@@ -229,7 +229,7 @@ impl Lowerer {
             hir::Type::Interface(application) => {
                 let application = &self.interface_applications[*application];
                 SymbolicType::Interface(
-                    application.template,
+                    self.interface_id(application.template),
                     application
                         .arguments
                         .iter()
@@ -273,7 +273,7 @@ impl Lowerer {
             hir::Type::Enum(application) => {
                 let application = &self.enum_applications[*application];
                 SymbolicType::Enum(
-                    application.template,
+                    self.enum_id(application.template),
                     application
                         .arguments
                         .iter()

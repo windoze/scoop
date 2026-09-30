@@ -54,8 +54,11 @@ impl<'input> Concretizer<'input> {
                     .iter()
                     .map(|argument| self.lower_type(*argument, substitution))
                     .collect::<Vec<_>>();
-                let declaration = &source.interfaces[application.template];
-                let origin = source.nominal_identities[application.template].declaration_id();
+                let declaration = &source.interfaces[source
+                    .nominal_identities
+                    .interface_id(application.template)
+                    .expect("an application retains its declaration")];
+                let origin = application.template;
                 if !seen.insert((origin, arguments.clone())) {
                     return;
                 }

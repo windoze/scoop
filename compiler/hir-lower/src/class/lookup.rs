@@ -118,7 +118,7 @@ impl Lowerer {
             Type::Struct(application) => {
                 let application_value = self.struct_applications[application].clone();
                 declared.extend(
-                    self.structs[application_value.template]
+                    self.structs[self.struct_id(application_value.template)]
                         .methods
                         .iter()
                         .copied()
@@ -153,7 +153,7 @@ impl Lowerer {
             Type::Enum(application) => {
                 let application_value = self.enum_applications[application].clone();
                 declared.extend(
-                    self.enums[application_value.template]
+                    self.enums[self.enum_id(application_value.template)]
                         .methods
                         .iter()
                         .copied()
@@ -228,33 +228,39 @@ impl Lowerer {
             let class = application_value.template;
             let owner_application = self
                 .object_by_backing_class
-                .get(&class)
+                .get(&self.class_id(class))
                 .map_or(hir::MethodOwnerApplication::Class(application), |object| {
                     hir::MethodOwnerApplication::Object(self.objects[*object].object_type)
                 });
-            out.extend(self.classes[class].methods.iter().copied().map(|function| {
-                let source = match bound {
-                    Some((receiver_parameter, bound)) => {
-                        crate::CallableCandidateSource::ClassBound {
-                            receiver_parameter,
-                            bound,
-                            member: function,
-                        }
-                    }
-                    None => crate::CallableCandidateSource::Direct,
-                };
-                (
-                    crate::CallableCandidate {
-                        function,
-                        owner: crate::CallableCandidateOwner::Method(owner_application),
-                        source,
-                    },
-                    depth,
-                    root,
-                )
-            }));
+            out.extend(
+                self.classes[self.class_id(class)]
+                    .methods
+                    .iter()
+                    .copied()
+                    .map(|function| {
+                        let source = match bound {
+                            Some((receiver_parameter, bound)) => {
+                                crate::CallableCandidateSource::ClassBound {
+                                    receiver_parameter,
+                                    bound,
+                                    member: function,
+                                }
+                            }
+                            None => crate::CallableCandidateSource::Direct,
+                        };
+                        (
+                            crate::CallableCandidate {
+                                function,
+                                owner: crate::CallableCandidateOwner::Method(owner_application),
+                                source,
+                            },
+                            depth,
+                            root,
+                        )
+                    }),
+            );
             if let Some((receiver_parameter, _)) = bound {
-                for interface in self.classes[class].interfaces.clone() {
+                for interface in self.classes[self.class_id(class)].interfaces.clone() {
                     let interface = self.instantiate_ty(interface, &application_value.arguments);
                     let Type::Interface(interface) = self.types[interface] else {
                         continue;
@@ -269,7 +275,7 @@ impl Lowerer {
                     );
                 }
             }
-            let Some(base) = self.classes[class].base_class else {
+            let Some(base) = self.classes[self.class_id(class)].base_class else {
                 break;
             };
             let base = self.instantiate_ty(base, &application_value.arguments);
@@ -362,10 +368,13 @@ impl Lowerer {
         let application_value = self.interface_applications[application].clone();
         if depth == 0
             && bound.is_none()
-            && self.current_owner == Some(Owner::Interface(application_value.template))
+            && self.current_owner
+                == Some(Owner::Interface(
+                    self.interface_id(application_value.template),
+                ))
         {
             out.extend(
-                self.interfaces[application_value.template]
+                self.interfaces[self.interface_id(application_value.template)]
                     .private_methods
                     .iter()
                     .copied()
@@ -384,7 +393,7 @@ impl Lowerer {
                     }),
             );
         }
-        for &member in &self.interfaces[application_value.template].methods {
+        for &member in &self.interfaces[self.interface_id(application_value.template)].methods {
             let function = self.interface_method_entities[member].function;
             let source = match bound {
                 Some((receiver_parameter, bound)) => {
@@ -408,7 +417,10 @@ impl Lowerer {
                 root,
             ));
         }
-        for parent in self.interfaces[application_value.template].parents.clone() {
+        for parent in self.interfaces[self.interface_id(application_value.template)]
+            .parents
+            .clone()
+        {
             let parent = self.instantiate_ty(parent, &application_value.arguments);
             if let Type::Interface(parent) = self.types[parent] {
                 self.collect_interface_method_candidates(parent, depth + 1, root, bound, seen, out);

@@ -21,7 +21,7 @@ impl Lowerer {
             hir::Type::Enum(_) => self.static_none_constant(ty),
             hir::Type::Struct(application) => {
                 let application_value = self.struct_applications[application].clone();
-                let fields = self.structs[application_value.template]
+                let fields = self.structs[self.struct_id(application_value.template)]
                     .semantic_fields()
                     .to_vec();
                 let fields = fields
@@ -67,12 +67,19 @@ impl Lowerer {
         };
         let application_value = &self.enum_applications[application];
         let option = self.option_core?;
-        if application_value.template != option.enumeration() {
+        if application_value.template
+            != self
+                .nominal_identity(crate::Owner::Enum(option.enumeration()))
+                .declaration_id()
+        {
             return None;
         }
         let variant = hir::AppliedEnumVariantRef::checked(
             &self.enums,
             &self.enum_applications,
+            self.nominal_identities
+                .as_ref()
+                .expect("nominal identities precede application references"),
             application,
             option.none(),
         )
@@ -118,7 +125,7 @@ impl Lowerer {
                 crate::imports::lookup::values::ValueOrigin::Core(
                     crate::imports::lookup::values::ValueTarget::Variant(target),
                 ),
-            ) if target.enumeration() != application_value.template
+            ) if target.enumeration() != self.enum_id(application_value.template)
                 || self.resolved_variant_style(target) != VariantStyle::Unit =>
             {
                 self.contextual_variant_ref(&name.text, Some(expected))
@@ -134,12 +141,15 @@ impl Lowerer {
             }
             _ => None,
         }?;
-        if target.enumeration() != application_value.template {
+        if target.enumeration() != self.enum_id(application_value.template) {
             return None;
         }
         let variant = hir::AppliedEnumVariantRef::checked(
             &self.enums,
             &self.enum_applications,
+            self.nominal_identities
+                .as_ref()
+                .expect("nominal identities precede application references"),
             application,
             target,
         )?;
@@ -194,10 +204,10 @@ impl Lowerer {
             (hir::Type::Struct(application), ast::Expr::Call(call)) => {
                 let application_value = self.struct_applications[application].clone();
                 let struct_id = application_value.template;
-                if self.global_struct_callee(call) != Some(struct_id) {
+                if self.global_struct_callee(call) != Some(self.struct_id(struct_id)) {
                     return None;
                 }
-                let constructor = self.struct_primary_constructor(struct_id)?;
+                let constructor = self.struct_primary_constructor(self.struct_id(struct_id))?;
                 let view = self.nominal_constructor_view(
                     NominalConstructorSource::Struct(constructor),
                     call.span,

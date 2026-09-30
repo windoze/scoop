@@ -11,6 +11,23 @@ pub(crate) struct NominalApplication {
 }
 
 impl Lowerer {
+    pub(crate) fn apply_nominal_type(
+        &mut self,
+        template: hir::SourceNominalId,
+        arguments: Vec<TypeId>,
+    ) -> Result<TypeId, crate::imported_core::ImportedSignatureTypeError> {
+        let Some(owner) = self.nominal_owners.get(&template).copied() else {
+            return self.imported_nominal_application(template, arguments);
+        };
+        Ok(match owner {
+            Owner::Struct(id) => self.struct_application(id, arguments),
+            Owner::Class(id) => self.class_application(id, arguments),
+            Owner::Enum(id) => self.enum_application(id, arguments),
+            Owner::Interface(id) => self.intern_interface_application(id, arguments),
+            Owner::Object(id) => self.class_application(self.objects[id].backing_class, arguments),
+        })
+    }
+
     pub(crate) fn nominal_application(&self, ty: TypeId) -> Option<NominalApplication> {
         if let Some((declaration, arguments)) = self.types[ty].imported_nominal_application() {
             return Some(NominalApplication {
@@ -22,35 +39,19 @@ impl Lowerer {
         let (template, arguments) = match self.types[ty] {
             Type::Struct(application) => {
                 let application = &self.struct_applications[application];
-                (
-                    self.nominal_identity(Owner::Struct(application.template))
-                        .declaration_id(),
-                    application.arguments.clone(),
-                )
+                (application.template, application.arguments.clone())
             }
             Type::Class(application) => {
                 let application = &self.class_applications[application];
-                (
-                    self.nominal_identity(Owner::Class(application.template))
-                        .declaration_id(),
-                    application.arguments.clone(),
-                )
+                (application.template, application.arguments.clone())
             }
             Type::Enum(application) => {
                 let application = &self.enum_applications[application];
-                (
-                    self.nominal_identity(Owner::Enum(application.template))
-                        .declaration_id(),
-                    application.arguments.clone(),
-                )
+                (application.template, application.arguments.clone())
             }
             Type::Interface(application) => {
                 let application = &self.interface_applications[application];
-                (
-                    self.nominal_identity(Owner::Interface(application.template))
-                        .declaration_id(),
-                    application.arguments.clone(),
-                )
+                (application.template, application.arguments.clone())
             }
             _ => return None,
         };

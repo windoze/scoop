@@ -64,7 +64,7 @@ impl Lowerer {
                     return None;
                 };
                 (
-                    self.enum_applications[application].template,
+                    self.enum_id(self.enum_applications[application].template),
                     Some(AliasExpansion {
                         name: enum_name,
                         target,

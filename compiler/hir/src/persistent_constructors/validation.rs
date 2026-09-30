@@ -204,7 +204,7 @@ fn validate_adapter(
         || constructor_application.owner
             != inputs.type_inputs.classes[adapter_value.owner].self_application
         || inputs.type_inputs.class_applications[constructor_application.owner].template
-            != adapter_value.owner
+            != inputs.type_inputs.nominal_identities[adapter_value.owner].declaration_id()
         || !inputs.type_inputs.class_applications[constructor_application.owner]
             .arguments
             .is_empty()

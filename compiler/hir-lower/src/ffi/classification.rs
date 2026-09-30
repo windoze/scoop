@@ -95,18 +95,31 @@ impl Lowerer {
             hir::Type::Struct(application) => {
                 let application = self.struct_applications[application].clone();
                 let id = application.template;
-                let scalar_projection =
-                    Some(id) == self.ffi_pinned_ptr || Some(id) == self.ffi_gc_handle;
-                if self.structs[id].attributes.c_layout.is_none() && !scalar_projection {
+                let scalar_projection = Some(id)
+                    == self.ffi_pinned_ptr.map(|id| {
+                        self.nominal_identity(crate::Owner::Struct(id))
+                            .declaration_id()
+                    })
+                    || Some(id)
+                        == self.ffi_gc_handle.map(|id| {
+                            self.nominal_identity(crate::Owner::Struct(id))
+                                .declaration_id()
+                        });
+                if self.structs[self.struct_id(id)]
+                    .attributes
+                    .c_layout
+                    .is_none()
+                    && !scalar_projection
+                {
                     return Err(CAbiError {
                         path,
                         reason: format!(
                             "ordinary struct `{}` has no stable C layout",
-                            self.structs[id].name
+                            self.structs[self.struct_id(id)].name
                         ),
                     });
                 }
-                let fields = self.structs[id].semantic_fields().to_vec();
+                let fields = self.structs[self.struct_id(id)].semantic_fields().to_vec();
                 let fields = fields
                     .into_iter()
                     .map(|field| {
@@ -152,7 +165,11 @@ impl Lowerer {
             }),
             hir::Type::Enum(application) => {
                 let application = self.enum_applications[application].clone();
-                if Some(application.template) != self.option_enumeration()
+                if Some(application.template)
+                    != self.option_enumeration().map(|id| {
+                        self.nominal_identity(crate::Owner::Enum(id))
+                            .declaration_id()
+                    })
                     || application.arguments.len() != 1
                 {
                     return Err(CAbiError {
@@ -228,7 +245,7 @@ impl Lowerer {
 
         if let hir::Type::Struct(application) = self.types[pointee] {
             let application = &self.struct_applications[application];
-            if self.structs[application.template]
+            if self.structs[self.struct_id(application.template)]
                 .attributes
                 .c_layout
                 .is_some()
@@ -325,7 +342,7 @@ impl Lowerer {
                     return None;
                 }
                 let application = self.struct_applications[application].clone();
-                let fields = self.structs[application.template]
+                let fields = self.structs[self.struct_id(application.template)]
                     .semantic_fields()
                     .to_vec();
                 for field in fields {

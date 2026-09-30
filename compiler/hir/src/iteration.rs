@@ -21,6 +21,7 @@ impl IterationCore {
         enums: &Arena<EnumDecl>,
         enum_applications: &Arena<EnumApplication>,
         types: &Arena<Type>,
+        nominal_identities: &HirNominalIdentities,
         option: OptionCore,
         iterator: InterfaceId,
         next: InterfaceMethodId,
@@ -83,7 +84,7 @@ impl IterationCore {
         }
 
         let self_application = &interface_applications[interface.self_application];
-        if self_application.template != iterator
+        if self_application.template != nominal_identities[iterator].declaration_id()
             || self_application.arguments.len() != 1
             || !arena_contains(types, self_application.arguments[0])
             || !arena_contains(types, self_application.canonical_type)
@@ -118,7 +119,7 @@ impl IterationCore {
             return None;
         }
         let option_application = &enum_applications[option_application_id];
-        if option_application.template != option.enumeration()
+        if option_application.template != nominal_identities[option.enumeration()].declaration_id()
             || option_application.arguments.as_slice() != [self_application.arguments[0]]
             || option_application.canonical_type != function.return_ty
         {

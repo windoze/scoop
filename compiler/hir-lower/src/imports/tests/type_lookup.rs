@@ -32,8 +32,12 @@ fn marker(output: &hir::Output) -> &str {
         panic!("selected type is a structure")
     };
     let template = output.export.struct_applications[application].template;
-    let hir::StructRepresentation::Declared(fields) =
-        &output.export.structs[template].representation
+    let hir::StructRepresentation::Declared(fields) = &output.export.structs[output
+        .export
+        .nominal_identities
+        .struct_id(template)
+        .expect("an application retains its declaration")]
+    .representation
     else {
         panic!("selected type is an ordinary structure")
     };

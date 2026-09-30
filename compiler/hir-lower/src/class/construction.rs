@@ -359,13 +359,13 @@ impl Lowerer {
             unreachable!("a direct base type is a class application")
         };
         let base = self.class_applications[base_application].clone();
-        let candidates = self.classes[base.template]
+        let candidates = self.classes[self.class_id(base.template)]
             .constructors
             .iter()
             .copied()
             .map(NominalConstructorSource::Class)
             .collect::<Vec<_>>();
-        let name = self.classes[base.template].name.clone();
+        let name = self.classes[self.class_id(base.template)].name.clone();
         let type_arguments = base.arguments;
         let explicit_type_arguments = type_arguments
             .iter()

@@ -193,12 +193,17 @@ impl Module {
             Type::ImportedEnum(ref structure) => structure.declaration.name().to_owned(),
             Type::ImportedClass(ref structure) => structure.declaration.name().to_owned(),
             Type::ImportedInterface(ref structure) => structure.declaration.name().to_owned(),
-            Type::Struct(application) => self.structs
-                [self.struct_applications[application].template]
-                .name
-                .clone(),
+            Type::Struct(application) => self.structs[self
+                .nominal_identities
+                .struct_id(self.struct_applications[application].template)
+                .expect("a nominal application retains its declaration")]
+            .name
+            .clone(),
             Type::Class(application) => {
-                let class = self.class_applications[application].template;
+                let class = self
+                    .nominal_identities
+                    .class_id(self.class_applications[application].template)
+                    .expect("a class application retains its declaration");
                 self.objects
                     .iter()
                     .find_map(|(_, object)| {
@@ -206,13 +211,18 @@ impl Module {
                     })
                     .unwrap_or_else(|| self.classes[class].name.clone())
             }
-            Type::Interface(application) => self.interfaces
-                [self.interface_applications[application].template]
-                .name
-                .clone(),
-            Type::Enum(application) => self.enums[self.enum_applications[application].template]
-                .name
-                .clone(),
+            Type::Interface(application) => self.interfaces[self
+                .nominal_identities
+                .interface_id(self.interface_applications[application].template)
+                .expect("a nominal application retains its declaration")]
+            .name
+            .clone(),
+            Type::Enum(application) => self.enums[self
+                .nominal_identities
+                .enum_id(self.enum_applications[application].template)
+                .expect("a nominal application retains its declaration")]
+            .name
+            .clone(),
             Type::Unit
             | Type::Integer(_)
             | Type::Boolean

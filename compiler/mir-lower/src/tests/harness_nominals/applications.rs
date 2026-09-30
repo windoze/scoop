@@ -56,8 +56,9 @@ impl Harness {
         index: u32,
     ) -> hir::FieldRef {
         let owner = &self.struct_applications[application];
-        let reference = hir::StructFieldRef::checked(&self.structs, owner.template, index)
-            .expect("test field belongs to its declaring struct");
+        let reference =
+            hir::StructFieldRef::checked(&self.structs, self.struct_id(owner.template), index)
+                .expect("test field belongs to its declaring struct");
         let nominals = super::test_nominal_identities_without_objects(
             &self.structs,
             &self.enums,
@@ -117,8 +118,9 @@ impl Harness {
         index: u32,
     ) -> hir::EnumVariantApplication {
         let owner = &self.enum_applications[application];
-        let declaration = hir::EnumVariantRef::checked(&self.enums, owner.template, index)
-            .expect("test variant belongs to its declaring enum");
+        let declaration =
+            hir::EnumVariantRef::checked(&self.enums, self.enum_id(owner.template), index)
+                .expect("test variant belongs to its declaring enum");
         let nominals = super::test_nominal_identities_without_objects(
             &self.structs,
             &self.enums,
@@ -153,8 +155,9 @@ impl Harness {
             return *application;
         }
         let canonical_type = hir::TypeId::from_raw((self.types.len() as u32).into());
+        let declaration = self.nominal_identities()[template].declaration_id();
         let application = self.struct_applications.alloc(hir::StructApplication {
-            template,
+            template: declaration,
             arguments: key.1.clone(),
             canonical_type,
             representation: hir::StructApplicationRepresentation::Declared,
@@ -182,8 +185,9 @@ impl Harness {
             return *application;
         }
         let canonical_type = hir::TypeId::from_raw((self.types.len() as u32).into());
+        let declaration = self.nominal_identities()[template].declaration_id();
         let application = self.enum_applications.alloc(hir::EnumApplication {
-            template,
+            template: declaration,
             arguments: key.1.clone(),
             canonical_type,
         });
@@ -240,8 +244,9 @@ impl Harness {
                 hir::ClassApplicationRepresentation::Intrinsic(declaration.application(&key.1))
             }
         };
+        let declaration = self.nominal_identities()[template].declaration_id();
         let application = self.class_applications.alloc(hir::ClassApplication {
-            template,
+            template: declaration,
             arguments: key.1.clone(),
             canonical_type,
             representation,
@@ -269,10 +274,11 @@ impl Harness {
             return *application;
         }
         let canonical_type = hir::TypeId::from_raw((self.types.len() as u32).into());
+        let declaration = self.nominal_identities()[template].declaration_id();
         let application = self
             .interface_applications
             .alloc(hir::InterfaceApplication {
-                template,
+                template: declaration,
                 arguments: key.1.clone(),
                 canonical_type,
             });

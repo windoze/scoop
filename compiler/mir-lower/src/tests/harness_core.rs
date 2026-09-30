@@ -52,7 +52,12 @@ impl Harness {
         });
         let option_self_type = hir::TypeId::from_raw((types.len() as u32).into());
         let actual_option_self_application = enum_applications.alloc(hir::EnumApplication {
-            template: option_enum,
+            template: super::harness_nominals::test_source_nominal_identity(
+                "Option",
+                scoop_identity::SourceNominalKind::Enum,
+                1,
+            )
+            .declaration_id(),
             arguments: vec![t],
             canonical_type: option_self_type,
         });

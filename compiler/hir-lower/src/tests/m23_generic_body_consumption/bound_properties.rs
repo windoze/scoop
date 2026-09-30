@@ -22,7 +22,12 @@ fn class_bound_accessors_keep_the_declaring_application_and_original_receiver() 
                 .filter_map(|(_, bound)| match bound.source {
                     hir::BoundCallableSource::Class { bound, callable } => {
                         let application = &module.class_applications[bound];
-                        (module.classes[application.template].name == "Local")
+                        (module.classes[module
+                            .nominal_identities
+                            .class_id(application.template)
+                            .expect("an application retains its declaration")]
+                        .name
+                            == "Local")
                             .then_some((application, module.callable_function(callable)))
                     }
                     _ => None,

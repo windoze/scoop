@@ -51,7 +51,8 @@ fn basic_for_expansion_keeps_source_iterator_and_next_exactly_once() {
     let application = &module.interface_applications[application];
     assert_eq!(
         application.template,
-        defined_export_core(module).iteration.iterator()
+        module.nominal_identities[defined_export_core(module).iteration.iterator()]
+            .declaration_id()
     );
     assert_eq!(application.arguments, [int]);
     let iterator_local_ids = [source, raw, iterator, next_result, element];
@@ -83,7 +84,8 @@ fn basic_for_expansion_keeps_source_iterator_and_next_exactly_once() {
     };
     assert_eq!(
         module.enum_applications[option].template,
-        defined_export_core(module).option.enumeration()
+        module.nominal_identities[defined_export_core(module).option.enumeration()]
+            .declaration_id()
     );
     assert_eq!(module.enum_applications[option].arguments, [int]);
     assert!(
@@ -489,7 +491,8 @@ fn iteration_plan_keeps_canonical_next_some_and_none_identities() {
     };
     assert_eq!(
         module.enum_applications[option].template,
-        defined_export_core(&module).option.enumeration()
+        module.nominal_identities[defined_export_core(&module).option.enumeration()]
+            .declaration_id()
     );
     let shadow = module
         .enums

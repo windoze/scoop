@@ -65,7 +65,8 @@ impl Lowerer {
             self.record_selected_interface_sources(ty, &mut selected_sources);
             match &self.types[ty] {
                 hir::Type::Class(application) => {
-                    let declaration = &self.classes[self.class_applications[*application].template];
+                    let declaration = &self.classes
+                        [self.class_id(self.class_applications[*application].template)];
                     pending.extend(declaration.interfaces.iter().rev().copied());
                     pending.extend(declaration.base_class);
                     for function in &declaration.methods {
@@ -89,8 +90,8 @@ impl Lowerer {
                     );
                 }
                 hir::Type::Struct(application) => {
-                    let declaration =
-                        &self.structs[self.struct_applications[*application].template];
+                    let declaration = &self.structs
+                        [self.struct_id(self.struct_applications[*application].template)];
                     pending.extend(declaration.interfaces.iter().rev().copied());
                     suppress_local_implementations(
                         &declaration.interface_implementations,
@@ -98,7 +99,8 @@ impl Lowerer {
                     );
                 }
                 hir::Type::Enum(application) => {
-                    let declaration = &self.enums[self.enum_applications[*application].template];
+                    let declaration =
+                        &self.enums[self.enum_id(self.enum_applications[*application].template)];
                     pending.extend(declaration.interfaces.iter().rev().copied());
                     suppress_local_implementations(
                         &declaration.interface_implementations,
@@ -106,8 +108,8 @@ impl Lowerer {
                     );
                 }
                 hir::Type::Interface(application) => {
-                    let declaration =
-                        &self.interfaces[self.interface_applications[*application].template];
+                    let declaration = &self.interfaces
+                        [self.interface_id(self.interface_applications[*application].template)];
                     pending.extend(declaration.parents.iter().rev().copied());
                     for reference in declaration
                         .methods

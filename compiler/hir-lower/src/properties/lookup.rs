@@ -38,7 +38,7 @@ impl Lowerer {
             }
             hir::Type::Struct(application) => {
                 let value = self.struct_applications[application].clone();
-                let property = self.structs[value.template]
+                let property = self.structs[self.struct_id(value.template)]
                     .properties
                     .iter()
                     .copied()
@@ -55,15 +55,14 @@ impl Lowerer {
             }
             hir::Type::Enum(application) => {
                 let value = self.enum_applications[application].clone();
-                let property =
-                    self.enums[value.template]
-                        .properties
-                        .iter()
-                        .copied()
-                        .find(|&property| {
-                            self.properties[property].name == name
-                                && self.property_is_accessible(property, Some(receiver_ty))
-                        })?;
+                let property = self.enums[self.enum_id(value.template)]
+                    .properties
+                    .iter()
+                    .copied()
+                    .find(|&property| {
+                        self.properties[property].name == name
+                            && self.property_is_accessible(property, Some(receiver_ty))
+                    })?;
                 let ty = self.instantiate_ty(self.properties[property].ty, &value.arguments);
                 Some((property, hir::MethodOwnerApplication::Enum(application), ty))
             }
@@ -97,7 +96,7 @@ impl Lowerer {
         }
         seen.push(application);
         let value = self.interface_applications[application].clone();
-        if let Some(property) = self.interfaces[value.template]
+        if let Some(property) = self.interfaces[self.interface_id(value.template)]
             .properties
             .iter()
             .copied()
@@ -109,7 +108,10 @@ impl Lowerer {
             let ty = self.instantiate_ty(self.properties[property].ty, &value.arguments);
             return Some((property, application, ty));
         }
-        for parent in self.interfaces[value.template].parents.clone() {
+        for parent in self.interfaces[self.interface_id(value.template)]
+            .parents
+            .clone()
+        {
             let parent_ty = self.instantiate_ty(parent, &value.arguments);
             let hir::Type::Interface(parent) = self.types[parent_ty] else {
                 continue;

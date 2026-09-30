@@ -133,17 +133,19 @@ impl<'a> HirSignatureTypeMapper<'a> {
                     )));
                 }
                 let application = &self.inputs.struct_applications[*application];
+                let template = self
+                    .inputs
+                    .nominal_identities
+                    .struct_id(application.template)
+                    .ok_or_else(|| {
+                        HirSignatureTypeMappingError::InvalidApplication(raw_index(ty))
+                    })?;
                 if application.canonical_type != ty {
                     return Err(HirSignatureTypeMappingError::InvalidApplication(raw_index(
                         ty,
                     )));
                 }
-                self.map_struct(
-                    application.template,
-                    &application.arguments,
-                    binders,
-                    visiting,
-                )?
+                self.map_struct(template, &application.arguments, binders, visiting)?
             }
             Type::Class(application) => {
                 if local_index(*application) >= self.inputs.class_applications.len() {
@@ -152,17 +154,19 @@ impl<'a> HirSignatureTypeMapper<'a> {
                     )));
                 }
                 let application = &self.inputs.class_applications[*application];
+                let template = self
+                    .inputs
+                    .nominal_identities
+                    .class_id(application.template)
+                    .ok_or_else(|| {
+                        HirSignatureTypeMappingError::InvalidApplication(raw_index(ty))
+                    })?;
                 if application.canonical_type != ty {
                     return Err(HirSignatureTypeMappingError::InvalidApplication(raw_index(
                         ty,
                     )));
                 }
-                self.map_class(
-                    application.template,
-                    &application.arguments,
-                    binders,
-                    visiting,
-                )?
+                self.map_class(template, &application.arguments, binders, visiting)?
             }
             Type::Interface(application) => {
                 if local_index(*application) >= self.inputs.interface_applications.len() {
@@ -171,21 +175,21 @@ impl<'a> HirSignatureTypeMapper<'a> {
                     )));
                 }
                 let application = &self.inputs.interface_applications[*application];
-                if local_index(application.template) >= self.inputs.interfaces.len() {
-                    return Err(HirSignatureTypeMappingError::UnknownNominal(raw_index(
-                        application.template,
-                    )));
-                }
+                let template = self
+                    .inputs
+                    .nominal_identities
+                    .interface_id(application.template)
+                    .ok_or_else(|| {
+                        HirSignatureTypeMappingError::InvalidApplication(raw_index(ty))
+                    })?;
                 if application.canonical_type != ty {
                     return Err(HirSignatureTypeMappingError::InvalidApplication(raw_index(
                         ty,
                     )));
                 }
                 self.map_nominal(
-                    &self.inputs.nominal_identities[application.template],
-                    self.inputs.interfaces[application.template]
-                        .type_params
-                        .len(),
+                    &self.inputs.nominal_identities[template],
+                    self.inputs.interfaces[template].type_params.len(),
                     &application.arguments,
                     binders,
                     visiting,
@@ -234,19 +238,21 @@ impl<'a> HirSignatureTypeMapper<'a> {
                     )));
                 }
                 let application = &self.inputs.enum_applications[*application];
-                if local_index(application.template) >= self.inputs.enums.len() {
-                    return Err(HirSignatureTypeMappingError::UnknownNominal(raw_index(
-                        application.template,
-                    )));
-                }
+                let template = self
+                    .inputs
+                    .nominal_identities
+                    .enum_id(application.template)
+                    .ok_or_else(|| {
+                        HirSignatureTypeMappingError::InvalidApplication(raw_index(ty))
+                    })?;
                 if application.canonical_type != ty {
                     return Err(HirSignatureTypeMappingError::InvalidApplication(raw_index(
                         ty,
                     )));
                 }
                 self.map_nominal(
-                    &self.inputs.nominal_identities[application.template],
-                    self.inputs.enums[application.template].type_params.len(),
+                    &self.inputs.nominal_identities[template],
+                    self.inputs.enums[template].type_params.len(),
                     &application.arguments,
                     binders,
                     visiting,

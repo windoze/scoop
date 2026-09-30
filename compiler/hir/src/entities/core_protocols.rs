@@ -79,6 +79,7 @@ impl ForeignCallbackModes {
     pub fn checked(
         enums: &Arena<EnumDecl>,
         applications: &Arena<EnumApplication>,
+        nominal_identities: &HirNominalIdentities,
         reusable: AppliedEnumVariantRef,
         one_shot: AppliedEnumVariantRef,
     ) -> Option<Self> {
@@ -86,6 +87,7 @@ impl ForeignCallbackModes {
             if AppliedEnumVariantRef::checked(
                 enums,
                 applications,
+                nominal_identities,
                 variant.application(),
                 variant.declaration(),
             ) != Some(variant)
@@ -96,8 +98,7 @@ impl ForeignCallbackModes {
         if reusable.application() != one_shot.application() {
             return None;
         }
-        let application = &applications[reusable.application()];
-        let declaration = &enums[application.template];
+        let declaration = &enums[reusable.declaration().enumeration()];
         let reusable_definition = declaration.variants.get(reusable.local_index() as usize)?;
         let one_shot_definition = declaration.variants.get(one_shot.local_index() as usize)?;
         (declaration.name == "ForeignCallbackMode"
@@ -148,6 +149,7 @@ impl ForeignCallbackStates {
     pub fn checked(
         enums: &Arena<EnumDecl>,
         applications: &Arena<EnumApplication>,
+        nominal_identities: &HirNominalIdentities,
         registered: AppliedEnumVariantRef,
         active: AppliedEnumVariantRef,
         completed: AppliedEnumVariantRef,
@@ -158,6 +160,7 @@ impl ForeignCallbackStates {
             if AppliedEnumVariantRef::checked(
                 enums,
                 applications,
+                nominal_identities,
                 variant.application(),
                 variant.declaration(),
             ) != Some(variant)
@@ -171,8 +174,7 @@ impl ForeignCallbackStates {
         {
             return None;
         }
-        let application = &applications[registered.application()];
-        let declaration = &enums[application.template];
+        let declaration = &enums[registered.declaration().enumeration()];
         let expected = [
             (registered, "Registered"),
             (active, "Active"),
@@ -232,6 +234,7 @@ impl ForeignCallbackFailureResult {
     pub fn checked(
         enums: &Arena<EnumDecl>,
         applications: &Arena<EnumApplication>,
+        nominal_identities: &HirNominalIdentities,
         option: OptionCore,
         throwable: TypeId,
         some_payload: AppliedEnumVariantFieldRef,
@@ -241,12 +244,14 @@ impl ForeignCallbackFailureResult {
         if AppliedEnumVariantFieldRef::checked(
             enums,
             applications,
+            nominal_identities,
             some,
             some_payload.local_index(),
         ) != Some(some_payload)
             || AppliedEnumVariantRef::checked(
                 enums,
                 applications,
+                nominal_identities,
                 none.application(),
                 none.declaration(),
             ) != Some(none)
@@ -255,7 +260,7 @@ impl ForeignCallbackFailureResult {
             return None;
         }
         let application = &applications[some.application()];
-        (application.template == option.enumeration()
+        (some.declaration().enumeration() == option.enumeration()
             && application.arguments.as_slice() == [throwable]
             && some.declaration() == option.some()
             && some_payload.local_index() == option.some_payload().local_index()

@@ -717,7 +717,8 @@ fn struct_init(h: &Harness, ty: hir::TypeId, args: Vec<hir::Expr>) -> hir::Expr 
     let hir::Type::Struct(application) = h.types[ty] else {
         panic!("struct construction requires a struct application type")
     };
-    let constructor = h.structs[h.struct_applications[application].template].constructors[0];
+    let constructor =
+        h.structs[h.struct_id(h.struct_applications[application].template)].constructors[0];
     let application = h
         .struct_constructor_applications
         .iter()
@@ -743,7 +744,7 @@ fn module_interface_application(
     let application = module
         .interface_applications
         .alloc(hir::InterfaceApplication {
-            template,
+            template: module.nominal_identities[template].declaration_id(),
             arguments,
             canonical_type,
         });

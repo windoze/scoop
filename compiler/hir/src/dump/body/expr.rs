@@ -31,7 +31,8 @@ pub(super) fn dump_expr(
         ExprKind::ClassInit { constructor, args } => {
             let constructor = &module.class_constructor_applications[*constructor];
             let application = &module.class_applications[constructor.owner];
-            let name = &module.classes[application.template].name;
+            let name =
+                &module.classes[module.class_constructors[constructor.constructor].owner].name;
             let arguments = application
                 .arguments
                 .iter()
@@ -53,10 +54,9 @@ pub(super) fn dump_expr(
         )),
         ExprKind::StructInit { constructor, args } => {
             let constructor = &module.struct_constructor_applications[*constructor];
-            let application = &module.struct_applications[constructor.owner];
             out.push_str(&format!(
                 "{pad}StructInit {} : {ty}\n",
-                module.structs[application.template].name
+                module.structs[module.struct_constructors[constructor.constructor].owner].name
             ));
             for arg in args {
                 dump_expr(module, locals, arg, indent + 1, out);
@@ -371,7 +371,7 @@ pub(super) fn dump_expr(
             let registration_id = *registration;
             let registration = &module.foreign_callback_registrations[registration_id];
             let mode_application = &module.enum_applications[registration.mode.application()];
-            let mode_declaration = &module.enums[mode_application.template];
+            let mode_declaration = &module.enums[registration.mode.declaration().enumeration()];
             let mode = &mode_declaration.variants[registration.mode.local_index() as usize].name;
             out.push_str(&format!(
                 "{pad}ForeignCallbackRegister registration{} native=function_type{} managed=function_type{} context={} mode={}.{} : {ty}\n",

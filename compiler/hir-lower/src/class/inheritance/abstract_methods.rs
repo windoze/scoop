@@ -26,8 +26,11 @@ impl Lowerer {
             match class_type {
                 Type::Class(application) => {
                     let application = self.class_applications[application].clone();
-                    let inherited = application.template != class;
-                    let class = self.classes[application.template].clone();
+                    let inherited = application.template
+                        != self
+                            .nominal_identity(crate::Owner::Class(class))
+                            .declaration_id();
+                    let class = self.classes[self.class_id(application.template)].clone();
                     current = class.base_class.map(|base| {
                         let base = self.instantiate_ty(base, &application.arguments);
                         (base, self.types[base].clone())

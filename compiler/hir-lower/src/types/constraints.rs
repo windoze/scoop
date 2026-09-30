@@ -232,14 +232,18 @@ impl Lowerer {
                         Type::Class(application) => {
                             let application = self.class_applications[application].clone();
                             (
-                                self.classes[application.template].type_params.clone(),
+                                self.classes[self.class_id(application.template)]
+                                    .type_params
+                                    .clone(),
                                 application.arguments,
                             )
                         }
                         Type::Interface(application) => {
                             let application = self.interface_applications[application].clone();
                             (
-                                self.interfaces[application.template].type_params.clone(),
+                                self.interfaces[self.interface_id(application.template)]
+                                    .type_params
+                                    .clone(),
                                 application.arguments,
                             )
                         }

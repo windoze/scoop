@@ -2,30 +2,15 @@ use super::*;
 
 impl Lowerer {
     pub(crate) fn type_contains_param(&self, ty: TypeId) -> bool {
-        if let Some((_, arguments)) = self.types[ty].imported_nominal_application() {
-            return arguments
+        if let Some(application) = self.nominal_application(ty) {
+            return application
+                .arguments
                 .iter()
                 .any(|argument| self.type_contains_param(*argument));
         }
         match &self.types[ty] {
             Type::Param(_) => true,
             Type::Ptr(element) => self.type_contains_param(*element),
-            Type::Struct(application) => self.struct_applications[*application]
-                .arguments
-                .iter()
-                .any(|ty| self.type_contains_param(*ty)),
-            Type::Class(application) => self.class_applications[*application]
-                .arguments
-                .iter()
-                .any(|ty| self.type_contains_param(*ty)),
-            Type::Interface(application) => self.interface_applications[*application]
-                .arguments
-                .iter()
-                .any(|ty| self.type_contains_param(*ty)),
-            Type::Enum(application) => self.enum_applications[*application]
-                .arguments
-                .iter()
-                .any(|ty| self.type_contains_param(*ty)),
             Type::Tuple(args) => args.iter().any(|ty| self.type_contains_param(*ty)),
             Type::Function(id) | Type::FunPtr(id) => self.function_type_contains_param(*id),
             _ => false,
@@ -48,63 +33,18 @@ impl Lowerer {
     /// every parameter is bound (unbound parameters are diagnosed at
     /// the use site first).
     pub(crate) fn instantiate_ty(&mut self, ty: TypeId, type_args: &[TypeId]) -> TypeId {
-        if let Some((declaration, arguments)) =
-            self.types[ty].clone().imported_nominal_application()
-        {
-            let arguments = arguments
+        if let Some(application) = self.nominal_application(ty) {
+            let arguments = application
+                .arguments
                 .iter()
                 .map(|argument| self.instantiate_ty(*argument, type_args))
                 .collect();
             return self
-                .imported_nominal_application(declaration.owner(), arguments)
-                .expect("substitution preserves a resolved dependency nominal declaration");
+                .apply_nominal_type(application.template, arguments)
+                .expect("substitution preserves a resolved nominal declaration");
         }
         match self.types[ty].clone() {
             Type::Param(index) => type_args[index.into_raw() as usize],
-            Type::Struct(application) => {
-                let application = self.struct_applications[application].clone();
-                let id = application.template;
-                let args = application.arguments;
-                let mut substituted = Vec::with_capacity(args.len());
-                for arg in args {
-                    substituted.push(self.instantiate_ty(arg, type_args));
-                }
-                if Some(id) == self.ffi_fun_ptr {
-                    let [function] = substituted.as_slice() else {
-                        unreachable!("validated FunPtr has one type argument")
-                    };
-                    let Type::Function(function) = self.types[*function] else {
-                        unreachable!("deferred FunPtr resolves to a function type")
-                    };
-                    return self.intern_type(Type::FunPtr(function));
-                }
-                self.struct_application(id, substituted)
-            }
-            Type::Class(application) => {
-                let application = self.class_applications[application].clone();
-                let substituted = application
-                    .arguments
-                    .into_iter()
-                    .map(|arg| self.instantiate_ty(arg, type_args))
-                    .collect();
-                self.class_application(application.template, substituted)
-            }
-            Type::Interface(application) => {
-                let application = self.interface_applications[application].clone();
-                let mut substituted = Vec::with_capacity(application.arguments.len());
-                for arg in application.arguments {
-                    substituted.push(self.instantiate_ty(arg, type_args));
-                }
-                self.intern_interface_application(application.template, substituted)
-            }
-            Type::Enum(application) => {
-                let application = self.enum_applications[application].clone();
-                let mut substituted = Vec::with_capacity(application.arguments.len());
-                for arg in application.arguments {
-                    substituted.push(self.instantiate_ty(arg, type_args));
-                }
-                self.enum_application(application.template, substituted)
-            }
             Type::Tuple(elements) => {
                 let mut substituted = Vec::with_capacity(elements.len());
                 for element in elements {
@@ -143,58 +83,21 @@ impl Lowerer {
         ty: TypeId,
         bindings: &[(hir::TypeParamId, TypeId)],
     ) -> TypeId {
-        if let Some((declaration, arguments)) =
-            self.types[ty].clone().imported_nominal_application()
-        {
-            let arguments = arguments
+        if let Some(application) = self.nominal_application(ty) {
+            let arguments = application
+                .arguments
                 .iter()
                 .map(|argument| self.instantiate_method_ty(*argument, bindings))
                 .collect();
             return self
-                .imported_nominal_application(declaration.owner(), arguments)
-                .expect("substitution preserves a resolved dependency nominal declaration");
+                .apply_nominal_type(application.template, arguments)
+                .expect("substitution preserves a resolved nominal declaration");
         }
         match self.types[ty].clone() {
             Type::Param(parameter) => bindings
                 .iter()
                 .find_map(|(source, target)| (*source == parameter).then_some(*target))
                 .expect("a complete method substitution binds every referenced parameter"),
-            Type::Struct(application) => {
-                let application = self.struct_applications[application].clone();
-                let args = application
-                    .arguments
-                    .into_iter()
-                    .map(|arg| self.instantiate_method_ty(arg, bindings))
-                    .collect();
-                self.struct_application(application.template, args)
-            }
-            Type::Class(application) => {
-                let application = self.class_applications[application].clone();
-                let args = application
-                    .arguments
-                    .into_iter()
-                    .map(|arg| self.instantiate_method_ty(arg, bindings))
-                    .collect();
-                self.class_application(application.template, args)
-            }
-            Type::Interface(application) => {
-                let application = self.interface_applications[application].clone();
-                let args = application
-                    .arguments
-                    .into_iter()
-                    .map(|arg| self.instantiate_method_ty(arg, bindings))
-                    .collect();
-                self.intern_interface_application(application.template, args)
-            }
-            Type::Enum(application) => {
-                let application = self.enum_applications[application].clone();
-                let args = application
-                    .arguments
-                    .into_iter()
-                    .map(|arg| self.instantiate_method_ty(arg, bindings))
-                    .collect();
-                self.enum_application(application.template, args)
-            }
             Type::Tuple(elements) => {
                 let elements = elements
                     .into_iter()
@@ -233,51 +136,18 @@ impl Lowerer {
         ty: TypeId,
         bindings: &[Option<TypeId>],
     ) -> Option<TypeId> {
-        if let Some((declaration, arguments)) =
-            self.types[ty].clone().imported_nominal_application()
-        {
-            let arguments = arguments
+        if let Some(application) = self.nominal_application(ty) {
+            let arguments = application
+                .arguments
                 .iter()
                 .map(|argument| self.try_substitute(*argument, bindings))
                 .collect::<Option<Vec<_>>>()?;
             return self
-                .imported_nominal_application(declaration.owner(), arguments)
+                .apply_nominal_type(application.template, arguments)
                 .ok();
         }
         match self.types[ty].clone() {
             Type::Param(index) => bindings.get(index.into_raw() as usize).copied().flatten(),
-            Type::Struct(application) => {
-                let application = self.struct_applications[application].clone();
-                let mut substituted = Vec::with_capacity(application.arguments.len());
-                for arg in application.arguments {
-                    substituted.push(self.try_substitute(arg, bindings)?);
-                }
-                Some(self.struct_application(application.template, substituted))
-            }
-            Type::Class(application) => {
-                let application = self.class_applications[application].clone();
-                let mut substituted = Vec::with_capacity(application.arguments.len());
-                for arg in application.arguments {
-                    substituted.push(self.try_substitute(arg, bindings)?);
-                }
-                Some(self.class_application(application.template, substituted))
-            }
-            Type::Interface(application) => {
-                let application = self.interface_applications[application].clone();
-                let mut substituted = Vec::with_capacity(application.arguments.len());
-                for arg in application.arguments {
-                    substituted.push(self.try_substitute(arg, bindings)?);
-                }
-                Some(self.intern_interface_application(application.template, substituted))
-            }
-            Type::Enum(application) => {
-                let application = self.enum_applications[application].clone();
-                let mut substituted = Vec::with_capacity(application.arguments.len());
-                for arg in application.arguments {
-                    substituted.push(self.try_substitute(arg, bindings)?);
-                }
-                Some(self.enum_application(application.template, substituted))
-            }
             Type::Tuple(elements) => {
                 let mut substituted = Vec::with_capacity(elements.len());
                 for element in elements {

@@ -230,7 +230,7 @@ fn catch_local_structure() {
     assert!(matches!(
         module.types[first.ty],
         hir::Type::Class(application)
-            if module.classes[module.class_applications[application].template].name
+            if module.classes[module.nominal_identities.class_id(module.class_applications[application].template).expect("an application retains its declaration")].name
                 == "UnwrapException"
                 && module.class_applications[application].arguments.is_empty()
     ));
@@ -302,7 +302,7 @@ fn bare_class_supertype_is_classified_as_the_base() {
         .expect("E is declared");
     let base = class.base_class.as_ref().expect("E has a base class");
     assert!(matches!(module.types[*base], hir::Type::Class(application)
-        if module.classes[module.class_applications[application].template].name == "Throwable"));
+        if module.classes[module.nominal_identities.class_id(module.class_applications[application].template).expect("an application retains its declaration")].name == "Throwable"));
     let hir::ClassConstructorKind::Primary {
         base:
             hir::BaseInitialization::Super {

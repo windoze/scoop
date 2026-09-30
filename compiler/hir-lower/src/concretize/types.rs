@@ -41,7 +41,14 @@ impl Concretizer<'_> {
                 )
             }
         };
-        self.ensure_struct(application.template, arguments, representation)
+        self.ensure_struct(
+            self.source
+                .nominal_identities
+                .struct_id(application.template)
+                .expect("an application retains its declaration"),
+            arguments,
+            representation,
+        )
     }
 
     pub(super) fn lower_enum_application(
@@ -55,7 +62,13 @@ impl Concretizer<'_> {
             .iter()
             .map(|argument| self.lower_type(*argument, substitution))
             .collect();
-        self.ensure_enum(application.template, arguments)
+        self.ensure_enum(
+            self.source
+                .nominal_identities
+                .enum_id(application.template)
+                .expect("an application retains its declaration"),
+            arguments,
+        )
     }
 
     pub(super) fn lower_class_application(
@@ -79,7 +92,14 @@ impl Concretizer<'_> {
                 )
             }
         };
-        self.ensure_class(application.template, arguments, representation)
+        self.ensure_class(
+            self.source
+                .nominal_identities
+                .class_id(application.template)
+                .expect("an application retains its declaration"),
+            arguments,
+            representation,
+        )
     }
 
     pub(super) fn lower_intrinsic_type_representation(
@@ -133,7 +153,13 @@ impl Concretizer<'_> {
             .iter()
             .map(|argument| self.lower_type(*argument, substitution))
             .collect();
-        self.ensure_interface(application.template, arguments)
+        self.ensure_interface(
+            self.source
+                .nominal_identities
+                .interface_id(application.template)
+                .expect("an application retains its declaration"),
+            arguments,
+        )
     }
 
     pub(super) fn lower_type(
@@ -163,7 +189,7 @@ impl Concretizer<'_> {
                 if matches!(
                     self.core,
                     export::CoreProtocols::Defined(protocols)
-                        if value.template == protocols.ffi.fun_ptr
+                        if value.template == self.source.nominal_identities[protocols.ffi.fun_ptr].declaration_id()
                 ) {
                     let [function] = value.arguments.as_slice() else {
                         panic!("validated deferred FunPtr has one argument")

@@ -633,12 +633,18 @@ fn generic_enum_unit_constants_preserve_exact_refs_through_concrete_hir_and_mir(
     let string_application = h.enum_application_of(option_string);
     let none = hir::EnumVariantRef::checked(&h.enums, h.option_enum, 1)
         .expect("test core Option has None");
-    let int_none =
-        hir::AppliedEnumVariantRef::checked(&h.enums, &h.enum_applications, int_application, none)
-            .expect("None belongs to Option<Int>");
+    let int_none = hir::AppliedEnumVariantRef::checked(
+        &h.enums,
+        &h.enum_applications,
+        &h.nominal_identities(),
+        int_application,
+        none,
+    )
+    .expect("None belongs to Option<Int>");
     let string_none = hir::AppliedEnumVariantRef::checked(
         &h.enums,
         &h.enum_applications,
+        &h.nominal_identities(),
         string_application,
         none,
     )

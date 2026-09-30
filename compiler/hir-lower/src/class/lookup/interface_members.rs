@@ -10,7 +10,7 @@ impl Lowerer {
             Type::Class(application) => {
                 let application = &self.class_applications[application];
                 (
-                    self.classes[application.template]
+                    self.classes[self.class_id(application.template)]
                         .interface_implementations
                         .clone(),
                     application.arguments.clone(),
@@ -19,7 +19,7 @@ impl Lowerer {
             Type::Struct(application) => {
                 let application = &self.struct_applications[application];
                 (
-                    self.structs[application.template]
+                    self.structs[self.struct_id(application.template)]
                         .interface_implementations
                         .clone(),
                     application.arguments.clone(),
@@ -28,7 +28,7 @@ impl Lowerer {
             Type::Enum(application) => {
                 let application = &self.enum_applications[application];
                 (
-                    self.enums[application.template]
+                    self.enums[self.enum_id(application.template)]
                         .interface_implementations
                         .clone(),
                     application.arguments.clone(),

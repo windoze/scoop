@@ -23,7 +23,7 @@ pub struct InterfaceDecl {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InterfaceApplication {
-    pub template: InterfaceId,
+    pub template: SourceNominalId,
     pub arguments: Vec<TypeId>,
     pub canonical_type: TypeId,
 }

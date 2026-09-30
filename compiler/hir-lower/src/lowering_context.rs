@@ -129,14 +129,14 @@ impl Lowerer {
             return None;
         };
         let enumeration = self.enum_applications[application].template;
-        self.find_variant_ref(enumeration, name)
+        self.find_variant_ref(self.enum_id(enumeration), name)
     }
 
     pub(crate) fn exact_expected_enum(&self, expected: Option<TypeId>) -> Option<EnumId> {
         let Type::Enum(application) = self.types[*expected.as_ref()?] else {
             return None;
         };
-        Some(self.enum_applications[application].template)
+        Some(self.enum_id(self.enum_applications[application].template))
     }
 
     /// During declaration/type pass 1 this reads the provisional core enum;
@@ -157,7 +157,11 @@ impl Lowerer {
         match &self.types[ty] {
             Type::Enum(application) => {
                 let application = &self.enum_applications[*application];
-                (Some(application.template) == self.option_enumeration()
+                (Some(application.template)
+                    == self.option_enumeration().map(|id| {
+                        self.nominal_identity(crate::Owner::Enum(id))
+                            .declaration_id()
+                    })
                     && application.arguments.len() == 1)
                     .then_some(application.arguments[0])
             }

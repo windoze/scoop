@@ -161,11 +161,11 @@ impl Lowerer {
             }
             Type::Struct(application) => {
                 let application = &self.struct_applications[*application];
-                let target = ValueLayoutTemplate::Struct(application.template);
+                let target = ValueLayoutTemplate::Struct(self.struct_id(application.template));
                 let Some(relevant) = relevance.get(&target) else {
                     return;
                 };
-                for (parameter, &argument) in self.structs[application.template]
+                for (parameter, &argument) in self.structs[self.struct_id(application.template)]
                     .type_params
                     .iter()
                     .zip(&application.arguments)
@@ -177,9 +177,9 @@ impl Lowerer {
             }
             Type::Enum(application) => {
                 let application = &self.enum_applications[*application];
-                let target = ValueLayoutTemplate::Enum(application.template);
+                let target = ValueLayoutTemplate::Enum(self.enum_id(application.template));
                 let relevant = &relevance[&target];
-                for (parameter, &argument) in self.enums[application.template]
+                for (parameter, &argument) in self.enums[self.enum_id(application.template)]
                     .type_params
                     .iter()
                     .zip(&application.arguments)
@@ -225,14 +225,14 @@ impl Lowerer {
             }
             Type::Struct(application) => {
                 let application = &self.struct_applications[*application];
-                let target = ValueLayoutTemplate::Struct(application.template);
+                let target = ValueLayoutTemplate::Struct(self.struct_id(application.template));
                 let Some(relevant) = relevance.get(&target) else {
                     return;
                 };
                 if seen.insert(target) {
                     out.push(target);
                 }
-                for (parameter, &argument) in self.structs[application.template]
+                for (parameter, &argument) in self.structs[self.struct_id(application.template)]
                     .type_params
                     .iter()
                     .zip(&application.arguments)
@@ -244,12 +244,12 @@ impl Lowerer {
             }
             Type::Enum(application) => {
                 let application = &self.enum_applications[*application];
-                let target = ValueLayoutTemplate::Enum(application.template);
+                let target = ValueLayoutTemplate::Enum(self.enum_id(application.template));
                 if seen.insert(target) {
                     out.push(target);
                 }
                 let relevant = &relevance[&target];
-                for (parameter, &argument) in self.enums[application.template]
+                for (parameter, &argument) in self.enums[self.enum_id(application.template)]
                     .type_params
                     .iter()
                     .zip(&application.arguments)

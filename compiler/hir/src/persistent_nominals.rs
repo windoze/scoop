@@ -164,6 +164,7 @@ pub struct HirNominalIdentities {
     classes: Vec<HirNominalIdentity>,
     interfaces: Vec<HirNominalIdentity>,
     objects: Vec<HirNominalIdentity>,
+    declarations: std::collections::HashMap<crate::SourceNominalId, crate::NominalOwner>,
 }
 
 impl HirNominalIdentities {
@@ -205,6 +206,29 @@ impl HirNominalIdentities {
             objects.len(),
             object_identities.len(),
         )?;
+        let mut declarations = std::collections::HashMap::new();
+        for (id, identity) in structs.iter().map(|(id, _)| id).zip(&struct_identities) {
+            declarations.insert(identity.declaration_id(), crate::NominalOwner::Struct(id));
+        }
+        for (id, identity) in enums.iter().map(|(id, _)| id).zip(&enum_identities) {
+            declarations.insert(identity.declaration_id(), crate::NominalOwner::Enum(id));
+        }
+        for (id, identity) in classes.iter().map(|(id, _)| id).zip(&class_identities) {
+            declarations.insert(identity.declaration_id(), crate::NominalOwner::Class(id));
+        }
+        for (id, identity) in interfaces
+            .iter()
+            .map(|(id, _)| id)
+            .zip(&interface_identities)
+        {
+            declarations.insert(
+                identity.declaration_id(),
+                crate::NominalOwner::Interface(id),
+            );
+        }
+        for (id, identity) in objects.iter().map(|(id, _)| id).zip(&object_identities) {
+            declarations.insert(identity.declaration_id(), crate::NominalOwner::Object(id));
+        }
         Ok(Self {
             unit: CoreBuiltinNominal::Unit.identity_record(),
             any: CoreBuiltinNominal::Any.identity_record(),
@@ -213,7 +237,40 @@ impl HirNominalIdentities {
             classes: class_identities,
             interfaces: interface_identities,
             objects: object_identities,
+            declarations,
         })
+    }
+
+    pub fn declaration(&self, identity: crate::SourceNominalId) -> Option<crate::NominalOwner> {
+        self.declarations.get(&identity).copied()
+    }
+
+    pub fn struct_id(&self, identity: crate::SourceNominalId) -> Option<StructId> {
+        match self.declaration(identity)? {
+            crate::NominalOwner::Struct(id) => Some(id),
+            _ => None,
+        }
+    }
+
+    pub fn enum_id(&self, identity: crate::SourceNominalId) -> Option<EnumId> {
+        match self.declaration(identity)? {
+            crate::NominalOwner::Enum(id) => Some(id),
+            _ => None,
+        }
+    }
+
+    pub fn class_id(&self, identity: crate::SourceNominalId) -> Option<ClassId> {
+        match self.declaration(identity)? {
+            crate::NominalOwner::Class(id) => Some(id),
+            _ => None,
+        }
+    }
+
+    pub fn interface_id(&self, identity: crate::SourceNominalId) -> Option<InterfaceId> {
+        match self.declaration(identity)? {
+            crate::NominalOwner::Interface(id) => Some(id),
+            _ => None,
+        }
     }
 
     pub const fn core_builtin(

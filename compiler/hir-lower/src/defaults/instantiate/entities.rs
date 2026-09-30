@@ -204,7 +204,7 @@ impl Lowerer {
             .into_iter()
             .map(|ty| self.instantiate_method_ty(ty, &context.bindings))
             .collect();
-        self.struct_application_id(source.template, arguments)
+        self.struct_application_id(self.struct_id(source.template), arguments)
     }
 
     pub(super) fn instantiate_default_enum_application(
@@ -218,7 +218,7 @@ impl Lowerer {
             .into_iter()
             .map(|ty| self.instantiate_method_ty(ty, &context.bindings))
             .collect();
-        self.enum_application_id(source.template, arguments)
+        self.enum_application_id(self.enum_id(source.template), arguments)
     }
 
     pub(super) fn instantiate_default_variant(
@@ -254,7 +254,7 @@ impl Lowerer {
             .into_iter()
             .map(|ty| self.instantiate_method_ty(ty, &context.bindings))
             .collect();
-        self.class_application_id(source.template, arguments)
+        self.class_application_id(self.class_id(source.template), arguments)
     }
 
     pub(super) fn instantiate_default_class_constructor(
@@ -288,7 +288,7 @@ impl Lowerer {
             .into_iter()
             .map(|ty| self.instantiate_method_ty(ty, &context.bindings))
             .collect();
-        self.interface_application_id(source.template, arguments)
+        self.interface_application_id(self.interface_id(source.template), arguments)
     }
 
     pub(super) fn instantiate_default_function_type(

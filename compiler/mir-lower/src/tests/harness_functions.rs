@@ -355,6 +355,7 @@ impl Harness {
             &self.enums,
             &self.enum_applications,
             &self.types,
+            &self.nominal_identities(),
             option_core,
             iterator,
             next,

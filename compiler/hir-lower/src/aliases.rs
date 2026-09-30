@@ -321,22 +321,25 @@ impl Lowerer {
                 })
             }
             Type::Struct(application) => Some(NominalTarget::Struct(
-                self.struct_applications[application].template,
+                self.struct_id(self.struct_applications[application].template),
             )),
             Type::Enum(application) => Some(NominalTarget::Enum(
-                self.enum_applications[application].template,
+                self.enum_id(self.enum_applications[application].template),
             )),
             Type::Class(application) => {
                 let class = self.class_applications[application].template;
                 Some(
                     self.object_by_backing_class
-                        .get(&class)
+                        .get(&self.class_id(class))
                         .copied()
-                        .map_or(NominalTarget::Class(class), NominalTarget::Object),
+                        .map_or(
+                            NominalTarget::Class(self.class_id(class)),
+                            NominalTarget::Object,
+                        ),
                 )
             }
             Type::Interface(application) => Some(NominalTarget::Interface(
-                self.interface_applications[application].template,
+                self.interface_id(self.interface_applications[application].template),
             )),
             Type::Ptr(_) => self.ffi_ptr.map(NominalTarget::Struct),
             Type::FunPtr(_) => self.ffi_fun_ptr.map(NominalTarget::Struct),
