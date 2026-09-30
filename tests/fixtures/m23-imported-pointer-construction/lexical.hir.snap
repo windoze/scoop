@@ -22,7 +22,7 @@ Module
         capture raw binding6 : ULong
     val local7
       FieldAccess field 0 : Int
-        LocalFunctionCall local0 $local.0.read<T0> captures=1 : Number
+        Call $local.0.read<T0> : Number
           Local raw : ULong
     val local8
       IntegerLiteral 42 : Int

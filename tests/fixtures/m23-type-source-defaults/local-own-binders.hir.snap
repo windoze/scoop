@@ -22,7 +22,7 @@
       val local5
         Local $argument.0 : Int
       assign $result.1
-        LocalFunctionCall local4 $local.1.keep<Int, Int> captures=1 : Int
+        Call $local.1.keep<Int, Int> : Int
           Local $parameter.seed : Int
           Local $parameter.unused : Int
     else
@@ -59,7 +59,7 @@
       val local17
         Local $argument.0 : Int
       assign $result.2
-        LocalFunctionCall local5 $local.2.combine<String, Int, String, Int> captures=2 : (String, String)
+        Call $local.2.combine<String, Int, String, Int> : (String, String)
           Local $receiver : GenericLocalHost<String>
           Local $parameter.second : String
           Local $parameter.unused : Int
@@ -102,7 +102,7 @@
       val local30
         Local $argument.1 : String
       assign $result.0
-        LocalFunctionCall local6 $local.0.keep<Int, String, String, String> captures=1 : String
+        Call $local.0.keep<Int, String, String, String> : String
           Local $parameter.seed : String
           Local $parameter.first : String
           Local $parameter.second : String
@@ -136,7 +136,7 @@
       val local39
         Local $argument.1 : Int
       assign $result.0
-        LocalFunctionCall local7 $local.0.keep<String, Int, Int, Int> captures=1 : Int
+        Call $local.0.keep<String, Int, Int, Int> : Int
           Local $parameter.seed : Int
           Local $parameter.first : Int
           Local $parameter.second : Int

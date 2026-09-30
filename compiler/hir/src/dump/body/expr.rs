@@ -335,32 +335,6 @@ pub(super) fn dump_expr(
                 dump_expr(module, locals, arg, indent + 1, out);
             }
         }
-        ExprKind::LocalFunctionCall {
-            local_function,
-            callee,
-            captures,
-            args,
-        } => {
-            let (function, type_args) = callable_dump_parts(module, *callee);
-            let type_args = if type_args.is_empty() {
-                String::new()
-            } else {
-                let args: Vec<String> = type_args.iter().map(|t| type_name(module, *t)).collect();
-                format!("<{}>", args.join(", "))
-            };
-            out.push_str(&format!(
-                "{pad}LocalFunctionCall local{} {}{type_args} captures={} : {ty}\n",
-                local_function.into_raw(),
-                module.functions[function].name,
-                captures.len()
-            ));
-            for capture in captures {
-                dump_expr(module, locals, capture, indent + 1, out);
-            }
-            for arg in args {
-                dump_expr(module, locals, arg, indent + 1, out);
-            }
-        }
         ExprKind::CallableCall {
             callee,
             function_type,

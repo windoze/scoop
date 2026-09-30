@@ -22,10 +22,6 @@ impl<'a> Traversal<'a> {
                 self.expressions(args)?;
                 self.push(Item::Expression(receiver))
             }
-            ExprKind::LocalFunctionCall { captures, args, .. } => {
-                self.expressions(args)?;
-                self.expressions(captures)
-            }
             ExprKind::VariantTest { operand, .. }
             | ExprKind::VariantPayloadProject { operand, .. }
             | ExprKind::FunctionCoercion {

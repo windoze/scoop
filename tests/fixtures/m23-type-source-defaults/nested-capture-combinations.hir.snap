@@ -18,7 +18,7 @@
       val local7
         Local $argument.0 : T0
       assign $result.0
-        LocalFunctionCall local4 $local.0.copy<T1, T0, T0> captures=1 : T1
+        Call $local.0.copy<T1, T0, T0> : T1
           Local $parameter.seed : T1
           Local $parameter.unused : T0
     else
@@ -37,7 +37,7 @@
       BoolLiteral true : Boolean
       LocalFunction local7 body=$local.5.copy captures=1
       assign $result.3
-        LocalFunctionCall local7 $local.5.copy captures=1 : String
+        Call $local.5.copy : String
           Local seed : String
     else
       assign $result.3
@@ -45,7 +45,7 @@
     val local2
       Local $result.3 : String
     return
-      LocalFunctionCall local5 $local.4.choose captures=0 : String
+      Call $local.4.choose : String
         Local $parameter.value : String
   fun capturedCallback(seed: String, value: () -> String): () -> String
     return
@@ -73,7 +73,7 @@
       val local5
         Local $argument.0 : Int
       assign $result.0
-        LocalFunctionCall local8 $local.0.copy<String, Int, Int> captures=1 : String
+        Call $local.0.copy<String, Int, Int> : String
           Local $parameter.seed : String
           Local $parameter.unused : Int
     else
@@ -101,7 +101,7 @@
       val local13
         Local $argument.0 : String
       assign $result.0
-        LocalFunctionCall local9 $local.0.copy<Int, String, String> captures=1 : Int
+        Call $local.0.copy<Int, String, String> : Int
           Local $parameter.seed : Int
           Local $parameter.unused : String
     else
@@ -138,7 +138,7 @@
       BoolLiteral true : Boolean
       LocalFunction local10 body=$local.1.copy captures=1
       val local24
-        LocalFunctionCall local10 $local.1.copy captures=1 : String
+        Call $local.1.copy : String
           Local $parameter.seed : String
       val local25
         Lambda lambda4 invoke=$lambda.0 captures=1 : () -> String
@@ -165,7 +165,7 @@
       BoolLiteral true : Boolean
       LocalFunction local11 body=$local.1.copy captures=1
       val local31
-        LocalFunctionCall local11 $local.1.copy captures=1 : String
+        Call $local.1.copy : String
           Local $parameter.seed : String
       val local32
         Lambda lambda6 invoke=$lambda.0 captures=1 : () -> String

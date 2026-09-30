@@ -87,12 +87,7 @@ impl Lowerer {
             .iter()
             .map(|capture| self.instantiate_default_capture(capture, context))
             .collect();
-        let target = self.local_functions.alloc(function);
-        assert!(
-            context.local_functions.insert(source, target).is_none(),
-            "a default expansion declares each local function once"
-        );
-        target
+        self.local_functions.alloc(function)
     }
 
     pub(super) fn instantiate_default_lambda(

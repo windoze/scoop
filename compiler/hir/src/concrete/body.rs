@@ -304,12 +304,6 @@ pub enum ExprKind {
         args: Vec<Expr>,
         receiver: crate::SourceCallReceiver<TypeId>,
     },
-    LocalFunctionCall {
-        local_function: LocalFunctionId,
-        callee: Callable,
-        captures: Vec<Expr>,
-        args: Vec<Expr>,
-    },
     CallableCall {
         callee: Box<Expr>,
         function_type: FunctionTypeId,

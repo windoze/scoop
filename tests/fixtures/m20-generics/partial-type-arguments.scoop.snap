@@ -1033,7 +1033,7 @@ Module
     val local3
       Local $argument.1 : String
     val local4
-      LocalFunctionCall local0 $local.0.localPair<Int, String> captures=0 : Pair<Int, String>
+      Call $local.0.localPair<Int, String> : Pair<Int, String>
         Local $parameter.first : Int
         Local $parameter.second : String
     return

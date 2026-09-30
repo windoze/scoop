@@ -433,3 +433,13 @@
 - 新增 `m23-shared-constructor-requests` 四组正例、一个反例、12 份阶段快照及一份诊断快照。覆盖只调用后置构造器、同时调用两个终止构造器、条件委托、公共初始化中的局部函数／引用／匿名函数／lambda、完整且未使用的 owner 参数、重复与别名请求、本地继承依赖以及声明顺序变化。两项单元核对构造去重、词法父构造器不发射和实际捕获 ABI；源码移走后的再次发布、本地 class／String／Int／Unit 及普通／moving GC 运行通过。
 - 全仓 fmt／clippy 无警告，2897 项 HIR／HIR lowering／MIR lowering／slib 单元测试全部通过；84 项真实泛型产物与完整 core 回归全部关闭快照更新开关通过。既有 HIR／MIR／LIR／诊断快照均保持不变，wire payload 与 runtime ABI 不变。证据前缀 `/tmp/scoop-m23-6a-constructor-requests-`，最终结果见 `unit.log`、`generate-results.json`、`all-verified-results.json`；失败复现保存在 `before.log`、`fragment-selectors-before.log`、`capture-creation-before.log`、`evaluation-context-before.log` 和 `binding-order-before.log`。
 - 公共初始化降低、词法值查询、构造身份和 closure 具体化模块分别为 86、188、159、223 行，构造正文主模块 254 行。确认无文件占用后清理闲置 `target/debug` 与 `compiler/target` 共约 2706.8 MiB，继续复用 `target/m23-6a`。局部调用节点与完整候选决议仍需继续统一，6a 尚未完成。
+
+
+## 局部函数直调共用完整调用参数
+
+- 删除语义 HIR 与 LocalConcrete HIR 的 `LocalFunctionCall`，源码和解码局部直调都使用共同 `Call`，先传隐藏捕获、再传源码形参。默认值替换、效果检查、可执行表达式遍历、具体化和 MIR 共用已有直接调用处理，不再重复维护局部函数直调分支。
+- 递归补齐根据原已选函数身份和完整形参数量更新捕获，保留引用及其接收者中的递归调用。默认值克隆只替换实际目标与值，不再维护局部直调描述符的额外映射。只有函数引用需要 concrete 局部函数值记录；直接调用保留真实函数、完整未使用的宿主参数与捕获身份，不产生额外函数值实体。
+- 导出按原局部声明的捕获数量投影既有 wire 局部调用格式，读入恢复共同 `Call`；普通默认值引用集合仍保留原局部声明和实际 callee。wire payload 与 runtime ABI 保持。
+- 新增 `m23-shared-local-calls` 两组正例、三个反例、六份阶段快照及三份诊断快照。覆盖递归后首次发现捕获、泛型局部函数、自身引用、局部默认参数与前置形参、命名实参源码求值顺序、空及 spread vararg；源码移走后的再次发布、本地 class／String／Int／Unit 及普通／moving GC 运行通过。单元核对实际直调的捕获数量和参数类型，既有词法值身份与未使用宿主实参断言改为检查真实被调用函数。
+- 全仓 fmt／clippy 无警告，2898 项 HIR／HIR lowering／MIR lowering／slib 单元测试全部通过；85 项真实泛型产物与完整 core 回归均已关闭快照更新开关通过。18 份旧 HIR 快照的 43 行只改共同调用标签，两份 MIR 快照的 12 行仅调整删除多余函数类型记录后的显示编号；LIR、原函数身份、调用参数和既有诊断快照不变。证据前缀 `/tmp/scoop-m23-6a-local-calls-`，最终结果见 `unit.log`、`generate-results.json`、`all-verified-results.json`、`snapshot-verified-results.json` 和 `snapshot-review.json`；初轮快照差异保存在 `all-before-snapshot-results.json`。
+- 调用投影模块 181 行，递归捕获补齐 367 行，新增单元模块 60 行，其余语义消费者均删除重复分支。确认无文件占用后清理约 2347.2 MiB 闲置 `target/debug`，继续复用 `target/m23-6a`。完整候选、参数物化与 probe／commit 调度仍需统一，6a 尚未完成。

@@ -49,13 +49,13 @@
     val local3
       Local seed : Int
     val local4
-      LocalFunctionCall local0 $local.0.local captures=0 : Int
+      Call $local.0.local : Int
         Local $parameter.first : Int
         Local $parameter.second : Int
     val local5
       Local seed : Int
     return
-      LocalFunctionCall local0 $local.0.local captures=0 : Int
+      Call $local.0.local : Int
         Local $parameter.first : Int
         Local $parameter.second : Int
   fun main(): Unit

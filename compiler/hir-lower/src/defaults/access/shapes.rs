@@ -3,11 +3,6 @@ use scoop_hir as hir;
 use super::ReferenceCollector;
 
 impl ReferenceCollector<'_> {
-    pub(super) fn callable_use(&mut self, callable: hir::Callable, origin: hir::DefinitionOrigin) {
-        self.callable_shape(callable, origin);
-        self.record_callable(hir::ExportDefaultCallableTarget::Callable(callable), origin);
-    }
-
     pub(super) fn method_callee_use(
         &mut self,
         callee: hir::MethodCallee,

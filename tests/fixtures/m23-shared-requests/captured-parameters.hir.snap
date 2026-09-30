@@ -13,7 +13,7 @@ Module
     val local6
       Local $argument.1 : (Int) -> Int
     return
-      LocalFunctionCall local2 $local.2.apply<T0, Int> captures=3 : Int
+      Call $local.2.apply<T0, Int> : Int
         Local value : T0
         Local read : (T0) -> Int
         Local amount : Int

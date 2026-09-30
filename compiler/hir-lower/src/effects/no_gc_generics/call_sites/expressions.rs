@@ -276,17 +276,6 @@ impl Lowerer {
                     self.collect_generic_calls_in_expr(arg, out);
                 }
             }
-            ExprKind::LocalFunctionCall {
-                callee,
-                captures,
-                args,
-                ..
-            } => {
-                record(*callee);
-                for value in captures.iter().chain(args) {
-                    self.collect_generic_calls_in_expr(value, out);
-                }
-            }
             ExprKind::CallableCall { callee, args, .. } => {
                 self.collect_generic_calls_in_expr(callee, out);
                 for arg in args {

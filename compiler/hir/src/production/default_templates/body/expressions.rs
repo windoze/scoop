@@ -1,6 +1,6 @@
 //! Expression-tree projection for portable defaults.
 
-mod imported;
+mod calls;
 mod support;
 
 use crate::{
@@ -293,11 +293,9 @@ impl BodyProjection<'_, '_> {
                 receiver,
                 ..
             } => match callee {
-                crate::CallableTarget::Local(_) => DefaultExpressionKindV1::Call {
-                    callee: self.callable_target(*callee)?,
-                    receiver: receiver.try_map(|ty| self.type_key(ty))?,
-                    arguments: self.expressions(args)?,
-                },
+                crate::CallableTarget::Local(callee) => {
+                    self.source_call(*callee, args, *receiver)?
+                }
                 crate::CallableTarget::Application(application) => self.imported_generic_call(
                     *application,
                     args,
@@ -307,17 +305,6 @@ impl BodyProjection<'_, '_> {
                 crate::CallableTarget::Dependency(callee) => {
                     self.imported_call(*callee, args, *receiver, result_type)?
                 }
-            },
-            ExprKind::LocalFunctionCall {
-                local_function,
-                callee,
-                captures,
-                args,
-            } => DefaultExpressionKindV1::LocalFunctionCall {
-                declaration: self.local_function_declaration(*local_function)?,
-                callee: self.entities.callable(*callee, self.binders)?,
-                captures: self.expressions(captures)?,
-                arguments: self.expressions(args)?,
             },
             ExprKind::CallableCall {
                 callee,

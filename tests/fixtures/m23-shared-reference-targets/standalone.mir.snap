@@ -14,12 +14,12 @@ Module
   closure cc11 $Closure$reference6 type=function_type2 invoke=@fn30 captures=1
   closure cc12 $Closure$reference7 type=function_type0 invoke=@fn31 captures=2
   closure cc13 $Closure$reference8 type=function_type0 invoke=@fn32 captures=2
-  closure cc14 $Closure$reference9 type=function_type6 invoke=@fn33 captures=2
+  closure cc14 $Closure$reference9 type=function_type3 invoke=@fn33 captures=2
   closure cc15 $Closure$reference10 type=function_type0 invoke=@fn34 captures=2
   closure cc16 $Closure$reference11 type=function_type0 invoke=@fn35 captures=2
-  closure cc17 $Closure$reference12 type=function_type6 invoke=@fn36 captures=2
-  closure cc18 $Closure$reference13 type=function_type3 invoke=@fn37 captures=2
-  closure cc19 $Closure$reference14 type=function_type4 invoke=@fn38 captures=2
+  closure cc17 $Closure$reference12 type=function_type3 invoke=@fn36 captures=2
+  closure cc18 $Closure$reference13 type=function_type4 invoke=@fn37 captures=2
+  closure cc19 $Closure$reference14 type=function_type5 invoke=@fn38 captures=2
   closure cc20 $Closure$reference15 type=function_type1 invoke=@fn39 captures=1
   generated_exact_type get0 location=closure8 nominal_id=17fc36c594ea1646342e0b93f76c33aa704be91c23db9ec96ef9ca40413d26e9 exact_id=11ec050b890a5c7a6eb48ab185493ab74662d3223652ba6cc300952f32895bee
   generated_exact_type get1 location=closure7 nominal_id=1b959725dc41f4d722c863a471073b4914c81d9fc4fe481232e55dc70171a963 exact_id=3261f3540e83b5bc9ae54b1680a02228f8a383798886e8c2e1ca1c8ec57a3cc1
@@ -828,7 +828,7 @@ Module
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      call $call.1: Int = <closure:function_type3> closure[function_type3]
+      call $call.1: Int = <closure:function_type4> closure[function_type4]
         Type (Unit, Int) -> Int
         Local next
         Type Unit
@@ -887,7 +887,7 @@ Module
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      call $call.1: Int = <closure:function_type4> closure[function_type4]
+      call $call.1: Int = <closure:function_type5> closure[function_type5]
         Type (Int, Int) -> Int
         Local next
         Type Int
@@ -1046,7 +1046,7 @@ Module
           Local $dependency.receiver
           Type Int
           Local $dependency.parameter.other
-      call $dependency.argument.0: Int = <closure:function_type6> closure[function_type6]
+      call $dependency.argument.0: Int = <closure:function_type3> closure[function_type3]
         Type (Unit) -> Int
         ClosureCapture cc3 2
           Type () -> Int
@@ -1122,7 +1122,7 @@ Module
           Local $dependency.receiver
           Type Int
           Local $dependency.parameter.other
-      call $dependency.argument.0: Int = <closure:function_type6> closure[function_type6]
+      call $dependency.argument.0: Int = <closure:function_type3> closure[function_type3]
         Type (Unit) -> Int
         ClosureCapture cc4 0
           Type () -> Int

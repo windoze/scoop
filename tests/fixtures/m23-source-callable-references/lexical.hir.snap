@@ -12,7 +12,7 @@ Module
         capture invoke binding4 : () -> T0
     val local4
       CallableCall function_type0 : T0
-        LocalFunctionCall local0 $local.0.make<T0> captures=0 : (T0) -> T0
+        Call $local.0.make<T0> : (T0) -> T0
         CallableCall function_type2 : T0
           Local invokeAgain : () -> T0
     val local5

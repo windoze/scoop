@@ -208,16 +208,26 @@ fn local_function_capture_parameter_reuses_the_captured_value_identity() {
     let (base, _) = concrete_local_by_name(concrete_body(main), "base");
     let base_identity = module.local_value_identities.function_local(main_id, base);
 
-    let (_, local_function) = module
-        .local_functions
-        .iter()
-        .next()
-        .expect("one concrete local function");
-    let lifted = &module.functions[local_function.function];
+    let concrete::StatementKind::Expr(call) = &concrete_body(main).statements.last().unwrap().kind
+    else {
+        panic!("the body ends with the selected local call")
+    };
+    let concrete::ExprKind::Call {
+        callee: concrete::CallableTarget::Local(concrete::Callable::Function(function)),
+        ..
+    } = call.kind
+    else {
+        panic!("the local function is called directly")
+    };
+    assert!(
+        module.local_functions.is_empty(),
+        "a direct call does not create a function value"
+    );
+    let lifted = &module.functions[function];
     let capture_parameter = lifted.params[0].local;
     let capture_identity = module
         .local_value_identities
-        .function_local(local_function.function, capture_parameter);
+        .function_local(function, capture_parameter);
 
     assert_eq!(capture_identity.id(), base_identity.id());
     assert_eq!(capture_identity.key().owner(), main.materialization);

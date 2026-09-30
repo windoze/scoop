@@ -400,14 +400,6 @@ pub enum ExprKind {
         args: Vec<Expr>,
         receiver: crate::SourceCallReceiver<TypeId>,
     },
-    /// Direct call of a lifted local function. Hidden capture arguments are
-    /// explicit and precede source arguments in the lowered ABI.
-    LocalFunctionCall {
-        local_function: LocalFunctionId,
-        callee: Callable,
-        captures: Vec<Expr>,
-        args: Vec<Expr>,
-    },
     /// Calling a managed function value. The callee expression is kept
     /// distinct from direct/virtual/interface named call targets.
     CallableCall {

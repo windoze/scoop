@@ -435,10 +435,7 @@ fn local_default_uses_definition_binding_and_prior_parameter() {
     let dump = hir::dump(&module);
     assert!(dump.contains("Local base : Int"), "{dump}");
     assert!(dump.contains("Local $parameter.first : Int"), "{dump}");
-    assert!(
-        dump.contains("LocalFunctionCall local0 $local.0.choose"),
-        "{dump}"
-    );
+    assert!(dump.contains("Call $local.0.choose"), "{dump}");
 }
 
 #[test]

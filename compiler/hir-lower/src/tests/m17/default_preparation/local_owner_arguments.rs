@@ -63,9 +63,10 @@ fn unused_local_owner_arguments_keep_distinct_body_materializations() {
 
     let bodies = output
         .local
-        .local_functions
+        .functions
         .iter()
-        .map(|(_, descriptor)| descriptor.function)
+        .filter(|(_, function)| !function.capture_parameters.is_empty())
+        .map(|(id, _)| id)
         .collect::<std::collections::HashSet<_>>();
     assert_eq!(bodies.len(), 2);
     scoop_mir_lower::lower(&output.local).unwrap();

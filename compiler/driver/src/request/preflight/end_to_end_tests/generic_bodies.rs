@@ -19,6 +19,7 @@ mod globals;
 mod helpers;
 mod initialization;
 mod iteration;
+mod local_calls;
 mod machine;
 mod members;
 mod method_calls;

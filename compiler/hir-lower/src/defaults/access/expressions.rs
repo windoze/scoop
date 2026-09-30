@@ -44,6 +44,15 @@ impl ReferenceCollector<'_> {
         result_type: hir::TypeId,
         origin: hir::DefinitionOrigin,
     ) {
+        if let hir::CallableTarget::Local(callable) = callee {
+            let function = self.lowerer.callable_function_id(callable);
+            if let Some(&local) = self.lowerer.local_function_by_function.get(&function) {
+                self.record_callable(
+                    hir::ExportDefaultCallableTarget::LocalFunction(local),
+                    origin,
+                );
+            }
+        }
         if let hir::CallableTarget::Dependency(callee) = callee {
             let reference = self.lowerer.imported_dependency_callables[callee].reference();
             let selected = self
@@ -296,20 +305,6 @@ impl ReferenceCollector<'_> {
                 if let hir::SourceCallReceiver::Receiver { static_type } = receiver {
                     self.type_reference(*static_type, origin);
                 }
-            }
-            hir::ExprKind::LocalFunctionCall {
-                local_function,
-                callee,
-                captures,
-                args,
-            } => {
-                self.record_callable(
-                    hir::ExportDefaultCallableTarget::LocalFunction(*local_function),
-                    origin,
-                );
-                self.callable_use(*callee, origin);
-                self.expressions(captures);
-                self.expressions(args);
             }
             hir::ExprKind::CallableCall {
                 callee,

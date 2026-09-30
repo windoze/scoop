@@ -22,7 +22,7 @@ Module
     val local8
       Local pointer : Ptr<Unit>
     val local9
-      LocalFunctionCall local0 $local.0.offset<T0> captures=1 : Long
+      Call $local.0.offset<T0> : Long
         Local state : Counter
     val local10
       Local $dependency.argument.0 : Long
@@ -33,7 +33,7 @@ Module
     val local12
       Local moved : Ptr<Unit>
     val local13
-      LocalFunctionCall local0 $local.0.offset<T0> captures=1 : Long
+      Call $local.0.offset<T0> : Long
         Local state : Counter
     val local14
       Local $dependency.argument.0 : Long
@@ -44,7 +44,7 @@ Module
     val local18
       Local moved : Ptr<Unit>
     val local19
-      LocalFunctionCall local0 $local.0.offset<T0> captures=1 : Long
+      Call $local.0.offset<T0> : Long
         Local state : Counter
     val local16
       Local empty : Unit

@@ -15,7 +15,6 @@ struct InstantiationContext {
     bindings: Vec<(hir::TypeParamId, hir::TypeId)>,
     locals: Vec<hir::Expr>,
     captures: HashMap<hir::BindingId, hir::Expr>,
-    local_functions: HashMap<hir::LocalFunctionId, hir::LocalFunctionId>,
     loop_targets: Vec<(hir::LoopId, hir::LoopId)>,
     evaluation: InstantiationEvaluation,
     statement_span: scoop_ast::Span,
@@ -158,7 +157,6 @@ impl Lowerer {
         }
         let mut context = InstantiationContext {
             statement_span: call_span,
-            local_functions: HashMap::new(),
             bindings: template_bindings,
             locals: mapped
                 .into_iter()
@@ -189,13 +187,6 @@ impl Lowerer {
         }
         debug_assert!(context.loop_targets.is_empty());
         self.instantiate_default_expr(&template.value, &mut context)
-    }
-}
-
-impl InstantiationContext {
-    fn local_function(&self, source: hir::LocalFunctionId) -> hir::LocalFunctionId {
-        // A call to a declaration outside this default retains its source descriptor.
-        self.local_functions.get(&source).copied().unwrap_or(source)
     }
 }
 

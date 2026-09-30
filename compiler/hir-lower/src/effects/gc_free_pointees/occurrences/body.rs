@@ -4,8 +4,8 @@ use crate::Lowerer;
 
 use super::TypeOccurrence;
 use super::types::{
-    collect_callable_target_types, collect_callable_types, collect_field_ref_types,
-    collect_method_callee_types, collect_reference_target_types,
+    collect_callable_target_types, collect_field_ref_types, collect_method_callee_types,
+    collect_reference_target_types,
 };
 
 /// Collect source-backed type occurrences for diagnostics. Unlike the
@@ -505,21 +505,6 @@ pub(in super::super) fn collect_expr_type_occurrences(
             );
             for argument in args {
                 collect_expr_type_occurrences(lowerer, argument, out);
-            }
-        }
-        ExprKind::LocalFunctionCall {
-            callee,
-            captures,
-            args,
-            ..
-        } => {
-            push_types_at_expression(
-                expression,
-                |types| collect_callable_types(lowerer, *callee, types),
-                out,
-            );
-            for value in captures.iter().chain(args) {
-                collect_expr_type_occurrences(lowerer, value, out);
             }
         }
         ExprKind::CallableCall { callee, args, .. } => {

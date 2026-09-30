@@ -182,36 +182,40 @@ impl LocalFunctionCallPatcher<'_> {
                 }
                 self.lowerer.callable_references[*id] = reference;
             }
-            hir::ExprKind::LocalFunctionCall {
-                local_function,
-                captures,
-                args,
-                ..
-            } => {
-                for capture in captures.iter_mut() {
-                    self.expression(capture);
+            hir::ExprKind::Call { callee, args, .. } => {
+                for argument in args.iter_mut() {
+                    self.expression(argument);
                 }
-                for arg in args {
-                    self.expression(arg);
-                }
-                if *local_function == target && captures.len() != target_captures.len() {
-                    *captures = target_captures
-                        .iter()
-                        .map(|capture| hir::Expr {
-                            kind: hir::ExprKind::Capture(capture.binding),
-                            ty: capture.ty,
-                            span,
-                            origin,
-                        })
-                        .collect();
+                if let hir::CallableTarget::Local(callee) = *callee {
+                    let function = self.lowerer.callable_function_id(callee);
+                    if function == self.lowerer.local_functions[target].source_function() {
+                        let parameter_count = self.lowerer.signatures[&function].params.len();
+                        let previous_count = args
+                            .len()
+                            .checked_sub(parameter_count)
+                            .expect("a resolved recursive call contains every source parameter");
+                        if previous_count != target_captures.len() {
+                            args.drain(..previous_count);
+                            let mut complete = target_captures
+                                .iter()
+                                .map(|capture| hir::Expr {
+                                    kind: hir::ExprKind::Capture(capture.binding),
+                                    ty: capture.ty,
+                                    span,
+                                    origin,
+                                })
+                                .collect::<Vec<_>>();
+                            complete.append(args);
+                            *args = complete;
+                        }
+                    }
                 }
             }
             hir::ExprKind::TupleLiteral(elements)
             | hir::ExprKind::ArrayLiteral(elements)
             | hir::ExprKind::StructInit { args: elements, .. }
             | hir::ExprKind::ClassInit { args: elements, .. }
-            | hir::ExprKind::VariantConstruct { args: elements, .. }
-            | hir::ExprKind::Call { args: elements, .. } => {
+            | hir::ExprKind::VariantConstruct { args: elements, .. } => {
                 for element in elements {
                     self.expression(element);
                 }

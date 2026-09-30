@@ -26,11 +26,11 @@ Module
     LocalFunction local0 body=$local.0.next captures=2
     val local7
       PtrFromNonZeroULong : Ptr<Int>
-        LocalFunctionCall local0 $local.0.next<T0> captures=2 : ULong
+        Call $local.0.next<T0> : ULong
           Local counter : Counter
           Local raw : ULong
     val local8
-      LocalFunctionCall local0 $local.0.next<T0> captures=2 : ULong
+      Call $local.0.next<T0> : ULong
         Local counter : Counter
         Local raw : ULong
     val local9
@@ -43,7 +43,7 @@ Module
         Local $dependency.parameter.raw : ULong
         Local $dependency.parameter.pointer : Ptr<Int>
     val local12
-      LocalFunctionCall local0 $local.0.next<T0> captures=2 : ULong
+      Call $local.0.next<T0> : ULong
         Local counter : Counter
         Local raw : ULong
     val local13

@@ -296,17 +296,6 @@ impl Lowerer {
                 }
             }
 
-            ExprKind::LocalFunctionCall {
-                callee,
-                captures,
-                args,
-                ..
-            } => {
-                self.check_no_gc_callee(*callee, expr.span, out);
-                for value in captures.iter().chain(args) {
-                    self.collect_no_gc_expr_violations(value, out, requirements);
-                }
-            }
             ExprKind::CallableCall { callee, args, .. } => {
                 out.push((
                     expr.span,

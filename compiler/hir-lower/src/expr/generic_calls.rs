@@ -134,17 +134,18 @@ impl Lowerer {
         };
         let function = resolved.function();
         let local_function = self.local_function_by_function[&function];
-        let captures = self
+        let mut args = self
             .local_call_capture_args(local_function, call.span)
             .ok_or(())?;
         let callee = self.materialize_resolved_callee(&resolved);
         self.check_call_effects(callee, call.span);
+        args.extend(resolved.args);
         Ok(Some(hir::Expr {
-            kind: ExprKind::LocalFunctionCall {
-                local_function,
-                callee,
-                captures,
-                args: resolved.args,
+            kind: ExprKind::Call {
+                callee: hir::CallableTarget::Local(callee),
+                binding: None,
+                receiver: hir::SourceCallReceiver::NoReceiver,
+                args,
             },
             ty: resolved.return_ty,
             span: call.span,

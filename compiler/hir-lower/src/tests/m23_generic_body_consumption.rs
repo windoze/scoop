@@ -20,6 +20,7 @@ mod delegates;
 mod equality;
 mod interface_members;
 mod interfaces;
+mod local_calls;
 mod machine;
 mod members;
 mod metadata;

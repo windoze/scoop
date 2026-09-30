@@ -902,7 +902,7 @@ Module
       Local $parameter.value : Int
     LocalFunction local0 body=$local.0.captured captures=1
     val local7
-      LocalFunctionCall local0 $local.0.captured captures=1 : Int
+      Call $local.0.captured : Int
         Local $delegate.0 : LocalDelegate
     val local8
       Local $argument.0 : Int

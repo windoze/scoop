@@ -126,12 +126,6 @@ fn recursive_reference_receivers_keep_the_final_capture_arguments() {
                         continue;
                     };
                     let (callee, argument_count) = match &receiver.kind {
-                        ExprKind::LocalFunctionCall {
-                            callee: Callable::Function(function),
-                            captures,
-                            args,
-                            ..
-                        } => (*function, captures.len() + args.len()),
                         ExprKind::Call {
                             callee: CallableTarget::Local(Callable::Function(function)),
                             args,

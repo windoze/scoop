@@ -13,7 +13,7 @@ Module
       Local value : T0
     LocalFunction local0 body=$local.0.read captures=1
     return
-      LocalFunctionCall local0 $local.0.read<T0> captures=1 : T0
+      Call $local.0.read<T0> : T0
         Local $delegate.0 : LocalValueSlot<T0>
   fun result(): Int
     val local0

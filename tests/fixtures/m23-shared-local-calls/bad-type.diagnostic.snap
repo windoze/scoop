@@ -1,0 +1,4 @@
+span=110..115
+expression="bad"
+no applicable candidate for `read` in lexical local candidate layer:
+  - fun read(value: Int): Int — argument for `value` has type String, which is not a subtype of Int

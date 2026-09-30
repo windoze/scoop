@@ -248,6 +248,8 @@ Export HIR 的直接调用共用 `Call` 与已有 typed callable target，目标
 
 当前与依赖模板成员共用 `MethodCall`／`DirectSuperMethodCall` 和 `MethodCallee`，普通成员目标直接保存同一 typed callable target。上界成员共用完整 `BoundCallableRef`，保存实际 receiver 类型、完整 class／interface application、原成员引用、已选声明目标与完整函数签名；默认值替换同时代换 receiver、宿主和签名。具体化从接收者已完成的共同 conformance 查询原 interface slot 的实现，实际外部实现继续引用提供方。普通外部 callable use 保留从已选签名解码的接收者类型；成员调用和函数引用按实际实现要求的接收者类型进行既定的上转型或装箱，调用点原静态类型独立保留。当前源码、解码正文、默认值与 callable reference 使用同一目标替换和上界解析算法；不重选 overload，不通过本地函数 ID 代替外部定义，不按 core 的来源重建另一套 conformance。wire 继续表达既定成员、上界及限定 super 操作，原槽身份与 runtime ABI 保持。
 
+局部函数直调在语义 HIR 与 LocalConcrete HIR 中都使用共同 `Call`，完整实参列表先保存隐藏捕获、再保存源码参数；捕获 ABI 由原局部声明及已选函数确定，不另设来源专用调用节点。局部递归在正文完成后按已选函数身份补齐隐藏实参，包含捕获首次使用之前建立的调用、引用及其接收者。默认值展开共同替换目标与全部实参；局部声明仍只保存词法元数据，直接调用不为其额外生成函数值实体。导出按原声明的捕获数量投影既有局部调用记录，读入时恢复共同 `Call`，wire payload 保持。
+
 LocalConcrete HIR 的直接调用也共用 `Call`，其 typed target 区分当前物化函数与普通外部定义；当前模板和依赖模板的物化函数使用同一 concrete callable 引用。调用的可选名称绑定仍作为原使用点数据保留，经过默认值替换和具体化不丢失；依赖调用记录按原声明和完整 application 查询实际依赖关系，MIR 的求值、挂起调用和 ABI lowering 从共同调用读取其实际目标。该内存表示迁移保持原 wire 调用记录与机器定义归属。
 
 外部调用连接验证从调用点完整 exact receiver 查询已有父类型关系；普通 nominal 与完整泛型 application 都参与同一继承查询。成员和扩展共用接收者关系检查，参数 ABI 仍核对适配后的实际实参；原静态接收者用于原声明的访问与归属关系，不要求它等于声明宿主。

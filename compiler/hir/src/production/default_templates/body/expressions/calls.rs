@@ -8,6 +8,48 @@ use crate::{
 };
 
 impl BodyProjection<'_, '_> {
+    pub(super) fn source_call(
+        &mut self,
+        target: crate::Callable,
+        args: &[Expr],
+        receiver: SourceCallReceiver<TypeId>,
+    ) -> Result<DefaultExpressionKindV1, DefaultBodyProjectionError> {
+        let export = self.entities.export();
+        let function = export.callable_function(target);
+        let local = export.local_functions.iter().find_map(|(id, local)| {
+            local
+                .source()
+                .is_some_and(|(source, _)| source == function)
+                .then_some((id, local.captures.len()))
+        });
+        let callee = self.entities.callable(target, self.binders)?;
+        if let Some((local, count)) = local {
+            let declaration = self.local_function_declaration(local)?;
+            return self.local_call(declaration, callee, args, count);
+        }
+        Ok(DefaultExpressionKindV1::Call {
+            callee,
+            receiver: receiver.try_map(|ty| self.type_key(ty))?,
+            arguments: self.expressions(args)?,
+        })
+    }
+
+    fn local_call(
+        &mut self,
+        declaration: CallableTemplateOrigin,
+        callee: crate::DefaultCallableRefV1,
+        args: &[Expr],
+        capture_count: usize,
+    ) -> Result<DefaultExpressionKindV1, DefaultBodyProjectionError> {
+        let (captures, arguments) = args.split_at(capture_count);
+        Ok(DefaultExpressionKindV1::LocalFunctionCall {
+            declaration,
+            callee,
+            captures: self.expressions(captures)?,
+            arguments: self.expressions(arguments)?,
+        })
+    }
+
     pub(super) fn imported_generic_call(
         &mut self,
         application: crate::ImportedGenericCallableApplicationId,
@@ -58,15 +100,12 @@ impl BodyProjection<'_, '_> {
                     arguments: self.expressions(args)?,
                 })
             }
-            crate::ImportedCallableTemplateOrigin::Local { descriptor, .. } => {
-                let (captures, arguments) = args.split_at(descriptor.capture_count() as usize);
-                Ok(DefaultExpressionKindV1::LocalFunctionCall {
-                    declaration: descriptor.declaration(),
-                    callee,
-                    captures: self.expressions(captures)?,
-                    arguments: self.expressions(arguments)?,
-                })
-            }
+            crate::ImportedCallableTemplateOrigin::Local { descriptor, .. } => self.local_call(
+                descriptor.declaration(),
+                callee,
+                args,
+                descriptor.capture_count() as usize,
+            ),
         }
     }
 

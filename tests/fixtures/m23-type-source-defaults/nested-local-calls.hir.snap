@@ -17,7 +17,7 @@
       val local3
         Local $argument.0 : String
       assign $result.0
-        LocalFunctionCall local2 $local.0.copy captures=0 : String
+        Call $local.0.copy : String
           Local $parameter.value : String
     else
       assign $result.0
@@ -39,7 +39,7 @@
       val local9
         Local $argument.0 : String
       assign $result.1
-        LocalFunctionCall local3 $local.1.copy<String> captures=0 : String
+        Call $local.1.copy<String> : String
           Local $parameter.value : String
     else
       assign $result.1

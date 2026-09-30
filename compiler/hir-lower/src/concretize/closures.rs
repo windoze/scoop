@@ -90,18 +90,6 @@ impl Concretizer<'_> {
         self.anonymous_functions.alloc(value)
     }
 
-    pub(super) fn ensure_local_function(
-        &mut self,
-        source_id: export::LocalFunctionId,
-        substitution: &[concrete::TypeId],
-    ) -> concrete::LocalFunctionId {
-        let source = self.source.local_functions[source_id].clone();
-        let function = self.request_lexical_function(source.definition, substitution.to_vec());
-        let function_type =
-            self.lower_function_type(source.declaration_function_type, substitution);
-        self.intern_local_function(function, source.definition_path, function_type)
-    }
-
     fn intern_local_function(
         &mut self,
         function: concrete::FunctionId,

@@ -275,7 +275,7 @@ Module
     val local3
       Local $argument.0 : Int
     val local4
-      LocalFunctionCall local1 $local.1.descend<T0> captures=1 : Box<T0>
+      Call $local.1.descend<T0> : Box<T0>
         Local seed : T0
         Local $parameter.depth : Int
     return
@@ -290,7 +290,7 @@ Module
     val local2
       Local $argument.0 : Int
     return
-      LocalFunctionCall local2 $local.2.recur captures=1 : Int
+      Call $local.2.recur : Int
         Local seed : Int
         Local $parameter.depth : Int
   fun localGenericSelfReference<T>(seed: T0, inspect: (T0) -> Int): Int
@@ -308,7 +308,7 @@ Module
     val local11
       CallableCall function_type4 : Int
         Local inspect : (T0) -> Int
-        LocalFunctionCall local3 $local.3.recur<T0, Unit> captures=2 : T0
+        Call $local.3.recur<T0, Unit> : T0
           Local limit : Int
           Local seed : T0
           Local $parameter.ignored : Unit
@@ -324,7 +324,7 @@ Module
     val local12
       CallableCall function_type4 : Int
         Local inspect : (T0) -> Int
-        LocalFunctionCall local3 $local.3.recur<T0, Int> captures=2 : T0
+        Call $local.3.recur<T0, Int> : T0
           Local limit : Int
           Local seed : T0
           Local $parameter.ignored : Int

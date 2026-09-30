@@ -953,7 +953,7 @@ Module
     val local2
       Local $argument.0 : Int
     return
-      LocalFunctionCall local0 $local.0.factorial captures=0 : Int
+      Call $local.0.factorial : Int
         Local $parameter.n : Int
   fun makeAdder(base: Int): (Int) -> Int
     LocalFunction local1 body=$local.1.add captures=1
@@ -962,7 +962,7 @@ Module
     val local2
       Local $argument.0 : Int
     val local3
-      LocalFunctionCall local1 $local.1.add captures=1 : Int
+      Call $local.1.add : Int
         Local base : Int
         Local $parameter.value : Int
     val local4
@@ -979,7 +979,7 @@ Module
     val local1
       Local $argument.0 : Int
     return
-      LocalFunctionCall local2 $local.2.choose captures=0 : Int
+      Call $local.2.choose : Int
         Local $parameter.value : Int
   fun genericLocal(): Int
     LocalFunction local4 body=$local.4.identity captures=0
@@ -988,7 +988,7 @@ Module
     val local1
       Local $argument.0 : Int
     return
-      LocalFunctionCall local4 $local.4.identity<Int> captures=0 : Int
+      Call $local.4.identity<Int> : Int
         Local $parameter.value : Int
   fun genericReference(): (Int) -> Int
     LocalFunction local5 body=$local.5.identity captures=0
@@ -1001,7 +1001,7 @@ Module
     val local2
       Local $argument.0 : T0
     return
-      LocalFunctionCall local6 $local.6.local<T0> captures=0 : T0
+      Call $local.6.local<T0> : T0
         Local $parameter.value : T0
   fun recursiveCapture(base: Int): Int
     LocalFunction local7 body=$local.7.finishAfter captures=1
@@ -1010,7 +1010,7 @@ Module
     val local2
       Local $argument.0 : Int
     return
-      LocalFunctionCall local7 $local.7.finishAfter captures=1 : Int
+      Call $local.7.finishAfter : Int
         Local base : Int
         Local $parameter.n : Int
   fun makeLabelReader(label: LocalLabel): () -> String
@@ -1024,7 +1024,7 @@ Module
     val local2
       Local $argument.0 : Int
     return
-      LocalFunctionCall local9 $local.9.outer captures=1 : Int
+      Call $local.9.outer : Int
         Local base : Int
         Local $parameter.value : Int
   fun main(): Unit

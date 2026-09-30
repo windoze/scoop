@@ -996,7 +996,7 @@ Module
     val local5
       Local seed : Int
     return
-      LocalFunctionCall local0 $local.0.read captures=0 : Int
+      Call $local.0.read : Int
         Local $parameter.value : Int
   fun failBeforeDefault(): Int
     val local0

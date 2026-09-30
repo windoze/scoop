@@ -5,8 +5,7 @@ use crate::Lowerer;
 mod callables;
 use callables::collect_callable_reference_types;
 pub(in super::super) use callables::{
-    collect_callable_target_types, collect_callable_types, collect_method_callee_types,
-    collect_reference_target_types,
+    collect_callable_target_types, collect_method_callee_types, collect_reference_target_types,
 };
 
 pub(in super::super) fn collect_body_types(
@@ -337,20 +336,6 @@ pub(in super::super) fn collect_expr_types(
             collect_callable_target_types(lowerer, *callee, out);
             if let hir::SourceCallReceiver::Receiver { static_type } = receiver {
                 out.push(*static_type);
-            }
-            for argument in args {
-                collect_expr_types(lowerer, argument, out);
-            }
-        }
-        ExprKind::LocalFunctionCall {
-            callee,
-            captures,
-            args,
-            ..
-        } => {
-            collect_callable_types(lowerer, *callee, out);
-            for capture in captures {
-                collect_expr_types(lowerer, capture, out);
             }
             for argument in args {
                 collect_expr_types(lowerer, argument, out);

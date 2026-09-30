@@ -33,7 +33,7 @@
       BoolLiteral true : Boolean
       LocalFunction local6 body=$local.0.copy captures=1
       assign $result.0
-        LocalFunctionCall local6 $local.0.copy<String> captures=1 : String
+        Call $local.0.copy<String> : String
           Local $parameter.seed : String
     else
       assign $result.0
@@ -67,7 +67,7 @@
       BoolLiteral true : Boolean
       LocalFunction local7 body=$local.0.copy captures=1
       assign $result.0
-        LocalFunctionCall local7 $local.0.copy<Int> captures=1 : Int
+        Call $local.0.copy<Int> : Int
           Local $parameter.seed : Int
     else
       assign $result.0

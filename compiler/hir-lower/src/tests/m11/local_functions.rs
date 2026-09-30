@@ -108,11 +108,12 @@ fn local_function_has_typed_identity_capture_and_lifted_direct_call() {
     let init = local_init(main_body, "result");
     assert!(matches!(
         init.kind,
-        hir::ExprKind::LocalFunctionCall {
-            local_function,
-            ref captures,
+        hir::ExprKind::Call {
+            callee: hir::CallableTarget::Local(callee),
+            ref args,
             ..
-        } if local_function == local_id && captures.len() == 1
+        } if module.callable_function(callee) == local.source_function()
+            && args.len() == local.captures.len() + 1
     ));
     let lifted = &module.functions[local.source_function()];
     assert_eq!(

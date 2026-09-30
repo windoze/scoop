@@ -274,17 +274,6 @@ impl Lowerer {
                 binding: binding.clone(),
                 args: self.instantiate_default_exprs(args, context),
             },
-            hir::ExprKind::LocalFunctionCall {
-                local_function,
-                callee,
-                captures,
-                args,
-            } => hir::ExprKind::LocalFunctionCall {
-                local_function: context.local_function(*local_function),
-                callee: self.instantiate_default_callable(*callee, context),
-                captures: self.instantiate_default_exprs(captures, context),
-                args: self.instantiate_default_exprs(args, context),
-            },
             hir::ExprKind::CallableCall {
                 callee,
                 function_type,

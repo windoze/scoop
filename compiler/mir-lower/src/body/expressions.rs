@@ -674,19 +674,6 @@ impl BodyLowerer<'_> {
                     }
                 };
             }
-            hir::ExprKind::LocalFunctionCall {
-                callee,
-                captures,
-                args,
-                ..
-            } => {
-                let function = self.module.callable_function(*callee);
-                self.record_suspend_function_call(function);
-                let callee = self.lower_user_callee(*callee);
-                let call_args: Vec<_> = captures.iter().chain(args).collect();
-                let return_ty = self.lower_type(expr.ty);
-                return self.call(callee, &call_args, return_ty);
-            }
             hir::ExprKind::CallableCall {
                 callee,
                 function_type,

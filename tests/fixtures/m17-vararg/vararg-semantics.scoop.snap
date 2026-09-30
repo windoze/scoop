@@ -1125,7 +1125,7 @@ Module
         Element
           Local $argument.2 : Int
     return
-      LocalFunctionCall local0 $local.0.count captures=0 : Long
+      Call $local.0.count : Long
         Local $parameter.values : Array<Int>
   fun printInts(values: Array<Int>): Unit
     val local1
