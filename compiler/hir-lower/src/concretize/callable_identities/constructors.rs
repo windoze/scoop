@@ -46,9 +46,9 @@ impl CallableIdentityBuilder<'_> {
     ) -> CallableMaterialization {
         let template = &self.concretizer.source.imported_constructor_templates[constructor];
         let ty = match &self.concretizer.source.types[template.owner] {
-            export::Type::ImportedStruct(owner) => {
-                let owner = self.concretizer.struct_by_key
-                    [&(owner.declaration.owner(), arguments.to_vec())];
+            export::Type::Struct(owner) => {
+                let origin = self.concretizer.source.struct_applications[*owner].template;
+                let owner = self.concretizer.struct_by_key[&(origin, arguments.to_vec())];
                 self.concretizer.struct_type[&owner]
             }
             export::Type::ImportedClass(owner) => {

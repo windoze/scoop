@@ -64,6 +64,8 @@ pub struct HirTypeIdentityInputs<'a> {
     pub enums: &'a Arena<EnumDecl>,
     pub loaded_enum_definitions:
         &'a std::collections::HashMap<crate::SourceNominalId, crate::LoadedEnumDefinition>,
+    pub loaded_struct_definitions:
+        &'a std::collections::HashMap<crate::SourceNominalId, crate::LoadedStructDefinition>,
     pub enum_applications: &'a Arena<EnumApplication>,
     pub classes: &'a Arena<ClassDecl>,
     pub class_applications: &'a Arena<ClassApplication>,
@@ -75,6 +77,23 @@ pub struct HirTypeIdentityInputs<'a> {
 }
 
 impl<'a> HirTypeIdentityInputs<'a> {
+    pub(crate) fn struct_declaration(
+        &self,
+        template: crate::SourceNominalId,
+    ) -> Option<(crate::HirNominalIdentity, usize)> {
+        if let Some(id) = self.nominal_identities.struct_id(template) {
+            return Some((
+                self.nominal_identities[id].clone(),
+                self.structs[id].type_params.len(),
+            ));
+        }
+        let definition = self.loaded_struct_definitions.get(&template)?;
+        Some((
+            crate::HirNominalIdentity::Source(definition.declaration.identity.clone()),
+            definition.definition.type_params.len(),
+        ))
+    }
+
     pub(crate) fn enum_declaration(
         &self,
         template: crate::SourceNominalId,
@@ -110,6 +129,7 @@ impl<'a> HirTypeIdentityInputs<'a> {
             struct_applications: &export.struct_applications,
             enums: &export.enums,
             loaded_enum_definitions: &export.loaded_enum_definitions,
+            loaded_struct_definitions: &export.loaded_struct_definitions,
             enum_applications: &export.enum_applications,
             classes: &export.classes,
             class_applications: &export.class_applications,

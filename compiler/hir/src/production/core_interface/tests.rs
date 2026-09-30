@@ -213,6 +213,7 @@ fn imported_fundamental_types_build_identities_without_local_core_nominals() {
         struct_applications: &struct_applications,
         enums: &enums,
         loaded_enum_definitions: &std::collections::HashMap::new(),
+        loaded_struct_definitions: &std::collections::HashMap::new(),
         enum_applications: &enum_applications,
         classes: &classes,
         class_applications: &class_applications,

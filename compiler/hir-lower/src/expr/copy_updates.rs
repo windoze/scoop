@@ -5,13 +5,13 @@ use super::*;
 #[derive(Clone, Copy)]
 struct PlannedField<'a> {
     source: &'a ast::FieldUpdate,
-    field: hir::AppliedStructFieldRef,
+    field: scoop_identity::PersistentFieldId,
     ty: TypeId,
 }
 
 struct StructCopyTarget {
     application: hir::StructApplicationId,
-    fields: Vec<(hir::AppliedStructFieldRef, TypeId)>,
+    fields: Vec<(scoop_identity::PersistentFieldId, TypeId)>,
 }
 
 impl Lowerer {
@@ -83,10 +83,9 @@ impl Lowerer {
     ) -> Option<(StructCopyTarget, Vec<PlannedField<'a>>)> {
         let application_value = self.struct_applications[application].clone();
         let declaration = application_value.template;
-        let hir::StructRepresentation::Declared(declaration_fields) = self.structs
-            [self.struct_id(declaration)]
-        .representation
-        .clone() else {
+        let hir::StructRepresentation::Declared(declaration_fields) =
+            self.struct_definition(declaration).representation.clone()
+        else {
             let found = self.type_name(application_value.canonical_type);
             self.error(
                 updates.first().field.span,
@@ -100,16 +99,12 @@ impl Lowerer {
 
         let mut fields = Vec::with_capacity(declaration_fields.len());
         for (index, field) in declaration_fields.iter().enumerate() {
-            let reference = hir::AppliedStructFieldRef::checked(
-                &self.structs,
-                &self.struct_applications,
-                self.nominal_identities
-                    .as_ref()
-                    .expect("nominal identities precede application references"),
-                application,
-                index as u32,
-            )
-            .expect("a declared struct field produces a checked applied reference");
+            let hir::FieldRef::StructField {
+                field: reference, ..
+            } = self.struct_field_reference(application, index as u32)
+            else {
+                unreachable!("a struct field retains its declaring owner")
+            };
             let ty = self.instantiate_ty(field.ty, &application_value.arguments);
             fields.push((reference, ty));
         }
@@ -125,7 +120,7 @@ impl Lowerer {
                     update.field.span,
                     format!(
                         "struct `{}` has no field `{}`",
-                        self.structs[self.struct_id(declaration)].name,
+                        self.nominal_template_name(declaration),
                         update.field.text
                     ),
                 );
@@ -163,8 +158,10 @@ impl Lowerer {
                 updates.get(&field).cloned().unwrap_or(hir::Expr {
                     kind: ExprKind::FieldAccess {
                         receiver: Box::new(base.clone()),
-                        field: self
-                            .struct_field_reference(field.application(), field.local_index()),
+                        field: hir::FieldRef::StructField {
+                            owner: result_ty,
+                            field,
+                        },
                     },
                     ty,
                     span,
@@ -187,7 +184,7 @@ impl Lowerer {
         &mut self,
         planned: Vec<PlannedField<'_>>,
         sink: &mut Vec<hir::Statement>,
-    ) -> Option<HashMap<hir::AppliedStructFieldRef, hir::Expr>> {
+    ) -> Option<HashMap<scoop_identity::PersistentFieldId, hir::Expr>> {
         let mut lowered = HashMap::with_capacity(planned.len());
         for field in planned {
             let value = self.lower_expr(&field.source.value, sink, Some(field.ty))?;

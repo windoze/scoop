@@ -18,6 +18,7 @@ mod enums;
 mod fields;
 mod intrinsics;
 mod methods;
+mod queries;
 mod structs;
 
 pub use classes::*;

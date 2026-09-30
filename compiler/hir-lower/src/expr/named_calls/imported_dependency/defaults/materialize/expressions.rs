@@ -235,6 +235,17 @@ impl Lowerer {
             Kind::ArrayClone(array) => hir::ExprKind::ArrayClone(Box::new(
                 self.materialize_imported_default_expression(array, context)?,
             )),
+            Kind::StructConstruct { fields, .. } => {
+                let hir::Type::Struct(application) = self.types[ty] else {
+                    return Err(ImportedDefaultMaterializationError::Plan(
+                        "a struct construction requires its complete struct application".into(),
+                    ));
+                };
+                hir::ExprKind::StructConstruct {
+                    application,
+                    fields: self.materialize_imported_default_expressions(fields, context)?,
+                }
+            }
             Kind::VariantConstruct { variant, arguments } => {
                 let owner = self
                     .imported_default_type_with_bindings(variant.owner_type(), context.bindings)
@@ -437,7 +448,6 @@ impl Lowerer {
                 ..
             }
             | Kind::StructInit { .. }
-            | Kind::StructConstruct { .. }
             | Kind::ClassInit { .. }
             | Kind::VariantTest { .. }
             | Kind::VariantPayloadProject { .. }

@@ -57,7 +57,7 @@ impl Lowerer {
         span: Span,
     ) -> Option<PatternTarget> {
         match self.types[matched_ty] {
-            Type::Struct(_) | Type::ImportedStruct(_) => {
+            Type::Struct(_) => {
                 if path.is_empty() || self.pattern_type_name_matches(path, matched_ty)? {
                     Some(PatternTarget::Struct(matched_ty))
                 } else {

@@ -69,18 +69,22 @@ impl Lowerer {
         template: StructId,
         arguments: Vec<TypeId>,
     ) -> hir::StructApplicationId {
-        let key = (
-            self.nominal_identity(crate::Owner::Struct(template))
-                .declaration_id(),
-            arguments.clone(),
-        );
+        let template = self
+            .nominal_identity(crate::Owner::Struct(template))
+            .declaration_id();
+        self.intern_struct_application(template, arguments)
+    }
+
+    pub(crate) fn intern_struct_application(
+        &mut self,
+        template: hir::SourceNominalId,
+        arguments: Vec<TypeId>,
+    ) -> hir::StructApplicationId {
+        let key = (template, arguments.clone());
         if let Some(&application) = self.struct_application_by_key.get(&key) {
             return application;
         }
-        let intrinsic = match self.structs[template].representation {
-            hir::StructRepresentation::Declared(_) => None,
-            hir::StructRepresentation::Intrinsic(intrinsic) => Some(intrinsic),
-        };
+        let intrinsic = self.nominal_intrinsic_kind(template);
         let representation = intrinsic.map_or(
             hir::StructApplicationRepresentation::Declared,
             |intrinsic| {

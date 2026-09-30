@@ -33,26 +33,28 @@ fn structure(name: &str, fields: &[&str]) -> StructDecl {
         name: name.to_string(),
         owner: None,
         access: NominalAccess::public(),
-        self_application: StructApplicationId::from_raw(0_u32.into()),
-        type_params: Vec::new(),
         gc_free_pointee_requirements: Vec::new(),
         attributes: StructAttributes::default(),
-        representation: StructRepresentation::Declared(
-            fields
-                .iter()
-                .map(|name| crate::Field {
-                    name: (*name).to_string(),
-                    ty: TypeId::from_raw(0_u32.into()),
-                })
-                .collect(),
-        ),
         constructors: Vec::new(),
-        interfaces: Vec::new(),
-        interface_implementations: Vec::new(),
         methods: Vec::new(),
         properties: Vec::new(),
         derived_equality: None,
         span: Span::new(0, 0),
+        definition: crate::StructDefinition {
+            self_application: StructApplicationId::from_raw(0_u32.into()),
+            type_params: Vec::new(),
+            representation: StructRepresentation::Declared(
+                fields
+                    .iter()
+                    .map(|name| crate::Field {
+                        name: (*name).to_string(),
+                        ty: TypeId::from_raw(0_u32.into()),
+                    })
+                    .collect(),
+            ),
+            interfaces: Vec::new(),
+            interface_implementations: Vec::new(),
+        },
     }
 }
 

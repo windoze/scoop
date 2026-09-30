@@ -3,6 +3,17 @@
 use super::*;
 
 impl Lowerer {
+    pub(crate) fn source_struct_id(
+        &self,
+        declaration: hir::SourceNominalId,
+    ) -> Option<hir::StructId> {
+        match self.nominal_owners.get(&declaration) {
+            Some(Owner::Struct(id)) => Some(*id),
+            Some(_) => unreachable!("a struct application identifies a struct declaration"),
+            None => None,
+        }
+    }
+
     pub(crate) fn struct_id(&self, declaration: hir::SourceNominalId) -> hir::StructId {
         match self.nominal_owners[&declaration] {
             Owner::Struct(id) => id,

@@ -107,7 +107,8 @@ impl Lowerer {
         match self.types[ty].clone() {
             Type::Struct(application) => {
                 let application = self.struct_applications[application].clone();
-                let parameters = self.structs[self.struct_id(application.template)]
+                let parameters = self
+                    .struct_definition(application.template)
                     .type_params
                     .clone();
                 self.check_type_argument_kinds(
@@ -199,8 +200,7 @@ impl Lowerer {
             Type::Ptr(pointee) => {
                 self.validate_type_alias_target_tree(pointee, span, description, visited);
             }
-            Type::ImportedStruct(_)
-            | Type::ImportedClass(_)
+            Type::ImportedClass(_)
             | Type::ImportedInterface(_)
             | Type::Unit
             | Type::Integer(_)

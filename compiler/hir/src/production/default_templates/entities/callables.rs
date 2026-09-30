@@ -161,12 +161,10 @@ impl DefaultEntityProjector<'_> {
     ) -> Result<crate::DefaultConstructorRefV1, super::super::DefaultEntityProjectionError> {
         let source_type = self.type_key(owner_type, binders)?;
         match &self.export.types[owner_type] {
-            crate::Type::Struct(_) | crate::Type::ImportedStruct(_) => {
-                Ok(crate::DefaultConstructorRefV1::Struct {
-                    declaration,
-                    owner_type: source_type,
-                })
-            }
+            crate::Type::Struct(_) => Ok(crate::DefaultConstructorRefV1::Struct {
+                declaration,
+                owner_type: source_type,
+            }),
             crate::Type::Class(_) | crate::Type::ImportedClass(_) => {
                 Ok(crate::DefaultConstructorRefV1::Class {
                     declaration: crate::DefaultClassConstructorIdV1::Source(declaration),

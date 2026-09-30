@@ -6,7 +6,7 @@ use std::sync::Arc;
 mod dispatch;
 mod enums;
 mod source;
-mod values;
+mod structs;
 
 impl Lowerer {
     pub(super) fn imported_nominal_type(
@@ -21,6 +21,12 @@ impl Lowerer {
         owner: hir::SourceNominalId,
         arguments: Vec<hir::TypeId>,
     ) -> Result<hir::TypeId, ImportedSignatureTypeError> {
+        if let Some(application) = self
+            .struct_application_by_key
+            .get(&(owner, arguments.clone()))
+        {
+            return Ok(self.struct_applications[*application].canonical_type);
+        }
         if let Some(application) = self
             .enum_application_by_key
             .get(&(owner, arguments.clone()))
@@ -65,7 +71,7 @@ impl Lowerer {
                 self.imported_interface_type(declaration, arguments, &bindings)
             }
             hir::NominalSourceShapeV1::Struct(_) => {
-                self.imported_struct_type(declaration, arguments, &bindings)
+                self.imported_struct_type(declaration, arguments)
             }
             hir::NominalSourceShapeV1::Enum(_) => self.imported_enum_type(declaration, arguments),
             hir::NominalSourceShapeV1::Intrinsic(representation)

@@ -1,0 +1,26 @@
+package upstream.structdefinitions
+
+public interface Readable<T> {
+    public fun read(): T
+    public fun apply(action: (T) -> Int): Int = action(this.read())
+}
+
+public struct Cell<T>(val value: T, val next: Link<T>?): Readable<T> {
+    public override fun read(): T = this.value
+}
+
+public class Link<T> public constructor(public val cell: Cell<T>)
+
+@CLayout
+public struct NativePair(val left: Int, val right: Int)
+
+public fun <T> make(value: T): Cell<T> = Cell(value, None)
+
+public fun <T> hasNext(value: Cell<T>): Boolean = when (value.next) {
+    Some(link) -> true
+    None -> false
+}
+
+public fun <T> replace(base: Cell<T>, value: T): Cell<T> = base.{ value: value }
+
+public fun <T> withoutNext(base: Cell<T>, fallback: Cell<T> = base.{ next: None }): Cell<T> = fallback

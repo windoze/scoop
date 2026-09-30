@@ -1,6 +1,16 @@
 use super::*;
 
 impl Lowerer {
+    pub(super) fn struct_access_domain(&self, template: hir::SourceNominalId) -> hir::AccessDomain {
+        match self.nominal_owners.get(&template) {
+            Some(crate::Owner::Struct(id)) => self.structs[*id].access.lookup.0.clone(),
+            Some(_) => unreachable!("a struct application retains its struct declaration"),
+            None => self.imported_nominal_access_domain(
+                &self.loaded_struct_definitions[&template].declaration,
+            ),
+        }
+    }
+
     pub(super) fn enum_access_domain(&self, template: hir::SourceNominalId) -> hir::AccessDomain {
         match self.nominal_owners.get(&template) {
             Some(crate::Owner::Enum(id)) => self.enums[*id].access.lookup.0.clone(),
@@ -28,9 +38,6 @@ impl Lowerer {
         dependencies: &mut Vec<(hir::TypeId, hir::AccessDomain)>,
     ) {
         let provided = match self.types[ty] {
-            hir::Type::ImportedStruct(ref structure) => {
-                Some(self.imported_nominal_access_domain(&structure.declaration))
-            }
             hir::Type::ImportedClass(ref structure) => {
                 Some(self.imported_nominal_access_domain(&structure.declaration))
             }
@@ -44,13 +51,9 @@ impl Lowerer {
                 self.intrinsic_type_access_domain(hir::IntrinsicTypeKind::Boolean)
             }
             hir::Type::String => self.intrinsic_type_access_domain(hir::IntrinsicTypeKind::String),
-            hir::Type::Struct(application) => Some(
-                self.structs[self.struct_id(self.struct_applications[application].template)]
-                    .access
-                    .lookup
-                    .0
-                    .clone(),
-            ),
+            hir::Type::Struct(application) => {
+                Some(self.struct_access_domain(self.struct_applications[application].template))
+            }
             hir::Type::Enum(application) => {
                 Some(self.enum_access_domain(self.enum_applications[application].template))
             }
@@ -121,8 +124,7 @@ impl Lowerer {
                 self.collect_type_dependencies(function.return_type, dependencies);
             }
             hir::Type::Ptr(pointee) => self.collect_type_dependencies(pointee, dependencies),
-            hir::Type::ImportedStruct(_)
-            | hir::Type::ImportedClass(_)
+            hir::Type::ImportedClass(_)
             | hir::Type::ImportedInterface(_)
             | hir::Type::Unit
             | hir::Type::Integer(_)
@@ -211,13 +213,9 @@ impl Lowerer {
                 _ => unreachable!("a class field retains its declaring class"),
             },
             hir::FieldRef::StructField { owner, .. } => match self.types[owner] {
-                hir::Type::Struct(application) => self.structs
-                    [self.struct_id(self.struct_applications[application].template)]
-                .access
-                .lookup
-                .0
-                .clone(),
-                hir::Type::ImportedStruct(_) => hir::AccessDomain::universal(),
+                hir::Type::Struct(application) => {
+                    self.struct_access_domain(self.struct_applications[application].template)
+                }
                 _ => unreachable!("a struct field retains its declaring struct"),
             },
             hir::FieldRef::TupleIndex(_) => hir::AccessDomain::universal(),

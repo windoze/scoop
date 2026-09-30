@@ -112,9 +112,11 @@ impl BodyProjection<'_, '_> {
         else {
             unreachable!("an imported closure references its generated body")
         };
-        let arguments = application
-            .arguments
-            .substitution(&export.types, &export.enum_applications);
+        let arguments = application.arguments.substitution(
+            &export.types,
+            &export.enum_applications,
+            &export.struct_applications,
+        );
         let count = owner_parameter_count(arguments.len())?;
         let arguments = arguments
             .into_iter()

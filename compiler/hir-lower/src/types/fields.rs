@@ -14,6 +14,40 @@ pub(crate) struct StructFields {
 }
 
 impl Lowerer {
+    pub(crate) fn struct_c_layout(
+        &self,
+        template: hir::SourceNominalId,
+    ) -> Option<hir::HirCLayoutContract> {
+        if let Some(id) = self.source_struct_id(template) {
+            return self.structs[id].attributes.c_layout;
+        }
+        let hir::NominalSourceShapeV1::Struct(shape) = self.loaded_struct_definitions[&template]
+            .declaration
+            .interface
+            .source_shape()
+        else {
+            unreachable!("a struct definition retains its declaration shape")
+        };
+        match shape.c_layout_policy() {
+            hir::NominalCLayoutPolicyV1::Ordinary => None,
+            hir::NominalCLayoutPolicyV1::CLayout { contract } => Some(contract),
+        }
+    }
+
+    pub(crate) fn struct_interior_mutable(&self, template: hir::SourceNominalId) -> bool {
+        if let Some(id) = self.source_struct_id(template) {
+            return self.structs[id].attributes.interior_mutable;
+        }
+        let hir::NominalSourceShapeV1::Struct(shape) = self.loaded_struct_definitions[&template]
+            .declaration
+            .interface
+            .source_shape()
+        else {
+            unreachable!("a struct definition retains its declaration shape")
+        };
+        shape.interior_mutable()
+    }
+
     /// Resolve declaration-order fields for the complete application. The
     /// consumers use the same field identities and types regardless of where
     /// the declaration is stored.
@@ -21,8 +55,8 @@ impl Lowerer {
         match self.types[ty].clone() {
             Type::Struct(application) => {
                 let value = self.struct_applications[application].clone();
-                let declaration = &self.structs[self.struct_id(value.template)];
-                let name = declaration.name.clone();
+                let declaration = self.struct_definition(value.template);
+                let name = self.nominal_template_name(value.template).to_owned();
                 let fields = declaration.semantic_fields().to_vec();
                 let fields = fields
                     .into_iter()
@@ -38,21 +72,6 @@ impl Lowerer {
                     .collect();
                 Some(StructFields { name, fields })
             }
-            Type::ImportedStruct(value) => Some(StructFields {
-                name: value.declaration.name().to_owned(),
-                fields: value
-                    .fields
-                    .iter()
-                    .map(|field| StructField {
-                        name: field.name.clone(),
-                        ty: field.ty,
-                        reference: hir::FieldRef::StructField {
-                            owner: ty,
-                            field: field.identity,
-                        },
-                    })
-                    .collect(),
-            }),
             _ => None,
         }
     }

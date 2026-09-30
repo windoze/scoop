@@ -349,7 +349,11 @@ pub(in super::super) fn collect_expr_types(
             out.extend(
                 lowerer.imported_generic_applications[*application]
                     .arguments
-                    .substitution(&lowerer.types, &lowerer.enum_applications),
+                    .substitution(
+                        &lowerer.types,
+                        &lowerer.enum_applications,
+                        &lowerer.struct_applications,
+                    ),
             );
             if let hir::SourceCallReceiver::Receiver { static_type } = receiver {
                 out.push(*static_type);
@@ -415,7 +419,11 @@ pub(in super::super) fn collect_expr_types(
             out.extend(
                 lowerer.imported_generic_applications[closure.application]
                     .arguments
-                    .substitution(&lowerer.types, &lowerer.enum_applications),
+                    .substitution(
+                        &lowerer.types,
+                        &lowerer.enum_applications,
+                        &lowerer.struct_applications,
+                    ),
             );
             for capture in &closure.captures {
                 out.push(capture.ty);

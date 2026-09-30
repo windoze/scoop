@@ -51,23 +51,6 @@ impl Lowerer {
         visiting: &mut HashSet<hir::TypeId>,
     ) -> Option<HashSet<hir::TypeParamId>> {
         match &self.types[ty] {
-            hir::Type::ImportedStruct(structure) => {
-                if !visiting.insert(ty) {
-                    return None;
-                }
-                let mut requirements = HashSet::new();
-                for field in structure.fields.iter() {
-                    let Some(required) =
-                        self.gc_free_requirements_inner(field.ty, environment, visiting)
-                    else {
-                        visiting.remove(&ty);
-                        return None;
-                    };
-                    requirements.extend(required);
-                }
-                visiting.remove(&ty);
-                Some(requirements)
-            }
             hir::Type::Unit
             | hir::Type::Integer(_)
             | hir::Type::Boolean
@@ -107,7 +90,8 @@ impl Lowerer {
                     return None;
                 }
                 let nested = TypeEnvironment {
-                    bindings: self.structs[self.struct_id(id)]
+                    bindings: self
+                        .struct_definition(id)
                         .type_params
                         .iter()
                         .zip(application.arguments.iter().copied())
@@ -116,7 +100,7 @@ impl Lowerer {
                     parent: environment,
                 };
                 let mut requirements = HashSet::new();
-                for field in self.structs[self.struct_id(id)].semantic_fields() {
+                for field in self.struct_definition(id).semantic_fields() {
                     let Some(required) =
                         self.gc_free_requirements_inner(field.ty, Some(&nested), visiting)
                     else {
@@ -179,14 +163,15 @@ impl Lowerer {
             hir::Type::Struct(application) => {
                 let application = &self.struct_applications[*application];
                 let id = application.template;
-                if self.structs[self.struct_id(id)].attributes.interior_mutable {
+                if self.struct_interior_mutable(id) {
                     return true;
                 }
                 if !visiting.insert(ty) {
                     return false;
                 }
                 let nested = TypeEnvironment {
-                    bindings: self.structs[self.struct_id(id)]
+                    bindings: self
+                        .struct_definition(id)
                         .type_params
                         .iter()
                         .zip(application.arguments.iter().copied())
@@ -194,7 +179,8 @@ impl Lowerer {
                         .collect(),
                     parent: environment,
                 };
-                let result = self.structs[self.struct_id(id)]
+                let result = self
+                    .struct_definition(id)
                     .semantic_fields()
                     .iter()
                     .any(|field| self.requires_unsafe_use_inner(field.ty, Some(&nested), visiting));

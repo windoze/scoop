@@ -24,8 +24,15 @@ impl Lowerer {
                     .chain(value.base_class)
                     .collect(),
             ),
-            hir::Type::ImportedStruct(value) => {
-                (Arc::clone(&value.declaration), value.interfaces.clone())
+            hir::Type::Struct(application) => {
+                let Some(definition) = self
+                    .loaded_struct_definitions
+                    .get(&self.struct_applications[*application].template)
+                else {
+                    return;
+                };
+                let declaration = Arc::clone(&definition.declaration);
+                (declaration, self.direct_nominal_supertypes(ty))
             }
             hir::Type::Enum(application) => {
                 let Some(definition) = self

@@ -88,7 +88,7 @@ impl<'input> Concretizer<'input> {
 }
 
 impl<'a> ResolvedStructDefinition<'a> {
-    pub(super) fn from_dependency(source: &'a export::ImportedStructType) -> Self {
+    pub(super) fn from_dependency(source: &'a export::LoadedStructDefinition) -> Self {
         let export::NominalSourceShapeV1::Struct(shape) =
             source.declaration.interface.source_shape()
         else {
@@ -110,10 +110,12 @@ impl<'a> ResolvedStructDefinition<'a> {
             }
         };
         let fields = source
-            .fields
+            .definition
+            .semantic_fields()
             .iter()
-            .map(|field| ResolvedField {
-                identity: field.identity,
+            .enumerate()
+            .map(|(index, field)| ResolvedField {
+                identity: source.field_identity(index),
                 name: &field.name,
                 ty: field.ty,
             })
@@ -129,8 +131,8 @@ impl<'a> ResolvedStructDefinition<'a> {
                 c_abi,
                 fields,
             },
-            &source.interfaces,
-            &source.interface_implementations,
+            &source.definition.interfaces,
+            &source.definition.interface_implementations,
         )
     }
 

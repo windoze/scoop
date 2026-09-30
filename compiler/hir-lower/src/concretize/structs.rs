@@ -7,42 +7,29 @@ mod intrinsics;
 use definition::{ResolvedStructDefinition, ResolvedStructRepresentation};
 
 impl Concretizer<'_> {
-    pub(super) fn ensure_struct(
+    pub(super) fn ensure_struct_definition(
         &mut self,
-        source: export::StructId,
+        origin: export::SourceNominalId,
         arguments: Vec<concrete::TypeId>,
         application: ConcreteApplicationRepresentation,
     ) -> concrete::StructId {
-        let origin = self.source.nominal_identities[source].declaration_id();
         let key = (origin, arguments.clone());
         if let Some(&id) = self.struct_by_key.get(&key) {
             return id;
         }
-        let definition = self.source_struct_definition(source, application);
+        let source = self.source.nominal_identities.struct_id(origin);
+        let definition = match source {
+            Some(source) => self.source_struct_definition(source, application),
+            None => ResolvedStructDefinition::from_dependency(
+                &self.source.loaded_struct_definitions[&origin],
+            ),
+        };
         let id = self.allocate_struct_definition(&definition, arguments.clone());
-        self.struct_source.insert(id, source);
+        if let Some(source) = source {
+            self.struct_source.insert(id, source);
+        }
         self.complete_struct_definition(id, definition, &arguments);
         id
-    }
-
-    pub(super) fn lower_imported_struct(
-        &mut self,
-        source: &export::ImportedStructType,
-        substitution: &[concrete::TypeId],
-    ) -> concrete::TypeId {
-        let arguments = source
-            .arguments
-            .iter()
-            .map(|argument| self.lower_type(*argument, substitution))
-            .collect::<Vec<_>>();
-        let key = (source.declaration.owner(), arguments.clone());
-        if let Some(id) = self.struct_by_key.get(&key) {
-            return self.struct_type[id];
-        }
-        let definition = ResolvedStructDefinition::from_dependency(source);
-        let id = self.allocate_struct_definition(&definition, arguments);
-        self.complete_struct_definition(id, definition, substitution);
-        self.struct_type[&id]
     }
 
     fn allocate_struct_definition(

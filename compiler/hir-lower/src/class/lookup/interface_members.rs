@@ -19,7 +19,7 @@ impl Lowerer {
             Type::Struct(application) => {
                 let application = &self.struct_applications[application];
                 (
-                    self.structs[self.struct_id(application.template)]
+                    self.struct_definition(application.template)
                         .interface_implementations
                         .clone(),
                     application.arguments.clone(),

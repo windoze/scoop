@@ -133,11 +133,22 @@ impl Lowerer {
                         .declaration_id();
                 }
             }
-            Some(Type::Struct(application)) => self.structs
-                [self.struct_id(self.struct_applications[application].template)]
-            .properties
-            .iter()
-            .any(|property| self.properties[*property].name == name),
+            Some(Type::Struct(application)) => {
+                let template = self.struct_applications[application].template;
+                match self.source_struct_id(template) {
+                    Some(id) => self.structs[id]
+                        .properties
+                        .iter()
+                        .any(|property| self.properties[*property].name == name),
+                    None => self
+                        .clone()
+                        .imported_member_candidates(
+                            self.struct_applications[application].canonical_type,
+                            hir::ImportedMemberLookup::PropertyGetter(name),
+                        )
+                        .is_ok_and(|candidates| !candidates.is_empty()),
+                }
+            }
             Some(Type::Enum(application)) => {
                 let template = self.enum_applications[application].template;
                 match self.source_enum_id(template) {

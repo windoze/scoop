@@ -55,13 +55,11 @@ fn struct_field_index(
     if let Some(declaration) = module.field_identities.struct_declaration(field) {
         return declaration.local_index();
     }
-    let Type::ImportedStruct(structure) = &module.types[owner] else {
+    let Type::Struct(application) = module.types[owner] else {
         unreachable!("a struct field retains its declaring struct")
     };
-    structure
-        .fields
-        .iter()
-        .position(|candidate| candidate.identity == field)
+    module.loaded_struct_definitions[&module.struct_applications[application].template]
+        .field_index(field)
         .expect("a resolved field belongs to its declaring struct") as u32
 }
 

@@ -180,13 +180,13 @@ impl Lowerer {
             InitializingReceiver::Struct { application } => {
                 let application_value = self.struct_applications[application].clone();
                 let structure = application_value.template;
-                let fields = self.structs[self.struct_id(structure)].semantic_fields();
+                let fields = self.struct_definition(structure).semantic_fields();
                 let Some(index) = fields.iter().position(|field| field.name == name.text) else {
                     self.error(
                         name.span,
                         format!(
                             "struct `{}` has no field `{}`",
-                            self.structs[self.struct_id(structure)].name,
+                            self.nominal_template_name(structure),
                             name.text
                         ),
                     );
@@ -221,7 +221,7 @@ impl Lowerer {
                 .is_some(),
             InitializingReceiver::Struct { application } => {
                 let structure = self.struct_applications[application].template;
-                self.structs[self.struct_id(structure)]
+                self.struct_definition(structure)
                     .semantic_fields()
                     .iter()
                     .any(|field| field.name == name)

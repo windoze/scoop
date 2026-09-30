@@ -32,6 +32,7 @@ pub(crate) fn build(
             struct_applications: &export.struct_applications,
             enums: &export.enums,
             loaded_enum_definitions: &export.loaded_enum_definitions,
+            loaded_struct_definitions: &export.loaded_struct_definitions,
             enum_applications: &export.enum_applications,
             classes: &export.classes,
             class_applications: &export.class_applications,

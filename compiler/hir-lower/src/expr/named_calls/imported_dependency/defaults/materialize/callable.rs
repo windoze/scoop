@@ -187,7 +187,11 @@ impl Lowerer {
             {
                 let receivers = parameters
                     .iter()
-                    .zip(arguments.substitution(&self.types, &self.enum_applications))
+                    .zip(arguments.substitution(
+                        &self.types,
+                        &self.enum_applications,
+                        &self.struct_applications,
+                    ))
                     .filter_map(|(parameter, argument)| {
                         matches!(parameter.bounds, hir::TypeParamBounds::Nominal(_))
                             .then_some(argument)

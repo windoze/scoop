@@ -1,0 +1,35 @@
+package consumer.structdefinitions
+import upstream.structdefinitions.*
+
+private struct LocalCell<T>(val value: T, val remote: Cell<T>): Readable<T> {
+    public override fun read(): T = this.value
+}
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val remote = make(seed)
+    val local = LocalCell(seed, remote)
+    val changed = local.{
+        remote: local.remote.{ next: Some(Link(remote)), value: seed },
+        value: seed
+    }
+    val first: Readable<T> = changed
+    val second: Readable<T> = changed.remote
+    if (hasNext(remote) || !hasNext(changed.remote)) { return 4 }
+    if (first.apply(read) != second.apply(read)) { return 1 }
+    val tail: T = when (changed.remote.next) {
+        Some(link) -> link.cell.value
+        None -> seed
+    }
+    if (read(tail) != 42) { return 2 }
+    val factory: (T) -> Cell<T> = { value -> withoutNext(changed.remote.{ value: value }) }
+    val reset = factory(seed)
+    if (hasNext(reset)) { return 3 }
+    return read(reset.value)
+}
+
+public fun result(): Int {
+    if (replace(make(1), 42).value != 42) { return 3 }
+    if (exercise<String>("value", { item -> 42 }) != 42) { return 1 }
+    if (exercise<Unit>(Unit, { item -> 42 }) != 42) { return 2 }
+    return exercise<Int>(42, { item -> item })
+}

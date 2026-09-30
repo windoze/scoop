@@ -277,3 +277,11 @@
 - 新增 `m23-shared-enum-definitions` 两组正例和六份阶段快照，覆盖 enum／class 递归引用、静态单位 variant、泛型接口及默认方法、嵌套 Option、本地与依赖声明对照。发布后移走源码，下游再次发布，consumer-local 类型、引用／Int／Unit 及普通／移动 GC 运行均通过；新快照关闭全部更新开关复验通过。原 enum 实例单元同时验证依赖 payload 保留声明 binder，并由多组完整实参复用。
 - 全仓 fmt／clippy、859 项 HIR、1319 项 HIR lowering、114 项 MIR lowering 单元测试全部通过。15 组不同真实产物回归均通过，包括新递归定义、既有 enum 正反例、Option 与重建 core、普通 enum、派生相等、完整成员模板、bound、指针、数组、构造及完整 core 三组 MIR／LIR 导出闭包；既有快照无需修改。日志前缀 `/tmp/scoop-m23-6a-shared-enum-types-`，结果见 `unit.log`、`build.log`、`new-verified.log` 与 `artifacts.json`。
 - enum 声明、依赖定义解码、常量处理和具体化主文件分别为 356、145、228、122 行。确认没有 cargo／rustc 占用后清理 204.7 MiB 旧增量缓存，继续复用 `target/m23-6a`。本批未修改 wire payload 或 runtime ABI；其余 nominal 类型、完整声明成员／条件、候选及正文存储继续按 6a 设计统一。
+
+## struct 共用 application 与带形参的字段定义
+
+- 删除 `Type::ImportedStruct`、`ImportedStructType` 与依赖专用 struct 常量。当前与依赖声明使用原身份和完整实参的 `StructApplication`，字段、直接接口及既定接口实现保存在共同 `StructDefinition` 中；依赖定义只在声明形参域内解码一次，应用不再复制预替换的字段。类型身份、投影、解构、GC 分类、接口查询和具体化统一消费该定义，intrinsic 表示及实际 C 布局属性继续保留。
+- 拷贝更新改用原字段身份，共用字段替换、基值与更新表达式的求值顺序和结果组装。修复产物中已有 `StructConstruct` 在读入默认值／泛型正文时被拒绝的缺口：解码直接恢复共同节点，后续仍由已有正文替换处理，不再次选择构造器，也不复制普通外部实现。
+- 新增 `m23-shared-struct-definitions` 两组正例、三组反例及六份阶段快照，覆盖 struct／class 递归字段、接口默认方法、当前／依赖拷贝更新、具副作用的逆序更新、原值保持、泛型默认值、closure 和再次发布。消费方本地类型及 String／Int／Unit 在普通／移动 GC 场景运行通过；重复字段、未知字段和错误字段类型保留消费方准确位置。新快照与诊断全部关闭更新开关复验通过。
+- 全仓 fmt／clippy 无警告，859 项 HIR、1319 项 HIR lowering、114 项 MIR lowering 单元测试通过。15 组不同真实产物回归均已覆盖通过，包含既有 struct、递归 enum、默认值、完整成员与构造、派生相等、bound、指针、数组、Option 及完整 core 三组 MIR／LIR 导出闭包。既有 bound 默认值 HIR 快照只调整新增声明形参带来的一个临时 TypeId（23→25），完整组已严格重跑。日志前缀 `/tmp/scoop-m23-6a-shared-struct-types-`，结果见 `unit.log`、`build.log`、`new-verified.log` 与 `verified-artifacts.json`。
+- struct 声明、依赖定义解码、具体化和拷贝更新主文件分别为 150、124、166、237 行；正文解码主文件为 471 行。确认没有 cargo／rustc 占用后清理 1076.3 MiB 旧增量缓存，继续复用 `target/m23-6a`。本批没有改变 wire payload 或 runtime ABI；其余 nominal 类型、完整声明条件／成员、候选及正文存储仍按 6a 设计继续统一。

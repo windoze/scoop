@@ -74,6 +74,7 @@ fn rebuild_source_native_contracts(
             struct_applications: &module.struct_applications,
             enums: &module.enums,
             loaded_enum_definitions: &module.loaded_enum_definitions,
+            loaded_struct_definitions: &module.loaded_struct_definitions,
             enum_applications: &module.enum_applications,
             classes: &module.classes,
             class_applications: &module.class_applications,

@@ -48,18 +48,6 @@ impl<'a> HirSignatureTypeMapper<'a> {
             return Err(HirSignatureTypeMappingError::RecursiveType(raw_index(ty)));
         }
         let key = match &self.inputs.types[ty] {
-            Type::ImportedStruct(structure) => self.map_nominal(
-                &HirNominalIdentity::Source(structure.declaration.identity.clone()),
-                structure
-                    .declaration
-                    .interface
-                    .type_parameters()
-                    .binders()
-                    .len(),
-                &structure.arguments,
-                binders,
-                visiting,
-            )?,
             Type::ImportedClass(structure) => self.map_nominal(
                 &HirNominalIdentity::Source(structure.declaration.identity.clone()),
                 structure
@@ -121,10 +109,9 @@ impl<'a> HirSignatureTypeMapper<'a> {
                     )));
                 }
                 let application = &self.inputs.struct_applications[*application];
-                let template = self
+                let (identity, parameter_count) = self
                     .inputs
-                    .nominal_identities
-                    .struct_id(application.template)
+                    .struct_declaration(application.template)
                     .ok_or_else(|| {
                         HirSignatureTypeMappingError::InvalidApplication(raw_index(ty))
                     })?;
@@ -133,7 +120,13 @@ impl<'a> HirSignatureTypeMapper<'a> {
                         ty,
                     )));
                 }
-                self.map_struct(template, &application.arguments, binders, visiting)?
+                self.map_nominal(
+                    &identity,
+                    parameter_count,
+                    &application.arguments,
+                    binders,
+                    visiting,
+                )?
             }
             Type::Class(application) => {
                 if local_index(*application) >= self.inputs.class_applications.len() {

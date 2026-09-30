@@ -193,9 +193,6 @@ impl Lowerer {
 
     pub(crate) fn nominal_is_accessible(&self, ty: hir::TypeId) -> bool {
         let domain = match self.types[ty] {
-            hir::Type::ImportedStruct(ref structure) => {
-                Some(self.imported_nominal_access_domain(&structure.declaration))
-            }
             hir::Type::ImportedClass(ref structure) => {
                 Some(self.imported_nominal_access_domain(&structure.declaration))
             }
@@ -209,13 +206,9 @@ impl Lowerer {
                 self.intrinsic_type_access_domain(hir::IntrinsicTypeKind::Boolean)
             }
             hir::Type::String => self.intrinsic_type_access_domain(hir::IntrinsicTypeKind::String),
-            hir::Type::Struct(application) => Some(
-                self.structs[self.struct_id(self.struct_applications[application].template)]
-                    .access
-                    .lookup
-                    .0
-                    .clone(),
-            ),
+            hir::Type::Struct(application) => {
+                Some(self.struct_access_domain(self.struct_applications[application].template))
+            }
             hir::Type::Enum(application) => {
                 Some(self.enum_access_domain(self.enum_applications[application].template))
             }

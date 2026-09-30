@@ -37,11 +37,7 @@ impl Lowerer {
     fn check_pattern_subject(&mut self, ty: TypeId, span: Span) -> Option<()> {
         if matches!(
             self.types[ty],
-            Type::Enum(_)
-                | Type::Tuple(_)
-                | Type::Struct(_)
-                | Type::ImportedStruct(_)
-                | Type::Integer(_)
+            Type::Enum(_) | Type::Tuple(_) | Type::Struct(_) | Type::Integer(_)
         ) {
             return Some(());
         }

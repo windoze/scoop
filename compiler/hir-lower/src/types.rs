@@ -87,9 +87,6 @@ fn type_value_equal(types: &Arena<Type>, a: TypeId, b: TypeId) -> bool {
         | (Type::Any, Type::Any) => true,
         (Type::Integer(x), Type::Integer(y)) => x == y,
         (Type::Struct(x), Type::Struct(y)) => x == y,
-        (Type::ImportedStruct(x), Type::ImportedStruct(y)) => {
-            x.declaration.owner() == y.declaration.owner() && x.arguments == y.arguments
-        }
         (Type::ImportedClass(x), Type::ImportedClass(y)) => {
             x.declaration.owner() == y.declaration.owner() && x.arguments == y.arguments
         }

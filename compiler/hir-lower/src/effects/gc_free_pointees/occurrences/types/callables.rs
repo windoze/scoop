@@ -44,7 +44,11 @@ pub(in crate::effects::gc_free_pointees) fn collect_callable_target_types(
         hir::CallableTarget::Application(application) => out.extend(
             lowerer.imported_generic_applications[application]
                 .arguments
-                .substitution(&lowerer.types, &lowerer.enum_applications),
+                .substitution(
+                    &lowerer.types,
+                    &lowerer.enum_applications,
+                    &lowerer.struct_applications,
+                ),
         ),
         hir::CallableTarget::Dependency(_) => {}
     }

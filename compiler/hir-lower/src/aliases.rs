@@ -320,9 +320,9 @@ impl Lowerer {
                     crate::IntrinsicTypeOwner::Class(owner) => NominalTarget::Class(owner),
                 })
             }
-            Type::Struct(application) => Some(NominalTarget::Struct(
-                self.struct_id(self.struct_applications[application].template),
-            )),
+            Type::Struct(application) => self
+                .source_struct_id(self.struct_applications[application].template)
+                .map(NominalTarget::Struct),
             Type::Enum(application) => self
                 .source_enum_id(self.enum_applications[application].template)
                 .map(NominalTarget::Enum),
@@ -343,8 +343,7 @@ impl Lowerer {
             )),
             Type::Ptr(_) => self.ffi_ptr.map(NominalTarget::Struct),
             Type::FunPtr(_) => self.ffi_fun_ptr.map(NominalTarget::Struct),
-            Type::ImportedStruct(_)
-            | Type::ImportedClass(_)
+            Type::ImportedClass(_)
             | Type::ImportedInterface(_)
             | Type::Unit
             | Type::Any

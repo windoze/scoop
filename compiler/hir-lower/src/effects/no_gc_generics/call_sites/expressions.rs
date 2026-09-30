@@ -14,11 +14,11 @@ impl Lowerer {
                 .type_parameters
                 .ids()
                 .into_iter()
-                .zip(
-                    application
-                        .arguments
-                        .substitution(&self.types, &self.enum_applications),
-                )
+                .zip(application.arguments.substitution(
+                    &self.types,
+                    &self.enum_applications,
+                    &self.struct_applications,
+                ))
                 .collect(),
             span,
         }

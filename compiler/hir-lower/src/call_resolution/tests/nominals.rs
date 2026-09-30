@@ -95,18 +95,20 @@ pub(super) fn add_generic_struct(
         owner: None,
         name: name.to_string(),
         access: hir::NominalAccess::public(),
-        self_application,
-        type_params: vec![parameter],
         gc_free_pointee_requirements: Vec::new(),
         attributes: hir::StructAttributes::default(),
-        representation,
         constructors: Vec::new(),
-        interfaces: Vec::new(),
-        interface_implementations: Vec::new(),
         methods: Vec::new(),
         properties: Vec::new(),
         derived_equality: None,
         span: Span::new(0, 0),
+        definition: hir::StructDefinition {
+            self_application,
+            type_params: vec![parameter],
+            representation,
+            interfaces: Vec::new(),
+            interface_implementations: Vec::new(),
+        },
     });
     assert_eq!(allocated, structure);
     lowerer.struct_files.insert(structure, 0);

@@ -182,7 +182,11 @@ impl ReferenceCollector<'_> {
                 self.function_type_reference(closure.function_type, origin);
                 let arguments = self.lowerer.imported_generic_applications[closure.application]
                     .arguments
-                    .substitution(&self.lowerer.types, &self.lowerer.enum_applications);
+                    .substitution(
+                        &self.lowerer.types,
+                        &self.lowerer.enum_applications,
+                        &self.lowerer.struct_applications,
+                    );
                 for ty in arguments {
                     self.type_reference(ty, origin);
                 }

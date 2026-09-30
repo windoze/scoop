@@ -5,14 +5,6 @@ use super::*;
 impl Lowerer {
     pub(super) fn zero_constant_image(&mut self, ty: hir::TypeId) -> Option<hir::HirConstantImage> {
         match self.types[ty].clone() {
-            hir::Type::ImportedStruct(structure) => Some(hir::HirConstantImage::ImportedStruct {
-                ty,
-                fields: structure
-                    .fields
-                    .iter()
-                    .map(|field| self.zero_constant_image(field.ty))
-                    .collect::<Option<Vec<_>>>()?,
-            }),
             hir::Type::Integer(kind) => Some(hir::HirConstantImage::Integer(
                 hir::HirIntegerConstant::from_magnitude(kind, 0, false)
                     .expect("zero is representable by every integer kind"),
@@ -21,7 +13,8 @@ impl Lowerer {
             hir::Type::Enum(_) => self.static_none_constant(ty),
             hir::Type::Struct(application) => {
                 let application_value = self.struct_applications[application].clone();
-                let fields = self.structs[self.struct_id(application_value.template)]
+                let fields = self
+                    .struct_definition(application_value.template)
                     .semantic_fields()
                     .to_vec();
                 let fields = fields
@@ -142,11 +135,11 @@ impl Lowerer {
             }
             (hir::Type::Struct(application), ast::Expr::Call(call)) => {
                 let application_value = self.struct_applications[application].clone();
-                let struct_id = application_value.template;
-                if self.global_struct_callee(call) != Some(self.struct_id(struct_id)) {
+                let struct_id = self.source_struct_id(application_value.template)?;
+                if self.global_struct_callee(call) != Some(struct_id) {
                     return None;
                 }
-                let constructor = self.struct_primary_constructor(self.struct_id(struct_id))?;
+                let constructor = self.struct_primary_constructor(struct_id)?;
                 let view = self.nominal_constructor_view(
                     NominalConstructorSource::Struct(constructor),
                     call.span,

@@ -63,8 +63,7 @@ impl Lowerer {
         }
         match self.types[subject_ty] {
             Type::Enum(_) => Some(hir::ExhaustivenessProof::EnumPatternMatrix { subject_ty }),
-            Type::ImportedStruct(_)
-            | Type::ImportedClass(_)
+            Type::ImportedClass(_)
             | Type::ImportedInterface(_)
             | Type::Tuple(_)
             | Type::Struct(_)
@@ -200,7 +199,7 @@ impl Lowerer {
 
     fn constructor_space(&mut self, ty: hir::TypeId, matrix: &Matrix) -> ConstructorSpace {
         match self.types[ty].clone() {
-            Type::Struct(_) | Type::ImportedStruct(_) => {
+            Type::Struct(_) => {
                 let structure = self
                     .struct_fields(ty)
                     .expect("a struct subject has complete fields");

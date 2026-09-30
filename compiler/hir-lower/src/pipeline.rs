@@ -269,6 +269,7 @@ impl Lowerer {
             struct_application_by_key: HashMap::new(),
             enums: Arena::new(),
             loaded_enum_definitions: HashMap::new(),
+            loaded_struct_definitions: HashMap::new(),
             enum_variant_spans: HashMap::new(),
             enum_variant_field_spans: HashMap::new(),
             enum_applications: Arena::new(),

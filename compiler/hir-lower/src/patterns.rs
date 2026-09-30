@@ -239,7 +239,7 @@ impl Lowerer {
                 }
                 // A positional struct pattern without the type prefix
                 // (spec 5.3: `(x, ..)` against a struct subject).
-                Type::Struct(_) | Type::ImportedStruct(_) => {
+                Type::Struct(_) => {
                     self.lower_struct_positional_pattern(matched_ty, elements, *rest, *span, ctx)
                 }
                 _ => {

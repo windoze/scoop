@@ -176,15 +176,7 @@ impl Lowerer {
         span: ast::Span,
     ) -> Result<Option<DerivedEqualityCandidate>, String> {
         let nominal = match self.types[ty].clone() {
-            Type::Struct(application) => {
-                let declaration =
-                    &self.structs[self.struct_id(self.struct_applications[application].template)];
-                let Some(function) = declaration.derived_equality else {
-                    return Ok(None);
-                };
-                Some((function, hir::MethodOwnerApplication::Struct(application)))
-            }
-            Type::ImportedStruct(_) | Type::Enum(_)
+            Type::Struct(_) | Type::Enum(_)
                 if self.dependency_nominal_application(ty).is_some() =>
             {
                 let (_, arguments) = self
@@ -194,6 +186,14 @@ impl Lowerer {
                     return Ok(None);
                 }
                 None
+            }
+            Type::Struct(application) => {
+                let declaration =
+                    &self.structs[self.struct_id(self.struct_applications[application].template)];
+                let Some(function) = declaration.derived_equality else {
+                    return Ok(None);
+                };
+                Some((function, hir::MethodOwnerApplication::Struct(application)))
             }
             Type::Enum(application) => {
                 let declaration =

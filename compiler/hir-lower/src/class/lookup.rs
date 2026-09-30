@@ -118,10 +118,9 @@ impl Lowerer {
             Type::Struct(application) => {
                 let application_value = self.struct_applications[application].clone();
                 declared.extend(
-                    self.structs[self.struct_id(application_value.template)]
-                        .methods
-                        .iter()
-                        .copied()
+                    self.source_struct_id(application_value.template)
+                        .into_iter()
+                        .flat_map(|id| self.structs[id].methods.iter().copied())
                         .map(|function| {
                             (
                                 crate::CallableCandidate::method(

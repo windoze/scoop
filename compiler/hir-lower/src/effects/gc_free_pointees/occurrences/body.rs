@@ -301,7 +301,11 @@ pub(in super::super) fn collect_expr_type_occurrences(
                     types.extend(
                         lowerer.imported_generic_applications[closure.application]
                             .arguments
-                            .substitution(&lowerer.types, &lowerer.enum_applications),
+                            .substitution(
+                                &lowerer.types,
+                                &lowerer.enum_applications,
+                                &lowerer.struct_applications,
+                            ),
                     );
                     types.extend(closure.captures.iter().map(|capture| capture.ty));
                 },
@@ -568,7 +572,11 @@ pub(in super::super) fn collect_expr_type_occurrences(
                     types.extend(
                         lowerer.imported_generic_applications[*application]
                             .arguments
-                            .substitution(&lowerer.types, &lowerer.enum_applications),
+                            .substitution(
+                                &lowerer.types,
+                                &lowerer.enum_applications,
+                                &lowerer.struct_applications,
+                            ),
                     );
                     if let hir::SourceCallReceiver::Receiver { static_type } = receiver {
                         types.push(*static_type);

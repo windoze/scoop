@@ -13,7 +13,7 @@ enum SymbolicType {
     Integer(hir::IntegerKind),
     Boolean,
     String,
-    Struct(hir::StructId, Vec<SymbolicType>),
+    Struct(hir::SourceNominalId, Vec<SymbolicType>),
     ImportedNominal(hir::SourceNominalId, Vec<SymbolicType>),
     Class(hir::ClassId, Vec<SymbolicType>),
     Interface(hir::InterfaceId, Vec<SymbolicType>),
@@ -168,14 +168,6 @@ impl Lowerer {
         bindings: &HashMap<hir::TypeParamId, SymbolicType>,
     ) -> SymbolicType {
         match &self.types[ty] {
-            hir::Type::ImportedStruct(structure) => SymbolicType::ImportedNominal(
-                structure.declaration.owner(),
-                structure
-                    .arguments
-                    .iter()
-                    .map(|argument| self.symbolic_type(*argument, bindings))
-                    .collect(),
-            ),
             hir::Type::ImportedClass(structure) => SymbolicType::ImportedNominal(
                 structure.declaration.owner(),
                 structure
@@ -199,7 +191,7 @@ impl Lowerer {
             hir::Type::Struct(application) => {
                 let application = &self.struct_applications[*application];
                 SymbolicType::Struct(
-                    self.struct_id(application.template),
+                    application.template,
                     application
                         .arguments
                         .iter()

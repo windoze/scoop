@@ -7,6 +7,23 @@ struct SignatureValidation {
 }
 
 impl Lowerer {
+    fn struct_has_scalar_c_abi(&self, template: hir::SourceNominalId) -> bool {
+        if let Some(definition) = self.loaded_struct_definitions.get(&template) {
+            return matches!(
+                definition.declaration.c_abi,
+                hir::NativeBoundaryCAbiV1::UInt64Field { .. }
+            );
+        }
+        [self.ffi_pinned_ptr, self.ffi_gc_handle]
+            .into_iter()
+            .flatten()
+            .any(|id| {
+                self.nominal_identity(crate::Owner::Struct(id))
+                    .declaration_id()
+                    == template
+            })
+    }
+
     pub(super) fn classify_c_ffi_type(
         &mut self,
         ty: hir::TypeId,
@@ -95,31 +112,16 @@ impl Lowerer {
             hir::Type::Struct(application) => {
                 let application = self.struct_applications[application].clone();
                 let id = application.template;
-                let scalar_projection = Some(id)
-                    == self.ffi_pinned_ptr.map(|id| {
-                        self.nominal_identity(crate::Owner::Struct(id))
-                            .declaration_id()
-                    })
-                    || Some(id)
-                        == self.ffi_gc_handle.map(|id| {
-                            self.nominal_identity(crate::Owner::Struct(id))
-                                .declaration_id()
-                        });
-                if self.structs[self.struct_id(id)]
-                    .attributes
-                    .c_layout
-                    .is_none()
-                    && !scalar_projection
-                {
+                if self.struct_c_layout(id).is_none() && !self.struct_has_scalar_c_abi(id) {
                     return Err(CAbiError {
                         path,
                         reason: format!(
                             "ordinary struct `{}` has no stable C layout",
-                            self.structs[self.struct_id(id)].name
+                            self.nominal_template_name(id)
                         ),
                     });
                 }
-                let fields = self.structs[self.struct_id(id)].semantic_fields().to_vec();
+                let fields = self.struct_definition(id).semantic_fields().to_vec();
                 let fields = fields
                     .into_iter()
                     .map(|field| {
@@ -128,34 +130,6 @@ impl Lowerer {
                             self.instantiate_ty(field.ty, &application.arguments),
                         )
                     })
-                    .collect();
-                self.classify_c_struct_fields(resolved, fields, path, visiting, signatures)
-            }
-            hir::Type::ImportedStruct(structure) => {
-                let hir::NominalSourceShapeV1::Struct(shape) =
-                    structure.declaration.interface.source_shape()
-                else {
-                    unreachable!("an imported struct retains a struct declaration")
-                };
-                if matches!(
-                    shape.c_layout_policy(),
-                    hir::NominalCLayoutPolicyV1::Ordinary
-                ) && !matches!(
-                    structure.declaration.c_abi,
-                    hir::NativeBoundaryCAbiV1::UInt64Field { .. }
-                ) {
-                    return Err(CAbiError {
-                        path,
-                        reason: format!(
-                            "ordinary struct `{}` has no stable C layout",
-                            structure.declaration.name()
-                        ),
-                    });
-                }
-                let fields = structure
-                    .fields
-                    .iter()
-                    .map(|field| (field.name.clone(), field.ty))
                     .collect();
                 self.classify_c_struct_fields(resolved, fields, path, visiting, signatures)
             }
@@ -234,11 +208,7 @@ impl Lowerer {
 
         if let hir::Type::Struct(application) = self.types[pointee] {
             let application = &self.struct_applications[application];
-            if self.structs[self.struct_id(application.template)]
-                .attributes
-                .c_layout
-                .is_some()
-            {
+            if self.struct_c_layout(application.template).is_some() {
                 // A pointer edge names the refined C-layout object instead of
                 // recursively embedding its fields. This permits ordinary C
                 // self-reference while by-value cycles remain rejected.
@@ -294,15 +264,6 @@ impl Lowerer {
             _ => ty,
         };
         match self.types[ty].clone() {
-            hir::Type::ImportedStruct(structure) => {
-                for field in &structure.fields {
-                    if !self.is_zero_sized_type(field.ty, &[], visiting)? {
-                        return Some(false);
-                    }
-                }
-                Some(true)
-            }
-
             hir::Type::Unit => Some(true),
             hir::Type::Integer(_)
             | hir::Type::Boolean
@@ -330,7 +291,8 @@ impl Lowerer {
                     return None;
                 }
                 let application = self.struct_applications[application].clone();
-                let fields = self.structs[self.struct_id(application.template)]
+                let fields = self
+                    .struct_definition(application.template)
                     .semantic_fields()
                     .to_vec();
                 for field in fields {
@@ -377,7 +339,6 @@ impl Lowerer {
             | hir::Type::Function(_)
             | hir::Type::Ptr(_)
             | hir::Type::FunPtr(_)
-            | hir::Type::ImportedStruct(_)
             | hir::Type::ImportedClass(_)
             | hir::Type::ImportedInterface(_)
             | hir::Type::Struct(_)

@@ -204,7 +204,7 @@ impl Lowerer {
             .into_iter()
             .map(|ty| self.instantiate_method_ty(ty, &context.bindings))
             .collect();
-        self.struct_application_id(self.struct_id(source.template), arguments)
+        self.intern_struct_application(source.template, arguments)
     }
 
     pub(super) fn instantiate_default_enum_application(

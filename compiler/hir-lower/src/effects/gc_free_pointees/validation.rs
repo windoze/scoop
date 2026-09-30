@@ -134,15 +134,18 @@ impl Lowerer {
             hir::Type::Ptr(pointee) => self.pointee_type_is_valid(*pointee, visiting),
             hir::Type::Struct(application) => {
                 let application = &self.struct_applications[*application];
-                self.application_pointee_is_valid(
-                    &self.structs[self.struct_id(application.template)].type_params,
-                    &self.structs[self.struct_id(application.template)]
-                        .gc_free_pointee_requirements,
-                    &application.arguments,
-                ) && application
-                    .arguments
-                    .iter()
-                    .all(|argument| self.pointee_type_is_valid(*argument, visiting))
+                self.source_struct_id(application.template)
+                    .is_none_or(|id| {
+                        self.application_pointee_is_valid(
+                            &self.structs[id].type_params,
+                            &self.structs[id].gc_free_pointee_requirements,
+                            &application.arguments,
+                        )
+                    })
+                    && application
+                        .arguments
+                        .iter()
+                        .all(|argument| self.pointee_type_is_valid(*argument, visiting))
             }
             hir::Type::Class(application) => {
                 let application = &self.class_applications[*application];

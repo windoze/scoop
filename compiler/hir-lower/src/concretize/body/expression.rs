@@ -75,7 +75,7 @@ impl Concretizer<'_> {
                     .map(|argument| self.lower_expr(argument, substitution, locals))
                     .collect();
                 match self.source.types[owner] {
-                    export::Type::ImportedStruct(_) => concrete::ExprKind::StructConstructorCall {
+                    export::Type::Struct(_) => concrete::ExprKind::StructConstructorCall {
                         constructor: self.lower_imported_struct_constructor_application(
                             *application,
                             substitution,

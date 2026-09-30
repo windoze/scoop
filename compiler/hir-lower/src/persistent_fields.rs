@@ -102,6 +102,12 @@ impl Lowerer {
     ) -> hir::FieldRef {
         let application = &self.struct_applications[application];
         let owner = application.canonical_type;
+        if let Some(definition) = self.loaded_struct_definitions.get(&application.template) {
+            return hir::FieldRef::StructField {
+                owner,
+                field: definition.field_identity(index as usize),
+            };
+        }
         let reference = hir::StructFieldRef::checked(
             &self.structs,
             self.struct_id(application.template),

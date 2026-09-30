@@ -166,19 +166,6 @@ impl Concretizer<'_> {
                     .expect("the unit variant belongs to the resolved enum"),
                 }
             }
-            export::HirConstantImage::ImportedStruct { ty, fields } => {
-                let ty = self.lower_type(*ty, &[]);
-                let concrete::TypeKind::Struct(struct_id) = self.types[ty].kind else {
-                    unreachable!("an imported struct constant retains its struct type")
-                };
-                concrete::HirConstantImage::Struct {
-                    struct_id,
-                    fields: fields
-                        .iter()
-                        .map(|field| self.lower_constant(field))
-                        .collect(),
-                }
-            }
             export::HirConstantImage::Integer(value) => concrete::HirConstantImage::Integer(*value),
             export::HirConstantImage::Boolean(value) => concrete::HirConstantImage::Boolean(*value),
             export::HirConstantImage::String(value) => {

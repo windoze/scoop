@@ -6,9 +6,6 @@ pub(in crate::production) fn from_type(
 ) -> Option<NominalDeclarationOwner> {
     let ty = super::arena_get(&export.types, ty)?;
     let identity = match ty {
-        crate::Type::ImportedStruct(structure) => {
-            return Some(structure.declaration.owner());
-        }
         crate::Type::ImportedClass(structure) => {
             return Some(structure.declaration.owner());
         }

@@ -100,7 +100,7 @@ impl Lowerer {
                     }
                     Some(())
                 }
-                Type::Struct(_) | Type::ImportedStruct(_) => {
+                Type::Struct(_) => {
                     self.lower_struct_binding(elements, *rest, *span, subject, mutable, statements)
                 }
                 Type::Class(_) | Type::ImportedClass(_) => {

@@ -55,7 +55,7 @@ impl Lowerer {
                     span,
                 )]
             }
-            Type::Struct(_) | Type::ImportedStruct(_) => {
+            Type::Struct(_) => {
                 let structure = self
                     .struct_fields(ty)
                     .expect("a struct has complete fields");
@@ -102,20 +102,15 @@ impl Lowerer {
                     self.ensure_structural_derived_equality_application(ty, span, stack)?;
                 Ok(self.derived_call(lhs, rhs, application, self.boolean, span))
             }
-            Type::Struct(application) => {
-                let function = self.structs
-                    [self.struct_id(self.struct_applications[application].template)]
-                .derived_equality;
-                if let Some(function) = function {
-                    let owner = hir::MethodOwnerApplication::Struct(application);
-                    match self.ensure_derived_equality_application(
-                        ty,
-                        function,
-                        hir::DerivedEqualityOrigin::Nominal(owner),
-                        span,
-                        stack,
-                    ) {
-                        Ok(application) => {
+            Type::Struct(_) | Type::Enum(_)
+                if self.dependency_nominal_application(ty).is_some() =>
+            {
+                let (_, arguments) = self
+                    .dependency_nominal_application(ty)
+                    .expect("an imported equality field retains its declaration");
+                if !arguments.is_empty() && !self.has_imported_same_type_equals(ty)? {
+                    match self.ensure_structural_derived_equality_application(ty, span, stack) {
+                        Ok((_, application)) => {
                             return Ok(self.derived_call(
                                 lhs,
                                 rhs,
@@ -133,15 +128,20 @@ impl Lowerer {
                 }
                 self.resolve_derived_field_member_equality(lhs, rhs, path, span)
             }
-            Type::ImportedStruct(_) | Type::Enum(_)
-                if self.dependency_nominal_application(ty).is_some() =>
-            {
-                let (_, arguments) = self
-                    .dependency_nominal_application(ty)
-                    .expect("an imported equality field retains its declaration");
-                if !arguments.is_empty() && !self.has_imported_same_type_equals(ty)? {
-                    match self.ensure_structural_derived_equality_application(ty, span, stack) {
-                        Ok((_, application)) => {
+            Type::Struct(application) => {
+                let function = self.structs
+                    [self.struct_id(self.struct_applications[application].template)]
+                .derived_equality;
+                if let Some(function) = function {
+                    let owner = hir::MethodOwnerApplication::Struct(application);
+                    match self.ensure_derived_equality_application(
+                        ty,
+                        function,
+                        hir::DerivedEqualityOrigin::Nominal(owner),
+                        span,
+                        stack,
+                    ) {
+                        Ok(application) => {
                             return Ok(self.derived_call(
                                 lhs,
                                 rhs,

@@ -48,7 +48,6 @@ fn type_name(lowerer: &Lowerer, type_params: &[hir::TypeParamDecl], ty: TypeId) 
         }
     };
     match &types[ty] {
-        Type::ImportedStruct(value) => imported_name(&value.declaration, &value.arguments),
         Type::ImportedClass(value) => imported_name(&value.declaration, &value.arguments),
         Type::ImportedInterface(value) => imported_name(&value.declaration, &value.arguments),
         Type::Unit => "Unit".to_string(),
@@ -57,17 +56,23 @@ fn type_name(lowerer: &Lowerer, type_params: &[hir::TypeParamDecl], ty: TypeId) 
         Type::String => "String".to_string(),
         Type::Struct(application) => {
             let application = &lowerer.struct_applications[*application];
-            let id = lowerer.struct_id(application.template);
+            let name = match lowerer.nominal_owners.get(&application.template) {
+                Some(crate::Owner::Struct(id)) => nominal_name(
+                    structs,
+                    enums,
+                    classes,
+                    interfaces,
+                    &lowerer.objects,
+                    &structs[*id].name,
+                    structs[*id].owner,
+                ),
+                Some(_) => unreachable!("a struct application retains its struct declaration"),
+                None => lowerer.loaded_struct_definitions[&application.template]
+                    .declaration
+                    .name()
+                    .to_owned(),
+            };
             let args = &application.arguments;
-            let name = nominal_name(
-                structs,
-                enums,
-                classes,
-                interfaces,
-                &lowerer.objects,
-                &structs[id].name,
-                structs[id].owner,
-            );
             if args.is_empty() {
                 name
             } else {

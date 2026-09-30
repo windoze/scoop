@@ -1,25 +1,18 @@
 use super::*;
 
+mod queries;
+
 #[derive(Debug, Clone)]
 pub struct StructDecl {
     pub name: String,
     pub owner: Option<NominalOwner>,
     pub access: NominalAccess,
-    /// Application to this declaration's own type parameters (or the empty
-    /// application for a parameter-free declaration).
-    pub self_application: StructApplicationId,
-    pub type_params: Vec<TypeParamDecl>,
+    pub definition: StructDefinition,
     /// Owner parameters that must be recursively GC-free because this
     /// template contains a `Ptr` pointee dependency.
     pub gc_free_pointee_requirements: Vec<RequiresGcFreePointee>,
     pub attributes: StructAttributes,
-    pub representation: StructRepresentation,
     pub constructors: Vec<StructConstructorId>,
-    pub interfaces: Vec<TypeId>,
-    /// Source-complete mapping from each implemented interface member to the
-    /// concrete declaration that implements it. Generic owner/interface
-    /// arguments remain in template form and are substituted together.
-    pub interface_implementations: Vec<InterfaceImplementation>,
     /// Member declarations in source order. Consumers follow this typed
     /// relation and never recover ownership by scanning `Module::functions`.
     pub methods: Vec<FunctionId>,
@@ -31,10 +24,41 @@ pub struct StructDecl {
     pub span: Span,
 }
 
-impl StructDecl {
+/// Checked fields and conformance types in the declaration's binder domain.
+/// Applications retain the original declaration and substitute these fields.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StructDefinition {
+    pub self_application: StructApplicationId,
+    pub type_params: Vec<TypeParamDecl>,
+    pub representation: StructRepresentation,
+    pub interfaces: Vec<TypeId>,
+    pub interface_implementations: Vec<InterfaceImplementation>,
+}
+
+impl StructDefinition {
     pub fn semantic_fields(&self) -> &[Field] {
         self.representation.semantic_fields()
     }
+}
+
+impl std::ops::Deref for StructDecl {
+    type Target = StructDefinition;
+
+    fn deref(&self) -> &Self::Target {
+        &self.definition
+    }
+}
+
+impl std::ops::DerefMut for StructDecl {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.definition
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LoadedStructDefinition {
+    pub declaration: std::sync::Arc<ImportedNominalDeclaration>,
+    pub definition: StructDefinition,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -45,7 +69,7 @@ pub struct StructApplication {
     pub representation: StructApplicationRepresentation,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StructRepresentation {
     Declared(Vec<Field>),
     Intrinsic(IntrinsicTypeKind),

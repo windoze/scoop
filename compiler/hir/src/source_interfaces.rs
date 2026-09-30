@@ -189,15 +189,11 @@ impl Module {
 
     fn source_context_type_name(&self, ty: TypeId) -> String {
         match self.types[ty] {
-            Type::ImportedStruct(ref structure) => structure.declaration.name().to_owned(),
             Type::ImportedClass(ref structure) => structure.declaration.name().to_owned(),
             Type::ImportedInterface(ref structure) => structure.declaration.name().to_owned(),
-            Type::Struct(application) => self.structs[self
-                .nominal_identities
-                .struct_id(self.struct_applications[application].template)
-                .expect("a nominal application retains its declaration")]
-            .name
-            .clone(),
+            Type::Struct(application) => self
+                .struct_name(self.struct_applications[application].template)
+                .to_owned(),
             Type::Class(application) => {
                 let class = self
                     .nominal_identities

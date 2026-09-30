@@ -88,19 +88,20 @@ impl Lowerer {
             name: decl.name.text.clone(),
             owner: owner.map(Owner::as_nominal_owner),
             access,
-            self_application,
-            type_params: type_params.clone(),
             gc_free_pointee_requirements: Vec::new(),
             attributes: checked.attributes,
-            representation,
             constructors: Vec::new(),
-            // Filled in pass 2 together with the fields.
-            interfaces: Vec::new(),
-            interface_implementations: Vec::new(),
             methods: Vec::new(),
             properties: Vec::new(),
             derived_equality: None,
             span: decl.span,
+            definition: hir::StructDefinition {
+                self_application,
+                type_params: type_params.clone(),
+                representation,
+                interfaces: Vec::new(),
+                interface_implementations: Vec::new(),
+            },
         });
         self.register_nominal_identity(Owner::Struct(id), identity);
         let parameter_ids = type_params

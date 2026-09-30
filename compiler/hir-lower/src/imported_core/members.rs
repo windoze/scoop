@@ -90,13 +90,13 @@ impl Lowerer {
                     );
                 }
                 hir::Type::Struct(application) => {
-                    let declaration = &self.structs
-                        [self.struct_id(self.struct_applications[*application].template)];
-                    pending.extend(declaration.interfaces.iter().rev().copied());
+                    let declaration =
+                        self.struct_definition(self.struct_applications[*application].template);
                     suppress_local_implementations(
                         &declaration.interface_implementations,
                         &mut suppressed_slots,
                     );
+                    pending.extend(self.direct_nominal_supertypes(ty).into_iter().rev());
                 }
                 hir::Type::Enum(application) => {
                     let declaration =
@@ -127,9 +127,6 @@ impl Lowerer {
                 }
                 hir::Type::ImportedInterface(interface) => {
                     pending.extend(interface.parents.iter().rev().copied())
-                }
-                hir::Type::ImportedStruct(structure) => {
-                    pending.extend(structure.interfaces.iter().rev().copied())
                 }
                 hir::Type::Integer(_) | hir::Type::Boolean | hir::Type::String => {
                     let kind = match self.types[ty] {

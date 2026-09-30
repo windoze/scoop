@@ -305,10 +305,8 @@ impl Lowerer {
             .filter_map(|(ty, value)| match value {
                 hir::Type::Struct(application) => {
                     let application = &self.struct_applications[*application];
-                    (self.structs[self.struct_id(application.template)]
-                        .attributes
-                        .c_layout
-                        .is_some()
+                    let id = self.source_struct_id(application.template)?;
+                    (self.structs[id].attributes.c_layout.is_some()
                         && !application.arguments.is_empty()
                         && !self.type_contains_param(ty))
                     .then_some((ty, application.template))

@@ -63,26 +63,28 @@ impl Harness {
             owner: None,
             name: name.to_string(),
             access: hir::NominalAccess::public(),
-            self_application,
-            type_params,
             gc_free_pointee_requirements: Vec::new(),
             attributes: hir::StructAttributes::default(),
-            representation: hir::StructRepresentation::Declared(
-                fields
-                    .iter()
-                    .map(|(name, ty)| hir::Field {
-                        name: name.to_string(),
-                        ty: *ty,
-                    })
-                    .collect(),
-            ),
             constructors: vec![constructor],
-            interfaces,
-            interface_implementations,
             methods: Vec::new(),
             properties: Vec::new(),
             derived_equality: None,
             span: SPAN,
+            definition: hir::StructDefinition {
+                self_application,
+                type_params,
+                representation: hir::StructRepresentation::Declared(
+                    fields
+                        .iter()
+                        .map(|(name, ty)| hir::Field {
+                            name: name.to_string(),
+                            ty: *ty,
+                        })
+                        .collect(),
+                ),
+                interfaces,
+                interface_implementations,
+            },
         });
         let actual = self.struct_application(strukt, self_arguments);
         assert_eq!(actual, self_application);
@@ -102,18 +104,20 @@ impl Harness {
             owner: None,
             name: name.to_string(),
             access: hir::NominalAccess::public(),
-            self_application,
-            type_params: Vec::new(),
             gc_free_pointee_requirements: Vec::new(),
             attributes: hir::StructAttributes::default(),
-            representation: hir::StructRepresentation::Intrinsic(declaration),
             constructors: Vec::new(),
-            interfaces: Vec::new(),
-            interface_implementations: Vec::new(),
             methods: Vec::new(),
             properties: Vec::new(),
             derived_equality: None,
             span: SPAN,
+            definition: hir::StructDefinition {
+                self_application,
+                type_params: Vec::new(),
+                representation: hir::StructRepresentation::Intrinsic(declaration),
+                interfaces: Vec::new(),
+                interface_implementations: Vec::new(),
+            },
         });
         let representation = kind.application(&[]);
         let template = self.nominal_identities()[strukt].declaration_id();

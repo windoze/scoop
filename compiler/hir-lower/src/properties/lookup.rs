@@ -38,7 +38,7 @@ impl Lowerer {
             }
             hir::Type::Struct(application) => {
                 let value = self.struct_applications[application].clone();
-                let property = self.structs[self.struct_id(value.template)]
+                let property = self.structs[self.source_struct_id(value.template)?]
                     .properties
                     .iter()
                     .copied()

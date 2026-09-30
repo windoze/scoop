@@ -91,12 +91,6 @@ impl Roots {
                 }
                 return Ok(());
             }
-            Type::ImportedStruct(structure) => {
-                for field in &structure.fields {
-                    self.require_field_type(export, index, field.ty)?;
-                }
-                return Ok(());
-            }
             Type::Struct(id) => export.struct_applications[*id].arguments.as_slice(),
             Type::Enum(id) => export.enum_applications[*id].arguments.as_slice(),
             Type::Class(id) => export.class_applications[*id].arguments.as_slice(),

@@ -161,11 +161,14 @@ impl Lowerer {
             }
             Type::Struct(application) => {
                 let application = &self.struct_applications[*application];
-                let target = ValueLayoutTemplate::Struct(self.struct_id(application.template));
+                let Some(id) = self.source_struct_id(application.template) else {
+                    return;
+                };
+                let target = ValueLayoutTemplate::Struct(id);
                 let Some(relevant) = relevance.get(&target) else {
                     return;
                 };
-                for (parameter, &argument) in self.structs[self.struct_id(application.template)]
+                for (parameter, &argument) in self.structs[id]
                     .type_params
                     .iter()
                     .zip(&application.arguments)
@@ -196,8 +199,7 @@ impl Lowerer {
             // particular, pointer pointees and reference type arguments are
             // not stored inline and therefore do not make parameters layout
             // relevant.
-            Type::ImportedStruct(_)
-            | Type::ImportedClass(_)
+            Type::ImportedClass(_)
             | Type::ImportedInterface(_)
             | Type::Unit
             | Type::Integer(_)
@@ -227,14 +229,17 @@ impl Lowerer {
             }
             Type::Struct(application) => {
                 let application = &self.struct_applications[*application];
-                let target = ValueLayoutTemplate::Struct(self.struct_id(application.template));
+                let Some(id) = self.source_struct_id(application.template) else {
+                    return;
+                };
+                let target = ValueLayoutTemplate::Struct(id);
                 let Some(relevant) = relevance.get(&target) else {
                     return;
                 };
                 if seen.insert(target) {
                     out.push(target);
                 }
-                for (parameter, &argument) in self.structs[self.struct_id(application.template)]
+                for (parameter, &argument) in self.structs[id]
                     .type_params
                     .iter()
                     .zip(&application.arguments)
@@ -264,8 +269,7 @@ impl Lowerer {
                     }
                 }
             }
-            Type::ImportedStruct(_)
-            | Type::ImportedClass(_)
+            Type::ImportedClass(_)
             | Type::ImportedInterface(_)
             | Type::Unit
             | Type::Integer(_)
