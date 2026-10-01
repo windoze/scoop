@@ -10,6 +10,7 @@ mod combinations;
 mod initialization;
 mod native;
 mod orchestration;
+mod publication;
 mod siblings;
 
 pub struct Environment {
