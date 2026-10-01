@@ -1,6 +1,6 @@
 # M23-8 设计：多 image runtime 登记与启动
 
-状态：设计完成，待实施（2026-10-01）。前置条件为已验收的 [M23-6a](../stage6a/ACCEPTANCE.md) 与 [M23-7](../stage7/ACCEPTANCE.md)。本文规定实施目标，不表示新的 runtime 路径或验收已经完成。
+状态：已完成并验收（2026-10-02）。前置条件为已验收的 [M23-6a](../stage6a/ACCEPTANCE.md) 与 [M23-7](../stage7/ACCEPTANCE.md)。实际交付、运行矩阵和完整回归见 [验收记录](ACCEPTANCE.md)，逐功能实施证据见 [进度记录](PROGRESS.md)。
 
 本阶段使多个独立 `.slib` 的实际机器产物共同启动：先登记完整静态元数据，再按确定顺序执行 eager initialization，最后经 no-throw gateway 调用 `main`。所有 Cone 共用实际 TypeDescriptor、ODR 实例、静态根与初始化状态，移动 GC 和异常可以穿过跨 Cone 调用链。
 

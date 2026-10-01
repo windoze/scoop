@@ -2646,7 +2646,7 @@ producer可输出任意非空数量的object，验证在全部member的联合定
 
 ### M23-8：runtime multi-image registry与启动
 
-详细设计见 [M23-8](stage8/DESIGN.md)，状态为设计完成、待实施。继承已验收的 6a 共同 HIR 与 Stage 7 完整机器产物；runtime 只消费真实 image/registration，不重新具体化模板或补发缺失 helper。
+详细设计见 [M23-8](stage8/DESIGN.md)，状态为已完成并验收（2026-10-02），完整证据见 [验收记录](stage8/ACCEPTANCE.md)。继承已验收的 6a 共同 HIR 与 Stage 7 完整机器产物；runtime 只消费真实 image/registration，不重新具体化模板或补发缺失 helper。
 
 统一 initialization registration 与 coordinator 参数，接通 scoop_rt_run_program、全 image 静态 registry、canonical Kahn/eager 顺序、逐次 no-throw gateway、EntryPending/epoch 握手及全部连续 stackmap。保留实际类型、地址、引用和 GC 检查，不恢复 program/core descriptor 或 Graph hash 证明。格式、私有 ABI 与缓存按实现规范 2.14 原子迁移。
 

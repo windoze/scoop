@@ -370,7 +370,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 ### M23-8 runtime multi-image registry与启动
 
-详细设计见 [M23-8](milestone23/stage8/DESIGN.md)，状态：设计完成，待实施（2026-10-01）。
+详细设计见 [M23-8](milestone23/stage8/DESIGN.md)，状态：已完成并验收（2026-10-02）；实际运行、格式迁移与完整回归见 [验收记录](milestone23/stage8/ACCEPTANCE.md)。
 
 - 依赖已验收的 6a 共同 HIR 与 Stage 7 完整机器产物，直接消费实际 image/root entry 和六类 registration；不重新解释 HIR、具体化模板或补发 helper。
 - 以 `scoop_rt_run_program(images, image_count, root_entry)` 接通生产启动，统一 initialization registration 与 coordinator 参数，删除旧 coordinator 副本。登记全部 image 后形成 canonical Kahn/eager 顺序，每次 no-throw gateway 独立执行 EntryPending/epoch 握手；root catch 先物化 managed 异常再结束 native catch。

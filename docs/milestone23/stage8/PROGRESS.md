@@ -1,6 +1,6 @@
 # M23-8 实施记录
 
-状态：实施中。M23-7 验收提交为 `d548a07a1`；设计基线提交为 `3cd6c95a4`。本记录只报告已经实施和运行的内容，完整完成门仍见 [设计](DESIGN.md)。
+状态：已完成并验收（2026-10-02）。M23-7 验收提交为 `d548a07a1`；设计基线提交为 `3cd6c95a4`；最终代码、测试与格式基线为 `8c9b12746`。本记录保留各功能实施时的状态，最终交付和完整证据见 [验收记录](ACCEPTANCE.md)。
 
 ## 1. root gateway 异常生命周期
 
@@ -108,7 +108,9 @@
 - 带 1/3 个初始化单元的 production 分别减少 1/3 个摘要节点；符号集合按每个退役 coordinator 减少 3 个物理符号及 2 个引用，与删除的旧 atom/range 和 descriptor 关联一致。
 - 25 项 core/layout/Link 组合完成快照生成及既有语义/对象/反例检查。本次生成运行不作为关闭更新开关的最终回归；随后完整 workspace 将显式清除所有 `SCOOP_UPDATE_*`、snapshot 目录覆盖、`INSTA_UPDATE` 和 `RUST_MIN_STACK`，使用配套 scoopc 重新验收。
 
-## 待完成
+## 15. 最终验收
 
-1. 完成既有静态值/ODR/重建 core 运行矩阵回归。
-2. 同步全部受格式变化影响的 golden，运行配套 scoopc 的完整 workspace 回归，整理验收文档并清理 target。
+- 最终代码与格式基线 `8c9b12746` 的 fmt、全 workspace/all-targets Clippy、配套 scoopc 构建全部通过。完整 workspace 以 16 个测试线程运行：37 组、5356 passed、0 failed、0 ignored，退出码 0，耗时 590.16 秒；其中 driver 226 项、codegen/runtime 310 项、LIR 473 项、slib 584 项全部通过。
+- 显式清除全部 `SCOOP_UPDATE_*`、名称含 `SNAPSHOT` 的 `SCOOP_*`、`INSTA_UPDATE` 与 `RUST_MIN_STACK`，设置实际配套 `SCOOP_TEST_PAIRED_SCOOPC`。此前生成的所有快照在本次关闭更新的完整回归中通过，8 组启动矩阵及既有静态值、ODR、重建 core、函数值和协程组合全部通过。
+- 相对 M23-7 新增 65 个 Rust/C/header 文件；新增生产文件最长 183 行，测试文件最长 321 行。stackmap、registry、startup、gateway 验证及测试辅助按职责拆分。
+- 所有测试退出后清理 `target/m23-8`，删除 1806 个文件、释放 2.1 GiB。最终日志、编译器摘要和逐组计数见验收记录；ROADMAP 与两级设计状态同步为完成。
