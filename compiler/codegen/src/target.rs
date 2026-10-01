@@ -289,6 +289,12 @@ impl ValidatedBackendProfile {
         self.zero_fill_storage_section
     }
 
+    pub(crate) const fn read_only_metadata_section(self) -> &'static str {
+        match self.object_format {
+            ObjectFormat::MachO64 => "__DATA_CONST,__const",
+        }
+    }
+
     pub(crate) const fn c_string_section(self) -> &'static str {
         self.c_string_section
     }

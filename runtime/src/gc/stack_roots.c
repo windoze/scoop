@@ -19,6 +19,7 @@ static void require_complete_bundle(const ScoopPlatformBundle *bundle) {
     if (bundle == NULL || bundle->metadata_images == NULL ||
         bundle->thread_vm == NULL || bundle->managed_frames == NULL ||
         bundle->metadata_images->loaded_images == NULL ||
+        bundle->metadata_images->dispose_images == NULL ||
         bundle->thread_vm->stack_bounds == NULL ||
         bundle->thread_vm->reserve_read_write == NULL ||
         bundle->thread_vm->page_size == NULL ||
@@ -47,8 +48,10 @@ void scoop_gc_stackmaps_init(void) {
     }
 
     ScoopStackMapError parse_error;
-    if (!scoop_stackmap_build_index(images.images, images.count, &stackmaps,
-                                    &parse_error)) {
+    bool parsed = scoop_stackmap_build_index(images.images, images.count, &stackmaps,
+                                             &parse_error);
+    bundle->metadata_images->dispose_images(&images);
+    if (!parsed) {
         fprintf(stderr,
                 "scoop stackmap: image %zu offset %zu: %s\n",
                 parse_error.image_index, parse_error.section_offset,

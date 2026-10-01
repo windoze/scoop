@@ -85,7 +85,7 @@ runtime 没有完整 exact-type key、源码可见性、函数签名或 vtable s
 
 Mach-O 处理只位于现有 platform image component。它提供主 executable 的静态映射范围、只读/可写/可执行属性和 stackmap section。slide 使用 dyld 已加载地址；header/load-command/span 算术须受实际映射边界约束。
 
-含 relocation 的常量可能位于 `__DATA_CONST`，不能只按 section 名或原 `initprot` 推断当前可写性；Darwin adapter 必须结合加载后的 VM protection。codegen/target section placement 应使完成 relocation 的 descriptor、pointer table、scan、diagnostic 和 template 实际只读。callable 位于 executable range；storage/cell 的完整 extent 位于 writable range。
+含 relocation 的常量可能位于 `__DATA_CONST`，不能只按 section 名或原 `initprot` 推断当前可写性；Darwin adapter 必须结合加载后的 VM protection。codegen/target section placement 应使完成 relocation 的 descriptor、pointer table、scan、diagnostic 和 template 实际只读。callable 位于 executable range；storage/cell 的完整 extent 位于 writable range。Darwin final-link 使用 `-rename_section __LLVM_STACKMAPS __llvm_stackmaps __DATA_CONST __llvm_stackmaps`，保留完整 blob 并在 dyld 地址修正后使 stackmap 段只读；含指针的不可变 metadata 放入 `__DATA_CONST,__const`。
 
 检查顺序固定为：
 

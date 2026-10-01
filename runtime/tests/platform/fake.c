@@ -105,8 +105,13 @@ static bool fake_loaded_images(ScoopPlatformMetadataImages *images,
     return true;
 }
 
+static void fake_dispose_images(ScoopPlatformMetadataImages *images) {
+    *images = (ScoopPlatformMetadataImages){0};
+}
+
 static const ScoopMetadataImageOps fake_metadata_ops = {
     .loaded_images = fake_loaded_images,
+    .dispose_images = fake_dispose_images,
 };
 
 static const ScoopPlatformBundle fake_bundle = {

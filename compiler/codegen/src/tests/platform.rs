@@ -1,4 +1,41 @@
 #[test]
+fn loaded_image_ranges_use_current_vm_permissions() {
+    let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(std::path::Path::parent)
+        .unwrap();
+    let binary = std::env::temp_dir().join(format!("scoop_image_ranges_{}", std::process::id()));
+    let compile = std::process::Command::new("cc")
+        .args([
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-Wl,-rename_section,__LLVM_STACKMAPS,__llvm_stackmaps,__DATA_CONST,__llvm_stackmaps",
+        ])
+        .arg(workspace.join("runtime/src/platform/image/macho.c"))
+        .arg(workspace.join("runtime/src/image/ranges.c"))
+        .arg(workspace.join("runtime/tests/image_ranges_test.c"))
+        .arg("-o")
+        .arg(&binary)
+        .output()
+        .unwrap();
+    assert!(
+        compile.status.success(),
+        "{}",
+        String::from_utf8_lossy(&compile.stderr)
+    );
+    let output = std::process::Command::new(&binary).output().unwrap();
+    std::fs::remove_file(&binary).unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.stdout, b"loaded image range tests passed\n");
+}
+
+#[test]
 fn runtime_stackmap_v3_parser_rejects_incomplete_metadata() {
     let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()

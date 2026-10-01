@@ -124,6 +124,7 @@ fn verify_and_rewrite_module(
     profile: ValidatedBackendProfile,
     expected_safepoints: &statepoint::ExpectedSafepoints,
 ) -> Result<(), CodegenError> {
+    crate::metadata_sections::place_immutable_metadata(llvm, profile);
     llvm.verify()
         .map_err(|e| CodegenError(format!("invalid LLVM module: {e}")))?;
 

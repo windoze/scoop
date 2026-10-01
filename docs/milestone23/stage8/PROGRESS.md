@@ -19,9 +19,15 @@
 - 格式化与全 workspace/all-targets Clippy 通过。identity 335、LIR 468、slib 584、codegen/runtime 302 项通过；最后清理后的 11 项初始化 reader 测试通过；实际 core 重建与产物消费组合测试通过（40.40 秒），未开启自动更新 golden。
 - 已清理闲置的默认 target 构建缓存；本功能提交后清理专用 `target/m23-8`。旧单 image 启动调度仍待新 registry/startup 接通后删除；生产中只保留一种初始化 record 格式。
 
+## 3. 已加载映像地址范围与只读元数据
+
+- Mach-O adapter 在读取 header/load commands 前检查 VM 可读区间，收集实际映射的权限、检查 section 完整范围并提供显式释放接口。范围查询覆盖相邻区间、权限变化、空洞、对齐和整数溢出。
+- 编译器将含地址修正的不可变元数据放入 `__DATA_CONST`；最终链接将 LLVM stackmap section 归入同一段。dyld 完成地址修正后，runtime 按实际 VM 权限要求两者只读。实机用含函数地址重定位的 stackmap 验证该约定；直接改变原段权限会触发 linker text-relocation 错误，因此设计和链接参数已同步采用 section 迁移。
+- 格式化与全 workspace/all-targets Clippy 通过；codegen/runtime 303 项、toolchain 9 项通过；实际 core 重建与产物消费组合测试通过（39.71 秒），未开启自动更新 golden。
+
 ## 待完成
 
-2. 多 image 地址范围、六类记录、类型/scan、静态 roots、immortal 与初始化关系登记。
+2. 多 image 六类记录、类型/scan、静态 roots、immortal 与初始化关系登记。
 3. 完整 stackmap 规范化、registration 关联、合法 ODR 合并及 GC 接入。
 4. EntryPending、逐次 gateway 线程握手、canonical eager 顺序、异常报告与 shutdown。
 5. 真实 3+ Cone 产物运行、损坏输入和受控线程竞争矩阵，以及历史运行辅助迁移和最终全仓回归。

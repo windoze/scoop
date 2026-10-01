@@ -150,3 +150,5 @@ fn mark_typed_managed_pointer_boundary(
 
 #[cfg(test)]
 mod tests;
+
+mod metadata_sections;

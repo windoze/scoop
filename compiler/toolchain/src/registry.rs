@@ -48,6 +48,7 @@ impl ResolvedTargetProfile {
                     "runtime/src/eh.c",
                     "runtime/src/eh_personality.c",
                     "runtime/src/initialization.c",
+                    "runtime/src/image/ranges.c",
                     "runtime/src/gc.c",
                     "runtime/src/gc/allocation.c",
                     "runtime/src/gc/collector.c",
@@ -82,7 +83,10 @@ impl ResolvedTargetProfile {
                 target: LirTargetProfile::DARWIN_AARCH64,
                 canonical_triple: "aarch64-apple-darwin",
                 linker_driver: "cc",
-                linker_args: &["-pthread"],
+                linker_args: &[
+                    "-pthread",
+                    "-Wl,-rename_section,__LLVM_STACKMAPS,__llvm_stackmaps,__DATA_CONST,__llvm_stackmaps",
+                ],
             },
         }
     }
@@ -235,7 +239,13 @@ mod tests {
                     "-fno-optimize-sibling-calls",
                 ]
             );
-            assert_eq!(profile.final_link().linker_args(), ["-pthread"]);
+            assert_eq!(
+                profile.final_link().linker_args(),
+                [
+                    "-pthread",
+                    "-Wl,-rename_section,__LLVM_STACKMAPS,__llvm_stackmaps,__DATA_CONST,__llvm_stackmaps"
+                ]
+            );
         }
     }
 
