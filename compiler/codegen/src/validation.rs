@@ -35,6 +35,8 @@ pub(crate) fn validate_module(module: &Module) -> Result<(), CodegenError> {
     validate_callback_instructions(module)?;
     validate_safepoint_identities(module)?;
     validate_call_root_plans(module)?;
+    scoop_lir::validate_startup_gateways(module)
+        .map_err(|error| CodegenError(error.to_string()))?;
     Ok(())
 }
 

@@ -72,8 +72,15 @@
 - 新增 `m23-runtime-images` 真实 fixture：3 个 image 的 empty/ordinary/NoGC main；6 个 image 的 chain/diamond 和动态 ready-set 顺序；跨 image 静态对象/String roots；root 与 eager 未捕获异常。输入 image 枚举逆序，provider/consumer 源码在链接运行前移走；全部在普通与 moving-GC stress 模式通过。trace 使用当前 Cone 已支持的 fixture-native 声明，不引入 M23-10 的外来 generic native body 消费。
 - 格式化与全 workspace/all-targets Clippy 通过；codegen/runtime 308 项通过；实际泛型初始化组合、sibling adapter/member 并集组合及新增 3 项多 image 运行矩阵通过。已重新构建配套 scoopc。历史 core-layout artifact fingerprint snapshot 与本阶段格式尚待同步，未计为通过项。
 
+## 10. gateway 的完整 LIR 结构合同
+
+- 在完整 LIR 验证边界识别现有 root/initialization gateway body key，核对 executable main 或 eager ensure 的 typed 本地引用；lazy unit 不能有 startup gateway，root 使用自身唯一 failure storage。
+- 验证 managed C `uint32_t(void)` 签名、首个真实 poll、单一 invoke 及独立成功/失败退出。返回值封闭为 0/1；root catch 必须物化、写入自身 failure root、EndCatch，eager catch 只能平衡原 ensure 的异常。
+- 检查按 gateway 身份/目标与 CFG/catch 职责拆成两个短模块，不重放语言类型检查、safepoint liveness 或 ABI 语义。共用原有完整 LIR 的 ABI、site 与 root-plan 验证。
+- 增加 managed main、NoGC main、eager 三种正例及 23 种错误结构；包含缺 poll、poll 重排、错误 runtime/ensure 目标、catch 生命周期、错误 owner/failure storage、lazy gateway 和非法状态码。
+- 格式化与全 workspace/all-targets Clippy 通过；LIR 473 项、codegen/runtime 308 项通过；重建配套 scoopc 后，全部 3 项真实多 image 启动矩阵再次通过。上次提交后的专用 target 清理释放 893.7 MiB，清理后的 toolchain 9 项通过。
+
 ## 待完成
 
-1. 完整 LIR gateway 的封闭签名、首个 poll、catch 和 status 结构验证及拒绝测试。
-2. 扩展真实启动矩阵：early ensure、lazy 失败/环、静态值/ODR/重建 core 组合、生命周期与失败 invariant。
-3. 同步全部受格式变化影响的 golden，运行配套 scoopc 的完整 workspace 回归，整理验收文档并清理 target。
+1. 扩展真实启动矩阵：early ensure、lazy 失败/环、静态值/ODR/重建 core 组合、生命周期与失败 invariant。
+2. 同步全部受格式变化影响的 golden，运行配套 scoopc 的完整 workspace 回归，整理验收文档并清理 target。

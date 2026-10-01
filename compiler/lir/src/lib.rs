@@ -124,6 +124,9 @@ pub use production::*;
 mod cross_cone_bridge;
 pub use cross_cone_bridge::*;
 
+mod gateway;
+pub use gateway::{GatewayValidationError, validate_startup_gateways};
+
 mod function;
 pub use function::*;
 
@@ -141,3 +144,6 @@ pub use dump::dump;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod test_support;
