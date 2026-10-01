@@ -733,11 +733,18 @@
 
 - 全部验证结束后执行 `cargo clean --target-dir target/m23-6a`，删除 **1818 个文件、4.4 GiB**；日志为 `/tmp/scoop-m23-7-coroutine-clean.log`。
 
+## 2026-10-01：独立 adapter 成员并集与实际地址合并
+
+- 新增 `m23-odr-member-unions` 的 **7 份 Scoop 源码、1 份 C 探针和 12 份 HIR／MIR／LIR golden**。两个 sibling 分别将不同源函数签名转换成同一目标函数类型，逐项确认各自独占的真实 adapter member、共同 StructuralType group 和包含双方候选的目标 FunctionShape TD；完整定义、ABI、对象与关联摘要继续按共同 member 比较，正反输入顺序均合并成功。
+- 独立和组合两组均由真实 core、provider、左右 sibling 与 consumer 组成；发布后移走源码。组合同时执行公共泛型 try／catch／finally、捕获、分配和动态函数适配；真实 reader 返回的对象完成链接，普通与 `SCOOP_GC_STRESS_MOVE=1` 运行结果一致。
+- C 探针使用实际 MIR／LIR 导出取得的函数符号、interface TD 与槽位，不猜测名字或槽号。两侧 `Marker<Int>` 的真实 TD 地址相等、`Marker<Long>` 的 TD 不同址，实际 interface target 非空且共享。分配调用留在已登记的入口栈帧中，跨下一次分配只保存静态 TD 指针。
+- 运行辅助代码拆为读取和执行模块，复用同一份完整 reader 结果组织对象、root／immortal 登记和运行；原有 sibling 定义比较单独成模块。新增 Rust 模块均在 300 行以内。
+- `cargo fmt --all`、`cargo clippy --workspace --all-targets` 和配套 `scoopc` 构建通过，无警告。关闭全部快照更新开关后执行 `cargo test -p scoopc --lib siblings:: --target-dir target/m23-6a`：**6 passed、0 failed、0 ignored**，耗时 **89.95 秒**，涵盖原有 generic/string 合并、相同 member 的正文／字符串冲突、委托初始化／失败共享及本批独立成员和地址检查。日志为 `/tmp/scoop-m23-7-unions-strict-tests.log`；首次探针的 C 栈边界问题已修正，普通及移动 GC 两组均已严格复验。
+
 ## 剩余主线
 
 [M23-6a 已验收](../stage6a/ACCEPTANCE.md)，普通宿主的封闭泛型父类型、整数范围、外来类型解构及函数值默认参数不再列为本阶段缺口。本阶段继续承担实际机器定义、ODR 和委托运行闭环，具体边界以修订后的 [设计](DESIGN.md) 为准。
 
-1. 验证 sibling 对同组独立 adapter／helper 成员的合法并集，共同 member、EH／stackmap 内容一致，以及真实 TD 和 dispatch 地址合并。
-2. 核对 core、driver、reader/publisher、cache 与全部 fixture 使用共同生产路径，清理无调用的旧路径，完成实际配套编译器和 runtime 的全仓验收。
+1. 核对 core、driver、reader/publisher、cache 与全部 fixture 使用共同生产路径，清理无调用的旧路径，完成实际配套编译器和 runtime 的全仓验收。
 
 验收始终以源码与实际产物为依据。最终必须逐项核对设计第 12、14 节，不能用局部单测替代跨 Cone 链接运行或宣布阶段完成。
