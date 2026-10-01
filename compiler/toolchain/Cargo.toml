@@ -10,3 +10,5 @@ scoop-protocol.workspace = true
 scoop-slib.workspace = true
 scoop-wire.workspace = true
 tempfile.workspace = true
+serde.workspace = true
+serde_yaml_ng.workspace = true

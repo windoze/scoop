@@ -16,7 +16,9 @@ pub(in super::super) fn build(
     let mut objects = Vec::new();
     for (index, source) in profile.runtime_sources().iter().enumerate() {
         let object = directory.join(format!("{index}.o"));
-        let output = Command::new(target.final_link().linker_driver())
+        let output = Command::new(target.c_bridge_toolchain().compiler_driver())
+            .arg("-isysroot")
+            .arg(target.c_bridge_toolchain().sdk_root())
             .args(profile.runtime_c_flags())
             .arg("-I")
             .arg(workspace.join("runtime/include"))

@@ -221,6 +221,8 @@ libSystem 使用已解析 SDK stub、install name、版本/target 和实际 expo
 
 当前固定 runtime 使用的 Level I unwind、C memory/stdio、pthread、Darwin VM/image 和 CommonCrypto 等入口均由该系统输入闭合。所需符号不存在、SDK 不兼容或出现需额外物理输入的 compiler helper 时，报告明确 toolchain/input 错误；不能静默加入 compiler-rt、另一个库或任意搜索目录。若实际支持的 toolchain 确实需要额外 helper，先把其对象及真实调用合同补入同一 profile，并完成对应 fixture；普通 SourceExtern 的解析规则不变。
 
+当前 Darwin profile 明确传入 `-no_fixup_chains`，采用 `LC_DYLD_INFO_ONLY` 的 rebase/bind 操作流；final verifier 读取该实际格式。没有使用 chained fixup 的输入或调用方，因此本阶段不增加其备用解析器。SDK v4 stub 的目标选择遵循 Darwin 的 arm64／arm64e stub 兼容规则，并以实际 `ld` 探针验证；读取完整 re-export 闭包，不按使用到的函数过滤 exports。
+
 ### 6.3 链接后生成的结构
 
 Mach-O header、load commands、dyld stub/GOT、rebase/bind 或 chained fixups、compact unwind 等由 linker 形成，使用实际 final-link profile 的正常格式规则解释。需要被外部对象引用的 linker-generated symbol 具有明确 target role，例如实际出现的 executable header；其引用不能落入“未分类 undefined 都接受”的分支。

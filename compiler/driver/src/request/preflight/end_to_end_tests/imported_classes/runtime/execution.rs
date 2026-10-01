@@ -113,8 +113,10 @@ pub(in super::super::super) fn link_program(
     )
     .unwrap();
     let executable = directory.join("program");
-    let output = Command::new(target.final_link().linker_driver())
-        .args(target.final_link().linker_args())
+    let output = Command::new(target.c_bridge_toolchain().compiler_driver())
+        .arg("-isysroot")
+        .arg(target.c_bridge_toolchain().sdk_root())
+        .arg("-Wl,-rename_section,__LLVM_STACKMAPS,__llvm_stackmaps,__DATA_CONST,__llvm_stackmaps")
         .args(target.runtime_build().runtime_c_flags())
         .arg("-I")
         .arg(crate::workspace_root().join("runtime/include"))

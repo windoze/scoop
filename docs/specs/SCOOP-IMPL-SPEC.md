@@ -1019,6 +1019,8 @@ program-link 生成一个普通 C main、位于 `__DATA_CONST,__const` 的静态
 
 当前 target 禁止 `-dead_strip`、不同 body 的 function ICF、LTO、未声明的 autolink/directive、raw 用户 linker options 与 C++ ABI 依赖；显式保留 `-no_deduplicate`。`__LLVM_STACKMAPS,__llvm_stackmaps` 通过 `-rename_section` 移到 `__DATA_CONST,__llvm_stackmaps`，由 dyld 修正地址后保护为只读。固定 profile 只登记实际出现的 linker-generated header、stub/GOT、unwind、fixup 等结构；没有额外 support object 时集合为空，不创造虚拟对象或 `SlibMemberId`。未知实际输入或额外动态库是错误。
 
+当前 Darwin profile 通过 `-no_fixup_chains` 明确使用传统 rebase/bind 格式；final verifier 只实现当前实际输出，不增加没有调用方的 chained-fixup 备用 reader。SDK v4 stub 按 Darwin arm64／arm64e 兼容规则选择目标，并读取完整 re-export 闭包。
+
 **计划、产物检查与发布：**链接前保存实际 root/依赖、各 Cone Code 与对象内容、runtime 对象、startup 对象、系统 provider、String alias 和有序操作，形成普通 `ResolvedLinkPlan`。profile/toolchain/deployment 与实际参数进入其 fingerprint，物化路径和输出路径不进入。M23-9 不缓存最终 binary；不为缓存预设 receipt、CAS proof 或多层 evidence 状态机。临时文件由已读 bytes 物化，后续 command 使用同一份文件；外部路径改变不能让实际链接悄悄换输入。
 
 系统 linker 的 map/trace、symbol/load-command/binding 信息用来核对实际输入、输出定义与动态导入。最终 verifier 只处理链接新产生的事实：Mach-O target/entry，唯一 C main、root 与每个 image 的实际引用，所有受控 definition/use 的解析，String alias 同址，重复 ODR 的唯一 winner 地址，不同 type/body/storage 的必要地址区别，保留的完整 stackmap section、EH/GC 所需段，以及没有额外动态 provider 或禁止依赖。最终文件中的指针按该 profile 的 rebase/bind 或 chained-fixup 格式读取；不能把磁盘编码直接当 ASLR 后地址。
