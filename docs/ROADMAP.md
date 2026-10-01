@@ -377,9 +377,11 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 扩展现有 stackmap parser，消费全部 LLVM v3 blob，按实际 registration、owner、原始 PC 与规范化 payload 核对 ODR 重复。GC 复用唯一静态 root/immortal/TD/PC 索引；不重算 RuntimeImage/Graph/ODR 全图或增加来源凭证。
 - 按实现规范 2.14 同批迁移 metadata ABI 3、generic profile /2、初始化 production/object 格式与缓存。完成门包含实际 3+ Cone image、Strong/ODR 地址与独立 member 并集、eager/lazy、failure/cycle、函数值/协程、ZST/大值/引用、moving GC、受控线程竞争和损坏 metadata；正式启动对象、runtime-build 与 artifact-only program-link 留给 M23-9。
 
-### M23-9 基础 artifact-only program-link（[详细设计](milestone23/stage9/DESIGN.md)，设计完成、尚未实现）
+### M23-9 基础 artifact-only program-link
 
-- 继承已验收 Stage 8；独立 Link reader 复用原 foundation 的 identity/ABI、production/import 和对象完成读取，不再重放完整 HIR/MIR 或具体化模板。新增仅补缺失机器表示和 alias 的 `link-support/1`，required inventory／profile fingerprint 更新，旧产物和缓存重建；现有语言与 runtime ABI 保持。
+详细设计见 [M23-9](milestone23/stage9/DESIGN.md)，状态：已完成并验收（2026-10-02）；真实产物链接、运行矩阵与完整回归见 [验收记录](milestone23/stage9/ACCEPTANCE.md)。
+
+- 继承已验收 Stage 8；独立 Link reader 复用原 foundation 的 identity/ABI、production/import 和对象完成读取，不再重放完整 HIR/MIR 或具体化模板。新增只补 runtime 数据 alias 的 `link-support/1`，required inventory／profile fingerprint 更新，旧产物和缓存重建；现有语言与 runtime ABI 保持。
 - `compiler/linker` 提供库及低层 `scoop-link`，全新进程只凭 `.slib` 闭包、普通 runtime 对象索引和明确 target/toolchain 工作。`scoop` 编排 runtime 源文件／头文件构建与内容缓存；program-link 只编译自己生成的 startup C，不读 Scoop/runtime 源码、不加载 LLVM。
 - 正式 C main 引用原 image/root 并调用 `scoop_rt_run_program`，String 以实际 TD 同地址 alias 接入。直接使用明确系统 linker、libSystem 和固定 flags，不依赖 `cc` 默认搜索或 archive；SourceExtern 统一合并声明合同并从实际对象／系统 export 解析，不设 core API 白名单；缺失符号与合同冲突同样报错。
 - 复用逐 member ODR 和原对象检查，final verifier 只核对链接新产生的 entry、绑定、地址合并、fixup 与 section 保留；Stage 8 负责实际加载地址／权限与精确 stackmap。没有 runtime/program 来源凭证、平台认证或重复完整语义重放。

@@ -134,7 +134,7 @@ Strong production 的两种表示使用 `/11`、`/12`，删除初始化专用 AB
 | M23-6a | 统一 HIR 语义模型、产物消费与具体化（[详细设计](stage6a/DESIGN.md)、[实际验收](stage6a/ACCEPTANCE.md)） | 同结构声明／正文、统一查询与调用决议、导出投影、共同具体化和实际物化需求 |
 | M23-7 | 跨 Cone generic、ODR 与 generic delegated extension（[详细设计](stage7/DESIGN.md)） | 消费 6a 的共同 HIR，闭合机器定义与引用、逐 member ODR、委托存储和真实运行 |
 | M23-8 | runtime multi-image registry 与启动（[详细设计](stage8/DESIGN.md)） | 统一 unit record、实际 image/registration 消费、逐次 gateway 握手与完整 stackmap |
-| M23-9 | 基础 artifact-only program-link（[详细设计](stage9/DESIGN.md)，设计完成、尚未实现） | 独立 Link reader、普通 runtime 对象、固定系统输入、启动对象与真实链接 |
+| M23-9 | 基础 artifact-only program-link（[详细设计](stage9/DESIGN.md)、[实际验收](stage9/ACCEPTANCE.md)） | 独立 Link reader、普通 runtime 对象、固定系统输入、启动对象与真实链接 |
 | M23-10 | 一般 native 输入与链接闭包 | 复用 extern 解析，增加 object/archive/provider 供应、实际抽取／绑定及最终检查 |
 | M23-11 | umbrella CLI、单文件模式与总验收 | 正式工具边界、fixture迁移与旧路径删除 |
 
@@ -2539,11 +2539,11 @@ producer可输出任意非空数量的object，验证在全部member的联合定
 
 ### M23-9：基础 artifact-only program-link
 
-详细设计见 [M23-9](stage9/DESIGN.md)，状态为设计完成、尚未实现。前置为已验收 Stage 8，交付独立 Link reader、`compiler/linker` 库与低层 `scoop-link`、普通 runtime-build/对象索引、正式启动对象、固定 Darwin/AArch64 系统输入和必要最终检查。
+详细设计见 [M23-9](stage9/DESIGN.md)，状态为已完成并验收（2026-10-02），完整证据见 [验收记录](stage9/ACCEPTANCE.md)。前置为已验收 Stage 8，交付独立 Link reader、`compiler/linker` 库与低层 `scoop-link`、普通 runtime-build/对象索引、正式启动对象、固定 Darwin/AArch64 系统输入和必要最终检查。
 
 Link 直接复用原 foundation 身份／合同，完整机器 ABI／布局原位读取，support 只补 runtime 数据 alias，并复用 production、对象和逐 member ODR，不再读取 HIR 模板世界或重跑 MIR 布局。program-link 不读 Scoop/runtime 源码、不加载 LLVM；其明确 C compiler 只编译本次生成的 startup C。SourceExtern 统一从实际对象／provider export 中解析，不建 core API 白名单；缺失定义和合同冲突同样报错。额外 library 等物理输入供应留给 M23-10，复用同一解析器。
 
-完成门：全新进程在所有 Scoop/runtime 源树和前端内存状态不可用时，只凭完整产物和 runtime 对象完成链接运行；全部直接 LinkObject 各一次，固定系统输入明确，未借 `cc` 默认、raw object 或 fixture-native 注入补全。真实 Strong/ODR 地址、独立 member 并集、multi-blob stackmap、初始化、moving GC、exception gateway、重建 core 和缓存失效矩阵通过。完整实现验收见阶段设计第 10～11 节；final-link cache 不作为本阶段工作。
+完成门：全新进程在所有 Scoop/runtime 源树和前端内存状态不可用时，只凭完整产物和 runtime 对象完成链接运行；全部直接 LinkObject 各一次，固定系统输入明确，未借 `cc` 默认、raw object 或 fixture-native 注入补全。真实 Strong/ODR 地址、独立 member 并集、multi-blob stackmap、初始化、moving GC、exception gateway、重建 core 和缓存失效矩阵通过。实际验收见 [记录](stage9/ACCEPTANCE.md)，完成门见阶段设计第 10～11 节；final-link cache 不作为本阶段工作。
 
 ### M23-10：一般 native 输入与链接闭包
 

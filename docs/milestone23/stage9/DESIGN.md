@@ -1,6 +1,6 @@
 # M23-9 设计：基础 artifact-only program-link
 
-状态：设计完成，尚未实现（2026-10-02）。前置条件为已验收的 [M23-6a](../stage6a/ACCEPTANCE.md)、[M23-7](../stage7/ACCEPTANCE.md) 和 [M23-8](../stage8/ACCEPTANCE.md)。本文不把已有运行 harness 或本次设计核对计为 Stage 9 验收。
+状态：已完成并验收（2026-10-02）。前置条件为已验收的 [M23-6a](../stage6a/ACCEPTANCE.md)、[M23-7](../stage7/ACCEPTANCE.md) 和 [M23-8](../stage8/ACCEPTANCE.md)。实际源码、产物、运行及完整回归见 [验收记录](ACCEPTANCE.md)。
 
 本阶段交付：只凭 executable `.slib`、完整依赖 `.slib` 和 runtime 对象，在全新进程中产生真正可运行的多 Cone 可执行文件。链接复用既有定义、ODR、image/root 与 runtime startup；provider 源码和编译器前端状态在链接时均不需要。
 
@@ -10,7 +10,7 @@
 
 ### 1.1 可用能力
 
-| 能力 | 本阶段完成后的行为 |
+| 能力 | 实际交付行为 |
 | --- | --- |
 | 独立链接 | `compiler/linker` 提供库与低层 `scoop-link` 入口；输入全部来自产物和明确 target/toolchain |
 | Link 读取 | 只读取本次链接所需的身份、ABI、定义、引用和对象；不构造 HIR 模板世界或执行具体化 |
@@ -24,9 +24,9 @@
 
 本阶段限制的是物理输入的供应方式。所有 `SourceExtern` 使用同一套声明合同合并与符号解析，从实际 runtime 对象和已选系统 provider 的定义／export 中查找目标；不建立 core 函数清单、普通 extern 白名单或专用解析分支。新增 native library 的定位、archive 抽取等输入供应能力留给 M23-10；当前输入中找不到的符号按普通未解析引用报错，core 也不例外。
 
-### 1.2 已有代码与真实缺口
+### 1.2 实施前基线与真实缺口
 
-| 位置 | 当前事实 | Stage 9 的工作 |
+| 位置 | 实施前事实 | Stage 9 的工作 |
 | --- | --- | --- |
 | [`layout_compile_closure/read.rs`](../../../compiler/slib/src/layout_compile_closure/read.rs) | Link decode 后进入 `into_shared_sections` 和 `replay_semantics` | 独立读取机器输入；解除完整 HIR/MIR 重放依赖 |
 | [`link_decode/layout.rs`](../../../compiler/slib/src/link_decode/layout.rs) | Link 数据仍保存 HIR interface、type semantics 与 MIR bridge | 保留 Compile 通道；Link 通道仅保留实际需要的数据 |
@@ -348,7 +348,7 @@ stackmap reader 在对象边界已经验证 canonical v3 payload。最终检查�
 
 每批实现完成后先 `cargo fmt --all` 和 `cargo clippy --workspace --all-targets`，再执行相关 crate/fixture。最终用真实配套 compiler 运行全 workspace，显式清除全部 `SCOOP_UPDATE_*`、名称含 `SNAPSHOT` 的 `SCOOP_*`、`INSTA_UPDATE` 与其他快照更新覆盖。先审阅语义／对象差异，再受控更新必要快照；开启更新的运行不计最终验收。
 
-不为文档变更重跑编译器全套测试。本次设计核对只检查文档引用、实际代码落点和工具边界；上述实现／运行验收要在 Stage 9 真正实现后完成并另写记录。
+不为文档变更重跑编译器全套测试。设计核对不能替代实现／运行验收；关闭更新的完整回归与各功能提交见 [验收记录](ACCEPTANCE.md)。
 
 ## 11. 实现顺序与完成门
 
