@@ -134,8 +134,8 @@ Strong production 的两种表示使用 `/11`、`/12`，删除初始化专用 AB
 | M23-6a | 统一 HIR 语义模型、产物消费与具体化（[详细设计](stage6a/DESIGN.md)、[实际验收](stage6a/ACCEPTANCE.md)） | 同结构声明／正文、统一查询与调用决议、导出投影、共同具体化和实际物化需求 |
 | M23-7 | 跨 Cone generic、ODR 与 generic delegated extension（[详细设计](stage7/DESIGN.md)） | 消费 6a 的共同 HIR，闭合机器定义与引用、逐 member ODR、委托存储和真实运行 |
 | M23-8 | runtime multi-image registry 与启动（[详细设计](stage8/DESIGN.md)） | 统一 unit record、实际 image/registration 消费、逐次 gateway 握手与完整 stackmap |
-| M23-9 | 基础artifact-only program-link | fixed target/runtime闭包、runtime-build、program object与真实链接 |
-| M23-10 | general native requirement闭包与link evidence hardening | extern/archive/provider解析、snapshot、完整evidence与final verifier |
+| M23-9 | 基础 artifact-only program-link（[详细设计](stage9/DESIGN.md)，设计完成、尚未实现） | 独立 Link reader、普通 runtime 对象、固定系统输入、启动对象与真实链接 |
+| M23-10 | 一般 native 输入与链接闭包 | 复用 extern 解析，增加 object/archive/provider 供应、实际抽取／绑定及最终检查 |
 | M23-11 | umbrella CLI、单文件模式与总验收 | 正式工具边界、fixture迁移与旧路径删除 |
 
 persistent identity、mangler、container 和 section 使用显式版本管理；任何必要的合同修正先改 spec，再升级实际改变的 section/schema 和缓存，不以既有冻结条款保留错误分层。M23-6 的布局与 ABI 算法继续复用，M23-6a 统一语义表示与输入；实际机器适配若需要格式变化，按相同规则迁移。M23-7 及后续不得恢复 param-free/source-only 语义 gate、来源专用 HIR 或导入正文重建器。每个中间里程碑输出必须结构完备，未完成状态不能混入成功 IR 或通过旧管线回退。
@@ -790,7 +790,7 @@ ValidatedLirTargetSelection = {
 }
 ```
 
-M23-2只构造并持久化前两项组成的`ValidatedLirTargetSelection`，不伪造完整profile；后三项由后续required capability冻结：`c_bridge_toolchain`进入generated-bridge Code fingerprint，`lir_target + c_bridge_toolchain + runtime_build`进入`RuntimeArtifactFingerprint`并只经该validated产物继续影响RuntimeImage/Graph，`lir_target + final_link`进入`ResolvedLinkPlanFingerprint`。`lir-lower`只接收`lir_target`，Scoop codegen接收`lir_target + backend`，generated-C producer接收`lir_target + c_bridge_toolchain`，runtime-build接收`lir_target + c_bridge_toolchain + runtime_build`，program-link接收`lir_target + final_link`以及已经验证的其他stage产物。任一stage不得从host默认、另一projection或既有object反推缺少的项。
+M23-2 只持久化前两项组成的 `ValidatedLirTargetSelection`；后续 projection 按实际职责进入内容记录：C bridge toolchain 影响 generated-C Code，runtime-build 的 target、C toolchain、源码／头文件和规则影响 RuntimeArtifact，final-link 的实际 linker、startup C compiler、SDK/deployment 和 options 影响 ResolvedLinkPlan。runtime 对象变化不反向改变已经发布的 per-Cone RuntimeImage。`lir-lower`、Scoop codegen 和 generated-C producer 分别只消费自己的 target/backend/toolchain；runtime-build 消费前三项相关 projection，program-link 消费明确 final-link 配置和已有输入产物，不从 host 默认或另一个 projection 的名称补猜缺项。
 
 HIR先解析省略的`name`并保存source-level extern contract；LIR在`ValidatedLirTargetSelection`下完成native symbol/calling-convention与canonical storage正规化后生成：
 
@@ -1053,9 +1053,9 @@ CanonicalResolvedNativeInput =
 
 `NativeArchiveVerificationFingerprint = DomainSeparatedCborHash("scoop-native-archive-verification-v1", {1=input_id, 2=archive_layout_fingerprint, 3=candidates_in_physical_order})`。static archive必须在调用native linker前一次性、有界地解析完整archive：拒绝thin/external/path member、nested archive、bitcode/LTO、unknown special member、非object ordinary member和越界/重叠布局；允许的symbol/long-name table也必须由`ArchiveFormatId`解释并进入layout fingerprint。每个ordinary candidate都按non-optional verifier profile检查，即使linker最后不抽取它。`NativeArchiveMemberRef`只在其精确archive digest内有意义；ordinal、offset、length与digest共同区分同名甚至相同bytes的重复member。target/linker profile的load trace若不能唯一恢复这个ref，该profile不合格。post-link trace只能选择该preverified candidate index中的记录，绝不能在链接后才发现并“补验”一个member。
 
-所有`ContentDigest`输入都必须在plan定稿前从**同一批已验证bytes**物化到program-link私有、create-new、不可经symlink替换的只读snapshot；plan中的identity从该snapshot重算，native linker也只能打开同一snapshot。等价的already-open fd方案必须由profile提供identity-pinning proof。Cone 提取对象、普通启动对象、runtime 对象与 target startup/support 对象也遵守同一规则。`PlatformIdentity`的scheme必须同时定义bounded canonical bytes、链接时pinning以及链接后/缓存命中时的revalidation proof；做不到就不能用于M23。
+文件输入在读取和检查后，从同一份 bytes 物化到本次私有、create-new 的临时文件，linker 使用这些文件；原 locator 后续改变不能替换本次实际输入。使用已有打开的文件或普通内容缓存时同样保持所检查内容与实际消费一致，不增加 identity-pinning proof、来源凭证或 CAS 资格。平台 provider 记录实际 SDK stub、install name、target/deployment 和 ABI；stub 摘要不冒充运行时系统库或 dyld shared cache 的内容摘要。M23-9 固定 provider 按 [阶段设计](stage9/DESIGN.md) 第 6 节处理；M23-10 再接入实际一般 native 输入与必要的内容快照，不把 platform pinning/revalidation 协议作为编译器完成门。
 
-direct object和每个实际抽取的archive member分别形成static contribution；选择证据绑定精确plan action occurrence，而不是只绑定库名或member basename：
+direct object 和每个实际抽取的 archive member 分别形成 static contribution，关联实际有序链接操作，而不是只保留库名或 member basename。`LinkActionIndex` 是该操作序列中从零开始的 typed u32 下标：
 
 ```text
 NativeContributionSource =
@@ -1270,9 +1270,9 @@ RuntimeArtifactFingerprint =
 
 source path 不包含 host sysroot 前缀；runtime 内容 fingerprint 使用实际 target、C toolchain、源码和 build rules、runtime ABI、对象内容及符号/引用记录。普通缓存根据这些输入失效并复用未变化结果，不保存额外 source-build 证明，也不要求每次重建或引入独立信任协议。重复对象身份、内容记录不一致、实际 target/ABI 不兼容及定义/引用冲突仍按共有格式和链接规则拒绝；fingerprint 只表达内容和构建依赖。
 
-runtime 对象提供实际 C process entry、runtime functions 与必要 helper，按真实符号、target、调用约定和依赖验证。它们不定义 Scoop Cone 的实体。program-link 产生的入口与 image 引用按实际调用需要形成普通对象，复用已有符号和 relocation 规则；不提前建立仅为独立 program/core binding 存在的 plan、凭证或重放工厂。
+runtime 对象提供 `scoop_rt_run_program`、其他 runtime functions 与必要 helper，按实际符号、target、调用约定和依赖检查；C main 由 program-link 的普通启动对象提供。runtime 不定义 Scoop Cone 的实体或 String TD。startup 对象只引用原 image/root 并调用现有入口；不读取 runtime 源码，也不恢复 program/core descriptor、来源凭证或重放工厂。
 
-因此pre-link Cone闭包验证、program/runtime/native/profile各自的input verifier与post-link map/image verifier共同覆盖最终输入全集；任一实际受控贡献或dynamic provider没有唯一`FinalLinkInput` origin、绕过typed contract、抢占Scoop/program/runtime保留symbol，或linker trace/dynamic-import evidence与最终image不一致都拒绝。linker/`cc` driver隐式加入的startup object、default library或参数也必须由target profile列出、归一化为pre-link plan及相应final origin并进入实际输入identity；无法取得完整archive-member load trace、link map、dynamic-import与platform-identity pinning/revalidation证据的target/linker profile不合格。shared provider未绑定的其他export不塞进Cone的`DefinedLinkSymbolOwner`或`FinalLinkSymbolOwner`，也不能interpose任何解析为`Controlled`的requirement。
+pre-link 读取负责格式、实际定义／引用、ABI 与 ODR 内容，post-link 检查只负责最终绑定、地址合并和装载格式。每个输入保留实际来源，runtime/program/native 对象不伪造 Cone member；动态 provider 不得替代受控定义。M23-9 直接调用明确系统 linker 并列出固定 libSystem 等实际输入，避免 `cc` 默认添加搜索路径或 archive；M23-10 对真实用户 archive/dynamic 输入增加候选、抽取与绑定核对。map/trace 和内容摘要用于普通正确性和缓存，不构成 platform 来源认证或每层重新取得的资格。
 
 最终linker在调用native linker前合并完整transitive Cone closure中的全部record。同一symbol id必须先证明canonical symbol key相同，再要求library、kind/TLS/mutability、ABI、calling convention及完整signature/storage逐字段相等；相等者去重为一份contract和native requirement，不同者报告全部declaration origin及第一个不同字段。即使其中某个声明在当前root未调用也不交给native linker任选。该闭包只能证明程序内部声明一致；外部binary是否真实实现该contract仍是FFI作者责任。
 
@@ -1739,7 +1739,7 @@ program-link:
            + ResolvedTargetProfile.{lir_target, final_link}
            + NativeLocatorPolicy
            -> startup object + ResolvedLinkPlan
-              + FinalLinkEvidence + VerifiedExecutable
+              + actual link map/bindings + executable
 ```
 
 - `.slib`容器读取只在slib crate；完整dependency graph/cache只在`scoop`，当前Cone stage调度只在`scoopc`，最终closure/link只在program-link组件。stage implementation crate不打开archive、manifest或上游source；
@@ -1770,7 +1770,7 @@ core prelude 是其 typed metadata 的一部分，至少能表示 package star �
 
 M23固定三层工具边界。面向用户的umbrella binary是`scoop`；`scoopc`是可直接调用的低层single-Cone compiler；program-link是独立library/stage，由`scoop build`、`scoop run`和`scoop link`共用，M23不再提供“最后一次`scoopc`顺带链接”的第二条生产路径：
 
-workspace中的实现映射也固定下来：现有`compiler/driver` package继续产出`scoopc` bin/lib，但lib只暴露single-Cone请求；新增`compiler/scoop` package产出薄`scoop` bin与可单测的build orchestration lib；新增`compiler/linker` package承载artifact-only program-link；新增`compiler/runtime-build`只消费`lir_target + c_bridge_toolchain + runtime_build`三项validated projection，按它们指定的实际 runtime 源码与构建规则产生普通对象和符号/ABI 摘要；新增leaf `compiler/toolchain` package承载唯一target/toolchain registry、不可部分构造的`ResolvedTargetProfile`与配套`scoopc` tool identity，不依赖任何parser/lower/codegen实现；各projection的data type仍由对应IR/meta或专用共享crate拥有，producer只接收自己的typed projection，不反向依赖registry；`compiler/manifest`与`compiler/protocol`分别承载两端共享的manifest projection和版本化子进程消息。`scoop`可以依赖manifest/protocol/slib/toolchain/linker/runtime-build，但不得依赖`scoopc` lib、parser/lower/codegen implementation crate；`scoopc` driver可以依赖toolchain完成请求解析，各stage implementation不得为此新增对toolchain的依赖；`scoopc`不得依赖`scoop`、runtime-build或program-link。这个Cargo dependency方向把“每个Cone必须跨进程、跨`.slib`边界”变成可审计的结构约束，而非调用习惯。
+workspace 的实际映射为：`compiler/driver` 继续提供 single-Cone `scoopc`；`compiler/scoop` 拥有 DAG、配套 compiler、runtime 构建与缓存编排；`compiler/linker` 提供 `scoop-linker` 库和低层 `scoop-link`，供公开 `scoop build/run/link` 共用。runtime-build 当前只有该编排调用方，按职责作为 scoop 模块实现，不为尚无复用的需求新建 stage 或工厂。`compiler/toolchain` 解析各明确工具与相容 profile；manifest/protocol 保存共有数据和子进程消息。scoop 不依赖 parser/lower/codegen，linker 不依赖这些上游实现或 LLVM，scoopc 不依赖 scoop/runtime-build/program-link。IR/meta 保存实际跨边界数据，工具路径和缓存状态不进入语言 IR。
 
 ```text
 scoop build <root-input> [--cone-path <root> ...]
@@ -1807,159 +1807,44 @@ scoopc build <Cone-root-or-Cone.toml-or-file.scoop>
 
 每次`scoopc`成功后，`scoop`读取输出归档并核对 envelope/hash、coordinate、依赖 fingerprint、target/profile、缓存键及结构化 child 结果，再原子发布 cache entry。子进程失败后不启动其 dependent 或运行 Link；已完成的独立产物可保留在缓存。编译器报告 typed error/warning，父进程只排序、标注 Cone 并汇总。library root返回完成的`.slib`；executable root产生相同完整产物，实际 program-link 在后续里程碑读取它和依赖对象。父进程不保存仅供测试观察的 Compile/Link 句柄，也不在每个节点完成时重放依赖闭包。
 
-对 executable root，后续 M23-9 的 `scoop` 编排 runtime 构建：按实际 target、C compiler identity/flags、源码和 build rules 产生普通对象及必要符号/ABI 摘要，再交给 program-link。缓存由这些实际输入和对象内容决定失效，不另建 runtime 来源资格、不可伪造包装或信任协议。同一构建结果直接传递，外部对象在实际消费边界检查；`scoopc build` 继续只产生当前 Cone 的完整 `.slib`。
+对 executable root，M23-9 的 `scoop` 编排 runtime 构建，覆盖实际 target、C compiler、源码、头文件和 build rules，返回普通对象与符号／ABI 记录。源内容、工具链、flags 和 runtime ABI 改变使缓存失效；同次结果直接交给 program-link，外部索引和对象读入时检查一次。低层 `scoop-link --root-slib … --dep-slib … --runtime-objects … -o …` 只消费磁盘产物和明确 target，不搜索 source/manifest；对象索引是本地交接数据，不是新分发格式或来源凭证。
 
-后续 program-link 消费共有 reader 已完成检查的 Link 数据、runtime 对象、target/link profile 与输出路径。root 的 executable kind、唯一性、依赖闭合与 canonical 顺序使用同一读取结果；独立进程收到新的归档时由 reader 检查，不为未变化数据重复完整重放。它按实际 Cone/member identity 提取每个 LinkObject 一次，并按真实 symbol、ABI、ODR 和 relocation 合并定义。native requirement 由 M23-10 接入普通解析路径；diagnostic、opaque 与 unknown optional 成员不作为对象。临时文件使用唯一的实际 member 路径并检查 I/O 和范围，路径不承担实体身份。
+program-link 消费独立 reader 的完整 Link 数据、runtime 对象、target/link profile 与输出路径。`org.scoop-lang.lir/link-support/1` 的二字段 map 补齐缺失机器 ABI／布局与实际 runtime 数据 alias；原三层 foundation 身份／合同、manifest、production、ODR、import 和对象表直接复用，不再经完整 HIR/MIR replay。按 canonical Cone/member 顺序提取每个 LinkObject 一次，metadata-only import 不要求虚构 relocation。所有 SourceExtern 共用声明合同合并和实际定义解析；当前输入为 runtime 对象与已选系统 provider，M23-10 再增加一般 native 输入的供应；diagnostic、opaque 和 unknown optional 成员不作为对象。
 
-program-link 随后按实际 native requirement、target 和符号合同形成最终对象与动态库输入。启动对象引用真实 image 和 root entry；runtime、Cone、native 与 target 对象保留各自的实际定义和引用，不能用同名或同布局替代 typed 身份。启动数据的 C 表示在 M23-9 实际接入时确定，不提前冻结 program/core binding，也不设 program object 的来源凭证或测试工厂。
+program-link 生成普通 C main、静态 image pointer array 和唯一 root extern 引用，调用已有 `scoop_rt_run_program`；只编译这份本次生成的 startup C，不读取 Scoop/runtime 源码、不重新生成 bridge、不调用 Scoop codegen。String 使用定义方保存的实际 TD alias，与原 TD 同址，不创建 descriptor/pointer 副本。详细启动代码、明确系统 ld/libSystem、fixup 与最终检查见 [M23-9](stage9/DESIGN.md) 第 5～7 节。
 
-native library search path与host绝对路径不进入任何`.slib` identity。program-link解析逻辑library requirement、完成3.7的全部pre-link input verification并冻结content snapshot后，构造唯一canonical plan：
+链接计划保存实际输入与有序操作，不保存来源凭证。M23-9 的 canonical 内容为：
 
 ```text
-ConeLinkPlanInput {
-    cone: ConeIdentity,
-    artifact: ArtifactFingerprint,
-    code_fingerprint: CodeFingerprint,
-    link_objects: CanonicalVec<{ member: SlibMemberId,
-                                 byte_length: u64,
-                                 sha256: Digest256,
-                                 verification_fingerprint: Digest256 }>,
-    odr_verification_surface: Digest256,
-}
-
-PlanRelocatableInputRef =
-    ConeObject { cone: ConeIdentity, member: SlibMemberId }
-  | ProgramObject { object_digest: Digest256 }
-  | RuntimeObject { artifact: RuntimeArtifactFingerprint,
-                    object: RuntimeObjectId }
-
-LinkActionIndex = typed zero-based u32
-
-ResolvedLinkAction =
-    RelocatableInput { input: PlanRelocatableInputRef }
-  | DirectNativeObject { input: ResolvedNativeInputId }
-  | StaticArchive {
-        input: ResolvedNativeInputId,
-        extraction: Ordinary | WholeArchive | ForceLoad,
-    }
-  | DynamicProvider { input: ResolvedNativeInputId }
-  | TargetSyntheticObject { input: TargetSyntheticInputId }
-  | TargetSyntheticGenerated { input: TargetSyntheticInputId }
-  | GroupStart { group: LinkGroupId }
-  | GroupEnd { group: LinkGroupId }
-  | ProfileOption {
-        capability: CapabilityId,
-        canonical_value: bytes,
-    }
-
 ResolvedLinkPlan {
-    root_cone: ConeIdentity,
-    cones: CanonicalVec<ConeLinkPlanInput>,
-    program_object: (object_bytes, image_and_root_references),
-    runtime_objects: CanonicalVec<RuntimeObjectRecord>,
-    native_inputs: CanonicalMap<ResolvedNativeInputId,
-                                CanonicalResolvedNativeInput>,
-    target_synthetic_inputs: CanonicalMap<TargetSyntheticInputId,
-                                          VerifiedTargetSyntheticInput>,
-    ordered_link_actions: CanonicalVec<ResolvedLinkAction>,
-    linker_and_toolchain: LinkToolchainFingerprint,
-    target_and_deployment: CanonicalTargetDeployment,
-    link_profile: LinkProfileFingerprint,
-    normalized_global_options: CanonicalLinkOptionSet,
+    root_cone,
+    cones_in_dependency_first_order,
+    cone_code_and_link_object_records,
+    runtime_artifact_and_object_records,
+    startup_source_options_and_object,
+    fixed_system_inputs,
+    runtime_data_aliases,
+    ordered_link_actions,
+    target_deployment_and_final_link_profile,
 }
 
 ResolvedLinkPlanFingerprint =
-    DomainSeparatedCborHash("scoop-resolved-link-plan-v1",
-                            ResolvedLinkPlan)
+    DomainSeparatedCborHash("scoop-resolved-link-plan-v1", ResolvedLinkPlan)
 ```
 
-`cones`使用canonical topological order，每个Cone的`link_objects`按`SlibMemberId`排序；`CodeFingerprint`与`odr_verification_surface`保证contract/owner/requirement只改metadata而object bytes不变时仍改变plan。input table只保存identity与verified surface；每一项必须被至少一个action引用，也不能引用表外项。`ordered_link_actions`才是native linker语义顺序：其vector ordinal就是`LinkActionIndex`，重复input、archive重复出现、group边界、whole-archive/force-load与profile option occurrence都保留且进入fingerprint；不能把它们去重为map或排序后的set。group必须正确嵌套，option capability是target profile的封闭variant，不能夹带raw argv、响应文件或host path。实际snapshot path/fd只存在于与plan input id一一对应的进程内execution table，不进入canonical plan。
+各字段使用实际 typed identity、完整合同、内容与工具 fingerprint，具体输入见阶段设计第 3～7 节；物化/cache/output 的 host 路径不参与 canonical key。Code 已覆盖 provider、definition、ABI 和 ODR 等影响链接的数据，不另生成一份用于“证明已读入”的 surface digest。相同产物换路径不改变 plan；有效对象、合同、alias、工具或操作顺序改变则变化。
 
-link完成后必须构造与plan一一闭合的evidence，而不是仅保存一份不可关联的link map：
+M23-10 在同一模型中增加实际 direct native object、archive 和 dynamic provider。archive 重复、group、ordinary/whole-archive/force-load 等有序语义不能退化为集合，候选解析后实际抽取必须落到原 input/member；零抽取是正常结果。dynamic load/binding 关联其实际 provider，不能被未声明的 extra input 或 linker default 补齐。暂未实现的 variant 不要求 Stage 9 构造空壳表或通用事件框架。
 
-```text
-FinalContentInputRef =
-    Relocatable(PlanRelocatableInputRef)
-  | DirectNativeObject { input: ResolvedNativeInputId }
-  | StaticArchive { input: ResolvedNativeInputId }
-  | DynamicProviderContent { input: ResolvedNativeInputId }
-  | TargetSyntheticObject { input: TargetSyntheticInputId }
+linker 返回的 map/trace、最终 symbol/binding/load command 与 executable digest 是普通检查结果。它们解释实际定义、对象贡献和外部绑定，不包含 `FrozenContentSnapshotProof`、`PlatformIdentityProof` 或新的验证器凭证链；删除这些未实现的证明外层。已有不可变输入直接使用，实际 I/O 内容变化或新输入边界才重做对应检查。
 
-FrozenContentSnapshotProof {
-    input: FinalContentInputRef,
-    content: CanonicalContentIdentity,
-    binding: PrivateCreateNewReadOnly
-           | PinnedOpenFile { capability: CapabilityId },
-    proof_fingerprint: Digest256,
-}
+M23-9 每次实际链接，不缓存最终 binary。之后若实现 final-link cache，key 来自完整实际 plan，value 保存 executable 内容和必要的链接结果；输入/合同/工具变化失效，损坏输出按 miss 重链。缓存检查复用未变数据，不以源 mtime、逻辑库名或旧 Code fingerprint 替代实际输入，也不要求新的 CAS 或平台来源证明。
 
-PlatformIdentityProof {
-    input: ResolvedNativeInputId,
-    scheme: CapabilityId,
-    canonical_value: bytes,
-    pinning_and_revalidation_capability: CapabilityId,
-    proof_fingerprint: Digest256,
-}
+startup array 强引用每个 image，image 强引用六类 registration 表；这条链不能保活无符号 LLVM stackmap section。当前 Darwin profile 明确禁 `-dead_strip`、不同 body 的 function ICF 和 LTO，启用 `-no_deduplicate`，并将全部 stackmap blob 映射到 `__DATA_CONST,__llvm_stackmaps`。system inputs、SDK/deployment 和目标需要的签名格式均由明确 profile 决定。
 
-ResolvedLinkActionOutcome =
-    RelocatableIncluded {
-        action: LinkActionIndex,
-        input: PlanRelocatableInputRef,
-        final_input: FinalLinkInputId,
-    }
-  | DirectNativeIncluded {
-        action: LinkActionIndex,
-        input: ResolvedNativeInputId,
-        contribution: NativeContributionId,
-    }
-  | StaticArchiveSelection {
-        action: LinkActionIndex,
-        input: ResolvedNativeInputId,
-        selected_in_trace_order: CanonicalVec<NativeContributionId>,
-    }
-  | DynamicProviderOutcome {
-        action: LinkActionIndex,
-        input: ResolvedNativeInputId,
-        result: Loaded(ResolvedNativeProviderId)
-              | NotLoaded(NoReferencedImport)
-              | NotLoaded(DuplicateOf { first_action: LinkActionIndex }),
-    }
-  | TargetSyntheticObjectIncluded {
-        action: LinkActionIndex,
-        input: TargetSyntheticInputId,
-        final_input: FinalLinkInputId,
-    }
-  | TargetSyntheticGenerated {
-        action: LinkActionIndex,
-        input: TargetSyntheticInputId,
-        final_input: FinalLinkInputId,
-        generation_evidence: Digest256,
-    }
-  | GroupBoundaryObserved { action: LinkActionIndex, group: LinkGroupId }
-  | ProfileOptionApplied { action: LinkActionIndex, capability: CapabilityId }
+final verifier 检查链接新产生的 entry、每个 image/root 的实际引用、受控定义／动态绑定、String alias 同址、ODR 唯一 winner 地址、不同 type/body/storage 的必要地址区别、完整 stackmap 与 EH/GC 段保留，以及没有额外动态 provider 或 M25 禁止依赖。磁盘 pointer 按实际 Mach-O rebase/bind/chained-fixup 格式解释，不当作 ASLR 后地址。完整语言类型、canonical ODR body 和对象内容已由前面的边界检查；实际加载权限、registration/初始化初态与精确 stackmap payload 由 Stage 8 runtime 处理，不在 final verifier 再完整重放。
 
-FinalLinkEvidence {
-    plan: ResolvedLinkPlanFingerprint,
-    content_snapshot_proofs: CanonicalMap<FinalContentInputRef,
-                                          FrozenContentSnapshotProof>,
-    platform_identity_proofs: CanonicalMap<ResolvedNativeInputId,
-                                            PlatformIdentityProof>,
-    action_outcomes: CanonicalVec<ResolvedLinkActionOutcome>,
-    native_input_trace_fingerprint: Digest256,
-    inspected_link_map_fingerprint: Digest256,
-    dynamic_load_command_fingerprint: Digest256,
-    executable_digest: Digest256,
-    final_verifier_fingerprint: Digest256,
-}
-```
-
-每个action按同一index恰有一个同variant outcome；static archive的空`selected_in_trace_order`就是显式零抽取结果，不得省略。每条archive trace event唯一命中同一input的一个preverified `NativeArchiveMemberRef`并生成一个contribution；direct object不能伪装成archive member，相同basename、相同bytes或相同member名也不能跨archive配对。每个实际load command唯一映射到一个planned dynamic input；每个plan input都有至少一个action outcome，link trace、link map、load command与最终image中不得出现plan外object、archive member、provider、target synthetic input、option或其他事件。每个受控definition/use还须经3.7的owner/requirement/resolution逐项闭合。
-
-M23可以每次都重新链接而不缓存最终binary；若`scoop`实现final-link cache，key恰为`ResolvedLinkPlanFingerprint`，只有link后的contribution、binding与action outcome属于value。命中时，`ContentDigest`分支重新读取并hash当前解析到的完整bytes、重建或验证同一只读snapshot proof；`PlatformIdentity`分支重跑scheme的pinning/revalidation capability proof，不能对它虚构“重新hash文件”。随后重验plan/evidence/executable digest并运行同一个final artifact verifier，或验证target profile明确声明为语义等价的受检CAS proof；任一步失败都按miss重新链接。只有逻辑`-l`名、search path、`.slib`旧code fingerprint、source mtime或link后trace都不足以构成key；无法稳定取得任一实际input、snapshot/platform proof或toolchain identity时必须禁用cache。路径别名选中同一verified content可以命中，plan冻结后把原host path切换到其他bytes也不能改变linker实际消费的snapshot。
-
-linker dead-strip不能丢失未被普通call graph引用但需要登记的image/global/init/callable metadata：启动对象的静态 pointer array 对每个 image 是强引用，image再强引用其storage/immortal/init/type/safepoint/callable六张表。`public`语言声明是否被调用不决定metadata存活。
-
-最终artifact verifier至少检查：唯一启动入口及其实际 image/root 引用、一个 no-throw root entry gateway、每个expected image恰好一次且与其artifact的`image_owner_member`一致、无unexpected Scoop image、每个受控object/static contribution及dynamic provider都有且只有一个`FinalLinkInput` origin并与plan/evidence逐项对应、非link blob没有进入最终link、全部linker-visible definition由唯一`FinalLinkSymbolOwner`解释、每个undefined symbol具有唯一`FinalUndefinedSymbolRequirement`并精确解析为受控owner或validated dynamic binding、无unexpected dynamic import、ODR winner唯一、TypeDescriptor双向地址identity唯一、runtime type/safepoint/body id到full key为一对一（同key重复已coalesce）、每个LIR `RegisteredCallableBody`恰有一个entry且不存在不同body id的共址、全部Cone link object贡献并串接的stackmap blob覆盖去重后的site全集，以及M25 EH依赖门禁仍成立。
+成功后原子发布 executable；linker、检查或 I/O 失败保持旧输出。正常链接不运行用户程序来取得发布证明。实际 fixture 和可选显式验证可以深度核对输入与最终地址，不能另成每次发布／启动的重复门禁。
 
 ## 6. Runtime多image登记与启动
 
@@ -2511,8 +2396,8 @@ non-generic delegated extension继续按M21普通top-level eager storage；两�
 - runtime target/ABI/digest/entry/contract不符、定义program/Cone/Scoop保留symbol、program object多定义或少/多image/root/core relocation，以及Cone/program/runtime/native/target object中的autolink/linker directive都在native linker前失败。专门构造**不会被抽取**但含autolink/directive的static archive candidate，必须在fake linker runner被调用前失败；thin/external/path member、nested archive、bitcode/LTO、未知ordinary member，以及constructor/destructor、EH/unwind、TLS或语言metadata缺少对应capability contract也同样失败；
 - static archive trace必须覆盖：零member抽取产生显式空selection并可成功；同名member、相同bytes的不同ordinal仍按parent input + ordinal/offset/length/digest唯一定位；引用另一archive member、未知/未验证candidate、重复trace event或把direct object伪装成archive member均拒绝。shared provider允许空binding，但缺失/重复/错provider binding、意外load command、target默认动态库没有`TargetProfile` request origin，或provider尝试满足/interpose任一`Controlled` requirement都失败；
 - `ResolvedLinkPlan` golden覆盖相同archive在不同位置或重复出现、group边界、ordinary/whole-archive/force-load及profile option occurrence；任何顺序变化都改变plan fingerprint。每个planned action/input都有且只有一个evidence outcome，archive未抽取与dynamic未加载也不能省略；extra trace/load/target-synthetic input拒绝。target synthetic还覆盖缺capability、额外definition/use、错误generation rule和content digest变化；
-- TOCTOU测试在plan定稿后切换native search path目标、替换原文件或交换symlink，fake linker仍只能读取已验证私有snapshot；snapshot digest/pinning proof不符必须在启动linker前失败。`PlatformIdentity`在首次link及每次cache hit重跑scheme proof，identity或proof失效按miss处理；
-- 若启用final-link cache，更换`-L`解析到内容不同的完整native input、runtime artifact、target synthetic input或linker profile必须miss，路径别名指向相同已验证bytes可命中；只改变任一Cone的owner/requirement/contract metadata而object bytes不变也必须通过`CodeFingerprint`改变plan key。伪造只在link后才产生的contribution trace不能改变pre-link key；截断/替换cache value、executable digest不符、trace/evidence与`ResolvedLinkPlan`不符或命中产物未通过同一final verifier时按miss重链，不发布该binary。
+- 实际输入一致性测试在 plan 定稿后改变原 native locator 或 symlink，linker 仍消费本次已经读取／物化的 bytes；内容记录不一致在输入边界失败。固定系统 provider 使用真实 SDK stub/install name/ABI，不增加 platform pinning proof；
+- 若启用 final-link cache，更换实际 native/runtime/target 内容、合同或 toolchain 必须失效；相同 bytes 的路径别名可以命中。metadata-only 的 owner/requirement 变化也通过 Code 进入 plan；损坏缓存或 executable digest 不一致按 miss 重链，复用未变化的输入和已完成检查，不要求凭证或重复完整 final/runtime 验证；
 
 ### 9.5 ZST、ABI与array
 
@@ -2539,7 +2424,7 @@ non-generic delegated extension继续按M21普通top-level eager storage；两�
 - 同一或不同Cone的多个link object产生的concatenated stackmap v3 blob在普通/moving-stress下覆盖上游、下游、generic instance、exception、closure、coroutine与foreign callback frame；
 - image/root-entry/storage/TD/init/safepoint descriptor 的 prefix、size、identity、双向地址、fingerprint或pointer range损坏时runtime unit测试稳定fatal；两个strong零尺寸global/init storage分别拥有不可合并token，ODR零尺寸storage只coalesce同一member，伪造共址或错误allocation extent稳定失败；root/init no-throw gateway保证源码异常不穿越C frame；
 - 两个以上object产生连续stackmap v3 blob时全部解析；image descriptor位于任意合法`image_owner_member`而非固定文件名时结果不变；ODR重复record精确去重、不同payload拒绝；Darwin profile拒绝`-dead_strip`并证明无stackmap丢失；
-- fake runtime compiler分别产生一个、多个及与source unit非一一对应的relocatable object，runtime-build均按typed object record验证并得到与3.7一致的fingerprint；固定object records不变时分别只改变`lir_target`、`c_bridge_toolchain`、`runtime_build`或`runtime_abi`必须得到不同fingerprint，调换field、压成旧的“两字段target/toolchain”preimage或从host补项的golden必须拒绝；重复object id、缺失build evidence、额外未分类object、跨object contract冲突、外部prebuilt runtime bundle与raw `.a`都在program-link前拒绝；
+- fake runtime compiler分别产生一个、多个及与source unit非一一对应的relocatable object，runtime-build均按typed object record验证并得到与3.7一致的fingerprint；固定object records不变时分别只改变`lir_target`、`c_bridge_toolchain`、`runtime_build`或`runtime_abi`必须得到不同fingerprint，调换field、压成旧的“两字段target/toolchain”preimage或从host补项的golden必须拒绝；重复 object id、内容记录不一致、额外未分类 object、跨 object contract 冲突和 raw `.a` 输入在 program-link 前拒绝；正常 runtime 对象索引可由独立进程读入，不要求 build evidence 或来源资格；
 - 最终artifact无重复TypeDescriptor、旧固定`scoop_main`/`scoop_image_*`或未namespaced Scoop symbol，并继续满足M25 EH导入门禁。
 
 新增fixture建议分为：
@@ -2576,7 +2461,7 @@ non-generic delegated extension继续按M21普通top-level eager storage；两�
 
 依赖M23-2。实现`Cone.toml` semantic projection、source discovery、library/executable entry sum、`compiler/manifest`与`compiler/protocol`；把`compiler/driver`收缩为只产生当前一个Cone `.slib`的`scoopc`，并建立`--direct-slib`/`--support-slib`/`--out-slib`契约。第5.4节trusted `scoop.core`独立编译和消费同步落地：core prelude经普通typed `ImportedHirSet`/bridge进入用户编译，不增加core专用AST拼接或名称fallback。本阶段成功的普通/SingleFile Cone只允许trusted core依赖；含其他Cone dependency的请求可完成闭包输入验证，但以稳定的阶段能力诊断结束，M23-5才开放其源码语义。
 
-本阶段同时冻结并实现编译器侧`ScoopImageDescriptorV1`布局/producer、当前Scoop LIR/generated bridge两种内建`LinkObject` verifier及基础`ValidatedLinkArtifact`；M23-8实现同一ABI的runtime consumer，不在那时回改布局。这个基础Link view不是只验object envelope：M23-3一并产生并验证当前非generic/strong-only程序所需的六类registration record、`StrongRegistrationFingerprint`/`RuntimeImageFingerprint`及其digest finalization、member-aware strong definition和全部undefined requirement（包括只记录、不在此解析provider的`SourceExtern` contract）。production profile发现M23-2可表达的任意ODR group/member/body/symbol必须拒绝，不能在缺少完整member/definition proof时让native linker任选winner。M23-7在已冻结identity上增加完整ODR member closure、ABI/definition digest与验证，M23-10增加native provider resolution；两者都不能补造M23-3 artifact中缺失的owner、requirement或image relation。
+本阶段同时冻结并实现编译器侧`ScoopImageDescriptorV1`布局/producer、当前Scoop LIR/generated bridge两种内建`LinkObject` verifier及基础`ValidatedLinkArtifact`；M23-8实现同一ABI的runtime consumer，不在那时回改布局。这个基础Link view不是只验object envelope：M23-3一并产生并验证当前非generic/strong-only程序所需的六类registration record、`StrongRegistrationFingerprint`/`RuntimeImageFingerprint`及其digest finalization、member-aware strong definition和全部undefined requirement（包括只记录、不在此解析provider的`SourceExtern` contract）。production profile发现M23-2可表达的任意ODR group/member/body/symbol必须拒绝，不能在缺少完整member/definition proof时让native linker任选winner。M23-7在已冻结identity上增加完整ODR member closure、ABI/definition digest与验证，M23-10 增加一般 native 输入的定位与供应；两者都不能补造M23-3 artifact中缺失的owner、requirement或image relation。
 
 producer可输出任意非空数量的object，验证在全部member的联合定义空间中证明恰有一个image owner；不能把当前通常的object数量固化为协议。由此本阶段范围内成功产出的 `.slib` 已可由共有 Compile/Link reader 完整读取并消费，而不是等待后续里程碑补洞。`SingleFile`请求可经同一protocol产生local executable-root `.slib`，公开umbrella CLI在M23-11切换。
 
@@ -2652,21 +2537,21 @@ producer可输出任意非空数量的object，验证在全部member的联合定
 
 完成门：3+ 个实际 Cone image 在首个 managed initializer 前全部登记；Strong/ODR 地址、独立 member 并集、eager/lazy、失败/cycle、moving GC、exception gateway、受控线程竞争、损坏 metadata 与 multi-blob stackmap 矩阵通过。测试以实际产物的 image/root 引用调用同一生产 startup 函数；正式启动对象、runtime-build 与 artifact-only program-link 仍由 M23-9 完成。
 
-### M23-9：基础artifact-only program-link
+### M23-9：基础 artifact-only program-link
 
-Link view 不需要模板语义图、AST 或 `hir-lower`。沿 Stage 7 的真实定义／引用及 ODR 结果链接，缺失符号、ABI 或对象记录按生产／输入错误报告；program-link 不重新具体化模板，也不退回源码拼接修补。验收须由全新进程在 provider 源码不可用时完成。
+详细设计见 [M23-9](stage9/DESIGN.md)，状态为设计完成、尚未实现。前置为已验收 Stage 8，交付独立 Link reader、`compiler/linker` 库与低层 `scoop-link`、普通 runtime-build/对象索引、正式启动对象、固定 Darwin/AArch64 系统输入和必要最终检查。
 
-依赖M23-8。实现 `compiler/linker` 的实际产物链接、普通 runtime 对象构建、启动对象和必要的最终产物检查。为了能够真正调用system linker，本阶段同时闭合**固定target/runtime slice**：target profile非可选地枚举runtime所需的startup/support object、默认system dynamic provider、完整symbol contract、provider/content identity、ordered action和target-synthetic输入；这些输入在基础plan/evidence中逐项出现并使用同一snapshot或platform pinning，禁止依赖linker隐式default、autolink或未追踪输入。program-link只接受`ValidatedArtifactClosure<Link>`、typed runtime/target/profile与输出路径，不读源码、locator、cache或compiler内存状态；源码产生的用户native-library requirement、任意search-root解析或尚未登记的Link-required capability仍稳定拒绝，留给M23-10。
+Link 直接复用原 foundation 身份／合同，support 只补缺失机器 ABI／布局与 runtime 数据 alias，并复用 production、对象和逐 member ODR，不再读取 HIR 模板世界或重跑 MIR 布局。program-link 不读 Scoop/runtime 源码、不加载 LLVM；其明确 C compiler 只编译本次生成的 startup C。SourceExtern 统一从实际对象／provider export 中解析，不建 core API 白名单；缺失定义和合同冲突同样报错。额外 library 等物理输入供应留给 M23-10，复用同一解析器。
 
-完成门：全新进程只凭无用户native requirement的`.slib`闭包与trusted runtime profile成功链接、验证并运行真实多Cone程序；固定startup/support/system-provider/target-synthetic输入全部在plan/evidence中有typed origin，关闭任一linker default后结果不依赖隐式补全。任意数量的内建`LinkObject`按typed directory各提取一次，opaque blob不进入linker；真实地址coalesce、multi-object stackmap、初始化、moving GC与exception gateway通过。不得以读取source或允许raw额外object来绕过尚未落地的general native闭包。
+完成门：全新进程在所有 Scoop/runtime 源树和前端内存状态不可用时，只凭完整产物和 runtime 对象完成链接运行；全部直接 LinkObject 各一次，固定系统输入明确，未借 `cc` 默认、raw object 或 fixture-native 注入补全。真实 Strong/ODR 地址、独立 member 并集、multi-blob stackmap、初始化、moving GC、exception gateway、重建 core 和缓存失效矩阵通过。完整实现验收见阶段设计第 10～11 节；final-link cache 不作为本阶段工作。
 
-### M23-10：general native requirement闭包与link evidence hardening
+### M23-10：一般 native 输入与链接闭包
 
 本地调用、默认值、泛型实例和依赖调用均从 6a 共同 HIR 继承已选 native contract、effects 和完整类型，MIR/LIR 生成实际 ABI 与 requirement。本阶段只解析已有 requirement 对应的 native 输入，不能重跑 HIR 类型／重载选择或另建 generic native 前端。正负例复用共同 HIR 的直接／模板调用组合。
 
-依赖M23-9。把M23-9只接受固定target/runtime slice的plan/evidence推广到第3.7节完整用户native extern contract closure，实现direct object/static archive/general dynamic provider解析、known Link-required blob handler、content snapshot/TOCTOU hardening、完整`ResolvedLinkPlan`/`FinalLinkEvidence`、link trace核对、cache revalidation与最终artifact verifier；在本阶段封闭`.slib v1`的内建Link capability集合。CLI或fixture只能用`--library-path`为已经存在于artifact中的逻辑requirement提供解析候选，不能注入没有typed origin的raw `.o`、archive、linker option或script。
+依赖 M23-9。扩展同一物理输入模型，增加 direct native object、static archive、一般 dynamic provider 的定位与供应、known Link-required blob handler、实际候选／抽取／绑定、必要内容快照和最终检查；复用已有 extern 合并／解析器，不为 core 或普通库另开路径。`ResolvedLinkPlan` 及 map/trace 保存这些实际输入和链接结果，不恢复来源证明外层。可选 final-link cache 按实际内容、合同和工具失效；本阶段封闭 `.slib v1` 的内建 Link capability 集合。CLI 或 fixture 只用 `--library-path` 为 artifact 已有逻辑 requirement 提供候选，不能注入没有真实 requirement 的 raw `.o`、archive、linker option 或 script。
 
-完成门：archive零/多member抽取、dynamic binding、native contract冲突、全部final-input origin、target synthetic、snapshot替换攻击、trace/evidence与可选final-link cache重验矩阵通过；第9.4/9.6节除公开CLI/历史fixture迁移外的完整link闭包得到验证。Cone内未来C/C++ producer仍须新增自己的versioned verifier capability，但不会改变typed member directory或引入单object假设。
+完成门：archive 零／多 member 抽取、dynamic binding、native 合同冲突、实际输入与 target 生成项、输入内容变化及 trace/map/binding 核对矩阵通过；启用 final-link cache 时另验证内容失效和损坏重链。第 9.4/9.6 节除公开 CLI/历史 fixture 迁移外的实际 Link 闭包得到验证。Cone 内未来 C/C++ producer 仍须新增自己的格式与对象 verifier capability，不改变 typed member directory 或引入单 object 假设。
 
 ### M23-11：umbrella CLI、single-file mode与总验收
 
