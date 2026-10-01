@@ -505,10 +505,15 @@ fn print_overloads_are_ordinary_calls() {
             id
         })
         .collect();
-    // The overloads are the first six MIR functions (declaration
-    // order: the three `print`s, then the three `println`s), and
-    // each call retains the overload selected by HIR.
-    assert_eq!(callees, module.top_level[..6]);
+    // Each call retains the overload selected by HIR. Extern provider
+    // entries also occur in the ordinary declaration order.
+    let overloads = module
+        .top_level
+        .iter()
+        .copied()
+        .filter(|&id| matches!(module.functions[id].name.as_str(), "print" | "println"))
+        .collect::<Vec<_>>();
+    assert_eq!(callees, overloads);
     let names: Vec<&str> = callees
         .iter()
         .map(|&id| module.functions[id].name.as_str())

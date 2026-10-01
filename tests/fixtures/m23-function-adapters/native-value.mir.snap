@@ -11,29 +11,39 @@ Module
   class IllegalStateException vtable=0 itables=0
   class box<FunPtr<(Long) -> Long>> vtable=0 itables=0
   class box<Int> vtable=0 itables=0
-  closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn2 captures=0
-    bridge function_type1 -> @fn8 id=d149685b44300b582a2b0ca82166867045eb8f380f7ac2d8410cf2f07b1a2ef5
-  closure cc1 $Closure$lambda1 type=function_type3 invoke=@fn5 captures=3
-    bridge function_type1 -> @fn9 id=895c5545c3b8b75a0f6418341bc2a7e3050c979ca1ab06c5c652a5d04a7dc717
-  closure cc2 $Closure$adapter$(Any) -> FunPtr<(Long) -> Long>$(FunPtr<(Long) -> Long>) -> Any type=function_type4 invoke=@fn6 captures=1
-    bridge function_type1 -> @fn10 id=d232abd62c19102be53b33d64dffe26ca40941ff07cbc97e2b9c710c42c8e8d9
-  closure cc3 $Closure$dynamic_adapter$(FunPtr<(Long) -> Long>) -> Any type=function_type4 invoke=@fn7 captures=1
-    bridge function_type1 -> @fn11 id=2aae2edfb77f1685687b7b8f97bdd5c042dc479376d2b3546b4a1d89f7690fd7
+  closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn3 captures=0
+    bridge function_type1 -> @fn9 id=d149685b44300b582a2b0ca82166867045eb8f380f7ac2d8410cf2f07b1a2ef5
+  closure cc1 $Closure$lambda1 type=function_type3 invoke=@fn6 captures=3
+    bridge function_type1 -> @fn10 id=895c5545c3b8b75a0f6418341bc2a7e3050c979ca1ab06c5c652a5d04a7dc717
+  closure cc2 $Closure$adapter$(Any) -> FunPtr<(Long) -> Long>$(FunPtr<(Long) -> Long>) -> Any type=function_type4 invoke=@fn7 captures=1
+    bridge function_type1 -> @fn11 id=d232abd62c19102be53b33d64dffe26ca40941ff07cbc97e2b9c710c42c8e8d9
+  closure cc3 $Closure$dynamic_adapter$(FunPtr<(Long) -> Long>) -> Any type=function_type4 invoke=@fn8 captures=1
+    bridge function_type1 -> @fn12 id=2aae2edfb77f1685687b7b8f97bdd5c042dc479376d2b3546b4a1d89f7690fd7
   generated_exact_type get0 location=closure1 nominal_id=ab1228a996a16f6034122d2d63ba61d045a631e9afe0a4ddccce77e76e966a09 exact_id=0bba6fb2f474fa6a6da2ea69a5c3a982952fc9621aff131fa346dfdc3543d9f6
   generated_exact_type get1 location=class5 nominal_id=c266bd056fc99dd1bb856a1564105d36ebad34705c51a3ca7eefe84a3d2fa1a1 exact_id=0c7df765f32ac798b9e4e7965e0e7baabf3e1f3cfc9e00001122c37e2e3411a0
   generated_exact_type get2 location=closure0 nominal_id=a4cc4c997ff4f089bc7ccd69f8f948124c633255b3c6f0b2136bb428e9ed676c exact_id=3da617a1373c067e988b659c61ddb04e055973fbf34e1097b971ef4c55289c7f
   generated_exact_type get3 location=closure2 nominal_id=c7c76ddbd8bf251f4fe96a8ea196c8e26f200cb847ecbb532b409a0f6b106bec exact_id=a1fdae876d1245dacc34225a22c57e50e00f55d5bb2fd84267fee1b5329365e2
   generated_exact_type get4 location=closure3 nominal_id=e9bd354fdefc857ab40e365cc6a0cf130daebb50adb5ca82ef2c6fdd292b831b exact_id=d1049aa0eb10a62c40587bfeee3c10519649e6b4a51f735045c01e4e374eaaaa
   generated_exact_type get5 location=class6 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
-  generated_callable gc0 function=@fn7 id=14bae02961cd1c699a3404db19236c4666e2648494e586c17c1301e419b27e5b
-  generated_callable gc1 function=@fn11 id=2aae2edfb77f1685687b7b8f97bdd5c042dc479376d2b3546b4a1d89f7690fd7
-  generated_callable gc2 function=@fn6 id=597eee6814a4c08a8ad02a7ce4d4c0e290c6e506680be4fb2199f03fe9a2cc07
-  generated_callable gc3 function=@fn9 id=895c5545c3b8b75a0f6418341bc2a7e3050c979ca1ab06c5c652a5d04a7dc717
-  generated_callable gc4 function=@fn8 id=d149685b44300b582a2b0ca82166867045eb8f380f7ac2d8410cf2f07b1a2ef5
-  generated_callable gc5 function=@fn10 id=d232abd62c19102be53b33d64dffe26ca40941ff07cbc97e2b9c710c42c8e8d9
+  generated_callable gc0 function=@fn8 id=14bae02961cd1c699a3404db19236c4666e2648494e586c17c1301e419b27e5b
+  generated_callable gc1 function=@fn12 id=2aae2edfb77f1685687b7b8f97bdd5c042dc479376d2b3546b4a1d89f7690fd7
+  generated_callable gc2 function=@fn7 id=597eee6814a4c08a8ad02a7ce4d4c0e290c6e506680be4fb2199f03fe9a2cc07
+  generated_callable gc3 function=@fn10 id=895c5545c3b8b75a0f6418341bc2a7e3050c979ca1ab06c5c652a5d04a7dc717
+  generated_callable gc4 function=@fn9 id=d149685b44300b582a2b0ca82166867045eb8f380f7ac2d8410cf2f07b1a2ef5
+  generated_callable gc5 function=@fn11 id=d232abd62c19102be53b33d64dffe26ca40941ff07cbc97e2b9c710c42c8e8d9
   adapter ca0 class=cc2 source=function_type3 target=function_type4
   dynamic_adapter da0 class=cc3 target=function_type4
-  fun callScalar @fn0(callback: FunPtr<(Long) -> Long>, value: Long) -> Long
+  fun nativeCall @fn0(arg0: FunPtr<(Long) -> Long>, arg1: Long) -> Long
+    bb0 entry
+      call $call.1: Long = extern0 @m23_call_scalar direct
+        Type FunPtr<(Long) -> Long>
+        Local arg0
+        Type Long
+        Local arg1
+      return
+        Type Long
+        Local $call.1
+  fun callScalar @fn1(callback: FunPtr<(Long) -> Long>, value: Long) -> Long
     bb0 entry
       val $argument.0: FunPtr<(Long) -> Long>
         Type FunPtr<(Long) -> Long>
@@ -55,7 +65,7 @@ Module
       return
         Type Long
         Local $call.1
-  fun result @fn1() -> Int
+  fun result @fn2() -> Int
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -69,7 +79,7 @@ Module
       val $parameter.read: (Int) -> Int
         Type (Int) -> Int
         Local $argument.1
-      call $call.1: Int = @fn3 direct
+      call $call.1: Int = @fn4 direct
         Type Int
         Local $parameter.seed
         Type (Int) -> Int
@@ -77,12 +87,12 @@ Module
       return
         Type Int
         Local $call.1
-  fun $lambda.0 @fn2($closure: (Int) -> Int, value: Int) -> Int
+  fun $lambda.0 @fn3($closure: (Int) -> Int, value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun exercise @fn3(seed: Int, read: (Int) -> Int) -> Int
+  fun exercise @fn4(seed: Int, read: (Int) -> Int) -> Int
     bb0 entry
       val pointer: FunPtr<(Long) -> Long>
         Type FunPtr<(Long) -> Long>
@@ -105,7 +115,7 @@ Module
       val $dependency.parameter.pointer: FunPtr<(Long) -> Long>
         Type FunPtr<(Long) -> Long>
         Local $dependency.argument.2
-      call exact: (Any) -> FunPtr<(Long) -> Long> = @fn4 direct
+      call exact: (Any) -> FunPtr<(Long) -> Long> = @fn5 direct
         Type Int
         Local $dependency.parameter.seed
         Type (Int) -> Int
@@ -224,7 +234,7 @@ Module
       val $parameter.value: Long
         Type Long
         Local $argument.1
-      call $dependency.receiver: Long = @fn0 direct
+      call $dependency.receiver: Long = @fn1 direct
         Type FunPtr<(Long) -> Long>
         Local $parameter.callback
         Type Long
@@ -268,7 +278,7 @@ Module
       val $parameter.value: Long
         Type Long
         Local $argument.1
-      call $dependency.receiver: Long = @fn0 direct
+      call $dependency.receiver: Long = @fn1 direct
         Type FunPtr<(Long) -> Long>
         Local $parameter.callback
         Type Long
@@ -278,7 +288,7 @@ Module
         IntegerConversion Long -> Int
           Type Long
           Local $dependency.receiver
-  fun nativeSource @fn4(seed: Int, read: (Int) -> Int, pointer: FunPtr<(Long) -> Long>) -> (Any) -> FunPtr<(Long) -> Long>
+  fun nativeSource @fn5(seed: Int, read: (Int) -> Int, pointer: FunPtr<(Long) -> Long>) -> (Any) -> FunPtr<(Long) -> Long>
     bb0 entry
       return
         Type (Any) -> FunPtr<(Long) -> Long>
@@ -292,7 +302,7 @@ Module
           CaptureInit field=1
             Type FunPtr<(Long) -> Long>
             Local pointer
-  fun $lambda @fn5($argument.0: (Any) -> FunPtr<(Long) -> Long>, $argument.1: Any) -> FunPtr<(Long) -> Long>
+  fun $lambda @fn6($argument.0: (Any) -> FunPtr<(Long) -> Long>, $argument.1: Any) -> FunPtr<(Long) -> Long>
     bb0 entry
       call $dependency.local.2: Int = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int
@@ -364,7 +374,7 @@ Module
         ClosureCapture cc1 1
           Type (Any) -> FunPtr<(Long) -> Long>
           Local $argument.0
-  fun $adapter.(Any) -> FunPtr<(Long) -> Long>.(FunPtr<(Long) -> Long>) -> Any @fn6($closure: (FunPtr<(Long) -> Long>) -> Any, arg0: FunPtr<(Long) -> Long>) -> Any
+  fun $adapter.(Any) -> FunPtr<(Long) -> Long>.(FunPtr<(Long) -> Long>) -> Any @fn7($closure: (FunPtr<(Long) -> Long>) -> Any, arg0: FunPtr<(Long) -> Long>) -> Any
     bb0 entry
       call $call.1: FunPtr<(Long) -> Long> = <closure:function_type3> closure[function_type3]
         Type (Any) -> FunPtr<(Long) -> Long>
@@ -380,7 +390,7 @@ Module
         Box
           Type FunPtr<(Long) -> Long>
           Local $call.1
-  fun $dynamic_adapter.(FunPtr<(Long) -> Long>) -> Any @fn7($closure: (FunPtr<(Long) -> Long>) -> Any, arg0: FunPtr<(Long) -> Long>) -> Any
+  fun $dynamic_adapter.(FunPtr<(Long) -> Long>) -> Any @fn8($closure: (FunPtr<(Long) -> Long>) -> Any, arg0: FunPtr<(Long) -> Long>) -> Any
     bb0 entry
       call $call.1: Any = <function_bridge:function_type1> function_bridge[function_type1]
         Type Any
@@ -394,7 +404,7 @@ Module
       return
         Type Any
         Local $call.1
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn8($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn9($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int
@@ -408,7 +418,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn9($source: (Any) -> FunPtr<(Long) -> Long>, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn10($source: (Any) -> FunPtr<(Long) -> Long>, arg0: Any) -> Any
     bb0 entry
       call $call.1: FunPtr<(Long) -> Long> = <closure:function_type3> closure[function_type3]
         Type (Any) -> FunPtr<(Long) -> Long>
@@ -420,7 +430,7 @@ Module
         Box
           Type FunPtr<(Long) -> Long>
           Local $call.1
-  fun function_bridge.$Closure$adapter$(Any) -> FunPtr<(Long) -> Long>$(FunPtr<(Long) -> Long>) -> Any.(Any) -> Any @fn10($source: (FunPtr<(Long) -> Long>) -> Any, arg0: Any) -> Any
+  fun function_bridge.$Closure$adapter$(Any) -> FunPtr<(Long) -> Long>$(FunPtr<(Long) -> Long>) -> Any.(Any) -> Any @fn11($source: (FunPtr<(Long) -> Long>) -> Any, arg0: Any) -> Any
     bb0 entry
       call $call.1: Any = <closure:function_type4> closure[function_type4]
         Type (FunPtr<(Long) -> Long>) -> Any
@@ -432,7 +442,7 @@ Module
       return
         Type Any
         Local $call.1
-  fun function_bridge.$Closure$dynamic_adapter$(FunPtr<(Long) -> Long>) -> Any.(Any) -> Any @fn11($source: (FunPtr<(Long) -> Long>) -> Any, arg0: Any) -> Any
+  fun function_bridge.$Closure$dynamic_adapter$(FunPtr<(Long) -> Long>) -> Any.(Any) -> Any @fn12($source: (FunPtr<(Long) -> Long>) -> Any, arg0: Any) -> Any
     bb0 entry
       call $call.1: Any = <closure:function_type4> closure[function_type4]
         Type (FunPtr<(Long) -> Long>) -> Any
@@ -444,8 +454,8 @@ Module
       return
         Type Any
         Local $call.1
-  instance mi0 function=@fn3 <- exercise
-  instance mi1 function=@fn4 <- nativeSource
-  instance mi2 function=@fn5 <- $lambda
+  instance mi0 function=@fn4 <- exercise
+  instance mi1 function=@fn5 <- nativeSource
+  instance mi2 function=@fn6 <- $lambda
   str @str0 "illegal state"
   output library

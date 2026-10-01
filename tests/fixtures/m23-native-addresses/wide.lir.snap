@@ -2,6 +2,16 @@ Module
   c-struct struct0 Wide fields=[Long@0/8,Long@8/8,Long@16/8]
   extern ef0 nativeWide @m23_call_wide(ptr<code>) -> i64 <c exact=(code-ptr<(c-struct0)->c-struct0,direct>)->Long bridge=@scoop$1$br$c0f891744bbde6d3208b61f020046a09a521fd50f8dd6f26afc119c11ede5a17 gc-leaf nounwind>
   callback cb0 Function(PersistentFunctionId([127, 117, 232, 80, 17, 55, 228, 212, 123, 217, 74, 84, 149, 32, 91, 182, 3, 93, 90, 202, 57, 97, 129, 42, 29, 161, 113, 37, 180, 80, 238, 181])) @scoop$1$cb$6568eaab6ead0c7a8c18291950ad237aa1ec0aa888331e2a82fec1c2999d6a26 -> @scoop$1$br$8b63590e6c465d6beec2f021460365468b38e5a90643802a473fa95ea5eb80fb c=(c-struct0)->c-struct0
+  fun @scoop$1$cb$67c85313eca19f155d15418083c1cb1b2ae0187b5dba15595fc8af7a8a474036(ptr<code>) -> i64
+    local %0 $call.1: i64
+    local %1 $sc.1: ptr<code>
+    local %2 $sc.2: i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local1
+    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer i64 size=8 align=8 scan=none, ptr<raw>) extern0(c-arg-address(local1))
+    store local2 -> local0
+    ret local0
   fun @scoop$1$cb$475cd23b78e0f6828c5af761b8ae40fc8328929be8240604f04783706ac1f789(ptr<code>) -> i64
     local %0 $argument.0: ptr<code>
     local %1 $parameter.callback: ptr<code>
@@ -24,7 +34,7 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store integer<Int>(0x00000000) -> local0
     store local0 -> local1
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i64 local-fn2(local1)
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i64 local-fn3(local1)
     store t0 -> local2
     ret local2
   fun @scoop$1$cb$991d3bcc467fcdb8e7ae2e9cc83d0de8e603f4154576ad6091f295abed4ae9f8(i32) -> i64
@@ -38,7 +48,7 @@ Module
     store t0 -> local0
     store local0 -> local1
     store local1 -> local2
-    call managed-direct-target0 sp<managed-call:0> live=[] t1 = sig=direct0 (ptr<code>) -> i64 local-fn0(local2)
+    call managed-direct-target0 sp<managed-call:0> live=[] t1 = sig=direct0 (ptr<code>) -> i64 local-fn1(local2)
     store t1 -> local3
     ret local3
   output library

@@ -163,7 +163,7 @@ cache 按 key 使用现有 build lock 与原子写入机制；同次新构建结
 
 普通 Mach-O/C 对象不提供可恢复的完整函数类型。Link 检查已有声明之间的完整 ABI、实际可见的 symbol kind/storage 与对象引用；同一符号已有 runtime/target ABI 合同时也必须比较。对只有普通 FFI 声明的函数，不伪造一份“从 export 读出的完整 ABI”，也不为证明它正确而新建 API 准入表。外部实现符合声明仍遵循现有 FFI 作者责任；core 中的 extern 同样承担这项责任。C ABI 调用继续使用 artifact 已携带的 generated-C bridge，链接时不补生成。
 
-源码 extern 的跨 Cone 调用使用定义方产物中的普通 Scoop ABI 入口。MIR 为每个参数自由的 source extern 生成薄函数体，参数／结果和 GC effect 保持原声明，函数体沿既有 extern lowering 调用 native 目标（C ABI 继续经过原 generated-C bridge）。入口使用原 source function 的 Strong callable body 身份，HIR implementation 与 native requirement 仍为 SourceExtern；不会把声明改成 runtime intrinsic 或在 consumer 复制实现。普通导入、泛型正文和默认参数均选择同一入口，因此 core 的 `println -> write` 和普通库中的等价调用都可消费。此前统一拒绝 dependency native call 的阶段占位限制退役；额外物理 provider 是否存在由正式 Link 输入决定。
+源码 extern 的跨 Cone 调用使用定义方产物中的普通 Scoop ABI 入口。MIR 为每个参数自由的 source extern 生成薄函数体，参数／结果保持原声明；入口包含 native transition 与 caller-root publication，Scoop callable effect 为 Managed，原 native callee 的 GC effect 保留在 SourceExtern 合同中。函数体沿既有 extern lowering 调用 native 目标（C ABI 继续经过原 generated-C bridge）。入口使用原 source function 的 Strong callable body 身份，HIR implementation 与 native requirement 仍为 SourceExtern；不会把声明改成 runtime intrinsic 或在 consumer 复制实现。普通导入、泛型正文和默认参数均选择同一入口，因此 core 的 `println -> write` 和普通库中的等价调用都可消费。此前统一拒绝 dependency native call 的阶段占位限制退役；额外物理 provider 是否存在由正式 Link 输入决定。
 
 ### 5.2 定义和 ODR
 

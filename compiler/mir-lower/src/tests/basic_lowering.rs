@@ -21,27 +21,31 @@ fn lowers_hello_world() {
     let source = hello_world();
     let concrete =
         scoop_hir_lower::concretize_output(&source).expect("concrete type applications are valid");
-    let expected_string_identities = [
-        string_identity(concrete.functions[concrete.top_level[1]].materialization, 0),
-        string_identity(concrete.functions[concrete.top_level[2]].materialization, 0),
-        string_identity(concrete.functions[concrete.entry()].materialization, 0),
-    ];
+    let expected_string_identities = ["println", "helper", "main"].map(|name| {
+        let id = concrete
+            .top_level
+            .iter()
+            .find(|&&id| concrete.functions[id].name == name)
+            .unwrap();
+        string_identity(concrete.functions[*id].materialization, 0)
+    });
     let module = lower(&source);
 
-    // Intrinsics are excluded from `top_level`; declaration order
-    // kept: the two core overloads the test uses, then the user
-    // functions.
+    // Intrinsics are excluded from `top_level`; source externs retain
+    // their provider entry in declaration order beside ordinary bodies.
     assert_eq!(
         module
             .top_level
             .iter()
-            .take(4)
+            .take(5)
             .map(|id| module.functions[*id].name.as_str())
             .collect::<Vec<_>>(),
-        ["print", "println", "helper", "main"]
+        ["write", "print", "println", "helper", "main"]
     );
-    let helper = &module.functions[module.top_level[2]];
-    let main = &module.functions[module.top_level[3]];
+    let helper_id = module.top_level[3];
+    let main_id = module.top_level[4];
+    let helper = &module.functions[helper_id];
+    let main = &module.functions[main_id];
     assert_eq!(helper.name, "helper");
     assert_eq!(main.name, "main");
 
@@ -50,13 +54,13 @@ fn lowers_hello_world() {
             .output
             .executable_entry()
             .expect("test module is executable"),
-        module.top_level[3]
+        main_id
     );
     assert!(
         module
             .meta
             .source_callable_materializations
-            .get(module.top_level[2])
+            .get(helper_id)
             .is_some()
     );
     assert!(
