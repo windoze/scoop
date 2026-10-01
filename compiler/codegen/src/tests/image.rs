@@ -16,12 +16,18 @@ fn run_image_test(fixture: &str, expected: &str) {
         "runtime/src/image/scan_ranges.c",
         "runtime/src/image/types.c",
         "runtime/src/image/type_relations.c",
+        "runtime/src/image/storage.c",
+        "runtime/src/image/immortals.c",
+        "runtime/src/image/static_values.c",
+        "runtime/src/image/units.c",
+        "runtime/src/image/allocation_ranges.c",
         "runtime/src/value_shape.c",
         "runtime/src/value_scan.c",
     ] {
         command.arg(workspace.join(source));
     }
     let compile = command
+        .arg(workspace.join("runtime/tests/image_storage_fixture.c"))
         .arg(workspace.join(format!("runtime/tests/{fixture}.c")))
         .arg("-o")
         .arg(&binary)
@@ -53,4 +59,12 @@ fn runtime_collects_complete_image_registrations_before_execution() {
 #[test]
 fn runtime_registers_type_code_and_scan_addresses_once() {
     run_image_test("image_type_test", "image type and scan tests passed\n");
+}
+
+#[test]
+fn runtime_resolves_static_roots_immortals_and_initialization_state() {
+    run_image_test(
+        "image_storage_test",
+        "image storage and initialization tests passed\n",
+    );
 }

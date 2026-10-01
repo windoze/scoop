@@ -39,6 +39,14 @@
 - scan 先按地址验证只读节点和 child span、检测 active-path 环并复用共享节点，再使用既有 value shape/scan 算法核对具体 extent 和平移；没有另写一套 shape 语义。
 - 新增 22 种 TD/code/scan 损坏测试，覆盖 guard-page 指针、共享 scan 在不同 extent 下的检查、box scan 平移和继承/签名关系的组合。格式化和全 workspace/all-targets Clippy 通过；image 相关 5 项 Rust/C 测试通过。静态存储和初始化关联尚待接入。
 
+## 6. 静态 roots、immortal 与初始化关系
+
+- 先登记只读 immortal 的精确对象起点、实际大小、header TD 和动态 String 长度，再解析所有 EncodedStaticValue 的 GC leaf 与 relocation；非引用 payload/padding 继续由 compiler/reader 负责。
+- static storage 检查完整 writable extent、None/Recursive scan、ZST token 与零初态。显式遍历 References/Sequence/Array 的实际 leaf，检查动态 count、对齐、重复 offset、非空引用和 immortal 精确地址。
+- unit 直接关联已登记的 storage、独占 failure slot、cell、initializer/ensure/gateway；核对 owner、地址和 fingerprint 镜像，拒绝多重角色和未归属的 Zeroed storage。root failure 使用同一规则。去重后统一拒绝 storage/token/cell 和 immortal 的区间重叠。
+- 生成直接指向原 record 的唯一 GC root 列表及 canonical eager unit 序列；lazy 只登记。新增 40 种损坏用例及 Sequence/Array、String、ZST、eager ID 顺序组合。
+- 格式化和全 workspace/all-targets Clippy 通过；codegen/runtime 306 项、toolchain 9 项通过。GC 发布和 startup 尚待完整 stackmap 关联完成。
+
 ## 待完成
 
 2. 多 image 六类记录、类型/scan、静态 roots、immortal 与初始化关系登记。

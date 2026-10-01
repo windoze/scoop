@@ -3,10 +3,11 @@
 
 #include "internal.h"
 
-ScoopImageRegistry *scoop_image_collect(const ScoopPlatformMetadataImages *loaded,
-                                        const ScoopImageDescriptorV1 *const *images,
-                                        uint64_t image_count,
-                                        const ScoopRootEntryDescriptorV1 *root) {
+ScoopImageRegistry *
+scoop_image_collect(const ScoopPlatformMetadataImages *loaded,
+                    const ScoopImageDescriptorV1 *const *images,
+                    uint64_t image_count,
+                    const ScoopRootEntryDescriptorV1 *root) {
     ScoopMetadataCheck check = {.loaded = loaded, .kind = "root"};
     if (loaded == NULL || loaded->ranges == NULL || loaded->range_count == 0) {
         scoop_metadata_fatal(&check, "loaded image ranges are absent");
@@ -41,6 +42,9 @@ void scoop_image_registry_dispose(ScoopImageRegistry *registry) {
     free(registry->type_addresses);
     free(registry->callable_addresses);
     free(registry->site_ids);
+    free(registry->immortal_addresses);
+    free(registry->static_roots);
+    free(registry->eager_units);
     scoop_metadata_scan_dispose(registry);
     free(registry);
 }
@@ -51,20 +55,20 @@ static int compare_identity(const void *left, const void *right) {
     return memcmp(identity->bytes, entry->identity->semantic_id.bytes, 32);
 }
 
-const ScoopRegisteredRecord *scoop_record_by_id(const ScoopImageRegistry *registry,
-                                                ScoopRecordKind kind,
-                                                const ScoopDigest256V1 *identity) {
+const ScoopRegisteredRecord *
+scoop_record_by_id(const ScoopImageRegistry *registry, ScoopRecordKind kind,
+                   const ScoopDigest256V1 *identity) {
     const ScoopRecordTable *table = &registry->tables[kind];
-    return bsearch(identity, table->entries, table->count, sizeof *table->entries,
-                   compare_identity);
+    return bsearch(identity, table->entries, table->count,
+                   sizeof *table->entries, compare_identity);
 }
 
-const ScoopRegisteredRecord *scoop_record_by_address(const ScoopImageRegistry *registry,
-                                                     ScoopRecordKind kind,
-                                                     const void *record) {
+const ScoopRegisteredRecord *
+scoop_record_by_address(const ScoopImageRegistry *registry,
+                        ScoopRecordKind kind, const void *record) {
     const ScoopRecordTable *table = &registry->tables[kind];
-    size_t index =
-        scoop_record_address_find(table->addresses, table->count, (uintptr_t)record);
+    size_t index = scoop_record_address_find(table->addresses, table->count,
+                                             (uintptr_t)record);
     return index == SIZE_MAX ? NULL : &table->entries[index];
 }
 
