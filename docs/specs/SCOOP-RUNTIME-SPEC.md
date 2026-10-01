@@ -445,7 +445,7 @@ release hook是遗漏显式释放时的best-effort兜底，其精确定义是：
 
 M23-7 将访问域计算保留在 HIR lowering；产物保存原声明 visibility、typed nominal owner、slot identity 与实际实现引用，不重复持久化访问域或在 reader 重放 protected/override 的可见性语义。`InheritanceSlotContractV1` 的重复 domain field 5 与 owner field 2 退役且不复用，保留 field 1、3、4、6、7；`InheritanceSlotTargetV1` 的重复 owner field 2 同样退役，保留 field 1、3、4、5。普通宿主的封闭泛型父类型使用原声明与完整 receiver application 查询继承和槽，签名 receiver 直接提供宿主及完整实参；HIR `cross-cone-type-semantics/11` 与 required inventory、profile、fingerprint 同步，旧产物和缓存需重建。必要的声明归属、引用、签名、effect、abstract target modality 和实际继承路径检查继续保留；不改变 runtime C ABI。
 
-M23-7 的实际泛型存储将该 section 升至 `/9`，并沿 MIR `cross-cone-type-bridge/4`、LIR `cross-cone-layout-abi/5` 传递实际表示、完整派发及 Strong/ODR callable 定义。物理 shape 引用使用 `cross-cone-layout-link-closure/3`。异常字段复用这条布局与 GC 路径，外部 initializer 保留完整物理签名；registration 使用原 definition plan 所属的 Strong 或 ODR 摘要节点。格式与阶段职责见实现规范 2.13，本项不修改 runtime C ABI。
+M23-7 的实际泛型存储将该 section 升至 `/9`，并沿当前 MIR `cross-cone-type-bridge/6`、LIR `cross-cone-layout-abi/5` 传递实际表示、完整派发及 Strong/ODR callable 定义。物理 shape 引用使用 `cross-cone-layout-link-closure/3`。异常字段复用这条布局与 GC 路径，外部 initializer 保留完整物理签名；registration 使用原 definition plan 所属的 Strong 或 ODR 摘要节点。格式与阶段职责见实现规范 2.13，本项不修改 runtime C ABI。
 
 共享可移植表达式在 `hir/cross-cone-interface/35` 保存原 `EvaluationOrigin`，使泛型构造委托等正文中已展开的默认值保留实际求值位置；普通默认参数使用仍按本次使用点展开。格式与读取规则见实现规范 2.13 和 M23-7 设计第 10 节。此调整要求旧产物与缓存重建，不改变 runtime C ABI、布局或 GC 契约。
 

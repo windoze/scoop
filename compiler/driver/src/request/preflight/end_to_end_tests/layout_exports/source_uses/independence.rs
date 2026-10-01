@@ -16,10 +16,12 @@ pub(super) fn check(
         string.identity_record(),
         &local.exact_type_identities[local.string]
     );
-    // Runtime descriptor metadata does not invent a source value-layout use.
-    assert!(expected.iter().all(|usage| {
-        usage.target() != mir::MirTypeBridgeTargetV1::Type(string.identity_record().id())
-    }));
+    assert!(
+        !local
+            .functions
+            .iter()
+            .any(|(_, function)| function.name == "unexpanded")
+    );
     assert_eq!(
         scoop_mir_lower::lower_type_bridge_dependencies(input).unwrap(),
         expected

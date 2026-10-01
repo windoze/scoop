@@ -25,7 +25,7 @@ fn shared_type_sites_preserve_type_test_operands_without_unexpanded_defaults() {
                 &interface,
             )
             .unwrap();
-        let foundation = hir::OdrFreeHirFoundation::try_new(foundation).unwrap();
+
         let mut uses = Vec::new();
         for reference in interface.external_references().records() {
             for site in reference
@@ -43,6 +43,7 @@ fn shared_type_sites_preserve_type_test_operands_without_unexpanded_defaults() {
                         local.cone,
                         site.position().root,
                         site.origin().evaluation(),
+                        &foundation,
                     )
                     .unwrap();
                 uses.push((site.role(), site.exact()));
@@ -79,7 +80,7 @@ fn shared_constructor_type_sites_keep_their_actual_source_context() {
                 &interface,
             )
             .unwrap();
-        let foundation = hir::OdrFreeHirFoundation::try_new(foundation).unwrap();
+
         let sites = interface
             .external_references()
             .records()
@@ -93,6 +94,7 @@ fn shared_constructor_type_sites_keep_their_actual_source_context() {
                     output.output().export.cone,
                     site.position().root,
                     site.origin().evaluation(),
+                    &foundation,
                 )
                 .unwrap_or_else(|error| {
                     panic!(
@@ -117,6 +119,7 @@ fn shared_constructor_type_sites_keep_their_actual_source_context() {
                 output.output().export.cone,
                 first.position().root,
                 other.origin().evaluation(),
+                &foundation,
             ),
             Err(hir::ExecutableEvaluationValidationError::Context { .. })
         ));

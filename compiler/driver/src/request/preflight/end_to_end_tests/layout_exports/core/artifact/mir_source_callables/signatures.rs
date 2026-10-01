@@ -7,10 +7,11 @@ pub(super) fn check(replay: &Replay<'_>) {
         .entries()
         .iter()
         .filter(|binding| {
-            matches!(
-                binding.lowering_role(),
-                mir::MirCallableLoweringRoleV1::PureVirtualTrap { .. }
-            )
+            declaration(binding).is_some()
+                && matches!(
+                    binding.lowering_role(),
+                    mir::MirCallableLoweringRoleV1::PureVirtualTrap { .. }
+                )
         })
     {
         let declaration = declaration(binding).unwrap();

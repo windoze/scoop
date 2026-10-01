@@ -35,7 +35,7 @@ pub(super) fn interface(
             slot.id(),
             mir::MirDispatchPositionV1::new(position.into_raw()),
             mir::MirBridgeCallableSignatureV1::new(
-                signature,
+                crate::coroutine_registry::lowered_signature(local, &signature),
                 crate::lowering_support::lower_gc_effect(method.attributes.gc_effect),
             ),
         ));

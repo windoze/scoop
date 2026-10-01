@@ -511,6 +511,11 @@ impl Lowerer {
             self.functions[id].kind = FunctionKind::User(body);
         }
         self.lower_property_accessor_bodies();
+        if self.diagnostics.is_empty()
+            && let Err(error) = self.prepare_coroutine_declarations()
+        {
+            self.error(Span::new(0, 0), error);
+        }
         self.complete_imported_generic_bodies();
 
         // Effects consume fully resolved calls and types. Local functions and

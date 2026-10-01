@@ -118,14 +118,27 @@ fn generic_constructor_templates_republish_and_execute_from_artifacts() {
         let (provider_sections, _) = closure
             .artifact(provider_coordinate.identity().unwrap())
             .unwrap();
-        assert!(
-            provider_sections
-                .lir_strong_production()
-                .canonical_shape_definitions()
-                .definitions()
-                .is_empty(),
-            "the provider has never instantiated these generic payloads"
-        );
+        for record in provider_sections
+            .mir_type_bridge()
+            .exports()
+            .types()
+            .records()
+        {
+            let graph = provider_sections.identity_graph();
+            let key = graph
+                .canonical_key::<_, scoop_identity::ExactTypeKey>(record.exact())
+                .unwrap();
+            if let scoop_identity::ExactTypeKey::NominalApplication { origin, .. } = key.as_ref() {
+                let declaration = graph
+                    .canonical_key::<_, scoop_identity::SourceDeclarationKey>(*origin)
+                    .unwrap();
+                assert_ne!(
+                    declaration.origin(),
+                    provider_coordinate.identity().unwrap(),
+                    "the provider has never instantiated its generic payloads"
+                );
+            }
+        }
         let (sections, _) = closure.artifact(coordinate.identity().unwrap()).unwrap();
         if case == "default-base" {
             assert!(

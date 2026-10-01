@@ -1,5 +1,13 @@
 Boolean
+Continuation
 Deferred
+Exception
+IllegalStateException
 Long
+Option
 SourceOnly
+String
+SuspendRegistration
+SuspendTask
+Throwable
 Unit

@@ -26,7 +26,7 @@ impl Replay<'_> {
             owner,
             contract.slot(),
             Component::Signature,
-            candidate.signature() == &signature,
+            candidate.signature() == &self.lowered_signature(&signature)?,
         )?;
         let expected = match contract.implementation() {
             hir::InheritanceSlotImplementationV1::Abstract(selected) => {

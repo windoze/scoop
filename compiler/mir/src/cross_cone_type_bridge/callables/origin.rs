@@ -51,6 +51,7 @@ impl DecodedMirCallableOriginV1 {
                 if !matches!(
                     role,
                     DecodedGeneratedCallableKey::StaticNoGcCallbackStorageBridge { .. }
+                        | DecodedGeneratedCallableKey::CoroutineStart { .. }
                         | DecodedGeneratedCallableKey::Initialization { .. }
                         | DecodedGeneratedCallableKey::ZeroArgumentConstructorAdapter { .. }
                         | DecodedGeneratedCallableKey::DerivedEquality { .. }

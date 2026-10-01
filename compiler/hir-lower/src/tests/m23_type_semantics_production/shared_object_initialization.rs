@@ -9,10 +9,7 @@ fn shared_object_units_retain_source_only_keys_without_materializing_them() {
     source_dispatch::with_hir_source(SOURCE, |output, _| {
         let public = public_interface(output);
         let identities = source_inventory::identity_closure(output);
-        let foundation = hir::OdrFreeHirFoundation::try_new(
-            hir::CanonicalHirFoundation::from_type_semantics_output(output).unwrap(),
-        )
-        .unwrap();
+        let foundation = hir::CanonicalHirFoundation::from_type_semantics_output(output).unwrap();
         let metadata = hir::SharedTypeMetadataV1 {
             provider: output.output().export.cone,
             identities: &identities,
@@ -91,7 +88,7 @@ fn shared_object_units_reject_conflicting_roles_and_non_object_owners() {
                         .collect(),
                 )
                 .unwrap();
-            let foundation = hir::OdrFreeHirFoundation::try_new(foundation).unwrap();
+
             let result = hir::SharedTypeMetadataV1 {
                 provider: output.output().export.cone,
                 identities: &identities,

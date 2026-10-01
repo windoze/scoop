@@ -175,9 +175,18 @@ impl Lowerer {
         match existing {
             Some(existing) => existing,
             None => {
+                let effect = self
+                    .dependencies
+                    .as_ref()
+                    .expect("selected callables retain their catalog")
+                    .resolve_callable(reference)
+                    .expect("the selected declaration exists")
+                    .interface()
+                    .effects()
+                    .execution();
                 self.imported_dependency_callables
                     .alloc(hir::ImportedDependencyCallableUse::new(
-                        reference, dispatch, receiver,
+                        reference, dispatch, receiver, effect,
                     ))
             }
         }

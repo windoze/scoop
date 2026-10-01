@@ -53,21 +53,6 @@ impl WireEncode for InitializationCallableRole {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum ContinuationShellRole {
-    Success,
-    Failure,
-}
-
-impl WireEncode for ContinuationShellRole {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.unsigned(match self {
-            Self::Success => 1,
-            Self::Failure => 2,
-        })
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum CoroutineAdapterRole {
     Success,
     Failure,
@@ -195,10 +180,6 @@ pub enum GeneratedCallableKey {
     },
     CoroutineDriver {
         source_callable: CallableMaterialization,
-    },
-    ContinuationShell {
-        result: PersistentExactTypeId,
-        role: ContinuationShellRole,
     },
     CoroutineStart {
         result: PersistentExactTypeId,
@@ -380,14 +361,6 @@ impl WireEncode for GeneratedCallableKey {
             Self::CoroutineDriver { source_callable } => {
                 encode_value_sum(encoder, 9, source_callable)
             }
-            Self::ContinuationShell { result, role } => {
-                encoder.map(3)?;
-                encode_tag(encoder, 10)?;
-                encoder.field(1)?;
-                result.encode(encoder)?;
-                encoder.field(2)?;
-                role.encode(encoder)
-            }
             Self::CoroutineStart { result } => encode_value_sum(encoder, 11, result),
             Self::CoroutineAdapter {
                 source_callable,
@@ -524,10 +497,9 @@ mod tests {
     use scoop_wire::encode;
 
     use super::{
-        ContinuationShellRole, CoroutineAdapterRole, GeneratedCallableIdentityError,
-        GeneratedCallableKey, InitializationCallableRole, LexicalCallableParent,
-        LexicalCallableRole, LexicalParentError, StaticNoGcCallbackStorageBridgeId,
-        StaticNoGcCallbackStorageBridgeIdentityError,
+        CoroutineAdapterRole, GeneratedCallableIdentityError, GeneratedCallableKey,
+        InitializationCallableRole, LexicalCallableParent, LexicalCallableRole, LexicalParentError,
+        StaticNoGcCallbackStorageBridgeId, StaticNoGcCallbackStorageBridgeIdentityError,
     };
     use crate::{
         CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
@@ -681,14 +653,6 @@ mod tests {
                 GeneratedCallableKey::CoroutineDriver { source_callable },
                 9,
                 0xa2,
-            ),
-            (
-                GeneratedCallableKey::ContinuationShell {
-                    result: exact,
-                    role: ContinuationShellRole::Success,
-                },
-                10,
-                0xa3,
             ),
             (
                 GeneratedCallableKey::CoroutineStart { result: exact },

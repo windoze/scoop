@@ -1,0 +1,339 @@
+Module
+  fun exercise<T>(seed: T0, read: (T0) -> Int): Int
+    val local2
+      ClassInit Completion<T0> : Completion<T0>
+    val local3
+      Lambda lambda0 invoke=$lambda.0 captures=1 : suspend () -> T0
+        capture seed binding0 : T0
+    val local4
+      ReferenceUpcast : Continuation<T0>
+        Local done : Completion<T0>
+    val local5
+      Local $dependency.argument.0 : suspend () -> T0
+    val local6
+      Local $dependency.argument.1 : Continuation<T0>
+    Call startCoroutine<T0> : Unit
+      Local $dependency.parameter.task : suspend () -> T0
+      Local $dependency.parameter.completion : Continuation<T0>
+    val local7
+      MethodCall calls<T0> : Int
+        Local done : Completion<T0>
+    val local8
+      IntegerLiteral 1 : Int
+    val local9
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local13
+        BoolLiteral true : Boolean
+    else
+      val local10
+        CallableCall function_type0 : Int
+          Local read : (T0) -> Int
+          Unwrap trap=true : T0
+            MethodCall value<T0> : Option<T0>
+              Local done : Completion<T0>
+      val local11
+        IntegerLiteral 42 : Int
+      val local12
+        Local $dependency.argument.0 : Int
+      val local13
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.0 : Boolean
+      return
+        IntegerLiteral 2 : Int
+    val local14
+      ClassInit Completion<T0> : Completion<T0>
+    val local15
+      Lambda lambda1 invoke=$lambda.1 captures=0 : suspend () -> T0
+    val local16
+      ReferenceUpcast : Continuation<T0>
+        Local failed : Completion<T0>
+    val local17
+      Local $dependency.argument.0 : suspend () -> T0
+    val local18
+      Local $dependency.argument.1 : Continuation<T0>
+    Call startCoroutine<T0> : Unit
+      Local $dependency.parameter.task : suspend () -> T0
+      Local $dependency.parameter.completion : Continuation<T0>
+    val local19
+      MethodCall calls<T0> : Int
+        Local failed : Completion<T0>
+    val local20
+      IntegerLiteral 1 : Int
+    val local21
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local23
+        BoolLiteral true : Boolean
+    else
+      val local22
+        IsInstance UnwrapException : Boolean
+          Unwrap trap=true : Throwable
+            MethodCall failure<T0> : Option<Throwable>
+              Local failed : Completion<T0>
+      val local23
+        PrimitiveUnary BooleanNot : Boolean
+          Local $dependency.receiver : Boolean
+    if
+      Local $shortCircuit.1 : Boolean
+      return
+        IntegerLiteral 3 : Int
+    val local24
+      ClassInit Completion<T0> : Completion<T0>
+    val local25
+      Lambda lambda2 invoke=$lambda.2 captures=0 : suspend () -> T0
+    val local26
+      ReferenceUpcast : Continuation<T0>
+        Local registration : Completion<T0>
+    val local27
+      Local $dependency.argument.0 : suspend () -> T0
+    val local28
+      Local $dependency.argument.1 : Continuation<T0>
+    Call startCoroutine<T0> : Unit
+      Local $dependency.parameter.task : suspend () -> T0
+      Local $dependency.parameter.completion : Continuation<T0>
+    val local29
+      MethodCall calls<T0> : Int
+        Local registration : Completion<T0>
+    val local30
+      IntegerLiteral 1 : Int
+    val local31
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local33
+        BoolLiteral true : Boolean
+    else
+      val local32
+        IsInstance UnwrapException : Boolean
+          Unwrap trap=true : Throwable
+            MethodCall failure<T0> : Option<Throwable>
+              Local registration : Completion<T0>
+      val local33
+        PrimitiveUnary BooleanNot : Boolean
+          Local $dependency.receiver : Boolean
+    if
+      Local $shortCircuit.2 : Boolean
+      return
+        IntegerLiteral 4 : Int
+    val local34
+      ClassInit Completion<T0> : Completion<T0>
+    val local35
+      Lambda lambda3 invoke=$lambda.3 captures=1 : suspend () -> T0
+        capture seed binding0 : T0
+    val local36
+      ReferenceUpcast : Continuation<T0>
+        Local resumedFailure : Completion<T0>
+    val local37
+      Local $dependency.argument.0 : suspend () -> T0
+    val local38
+      Local $dependency.argument.1 : Continuation<T0>
+    Call startCoroutine<T0> : Unit
+      Local $dependency.parameter.task : suspend () -> T0
+      Local $dependency.parameter.completion : Continuation<T0>
+    val local39
+      MethodCall calls<T0> : Int
+        Local resumedFailure : Completion<T0>
+    val local40
+      IntegerLiteral 1 : Int
+    val local41
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local43
+        BoolLiteral true : Boolean
+    else
+      val local42
+        IsInstance IllegalStateException : Boolean
+          Unwrap trap=true : Throwable
+            MethodCall failure<T0> : Option<Throwable>
+              Local resumedFailure : Completion<T0>
+      val local43
+        PrimitiveUnary BooleanNot : Boolean
+          Local $dependency.receiver : Boolean
+    if
+      Local $shortCircuit.3 : Boolean
+      return
+        IntegerLiteral 5 : Int
+    val local44
+      ClassInit Completion<T0> : Completion<T0>
+    val local45
+      Lambda lambda4 invoke=$lambda.4 captures=1 : suspend () -> T0
+        capture seed binding0 : T0
+    val local46
+      ReferenceUpcast : Continuation<T0>
+        Local duplicate : Completion<T0>
+    val local47
+      Local $dependency.argument.0 : suspend () -> T0
+    val local48
+      Local $dependency.argument.1 : Continuation<T0>
+    Call startCoroutine<T0> : Unit
+      Local $dependency.parameter.task : suspend () -> T0
+      Local $dependency.parameter.completion : Continuation<T0>
+    val local49
+      MethodCall calls<T0> : Int
+        Local duplicate : Completion<T0>
+    val local50
+      IntegerLiteral 1 : Int
+    val local51
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local53
+        BoolLiteral true : Boolean
+    else
+      val local52
+        IsInstance IllegalStateException : Boolean
+          Unwrap trap=true : Throwable
+            MethodCall failure<T0> : Option<Throwable>
+              Local duplicate : Completion<T0>
+      val local53
+        PrimitiveUnary BooleanNot : Boolean
+          Local $dependency.receiver : Boolean
+    if
+      Local $shortCircuit.4 : Boolean
+      return
+        IntegerLiteral 6 : Int
+    val local54
+      ClassInit Gate<T0> : Gate<T0>
+    val local55
+      ClassInit Completion<T0> : Completion<T0>
+    val local56
+      Lambda lambda5 invoke=$lambda.5 captures=1 : suspend () -> T0
+        capture gate binding107 : Gate<T0>
+    val local57
+      ReferenceUpcast : Continuation<T0>
+        Local deferred : Completion<T0>
+    val local58
+      Local $dependency.argument.0 : suspend () -> T0
+    val local59
+      Local $dependency.argument.1 : Continuation<T0>
+    Call startCoroutine<T0> : Unit
+      Local $dependency.parameter.task : suspend () -> T0
+      Local $dependency.parameter.completion : Continuation<T0>
+    val local60
+      MethodCall calls<T0> : Int
+        Local deferred : Completion<T0>
+    val local61
+      IntegerLiteral 0 : Int
+    val local62
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 7 : Int
+    val local63
+      Unwrap trap=true : Continuation<T0>
+        MethodCall waiter<T0> : Option<Continuation<T0>>
+          Local gate : Gate<T0>
+    val local64
+      Local gate : Gate<T0>
+    val local65
+      Local seed : T0
+    val local66
+      Local $dependency.argument.0 : T0
+    MethodCall complete<T0> : Unit
+      Local $dependency.receiver : Gate<T0>
+      Local $dependency.parameter.value : T0
+    val local67
+      BoolLiteral false : Boolean
+    try
+      val local68
+        Local continuation : Continuation<T0>
+      val local69
+        Local seed : T0
+      val local70
+        Local $dependency.argument.0 : T0
+      MethodCall Continuation.resume<T0> : Unit
+        Local $dependency.receiver : Continuation<T0>
+        Local $dependency.parameter.value : T0
+    catch exception: IllegalStateException
+      assign rejected
+        BoolLiteral true : Boolean
+    val local72
+      Local rejected : Boolean
+    if
+      PrimitiveUnary BooleanNot : Boolean
+        Local $dependency.receiver : Boolean
+      val local76
+        BoolLiteral true : Boolean
+    else
+      val local73
+        MethodCall calls<T0> : Int
+          Local deferred : Completion<T0>
+      val local74
+        IntegerLiteral 1 : Int
+      val local75
+        Local $dependency.argument.0 : Int
+      val local76
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.5 : Boolean
+      val local80
+        BoolLiteral true : Boolean
+    else
+      val local77
+        CallableCall function_type0 : Int
+          Local read : (T0) -> Int
+          Unwrap trap=true : T0
+            MethodCall value<T0> : Option<T0>
+              Local deferred : Completion<T0>
+      val local78
+        IntegerLiteral 42 : Int
+      val local79
+        Local $dependency.argument.0 : Int
+      val local80
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.6 : Boolean
+      return
+        IntegerLiteral 8 : Int
+    return
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        Local seed : T0
+  fun result(): Int
+    val local0
+      IntegerLiteral 42 : Int
+    val local1
+      Lambda lambda6 invoke=$lambda.6 captures=0 : (Int) -> Int
+    val local2
+      Local $argument.0 : Int
+    val local3
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.seed : Int
+        Local $parameter.read : (Int) -> Int
+  output library
+  instance exercise<Int>

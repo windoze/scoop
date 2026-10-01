@@ -1,5 +1,5 @@
 Module
-  callback cb0 @fn2 -> @fn4 function_type0 id=57eb0c905194b15f6255ab735de1d91a685fb64a537bed5be899258d1fc96348
+  callback cb0 @fn2 -> @fn8 function_type0 id=57eb0c905194b15f6255ab735de1d91a685fb64a537bed5be899258d1fc96348
   struct Carrier (value: Choice, marker: (Token, Token))
   struct Token ()
   enum Wrapper
@@ -8,6 +8,9 @@ Module
   enum Choice
     Empty()
     Pair(left: Long, marker: Token, right: Long)
+  enum Option<String>
+    Some(_0: String)
+    None()
   enum Flag
     Off()
     On()
@@ -17,11 +20,18 @@ Module
   enum CoroutineSlot<Carrier>
     Empty()
     Value(value: Carrier)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
   class box<Carrier> vtable=0 itables=0
-  generated_exact_type get0 location=enum3 nominal_id=5fc002a538afd204601a8bbe4be7e1dec901acc5fa6a2f2bd9320c7154b8bcbf exact_id=0251f091798ad801cdaa7071aef61e1f2d8ac1fac8162a138730c404b04eb476
-  generated_exact_type get1 location=class0 nominal_id=57d6eec75d8d04b7c8fc68fedd34ba26518a7539aa6e08f67f20fe435b9df5f8 exact_id=b395f3f8e4179e106ee73622ed6ac0d0a083d5fc7046321dfe0fc47fae914e2c
-  generated_exact_type get2 location=enum4 nominal_id=d479a20fc2d2bd173fb7506a3b7f7b4c8f79d35d9473e8358443b64734cb47c8 exact_id=d1fcc5dfbaed153f01e73a0c29fc1c9b3076052edc1fcea5c5b444f1d2245ad7
-  generated_callable gc0 function=@fn4 id=57eb0c905194b15f6255ab735de1d91a685fb64a537bed5be899258d1fc96348
+  interface Continuation<Carrier>
+  interface SuspendTask<Carrier>
+  interface SuspendRegistration<Carrier>
+  generated_exact_type get0 location=enum4 nominal_id=5fc002a538afd204601a8bbe4be7e1dec901acc5fa6a2f2bd9320c7154b8bcbf exact_id=0251f091798ad801cdaa7071aef61e1f2d8ac1fac8162a138730c404b04eb476
+  generated_exact_type get1 location=class3 nominal_id=57d6eec75d8d04b7c8fc68fedd34ba26518a7539aa6e08f67f20fe435b9df5f8 exact_id=b395f3f8e4179e106ee73622ed6ac0d0a083d5fc7046321dfe0fc47fae914e2c
+  generated_exact_type get2 location=enum5 nominal_id=d479a20fc2d2bd173fb7506a3b7f7b4c8f79d35d9473e8358443b64734cb47c8 exact_id=d1fcc5dfbaed153f01e73a0c29fc1c9b3076052edc1fcea5c5b444f1d2245ad7
+  generated_callable gc0 function=@fn9 id=2ddf8b3f16c6588bf64d13e55837d640dc8e340ef76f8888b807db20ceb5f7b7
+  generated_callable gc1 function=@fn8 id=57eb0c905194b15f6255ab735de1d91a685fb64a537bed5be899258d1fc96348
   fun relay @fn0(value: Choice) -> Choice <no-gc>
     bb0 entry
       return
@@ -66,7 +76,7 @@ Module
       val $parameter.marker: (Token, Token)
         Type (Token, Token)
         Local $argument.1
-      call value: Carrier = @fn3 direct
+      call value: Carrier = @fn7 direct
         Type Choice
         Local $parameter.value
         Type (Token, Token)
@@ -230,7 +240,19 @@ Module
       unreachable
     bb6 pattern.merge.6
       goto bb3
-  fun ctor.Carrier.$c0 @fn3(value: Choice, marker: (Token, Token)) -> Carrier <no-gc>
+  fun Continuation.resume @fn3(this: Continuation<Carrier>, value: Carrier) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn4(this: Continuation<Carrier>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn5(this: SuspendTask<Carrier>, $completion: Continuation<Carrier>) -> CoroutineStep<Carrier>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn6(this: SuspendRegistration<Carrier>, continuation: Continuation<Carrier>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.Carrier.$c0 @fn7(value: Choice, marker: (Token, Token)) -> Carrier <no-gc>
     bb0 entry
       return
         Type Carrier
@@ -239,7 +261,7 @@ Module
           Local value
           Type (Token, Token)
           Local marker
-  fun callback bridge for test @fn4($result: Ptr<Long>) -> Unit <no-gc>
+  fun callback bridge for test @fn8($result: Ptr<Long>) -> Unit <no-gc>
     bb0 entry
       call $value: Long = @fn2 direct
       Type Unit
@@ -249,6 +271,54 @@ Module
         Type Long
         Local $value
       return
+  fun startCoroutine<Carrier> @fn9(task: SuspendTask<Carrier>, completion: Continuation<Carrier>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn3 interface Continuation<Carrier>[0]
+        Type Continuation<Carrier>
+        Local completion
+        Type Carrier
+        EnumField v0 f0
+          Type CoroutineStep<Carrier>
+          Local $step
+      return
+    bb2 failed
+      call @fn4 interface Continuation<Carrier>[1]
+        Type Continuation<Carrier>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Carrier> = @fn5 interface SuspendTask<Carrier>[0]
+        Type SuspendTask<Carrier>
+        Local task
+        Type Continuation<Carrier>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Carrier>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
   coroutine_step cs0 CoroutineStep<Carrier> result=Carrier
   coroutine_slot cl0 CoroutineSlot<Carrier> value=Carrier
+  coroutine_start ct0 result=Carrier function=fn9
+  coroutine_fn cf0 @fn5 source_return=Carrier step=cs0 immediate
+  instance mi0 function=@fn3 <- Continuation.resume
+  instance mi1 function=@fn4 <- Continuation.resumeWithException
+  instance mi2 function=@fn5 <- SuspendTask.run
+  instance mi3 function=@fn6 <- SuspendRegistration.register
   output library

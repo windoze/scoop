@@ -1,7 +1,7 @@
-callables=118
-types=117
-safepoints=282
+callables=263
+types=204
+safepoints=543
 immortals=9
 storages=3
 initializations=1
-digests=1947
+digests=5543

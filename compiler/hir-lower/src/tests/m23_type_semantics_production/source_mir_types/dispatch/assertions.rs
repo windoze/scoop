@@ -58,10 +58,23 @@ pub(super) fn actual(
     authority: MirDispatchSchemaAuthority<'_>,
     schemas: &CanonicalMirDispatchSchemasV1,
 ) {
-    assert_eq!(schemas.records().len(), types.records().len());
+    for record in types.records().iter().filter(|record| {
+        !matches!(
+            record.origin(),
+            scoop_mir::MirTypeOriginV1::NominalApplication(_)
+        )
+    }) {
+        assert!(schemas.get(record.exact()).is_some());
+    }
     let roots = input.materialization().callable_roots();
     for schema in schemas.records() {
         let ty = types.get(schema.owner()).unwrap();
+        if matches!(
+            ty.origin(),
+            scoop_mir::MirTypeOriginV1::NominalApplication(_)
+        ) {
+            continue;
+        }
         let source_owner = types
             .records()
             .iter()
@@ -182,7 +195,11 @@ pub(super) fn dump(
         })
         .collect();
     let mut blocks = Vec::new();
-    for schema in schemas.records() {
+    for schema in schemas
+        .records()
+        .iter()
+        .filter(|schema| names.contains_key(&schema.owner()))
+    {
         let mut text = format!("{}\n", names[&schema.owner()]);
         let tables = match schema.slots() {
             MirDispatchSlotsV1::NoClassVtable => Vec::new(),

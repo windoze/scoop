@@ -61,16 +61,11 @@ pub(super) fn project(
         .ok_or(Error::MissingSignature(implementation))?
         .signature();
 
-    if source.semantic_signature() != source.lowered_signature()
-        || source.lowered_signature().exact() != target_signature
+    if source.lowered_signature().exact() != target_signature
         || source.lowered_signature().gc_effect() != target_effect
     {
         return Err(Error::TargetMismatch(target));
     }
-    if lowered != adjust.identity().signature_record().signature() {
-        return Err(Error::SignatureMismatch(implementation));
-    }
-
     Ok(ParamFreeMirCallableBindingV1::try_new(
         MirCallableBridgeAuthority {
             identities,

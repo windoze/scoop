@@ -1,7 +1,24 @@
-layouts=16 descriptors=8 dispatch=8 callables=3 shapes=2
+layouts=30 descriptors=15 dispatch=15 callables=13 shapes=2
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Indirect(1)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Indirect(16)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Indirect(8)
 callable Token.equals: OrdinaryManaged receiver=true args=["Zst(0)", "Zst(0)"] result=Direct(1)
 callable ctor.Payload.$c1: OrdinaryNoGc receiver=false args=["Zst(0)", "Direct(1)"] result=Indirect(1)
 callable ctor.Token.$c0: OrdinaryNoGc receiver=false args=[] result=Zst(0)
+callable startCoroutine<Payload>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<Token>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: References([16]), inline_scan: References([0]) } scan=References([16]) vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Payload)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Token)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Payload)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Token)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Payload)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Token)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
 descriptor g(r=00000005;i=4deb3ad5d37e6200e89d85c1ddf4b67039675ad33b0d3e6763c5088a2471de19): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 32, instance_alignment: 8, inline_offset: 16, inline_size: 16, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
 descriptor g(r=00000005;i=d8c47989fe46537831a92362d045602d3e252125b4e4d6ed196ba90b2912286c): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
 descriptor g(r=00000006;i=c8b6722d05e2487e58da429416bb6257cb55a13c5e727664b0de5ce35a65ac1a): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 1, inline_stride: 0, inline_alignment: 1, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
@@ -10,6 +27,13 @@ descriptor g(r=00000007;i=c4d26b9ae5764fb0d29b0693c0cab250a551d500d7f5878f072e8b
 descriptor g(r=00000007;i=d866bad8c6c063bba954579a9462629e6245baae30b64eb13fd51221f534826d): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
 descriptor n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Payload): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 1, inline_stride: 0, inline_alignment: 1, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
 descriptor n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Token): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: ZeroSized, minimum_size: 16, instance_alignment: 8, inline_offset: 16, inline_size: 0, inline_stride: 0, inline_alignment: 1, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Payload)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Token)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Payload)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Token)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Payload)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Token)]) [Vtable]: []
 dispatch g(r=00000005;i=4deb3ad5d37e6200e89d85c1ddf4b67039675ad33b0d3e6763c5088a2471de19) [Vtable]: []
 dispatch g(r=00000005;i=d8c47989fe46537831a92362d045602d3e252125b4e4d6ed196ba90b2912286c) [Vtable]: []
 dispatch g(r=00000006;i=c8b6722d05e2487e58da429416bb6257cb55a13c5e727664b0de5ce35a65ac1a) [Vtable]: []
@@ -18,11 +42,18 @@ dispatch g(r=00000007;i=c4d26b9ae5764fb0d29b0693c0cab250a551d500d7f5878f072e8bb1
 dispatch g(r=00000007;i=d866bad8c6c063bba954579a9462629e6245baae30b64eb13fd51221f534826d) [Vtable]: []
 dispatch n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Payload) [Vtable]: []
 dispatch n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Token) [Vtable]: []
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
 layout CoroutineSlot<Payload> [ManagedValue]: size=16 align=8 fields=[] scan=Enum { scan: None }
 layout CoroutineSlot<Token> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: None }
 layout CoroutineStep<Payload> [ManagedValue]: size=16 align=8 fields=[] scan=Enum { scan: None }
 layout CoroutineStep<Token> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: None }
+layout Option [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: References([0]) }
 layout Payload [ManagedValue]: size=1 align=1 fields=[(0, 1), (0, 1)] scan=Plain { scan: None }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
 layout Token [ManagedValue]: size=0 align=1 fields=[] scan=Plain { scan: None }
 layout box<Payload> [ManagedObject]: size=24 align=8 fields=[(16, 1)] scan=Plain { scan: None }
 layout box<Payload> value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }

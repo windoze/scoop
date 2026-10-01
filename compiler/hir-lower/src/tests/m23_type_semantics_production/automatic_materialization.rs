@@ -13,24 +13,42 @@ fn fixture(case: &str) -> String {
     .unwrap()
 }
 
+fn current_nominal(local: &concrete::Module, origin: &hir::HirNominalIdentity) -> bool {
+    origin
+        .source()
+        .is_some_and(|source| source.declaration().origin() == local.cone)
+}
+
 fn nominal_names(local: &concrete::Module) -> BTreeSet<&str> {
     local
         .structs
         .iter()
-        .map(|(_, nominal)| nominal.name.as_str())
-        .chain(local.enums.iter().map(|(_, nominal)| nominal.name.as_str()))
+        .map(|(_, nominal)| (&nominal.origin, nominal.name.as_str()))
+        .chain(
+            local
+                .enums
+                .iter()
+                .map(|(_, nominal)| (&nominal.origin, nominal.name.as_str())),
+        )
         .chain(
             local
                 .classes
                 .iter()
-                .map(|(_, nominal)| nominal.name.as_str()),
+                .map(|(_, nominal)| (&nominal.origin, nominal.name.as_str())),
         )
         .chain(
             local
                 .interfaces
                 .iter()
-                .map(|(_, nominal)| nominal.name.as_str()),
+                .map(|(_, nominal)| (&nominal.origin, nominal.name.as_str())),
         )
+        .chain(
+            local
+                .objects
+                .iter()
+                .map(|(_, nominal)| (&nominal.origin, nominal.name.as_str())),
+        )
+        .filter_map(|(origin, name)| current_nominal(local, origin).then_some(name))
         .collect()
 }
 
@@ -89,14 +107,18 @@ fn automatic_nominal_roots_materialize_closed_storage_and_generic_parents() {
                 .iter()
                 .map(|name| format!("  type {name}\n"))
                 .collect::<Vec<_>>();
-            for (_, constructor) in local.class_constructors.iter() {
+            for (_, constructor) in local.class_constructors.iter().filter(|(_, constructor)| {
+                current_nominal(local, &local.classes[constructor.class].origin)
+            }) {
                 rows.push(format!(
                     "  class-constructor {} arity={}\n",
                     local.classes[constructor.class].name,
                     constructor.parameters.len()
                 ));
             }
-            for (_, constructor) in local.struct_constructors.iter() {
+            for (_, constructor) in local.struct_constructors.iter().filter(|(_, constructor)| {
+                current_nominal(local, &local.structs[constructor.structure].origin)
+            }) {
                 rows.push(format!(
                     "  struct-constructor {} arity={}\n",
                     local.structs[constructor.structure].name,

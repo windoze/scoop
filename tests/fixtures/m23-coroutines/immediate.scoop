@@ -1,0 +1,19 @@
+package consumer.coroutines
+import templates.coroutines.*
+
+class LongTask : SuspendTask<Long> {
+    public override suspend fun run(): Long = immediate(42L)
+}
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val completion = Completion<T>()
+    startCoroutine(Task(seed), completion)
+    return read(completion.value!!)
+}
+
+public fun result(): Int {
+    val completion = Completion<Long>()
+    startCoroutine(LongTask(), completion)
+    if (completion.value!! != 42L) { return 2 }
+    return exercise(42, { value: Int -> value })
+}

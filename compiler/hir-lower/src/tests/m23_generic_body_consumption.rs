@@ -126,7 +126,19 @@ fn imported_generic_bodies_infer_and_materialize_provider_templates() {
     assert!(export.functions.iter().all(|(_, function)| {
         !["identity", "choose", "helper", "echo"].contains(&function.name.as_str())
     }));
-    assert_eq!(export.imported_generic_templates.len(), 8);
+    assert_eq!(
+        export
+            .imported_generic_templates
+            .iter()
+            .filter(|(_, template)| {
+                export.source_files[template.origin.file as usize]
+                    .identity
+                    .cone()
+                    != scoop_identity::ConeIdentity::CORE
+            })
+            .count(),
+        8
+    );
     for name in [
         "identity",
         "choose",
@@ -205,12 +217,22 @@ fn imported_generic_overloads_compare_declarations_in_one_type_arena() {
     ));
     let output = lower_consumer(source).expect("tuple input selects the tuple declaration");
     let export = output.output().export.module();
+    let selected = export
+        .imported_generic_templates
+        .iter()
+        .filter(|(_, template)| {
+            export.source_files[template.origin.file as usize]
+                .identity
+                .cone()
+                != scoop_identity::ConeIdentity::CORE
+        })
+        .collect::<Vec<_>>();
     assert_eq!(
-        export.imported_generic_templates.len(),
+        selected.len(),
         1,
         "the losing candidate must not commit a template"
     );
-    let (_, selected) = export.imported_generic_templates.iter().next().unwrap();
+    let (_, selected) = selected[0];
     assert_eq!(selected.type_parameters.len(), 2);
     assert!(matches!(
         export.types[selected.params[0].ty],

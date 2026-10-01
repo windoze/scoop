@@ -1,6 +1,9 @@
 Module
   enum LocalChoice
     Ready()
+  enum Option<String>
+    Some(_0: String)
+    None()
   enum CoroutineStep<LocalChoice>
     Completed(value: LocalChoice)
     Suspended()
@@ -14,17 +17,28 @@ Module
     Empty()
     Value(value: LocalValue)
   class Counter vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
   class box<LocalChoice> vtable=0 itables=2
   interface LocalValue : Valued
   interface Valued
-  generated_exact_type get0 location=enum4 nominal_id=851a916d49eee659a9222a96c26c6461905f9c89e65f18a6c313a19576605e62 exact_id=8b0e1542ba15a4729f204ac3097d91d9a2df1eac483288df114b2e8a5d4d8090
-  generated_exact_type get1 location=enum2 nominal_id=32053214b2e372e555062ef947c8c70aa4100729b7e384d45e7bdc78fb54d929 exact_id=95caf37e54ec1a524fe5f75051bb6f2eeefcfd5529a321b16cd8587eecfba5a7
-  generated_exact_type get2 location=enum1 nominal_id=c7acfe061b5381d2b0cca8a794cf3416bb283052c3c96c11643d0a22491a82ef exact_id=9771c0a83a61155b648977ad3343c9fcfb631f5720b5c3a8cab1c718c9f7f486
-  generated_exact_type get3 location=class1 nominal_id=a542ce44497ce077212cbf885ebdcf4a022bba714bf42043ea835e5059482fe1 exact_id=9aa122687514342cfd3f8e369541c22bb0555a9266e310c6e7feb82a46e53740
-  generated_exact_type get4 location=enum3 nominal_id=98f504ed8c03f2205f9f02da64c0884d1d0e85efdaaba367a8dcea239f0681d0 exact_id=d0fb3cbe7bc1e99197f004b87222e1f40b97c0d1393563c396da733553bb67f0
-  generated_callable gc0 function=@fn6 id=097e5204bddda44d035e3b13a2c44d76f943af385e35130b0187ca65cb563ae8
-  generated_callable gc1 function=@fn5 id=5bce7fce36a0766fca80c12235ef059c19fd633bb65e33de4abc93bc300270df
-  generated_callable gc2 function=@fn4 id=826d05dadacde5c7cc484e74b44a779599f92cf4c89224e204e86623173ecfe6
+  interface Continuation<LocalChoice>
+  interface SuspendTask<LocalChoice>
+  interface SuspendRegistration<LocalChoice>
+  interface Continuation<LocalValue>
+  interface SuspendTask<LocalValue>
+  interface SuspendRegistration<LocalValue>
+  generated_exact_type get0 location=enum5 nominal_id=851a916d49eee659a9222a96c26c6461905f9c89e65f18a6c313a19576605e62 exact_id=8b0e1542ba15a4729f204ac3097d91d9a2df1eac483288df114b2e8a5d4d8090
+  generated_exact_type get1 location=enum3 nominal_id=32053214b2e372e555062ef947c8c70aa4100729b7e384d45e7bdc78fb54d929 exact_id=95caf37e54ec1a524fe5f75051bb6f2eeefcfd5529a321b16cd8587eecfba5a7
+  generated_exact_type get2 location=enum2 nominal_id=c7acfe061b5381d2b0cca8a794cf3416bb283052c3c96c11643d0a22491a82ef exact_id=9771c0a83a61155b648977ad3343c9fcfb631f5720b5c3a8cab1c718c9f7f486
+  generated_exact_type get3 location=class4 nominal_id=a542ce44497ce077212cbf885ebdcf4a022bba714bf42043ea835e5059482fe1 exact_id=9aa122687514342cfd3f8e369541c22bb0555a9266e310c6e7feb82a46e53740
+  generated_exact_type get4 location=enum4 nominal_id=98f504ed8c03f2205f9f02da64c0884d1d0e85efdaaba367a8dcea239f0681d0 exact_id=d0fb3cbe7bc1e99197f004b87222e1f40b97c0d1393563c396da733553bb67f0
+  generated_callable gc0 function=@fn16 id=097e5204bddda44d035e3b13a2c44d76f943af385e35130b0187ca65cb563ae8
+  generated_callable gc1 function=@fn15 id=5bce7fce36a0766fca80c12235ef059c19fd633bb65e33de4abc93bc300270df
+  generated_callable gc2 function=@fn13 id=7868a19b5c1986f2d7ef6b179f30a58d3e59f9274294140ec896861c745542fd
+  generated_callable gc3 function=@fn14 id=826d05dadacde5c7cc484e74b44a779599f92cf4c89224e204e86623173ecfe6
+  generated_callable gc4 function=@fn12 id=b5e04897d7fb8d77800341b822ee4ccf493db4256868c1fce4d39df127cabf81
   fun LocalChoice.$get$value @fn0(this: LocalChoice) -> Long
     bb0 entry
       return
@@ -40,7 +54,7 @@ Module
   fun primary @fn2() -> Counter
     bb0 entry
       call $receiver: LocalValue = @fn1 direct
-      call $dependency.argument.0: Long = @fn3 interface LocalValue[1]
+      call $dependency.argument.0: Long = @fn11 interface LocalValue[1]
         Type LocalValue
         Local $receiver
       val $dependency.parameter.value: Long
@@ -57,7 +71,31 @@ Module
       return
         Type Counter
         Local $new.1
-  fun LocalValue.inherited @fn3(this: LocalValue) -> Long
+  fun Continuation.resume @fn3(this: Continuation<LocalChoice>, value: LocalChoice) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn4(this: Continuation<LocalChoice>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn5(this: SuspendTask<LocalChoice>, $completion: Continuation<LocalChoice>) -> CoroutineStep<LocalChoice>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn6(this: SuspendRegistration<LocalChoice>, continuation: Continuation<LocalChoice>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn7(this: Continuation<LocalValue>, value: LocalValue) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn8(this: Continuation<LocalValue>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn9(this: SuspendTask<LocalValue>, $completion: Continuation<LocalValue>) -> CoroutineStep<LocalValue>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn10(this: SuspendRegistration<LocalValue>, continuation: Continuation<LocalValue>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun LocalValue.inherited @fn11(this: LocalValue) -> Long
     bb0 entry
       call $call.1: Long = external1 interface Valued[0]
         Type Valued
@@ -67,7 +105,91 @@ Module
       return
         Type Long
         Local $call.1
-  fun thunk<LocalChoice> LocalValue.value() @fn4(this: LocalValue) -> Long
+  fun startCoroutine<LocalChoice> @fn12(task: SuspendTask<LocalChoice>, completion: Continuation<LocalChoice>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn3 interface Continuation<LocalChoice>[0]
+        Type Continuation<LocalChoice>
+        Local completion
+        Type LocalChoice
+        EnumField v0 f0
+          Type CoroutineStep<LocalChoice>
+          Local $step
+      return
+    bb2 failed
+      call @fn4 interface Continuation<LocalChoice>[1]
+        Type Continuation<LocalChoice>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<LocalChoice> = @fn5 interface SuspendTask<LocalChoice>[0]
+        Type SuspendTask<LocalChoice>
+        Local task
+        Type Continuation<LocalChoice>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<LocalChoice>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<LocalValue> @fn13(task: SuspendTask<LocalValue>, completion: Continuation<LocalValue>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn7 interface Continuation<LocalValue>[0]
+        Type Continuation<LocalValue>
+        Local completion
+        Type LocalValue
+        EnumField v0 f0
+          Type CoroutineStep<LocalValue>
+          Local $step
+      return
+    bb2 failed
+      call @fn8 interface Continuation<LocalValue>[1]
+        Type Continuation<LocalValue>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<LocalValue> = @fn9 interface SuspendTask<LocalValue>[0]
+        Type SuspendTask<LocalValue>
+        Local task
+        Type Continuation<LocalValue>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<LocalValue>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun thunk<LocalChoice> LocalValue.value() @fn14(this: LocalValue) -> Long
     bb0 entry
       call $call.1: Long = @fn0 direct
         Type LocalChoice
@@ -77,9 +199,9 @@ Module
       return
         Type Long
         Local $call.1
-  fun thunk<LocalChoice> LocalValue.inherited() @fn5(this: LocalValue) -> Long
+  fun thunk<LocalChoice> LocalValue.inherited() @fn15(this: LocalValue) -> Long
     bb0 entry
-      call $call.1: Long = @fn3 direct
+      call $call.1: Long = @fn11 direct
         Type LocalValue
         Retype LocalValue
           Type LocalValue
@@ -87,7 +209,7 @@ Module
       return
         Type Long
         Local $call.1
-  fun thunk<LocalChoice> Valued.value() @fn6(this: Valued) -> Long
+  fun thunk<LocalChoice> Valued.value() @fn16(this: Valued) -> Long
     bb0 entry
       call $call.1: Long = @fn0 direct
         Type LocalChoice
@@ -101,4 +223,16 @@ Module
   coroutine_step cs1 CoroutineStep<LocalValue> result=LocalValue
   coroutine_slot cl0 CoroutineSlot<LocalChoice> value=LocalChoice
   coroutine_slot cl1 CoroutineSlot<LocalValue> value=LocalValue
+  coroutine_start ct0 result=LocalChoice function=fn12
+  coroutine_start ct1 result=LocalValue function=fn13
+  coroutine_fn cf0 @fn5 source_return=LocalChoice step=cs0 immediate
+  coroutine_fn cf1 @fn9 source_return=LocalValue step=cs1 immediate
+  instance mi0 function=@fn3 <- Continuation.resume
+  instance mi1 function=@fn4 <- Continuation.resumeWithException
+  instance mi2 function=@fn5 <- SuspendTask.run
+  instance mi3 function=@fn6 <- SuspendRegistration.register
+  instance mi4 function=@fn7 <- Continuation.resume
+  instance mi5 function=@fn8 <- Continuation.resumeWithException
+  instance mi6 function=@fn9 <- SuspendTask.run
+  instance mi7 function=@fn10 <- SuspendRegistration.register
   output library

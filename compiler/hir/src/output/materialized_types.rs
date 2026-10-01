@@ -54,7 +54,8 @@ impl LocalConcreteHirOutput {
             if matches!(
                 function.materialization.context(),
                 CallableMaterializationContext::Application(_)
-            ) && function.receiver.method().is_some()
+            ) && (function.receiver.method().is_some() || function.is_suspend)
+                && !matches!(function.kind, FunctionKind::Intrinsic(_))
                 && matches!(
                     function.materialization.template(),
                     CallableTemplateOwner::Function(_)

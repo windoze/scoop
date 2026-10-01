@@ -3,6 +3,9 @@ Module
   global1 $singleton$Current: Current managed initial=zeroed-for-runtime-unit
   global2 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
   init0 object-private:main.scoop:Current singleton lazy global1 initializer=@fn1 ensure=@fn2 failure=2 deps=[]
+  enum Option<String>
+    Some(_0: String)
+    None()
   enum CoroutineStep<Current>
     Completed(value: Current)
     Suspended()
@@ -11,22 +14,29 @@ Module
     Value(value: Current)
   class Current vtable=0 itables=0
   class State vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
   class box<Int> vtable=0 itables=0
+  interface Continuation<Current>
+  interface SuspendTask<Current>
+  interface SuspendRegistration<Current>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn7 captures=0
-    bridge function_type1 -> @fn13 id=09b989753f30c8e040f3fd716bb43c599dc25fad474edab9094d025bc3e68c56
+    bridge function_type1 -> @fn18 id=09b989753f30c8e040f3fd716bb43c599dc25fad474edab9094d025bc3e68c56
   closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn9 captures=0
-    bridge function_type3 -> @fn14 id=ebca4eda626c5873d2744466632c7b4048486fcdfd034c40e10ad50a10542d0f
+    bridge function_type3 -> @fn19 id=ebca4eda626c5873d2744466632c7b4048486fcdfd034c40e10ad50a10542d0f
   closure cc2 $Closure$anonymous0 type=function_type2 invoke=@fn10 captures=0
-    bridge function_type3 -> @fn15 id=7742b6569d21de164df4ebf49e69a67a3d4f02fc3aac29048ec1776e5c6078b5
-  generated_exact_type get0 location=enum0 nominal_id=a900f595a4c02f1a5d58888aabc704c437df99d93fadcf1b1bb48100a3638fc2 exact_id=21ed0af65968dbdc08b1c8920c9a842ec459ac7b83766e9067743b3b313e7e10
+    bridge function_type3 -> @fn20 id=7742b6569d21de164df4ebf49e69a67a3d4f02fc3aac29048ec1776e5c6078b5
+  generated_exact_type get0 location=enum1 nominal_id=a900f595a4c02f1a5d58888aabc704c437df99d93fadcf1b1bb48100a3638fc2 exact_id=21ed0af65968dbdc08b1c8920c9a842ec459ac7b83766e9067743b3b313e7e10
   generated_exact_type get1 location=closure2 nominal_id=b784e9279c4688ec7c10572f66350098f7e85c68a03233b27f2e7bad449520bf exact_id=7e3331ba4a2c2e66886c92c75c05d6edcdbe6b0b34b77c35dd8df17360b7e1a8
   generated_exact_type get2 location=closure0 nominal_id=1c5600ec55da3b579b8f92e2ce8bfeea6d3a9d74526d8de2a5e3be2c97584946 exact_id=9aad8bc3f08cc4f9d029f39903571322cf52a30b8aa6a110aec60d450bfa2ed6
-  generated_exact_type get3 location=enum1 nominal_id=3ba6a68c89ea0f952dd8f7138eaf5aa82a7c0fe45ab0c63bfb2a77edd7732cbd exact_id=dad6a968327ec3c056e3d8a2b328905e3d07572d270ad51e2fc6aa3ad0c2d6de
-  generated_exact_type get4 location=class2 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get3 location=enum2 nominal_id=3ba6a68c89ea0f952dd8f7138eaf5aa82a7c0fe45ab0c63bfb2a77edd7732cbd exact_id=dad6a968327ec3c056e3d8a2b328905e3d07572d270ad51e2fc6aa3ad0c2d6de
+  generated_exact_type get4 location=class5 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get5 location=closure1 nominal_id=2bfbea9acb07bc1b29a1dcf4a6d4b81e8f970438584eefcd7653e6221c40b774 exact_id=fbe37ef256c20cebc37d835c33cb8fbcb9de8db9cb3385a145ceda1f2504f42a
-  generated_callable gc0 function=@fn13 id=09b989753f30c8e040f3fd716bb43c599dc25fad474edab9094d025bc3e68c56
-  generated_callable gc1 function=@fn15 id=7742b6569d21de164df4ebf49e69a67a3d4f02fc3aac29048ec1776e5c6078b5
-  generated_callable gc2 function=@fn14 id=ebca4eda626c5873d2744466632c7b4048486fcdfd034c40e10ad50a10542d0f
+  generated_callable gc0 function=@fn18 id=09b989753f30c8e040f3fd716bb43c599dc25fad474edab9094d025bc3e68c56
+  generated_callable gc1 function=@fn17 id=29dd0b89c644440cb379b3f1c04db69d877e10169d070bf63a8d920f03a9479b
+  generated_callable gc2 function=@fn20 id=7742b6569d21de164df4ebf49e69a67a3d4f02fc3aac29048ec1776e5c6078b5
+  generated_callable gc3 function=@fn19 id=ebca4eda626c5873d2744466632c7b4048486fcdfd034c40e10ad50a10542d0f
   fun initialized @fn0() -> Int
     bb0 entry
       call $dependency.receiver: Int = @fn5 direct
@@ -51,7 +61,7 @@ Module
       assign $new.1
         Type Current
         ClassAlloc Current
-      call @fn12 direct
+      call @fn16 direct
         Type Current
         Local $new.1
       global_assign $singleton$Current
@@ -480,7 +490,19 @@ Module
           Local $dependency.receiver
           Type Int
           Local $dependency.parameter.other
-  fun init.Current.$c0 @fn12(this: Current) -> Unit
+  fun Continuation.resume @fn12(this: Continuation<Current>, value: Current) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn13(this: Continuation<Current>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn14(this: SuspendTask<Current>, $completion: Continuation<Current>) -> CoroutineStep<Current>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn15(this: SuspendRegistration<Current>, continuation: Continuation<Current>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Current.$c0 @fn16(this: Current) -> Unit
     bb0 entry
       call $dependency.argument.0: Int = @fn0 direct
       val $dependency.parameter.value: Int
@@ -500,7 +522,49 @@ Module
         Type State
         Local $new.1
       return
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn13($source: (Int) -> Int, arg0: Any) -> Any
+  fun startCoroutine<Current> @fn17(task: SuspendTask<Current>, completion: Continuation<Current>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn12 interface Continuation<Current>[0]
+        Type Continuation<Current>
+        Local completion
+        Type Current
+        EnumField v0 f0
+          Type CoroutineStep<Current>
+          Local $step
+      return
+    bb2 failed
+      call @fn13 interface Continuation<Current>[1]
+        Type Continuation<Current>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Current> = @fn14 interface SuspendTask<Current>[0]
+        Type SuspendTask<Current>
+        Local task
+        Type Continuation<Current>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Current>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn18($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
@@ -514,7 +578,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda1.() -> Any @fn14($source: () -> Int) -> Any
+  fun function_bridge.$Closure$lambda1.() -> Any @fn19($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type () -> Int
@@ -524,7 +588,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$anonymous0.() -> Any @fn15($source: () -> Int) -> Any
+  fun function_bridge.$Closure$anonymous0.() -> Any @fn20($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type () -> Int
@@ -536,8 +600,14 @@ Module
           Local $call.1
   coroutine_step cs0 CoroutineStep<Current> result=Current
   coroutine_slot cl0 CoroutineSlot<Current> value=Current
+  coroutine_start ct0 result=Current function=fn17
+  coroutine_fn cf0 @fn14 source_return=Current step=cs0 immediate
   instance mi0 function=@fn8 <- exercise
   instance mi1 function=@fn9 <- $lambda.0
   instance mi2 function=@fn10 <- $anonymous.0
   instance mi3 function=@fn11 <- selectedCurrent
+  instance mi4 function=@fn12 <- Continuation.resume
+  instance mi5 function=@fn13 <- Continuation.resumeWithException
+  instance mi6 function=@fn14 <- SuspendTask.run
+  instance mi7 function=@fn15 <- SuspendRegistration.register
   output library

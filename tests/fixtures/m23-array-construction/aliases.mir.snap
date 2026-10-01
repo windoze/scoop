@@ -22,12 +22,17 @@ Module
   class MutableArrayIterator<Int> vtable=0 itables=1
   class ArrayIterator<Local> vtable=0 itables=1
   class MutableArrayIterator<Local> vtable=0 itables=1
+  class IllegalStateException vtable=0 itables=0
   interface Iterable<Int>
   interface Iterator<Int>
   interface Iterable<Local>
   interface Iterator<Local>
+  interface Continuation<Local>
+  interface SuspendTask<Local>
+  interface SuspendRegistration<Local>
   generated_exact_type get0 location=enum3 nominal_id=364e6e8e33c698f441a6d5e3ec7addc10af28aa095d3b76b8791824e5a6dda11 exact_id=58b837936bd3b7353cf85389b254d4faabd78c2de32bd8cb2de0684866b6c2f9
   generated_exact_type get1 location=enum4 nominal_id=f68eddda2a2d2bffa8178560dad821ac59279777d03e182bd4ecca90e401fb9a exact_id=a5d3115810dc1e6544452a2029eaaa931d8de8912b38fcb615edb07b9dd3e5d3
+  generated_callable gc0 function=@fn18 id=9d760366661415a8ba7fea862653e893b4e8b1b0bcd8b0831a9d4f8844910050
   fun result @fn0() -> Int
     bb0 entry
       val original: Array<Int>
@@ -536,7 +541,7 @@ Module
       assign $new.13
         Type Local
         ClassAlloc Local
-      call @fn9 direct
+      call @fn13 direct
         Type Local
         Local $new.13
         Type Int
@@ -591,7 +596,7 @@ Module
       assign $new.14
         Type Local
         ClassAlloc Local
-      call @fn9 direct
+      call @fn13 direct
         Type Local
         Local $new.14
         Type Int
@@ -851,7 +856,7 @@ Module
       assign $new.1
         Type ArrayIterator<Int>
         ClassAlloc ArrayIterator<Int>
-      call @fn10 direct
+      call @fn14 direct
         Type ArrayIterator<Int>
         Local $new.1
         Type Array<Int>
@@ -880,7 +885,7 @@ Module
       assign $new.1
         Type MutableArrayIterator<Int>
         ClassAlloc MutableArrayIterator<Int>
-      call @fn11 direct
+      call @fn15 direct
         Type MutableArrayIterator<Int>
         Local $new.1
         Type MutableArray<Int>
@@ -909,7 +914,7 @@ Module
       assign $new.1
         Type ArrayIterator<Local>
         ClassAlloc ArrayIterator<Local>
-      call @fn12 direct
+      call @fn16 direct
         Type ArrayIterator<Local>
         Local $new.1
         Type Array<Local>
@@ -938,7 +943,7 @@ Module
       assign $new.1
         Type MutableArrayIterator<Local>
         ClassAlloc MutableArrayIterator<Local>
-      call @fn13 direct
+      call @fn17 direct
         Type MutableArrayIterator<Local>
         Local $new.1
         Type MutableArray<Local>
@@ -1462,7 +1467,19 @@ Module
         VariantConstruct Option<Local> v0
           Type Local
           Local $dependency.local.12
-  fun init.Local.$c0 @fn9(this: Local, number: Int) -> Unit
+  fun Continuation.resume @fn9(this: Continuation<Local>, value: Local) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn10(this: Continuation<Local>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn11(this: SuspendTask<Local>, $completion: Continuation<Local>) -> CoroutineStep<Local>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn12(this: SuspendRegistration<Local>, continuation: Continuation<Local>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Local.$c0 @fn13(this: Local, number: Int) -> Unit
     bb0 entry
       field_set 0
         Type Local
@@ -1470,7 +1487,7 @@ Module
         Type Int
         Local number
       return
-  fun init.ArrayIterator.$c0 @fn10(this: ArrayIterator<Int>, source: Array<Int>, index: Long) -> Unit
+  fun init.ArrayIterator.$c0 @fn14(this: ArrayIterator<Int>, source: Array<Int>, index: Long) -> Unit
     bb0 entry
       field_set 0
         Type ArrayIterator<Int>
@@ -1483,7 +1500,7 @@ Module
         Type Long
         Local index
       return
-  fun init.MutableArrayIterator.$c1 @fn11(this: MutableArrayIterator<Int>, source: MutableArray<Int>, index: Long) -> Unit
+  fun init.MutableArrayIterator.$c1 @fn15(this: MutableArrayIterator<Int>, source: MutableArray<Int>, index: Long) -> Unit
     bb0 entry
       field_set 0
         Type MutableArrayIterator<Int>
@@ -1496,7 +1513,7 @@ Module
         Type Long
         Local index
       return
-  fun init.ArrayIterator.$c0 @fn12(this: ArrayIterator<Local>, source: Array<Local>, index: Long) -> Unit
+  fun init.ArrayIterator.$c0 @fn16(this: ArrayIterator<Local>, source: Array<Local>, index: Long) -> Unit
     bb0 entry
       field_set 0
         Type ArrayIterator<Local>
@@ -1509,7 +1526,7 @@ Module
         Type Long
         Local index
       return
-  fun init.MutableArrayIterator.$c1 @fn13(this: MutableArrayIterator<Local>, source: MutableArray<Local>, index: Long) -> Unit
+  fun init.MutableArrayIterator.$c1 @fn17(this: MutableArrayIterator<Local>, source: MutableArray<Local>, index: Long) -> Unit
     bb0 entry
       field_set 0
         Type MutableArrayIterator<Local>
@@ -1522,8 +1539,52 @@ Module
         Type Long
         Local index
       return
+  fun startCoroutine<Local> @fn18(task: SuspendTask<Local>, completion: Continuation<Local>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn9 interface Continuation<Local>[0]
+        Type Continuation<Local>
+        Local completion
+        Type Local
+        EnumField v0 f0
+          Type CoroutineStep<Local>
+          Local $step
+      return
+    bb2 failed
+      call @fn10 interface Continuation<Local>[1]
+        Type Continuation<Local>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Local> = @fn11 interface SuspendTask<Local>[0]
+        Type SuspendTask<Local>
+        Local task
+        Type Continuation<Local>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Local>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
   coroutine_step cs0 CoroutineStep<Local> result=Local
   coroutine_slot cl0 CoroutineSlot<Local> value=Local
+  coroutine_start ct0 result=Local function=fn18
+  coroutine_fn cf0 @fn11 source_return=Local step=cs0 immediate
   instance mi0 function=@fn1 <- iterator
   instance mi1 function=@fn2 <- iterator
   instance mi2 function=@fn3 <- iterator
@@ -1532,4 +1593,8 @@ Module
   instance mi5 function=@fn6 <- next
   instance mi6 function=@fn7 <- next
   instance mi7 function=@fn8 <- next
+  instance mi8 function=@fn9 <- Continuation.resume
+  instance mi9 function=@fn10 <- Continuation.resumeWithException
+  instance mi10 function=@fn11 <- SuspendTask.run
+  instance mi11 function=@fn12 <- SuspendRegistration.register
   output library

@@ -9,9 +9,8 @@ impl Lowerer {
         let suspend_task = self.require_core_interface("SuspendTask", files);
         let suspend_registration = self.require_core_interface("SuspendRegistration", files);
 
-        if let Some(id) = continuation {
-            self.validate_continuation_contract(id);
-        }
+        let continuation_methods =
+            continuation.and_then(|id| self.validate_continuation_contract(id));
         if let Some(id) = suspend_task {
             self.validate_suspend_task_contract(id);
         }
@@ -32,12 +31,6 @@ impl Lowerer {
             self.validate_coroutine_suspend(id, suspend_registration);
         }
 
-        let continuation_methods = continuation
-            .and_then(|id| self.interface_methods.get(&id))
-            .and_then(|methods| match methods.as_slice() {
-                [resume, resume_with_exception] => Some((*resume, *resume_with_exception)),
-                _ => None,
-            });
         let suspend_task_run = suspend_task
             .and_then(|id| self.interface_methods.get(&id))
             .and_then(|methods| matches!(methods.as_slice(), [_]).then_some(methods[0]));
@@ -101,35 +94,47 @@ impl Lowerer {
         candidate
     }
 
-    pub(crate) fn validate_continuation_contract(&mut self, id: InterfaceId) {
+    fn validate_continuation_contract(
+        &mut self,
+        id: InterfaceId,
+    ) -> Option<(FunctionId, FunctionId)> {
         self.current_file = self.interface_files[&id];
         let interface = &self.interfaces[id];
         let throwable = self.throwable.map(|(_, ty)| ty);
         let valid_type_param = matches!(interface.type_params.as_slice(), [_]);
-        let valid_methods = match self.interface_methods[&id].as_slice() {
-            [resume, resume_exception] => {
-                let resume = &self.functions[*resume];
-                let resume_exception = &self.functions[*resume_exception];
-                resume.name.rsplit('.').next() == Some("resume")
-                    && !resume.is_suspend
-                    && resume.params.len() == 2
-                    && self.is_type_param(resume.params[1].ty, 0)
-                    && resume.return_ty == self.unit
-                    && resume_exception.name.rsplit('.').next() == Some("resumeWithException")
-                    && !resume_exception.is_suspend
-                    && resume_exception.params.len() == 2
-                    && throwable.is_some_and(|ty| resume_exception.params[1].ty == ty)
-                    && resume_exception.return_ty == self.unit
-            }
-            _ => false,
+        let declarations = &self.interface_methods[&id];
+        let methods = if declarations.len() == 2 {
+            let find = |name| {
+                declarations
+                    .iter()
+                    .copied()
+                    .find(|id| self.functions[*id].name.rsplit('.').next() == Some(name))
+            };
+            find("resume").zip(find("resumeWithException"))
+        } else {
+            None
         };
+        let valid_methods = methods.is_some_and(|(resume, resume_exception)| {
+            let resume = &self.functions[resume];
+            let resume_exception = &self.functions[resume_exception];
+            !resume.is_suspend
+                && resume.params.len() == 2
+                && self.is_type_param(resume.params[1].ty, 0)
+                && resume.return_ty == self.unit
+                && !resume_exception.is_suspend
+                && resume_exception.params.len() == 2
+                && throwable.is_some_and(|ty| resume_exception.params[1].ty == ty)
+                && resume_exception.return_ty == self.unit
+        });
         if !valid_type_param || !valid_methods {
             self.error(
                 interface.span,
-                "interface `Continuation<T>` in scoop.core must declare exactly `fun resume(value: T)` followed by `fun resumeWithException(exception: Throwable)`"
+                "interface `Continuation<T>` in scoop.core must declare exactly `fun resume(value: T)` and `fun resumeWithException(exception: Throwable)`"
                     .to_string(),
             );
+            return None;
         }
+        methods
     }
 
     pub(crate) fn validate_suspend_task_contract(&mut self, id: InterfaceId) {

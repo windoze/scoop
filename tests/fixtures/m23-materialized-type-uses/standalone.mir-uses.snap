@@ -1,2 +1,4 @@
 type Boolean
+type String
+type Throwable
 type Unit

@@ -6,11 +6,167 @@ local-only descriptor IntRangeIterator
 local-only descriptor LongRangeIterator
 local-only descriptor UIntRangeIterator
 local-only descriptor ULongRangeIterator
-layouts=292 descriptors=146 dispatch=183 callables=45 shapes=39
+layouts=526 descriptors=263 dispatch=300 callables=240 shapes=39
 callable $init$body$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$ensure$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(1)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(1)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(1)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(2)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(2)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(4)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(4)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Indirect(16)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Indirect(40)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Indirect(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Indirect(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Indirect(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
 callable Hash.hash: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable SharedTdRoot.text: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Direct(8)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Direct(8)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Direct(8)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Direct(8)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Direct(8)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Direct(8)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Direct(8)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Direct(8)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Direct(8)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Direct(8)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Direct(8)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Direct(8)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Direct(8)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Direct(8)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Direct(8)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Direct(8)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Direct(8)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Direct(8)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Direct(8)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Direct(8)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Direct(8)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Direct(8)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Direct(8)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Indirect(16)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Indirect(16)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Indirect(16)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Indirect(16)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Indirect(16)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Indirect(16)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Indirect(16)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Indirect(16)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Indirect(16)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Indirect(16)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Indirect(16)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Indirect(16)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Indirect(24)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Indirect(48)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Indirect(8)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Indirect(8)
 callable ToString.toString: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable ctor.SharedTdEmpty.$c5: OrdinaryNoGc receiver=false args=[] result=Zst(0)
 callable ctor.SharedTdPayload.$c6: OrdinaryNoGc receiver=false args=["Direct(8)", "Zst(0)"] result=Indirect(8)
@@ -30,6 +186,45 @@ callable init.Throwable.$c12: OrdinaryManaged receiver=true args=["Direct(8)"] r
 callable init.UIntRange.$c8: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(4)", "Direct(4)", "Direct(4)", "Direct(1)", "Direct(1)"] result=UnitVoid
 callable init.ULongRange.$c10: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)", "Direct(8)", "Direct(8)", "Direct(1)", "Direct(1)"] result=UnitVoid
 callable init.UnwrapException.$c14: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
+callable startCoroutine<Any>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<ArithmeticException>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<Boolean>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<ClassCastException>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<Exception>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<ForeignCallbackMode>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<ForeignCallbackState>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<Hash>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<IllegalArgumentException>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<IllegalStateException>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<IndexOutOfBoundsException>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<Int16>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<Int8>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<Int>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<IntRange>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<Long>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<LongRange>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<SharedTdBase>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<SharedTdChild>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<SharedTdChoice>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<SharedTdDiamond>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<SharedTdEmpty>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<SharedTdLeft>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<SharedTdObject>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<SharedTdPayload>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<SharedTdRight>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<SharedTdRoot>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<SourceLocation>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<String>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<Throwable>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<ToString>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<UInt16>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<UInt8>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<UInt>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<UIntRange>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<ULong>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<ULongRange>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<Unit>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<UnwrapException>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
 callable thunk<Boolean> Hash.hash(): OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable thunk<Boolean> ToString.toString(): OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable thunk<Int16> Hash.hash(): OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
@@ -57,6 +252,45 @@ descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Asc
 descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Long)]): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 32, instance_alignment: 8, inline_offset: 16, inline_size: 16, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
 descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=UInt)]): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 32, instance_alignment: 8, inline_offset: 16, inline_size: 16, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
 descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=ULong)]): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 32, instance_alignment: 8, inline_offset: 16, inline_size: 16, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=Any)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=ArithmeticException)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=ClassCastException)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=Exception)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IllegalArgumentException)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IllegalStateException)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IndexOutOfBoundsException)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IntRange)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=LongRange)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=SharedTdBase)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=SharedTdChild)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=Throwable)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=UIntRange)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=ULongRange)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=UnwrapException)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=ForeignCallbackMode)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=ForeignCallbackState)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=SharedTdChoice)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Hash)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SharedTdDiamond)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SharedTdLeft)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SharedTdRight)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SharedTdRoot)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=ToString)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=O;x=SharedTdObject)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Boolean)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int16)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int8)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Long)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=SharedTdEmpty)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=SharedTdPayload)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=SourceLocation)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=UInt)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=UInt16)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=UInt8)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=ULong)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
 descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterable);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
 descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterable);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Long)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
 descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterable);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=UInt)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
@@ -65,6 +299,84 @@ descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterator);[n(c=scoop%3A
 descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterator);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Long)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
 descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterator);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=UInt)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
 descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterator);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=ULong)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=Any)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=ArithmeticException)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=ClassCastException)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=Exception)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IllegalArgumentException)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IllegalStateException)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IndexOutOfBoundsException)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IntRange)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=LongRange)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=SharedTdBase)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=SharedTdChild)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=Throwable)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=UIntRange)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=ULongRange)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=UnwrapException)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=ForeignCallbackMode)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=ForeignCallbackState)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=SharedTdChoice)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Hash)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SharedTdDiamond)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SharedTdLeft)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SharedTdRight)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SharedTdRoot)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=ToString)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=O;x=SharedTdObject)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Boolean)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int16)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int8)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Long)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=SharedTdEmpty)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=SharedTdPayload)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=SourceLocation)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=UInt)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=UInt16)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=UInt8)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=ULong)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=Any)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=ArithmeticException)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=ClassCastException)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=Exception)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IllegalArgumentException)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IllegalStateException)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IndexOutOfBoundsException)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IntRange)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=LongRange)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=SharedTdBase)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=SharedTdChild)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=Throwable)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=UIntRange)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=ULongRange)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=UnwrapException)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=ForeignCallbackMode)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=ForeignCallbackState)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=SharedTdChoice)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Hash)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SharedTdDiamond)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SharedTdLeft)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SharedTdRight)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SharedTdRoot)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=ToString)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=O;x=SharedTdObject)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Boolean)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int16)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int8)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Long)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=SharedTdEmpty)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=SharedTdPayload)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=SourceLocation)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=UInt)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=UInt16)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=UInt8)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=ULong)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
 descriptor g(r=00000005;i=0349dc4278018462bcca5e8062f34aeff394ce5fd3cd7822990e3685fd2bf642): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: References([16]), inline_scan: References([0]) } scan=References([16]) vslots=0 itables=0
 descriptor g(r=00000005;i=096f3cb55324efe10440e30752e70a1ad98bf14ac487176f9acb6371c17d7c46): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: References([16]), inline_scan: References([0]) } scan=References([16]) vslots=0 itables=0
 descriptor g(r=00000005;i=1061f2b6e1689daffc0bc88977453fad6aa157e73ba67771ebaef4f49426e72c): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 64, instance_alignment: 8, inline_offset: 16, inline_size: 48, inline_stride: 0, inline_alignment: 8, object_scan: References([24, 48, 56]), inline_scan: References([8, 32, 40]) } scan=References([24, 48, 56]) vslots=0 itables=0
@@ -203,6 +515,45 @@ dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoo
 dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Long)]) [Vtable]: []
 dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=UInt)]) [Vtable]: []
 dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=ULong)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=Any)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=ArithmeticException)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=ClassCastException)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=Exception)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IllegalArgumentException)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IllegalStateException)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IndexOutOfBoundsException)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IntRange)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=LongRange)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=SharedTdBase)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=SharedTdChild)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=Throwable)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=UIntRange)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=ULongRange)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=UnwrapException)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=ForeignCallbackMode)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=ForeignCallbackState)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=SharedTdChoice)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Hash)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SharedTdDiamond)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SharedTdLeft)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SharedTdRight)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SharedTdRoot)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=ToString)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=O;x=SharedTdObject)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Boolean)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int16)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int8)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Long)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=SharedTdEmpty)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=SharedTdPayload)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=SourceLocation)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=UInt)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=UInt16)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=UInt8)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=ULong)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit)]) [Vtable]: []
 dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterable);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) [Vtable]: []
 dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterable);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Long)]) [Vtable]: []
 dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterable);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=UInt)]) [Vtable]: []
@@ -211,6 +562,84 @@ dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterator);[n(c=scoop%3Asc
 dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterator);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Long)]) [Vtable]: []
 dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterator);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=UInt)]) [Vtable]: []
 dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterator);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=ULong)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=Any)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=ArithmeticException)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=ClassCastException)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=Exception)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IllegalArgumentException)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IllegalStateException)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IndexOutOfBoundsException)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IntRange)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=LongRange)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=SharedTdBase)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=SharedTdChild)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=Throwable)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=UIntRange)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=ULongRange)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=UnwrapException)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=ForeignCallbackMode)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=ForeignCallbackState)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=SharedTdChoice)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Hash)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SharedTdDiamond)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SharedTdLeft)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SharedTdRight)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SharedTdRoot)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=ToString)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=O;x=SharedTdObject)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Boolean)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int16)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int8)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Long)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=SharedTdEmpty)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=SharedTdPayload)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=SourceLocation)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=UInt)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=UInt16)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=UInt8)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=ULong)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=Any)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=ArithmeticException)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=ClassCastException)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=Exception)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IllegalArgumentException)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IllegalStateException)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IndexOutOfBoundsException)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IntRange)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=LongRange)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=SharedTdBase)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=SharedTdChild)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=Throwable)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=UIntRange)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=ULongRange)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=UnwrapException)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=ForeignCallbackMode)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=ForeignCallbackState)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=SharedTdChoice)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Hash)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SharedTdDiamond)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SharedTdLeft)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SharedTdRight)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SharedTdRoot)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=ToString)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=O;x=SharedTdObject)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Boolean)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int16)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int8)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Long)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=SharedTdEmpty)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=SharedTdPayload)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=SourceLocation)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=UInt)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=UInt16)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=UInt8)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=ULong)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit)]) [Vtable]: []
 dispatch g(r=00000005;i=0349dc4278018462bcca5e8062f34aeff394ce5fd3cd7822990e3685fd2bf642) [Vtable]: []
 dispatch g(r=00000005;i=096f3cb55324efe10440e30752e70a1ad98bf14ac487176f9acb6371c17d7c46) [Vtable]: []
 dispatch g(r=00000005;i=1061f2b6e1689daffc0bc88977453fad6aa157e73ba67771ebaef4f49426e72c) [Vtable]: []
@@ -387,6 +816,45 @@ layout ArithmeticException value [ManagedValue]: size=8 align=8 fields=[] scan=P
 layout Boolean [ManagedValue]: size=1 align=1 fields=[] scan=Intrinsic(Boolean)
 layout ClassCastException [ManagedObject]: size=24 align=8 fields=[(16, 8)] scan=Plain { scan: References([16]) }
 layout ClassCastException value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
 layout CoroutineSlot<Any> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: References([0]) }
 layout CoroutineSlot<ArithmeticException> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: References([0]) }
 layout CoroutineSlot<Boolean> [ManagedValue]: size=16 align=8 fields=[] scan=Enum { scan: None }
@@ -517,6 +985,84 @@ layout SharedTdRoot value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { 
 layout SourceLocation [ManagedValue]: size=40 align=8 fields=[(0, 8), (8, 8), (16, 8), (24, 8), (32, 8)] scan=Plain { scan: References([0, 24, 32]) }
 layout String [ManagedObject]: size=24 align=8 fields=[] scan=Intrinsic(String)
 layout String value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
 layout Throwable [ManagedObject]: size=16 align=8 fields=[] scan=Plain { scan: None }
 layout Throwable value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
 layout ToString value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }

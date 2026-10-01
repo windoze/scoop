@@ -9,6 +9,9 @@ Module
   struct Scalar<Int> (value: Int)
   struct Scalar<Scalar<Int>> (value: Scalar<Int>)
   struct Scalar<Phantom<Managed>> (value: Phantom<Managed>)
+  enum Option<String>
+    Some(_0: String)
+    None()
   enum State<Local>
     Unset()
     Set(_1: Scalar<Local>)
@@ -36,26 +39,33 @@ Module
   class Carrier<Scalar<Local>> vtable=0 itables=0
   class Carrier<Scalar<Unit>> vtable=0 itables=0
   class Carrier<Scalar<Int>> vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
   class box<Local> vtable=0 itables=0
   class box<Int> vtable=0 itables=0
   class box<Unit> vtable=0 itables=0
+  interface Continuation<Local>
+  interface SuspendTask<Local>
+  interface SuspendRegistration<Local>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
-    bridge function_type1 -> @fn29 id=0a84c702bf6f08519e12b66c2bb9c49f9eb14e3d416e06236d3f80de745b85c6
+    bridge function_type1 -> @fn34 id=0a84c702bf6f08519e12b66c2bb9c49f9eb14e3d416e06236d3f80de745b85c6
   closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn3 captures=0
-    bridge function_type1 -> @fn30 id=a3d00b0a6d07d404e8c436166b03180127855b90e6c622dd816e842524258b37
+    bridge function_type1 -> @fn35 id=a3d00b0a6d07d404e8c436166b03180127855b90e6c622dd816e842524258b37
   closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn5 captures=0
-    bridge function_type1 -> @fn31 id=234003afc606f57ae3e2e2d26513e047b555e2a20f8c13b987718f5b038a06b5
-  generated_exact_type get0 location=enum6 nominal_id=a7d37fe97ce9329c26b6b0245f0e309566a6cebbdf5f4d13d4a664eef833647b exact_id=17c19b23627a6cba83f5df0b308f547661f8f0ed26c2476d2b04efea5d09cfb9
-  generated_exact_type get1 location=class5 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
-  generated_exact_type get2 location=class3 nominal_id=cc0a92d2c7118cb97a01d4c868858138333ae24d780d6b647ccc12e3deedc21a exact_id=43c537cf8c59e582bb961a75e6a13ac007f7b43ee874cc95263e7f9354c902a6
+    bridge function_type1 -> @fn36 id=234003afc606f57ae3e2e2d26513e047b555e2a20f8c13b987718f5b038a06b5
+  generated_exact_type get0 location=enum7 nominal_id=a7d37fe97ce9329c26b6b0245f0e309566a6cebbdf5f4d13d4a664eef833647b exact_id=17c19b23627a6cba83f5df0b308f547661f8f0ed26c2476d2b04efea5d09cfb9
+  generated_exact_type get1 location=class8 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get2 location=class6 nominal_id=cc0a92d2c7118cb97a01d4c868858138333ae24d780d6b647ccc12e3deedc21a exact_id=43c537cf8c59e582bb961a75e6a13ac007f7b43ee874cc95263e7f9354c902a6
   generated_exact_type get3 location=closure1 nominal_id=0fbea3ce773d0c1cffb7c502f83946a29f5d34d4c68adf05209303ffd36fa608 exact_id=6368fe21d62589c60d3cbd188426b914f0b6fb6b10808b47f5bd2fa70e22feac
   generated_exact_type get4 location=closure2 nominal_id=710ebe59596fad122b0c35f4288c45dec84530d8318d577c78f8034025af0141 exact_id=a150cfdc98a6525a4a2e6141def8d3ab676ff34dae24e565ee99cc0fa0acb9f3
-  generated_exact_type get5 location=enum7 nominal_id=129737a90613d0d6330a42fbe17de7605f4489602961f03c7bcf0bea57c5b701 exact_id=ad43d3ca677a54364f606b8ed3ba8ebbbc5d66ef3d99ef62bc4d65964c57be72
-  generated_exact_type get6 location=class4 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get5 location=enum8 nominal_id=129737a90613d0d6330a42fbe17de7605f4489602961f03c7bcf0bea57c5b701 exact_id=ad43d3ca677a54364f606b8ed3ba8ebbbc5d66ef3d99ef62bc4d65964c57be72
+  generated_exact_type get6 location=class7 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get7 location=closure0 nominal_id=6d3910953259c29d27fa1e697f4a1b9fc3a12b3206c9d90761d29cf66b2ef06b exact_id=fc00c98e9fe9668c07751517e4fc589f9b87ecfb268e5f29dddc9c3961eb06cc
-  generated_callable gc0 function=@fn29 id=0a84c702bf6f08519e12b66c2bb9c49f9eb14e3d416e06236d3f80de745b85c6
-  generated_callable gc1 function=@fn31 id=234003afc606f57ae3e2e2d26513e047b555e2a20f8c13b987718f5b038a06b5
-  generated_callable gc2 function=@fn30 id=a3d00b0a6d07d404e8c436166b03180127855b90e6c622dd816e842524258b37
+  generated_callable gc0 function=@fn34 id=0a84c702bf6f08519e12b66c2bb9c49f9eb14e3d416e06236d3f80de745b85c6
+  generated_callable gc1 function=@fn36 id=234003afc606f57ae3e2e2d26513e047b555e2a20f8c13b987718f5b038a06b5
+  generated_callable gc2 function=@fn35 id=a3d00b0a6d07d404e8c436166b03180127855b90e6c622dd816e842524258b37
+  generated_callable gc3 function=@fn33 id=b42c02d1e6db7144d8feb02bdc54080523b38273924b7279f6556f5d09354df4
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -70,7 +80,7 @@ Module
       val $parameter.unit: Unit
         Type Unit
         Local $argument.1
-      call $argument.0: Local = @fn20 direct
+      call $argument.0: Local = @fn24 direct
         Type Int
         Local $parameter.value
         Type Unit
@@ -193,7 +203,7 @@ Module
       val $default.local.2: Scalar<Local>
         Type Scalar<Local>
         Local $default.local.1
-      call $dependency.parameter.scalar: Scalar<Scalar<Local>> = @fn21 direct
+      call $dependency.parameter.scalar: Scalar<Scalar<Local>> = @fn25 direct
         Type Scalar<Local>
         Local $default.local.2
       call $dependency.argument.0: Scalar<Scalar<Local>> = @fn8 direct
@@ -207,7 +217,7 @@ Module
       assign $new.1
         Type Carrier<Scalar<Local>>
         ClassAlloc Carrier<Scalar<Local>>
-      call @fn17 direct
+      call @fn21 direct
         Type Carrier<Scalar<Local>>
         Local $new.1
         Type Scalar<Scalar<Local>>
@@ -263,7 +273,7 @@ Module
       val selected: Option<Scalar<Local>>
         Type Option<Scalar<Local>>
         Local $result.0
-      call phantom: Phantom<Managed> = @fn22 direct
+      call phantom: Phantom<Managed> = @fn26 direct
       val $dependency.argument.0: Phantom<Managed>
         Type Phantom<Managed>
         Local phantom
@@ -390,7 +400,7 @@ Module
       val $default.local.2: Scalar<Unit>
         Type Scalar<Unit>
         Local $default.local.1
-      call $dependency.parameter.scalar: Scalar<Scalar<Unit>> = @fn23 direct
+      call $dependency.parameter.scalar: Scalar<Scalar<Unit>> = @fn27 direct
         Type Scalar<Unit>
         Local $default.local.2
       call $dependency.argument.0: Scalar<Scalar<Unit>> = @fn12 direct
@@ -404,7 +414,7 @@ Module
       assign $new.1
         Type Carrier<Scalar<Unit>>
         ClassAlloc Carrier<Scalar<Unit>>
-      call @fn18 direct
+      call @fn22 direct
         Type Carrier<Scalar<Unit>>
         Local $new.1
         Type Scalar<Scalar<Unit>>
@@ -460,7 +470,7 @@ Module
       val selected: Option<Scalar<Unit>>
         Type Option<Scalar<Unit>>
         Local $result.0
-      call phantom: Phantom<Managed> = @fn22 direct
+      call phantom: Phantom<Managed> = @fn26 direct
       val $dependency.argument.0: Phantom<Managed>
         Type Phantom<Managed>
         Local phantom
@@ -587,7 +597,7 @@ Module
       val $default.local.2: Scalar<Int>
         Type Scalar<Int>
         Local $default.local.1
-      call $dependency.parameter.scalar: Scalar<Scalar<Int>> = @fn24 direct
+      call $dependency.parameter.scalar: Scalar<Scalar<Int>> = @fn28 direct
         Type Scalar<Int>
         Local $default.local.2
       call $dependency.argument.0: Scalar<Scalar<Int>> = @fn15 direct
@@ -601,7 +611,7 @@ Module
       assign $new.1
         Type Carrier<Scalar<Int>>
         ClassAlloc Carrier<Scalar<Int>>
-      call @fn19 direct
+      call @fn23 direct
         Type Carrier<Scalar<Int>>
         Local $new.1
         Type Scalar<Scalar<Int>>
@@ -657,7 +667,7 @@ Module
       val selected: Option<Scalar<Int>>
         Type Option<Scalar<Int>>
         Local $result.0
-      call phantom: Phantom<Managed> = @fn22 direct
+      call phantom: Phantom<Managed> = @fn26 direct
       val $dependency.argument.0: Phantom<Managed>
         Type Phantom<Managed>
         Local phantom
@@ -767,7 +777,7 @@ Module
       val $dependency.parameter.value: Local
         Type Local
         Local $dependency.argument.0
-      call $call.1: Scalar<Local> = @fn25 direct
+      call $call.1: Scalar<Local> = @fn29 direct
         Type Local
         Local $dependency.parameter.value
       return
@@ -793,7 +803,7 @@ Module
       val $dependency.local.3: Phantom<Managed>
         Type Phantom<Managed>
         Local $dependency.local.2
-      call $dependency.local.1: Scalar<Phantom<Managed>> = @fn26 direct
+      call $dependency.local.1: Scalar<Phantom<Managed>> = @fn30 direct
         Type Phantom<Managed>
         Local $dependency.local.3
       return
@@ -807,7 +817,7 @@ Module
       val $dependency.parameter.value: Unit
         Type Unit
         Local $dependency.argument.0
-      call $call.1: Scalar<Unit> = @fn27 direct
+      call $call.1: Scalar<Unit> = @fn31 direct
         Type Unit
         Local $dependency.parameter.value
       return
@@ -833,7 +843,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call $call.1: Scalar<Int> = @fn28 direct
+      call $call.1: Scalar<Int> = @fn32 direct
         Type Int
         Local $dependency.parameter.value
       return
@@ -851,7 +861,19 @@ Module
         FieldAccess 0
           Type Carrier<Scalar<Int>>
           Local this
-  fun init.Carrier.$c1 @fn17(this: Carrier<Scalar<Local>>, scalar: Scalar<Scalar<Local>>) -> Unit
+  fun Continuation.resume @fn17(this: Continuation<Local>, value: Local) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn18(this: Continuation<Local>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn19(this: SuspendTask<Local>, $completion: Continuation<Local>) -> CoroutineStep<Local>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn20(this: SuspendRegistration<Local>, continuation: Continuation<Local>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Carrier.$c1 @fn21(this: Carrier<Scalar<Local>>, scalar: Scalar<Scalar<Local>>) -> Unit
     bb0 entry
       field_set 0
         Type Carrier<Scalar<Local>>
@@ -859,7 +881,7 @@ Module
         Type Scalar<Scalar<Local>>
         Local scalar
       return
-  fun init.Carrier.$c1 @fn18(this: Carrier<Scalar<Unit>>, scalar: Scalar<Scalar<Unit>>) -> Unit
+  fun init.Carrier.$c1 @fn22(this: Carrier<Scalar<Unit>>, scalar: Scalar<Scalar<Unit>>) -> Unit
     bb0 entry
       field_set 0
         Type Carrier<Scalar<Unit>>
@@ -867,7 +889,7 @@ Module
         Type Scalar<Scalar<Unit>>
         Local scalar
       return
-  fun init.Carrier.$c1 @fn19(this: Carrier<Scalar<Int>>, scalar: Scalar<Scalar<Int>>) -> Unit
+  fun init.Carrier.$c1 @fn23(this: Carrier<Scalar<Int>>, scalar: Scalar<Scalar<Int>>) -> Unit
     bb0 entry
       field_set 0
         Type Carrier<Scalar<Int>>
@@ -875,7 +897,7 @@ Module
         Type Scalar<Scalar<Int>>
         Local scalar
       return
-  fun ctor.Local.$c0 @fn20(value: Int, unit: Unit) -> Local <no-gc>
+  fun ctor.Local.$c0 @fn24(value: Int, unit: Unit) -> Local <no-gc>
     bb0 entry
       return
         Type Local
@@ -884,61 +906,103 @@ Module
           Local value
           Type Unit
           Local unit
-  fun ctor.Scalar.$c0 @fn21(value: Scalar<Local>) -> Scalar<Scalar<Local>> <no-gc>
+  fun ctor.Scalar.$c0 @fn25(value: Scalar<Local>) -> Scalar<Scalar<Local>> <no-gc>
     bb0 entry
       return
         Type Scalar<Scalar<Local>>
         StructInit Scalar<Scalar<Local>>
           Type Scalar<Local>
           Local value
-  fun ctor.Phantom.$c2 @fn22() -> Phantom<Managed> <no-gc>
+  fun ctor.Phantom.$c2 @fn26() -> Phantom<Managed> <no-gc>
     bb0 entry
       return
         Type Phantom<Managed>
         StructInit Phantom<Managed>
-  fun ctor.Scalar.$c0 @fn23(value: Scalar<Unit>) -> Scalar<Scalar<Unit>> <no-gc>
+  fun ctor.Scalar.$c0 @fn27(value: Scalar<Unit>) -> Scalar<Scalar<Unit>> <no-gc>
     bb0 entry
       return
         Type Scalar<Scalar<Unit>>
         StructInit Scalar<Scalar<Unit>>
           Type Scalar<Unit>
           Local value
-  fun ctor.Scalar.$c0 @fn24(value: Scalar<Int>) -> Scalar<Scalar<Int>> <no-gc>
+  fun ctor.Scalar.$c0 @fn28(value: Scalar<Int>) -> Scalar<Scalar<Int>> <no-gc>
     bb0 entry
       return
         Type Scalar<Scalar<Int>>
         StructInit Scalar<Scalar<Int>>
           Type Scalar<Int>
           Local value
-  fun ctor.Scalar.$c0 @fn25(value: Local) -> Scalar<Local> <no-gc>
+  fun ctor.Scalar.$c0 @fn29(value: Local) -> Scalar<Local> <no-gc>
     bb0 entry
       return
         Type Scalar<Local>
         StructInit Scalar<Local>
           Type Local
           Local value
-  fun ctor.Scalar.$c0 @fn26(value: Phantom<Managed>) -> Scalar<Phantom<Managed>> <no-gc>
+  fun ctor.Scalar.$c0 @fn30(value: Phantom<Managed>) -> Scalar<Phantom<Managed>> <no-gc>
     bb0 entry
       return
         Type Scalar<Phantom<Managed>>
         StructInit Scalar<Phantom<Managed>>
           Type Phantom<Managed>
           Local value
-  fun ctor.Scalar.$c0 @fn27(value: Unit) -> Scalar<Unit> <no-gc>
+  fun ctor.Scalar.$c0 @fn31(value: Unit) -> Scalar<Unit> <no-gc>
     bb0 entry
       return
         Type Scalar<Unit>
         StructInit Scalar<Unit>
           Type Unit
           Local value
-  fun ctor.Scalar.$c0 @fn28(value: Int) -> Scalar<Int> <no-gc>
+  fun ctor.Scalar.$c0 @fn32(value: Int) -> Scalar<Int> <no-gc>
     bb0 entry
       return
         Type Scalar<Int>
         StructInit Scalar<Int>
           Type Int
           Local value
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn29($source: (Local) -> Int, arg0: Any) -> Any
+  fun startCoroutine<Local> @fn33(task: SuspendTask<Local>, completion: Continuation<Local>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn17 interface Continuation<Local>[0]
+        Type Continuation<Local>
+        Local completion
+        Type Local
+        EnumField v0 f0
+          Type CoroutineStep<Local>
+          Local $step
+      return
+    bb2 failed
+      call @fn18 interface Continuation<Local>[1]
+        Type Continuation<Local>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Local> = @fn19 interface SuspendTask<Local>[0]
+        Type SuspendTask<Local>
+        Local task
+        Type Continuation<Local>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Local>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn34($source: (Local) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Local) -> Int
@@ -952,7 +1016,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn30($source: (Unit) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn35($source: (Unit) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
@@ -966,7 +1030,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn31($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn36($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
@@ -982,6 +1046,8 @@ Module
           Local $call.1
   coroutine_step cs0 CoroutineStep<Local> result=Local
   coroutine_slot cl0 CoroutineSlot<Local> value=Local
+  coroutine_start ct0 result=Local function=fn33
+  coroutine_fn cf0 @fn19 source_return=Local step=cs0 immediate
   instance mi0 function=@fn2 <- exercise
   instance mi1 function=@fn4 <- exercise
   instance mi2 function=@fn6 <- exercise
@@ -995,4 +1061,8 @@ Module
   instance mi10 function=@fn14 <- local
   instance mi11 function=@fn15 <- pack
   instance mi12 function=@fn16 <- scalar
+  instance mi13 function=@fn17 <- Continuation.resume
+  instance mi14 function=@fn18 <- Continuation.resumeWithException
+  instance mi15 function=@fn19 <- SuspendTask.run
+  instance mi16 function=@fn20 <- SuspendRegistration.register
   output library

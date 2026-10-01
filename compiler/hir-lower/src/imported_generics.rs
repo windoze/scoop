@@ -5,9 +5,11 @@
 mod abstract_members;
 mod closures;
 mod delegates;
+pub(crate) mod intrinsic;
 mod local;
 mod methods;
 mod prepare;
+mod protocols;
 
 use std::collections::BTreeMap;
 use std::ops::{Deref, Index};
@@ -125,11 +127,25 @@ impl ImportedGenericTemplates {
             .map(|template| {
                 let template =
                     template.expect("successful lowering completed every dependency signature");
+                let provider = template.origin.provider;
                 hir::ImportedGenericCallableTemplate {
                     signature: template.signature,
                     implementation: match template.source {
                         PreparedImportedCallableSource::InitializationEnsure => {
                             hir::FunctionKind::InitializationEnsure
+                        }
+                        PreparedImportedCallableSource::Declaration(ref declaration)
+                            if matches!(
+                                declaration.interface().effects().implementation(),
+                                hir::CallableImplementationV1::Intrinsic(_)
+                            ) =>
+                        {
+                            let hir::CallableImplementationV1::Intrinsic(kind) =
+                                declaration.interface().effects().implementation()
+                            else {
+                                unreachable!()
+                            };
+                            hir::FunctionKind::Intrinsic(hir::IntrinsicFunction { kind, provider })
                         }
                         PreparedImportedCallableSource::Declaration(declaration)
                             if declaration.interface().modality()
@@ -222,7 +238,12 @@ impl Lowerer {
         self.imported_generic_templates
             .by_declaration
             .insert(key, id);
-        let prepared = if declaration.interface().modality() == hir::CallableModalityV1::Abstract {
+        let prepared = if matches!(
+            declaration.interface().effects().implementation(),
+            hir::CallableImplementationV1::Intrinsic(_)
+        ) {
+            self.prepare_imported_intrinsic(declaration, origin)?
+        } else if declaration.interface().modality() == hir::CallableModalityV1::Abstract {
             self.prepare_imported_abstract_member(declaration, origin)?
         } else {
             self.prepare_imported_generic(declaration, origin)?
@@ -280,6 +301,10 @@ impl Lowerer {
             let bodyless = match &template.source {
                 PreparedImportedCallableSource::Declaration(declaration) => {
                     declaration.interface().modality() == hir::CallableModalityV1::Abstract
+                        || matches!(
+                            declaration.interface().effects().implementation(),
+                            hir::CallableImplementationV1::Intrinsic(_)
+                        )
                 }
                 PreparedImportedCallableSource::InitializationEnsure => true,
                 PreparedImportedCallableSource::Body(_) => false,

@@ -5,6 +5,7 @@ use scoop_identity::PersistentIdResolver;
 pub enum MirCallableLoweringRoleV1 {
     Ordinary,
     StaticCallbackStorage,
+    CoroutineStart,
     ClassInitializer {
         owner: PersistentExactTypeId,
     },
@@ -38,6 +39,7 @@ pub enum MirCallableLoweringRoleV1 {
 pub enum DecodedMirCallableLoweringRoleV1 {
     Ordinary,
     StaticCallbackStorage,
+    CoroutineStart,
     ClassInitializer {
         owner: DecodedPersistentId<PersistentExactTypeId>,
     },
@@ -75,6 +77,7 @@ impl DecodedMirCallableLoweringRoleV1 {
         Ok(match self {
             Self::Ordinary => MirCallableLoweringRoleV1::Ordinary,
             Self::StaticCallbackStorage => MirCallableLoweringRoleV1::StaticCallbackStorage,
+            Self::CoroutineStart => MirCallableLoweringRoleV1::CoroutineStart,
             Self::ClassInitializer { owner } => MirCallableLoweringRoleV1::ClassInitializer {
                 owner: graph.resolve(owner)?,
             },
@@ -115,6 +118,7 @@ macro_rules! encode_role {
                 let (kind, value): (u64, Option<&dyn WireEncode>) = match self {
                     Self::Ordinary => (1, None),
                     Self::StaticCallbackStorage => (12, None),
+                    Self::CoroutineStart => (13, None),
                     Self::ClassInitializer { owner } => (2, Some(owner)),
                     Self::ValueConstructor { owner } => (3, Some(owner)),
                     Self::Accessor => (4, None),
@@ -145,11 +149,16 @@ impl WireDecode for DecodedMirCallableLoweringRoleV1 {
         fields(
             decoder,
             count,
-            if matches!(kind, 1 | 4 | 12) { 1 } else { 2 },
+            if matches!(kind, 1 | 4 | 12 | 13) {
+                1
+            } else {
+                2
+            },
         )?;
         Ok(match kind {
             1 => Self::Ordinary,
             12 => Self::StaticCallbackStorage,
+            13 => Self::CoroutineStart,
             2 => Self::ClassInitializer {
                 owner: decoder.field(1, DecodedPersistentId::decode)?,
             },

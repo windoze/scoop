@@ -254,7 +254,17 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
             .strong_callable_bridges()
             .bridges()
             .len(),
-        real_mir.strong.module().meta.callable_signatures.len()
+        real_mir
+            .strong
+            .module()
+            .meta
+            .callable_signatures
+            .iter()
+            .filter(|record| matches!(
+                record.subject(),
+                scoop_mir::CallableSignatureSubject::Strong(_)
+            ))
+            .count()
     );
     let expected_lir_shape_roots = shape_plan.roots().to_vec();
     let mut pending = scoop_identity::PendingIdentityValidation::new();

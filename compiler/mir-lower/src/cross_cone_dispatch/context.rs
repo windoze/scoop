@@ -70,7 +70,7 @@ impl<'a> Context<'a> {
         let mut itables = reserve(source.slot_schemas().records().len())?;
         for schema in source.slot_schemas().records() {
             let targets = physical::targets(self, source.owner(), physical, schema)?;
-            let entries = self.entries(source.owner(), schema, &targets)?;
+            let entries = self.entries(local, source.owner(), schema, &targets)?;
             match schema.role() {
                 hir::InheritanceSlotSchemaRoleV1::ClassVtable => {
                     vtable = mir::MirDispatchSlotsV1::ClassVtable(entries)

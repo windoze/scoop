@@ -91,10 +91,6 @@ fn expected_signatures(module: &Module) -> Result<MirCallableSignatures, MirVali
             register(driver_identity.signature_record());
         }
     }
-    for shell in &module.meta.continuation_shells {
-        register(shell.identity().success_signature_record());
-        register(shell.identity().failure_signature_record());
-    }
     for start in &module.meta.coroutine_starts {
         register(start.identity().signature_record());
     }
@@ -106,6 +102,18 @@ fn expected_signatures(module: &Module) -> Result<MirCallableSignatures, MirVali
         register(adjust.identity().signature_record());
     }
 
+    for (id, coroutine) in module.meta.coroutine_functions.iter() {
+        let index = id.into_raw().into_u32() as usize;
+        let subject = module
+            .meta
+            .callable_signature_subject(coroutine.function)
+            .ok_or_else(|| error_at(index, "a coroutine is missing its callable subject"))?;
+        let record = entries
+            .iter_mut()
+            .find(|record| record.subject() == subject)
+            .ok_or_else(|| error_at(index, "a coroutine is missing its source signature"))?;
+        *record = CallableSignatureRecord::new(subject, coroutine.lowered_signature.clone());
+    }
     MirCallableSignatures::checked(entries).map_err(|error| match error {
         MirCallableSignatureRelationError::DuplicateSubject { index, .. } => error_at(
             index,

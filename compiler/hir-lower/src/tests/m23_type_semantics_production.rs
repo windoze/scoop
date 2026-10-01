@@ -108,9 +108,18 @@ fn producer_uses_real_ordinary_hir_for_param_free_nominals() {
     let production = produce_cross_cone_type_semantics(&output, &public).unwrap();
     let section = &production;
 
-    assert_eq!(section.representation_support().records().len(), 7);
-    assert_eq!(section.inheritance().records().len(), 7);
-    assert_eq!(section.exact_facts().records().len(), 7);
+    let roots = output.output().local.materialization().roots();
+    assert_eq!(roots.len(), 7);
+    for root in roots {
+        assert!(
+            section
+                .representation_support()
+                .get(root.source())
+                .is_some()
+        );
+        assert!(section.inheritance().get(root.exact()).is_some());
+        assert!(section.exact_facts().get(root.exact()).is_some());
+    }
     assert!(!section.selected().records().is_empty());
     assert!(public.default_templates().records().is_empty());
     assert_eq!(

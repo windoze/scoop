@@ -8,6 +8,9 @@ Module
   enum Chain
     End()
     Next(_1: Reference<Chain>)
+  enum Option<String>
+    Some(_0: String)
+    None()
   enum CoroutineStep<Empty>
     Completed(value: Empty)
     Suspended()
@@ -21,6 +24,9 @@ Module
     Empty()
     Value(value: Chain)
   class Link<Chain> vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
   class box<Wrapper<Unit>> vtable=0 itables=1
   class box<Wrapper<String>> vtable=0 itables=1
   class box<Wrapper<Int>> vtable=0 itables=1
@@ -31,32 +37,40 @@ Module
   interface Readable<Unit>
   interface Readable<String>
   interface Readable<Int>
+  interface Continuation<Empty>
+  interface SuspendTask<Empty>
+  interface SuspendRegistration<Empty>
+  interface Continuation<Chain>
+  interface SuspendTask<Chain>
+  interface SuspendRegistration<Chain>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn2 captures=0
-    bridge function_type1 -> @fn25 id=d1018c9d9567810031fcbd6b81878f1d095e9f8b9608a7b363ac77065de460c4
+    bridge function_type1 -> @fn35 id=d1018c9d9567810031fcbd6b81878f1d095e9f8b9608a7b363ac77065de460c4
   closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn4 captures=0
-    bridge function_type1 -> @fn26 id=67d15a231c2ba47ca1353e5d1fd6bccc8d7929f9b26d8f7efdd2f783c840fec6
+    bridge function_type1 -> @fn36 id=67d15a231c2ba47ca1353e5d1fd6bccc8d7929f9b26d8f7efdd2f783c840fec6
   closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn6 captures=0
-    bridge function_type1 -> @fn27 id=a1ef92ed935bf8809d69686637dd2bf44c9472cc69f6bd2541a8d8071c87bac0
+    bridge function_type1 -> @fn37 id=a1ef92ed935bf8809d69686637dd2bf44c9472cc69f6bd2541a8d8071c87bac0
   generated_exact_type get0 location=closure1 nominal_id=339f79816adb46a0e1d987ca04ce2d5dd0a6a5e8775eeb893493538388a5ded2 exact_id=00fe48f2c2a6650be9ad54b2671c4f3c524800222b6054f099818c923f1afdb4
-  generated_exact_type get1 location=class5 nominal_id=721480608f24990d864ae57012ce0a0e6c4d6d8c836f1ab2869201db5525e2b4 exact_id=11b11be89aebabe731920de290b527259ebfed9aa3cfcfb701ef1f02fc257aa4
+  generated_exact_type get1 location=class8 nominal_id=721480608f24990d864ae57012ce0a0e6c4d6d8c836f1ab2869201db5525e2b4 exact_id=11b11be89aebabe731920de290b527259ebfed9aa3cfcfb701ef1f02fc257aa4
   generated_exact_type get2 location=closure0 nominal_id=0cca8481af4148364c0f9f6a48e147fbcf4a59a5f9201a29878f1d28007e6106 exact_id=1fa12fda390a56bf0b1c2e7bb3124b2fccbbf10aeebc4b1699cc4e8adfc6eb04
-  generated_exact_type get3 location=class7 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
-  generated_exact_type get4 location=class3 nominal_id=5a86bf309a29ce71728e990b3a97a4cfba7bf8805b44c54053141dd7641fad17 exact_id=42ee63808b80b903e8e0bc2e01ca2df9f153c05998a2278850ab432062c98fb0
-  generated_exact_type get5 location=class2 nominal_id=9711e7a1e9bb3a93d6795a346be0dc2fa25af0cfbd365483e21c1d864347b120 exact_id=5a5cecfdd6db9dc7699d461fc272266c0b72c81cf3859d0594d6619c8a18f2f2
-  generated_exact_type get6 location=class1 nominal_id=1847ac424ca3c11c5d3a671c0d854ccf2f2728359a5ed37e481cbc24593e28f6 exact_id=64b0c2de28596618552db342d62dbfc5f7022ebab49bfa12d0fed6f2944693f8
+  generated_exact_type get3 location=class10 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get4 location=class6 nominal_id=5a86bf309a29ce71728e990b3a97a4cfba7bf8805b44c54053141dd7641fad17 exact_id=42ee63808b80b903e8e0bc2e01ca2df9f153c05998a2278850ab432062c98fb0
+  generated_exact_type get5 location=class5 nominal_id=9711e7a1e9bb3a93d6795a346be0dc2fa25af0cfbd365483e21c1d864347b120 exact_id=5a5cecfdd6db9dc7699d461fc272266c0b72c81cf3859d0594d6619c8a18f2f2
+  generated_exact_type get6 location=class4 nominal_id=1847ac424ca3c11c5d3a671c0d854ccf2f2728359a5ed37e481cbc24593e28f6 exact_id=64b0c2de28596618552db342d62dbfc5f7022ebab49bfa12d0fed6f2944693f8
   generated_exact_type get7 location=closure2 nominal_id=1dd7c19275877248c77aab9222bbe0bb58a62bbc05be71a4830493b6c4a34db3 exact_id=8fdd967b86b46296ddf4c91d49f60cf0b07ac4400b4c630594d042cab3feede0
-  generated_exact_type get8 location=enum1 nominal_id=dd76abbd53bdb07a74345d5b668a0d4a30031e6160623697742fd97244b944cd exact_id=9444e8d41c341e157a5596bde0c45114686c7a0a39ceca374b902e27fef59d9e
-  generated_exact_type get9 location=enum3 nominal_id=fbbcb709c29451508137ead74cb98c2be0bbaedecac898f62c76c07bf05318c9 exact_id=9a37defd620062b8fab6d0b3939ba61f6f3829230710bd24c4554904ccc57fe2
-  generated_exact_type get10 location=class4 nominal_id=050f479ec810fc71428a7262d3ee8d0f66347a5072c7febe6f0714864d197d51 exact_id=c548c4deb135a8393874206d2ddbd2068d3c0402b4f8af8a7566a811e0bbe6d2
-  generated_exact_type get11 location=enum4 nominal_id=3cad997f18986a4c9b94c3b0d714dc83722690d771f6358c1e81beadc95b1079 exact_id=e1ffad7b7611cada4b1b1522c66e595542f72450a6689bae31aa43333bd048c1
-  generated_exact_type get12 location=class6 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
-  generated_exact_type get13 location=enum2 nominal_id=3c60883bce4ee9d5a8c49e9686e2a498c278bbb87e281ab42f7c8df1010f6394 exact_id=f12c648c9c8857b1e7b4314177a720194fb2f46cdb61a49db3adeb409f827358
-  generated_callable gc0 function=@fn22 id=1eb2dd741b07f4dd1848b8fb0cbd5d1c8da862cf03c8229cd4ded5cd039445ff
-  generated_callable gc1 function=@fn23 id=29ee3f53954bc724fbe5a0b8368ee55f8c9ec95505e46a6d3026c74ac7f37344
-  generated_callable gc2 function=@fn24 id=49cd6314eef9cc1c313d8bb9cb9f65989c0e81e3e8cee2032f9cc4cf2c18cfe8
-  generated_callable gc3 function=@fn26 id=67d15a231c2ba47ca1353e5d1fd6bccc8d7929f9b26d8f7efdd2f783c840fec6
-  generated_callable gc4 function=@fn27 id=a1ef92ed935bf8809d69686637dd2bf44c9472cc69f6bd2541a8d8071c87bac0
-  generated_callable gc5 function=@fn25 id=d1018c9d9567810031fcbd6b81878f1d095e9f8b9608a7b363ac77065de460c4
+  generated_exact_type get8 location=enum2 nominal_id=dd76abbd53bdb07a74345d5b668a0d4a30031e6160623697742fd97244b944cd exact_id=9444e8d41c341e157a5596bde0c45114686c7a0a39ceca374b902e27fef59d9e
+  generated_exact_type get9 location=enum4 nominal_id=fbbcb709c29451508137ead74cb98c2be0bbaedecac898f62c76c07bf05318c9 exact_id=9a37defd620062b8fab6d0b3939ba61f6f3829230710bd24c4554904ccc57fe2
+  generated_exact_type get10 location=class7 nominal_id=050f479ec810fc71428a7262d3ee8d0f66347a5072c7febe6f0714864d197d51 exact_id=c548c4deb135a8393874206d2ddbd2068d3c0402b4f8af8a7566a811e0bbe6d2
+  generated_exact_type get11 location=enum5 nominal_id=3cad997f18986a4c9b94c3b0d714dc83722690d771f6358c1e81beadc95b1079 exact_id=e1ffad7b7611cada4b1b1522c66e595542f72450a6689bae31aa43333bd048c1
+  generated_exact_type get12 location=class9 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get13 location=enum3 nominal_id=3c60883bce4ee9d5a8c49e9686e2a498c278bbb87e281ab42f7c8df1010f6394 exact_id=f12c648c9c8857b1e7b4314177a720194fb2f46cdb61a49db3adeb409f827358
+  generated_callable gc0 function=@fn32 id=1eb2dd741b07f4dd1848b8fb0cbd5d1c8da862cf03c8229cd4ded5cd039445ff
+  generated_callable gc1 function=@fn33 id=29ee3f53954bc724fbe5a0b8368ee55f8c9ec95505e46a6d3026c74ac7f37344
+  generated_callable gc2 function=@fn34 id=49cd6314eef9cc1c313d8bb9cb9f65989c0e81e3e8cee2032f9cc4cf2c18cfe8
+  generated_callable gc3 function=@fn36 id=67d15a231c2ba47ca1353e5d1fd6bccc8d7929f9b26d8f7efdd2f783c840fec6
+  generated_callable gc4 function=@fn30 id=6db74ebdff7a97c71bfcee3dc6ca7937d685152662de7a94ae24d9c99d5484d5
+  generated_callable gc5 function=@fn31 id=98d402975d122adf6a872cb504c0867ed7a819d8f7b0b5a0c00d6fa287488e18
+  generated_callable gc6 function=@fn37 id=a1ef92ed935bf8809d69686637dd2bf44c9472cc69f6bd2541a8d8071c87bac0
+  generated_callable gc7 function=@fn35 id=d1018c9d9567810031fcbd6b81878f1d095e9f8b9608a7b363ac77065de460c4
   fun consume @fn0(value: Empty) -> Int
     bb0 entry
       return
@@ -165,11 +179,11 @@ Module
         IntegerLiteral Int value=42 bits=0x0000002a
   fun exercise @fn3(seed: Unit, read: (Unit) -> Int) -> Int
     bb0 entry
-      call $argument.0: Phantom<Empty> = @fn17 direct
+      call $argument.0: Phantom<Empty> = @fn25 direct
       val $parameter.marker: Phantom<Empty>
         Type Phantom<Empty>
         Local $argument.0
-      call empty: Empty = @fn16 direct
+      call empty: Empty = @fn24 direct
         Type Phantom<Empty>
         Local $parameter.marker
       val $argument.0: Empty
@@ -213,7 +227,7 @@ Module
       assign $new.1
         Type Link<Chain>
         ClassAlloc Link<Chain>
-      call @fn15 direct
+      call @fn23 direct
         Type Link<Chain>
         Local $new.1
         Type Chain
@@ -224,7 +238,7 @@ Module
       val $dependency.parameter.link: Link<Chain>
         Type Link<Chain>
         Local $dependency.argument.0
-      call $argument.0: Reference<Chain> = @fn18 direct
+      call $argument.0: Reference<Chain> = @fn26 direct
         Type Link<Chain>
         Local $dependency.parameter.link
       val $parameter._1: Reference<Chain>
@@ -339,7 +353,7 @@ Module
       val $dependency.parameter.value: Unit
         Type Unit
         Local $dependency.argument.0
-      call $call.2: Wrapper<Unit> = @fn19 direct
+      call $call.2: Wrapper<Unit> = @fn27 direct
         Type Unit
         Local $dependency.parameter.value
       val receiver: Readable<Unit>
@@ -371,11 +385,11 @@ Module
         IntegerLiteral Int value=42 bits=0x0000002a
   fun exercise @fn5(seed: String, read: (String) -> Int) -> Int
     bb0 entry
-      call $argument.0: Phantom<Empty> = @fn17 direct
+      call $argument.0: Phantom<Empty> = @fn25 direct
       val $parameter.marker: Phantom<Empty>
         Type Phantom<Empty>
         Local $argument.0
-      call empty: Empty = @fn16 direct
+      call empty: Empty = @fn24 direct
         Type Phantom<Empty>
         Local $parameter.marker
       val $argument.0: Empty
@@ -419,7 +433,7 @@ Module
       assign $new.1
         Type Link<Chain>
         ClassAlloc Link<Chain>
-      call @fn15 direct
+      call @fn23 direct
         Type Link<Chain>
         Local $new.1
         Type Chain
@@ -430,7 +444,7 @@ Module
       val $dependency.parameter.link: Link<Chain>
         Type Link<Chain>
         Local $dependency.argument.0
-      call $argument.0: Reference<Chain> = @fn18 direct
+      call $argument.0: Reference<Chain> = @fn26 direct
         Type Link<Chain>
         Local $dependency.parameter.link
       val $parameter._1: Reference<Chain>
@@ -545,7 +559,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call $call.2: Wrapper<String> = @fn20 direct
+      call $call.2: Wrapper<String> = @fn28 direct
         Type String
         Local $dependency.parameter.value
       val receiver: Readable<String>
@@ -577,11 +591,11 @@ Module
         Local item
   fun exercise @fn7(seed: Int, read: (Int) -> Int) -> Int
     bb0 entry
-      call $argument.0: Phantom<Empty> = @fn17 direct
+      call $argument.0: Phantom<Empty> = @fn25 direct
       val $parameter.marker: Phantom<Empty>
         Type Phantom<Empty>
         Local $argument.0
-      call empty: Empty = @fn16 direct
+      call empty: Empty = @fn24 direct
         Type Phantom<Empty>
         Local $parameter.marker
       val $argument.0: Empty
@@ -625,7 +639,7 @@ Module
       assign $new.1
         Type Link<Chain>
         ClassAlloc Link<Chain>
-      call @fn15 direct
+      call @fn23 direct
         Type Link<Chain>
         Local $new.1
         Type Chain
@@ -636,7 +650,7 @@ Module
       val $dependency.parameter.link: Link<Chain>
         Type Link<Chain>
         Local $dependency.argument.0
-      call $argument.0: Reference<Chain> = @fn18 direct
+      call $argument.0: Reference<Chain> = @fn26 direct
         Type Link<Chain>
         Local $dependency.parameter.link
       val $parameter._1: Reference<Chain>
@@ -751,7 +765,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call $call.2: Wrapper<Int> = @fn21 direct
+      call $call.2: Wrapper<Int> = @fn29 direct
         Type Int
         Local $dependency.parameter.value
       val receiver: Readable<Int>
@@ -813,7 +827,31 @@ Module
   fun Readable.get @fn14(this: Readable<Int>) -> Int
     bb0 entry
       trap "call to abstract method `Readable.get`"
-  fun init.Link.$c2 @fn15(this: Link<Chain>, value: Chain) -> Unit
+  fun Continuation.resume @fn15(this: Continuation<Empty>, value: Empty) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn16(this: Continuation<Empty>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn17(this: SuspendTask<Empty>, $completion: Continuation<Empty>) -> CoroutineStep<Empty>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn18(this: SuspendRegistration<Empty>, continuation: Continuation<Empty>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn19(this: Continuation<Chain>, value: Chain) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn20(this: Continuation<Chain>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn21(this: SuspendTask<Chain>, $completion: Continuation<Chain>) -> CoroutineStep<Chain>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn22(this: SuspendRegistration<Chain>, continuation: Continuation<Chain>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Link.$c2 @fn23(this: Link<Chain>, value: Chain) -> Unit
     bb0 entry
       field_set 0
         Type Link<Chain>
@@ -821,47 +859,131 @@ Module
         Type Chain
         Local value
       return
-  fun ctor.Empty.$c0 @fn16(marker: Phantom<Empty>) -> Empty <no-gc>
+  fun ctor.Empty.$c0 @fn24(marker: Phantom<Empty>) -> Empty <no-gc>
     bb0 entry
       return
         Type Empty
         StructInit Empty
           Type Phantom<Empty>
           Local marker
-  fun ctor.Phantom.$c0 @fn17() -> Phantom<Empty> <no-gc>
+  fun ctor.Phantom.$c0 @fn25() -> Phantom<Empty> <no-gc>
     bb0 entry
       return
         Type Phantom<Empty>
         StructInit Phantom<Empty>
-  fun ctor.Reference.$c1 @fn18(link: Link<Chain>) -> Reference<Chain> <no-gc>
+  fun ctor.Reference.$c1 @fn26(link: Link<Chain>) -> Reference<Chain> <no-gc>
     bb0 entry
       return
         Type Reference<Chain>
         StructInit Reference<Chain>
           Type Link<Chain>
           Local link
-  fun ctor.Wrapper.$c3 @fn19(value: Unit) -> Wrapper<Unit> <no-gc>
+  fun ctor.Wrapper.$c3 @fn27(value: Unit) -> Wrapper<Unit> <no-gc>
     bb0 entry
       return
         Type Wrapper<Unit>
         StructInit Wrapper<Unit>
           Type Unit
           Local value
-  fun ctor.Wrapper.$c3 @fn20(value: String) -> Wrapper<String> <no-gc>
+  fun ctor.Wrapper.$c3 @fn28(value: String) -> Wrapper<String> <no-gc>
     bb0 entry
       return
         Type Wrapper<String>
         StructInit Wrapper<String>
           Type String
           Local value
-  fun ctor.Wrapper.$c3 @fn21(value: Int) -> Wrapper<Int> <no-gc>
+  fun ctor.Wrapper.$c3 @fn29(value: Int) -> Wrapper<Int> <no-gc>
     bb0 entry
       return
         Type Wrapper<Int>
         StructInit Wrapper<Int>
           Type Int
           Local value
-  fun thunk<Wrapper<Unit>> Readable.get() @fn22(this: Readable<Unit>) -> Unit
+  fun startCoroutine<Empty> @fn30(task: SuspendTask<Empty>, completion: Continuation<Empty>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn15 interface Continuation<Empty>[0]
+        Type Continuation<Empty>
+        Local completion
+        Type Empty
+        EnumField v0 f0
+          Type CoroutineStep<Empty>
+          Local $step
+      return
+    bb2 failed
+      call @fn16 interface Continuation<Empty>[1]
+        Type Continuation<Empty>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Empty> = @fn17 interface SuspendTask<Empty>[0]
+        Type SuspendTask<Empty>
+        Local task
+        Type Continuation<Empty>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Empty>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Chain> @fn31(task: SuspendTask<Chain>, completion: Continuation<Chain>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn19 interface Continuation<Chain>[0]
+        Type Continuation<Chain>
+        Local completion
+        Type Chain
+        EnumField v0 f0
+          Type CoroutineStep<Chain>
+          Local $step
+      return
+    bb2 failed
+      call @fn20 interface Continuation<Chain>[1]
+        Type Continuation<Chain>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Chain> = @fn21 interface SuspendTask<Chain>[0]
+        Type SuspendTask<Chain>
+        Local task
+        Type Continuation<Chain>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Chain>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun thunk<Wrapper<Unit>> Readable.get() @fn32(this: Readable<Unit>) -> Unit
     bb0 entry
       call @fn9 direct
         Type Wrapper<Unit>
@@ -869,7 +991,7 @@ Module
           Type Readable<Unit>
           Local this
       return
-  fun thunk<Wrapper<String>> Readable.get() @fn23(this: Readable<String>) -> String
+  fun thunk<Wrapper<String>> Readable.get() @fn33(this: Readable<String>) -> String
     bb0 entry
       call $call.1: String = @fn11 direct
         Type Wrapper<String>
@@ -879,7 +1001,7 @@ Module
       return
         Type String
         Local $call.1
-  fun thunk<Wrapper<Int>> Readable.get() @fn24(this: Readable<Int>) -> Int
+  fun thunk<Wrapper<Int>> Readable.get() @fn34(this: Readable<Int>) -> Int
     bb0 entry
       call $call.1: Int = @fn13 direct
         Type Wrapper<Int>
@@ -889,7 +1011,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn25($source: (Unit) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn35($source: (Unit) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Unit) -> Int
@@ -903,7 +1025,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn26($source: (String) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn36($source: (String) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (String) -> Int
@@ -917,7 +1039,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn27($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn37($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
@@ -935,6 +1057,10 @@ Module
   coroutine_step cs1 CoroutineStep<Chain> result=Chain
   coroutine_slot cl0 CoroutineSlot<Empty> value=Empty
   coroutine_slot cl1 CoroutineSlot<Chain> value=Chain
+  coroutine_start ct0 result=Empty function=fn30
+  coroutine_start ct1 result=Chain function=fn31
+  coroutine_fn cf0 @fn17 source_return=Empty step=cs0 immediate
+  coroutine_fn cf1 @fn21 source_return=Chain step=cs1 immediate
   instance mi0 function=@fn3 <- exercise
   instance mi1 function=@fn5 <- exercise
   instance mi2 function=@fn7 <- exercise
@@ -945,5 +1071,13 @@ Module
   instance mi7 function=@fn12 <- Readable.get
   instance mi8 function=@fn13 <- get
   instance mi9 function=@fn14 <- Readable.get
+  instance mi10 function=@fn15 <- Continuation.resume
+  instance mi11 function=@fn16 <- Continuation.resumeWithException
+  instance mi12 function=@fn17 <- SuspendTask.run
+  instance mi13 function=@fn18 <- SuspendRegistration.register
+  instance mi14 function=@fn19 <- Continuation.resume
+  instance mi15 function=@fn20 <- Continuation.resumeWithException
+  instance mi16 function=@fn21 <- SuspendTask.run
+  instance mi17 function=@fn22 <- SuspendRegistration.register
   str @str0 "value"
   output library

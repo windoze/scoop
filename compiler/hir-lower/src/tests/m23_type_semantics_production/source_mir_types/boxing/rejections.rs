@@ -10,6 +10,13 @@ pub(super) fn check(
         source
             .entries()
             .iter()
+            .filter(|binding| {
+                matches!(
+                    binding.origin(),
+                    scoop_mir::MirCallableOriginV1::Function(_)
+                        | scoop_mir::MirCallableOriginV1::Accessor(_)
+                )
+            })
             .map(|binding| {
                 if matches!(
                     binding.lowering_role(),

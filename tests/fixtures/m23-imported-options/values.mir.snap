@@ -41,22 +41,35 @@ Module
   class UnwrapException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
   class box<Empty> vtable=0 itables=0
   class box<Wide> vtable=0 itables=0
   class box<Int> vtable=0 itables=0
+  interface Continuation<Wide>
+  interface SuspendTask<Wide>
+  interface SuspendRegistration<Wide>
+  interface Continuation<Cell>
+  interface SuspendTask<Cell>
+  interface SuspendRegistration<Cell>
+  interface Continuation<Empty>
+  interface SuspendTask<Empty>
+  interface SuspendRegistration<Empty>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn3 captures=0
-    bridge function_type1 -> @fn11 id=6d48b767c866fad28ea4ca236deb1bac63a7154413a926f3e36ec50a68e123d6
+    bridge function_type1 -> @fn26 id=6d48b767c866fad28ea4ca236deb1bac63a7154413a926f3e36ec50a68e123d6
   generated_exact_type get0 location=enum9 nominal_id=142f0f9eab6a09d94c625137e2e20f09c503d203628df485f2a3dc2330b16227 exact_id=0c4a5cbcbe517931244250e62c56237577b5cab544c317dbda03d2b0d90f0cf4
   generated_exact_type get1 location=enum7 nominal_id=f6e517b7bf37ceb021c914e71c8762b5d4d07315f13415f437fc6042f5778e5d exact_id=13dbbb2e4e50d9328579f7641cca409304bef41f2c2601ed8822f19f9152bd86
   generated_exact_type get2 location=enum11 nominal_id=6ede5781accc8c53f62ea4553813ce43f4a2d772cffde5749c1ad00412aa1551 exact_id=323c3d7e5ab0d66030cabe7ec7ef62e608111cce6f3ad8e32ce8934185af73b2
   generated_exact_type get3 location=closure0 nominal_id=0da05e2438c4b845e09192f0fd49603652ccb8d74f62e735df963f6c7beaf9d6 exact_id=3fd900a889ab66cac808ff31e722f154d3bdd060b6b643cf15236f807ca0c883
   generated_exact_type get4 location=enum8 nominal_id=a015d7d84c9653786e3b3c89172b4c79b0c6e9d0e924202378007291e55f3b55 exact_id=631c123c8396fc83c03afef926ecabe35909081ded8f40a81e5215545713626e
-  generated_exact_type get5 location=class4 nominal_id=2414e15718187c45bf02ec87d80f307d70d79e62d01b11d54cbb4340f3980936 exact_id=aa49e647d8d70cc6c2b6375cafba9aa42aa08c26519556384db939a10396929c
+  generated_exact_type get5 location=class5 nominal_id=2414e15718187c45bf02ec87d80f307d70d79e62d01b11d54cbb4340f3980936 exact_id=aa49e647d8d70cc6c2b6375cafba9aa42aa08c26519556384db939a10396929c
   generated_exact_type get6 location=enum6 nominal_id=bf2532964c3ca920421f0457e9bff3e845bc3afd91115d73594626886dbaed2f exact_id=cc7d99209bf6babbfd981cb4010b518fdda94bd891ac04b6e9a52d7de73d4052
   generated_exact_type get7 location=enum10 nominal_id=d3df0994984c34af87b9435a5976444f13978f21a3a8d0f7052b2251252c8beb exact_id=d9ecc17b1bdde128eb0d9686757dba6fa87b99592efbb34a91ad7bb8881a1eaf
-  generated_exact_type get8 location=class6 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
-  generated_exact_type get9 location=class5 nominal_id=6f277bd9be669f1e663d51ec96ba4356699fe69426ff79fec4e674a12fe1ede5 exact_id=f3c0b00d7db934a536333281e935940db01dced5096f7ec9083c1076a8096953
-  generated_callable gc0 function=@fn11 id=6d48b767c866fad28ea4ca236deb1bac63a7154413a926f3e36ec50a68e123d6
+  generated_exact_type get8 location=class7 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get9 location=class6 nominal_id=6f277bd9be669f1e663d51ec96ba4356699fe69426ff79fec4e674a12fe1ede5 exact_id=f3c0b00d7db934a536333281e935940db01dced5096f7ec9083c1076a8096953
+  generated_callable gc0 function=@fn25 id=1fd3aebcf5abd984844663b5302cfbe8b0dc5cc8d23c1e71aca72170093a116b
+  generated_callable gc1 function=@fn24 id=34c97fd55a47dadeaa1e2fd75d517f03dab0c4a33e4993040458fa5bac864f2c
+  generated_callable gc2 function=@fn26 id=6d48b767c866fad28ea4ca236deb1bac63a7154413a926f3e36ec50a68e123d6
+  generated_callable gc3 function=@fn23 id=7cef304524f8c522d526b157cd1a4c6af0dc2d0bed50d77062c04e35526daa8b
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -91,7 +104,7 @@ Module
       assign $new.1
         Type Cell
         ClassAlloc Cell
-      call @fn8 direct
+      call @fn20 direct
         Type Cell
         Local $new.1
         Type Int
@@ -108,7 +121,7 @@ Module
       assign $new.2
         Type Cell
         ClassAlloc Cell
-      call @fn8 direct
+      call @fn20 direct
         Type Cell
         Local $new.2
         Type Int
@@ -125,7 +138,7 @@ Module
       assign $new.3
         Type Cell
         ClassAlloc Cell
-      call @fn8 direct
+      call @fn20 direct
         Type Cell
         Local $new.3
         Type Int
@@ -142,7 +155,7 @@ Module
       val $parameter.third: Cell
         Type Cell
         Local $argument.2
-      call $dependency.argument.0: Wide = @fn9 direct
+      call $dependency.argument.0: Wide = @fn21 direct
         Type Cell
         Local $parameter.first
         Type Cell
@@ -166,7 +179,7 @@ Module
       assign $new.4
         Type Cell
         ClassAlloc Cell
-      call @fn8 direct
+      call @fn20 direct
         Type Cell
         Local $new.4
         Type Int
@@ -186,7 +199,7 @@ Module
         VariantConstruct Option<(Cell, Int)> v0
           Type (Cell, Int)
           Local $dependency.parameter._1
-      call $dependency.argument.0: Empty = @fn10 direct
+      call $dependency.argument.0: Empty = @fn22 direct
       val $dependency.parameter._1: Empty
         Type Empty
         Local $dependency.argument.0
@@ -218,7 +231,7 @@ Module
       assign $new.5
         Type Cell
         ClassAlloc Cell
-      call @fn8 direct
+      call @fn20 direct
         Type Cell
         Local $new.5
         Type Int
@@ -612,7 +625,43 @@ Module
       return
         Type () -> Int
         Local $uw.2
-  fun init.Cell.$c0 @fn8(this: Cell, number: Int) -> Unit
+  fun Continuation.resume @fn8(this: Continuation<Wide>, value: Wide) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn9(this: Continuation<Wide>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn10(this: SuspendTask<Wide>, $completion: Continuation<Wide>) -> CoroutineStep<Wide>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn11(this: SuspendRegistration<Wide>, continuation: Continuation<Wide>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn12(this: Continuation<Cell>, value: Cell) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn13(this: Continuation<Cell>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn14(this: SuspendTask<Cell>, $completion: Continuation<Cell>) -> CoroutineStep<Cell>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn15(this: SuspendRegistration<Cell>, continuation: Continuation<Cell>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn16(this: Continuation<Empty>, value: Empty) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn17(this: Continuation<Empty>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn18(this: SuspendTask<Empty>, $completion: Continuation<Empty>) -> CoroutineStep<Empty>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn19(this: SuspendRegistration<Empty>, continuation: Continuation<Empty>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Cell.$c0 @fn20(this: Cell, number: Int) -> Unit
     bb0 entry
       field_set 0
         Type Cell
@@ -620,7 +669,7 @@ Module
         Type Int
         Local number
       return
-  fun ctor.Wide.$c0 @fn9(first: Cell, second: Cell, third: Cell) -> Wide <no-gc>
+  fun ctor.Wide.$c0 @fn21(first: Cell, second: Cell, third: Cell) -> Wide <no-gc>
     bb0 entry
       return
         Type Wide
@@ -631,12 +680,138 @@ Module
           Local second
           Type Cell
           Local third
-  fun ctor.Empty.$c1 @fn10() -> Empty <no-gc>
+  fun ctor.Empty.$c1 @fn22() -> Empty <no-gc>
     bb0 entry
       return
         Type Empty
         StructInit Empty
-  fun function_bridge.$Closure$lambda0.() -> Any @fn11($source: () -> Int) -> Any
+  fun startCoroutine<Empty> @fn23(task: SuspendTask<Empty>, completion: Continuation<Empty>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn16 interface Continuation<Empty>[0]
+        Type Continuation<Empty>
+        Local completion
+        Type Empty
+        EnumField v0 f0
+          Type CoroutineStep<Empty>
+          Local $step
+      return
+    bb2 failed
+      call @fn17 interface Continuation<Empty>[1]
+        Type Continuation<Empty>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Empty> = @fn18 interface SuspendTask<Empty>[0]
+        Type SuspendTask<Empty>
+        Local task
+        Type Continuation<Empty>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Empty>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Wide> @fn24(task: SuspendTask<Wide>, completion: Continuation<Wide>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn8 interface Continuation<Wide>[0]
+        Type Continuation<Wide>
+        Local completion
+        Type Wide
+        EnumField v0 f0
+          Type CoroutineStep<Wide>
+          Local $step
+      return
+    bb2 failed
+      call @fn9 interface Continuation<Wide>[1]
+        Type Continuation<Wide>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Wide> = @fn10 interface SuspendTask<Wide>[0]
+        Type SuspendTask<Wide>
+        Local task
+        Type Continuation<Wide>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Wide>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Cell> @fn25(task: SuspendTask<Cell>, completion: Continuation<Cell>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn12 interface Continuation<Cell>[0]
+        Type Continuation<Cell>
+        Local completion
+        Type Cell
+        EnumField v0 f0
+          Type CoroutineStep<Cell>
+          Local $step
+      return
+    bb2 failed
+      call @fn13 interface Continuation<Cell>[1]
+        Type Continuation<Cell>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Cell> = @fn14 interface SuspendTask<Cell>[0]
+        Type SuspendTask<Cell>
+        Local task
+        Type Continuation<Cell>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Cell>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$lambda0.() -> Any @fn26($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type () -> Int
@@ -652,6 +827,12 @@ Module
   coroutine_slot cl0 CoroutineSlot<Empty> value=Empty
   coroutine_slot cl1 CoroutineSlot<Wide> value=Wide
   coroutine_slot cl2 CoroutineSlot<Cell> value=Cell
+  coroutine_start ct0 result=Empty function=fn23
+  coroutine_start ct1 result=Wide function=fn24
+  coroutine_start ct2 result=Cell function=fn25
+  coroutine_fn cf0 @fn10 source_return=Wide step=cs1 immediate
+  coroutine_fn cf1 @fn14 source_return=Cell step=cs2 immediate
+  coroutine_fn cf2 @fn18 source_return=Empty step=cs0 immediate
   instance mi0 function=@fn1 <- exercise
   instance mi1 function=@fn2 <- wrap
   instance mi2 function=@fn3 <- $lambda.0
@@ -659,4 +840,16 @@ Module
   instance mi4 function=@fn5 <- force
   instance mi5 function=@fn6 <- force
   instance mi6 function=@fn7 <- force
+  instance mi7 function=@fn8 <- Continuation.resume
+  instance mi8 function=@fn9 <- Continuation.resumeWithException
+  instance mi9 function=@fn10 <- SuspendTask.run
+  instance mi10 function=@fn11 <- SuspendRegistration.register
+  instance mi11 function=@fn12 <- Continuation.resume
+  instance mi12 function=@fn13 <- Continuation.resumeWithException
+  instance mi13 function=@fn14 <- SuspendTask.run
+  instance mi14 function=@fn15 <- SuspendRegistration.register
+  instance mi15 function=@fn16 <- Continuation.resume
+  instance mi16 function=@fn17 <- Continuation.resumeWithException
+  instance mi17 function=@fn18 <- SuspendTask.run
+  instance mi18 function=@fn19 <- SuspendRegistration.register
   output library

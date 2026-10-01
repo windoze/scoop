@@ -25,7 +25,7 @@ fn common_reference_metadata_preserves_each_actual_call_and_its_route() {
                     &interface,
                 )
                 .unwrap();
-            let foundation = hir::OdrFreeHirFoundation::try_new(foundation).unwrap();
+
             let calls = output.committed_dependency_call_occurrences().unwrap();
             let mut observed = 0;
             for reference in interface.external_references().records() {
@@ -58,6 +58,7 @@ fn common_reference_metadata_preserves_each_actual_call_and_its_route() {
                             output.output().export.cone,
                             site.position().root,
                             site.origin().evaluation(),
+                            &foundation,
                         )
                         .unwrap_or_else(|error| {
                             panic!(
@@ -90,7 +91,7 @@ fn call_evaluation_rejects_another_executable_context_in_the_same_source() {
         let interface =
             hir::CrossConeHirInterfaceSectionV1::from_dependency_hir(&output, &[], &mut authority)
                 .unwrap();
-        let foundation = hir::OdrFreeHirFoundation::try_new(foundation).unwrap();
+
         let sites = interface
             .external_references()
             .records()
@@ -119,6 +120,7 @@ fn call_evaluation_rejects_another_executable_context_in_the_same_source() {
                 output.output().export.cone,
                 first.position().root,
                 &wrong,
+                &foundation,
             ),
             Err(hir::ExecutableEvaluationValidationError::Context { .. })
         ));

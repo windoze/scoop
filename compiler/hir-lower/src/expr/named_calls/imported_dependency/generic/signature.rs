@@ -1,6 +1,7 @@
 use super::*;
 
-mod intrinsic;
+use crate::imported_generics::intrinsic;
+pub(in crate::expr) use intrinsic::LoadedCallableSignature;
 mod variant;
 
 #[derive(Clone)]
@@ -9,14 +10,6 @@ pub(in crate::expr) enum ImportedGenericTarget {
     Constructor(hir::ImportedConstructorTemplateId),
     Variant(std::sync::Arc<variant::ImportedVariantSignature>),
     Intrinsic(std::sync::Arc<intrinsic::ImportedIntrinsicSignature>),
-}
-
-#[derive(Clone)]
-pub(in crate::expr) struct LoadedCallableSignature {
-    pub signature: DependencySignature,
-    pub receiver: Option<hir::TypeId>,
-    pub origin: hir::DefinitionOrigin,
-    pub span: hir::Span,
 }
 
 impl ImportedGenericTarget {

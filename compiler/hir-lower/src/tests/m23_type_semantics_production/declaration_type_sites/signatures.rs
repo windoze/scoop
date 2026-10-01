@@ -3,7 +3,7 @@ use scoop_identity::{AccessorRole, CallableTemplateOwner, PropertyAccessorKey};
 
 #[test]
 fn signature_sites_preserve_receivers_constructors_and_exact_accessor_parameter_ranges() {
-    with_hir_source(&source("declaration-combined"), |output, _| {
+    with_hir_source(&source("declaration-combined"), |output, core| {
         let local = output.output().local.module();
         let interface = public_interface(output);
         let mut foundation = hir::CanonicalHirFoundation::from_dependency_output(output).unwrap();
@@ -13,16 +13,14 @@ fn signature_sites_preserve_receivers_constructors_and_exact_accessor_parameter_
                 &interface,
             )
             .unwrap();
-        let foundation = hir::OdrFreeHirFoundation::try_new(foundation).unwrap();
-        let identities = source_inventory::identity_closure_for_foundation(
-            output,
-            foundation.as_canonical().clone(),
-        );
+
+        let identities =
+            source_inventory::identity_closure_for_foundation(output, foundation.clone());
         let validate = |root, part| {
             foundation.validate_declaration_type_position(
                 local.cone,
                 Position::CallableSignature(root, part),
-                &[],
+                &[core.source_foundation.as_ref()],
             )
         };
         for site in interface
@@ -37,11 +35,16 @@ fn signature_sites_preserve_receivers_constructors_and_exact_accessor_parameter_
                         local.cone,
                         expression.position().root,
                         expression.origin().evaluation(),
+                        &foundation,
                     )
                     .unwrap();
             } else {
                 foundation
-                    .validate_declaration_type_position(local.cone, site.position(), &[])
+                    .validate_declaration_type_position(
+                        local.cone,
+                        site.position(),
+                        &[core.source_foundation.as_ref()],
+                    )
                     .unwrap();
             }
         }

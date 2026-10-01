@@ -12,36 +12,42 @@
     Value(value: DependencyCombinationHost)
   class LocalDependencyHost vtable=0 itables=0
   class DependencyCombinationHost vtable=0 itables=0
+  interface Continuation<LocalDependencyHost>
+  interface SuspendTask<LocalDependencyHost>
+  interface SuspendRegistration<LocalDependencyHost>
+  interface Continuation<DependencyCombinationHost>
+  interface SuspendTask<DependencyCombinationHost>
+  interface SuspendRegistration<DependencyCombinationHost>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn32 captures=1
-    bridge function_type1 -> @fn68 id=579c4b30b9f3ee66d0229380d1eebf5d066347dd0d4a7376c7daf79e7ec0cb10
+    bridge function_type1 -> @fn78 id=579c4b30b9f3ee66d0229380d1eebf5d066347dd0d4a7376c7daf79e7ec0cb10
   closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn34 captures=1
-    bridge function_type1 -> @fn69 id=eb113a512d977ac0be06c7af523c0a6d8ec24115bd566f97341836c67df93ce6
+    bridge function_type1 -> @fn79 id=eb113a512d977ac0be06c7af523c0a6d8ec24115bd566f97341836c67df93ce6
   closure cc2 $Closure$lambda2 type=function_type2 invoke=@fn40 captures=1
-    bridge function_type1 -> @fn70 id=746e6f2f56d7d1ec07a333f3216d8177bade33e82d271eddcf3a3b4955da0a1b
+    bridge function_type1 -> @fn80 id=746e6f2f56d7d1ec07a333f3216d8177bade33e82d271eddcf3a3b4955da0a1b
   closure cc3 $Closure$lambda3 type=function_type2 invoke=@fn42 captures=1
-    bridge function_type1 -> @fn71 id=27717490a9779ff669914391517f842a8ed8eb01d33cb2d83ab18cf7bc2e04ee
+    bridge function_type1 -> @fn81 id=27717490a9779ff669914391517f842a8ed8eb01d33cb2d83ab18cf7bc2e04ee
   closure cc4 $Closure$anonymous0 type=function_type0 invoke=@fn36 captures=1
-    bridge function_type1 -> @fn72 id=3b3b2d1ba2b5433b352d2c4ffd1f8a97bc0ba8e4664dee30033c442fd8f52e90
+    bridge function_type1 -> @fn82 id=3b3b2d1ba2b5433b352d2c4ffd1f8a97bc0ba8e4664dee30033c442fd8f52e90
   closure cc5 $Closure$anonymous1 type=function_type2 invoke=@fn44 captures=1
-    bridge function_type1 -> @fn73 id=17c5d758b86f0b515cebbe42b18e5a2e3a9a3b9c06621c717e4148efefd7765b
-  closure cc6 $Closure$reference0 type=function_type0 invoke=@fn51 captures=1
-    bridge function_type1 -> @fn74 id=a64569ecdd7fee9d4ac087001e51d3c6c12ca940c937c386a6e4f7862851aaef
-  closure cc7 $Closure$reference1 type=function_type2 invoke=@fn52 captures=1
-    bridge function_type1 -> @fn75 id=47b3c454299fd4405e1b1a5548deecc7dbfdb3e493e470b86cfae3480880bfdf
-  closure cc8 $Closure$reference2 type=function_type0 invoke=@fn53 captures=1
-    bridge function_type1 -> @fn76 id=5133572bb0e414e90400ffa09e2ce6d50fb603892ac600e6bb5b005b18bfc53f
-  closure cc9 $Closure$reference3 type=function_type0 invoke=@fn54 captures=1
-    bridge function_type1 -> @fn77 id=6ca2d632b913dc2ab0815093573f61c54d0fff4dd11cecb05bc0ae00039321d0
-  closure cc10 $Closure$reference4 type=function_type2 invoke=@fn55 captures=1
-    bridge function_type1 -> @fn78 id=9454ee9d4620f4605ad378c690c8e88441cac4104ae2b0404efeb8f30425a719
-  closure cc11 $Closure$reference5 type=function_type2 invoke=@fn56 captures=1
-    bridge function_type1 -> @fn79 id=3f36dbeb6b110e4f4819534ec3c7c2b436a92321ee9fe60231713dacfceaf781
+    bridge function_type1 -> @fn83 id=17c5d758b86f0b515cebbe42b18e5a2e3a9a3b9c06621c717e4148efefd7765b
+  closure cc6 $Closure$reference0 type=function_type0 invoke=@fn59 captures=1
+    bridge function_type1 -> @fn84 id=a64569ecdd7fee9d4ac087001e51d3c6c12ca940c937c386a6e4f7862851aaef
+  closure cc7 $Closure$reference1 type=function_type2 invoke=@fn60 captures=1
+    bridge function_type1 -> @fn85 id=47b3c454299fd4405e1b1a5548deecc7dbfdb3e493e470b86cfae3480880bfdf
+  closure cc8 $Closure$reference2 type=function_type0 invoke=@fn61 captures=1
+    bridge function_type1 -> @fn86 id=5133572bb0e414e90400ffa09e2ce6d50fb603892ac600e6bb5b005b18bfc53f
+  closure cc9 $Closure$reference3 type=function_type0 invoke=@fn62 captures=1
+    bridge function_type1 -> @fn87 id=6ca2d632b913dc2ab0815093573f61c54d0fff4dd11cecb05bc0ae00039321d0
+  closure cc10 $Closure$reference4 type=function_type2 invoke=@fn63 captures=1
+    bridge function_type1 -> @fn88 id=9454ee9d4620f4605ad378c690c8e88441cac4104ae2b0404efeb8f30425a719
+  closure cc11 $Closure$reference5 type=function_type2 invoke=@fn64 captures=1
+    bridge function_type1 -> @fn89 id=3f36dbeb6b110e4f4819534ec3c7c2b436a92321ee9fe60231713dacfceaf781
   fun main @fn24() -> Unit
     bb0 entry
       assign $new.1
         Type LocalDependencyHost
         ClassAlloc LocalDependencyHost
-      call @fn65 direct
+      call @fn73 direct
         Type LocalDependencyHost
         Local $new.1
       val local: LocalDependencyHost
@@ -160,7 +166,7 @@
       assign $new.6
         Type DependencyCombinationHost
         ClassAlloc DependencyCombinationHost
-      call @fn66 direct
+      call @fn74 direct
         Type DependencyCombinationHost
         Local $new.6
       val combined: DependencyCombinationHost
@@ -697,7 +703,31 @@
       return
         Type (() -> Int, () -> Int)
         Local value
-  fun $reference.0 @fn51($closure: () -> String) -> String
+  fun Continuation.resume @fn51(this: Continuation<LocalDependencyHost>, value: LocalDependencyHost) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn52(this: Continuation<LocalDependencyHost>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn53(this: SuspendTask<LocalDependencyHost>, $completion: Continuation<LocalDependencyHost>) -> CoroutineStep<LocalDependencyHost>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn54(this: SuspendRegistration<LocalDependencyHost>, continuation: Continuation<LocalDependencyHost>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn55(this: Continuation<DependencyCombinationHost>, value: DependencyCombinationHost) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn56(this: Continuation<DependencyCombinationHost>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn57(this: SuspendTask<DependencyCombinationHost>, $completion: Continuation<DependencyCombinationHost>) -> CoroutineStep<DependencyCombinationHost>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn58(this: SuspendRegistration<DependencyCombinationHost>, continuation: Continuation<DependencyCombinationHost>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun $reference.0 @fn59($closure: () -> String) -> String
     bb0 entry
       call $call.1: String = @fn31 direct
         Type String
@@ -707,7 +737,7 @@
       return
         Type String
         Local $call.1
-  fun $reference.1 @fn52($closure: () -> Int) -> Int
+  fun $reference.1 @fn60($closure: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = @fn39 direct
         Type Int
@@ -717,7 +747,7 @@
       return
         Type Int
         Local $call.1
-  fun $reference.2 @fn53($closure: () -> String) -> String
+  fun $reference.2 @fn61($closure: () -> String) -> String
     bb0 entry
       call $call.1: String = @fn31 direct
         Type String
@@ -727,7 +757,7 @@
       return
         Type String
         Local $call.1
-  fun $reference.3 @fn54($closure: () -> String) -> String
+  fun $reference.3 @fn62($closure: () -> String) -> String
     bb0 entry
       call $call.1: String = @fn31 direct
         Type String
@@ -737,7 +767,7 @@
       return
         Type String
         Local $call.1
-  fun $reference.4 @fn55($closure: () -> Int) -> Int
+  fun $reference.4 @fn63($closure: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = @fn39 direct
         Type Int
@@ -747,7 +777,7 @@
       return
         Type Int
         Local $call.1
-  fun $reference.5 @fn56($closure: () -> Int) -> Int
+  fun $reference.5 @fn64($closure: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = @fn39 direct
         Type Int
@@ -757,16 +787,104 @@
       return
         Type Int
         Local $call.1
-  fun init.LocalDependencyHost.$c7 @fn65(this: LocalDependencyHost) -> Unit
+  fun init.LocalDependencyHost.$c7 @fn73(this: LocalDependencyHost) -> Unit
     bb0 entry
       return
-  fun init.DependencyCombinationHost.$c8 @fn66(this: DependencyCombinationHost) -> Unit
+  fun init.DependencyCombinationHost.$c8 @fn74(this: DependencyCombinationHost) -> Unit
     bb0 entry
       return
+  fun startCoroutine<LocalDependencyHost> @fn76(task: SuspendTask<LocalDependencyHost>, completion: Continuation<LocalDependencyHost>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn51 interface Continuation<LocalDependencyHost>[0]
+        Type Continuation<LocalDependencyHost>
+        Local completion
+        Type LocalDependencyHost
+        EnumField v0 f0
+          Type CoroutineStep<LocalDependencyHost>
+          Local $step
+      return
+    bb2 failed
+      call @fn52 interface Continuation<LocalDependencyHost>[1]
+        Type Continuation<LocalDependencyHost>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<LocalDependencyHost> = @fn53 interface SuspendTask<LocalDependencyHost>[0]
+        Type SuspendTask<LocalDependencyHost>
+        Local task
+        Type Continuation<LocalDependencyHost>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<LocalDependencyHost>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<DependencyCombinationHost> @fn77(task: SuspendTask<DependencyCombinationHost>, completion: Continuation<DependencyCombinationHost>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn55 interface Continuation<DependencyCombinationHost>[0]
+        Type Continuation<DependencyCombinationHost>
+        Local completion
+        Type DependencyCombinationHost
+        EnumField v0 f0
+          Type CoroutineStep<DependencyCombinationHost>
+          Local $step
+      return
+    bb2 failed
+      call @fn56 interface Continuation<DependencyCombinationHost>[1]
+        Type Continuation<DependencyCombinationHost>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<DependencyCombinationHost> = @fn57 interface SuspendTask<DependencyCombinationHost>[0]
+        Type SuspendTask<DependencyCombinationHost>
+        Local task
+        Type Continuation<DependencyCombinationHost>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<DependencyCombinationHost>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
   coroutine_step cs0 CoroutineStep<LocalDependencyHost> result=LocalDependencyHost
   coroutine_step cs1 CoroutineStep<DependencyCombinationHost> result=DependencyCombinationHost
   coroutine_slot cl0 CoroutineSlot<LocalDependencyHost> value=LocalDependencyHost
   coroutine_slot cl1 CoroutineSlot<DependencyCombinationHost> value=DependencyCombinationHost
+  coroutine_start ct0 result=LocalDependencyHost function=fn76
+  coroutine_start ct1 result=DependencyCombinationHost function=fn77
+  coroutine_fn cf0 @fn53 source_return=LocalDependencyHost step=cs0 immediate
+  coroutine_fn cf1 @fn57 source_return=DependencyCombinationHost step=cs1 immediate
   instance mi0 function=@fn25 <- $local.0.copy
   instance mi1 function=@fn26 <- localDependency
   instance mi2 function=@fn27 <- LocalDependencyHost.apply

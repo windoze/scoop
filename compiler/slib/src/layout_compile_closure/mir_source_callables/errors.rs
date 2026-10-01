@@ -31,6 +31,7 @@ pub enum SharedMirSourceCallableValidationError {
     Types(Box<crate::SharedMirTypeValidationError>),
     Constructors(Box<super::SharedMirConstructorValidationError>),
     Objects(Box<super::SharedMirObjectValidationError>),
+    Coroutines(Box<crate::SharedMirCoroutineValidationError>),
     Dispatch(Box<crate::SharedMirDispatchValidationError>),
     Equality(Box<super::SharedMirEqualityValidationError>),
     Shared(Box<hir::SharedTypeMetadataError>),

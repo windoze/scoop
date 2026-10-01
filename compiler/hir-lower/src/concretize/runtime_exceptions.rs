@@ -48,7 +48,7 @@ impl Lowerer {
         self.prepare_runtime_exception_type(declaration)
     }
 
-    fn prepare_runtime_exception_type(
+    pub(crate) fn prepare_runtime_exception_type(
         &mut self,
         declaration: PersistentTypeId,
     ) -> Result<(), ImportedSignatureTypeError> {
@@ -107,7 +107,7 @@ impl Concretizer<'_> {
         self.lower_runtime_exception_type(declaration);
     }
 
-    fn lower_runtime_exception_type(&mut self, declaration: PersistentTypeId) {
+    pub(super) fn lower_runtime_exception_type(&mut self, declaration: PersistentTypeId) {
         if let Some((ty, _)) = self.source.types.iter().find(|(_, ty)| {
             matches!(ty, export::Type::Class(class) if self.source.class_applications[*class].template == export::SourceNominalId::Concrete(declaration))
         }) {

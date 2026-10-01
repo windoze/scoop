@@ -10,6 +10,7 @@ mod link_symbol_uses;
 mod lir_dependencies;
 mod machine_selection;
 mod mir_constructors;
+mod mir_coroutines;
 mod mir_dispatch;
 mod mir_equality;
 mod mir_objects;

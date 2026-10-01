@@ -52,28 +52,21 @@ pub(super) fn lower_external_callables(
         let parameters = exact_arguments
             .enumerate()
             .map(|(argument, exact)| {
-                module
-                    .meta
-                    .source_exact_types
-                    .get_by_identity(exact)
-                    .map(|identity| identity.ty())
-                    .ok_or(Error::MissingExternalArgumentType {
-                        index,
-                        argument,
-                        exact,
-                    })
+                physical_type(module, exact).ok_or(Error::MissingExternalArgumentType {
+                    index,
+                    argument,
+                    exact,
+                })
             })
             .collect::<Result<Vec<_>, _>>()?;
-        let result = module
-            .meta
-            .source_exact_types
-            .get_by_identity(root.signature().result())
-            .ok_or(Error::MissingExternalResultType {
+        let result = physical_type(module, root.signature().result()).ok_or(
+            Error::MissingExternalResultType {
                 index,
                 exact: root.signature().result(),
-            })?;
+            },
+        )?;
         let signature =
-            abi::classify_mir_signature(context, parameters, result.ty(), structs, enums)?;
+            abi::classify_mir_signature(context, parameters.iter(), &result, structs, enums)?;
         let callable = if let Some(direct) = selected.callable_by_target(provider, target) {
             direct_count += 1;
             direct
@@ -121,4 +114,19 @@ pub(super) fn lower_external_callables(
         });
     }
     Ok((callables, mapping))
+}
+
+fn physical_type(
+    module: &mir::Module,
+    exact: scoop_identity::PersistentExactTypeId,
+) -> Option<mir::Type> {
+    if let Some(source) = module.meta.source_exact_types.get_by_identity(exact) {
+        return Some(source.ty().clone());
+    }
+    let generated = module.meta.generated_exact_types.get_by_identity(exact)?;
+    match generated.location() {
+        mir::GeneratedExactTypeLocation::Class(class) => Some(mir::Type::Class(class)),
+        mir::GeneratedExactTypeLocation::Enum(enum_) => Some(mir::Type::Enum(enum_, Vec::new())),
+        mir::GeneratedExactTypeLocation::Closure(_) => None,
+    }
 }

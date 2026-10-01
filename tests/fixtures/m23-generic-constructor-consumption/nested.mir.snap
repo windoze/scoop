@@ -1,5 +1,8 @@
 Module
   struct Pair<Payload> (first: Payload, second: Payload)
+  enum Option<String>
+    Some(_0: String)
+    None()
   enum CoroutineStep<Payload>
     Completed(value: Payload)
     Suspended()
@@ -9,8 +12,15 @@ Module
   class Payload vtable=0 itables=0
   class Nested<Payload> vtable=0 itables=0
   class Box<Pair<Payload>> vtable=0 itables=0
-  generated_exact_type get0 location=enum0 nominal_id=6010adbfb659ce57a9d878eb8709aa2755e90eb53e2604233817825d8d986afc exact_id=bad71433bb23e10b9a2ae636d4be2036832fa7159d9d12ab4888d15322afec5d
-  generated_exact_type get1 location=enum1 nominal_id=997c6ee7cae597589ae19fae9e283cfe38064b709c4503679e2354a353b3e968 exact_id=bfc1c8fc6654ac66db96c6687082c135cc2b0d9f14b00639dd41656740e52597
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<Payload>
+  interface SuspendTask<Payload>
+  interface SuspendRegistration<Payload>
+  generated_exact_type get0 location=enum1 nominal_id=6010adbfb659ce57a9d878eb8709aa2755e90eb53e2604233817825d8d986afc exact_id=bad71433bb23e10b9a2ae636d4be2036832fa7159d9d12ab4888d15322afec5d
+  generated_exact_type get1 location=enum2 nominal_id=997c6ee7cae597589ae19fae9e283cfe38064b709c4503679e2354a353b3e968 exact_id=bfc1c8fc6654ac66db96c6687082c135cc2b0d9f14b00639dd41656740e52597
+  generated_callable gc0 function=@fn14 id=b2809ebf67776d79cf2becbc97070bb8b4192e1fd200147988a3fc5772276cea
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -22,7 +32,7 @@ Module
       assign $new.1
         Type Payload
         ClassAlloc Payload
-      call @fn4 direct
+      call @fn8 direct
         Type Payload
         Local $new.1
         Type Int
@@ -36,7 +46,7 @@ Module
       assign $new.2
         Type Nested<Payload>
         ClassAlloc Nested<Payload>
-      call @fn5 direct
+      call @fn9 direct
         Type Nested<Payload>
         Local $new.2
         Type Payload
@@ -58,7 +68,7 @@ Module
       assign $new.3
         Type Payload
         ClassAlloc Payload
-      call @fn4 direct
+      call @fn8 direct
         Type Payload
         Local $new.3
         Type Int
@@ -75,7 +85,7 @@ Module
       assign $new.4
         Type Payload
         ClassAlloc Payload
-      call @fn4 direct
+      call @fn8 direct
         Type Payload
         Local $new.4
         Type Int
@@ -124,7 +134,19 @@ Module
       return
         Type Pair<Payload>
         Local value
-  fun init.Payload.$c0 @fn4(this: Payload, value: Int) -> Unit
+  fun Continuation.resume @fn4(this: Continuation<Payload>, value: Payload) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn5(this: Continuation<Payload>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn6(this: SuspendTask<Payload>, $completion: Continuation<Payload>) -> CoroutineStep<Payload>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn7(this: SuspendRegistration<Payload>, continuation: Continuation<Payload>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Payload.$c0 @fn8(this: Payload, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Payload
@@ -132,7 +154,7 @@ Module
         Type Int
         Local value
       return
-  fun init.Nested.$c0 @fn5(this: Nested<Payload>, value: Payload) -> Unit
+  fun init.Nested.$c0 @fn9(this: Nested<Payload>, value: Payload) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Payload
         Type Payload
@@ -140,7 +162,7 @@ Module
       val $dependency.constructor.local.1: Payload
         Type Payload
         Local $dependency.constructor.local.0
-      call $dependency.constructor.local.2: Pair<Payload> = @fn8 direct
+      call $dependency.constructor.local.2: Pair<Payload> = @fn12 direct
         Type Payload
         Local $dependency.constructor.local.1
       val $dependency.constructor.local.3: Int
@@ -152,7 +174,7 @@ Module
       val $dependency.constructor.local.5: Int
         Type Int
         Local $dependency.constructor.local.3
-      call @fn6 direct
+      call @fn10 direct
         Type Box<Pair<Payload>>
         Retype Box<Pair<Payload>>
           Type Nested<Payload>
@@ -162,7 +184,7 @@ Module
         Type Int
         Local $dependency.constructor.local.5
       return
-  fun init.Box.$c2 @fn6(this: Box<Pair<Payload>>, value: Pair<Payload>, extra: Int) -> Unit
+  fun init.Box.$c2 @fn10(this: Box<Pair<Payload>>, value: Pair<Payload>, extra: Int) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Pair<Payload>
         Type Pair<Payload>
@@ -170,7 +192,7 @@ Module
       val $dependency.constructor.local.1: Pair<Payload>
         Type Pair<Payload>
         Local $dependency.constructor.local.0
-      call @fn7 direct
+      call @fn11 direct
         Type Box<Pair<Payload>>
         Local this
         Type Pair<Payload>
@@ -196,7 +218,7 @@ Module
           Type Int
           Local $dependency.constructor.local.2
       return
-  fun init.Box.$c1 @fn7(this: Box<Pair<Payload>>, value: Pair<Payload>) -> Unit
+  fun init.Box.$c1 @fn11(this: Box<Pair<Payload>>, value: Pair<Payload>) -> Unit
     bb0 entry
       field_set 0
         Type Box<Pair<Payload>>
@@ -245,7 +267,7 @@ Module
           Type Int
           Local $dependency.constructor.local.2
       return
-  fun ctor.Pair.$c3 @fn8(value: Payload) -> Pair<Payload>
+  fun ctor.Pair.$c3 @fn12(value: Payload) -> Pair<Payload>
     bb0 entry
       val $dependency.constructor.local.0: Payload
         Type Payload
@@ -259,7 +281,7 @@ Module
       val $dependency.constructor.local.3: Payload
         Type Payload
         Local $dependency.constructor.local.1
-      call $this: Pair<Payload> = @fn9 direct
+      call $this: Pair<Payload> = @fn13 direct
         Type Payload
         Local $dependency.constructor.local.2
         Type Payload
@@ -267,7 +289,7 @@ Module
       return
         Type Pair<Payload>
         Local $this
-  fun ctor.Pair.$c4 @fn9(first: Payload, second: Payload) -> Pair<Payload> <no-gc>
+  fun ctor.Pair.$c4 @fn13(first: Payload, second: Payload) -> Pair<Payload> <no-gc>
     bb0 entry
       return
         Type Pair<Payload>
@@ -276,9 +298,57 @@ Module
           Local first
           Type Payload
           Local second
+  fun startCoroutine<Payload> @fn14(task: SuspendTask<Payload>, completion: Continuation<Payload>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn4 interface Continuation<Payload>[0]
+        Type Continuation<Payload>
+        Local completion
+        Type Payload
+        EnumField v0 f0
+          Type CoroutineStep<Payload>
+          Local $step
+      return
+    bb2 failed
+      call @fn5 interface Continuation<Payload>[1]
+        Type Continuation<Payload>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Payload> = @fn6 interface SuspendTask<Payload>[0]
+        Type SuspendTask<Payload>
+        Local task
+        Type Continuation<Payload>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Payload>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
   coroutine_step cs0 CoroutineStep<Payload> result=Payload
   coroutine_slot cl0 CoroutineSlot<Payload> value=Payload
+  coroutine_start ct0 result=Payload function=fn14
+  coroutine_fn cf0 @fn6 source_return=Payload step=cs0 immediate
   instance mi0 function=@fn1 <- echoed
   instance mi1 function=@fn2 <- count
   instance mi2 function=@fn3 <- keep
+  instance mi3 function=@fn4 <- Continuation.resume
+  instance mi4 function=@fn5 <- Continuation.resumeWithException
+  instance mi5 function=@fn6 <- SuspendTask.run
+  instance mi6 function=@fn7 <- SuspendRegistration.register
   output library

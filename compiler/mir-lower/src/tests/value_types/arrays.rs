@@ -70,157 +70,7 @@ fn array_nodes_translate_one_to_one() {
     // The subscript read and the indexed store both get the M8
     // bounds check: array and index evaluated once into hidden
     // locals, then `IndexOutOfBoundsException` on failure.
-    let expected = "\
-Module
-  enum ForeignCallbackMode
-    Reusable()
-    OneShot()
-  enum ForeignCallbackState
-    Registered()
-    Active()
-    Completed()
-    Failed()
-  enum CoroutineStep<String>
-    Completed(value: String)
-    Suspended()
-  enum CoroutineSlot<String>
-    Empty()
-    Value(value: String)
-  class IndexOutOfBoundsException vtable=0 itables=0
-  generated_exact_type get0 location=enum2 nominal_id=2b41b14d885fa38a57063f4b172f305c10201de466a744b67467d982b9b03e4d exact_id=54f75c5f7a246468d3b9a26b12b55f3682e8d4c3461904f2d2dad148dd1d3381
-  generated_exact_type get1 location=enum3 nominal_id=97de422daaa5f55d61a1aa042f57df4b345a1c739e7c8cdb9828340e5643c8de exact_id=c6dfe2e2b19c7e12085f2e1cfcac8c2868bd073baad4765dd757d63390b273e4
-  fun main @fn0() -> Unit
-    bb0 entry
-      val a: Array<Int>
-        Type Array<Int>
-        ArrayLiteral Array<Int>
-          Type Int
-          IntegerLiteral Int value=1 bits=0x00000001
-          Type Int
-          IntegerLiteral Int value=2 bits=0x00000002
-          Type Int
-          IntegerLiteral Int value=3 bits=0x00000003
-      val $arr.1: Array<Int>
-        Type Array<Int>
-        Local a
-      val $idx.2: Long
-        Type Long
-        IntegerLiteral Long value=0 bits=0x0000000000000000
-      branch bb2 bb1
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          Local $idx.2
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb1 logic.rhs.1
-      assign $logic.1
-        Type Boolean
-        IntegerCompare greater-than-or-equal operands=Long result=Boolean
-          Type Long
-          Local $idx.2
-          Type Long
-          ArrayLen Array<Int>
-            Type Array<Int>
-            Local $arr.1
-      goto bb3
-    bb2 logic.short.2
-      assign $logic.1
-        Type Boolean
-        BoolLiteral true
-      goto bb3
-    bb3 logic.merge.3
-      branch bb4 bb5
-        Type Boolean
-        Local $logic.1
-    bb4 if.then.4
-      assign $new.2
-        Type IndexOutOfBoundsException
-        ClassAlloc IndexOutOfBoundsException
-      call @fn1 direct
-        Type IndexOutOfBoundsException
-        Local $new.2
-      throw
-        Type IndexOutOfBoundsException
-        Local $new.2
-    bb5 if.merge.5
-      val x: Int
-        Type Int
-        ArrayGet Array<Int>
-          Type Array<Int>
-          Local $arr.1
-          Type Long
-          Local $idx.2
-      val n: Long
-        Type Long
-        ArrayLen Array<Int>
-          Type Array<Int>
-          Local a
-      val m: MutableArray<Int>
-        Type MutableArray<Int>
-        ArrayClone Array<Int> -> MutableArray<Int>
-          Type Array<Int>
-          Local a
-      val $arr.3: MutableArray<Int>
-        Type MutableArray<Int>
-        Local m
-      val $idx.4: Long
-        Type Long
-        IntegerLiteral Long value=0 bits=0x0000000000000000
-      branch bb7 bb6
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          Local $idx.4
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb6 logic.rhs.6
-      assign $logic.3
-        Type Boolean
-        IntegerCompare greater-than-or-equal operands=Long result=Boolean
-          Type Long
-          Local $idx.4
-          Type Long
-          ArrayLen MutableArray<Int>
-            Type MutableArray<Int>
-            Local $arr.3
-      goto bb8
-    bb7 logic.short.7
-      assign $logic.3
-        Type Boolean
-        BoolLiteral true
-      goto bb8
-    bb8 logic.merge.8
-      branch bb9 bb10
-        Type Boolean
-        Local $logic.3
-    bb9 if.then.9
-      assign $new.4
-        Type IndexOutOfBoundsException
-        ClassAlloc IndexOutOfBoundsException
-      call @fn1 direct
-        Type IndexOutOfBoundsException
-        Local $new.4
-      throw
-        Type IndexOutOfBoundsException
-        Local $new.4
-    bb10 if.merge.10
-      array_set MutableArray<Int>
-        Type MutableArray<Int>
-        Local $arr.3
-        Type Long
-        Local $idx.4
-        Type Int
-        IntegerLiteral Int value=40 bits=0x00000028
-      return
-  fun init.IndexOutOfBoundsException.$c0 @fn1(this: IndexOutOfBoundsException) -> Unit
-    bb0 entry
-      return
-  coroutine_step cs0 CoroutineStep<String> result=String
-  coroutine_slot cl0 CoroutineSlot<String> value=String
-  output executable @fn0
-";
-    assert_eq!(dump(&module), expected);
+    check_mir_snapshot("array_nodes_translate_one_to_one", &module);
 }
 
 #[test]
@@ -281,13 +131,13 @@ fn instance_types_preserve_array_arguments() {
     h.use_identity_instances(f, &[array_int, mutable_int]);
     let module = lower(&h.finish(main));
 
-    assert_eq!(module.meta.instances.len(), 2);
     // Substitution recurses into the array element types.
     let instances = module
         .functions
         .iter()
         .filter_map(|(_, function)| (function.name == "f").then_some(function))
         .collect::<Vec<_>>();
+    assert_eq!(instances.len(), 2);
     let array_instance = instances[0];
     assert_eq!(
         mir::array_type(&module, &array_instance.params[0].ty),

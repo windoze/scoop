@@ -1,33 +1,33 @@
   class ReferenceConstructor<Int> vtable=0 itables=0
   class ReferenceConstructor<String> vtable=0 itables=0
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn30 captures=1
-    bridge function_type1 -> @fn76 id=6de076ed51bbef8e1fe41a6a484004baa460a28e952b0534e4d27c7d417e05ec
+    bridge function_type1 -> @fn81 id=6de076ed51bbef8e1fe41a6a484004baa460a28e952b0534e4d27c7d417e05ec
   closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn35 captures=1
-    bridge function_type1 -> @fn77 id=f0108a75ae691c1389d3c34b6f0d995de521d020d986b470a2a68002bc676660
+    bridge function_type1 -> @fn82 id=f0108a75ae691c1389d3c34b6f0d995de521d020d986b470a2a68002bc676660
   closure cc2 $Closure$lambda2 type=function_type0 invoke=@fn49 captures=1
-    bridge function_type1 -> @fn78 id=2fcdcf4d5d0372fce02bb04f6a561078bdbc7c176c2317836b31d42af18e4f6e
+    bridge function_type1 -> @fn83 id=2fcdcf4d5d0372fce02bb04f6a561078bdbc7c176c2317836b31d42af18e4f6e
   closure cc3 $Closure$lambda3 type=function_type2 invoke=@fn52 captures=1
-    bridge function_type1 -> @fn79 id=29c9066877cce7802901b8a7333d6c2268359afad1347d377ac41dd9af4159bd
+    bridge function_type1 -> @fn84 id=29c9066877cce7802901b8a7333d6c2268359afad1347d377ac41dd9af4159bd
   closure cc4 $Closure$anonymous0 type=function_type0 invoke=@fn32 captures=1
-    bridge function_type1 -> @fn80 id=e0dca4b58948b80fa5c9e4d4258c245417ce7e3bd4d4453813225e7a8ebf43e0
+    bridge function_type1 -> @fn85 id=e0dca4b58948b80fa5c9e4d4258c245417ce7e3bd4d4453813225e7a8ebf43e0
   closure cc5 $Closure$anonymous1 type=function_type2 invoke=@fn37 captures=1
-    bridge function_type1 -> @fn81 id=1574130801551eb8ff056053df290b332bee263ba8eb939c268cfe258968b92b
-  closure cc6 $Closure$reference0 type=function_type0 invoke=@fn56 captures=1
-    bridge function_type1 -> @fn82 id=a64569ecdd7fee9d4ac087001e51d3c6c12ca940c937c386a6e4f7862851aaef
-  closure cc7 $Closure$reference1 type=function_type0 invoke=@fn57 captures=1
-    bridge function_type1 -> @fn83 id=47b3c454299fd4405e1b1a5548deecc7dbfdb3e493e470b86cfae3480880bfdf
-  closure cc8 $Closure$reference2 type=function_type0 invoke=@fn58 captures=0
-    bridge function_type1 -> @fn84 id=5133572bb0e414e90400ffa09e2ce6d50fb603892ac600e6bb5b005b18bfc53f
-  closure cc9 $Closure$reference3 type=function_type0 invoke=@fn59 captures=0
-    bridge function_type1 -> @fn85 id=6ca2d632b913dc2ab0815093573f61c54d0fff4dd11cecb05bc0ae00039321d0
-  closure cc10 $Closure$reference4 type=function_type0 invoke=@fn60 captures=0
-    bridge function_type1 -> @fn86 id=b7819efa36f26c9523b194a6b1a369d98480c15e9e40c29920e7c084e6d883c2
-  closure cc11 $Closure$reference5 type=function_type0 invoke=@fn61 captures=0
-    bridge function_type1 -> @fn87 id=01079b1b29c163a1bd9f1dc30a494752dee8f412b6b7e8689b10ee241992b3aa
-  closure cc12 $Closure$reference6 type=function_type0 invoke=@fn62 captures=1
-    bridge function_type1 -> @fn88 id=8c8db14d2d9c162dcecd7e5ced9e209105fa080d8a650ee31d4c20bfdca47438
-  closure cc13 $Closure$reference7 type=function_type2 invoke=@fn63 captures=1
-    bridge function_type1 -> @fn89 id=1ac71500153615bc2309f98541a44c820a7aaeb8f03e4a7dcd356d852403b67b
+    bridge function_type1 -> @fn86 id=1574130801551eb8ff056053df290b332bee263ba8eb939c268cfe258968b92b
+  closure cc6 $Closure$reference0 type=function_type0 invoke=@fn60 captures=1
+    bridge function_type1 -> @fn87 id=a64569ecdd7fee9d4ac087001e51d3c6c12ca940c937c386a6e4f7862851aaef
+  closure cc7 $Closure$reference1 type=function_type0 invoke=@fn61 captures=1
+    bridge function_type1 -> @fn88 id=47b3c454299fd4405e1b1a5548deecc7dbfdb3e493e470b86cfae3480880bfdf
+  closure cc8 $Closure$reference2 type=function_type0 invoke=@fn62 captures=0
+    bridge function_type1 -> @fn89 id=5133572bb0e414e90400ffa09e2ce6d50fb603892ac600e6bb5b005b18bfc53f
+  closure cc9 $Closure$reference3 type=function_type0 invoke=@fn63 captures=0
+    bridge function_type1 -> @fn90 id=6ca2d632b913dc2ab0815093573f61c54d0fff4dd11cecb05bc0ae00039321d0
+  closure cc10 $Closure$reference4 type=function_type0 invoke=@fn64 captures=0
+    bridge function_type1 -> @fn91 id=b7819efa36f26c9523b194a6b1a369d98480c15e9e40c29920e7c084e6d883c2
+  closure cc11 $Closure$reference5 type=function_type0 invoke=@fn65 captures=0
+    bridge function_type1 -> @fn92 id=01079b1b29c163a1bd9f1dc30a494752dee8f412b6b7e8689b10ee241992b3aa
+  closure cc12 $Closure$reference6 type=function_type0 invoke=@fn66 captures=1
+    bridge function_type1 -> @fn93 id=8c8db14d2d9c162dcecd7e5ced9e209105fa080d8a650ee31d4c20bfdca47438
+  closure cc13 $Closure$reference7 type=function_type2 invoke=@fn67 captures=1
+    bridge function_type1 -> @fn94 id=1ac71500153615bc2309f98541a44c820a7aaeb8f03e4a7dcd356d852403b67b
   fun main @fn27() -> Unit
     bb0 entry
       val $argument.0: String
@@ -232,7 +232,7 @@
       assign $new.11
         Type ReferenceBox
         ClassAlloc ReferenceBox
-      call @fn72 direct
+      call @fn76 direct
         Type ReferenceBox
         Local $new.11
         Type String
@@ -302,7 +302,7 @@
       assign $new.16
         Type ReferenceConstructor<Int>
         ClassAlloc ReferenceConstructor<Int>
-      call @fn73 direct
+      call @fn77 direct
         Type ReferenceConstructor<Int>
         Local $new.16
         Type Int
@@ -326,7 +326,7 @@
       assign $new.18
         Type ReferenceConstructor<String>
         ClassAlloc ReferenceConstructor<String>
-      call @fn74 direct
+      call @fn78 direct
         Type ReferenceConstructor<String>
         Local $new.18
         Type String
@@ -643,7 +643,7 @@
       return
         Type () -> Int
         Local value
-  fun $reference.0 @fn56($closure: () -> String) -> String
+  fun $reference.0 @fn60($closure: () -> String) -> String
     bb0 entry
       call $call.1: String = @fn23 direct
         Type ReferenceBox
@@ -653,7 +653,7 @@
       return
         Type String
         Local $call.1
-  fun $reference.1 @fn57($closure: () -> String) -> String
+  fun $reference.1 @fn61($closure: () -> String) -> String
     bb0 entry
       call $call.1: String = @fn26 direct
         Type String
@@ -663,31 +663,31 @@
       return
         Type String
         Local $call.1
-  fun $reference.2 @fn58($closure: () -> String) -> String
+  fun $reference.2 @fn62($closure: () -> String) -> String
     bb0 entry
       call $call.1: String = @fn25 direct
       return
         Type String
         Local $call.1
-  fun $reference.3 @fn59($closure: () -> String) -> String
+  fun $reference.3 @fn63($closure: () -> String) -> String
     bb0 entry
       call $call.1: String = @fn25 direct
       return
         Type String
         Local $call.1
-  fun $reference.4 @fn60($closure: () -> String) -> String
+  fun $reference.4 @fn64($closure: () -> String) -> String
     bb0 entry
       call $call.1: String = @fn25 direct
       return
         Type String
         Local $call.1
-  fun $reference.5 @fn61($closure: () -> String) -> String
+  fun $reference.5 @fn65($closure: () -> String) -> String
     bb0 entry
       call $call.1: String = @fn25 direct
       return
         Type String
         Local $call.1
-  fun $reference.6 @fn62($closure: () -> String) -> String
+  fun $reference.6 @fn66($closure: () -> String) -> String
     bb0 entry
       call $call.1: String = @fn48 direct
         Type String
@@ -697,7 +697,7 @@
       return
         Type String
         Local $call.1
-  fun $reference.7 @fn63($closure: () -> Int) -> Int
+  fun $reference.7 @fn67($closure: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = @fn51 direct
         Type Int
@@ -707,7 +707,7 @@
       return
         Type Int
         Local $call.1
-  fun init.ReferenceConstructor.$c8 @fn73(this: ReferenceConstructor<Int>, seed: Int, callback: () -> String) -> Unit
+  fun init.ReferenceConstructor.$c8 @fn77(this: ReferenceConstructor<Int>, seed: Int, callback: () -> String) -> Unit
     bb0 entry
       field_set 0
         Type ReferenceConstructor<Int>
@@ -715,7 +715,7 @@
         Type () -> String
         Local callback
       return
-  fun init.ReferenceConstructor.$c8 @fn74(this: ReferenceConstructor<String>, seed: String, callback: () -> String) -> Unit
+  fun init.ReferenceConstructor.$c8 @fn78(this: ReferenceConstructor<String>, seed: String, callback: () -> String) -> Unit
     bb0 entry
       field_set 0
         Type ReferenceConstructor<String>

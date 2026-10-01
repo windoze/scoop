@@ -1,4 +1,7 @@
 Module
+  enum Option<String>
+    Some(_0: String)
+    None()
   enum CoroutineStep<LocalProperty>
     Completed(value: LocalProperty)
     Suspended()
@@ -13,12 +16,23 @@ Module
     Value(value: LocalProcedure)
   class LocalProperty vtable=0 itables=2
   class Counter vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
   interface LocalProcedure
   interface DefaultProperty
-  generated_exact_type get0 location=enum2 nominal_id=7f54fac79ac339bf6e323f07adfc437f31d7360ad5b165155b5a89767dfee97a exact_id=13f731bcc39ae9baf86c62567320de3427eccb9085488c3d02ca82b68de3d66b
-  generated_exact_type get1 location=enum1 nominal_id=33770f3b01d628b8191f1a2aa41240a7102dc3bffd8611dab86f5128ea14f137 exact_id=73eb3ba116f657718ade90121c339430d8803d30b1285b8eca1b4664a0dfbdbd
-  generated_exact_type get2 location=enum0 nominal_id=6d6b0e97e867221434529a186ecdb73436ba024cdeabf28790753c77e086612f exact_id=9d107e1f298b50151f81f506f724fca9ff126dae63cfce31392c2d98cf6e96b3
-  generated_exact_type get3 location=enum3 nominal_id=6b15e27b734e6ea391ead38c85f0d9bf134c0897b84690466607c24536699632 exact_id=f00c3c83a71deaaf5e4a91dded2c45a6939a455c8780818b706ae1c5a90819cd
+  interface Continuation<LocalProcedure>
+  interface SuspendTask<LocalProcedure>
+  interface SuspendRegistration<LocalProcedure>
+  interface Continuation<LocalProperty>
+  interface SuspendTask<LocalProperty>
+  interface SuspendRegistration<LocalProperty>
+  generated_exact_type get0 location=enum3 nominal_id=7f54fac79ac339bf6e323f07adfc437f31d7360ad5b165155b5a89767dfee97a exact_id=13f731bcc39ae9baf86c62567320de3427eccb9085488c3d02ca82b68de3d66b
+  generated_exact_type get1 location=enum2 nominal_id=33770f3b01d628b8191f1a2aa41240a7102dc3bffd8611dab86f5128ea14f137 exact_id=73eb3ba116f657718ade90121c339430d8803d30b1285b8eca1b4664a0dfbdbd
+  generated_exact_type get2 location=enum1 nominal_id=6d6b0e97e867221434529a186ecdb73436ba024cdeabf28790753c77e086612f exact_id=9d107e1f298b50151f81f506f724fca9ff126dae63cfce31392c2d98cf6e96b3
+  generated_exact_type get3 location=enum4 nominal_id=6b15e27b734e6ea391ead38c85f0d9bf134c0897b84690466607c24536699632 exact_id=f00c3c83a71deaaf5e4a91dded2c45a6939a455c8780818b706ae1c5a90819cd
+  generated_callable gc0 function=@fn14 id=1efe8b801616c710a70ea30782d2f3ee7bec0e1f76241e4dca1e4afb207f8acd
+  generated_callable gc1 function=@fn15 id=65c8b5f4289293ee33c20e1cfe1625708ac200f9622fc84645b02d69ac74d77a
   fun LocalProperty.exercise @fn0(this: LocalProperty) -> Long
     bb0 entry
       val $receiver: LocalProcedure
@@ -26,7 +40,7 @@ Module
         Retype LocalProcedure
           Type LocalProperty
           Local this
-      call @fn4 direct
+      call @fn12 direct
         Type LocalProcedure
         Local $receiver
       call external2 direct
@@ -148,7 +162,7 @@ Module
       assign $new.1
         Type LocalProperty
         ClassAlloc LocalProperty
-      call @fn5 direct
+      call @fn13 direct
         Type LocalProperty
         Local $new.1
       val $receiver: LocalProperty
@@ -171,13 +185,37 @@ Module
       return
         Type Counter
         Local $new.2
-  fun LocalProcedure.clear @fn4(this: LocalProcedure) -> Unit
+  fun Continuation.resume @fn4(this: Continuation<LocalProcedure>, value: LocalProcedure) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn5(this: Continuation<LocalProcedure>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn6(this: SuspendTask<LocalProcedure>, $completion: Continuation<LocalProcedure>) -> CoroutineStep<LocalProcedure>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn7(this: SuspendRegistration<LocalProcedure>, continuation: Continuation<LocalProcedure>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn8(this: Continuation<LocalProperty>, value: LocalProperty) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn9(this: Continuation<LocalProperty>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn10(this: SuspendTask<LocalProperty>, $completion: Continuation<LocalProperty>) -> CoroutineStep<LocalProperty>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn11(this: SuspendRegistration<LocalProperty>, continuation: Continuation<LocalProperty>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun LocalProcedure.clear @fn12(this: LocalProcedure) -> Unit
     bb0 entry
       call external1 direct
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
-  fun init.LocalProperty.$c0 @fn5(this: LocalProperty) -> Unit
+  fun init.LocalProperty.$c0 @fn13(this: LocalProperty) -> Unit
     bb0 entry
       field_set 0
         Type LocalProperty
@@ -185,8 +223,104 @@ Module
         Type Long
         IntegerLiteral Long value=1000 bits=0x00000000000003e8
       return
+  fun startCoroutine<LocalProperty> @fn14(task: SuspendTask<LocalProperty>, completion: Continuation<LocalProperty>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn8 interface Continuation<LocalProperty>[0]
+        Type Continuation<LocalProperty>
+        Local completion
+        Type LocalProperty
+        EnumField v0 f0
+          Type CoroutineStep<LocalProperty>
+          Local $step
+      return
+    bb2 failed
+      call @fn9 interface Continuation<LocalProperty>[1]
+        Type Continuation<LocalProperty>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<LocalProperty> = @fn10 interface SuspendTask<LocalProperty>[0]
+        Type SuspendTask<LocalProperty>
+        Local task
+        Type Continuation<LocalProperty>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<LocalProperty>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<LocalProcedure> @fn15(task: SuspendTask<LocalProcedure>, completion: Continuation<LocalProcedure>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn4 interface Continuation<LocalProcedure>[0]
+        Type Continuation<LocalProcedure>
+        Local completion
+        Type LocalProcedure
+        EnumField v0 f0
+          Type CoroutineStep<LocalProcedure>
+          Local $step
+      return
+    bb2 failed
+      call @fn5 interface Continuation<LocalProcedure>[1]
+        Type Continuation<LocalProcedure>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<LocalProcedure> = @fn6 interface SuspendTask<LocalProcedure>[0]
+        Type SuspendTask<LocalProcedure>
+        Local task
+        Type Continuation<LocalProcedure>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<LocalProcedure>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
   coroutine_step cs0 CoroutineStep<LocalProperty> result=LocalProperty
   coroutine_step cs1 CoroutineStep<LocalProcedure> result=LocalProcedure
   coroutine_slot cl0 CoroutineSlot<LocalProperty> value=LocalProperty
   coroutine_slot cl1 CoroutineSlot<LocalProcedure> value=LocalProcedure
+  coroutine_start ct0 result=LocalProperty function=fn14
+  coroutine_start ct1 result=LocalProcedure function=fn15
+  coroutine_fn cf0 @fn6 source_return=LocalProcedure step=cs1 immediate
+  coroutine_fn cf1 @fn10 source_return=LocalProperty step=cs0 immediate
+  instance mi0 function=@fn4 <- Continuation.resume
+  instance mi1 function=@fn5 <- Continuation.resumeWithException
+  instance mi2 function=@fn6 <- SuspendTask.run
+  instance mi3 function=@fn7 <- SuspendRegistration.register
+  instance mi4 function=@fn8 <- Continuation.resume
+  instance mi5 function=@fn9 <- Continuation.resumeWithException
+  instance mi6 function=@fn10 <- SuspendTask.run
+  instance mi7 function=@fn11 <- SuspendRegistration.register
   output library

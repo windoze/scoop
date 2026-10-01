@@ -11,6 +11,7 @@ use scoop_wire::WirePath;
 use super::ValidatedCrossConeSemanticClosure;
 
 mod callbacks;
+mod coroutines;
 mod errors;
 mod initialization;
 mod lir;
@@ -121,6 +122,7 @@ impl ValidatedCrossConeSemanticClosure {
         }
 
         self.project_callback_storage(hir, &mut projected)?;
+        self.project_coroutine_starts(hir, &mut projected)?;
         self.project_initialization_callables(hir.output().local.module(), &mut projected)?;
         self.project_runtime_constructors(hir.output().local.module(), &mut projected)?;
         let objects =

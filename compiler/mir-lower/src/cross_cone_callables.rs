@@ -10,6 +10,7 @@ use scoop_wire::{WireError, WirePath};
 mod applications;
 mod binding;
 mod callbacks;
+mod coroutines;
 mod roles;
 
 /// Produces ordinary source bodies, accessors and actual class trap bodies.
@@ -68,6 +69,7 @@ pub fn lower_source_callable_bindings(
 
     applications::append(local, input, identities, types, &mut records)?;
     callbacks::append(input, identities, types, ordinary, &mut records)?;
+    coroutines::append(input, identities, types, &mut records)?;
 
     Ok(mir::CanonicalMirCallableBindingsV1::try_new(records)?)
 }

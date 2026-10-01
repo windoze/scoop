@@ -719,12 +719,25 @@
 - 按职责新增动态 adapter、函数描述符与类型关系模块，并将 LIR dump 的 metadata 部分拆出；新实现模块均保持在约 300 行以内。完成 LLVM 22.1 下的 `cargo fmt --all`、`cargo clippy --workspace --all-targets` 和实际配套 `scoopc` 构建，无警告。
 - 清除全部快照更新开关和测试栈覆盖，执行 `cargo test --workspace --no-fail-fast --target-dir target/m23-6a`：**37 个测试组、5322 passed、0 failed、0 ignored**，无编译警告；driver 的 **212 项**全部通过，耗时 **715.49 秒**。既有函数引用组合、source-only 私有类型、三个 IR golden、core 产物、reader、对象、EH、stack-map 和 runtime 回归均通过。日志及汇总为 `/tmp/scoop-m23-7-adapter-strict-workspace.log` 与 `/tmp/scoop-m23-7-adapter-strict-results.json`。
 
+- 函数适配器提交后清理 `target/m23-6a`，删除 **1588 个文件、3.5 GiB**；日志为 `/tmp/scoop-m23-7-adapter-clean.log`。
+
+## 2026-10-01：跨 Cone 协程协议与有限启动支持
+
+- HIR 具体化输出必需的 `CoroutineProtocol` 记录，源定义与依赖声明共用真实 core intrinsic、协议成员和普通请求队列。先固定有限 source shape 根，再按挂起 callable、函数型变与 interface 槽的实际结果类型闭合协议，不递归产生无穷 helper。
+- 挂起 callable 保留语义签名与完整物理签名：隐藏参数为实际 `Continuation<R>`，物理结果为 `GeneratedCoroutineStep<R>`。状态机、函数 adapter 和虚／接口派发沿同一物理 ABI，resume、failure、register 与 run 使用实际成员槽；删除没有正文的 `ContinuationShell` 重复签名，generated callable tag 10 退役且不复用。
+- 参数自由 source exact 的 `CoroutineStart<R>` 由定义 Cone 随有限 shape support 发布，消费方只引用其真实 Strong 目标；泛型 application 与结构结果仍按实际需求生成 ODR 定义。共有 MIR type bridge 升至 **`/6`**，启动 helper 使用 role tag **13**；共有 reader 只补查实际 core 协议角色与有限 start 的对应关系，复用已有签名、step、ABI 与归属验证。规范、固定向量、指纹与旧格式重建规则同步。
+- 新增 `m23-coroutines` 的 **15 份 Scoop 源码、28 份 golden**。**8 组正例**覆盖立即完成、真实挂起、失败恢复与 finally、值类型 task、suspend 函数值与型变、同步恢复／重复恢复／注册失败、闭包和待定异常跨 finally 再次挂起，以及重建 core 后的实际槽身份。provider／consumer 发布后移走源码，第三个 Cone 以自有类型、Int 与 Unit 再次实例化和发布，全部完成普通与强制移动 GC 运行。
+- 含引用的 **24-byte 大值**、泛型 enum payload 和跨挂起存活值在恢复前经历 128 次分配；completion 恰一次及失败路径由实际程序结果验证。**4 组语言反例**核对 task／completion 型变、普通函数中的挂起调用及函数 effect 不匹配的 span 和诊断；真实 core 产物删除 start 或交换协议参数时分别拒绝。
+- 协程校验按 adapter、控制流、frame、函数与签名拆分，协议错误构造独立成模块，大段 MIR golden 移出 Rust 源码；新增 Rust 模块最长 **292 行**，没有占位实现。
+- LLVM 22.1 下 `cargo fmt --all`、`cargo clippy --workspace --all-targets` 和实际配套 `scoopc` 构建通过，无警告。清除全部快照更新开关与测试栈覆盖后，`cargo test --workspace --no-fail-fast --target-dir target/m23-6a` 共 **37 个测试组、5330 passed、0 failed、0 ignored**；driver **216 项**全部通过，耗时 **1914.20 秒**。包含关闭更新的 HIR／MIR／LIR golden、正式 core／provider／consumer 产物、真实子进程缓存和 C runtime／GC／EH／stack-map 回归。日志与汇总为 `/tmp/scoop-m23-7-coroutine-final-workspace.log` 和 `/tmp/scoop-m23-7-coroutine-final-results.json`。
+
+- 全部验证结束后执行 `cargo clean --target-dir target/m23-6a`，删除 **1818 个文件、4.4 GiB**；日志为 `/tmp/scoop-m23-7-coroutine-clean.log`。
+
 ## 剩余主线
 
 [M23-6a 已验收](../stage6a/ACCEPTANCE.md)，普通宿主的封闭泛型父类型、整数范围、外来类型解构及函数值默认参数不再列为本阶段缺口。本阶段继续承担实际机器定义、ODR 和委托运行闭环，具体边界以修订后的 [设计](DESIGN.md) 为准。
 
-1. 接通外来 core 协程协议的完整具体化、机器定义、异常与执行，以及参数自由 source exact 的有限 shell/start 支持；泛型与结构结果类型继续按实际使用物化。
-2. 验证 sibling 对同组独立 adapter／helper 成员的合法并集，共同 member、EH／stackmap 内容一致，以及真实 TD 和 dispatch 地址合并。
-3. 核对 core、driver、reader/publisher、cache 与全部 fixture 使用共同生产路径，清理无调用的旧路径，完成实际配套编译器和 runtime 的全仓验收。
+1. 验证 sibling 对同组独立 adapter／helper 成员的合法并集，共同 member、EH／stackmap 内容一致，以及真实 TD 和 dispatch 地址合并。
+2. 核对 core、driver、reader/publisher、cache 与全部 fixture 使用共同生产路径，清理无调用的旧路径，完成实际配套编译器和 runtime 的全仓验收。
 
 验收始终以源码与实际产物为依据。最终必须逐项核对设计第 12、14 节，不能用局部单测替代跨 Cone 链接运行或宣布阶段完成。

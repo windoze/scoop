@@ -3,7 +3,7 @@ use crate::{
     CallableImplementationV1, CanonicalNominalInterfacesV1, NominalMaterializationClosure,
     SourceNominalId,
 };
-use scoop_identity::{Effect, SignatureTypeKey};
+use scoop_identity::SignatureTypeKey;
 
 pub(super) struct MaterializableSignatures<'a> {
     nominals: &'a CanonicalNominalInterfacesV1,
@@ -29,7 +29,6 @@ impl<'a> MaterializableSignatures<'a> {
 
     pub(super) fn callable(&self, source: &CallableDeclarationRecordV1) -> bool {
         if source.effects().implementation() != CallableImplementationV1::Scoop
-            || source.effects().execution() != Effect::Ordinary
             || !source.type_parameters().is_empty()
             || !self.owner(source.owner().nominal_owner())
         {

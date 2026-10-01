@@ -1,4 +1,7 @@
 Module
+  enum Option<String>
+    Some(_0: String)
+    None()
   enum CoroutineStep<SignatureValue>
     Completed(value: SignatureValue)
     Suspended()
@@ -8,8 +11,15 @@ Module
   class SignatureValue vtable=0 itables=0
   class Unrelated vtable=0 itables=0
   class Box<Int> vtable=0 itables=0
-  generated_exact_type get0 location=enum1 nominal_id=f2ed23c5006561290b6bfe8892fde8045a2e6b868a26588ddf9a03fdc9f03fdd exact_id=c40fe060c6f53d9fa433dae33dea95344ca8bc2fa34cf53e71b7f88fa7d6390a
-  generated_exact_type get1 location=enum0 nominal_id=086101dfedb1e5e60185459cd372f718a73f58dab32a46c84151e4a37d8f7038 exact_id=fac42a76b96025a38f0d7e81539c4f2426c66170a83f634613e33ca9c943c678
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<SignatureValue>
+  interface SuspendTask<SignatureValue>
+  interface SuspendRegistration<SignatureValue>
+  generated_exact_type get0 location=enum2 nominal_id=f2ed23c5006561290b6bfe8892fde8045a2e6b868a26588ddf9a03fdc9f03fdd exact_id=c40fe060c6f53d9fa433dae33dea95344ca8bc2fa34cf53e71b7f88fa7d6390a
+  generated_exact_type get1 location=enum1 nominal_id=086101dfedb1e5e60185459cd372f718a73f58dab32a46c84151e4a37d8f7038 exact_id=fac42a76b96025a38f0d7e81539c4f2426c66170a83f634613e33ca9c943c678
+  generated_callable gc0 function=@fn9 id=1298e83241aed1120274c198bf917fd6e1be82866da8a8312f6724a23d890c56
   fun result @fn0() -> Int
     bb0 entry
       val $dependency.argument.0: Int
@@ -21,7 +31,7 @@ Module
       assign $new.1
         Type Box<Int>
         ClassAlloc Box<Int>
-      call @fn4 direct
+      call @fn8 direct
         Type Box<Int>
         Local $new.1
         Type Int
@@ -38,7 +48,7 @@ Module
       assign $new.2
         Type SignatureValue
         ClassAlloc SignatureValue
-      call @fn2 direct
+      call @fn6 direct
         Type SignatureValue
         Local $new.2
         Type Int
@@ -69,7 +79,19 @@ Module
       return
         Type SignatureValue
         Local fallback
-  fun init.SignatureValue.$c0 @fn2(this: SignatureValue, value: Int) -> Unit
+  fun Continuation.resume @fn2(this: Continuation<SignatureValue>, value: SignatureValue) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn3(this: Continuation<SignatureValue>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn4(this: SuspendTask<SignatureValue>, $completion: Continuation<SignatureValue>) -> CoroutineStep<SignatureValue>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn5(this: SuspendRegistration<SignatureValue>, continuation: Continuation<SignatureValue>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.SignatureValue.$c0 @fn6(this: SignatureValue, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type SignatureValue
@@ -77,7 +99,7 @@ Module
         Type Int
         Local value
       return
-  fun init.Unrelated.$c1 @fn3(this: Unrelated, value: Int) -> Unit
+  fun init.Unrelated.$c1 @fn7(this: Unrelated, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Unrelated
@@ -85,7 +107,7 @@ Module
         Type Int
         Local value
       return
-  fun init.Box.$c0 @fn4(this: Box<Int>, value: Int) -> Unit
+  fun init.Box.$c0 @fn8(this: Box<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Box<Int>
@@ -93,7 +115,55 @@ Module
         Type Int
         Local value
       return
+  fun startCoroutine<SignatureValue> @fn9(task: SuspendTask<SignatureValue>, completion: Continuation<SignatureValue>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn2 interface Continuation<SignatureValue>[0]
+        Type Continuation<SignatureValue>
+        Local completion
+        Type SignatureValue
+        EnumField v0 f0
+          Type CoroutineStep<SignatureValue>
+          Local $step
+      return
+    bb2 failed
+      call @fn3 interface Continuation<SignatureValue>[1]
+        Type Continuation<SignatureValue>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<SignatureValue> = @fn4 interface SuspendTask<SignatureValue>[0]
+        Type SuspendTask<SignatureValue>
+        Local task
+        Type Continuation<SignatureValue>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<SignatureValue>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
   coroutine_step cs0 CoroutineStep<SignatureValue> result=SignatureValue
   coroutine_slot cl0 CoroutineSlot<SignatureValue> value=SignatureValue
+  coroutine_start ct0 result=SignatureValue function=fn9
+  coroutine_fn cf0 @fn4 source_return=SignatureValue step=cs0 immediate
   instance mi0 function=@fn1 <- choose
+  instance mi1 function=@fn2 <- Continuation.resume
+  instance mi2 function=@fn3 <- Continuation.resumeWithException
+  instance mi3 function=@fn4 <- SuspendTask.run
+  instance mi4 function=@fn5 <- SuspendRegistration.register
   output library

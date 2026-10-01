@@ -64,7 +64,10 @@ fn concrete_generic_dispatch_keeps_direct_parents_and_actual_odr_bodies() {
                 );
                 let schema = schemas.get(owner).unwrap();
                 assert!(schema.itables().is_empty());
-                assert_eq!(schema.interface_slots().unwrap().len(), 2);
+                assert_eq!(
+                    schema.interface_slots().unwrap().len(),
+                    interface.methods.len()
+                );
             }
             let roots = input.materialization().callable_roots();
             let mut bindings = BTreeMap::new();

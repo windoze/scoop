@@ -14,6 +14,9 @@ Module
   enum Nested
     End()
     Next(_1: Local<Reference<Nested>>)
+  enum Option<String>
+    Some(_0: String)
+    None()
   enum CoroutineStep<Mixed>
     Completed(value: Mixed)
     Suspended()
@@ -27,6 +30,9 @@ Module
     Empty()
     Value(value: Nested)
   class Link<Nested> vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
   class box<Wrapper<String>> vtable=0 itables=1
   class box<Wrapper<Unit>> vtable=0 itables=1
   class box<Wrapper<Int>> vtable=0 itables=1
@@ -38,32 +44,40 @@ Module
   interface Readable<String>
   interface Readable<Unit>
   interface Readable<Int>
+  interface Continuation<Mixed>
+  interface SuspendTask<Mixed>
+  interface SuspendRegistration<Mixed>
+  interface Continuation<Nested>
+  interface SuspendTask<Nested>
+  interface SuspendRegistration<Nested>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn3 captures=0
-    bridge function_type1 -> @fn32 id=cad4568e99ee59cf4e9161269b2bf452fe8d392f0d0c43bd58445bf6aeb5d187
+    bridge function_type1 -> @fn42 id=cad4568e99ee59cf4e9161269b2bf452fe8d392f0d0c43bd58445bf6aeb5d187
   closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn5 captures=0
-    bridge function_type1 -> @fn33 id=d29f1d5d360b903d98c0f14bea10823dff5d087daca04610e54aeb127f39ea7c
+    bridge function_type1 -> @fn43 id=d29f1d5d360b903d98c0f14bea10823dff5d087daca04610e54aeb127f39ea7c
   closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn7 captures=0
-    bridge function_type1 -> @fn34 id=101f3b02cead59334fd4e3b27ef102bde0a8f7aefdec400e915b53e8d0efd32e
+    bridge function_type1 -> @fn44 id=101f3b02cead59334fd4e3b27ef102bde0a8f7aefdec400e915b53e8d0efd32e
   generated_exact_type get0 location=closure0 nominal_id=1e9cd6bd756793db9ce899b7858a992ce9792cda9ff3b69b18c13da76a847920 exact_id=01169a564068bec4f83306a21edb6fb1742075eead51ed17851a42c7a0be78bd
-  generated_exact_type get1 location=class4 nominal_id=9f4cd2462b2bfdfbdf954e5985c13b6712025981f79db5c516f41bab1709d6fd exact_id=18371271c5c47804c1fa1a3419faa8ff70a31ae1dcf6343a87ee0c74f7b4a584
-  generated_exact_type get2 location=enum4 nominal_id=3be4b18eb6f2f50029f53b80925edb051739ce9fd0c92861c97c483e0c4c9f23 exact_id=1ef20bf0693461bd9c127db4f16770526304db8b128fefcafbdb59b611faec2d
+  generated_exact_type get1 location=class7 nominal_id=9f4cd2462b2bfdfbdf954e5985c13b6712025981f79db5c516f41bab1709d6fd exact_id=18371271c5c47804c1fa1a3419faa8ff70a31ae1dcf6343a87ee0c74f7b4a584
+  generated_exact_type get2 location=enum5 nominal_id=3be4b18eb6f2f50029f53b80925edb051739ce9fd0c92861c97c483e0c4c9f23 exact_id=1ef20bf0693461bd9c127db4f16770526304db8b128fefcafbdb59b611faec2d
   generated_exact_type get3 location=closure1 nominal_id=af3d32633ddd81fbb38ecf57ccba61f2e776bdfafac933f0e3cd054fff0ed1d6 exact_id=2bb49a6813bd59076d11e383b0f91492fc086767b600e4e047cf65f3bd388c77
-  generated_exact_type get4 location=class7 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
-  generated_exact_type get5 location=class3 nominal_id=5a86bf309a29ce71728e990b3a97a4cfba7bf8805b44c54053141dd7641fad17 exact_id=42ee63808b80b903e8e0bc2e01ca2df9f153c05998a2278850ab432062c98fb0
-  generated_exact_type get6 location=class1 nominal_id=9711e7a1e9bb3a93d6795a346be0dc2fa25af0cfbd365483e21c1d864347b120 exact_id=5a5cecfdd6db9dc7699d461fc272266c0b72c81cf3859d0594d6619c8a18f2f2
-  generated_exact_type get7 location=enum2 nominal_id=1e0e1d5179faf7c4828b15a1ce10ce3b59712591a79fdcea15bc3372a462bb7f exact_id=5bf279ebfa36eaf5a55514d1762c2176288c2491d5e3d843f139d810a337c0a5
-  generated_exact_type get8 location=class2 nominal_id=1847ac424ca3c11c5d3a671c0d854ccf2f2728359a5ed37e481cbc24593e28f6 exact_id=64b0c2de28596618552db342d62dbfc5f7022ebab49bfa12d0fed6f2944693f8
-  generated_exact_type get9 location=class5 nominal_id=112b10a9a92a49802b9b379a1781e180ee43c95af6414ba7888e8486b9922bf5 exact_id=7c6a3a2fa2740eabcc4979620fc1a7bba7cd43fe64901bf03e6d88c7468605b4
+  generated_exact_type get4 location=class10 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get5 location=class6 nominal_id=5a86bf309a29ce71728e990b3a97a4cfba7bf8805b44c54053141dd7641fad17 exact_id=42ee63808b80b903e8e0bc2e01ca2df9f153c05998a2278850ab432062c98fb0
+  generated_exact_type get6 location=class4 nominal_id=9711e7a1e9bb3a93d6795a346be0dc2fa25af0cfbd365483e21c1d864347b120 exact_id=5a5cecfdd6db9dc7699d461fc272266c0b72c81cf3859d0594d6619c8a18f2f2
+  generated_exact_type get7 location=enum3 nominal_id=1e0e1d5179faf7c4828b15a1ce10ce3b59712591a79fdcea15bc3372a462bb7f exact_id=5bf279ebfa36eaf5a55514d1762c2176288c2491d5e3d843f139d810a337c0a5
+  generated_exact_type get8 location=class5 nominal_id=1847ac424ca3c11c5d3a671c0d854ccf2f2728359a5ed37e481cbc24593e28f6 exact_id=64b0c2de28596618552db342d62dbfc5f7022ebab49bfa12d0fed6f2944693f8
+  generated_exact_type get9 location=class8 nominal_id=112b10a9a92a49802b9b379a1781e180ee43c95af6414ba7888e8486b9922bf5 exact_id=7c6a3a2fa2740eabcc4979620fc1a7bba7cd43fe64901bf03e6d88c7468605b4
   generated_exact_type get10 location=closure2 nominal_id=a01fd5dc89f2f6fbb7547c1ff9163f27b1172adefa2e774810b366cb661b3f18 exact_id=ae2e2c86a44e67285fa743926b1d5d7226542431c43846acdee30173f133d2c1
-  generated_exact_type get11 location=enum1 nominal_id=26b391ba7e1568b76751e874f24004f2019c8f72b551480fc74362f369d4fbf1 exact_id=d7b759f818de00fb731c805b01519f6fed973fa2f867b2d84323c4bd276ea97c
-  generated_exact_type get12 location=enum3 nominal_id=507604de783e72c71899e53ad867830f00bb8c2fb7730e82d6b5114bb25fb28b exact_id=dcc70cb5433c5bc0341a306ee2f55ac41257785c140737938d97b34b64c42d1c
-  generated_exact_type get13 location=class6 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
-  generated_callable gc0 function=@fn34 id=101f3b02cead59334fd4e3b27ef102bde0a8f7aefdec400e915b53e8d0efd32e
-  generated_callable gc1 function=@fn30 id=1eb2dd741b07f4dd1848b8fb0cbd5d1c8da862cf03c8229cd4ded5cd039445ff
-  generated_callable gc2 function=@fn29 id=29ee3f53954bc724fbe5a0b8368ee55f8c9ec95505e46a6d3026c74ac7f37344
-  generated_callable gc3 function=@fn31 id=49cd6314eef9cc1c313d8bb9cb9f65989c0e81e3e8cee2032f9cc4cf2c18cfe8
-  generated_callable gc4 function=@fn32 id=cad4568e99ee59cf4e9161269b2bf452fe8d392f0d0c43bd58445bf6aeb5d187
-  generated_callable gc5 function=@fn33 id=d29f1d5d360b903d98c0f14bea10823dff5d087daca04610e54aeb127f39ea7c
+  generated_exact_type get11 location=enum2 nominal_id=26b391ba7e1568b76751e874f24004f2019c8f72b551480fc74362f369d4fbf1 exact_id=d7b759f818de00fb731c805b01519f6fed973fa2f867b2d84323c4bd276ea97c
+  generated_exact_type get12 location=enum4 nominal_id=507604de783e72c71899e53ad867830f00bb8c2fb7730e82d6b5114bb25fb28b exact_id=dcc70cb5433c5bc0341a306ee2f55ac41257785c140737938d97b34b64c42d1c
+  generated_exact_type get13 location=class9 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn44 id=101f3b02cead59334fd4e3b27ef102bde0a8f7aefdec400e915b53e8d0efd32e
+  generated_callable gc1 function=@fn40 id=1eb2dd741b07f4dd1848b8fb0cbd5d1c8da862cf03c8229cd4ded5cd039445ff
+  generated_callable gc2 function=@fn39 id=29ee3f53954bc724fbe5a0b8368ee55f8c9ec95505e46a6d3026c74ac7f37344
+  generated_callable gc3 function=@fn41 id=49cd6314eef9cc1c313d8bb9cb9f65989c0e81e3e8cee2032f9cc4cf2c18cfe8
+  generated_callable gc4 function=@fn38 id=a34ac8c86999b7ac04b3dc0d918b2c8f4c82c62b0e96b543cf6ab9cbb6135802
+  generated_callable gc5 function=@fn42 id=cad4568e99ee59cf4e9161269b2bf452fe8d392f0d0c43bd58445bf6aeb5d187
+  generated_callable gc6 function=@fn43 id=d29f1d5d360b903d98c0f14bea10823dff5d087daca04610e54aeb127f39ea7c
+  generated_callable gc7 function=@fn37 id=eb89ee8ae4ed1bc00d515886fafe0fde10aac0d1de27706678b3d9c8ec26fa57
   fun get @fn0(this: Wrapper<Phantom<Mixed>>) -> Phantom<Mixed>
     bb0 entry
       return
@@ -179,23 +193,23 @@ Module
         IntegerLiteral Int value=42 bits=0x0000002a
   fun exercise @fn4(seed: String, read: (String) -> Int) -> Int
     bb0 entry
-      call $dependency.argument.0: Phantom<Mixed> = @fn18 direct
+      call $dependency.argument.0: Phantom<Mixed> = @fn26 direct
       val $dependency.parameter.value: Phantom<Mixed>
         Type Phantom<Mixed>
         Local $dependency.argument.0
-      call $argument.0: Wrapper<Phantom<Mixed>> = @fn19 direct
+      call $argument.0: Wrapper<Phantom<Mixed>> = @fn27 direct
         Type Phantom<Mixed>
         Local $dependency.parameter.value
       val $parameter.payload: Wrapper<Phantom<Mixed>>
         Type Wrapper<Phantom<Mixed>>
         Local $argument.0
-      call $argument.0: Local<Wrapper<Phantom<Mixed>>> = @fn20 direct
+      call $argument.0: Local<Wrapper<Phantom<Mixed>>> = @fn28 direct
         Type Wrapper<Phantom<Mixed>>
         Local $parameter.payload
       val $parameter.value: Local<Wrapper<Phantom<Mixed>>>
         Type Local<Wrapper<Phantom<Mixed>>>
         Local $argument.0
-      call mixed: Mixed = @fn17 direct
+      call mixed: Mixed = @fn25 direct
         Type Local<Wrapper<Phantom<Mixed>>>
         Local $parameter.value
       val $argument.0: Mixed
@@ -239,7 +253,7 @@ Module
       assign $new.1
         Type Link<Nested>
         ClassAlloc Link<Nested>
-      call @fn16 direct
+      call @fn24 direct
         Type Link<Nested>
         Local $new.1
         Type Nested
@@ -250,13 +264,13 @@ Module
       val $dependency.parameter.link: Link<Nested>
         Type Link<Nested>
         Local $dependency.argument.0
-      call $argument.0: Reference<Nested> = @fn21 direct
+      call $argument.0: Reference<Nested> = @fn29 direct
         Type Link<Nested>
         Local $dependency.parameter.link
       val $parameter.payload: Reference<Nested>
         Type Reference<Nested>
         Local $argument.0
-      call $argument.0: Local<Reference<Nested>> = @fn22 direct
+      call $argument.0: Local<Reference<Nested>> = @fn30 direct
         Type Reference<Nested>
         Local $parameter.payload
       val $parameter._1: Local<Reference<Nested>>
@@ -373,13 +387,13 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call $argument.0: Wrapper<String> = @fn23 direct
+      call $argument.0: Wrapper<String> = @fn31 direct
         Type String
         Local $dependency.parameter.value
       val $parameter.payload: Wrapper<String>
         Type Wrapper<String>
         Local $argument.0
-      call $call.2: Local<Wrapper<String>> = @fn24 direct
+      call $call.2: Local<Wrapper<String>> = @fn32 direct
         Type Wrapper<String>
         Local $parameter.payload
       val receiver: Readable<String>
@@ -413,23 +427,23 @@ Module
         IntegerLiteral Int value=42 bits=0x0000002a
   fun exercise @fn6(seed: Unit, read: (Unit) -> Int) -> Int
     bb0 entry
-      call $dependency.argument.0: Phantom<Mixed> = @fn18 direct
+      call $dependency.argument.0: Phantom<Mixed> = @fn26 direct
       val $dependency.parameter.value: Phantom<Mixed>
         Type Phantom<Mixed>
         Local $dependency.argument.0
-      call $argument.0: Wrapper<Phantom<Mixed>> = @fn19 direct
+      call $argument.0: Wrapper<Phantom<Mixed>> = @fn27 direct
         Type Phantom<Mixed>
         Local $dependency.parameter.value
       val $parameter.payload: Wrapper<Phantom<Mixed>>
         Type Wrapper<Phantom<Mixed>>
         Local $argument.0
-      call $argument.0: Local<Wrapper<Phantom<Mixed>>> = @fn20 direct
+      call $argument.0: Local<Wrapper<Phantom<Mixed>>> = @fn28 direct
         Type Wrapper<Phantom<Mixed>>
         Local $parameter.payload
       val $parameter.value: Local<Wrapper<Phantom<Mixed>>>
         Type Local<Wrapper<Phantom<Mixed>>>
         Local $argument.0
-      call mixed: Mixed = @fn17 direct
+      call mixed: Mixed = @fn25 direct
         Type Local<Wrapper<Phantom<Mixed>>>
         Local $parameter.value
       val $argument.0: Mixed
@@ -473,7 +487,7 @@ Module
       assign $new.1
         Type Link<Nested>
         ClassAlloc Link<Nested>
-      call @fn16 direct
+      call @fn24 direct
         Type Link<Nested>
         Local $new.1
         Type Nested
@@ -484,13 +498,13 @@ Module
       val $dependency.parameter.link: Link<Nested>
         Type Link<Nested>
         Local $dependency.argument.0
-      call $argument.0: Reference<Nested> = @fn21 direct
+      call $argument.0: Reference<Nested> = @fn29 direct
         Type Link<Nested>
         Local $dependency.parameter.link
       val $parameter.payload: Reference<Nested>
         Type Reference<Nested>
         Local $argument.0
-      call $argument.0: Local<Reference<Nested>> = @fn22 direct
+      call $argument.0: Local<Reference<Nested>> = @fn30 direct
         Type Reference<Nested>
         Local $parameter.payload
       val $parameter._1: Local<Reference<Nested>>
@@ -607,13 +621,13 @@ Module
       val $dependency.parameter.value: Unit
         Type Unit
         Local $dependency.argument.0
-      call $argument.0: Wrapper<Unit> = @fn25 direct
+      call $argument.0: Wrapper<Unit> = @fn33 direct
         Type Unit
         Local $dependency.parameter.value
       val $parameter.payload: Wrapper<Unit>
         Type Wrapper<Unit>
         Local $argument.0
-      call $call.2: Local<Wrapper<Unit>> = @fn26 direct
+      call $call.2: Local<Wrapper<Unit>> = @fn34 direct
         Type Wrapper<Unit>
         Local $parameter.payload
       val receiver: Readable<Unit>
@@ -647,23 +661,23 @@ Module
         Local item
   fun exercise @fn8(seed: Int, read: (Int) -> Int) -> Int
     bb0 entry
-      call $dependency.argument.0: Phantom<Mixed> = @fn18 direct
+      call $dependency.argument.0: Phantom<Mixed> = @fn26 direct
       val $dependency.parameter.value: Phantom<Mixed>
         Type Phantom<Mixed>
         Local $dependency.argument.0
-      call $argument.0: Wrapper<Phantom<Mixed>> = @fn19 direct
+      call $argument.0: Wrapper<Phantom<Mixed>> = @fn27 direct
         Type Phantom<Mixed>
         Local $dependency.parameter.value
       val $parameter.payload: Wrapper<Phantom<Mixed>>
         Type Wrapper<Phantom<Mixed>>
         Local $argument.0
-      call $argument.0: Local<Wrapper<Phantom<Mixed>>> = @fn20 direct
+      call $argument.0: Local<Wrapper<Phantom<Mixed>>> = @fn28 direct
         Type Wrapper<Phantom<Mixed>>
         Local $parameter.payload
       val $parameter.value: Local<Wrapper<Phantom<Mixed>>>
         Type Local<Wrapper<Phantom<Mixed>>>
         Local $argument.0
-      call mixed: Mixed = @fn17 direct
+      call mixed: Mixed = @fn25 direct
         Type Local<Wrapper<Phantom<Mixed>>>
         Local $parameter.value
       val $argument.0: Mixed
@@ -707,7 +721,7 @@ Module
       assign $new.1
         Type Link<Nested>
         ClassAlloc Link<Nested>
-      call @fn16 direct
+      call @fn24 direct
         Type Link<Nested>
         Local $new.1
         Type Nested
@@ -718,13 +732,13 @@ Module
       val $dependency.parameter.link: Link<Nested>
         Type Link<Nested>
         Local $dependency.argument.0
-      call $argument.0: Reference<Nested> = @fn21 direct
+      call $argument.0: Reference<Nested> = @fn29 direct
         Type Link<Nested>
         Local $dependency.parameter.link
       val $parameter.payload: Reference<Nested>
         Type Reference<Nested>
         Local $argument.0
-      call $argument.0: Local<Reference<Nested>> = @fn22 direct
+      call $argument.0: Local<Reference<Nested>> = @fn30 direct
         Type Reference<Nested>
         Local $parameter.payload
       val $parameter._1: Local<Reference<Nested>>
@@ -841,13 +855,13 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call $argument.0: Wrapper<Int> = @fn27 direct
+      call $argument.0: Wrapper<Int> = @fn35 direct
         Type Int
         Local $dependency.parameter.value
       val $parameter.payload: Wrapper<Int>
         Type Wrapper<Int>
         Local $argument.0
-      call $call.2: Local<Wrapper<Int>> = @fn28 direct
+      call $call.2: Local<Wrapper<Int>> = @fn36 direct
         Type Wrapper<Int>
         Local $parameter.payload
       val receiver: Readable<Int>
@@ -911,7 +925,31 @@ Module
   fun Readable.get @fn15(this: Readable<Int>) -> Int
     bb0 entry
       trap "call to abstract method `Readable.get`"
-  fun init.Link.$c3 @fn16(this: Link<Nested>, value: Nested) -> Unit
+  fun Continuation.resume @fn16(this: Continuation<Mixed>, value: Mixed) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn17(this: Continuation<Mixed>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn18(this: SuspendTask<Mixed>, $completion: Continuation<Mixed>) -> CoroutineStep<Mixed>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn19(this: SuspendRegistration<Mixed>, continuation: Continuation<Mixed>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn20(this: Continuation<Nested>, value: Nested) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn21(this: Continuation<Nested>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn22(this: SuspendTask<Nested>, $completion: Continuation<Nested>) -> CoroutineStep<Nested>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn23(this: SuspendRegistration<Nested>, continuation: Continuation<Nested>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Link.$c3 @fn24(this: Link<Nested>, value: Nested) -> Unit
     bb0 entry
       field_set 0
         Type Link<Nested>
@@ -919,89 +957,173 @@ Module
         Type Nested
         Local value
       return
-  fun ctor.Mixed.$c1 @fn17(value: Local<Wrapper<Phantom<Mixed>>>) -> Mixed <no-gc>
+  fun ctor.Mixed.$c1 @fn25(value: Local<Wrapper<Phantom<Mixed>>>) -> Mixed <no-gc>
     bb0 entry
       return
         Type Mixed
         StructInit Mixed
           Type Local<Wrapper<Phantom<Mixed>>>
           Local value
-  fun ctor.Phantom.$c1 @fn18() -> Phantom<Mixed> <no-gc>
+  fun ctor.Phantom.$c1 @fn26() -> Phantom<Mixed> <no-gc>
     bb0 entry
       return
         Type Phantom<Mixed>
         StructInit Phantom<Mixed>
-  fun ctor.Wrapper.$c0 @fn19(value: Phantom<Mixed>) -> Wrapper<Phantom<Mixed>> <no-gc>
+  fun ctor.Wrapper.$c0 @fn27(value: Phantom<Mixed>) -> Wrapper<Phantom<Mixed>> <no-gc>
     bb0 entry
       return
         Type Wrapper<Phantom<Mixed>>
         StructInit Wrapper<Phantom<Mixed>>
           Type Phantom<Mixed>
           Local value
-  fun ctor.Local.$c0 @fn20(payload: Wrapper<Phantom<Mixed>>) -> Local<Wrapper<Phantom<Mixed>>> <no-gc>
+  fun ctor.Local.$c0 @fn28(payload: Wrapper<Phantom<Mixed>>) -> Local<Wrapper<Phantom<Mixed>>> <no-gc>
     bb0 entry
       return
         Type Local<Wrapper<Phantom<Mixed>>>
         StructInit Local<Wrapper<Phantom<Mixed>>>
           Type Wrapper<Phantom<Mixed>>
           Local payload
-  fun ctor.Reference.$c2 @fn21(link: Link<Nested>) -> Reference<Nested> <no-gc>
+  fun ctor.Reference.$c2 @fn29(link: Link<Nested>) -> Reference<Nested> <no-gc>
     bb0 entry
       return
         Type Reference<Nested>
         StructInit Reference<Nested>
           Type Link<Nested>
           Local link
-  fun ctor.Local.$c0 @fn22(payload: Reference<Nested>) -> Local<Reference<Nested>> <no-gc>
+  fun ctor.Local.$c0 @fn30(payload: Reference<Nested>) -> Local<Reference<Nested>> <no-gc>
     bb0 entry
       return
         Type Local<Reference<Nested>>
         StructInit Local<Reference<Nested>>
           Type Reference<Nested>
           Local payload
-  fun ctor.Wrapper.$c0 @fn23(value: String) -> Wrapper<String> <no-gc>
+  fun ctor.Wrapper.$c0 @fn31(value: String) -> Wrapper<String> <no-gc>
     bb0 entry
       return
         Type Wrapper<String>
         StructInit Wrapper<String>
           Type String
           Local value
-  fun ctor.Local.$c0 @fn24(payload: Wrapper<String>) -> Local<Wrapper<String>> <no-gc>
+  fun ctor.Local.$c0 @fn32(payload: Wrapper<String>) -> Local<Wrapper<String>> <no-gc>
     bb0 entry
       return
         Type Local<Wrapper<String>>
         StructInit Local<Wrapper<String>>
           Type Wrapper<String>
           Local payload
-  fun ctor.Wrapper.$c0 @fn25(value: Unit) -> Wrapper<Unit> <no-gc>
+  fun ctor.Wrapper.$c0 @fn33(value: Unit) -> Wrapper<Unit> <no-gc>
     bb0 entry
       return
         Type Wrapper<Unit>
         StructInit Wrapper<Unit>
           Type Unit
           Local value
-  fun ctor.Local.$c0 @fn26(payload: Wrapper<Unit>) -> Local<Wrapper<Unit>> <no-gc>
+  fun ctor.Local.$c0 @fn34(payload: Wrapper<Unit>) -> Local<Wrapper<Unit>> <no-gc>
     bb0 entry
       return
         Type Local<Wrapper<Unit>>
         StructInit Local<Wrapper<Unit>>
           Type Wrapper<Unit>
           Local payload
-  fun ctor.Wrapper.$c0 @fn27(value: Int) -> Wrapper<Int> <no-gc>
+  fun ctor.Wrapper.$c0 @fn35(value: Int) -> Wrapper<Int> <no-gc>
     bb0 entry
       return
         Type Wrapper<Int>
         StructInit Wrapper<Int>
           Type Int
           Local value
-  fun ctor.Local.$c0 @fn28(payload: Wrapper<Int>) -> Local<Wrapper<Int>> <no-gc>
+  fun ctor.Local.$c0 @fn36(payload: Wrapper<Int>) -> Local<Wrapper<Int>> <no-gc>
     bb0 entry
       return
         Type Local<Wrapper<Int>>
         StructInit Local<Wrapper<Int>>
           Type Wrapper<Int>
           Local payload
-  fun thunk<Wrapper<String>> Readable.get() @fn29(this: Readable<String>) -> String
+  fun startCoroutine<Mixed> @fn37(task: SuspendTask<Mixed>, completion: Continuation<Mixed>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn16 interface Continuation<Mixed>[0]
+        Type Continuation<Mixed>
+        Local completion
+        Type Mixed
+        EnumField v0 f0
+          Type CoroutineStep<Mixed>
+          Local $step
+      return
+    bb2 failed
+      call @fn17 interface Continuation<Mixed>[1]
+        Type Continuation<Mixed>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Mixed> = @fn18 interface SuspendTask<Mixed>[0]
+        Type SuspendTask<Mixed>
+        Local task
+        Type Continuation<Mixed>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Mixed>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Nested> @fn38(task: SuspendTask<Nested>, completion: Continuation<Nested>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn20 interface Continuation<Nested>[0]
+        Type Continuation<Nested>
+        Local completion
+        Type Nested
+        EnumField v0 f0
+          Type CoroutineStep<Nested>
+          Local $step
+      return
+    bb2 failed
+      call @fn21 interface Continuation<Nested>[1]
+        Type Continuation<Nested>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Nested> = @fn22 interface SuspendTask<Nested>[0]
+        Type SuspendTask<Nested>
+        Local task
+        Type Continuation<Nested>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Nested>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun thunk<Wrapper<String>> Readable.get() @fn39(this: Readable<String>) -> String
     bb0 entry
       call $call.1: String = @fn9 direct
         Type Wrapper<String>
@@ -1011,7 +1133,7 @@ Module
       return
         Type String
         Local $call.1
-  fun thunk<Wrapper<Unit>> Readable.get() @fn30(this: Readable<Unit>) -> Unit
+  fun thunk<Wrapper<Unit>> Readable.get() @fn40(this: Readable<Unit>) -> Unit
     bb0 entry
       call @fn12 direct
         Type Wrapper<Unit>
@@ -1019,7 +1141,7 @@ Module
           Type Readable<Unit>
           Local this
       return
-  fun thunk<Wrapper<Int>> Readable.get() @fn31(this: Readable<Int>) -> Int
+  fun thunk<Wrapper<Int>> Readable.get() @fn41(this: Readable<Int>) -> Int
     bb0 entry
       call $call.1: Int = @fn14 direct
         Type Wrapper<Int>
@@ -1029,7 +1151,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn32($source: (String) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn42($source: (String) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (String) -> Int
@@ -1043,7 +1165,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn33($source: (Unit) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn43($source: (Unit) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
@@ -1057,7 +1179,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn34($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn44($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
@@ -1075,6 +1197,10 @@ Module
   coroutine_step cs1 CoroutineStep<Nested> result=Nested
   coroutine_slot cl0 CoroutineSlot<Mixed> value=Mixed
   coroutine_slot cl1 CoroutineSlot<Nested> value=Nested
+  coroutine_start ct0 result=Mixed function=fn37
+  coroutine_start ct1 result=Nested function=fn38
+  coroutine_fn cf0 @fn18 source_return=Mixed step=cs0 immediate
+  coroutine_fn cf1 @fn22 source_return=Nested step=cs1 immediate
   instance mi0 function=@fn0 <- get
   instance mi1 function=@fn4 <- exercise
   instance mi2 function=@fn6 <- exercise
@@ -1086,5 +1212,13 @@ Module
   instance mi8 function=@fn13 <- Readable.get
   instance mi9 function=@fn14 <- get
   instance mi10 function=@fn15 <- Readable.get
+  instance mi11 function=@fn16 <- Continuation.resume
+  instance mi12 function=@fn17 <- Continuation.resumeWithException
+  instance mi13 function=@fn18 <- SuspendTask.run
+  instance mi14 function=@fn19 <- SuspendRegistration.register
+  instance mi15 function=@fn20 <- Continuation.resume
+  instance mi16 function=@fn21 <- Continuation.resumeWithException
+  instance mi17 function=@fn22 <- SuspendTask.run
+  instance mi18 function=@fn23 <- SuspendRegistration.register
   str @str0 "value"
   output library

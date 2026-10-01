@@ -39,7 +39,8 @@ fn actual_boxing_callables_cover_value_members_defaults_and_diamonds() {
         let (directory, source) = fixture(name);
         let (bytes, dump) = with_production(&source, |output, input, hir, graph, types| {
             let unit = dependencies::unit(input, graph);
-            let index = MirTypeBridgeTypeIndexV1::try_new(&[types, &unit]).unwrap();
+            let actual = complete_type_exports(output, input, hir, graph);
+            let index = MirTypeBridgeTypeIndexV1::try_new(&[&actual, &unit]).unwrap();
             let source = sources(output, hir, input, graph, &index);
             let bindings = CanonicalMirCallableBindingsV1::from_boxing_adjusts(
                 input, types, graph, &index, &source,
@@ -71,7 +72,8 @@ fn actual_boxing_callables_cover_value_members_defaults_and_diamonds() {
             &format!("private struct Unrelated() {{}}\n{source}"),
             |output, input, hir, graph, types| {
                 let unit = dependencies::unit(input, graph);
-                let index = MirTypeBridgeTypeIndexV1::try_new(&[types, &unit]).unwrap();
+                let actual = complete_type_exports(output, input, hir, graph);
+                let index = MirTypeBridgeTypeIndexV1::try_new(&[&actual, &unit]).unwrap();
                 let source = sources(output, hir, input, graph, &index);
                 let bindings = CanonicalMirCallableBindingsV1::from_boxing_adjusts(
                     input, types, graph, &index, &source,
@@ -100,7 +102,10 @@ fn actual_boxing_callables_cover_value_members_defaults_and_diamonds() {
 fn actual_boxing_callables_require_target_bindings_and_types() {
     let (_, source) = fixture("standalone");
     with_production(&source, |output, input, hir, graph, types| {
-        let source = sources(output, hir, input, graph, types);
+        let actual = complete_type_exports(output, input, hir, graph);
+        let unit = dependencies::unit(input, graph);
+        let index = MirTypeBridgeTypeIndexV1::try_new(&[&actual, &unit]).unwrap();
+        let source = sources(output, hir, input, graph, &index);
         rejections::check(input, graph, types, &source);
     });
     with_production("public struct Empty() {}", |_, input, _, graph, types| {

@@ -1,5 +1,8 @@
 Module
   struct LocalReader ()
+  enum Option<String>
+    Some(_0: String)
+    None()
   enum CoroutineStep<LocalReader>
     Completed(value: LocalReader)
     Suspended()
@@ -10,31 +13,38 @@ Module
   class Child<Int> vtable=0 itables=0
   class Box<Int> vtable=0 itables=0
   class Reader vtable=0 itables=1
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
   class box<LocalReader> vtable=0 itables=1
   class box<Int> vtable=0 itables=0
   interface Readable
   interface Chooser<Int>
-  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn10 captures=1
-    bridge function_type1 -> @fn19 id=7b3aafdf04dbdc9e2403ed69920fc513865f3a85917581e977cc5f073455f034
-  closure cc1 $Closure$reference1 type=function_type2 invoke=@fn11 captures=1
-    bridge function_type3 -> @fn20 id=3ec9c14ea4c0629387c7a36a0c4138900ca146a00b54731e6d45b05ae2ea4ea3
-  closure cc2 $Closure$reference2 type=function_type2 invoke=@fn12 captures=1
-    bridge function_type3 -> @fn21 id=80e655ed1e51279e5c62e8311c4a5ea322ecf86981fd22d5c39c3dafa8f5ae63
-  closure cc3 $Closure$reference3 type=function_type2 invoke=@fn13 captures=1
-    bridge function_type3 -> @fn22 id=1de653757eca0249318ab5c3f5ac0a1927a64a92cfd46e55e8a4a9e98da30a02
+  interface Continuation<LocalReader>
+  interface SuspendTask<LocalReader>
+  interface SuspendRegistration<LocalReader>
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn14 captures=1
+    bridge function_type1 -> @fn24 id=7b3aafdf04dbdc9e2403ed69920fc513865f3a85917581e977cc5f073455f034
+  closure cc1 $Closure$reference1 type=function_type2 invoke=@fn15 captures=1
+    bridge function_type3 -> @fn25 id=3ec9c14ea4c0629387c7a36a0c4138900ca146a00b54731e6d45b05ae2ea4ea3
+  closure cc2 $Closure$reference2 type=function_type2 invoke=@fn16 captures=1
+    bridge function_type3 -> @fn26 id=80e655ed1e51279e5c62e8311c4a5ea322ecf86981fd22d5c39c3dafa8f5ae63
+  closure cc3 $Closure$reference3 type=function_type2 invoke=@fn17 captures=1
+    bridge function_type3 -> @fn27 id=1de653757eca0249318ab5c3f5ac0a1927a64a92cfd46e55e8a4a9e98da30a02
   generated_exact_type get0 location=closure0 nominal_id=e2d464a52555f6427d52e3511951088bab74deab99a5cae749067415fb141691 exact_id=07448a6949cef4c4e1a4710d036c5e4e1673e485c743c00b9b83ccdb79f61943
   generated_exact_type get1 location=closure1 nominal_id=e5b0da3c829900745f69620d8fd50b6e22d5a5410a9494056dbf61ef0909125c exact_id=446b2354a7a5aa5cde801b2e6d6bb160cff34ec1136d0708d4c6a0a2fbd171a0
   generated_exact_type get2 location=closure2 nominal_id=0f6e9cace641547748848e0b153554bd16f38a469f845355cc9ce1d739b5d92b exact_id=4b521ea4507c042c090643d50762817f313698d2594096fe74edbe28d6c3618f
-  generated_exact_type get3 location=class4 nominal_id=0f2b79e60dc400c9e9bc5dc5e7d0b26f0d4b76cffce9a89193e2fbc8876fa0ad exact_id=6a73bd597d3214bc2c5b33e901300e326b4a7ffe954d2818cea9da89d5e7d908
-  generated_exact_type get4 location=enum0 nominal_id=c94f18ceef81a7ac1508848b7d56b9e20372980c4eb9d70d3086af6e2f63261a exact_id=78b711b6cf111aa3074add98642958e377f8672a8f977f558f96cf21a8eeb247
-  generated_exact_type get5 location=class5 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
-  generated_exact_type get6 location=enum1 nominal_id=feb48310ccf7dbbda2d14d9820882456635057a9979c1367cf373fabda7f5007 exact_id=fb9a88fb6e0e32085fd904faf35d711f64d9640cddfe83a5365e6ceb82d5aa2c
+  generated_exact_type get3 location=class7 nominal_id=0f2b79e60dc400c9e9bc5dc5e7d0b26f0d4b76cffce9a89193e2fbc8876fa0ad exact_id=6a73bd597d3214bc2c5b33e901300e326b4a7ffe954d2818cea9da89d5e7d908
+  generated_exact_type get4 location=enum1 nominal_id=c94f18ceef81a7ac1508848b7d56b9e20372980c4eb9d70d3086af6e2f63261a exact_id=78b711b6cf111aa3074add98642958e377f8672a8f977f558f96cf21a8eeb247
+  generated_exact_type get5 location=class8 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get6 location=enum2 nominal_id=feb48310ccf7dbbda2d14d9820882456635057a9979c1367cf373fabda7f5007 exact_id=fb9a88fb6e0e32085fd904faf35d711f64d9640cddfe83a5365e6ceb82d5aa2c
   generated_exact_type get7 location=closure3 nominal_id=b0a10d1d26ab31803cc64400a5cb022e0b8235fddc45989696e1fb427828e708 exact_id=fbac1f8038be78767d9f4d873fbdffd06070504d6357f6cf37f01ecbff2b1bcb
-  generated_callable gc0 function=@fn22 id=1de653757eca0249318ab5c3f5ac0a1927a64a92cfd46e55e8a4a9e98da30a02
-  generated_callable gc1 function=@fn20 id=3ec9c14ea4c0629387c7a36a0c4138900ca146a00b54731e6d45b05ae2ea4ea3
-  generated_callable gc2 function=@fn19 id=7b3aafdf04dbdc9e2403ed69920fc513865f3a85917581e977cc5f073455f034
-  generated_callable gc3 function=@fn21 id=80e655ed1e51279e5c62e8311c4a5ea322ecf86981fd22d5c39c3dafa8f5ae63
-  generated_callable gc4 function=@fn18 id=aa8a5bc0715c3fb62fdb93f58d2253801c1e53e1a97e77f11e6e147b191afdd3
+  generated_callable gc0 function=@fn27 id=1de653757eca0249318ab5c3f5ac0a1927a64a92cfd46e55e8a4a9e98da30a02
+  generated_callable gc1 function=@fn25 id=3ec9c14ea4c0629387c7a36a0c4138900ca146a00b54731e6d45b05ae2ea4ea3
+  generated_callable gc2 function=@fn22 id=60fa3ed0a6cec2a79c2f3613d41c90aa1f7c3900488e80fd5407f5079d76cde2
+  generated_callable gc3 function=@fn24 id=7b3aafdf04dbdc9e2403ed69920fc513865f3a85917581e977cc5f073455f034
+  generated_callable gc4 function=@fn26 id=80e655ed1e51279e5c62e8311c4a5ea322ecf86981fd22d5c39c3dafa8f5ae63
+  generated_callable gc5 function=@fn23 id=aa8a5bc0715c3fb62fdb93f58d2253801c1e53e1a97e77f11e6e147b191afdd3
   fun LocalReader.read @fn0(this: LocalReader) -> Int
     bb0 entry
       return
@@ -59,7 +69,7 @@ Module
       assign $new.1
         Type LocalChooser<Int>
         ClassAlloc LocalChooser<Int>
-      call @fn14 direct
+      call @fn18 direct
         Type LocalChooser<Int>
         Local $new.1
       val $argument.0: LocalChooser<Int>
@@ -88,7 +98,7 @@ Module
       assign $new.2
         Type Child<Int>
         ClassAlloc Child<Int>
-      call @fn15 direct
+      call @fn19 direct
         Type Child<Int>
         Local $new.2
         Type Int
@@ -144,7 +154,7 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
     bb2 if.merge.2
-      call $argument.0: LocalReader = @fn17 direct
+      call $argument.0: LocalReader = @fn21 direct
       val $parameter.value: LocalReader
         Type LocalReader
         Local $argument.0
@@ -234,7 +244,19 @@ Module
         FieldAccess 0
           Type Box<Int>
           Local this
-  fun $reference.0 @fn10($closure: (Int) -> Int, arg0: Int) -> Int
+  fun Continuation.resume @fn10(this: Continuation<LocalReader>, value: LocalReader) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn11(this: Continuation<LocalReader>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn12(this: SuspendTask<LocalReader>, $completion: Continuation<LocalReader>) -> CoroutineStep<LocalReader>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn13(this: SuspendRegistration<LocalReader>, continuation: Continuation<LocalReader>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun $reference.0 @fn14($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = @fn3 direct
         Type LocalChooser<Int>
@@ -246,7 +268,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.1 @fn11($closure: () -> Int) -> Int
+  fun $reference.1 @fn15($closure: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = @fn8 direct
         Type Box<Int>
@@ -256,7 +278,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.2 @fn12($closure: () -> Int) -> Int
+  fun $reference.2 @fn16($closure: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = external0 direct
         Type Reader
@@ -266,7 +288,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.3 @fn13($closure: () -> Int) -> Int
+  fun $reference.3 @fn17($closure: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = @fn0 direct
         Type LocalReader
@@ -276,10 +298,10 @@ Module
       return
         Type Int
         Local $call.1
-  fun init.LocalChooser.$c0 @fn14(this: LocalChooser<Int>) -> Unit
+  fun init.LocalChooser.$c0 @fn18(this: LocalChooser<Int>) -> Unit
     bb0 entry
       return
-  fun init.Child.$c0 @fn15(this: Child<Int>, value: Int) -> Unit
+  fun init.Child.$c0 @fn19(this: Child<Int>, value: Int) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Int
         Type Int
@@ -287,7 +309,7 @@ Module
       val $dependency.constructor.local.1: Int
         Type Int
         Local $dependency.constructor.local.0
-      call @fn16 direct
+      call @fn20 direct
         Type Box<Int>
         Retype Box<Int>
           Type Child<Int>
@@ -295,7 +317,7 @@ Module
         Type Int
         Local $dependency.constructor.local.1
       return
-  fun init.Box.$c1 @fn16(this: Box<Int>, value: Int) -> Unit
+  fun init.Box.$c1 @fn20(this: Box<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Box<Int>
@@ -303,12 +325,54 @@ Module
         Type Int
         Local value
       return
-  fun ctor.LocalReader.$c0 @fn17() -> LocalReader <no-gc>
+  fun ctor.LocalReader.$c0 @fn21() -> LocalReader <no-gc>
     bb0 entry
       return
         Type LocalReader
         StructInit LocalReader
-  fun thunk<LocalReader> Readable.read() @fn18(this: Readable) -> Int
+  fun startCoroutine<LocalReader> @fn22(task: SuspendTask<LocalReader>, completion: Continuation<LocalReader>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn10 interface Continuation<LocalReader>[0]
+        Type Continuation<LocalReader>
+        Local completion
+        Type LocalReader
+        EnumField v0 f0
+          Type CoroutineStep<LocalReader>
+          Local $step
+      return
+    bb2 failed
+      call @fn11 interface Continuation<LocalReader>[1]
+        Type Continuation<LocalReader>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<LocalReader> = @fn12 interface SuspendTask<LocalReader>[0]
+        Type SuspendTask<LocalReader>
+        Local task
+        Type Continuation<LocalReader>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<LocalReader>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun thunk<LocalReader> Readable.read() @fn23(this: Readable) -> Int
     bb0 entry
       call $call.1: Int = @fn0 direct
         Type LocalReader
@@ -318,7 +382,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun function_bridge.$Closure$reference0.(Any) -> Any @fn19($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn24($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
@@ -332,7 +396,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference1.() -> Any @fn20($source: () -> Int) -> Any
+  fun function_bridge.$Closure$reference1.() -> Any @fn25($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type () -> Int
@@ -342,7 +406,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference2.() -> Any @fn21($source: () -> Int) -> Any
+  fun function_bridge.$Closure$reference2.() -> Any @fn26($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type () -> Int
@@ -352,7 +416,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference3.() -> Any @fn22($source: () -> Int) -> Any
+  fun function_bridge.$Closure$reference3.() -> Any @fn27($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type () -> Int
@@ -364,6 +428,8 @@ Module
           Local $call.1
   coroutine_step cs0 CoroutineStep<LocalReader> result=LocalReader
   coroutine_slot cl0 CoroutineSlot<LocalReader> value=LocalReader
+  coroutine_start ct0 result=LocalReader function=fn22
+  coroutine_fn cf0 @fn12 source_return=LocalReader step=cs0 immediate
   instance mi0 function=@fn2 <- exercise
   instance mi1 function=@fn3 <- LocalChooser.choose
   instance mi2 function=@fn4 <- chooseBound
@@ -372,4 +438,8 @@ Module
   instance mi5 function=@fn7 <- readBound
   instance mi6 function=@fn8 <- read
   instance mi7 function=@fn9 <- value
+  instance mi8 function=@fn10 <- Continuation.resume
+  instance mi9 function=@fn11 <- Continuation.resumeWithException
+  instance mi10 function=@fn12 <- SuspendTask.run
+  instance mi11 function=@fn13 <- SuspendRegistration.register
   output library

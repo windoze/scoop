@@ -7,7 +7,9 @@ impl BodyLowerer<'_> {
         args: &[hir::Expr],
         result_type: hir::TypeId,
     ) -> smir::Expr {
-        let dispatch = self.module.imported_dependency_callables[callee].dispatch();
+        let source = self.module.imported_dependency_callables[callee];
+        self.contains_suspend_call |= source.effect() == scoop_identity::Effect::Suspend;
+        let dispatch = source.dispatch();
         let target = &self.imported_dependency_callable_map[&callee];
         let role = target.lowering_role;
         let callee = mir::Callee::External(target.callable);

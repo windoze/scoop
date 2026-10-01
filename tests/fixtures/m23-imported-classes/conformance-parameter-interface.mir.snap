@@ -1,4 +1,7 @@
 Module
+  enum Option<String>
+    Some(_0: String)
+    None()
   enum CoroutineStep<LocalDefaults>
     Completed(value: LocalDefaults)
     Suspended()
@@ -13,12 +16,23 @@ Module
     Value(value: LocalParameters)
   class LocalDefaults vtable=0 itables=2
   class Counter vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
   interface LocalParameters : ParameterSource
   interface ParameterSource
-  generated_exact_type get0 location=enum2 nominal_id=b53838244ded308120184857810b5e5a5c20dd89cf94de3e91a4d6e7e54df513 exact_id=0f61793c378fad405c8b20c8a69c44479f731784faaddf4194e7c8b6251da0fe
-  generated_exact_type get1 location=enum1 nominal_id=e413793693d491067fa23717db74488bad8831e9972f1ca87681a5c8776a912f exact_id=43933f96a8608f2fefa5a55817f424f8152b99f9ef94c0258b2ca723a61051d3
-  generated_exact_type get2 location=enum3 nominal_id=3bd6062ce274f3c1636ab589262a5148ea2a8da6198206f5c59a6aef0c53fa69 exact_id=aca5ad282971dc96218982ba246fe9017f9e62fc64adb8936fc99903a498aefd
-  generated_exact_type get3 location=enum0 nominal_id=7e4b429831a5c809033c029a13eab487dbc7fc6bdd4862d5ace607370b6f6d3c exact_id=e78a68d9157eaaf8c03249eb740f556a926fdfd6e58b4ac11ad0f26ffa3f2c7e
+  interface Continuation<LocalParameters>
+  interface SuspendTask<LocalParameters>
+  interface SuspendRegistration<LocalParameters>
+  interface Continuation<LocalDefaults>
+  interface SuspendTask<LocalDefaults>
+  interface SuspendRegistration<LocalDefaults>
+  generated_exact_type get0 location=enum3 nominal_id=b53838244ded308120184857810b5e5a5c20dd89cf94de3e91a4d6e7e54df513 exact_id=0f61793c378fad405c8b20c8a69c44479f731784faaddf4194e7c8b6251da0fe
+  generated_exact_type get1 location=enum2 nominal_id=e413793693d491067fa23717db74488bad8831e9972f1ca87681a5c8776a912f exact_id=43933f96a8608f2fefa5a55817f424f8152b99f9ef94c0258b2ca723a61051d3
+  generated_exact_type get2 location=enum4 nominal_id=3bd6062ce274f3c1636ab589262a5148ea2a8da6198206f5c59a6aef0c53fa69 exact_id=aca5ad282971dc96218982ba246fe9017f9e62fc64adb8936fc99903a498aefd
+  generated_exact_type get3 location=enum1 nominal_id=7e4b429831a5c809033c029a13eab487dbc7fc6bdd4862d5ace607370b6f6d3c exact_id=e78a68d9157eaaf8c03249eb740f556a926fdfd6e58b4ac11ad0f26ffa3f2c7e
+  generated_callable gc0 function=@fn13 id=79add1bfbd1f0e856442059ad1235f5757697d2f281a3f6894e61c3fcdab4a7c
+  generated_callable gc1 function=@fn12 id=b55a8223f3c309c3db004d1f68fc93b4f4a44bfc7748ec53f9713e534c492884
   fun LocalDefaults.base @fn0(this: LocalDefaults) -> Long
     bb0 entry
       return
@@ -29,7 +43,7 @@ Module
       assign $new.1
         Type LocalDefaults
         ClassAlloc LocalDefaults
-      call @fn3 direct
+      call @fn11 direct
         Type LocalDefaults
         Local $new.1
       val target: LocalParameters
@@ -61,7 +75,7 @@ Module
           Local $default.local.2
           Type Long
           Local $default.local.4
-      call $dependency.argument.0: Long = @fn2 interface LocalParameters[1]
+      call $dependency.argument.0: Long = @fn10 interface LocalParameters[1]
         Type LocalParameters
         Local $receiver
         Type Long
@@ -80,16 +94,136 @@ Module
       return
         Type Counter
         Local $new.2
-  fun LocalParameters.answer @fn2(this: LocalParameters, value: Long) -> Long
+  fun Continuation.resume @fn2(this: Continuation<LocalParameters>, value: LocalParameters) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn3(this: Continuation<LocalParameters>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn4(this: SuspendTask<LocalParameters>, $completion: Continuation<LocalParameters>) -> CoroutineStep<LocalParameters>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn5(this: SuspendRegistration<LocalParameters>, continuation: Continuation<LocalParameters>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn6(this: Continuation<LocalDefaults>, value: LocalDefaults) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn7(this: Continuation<LocalDefaults>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn8(this: SuspendTask<LocalDefaults>, $completion: Continuation<LocalDefaults>) -> CoroutineStep<LocalDefaults>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn9(this: SuspendRegistration<LocalDefaults>, continuation: Continuation<LocalDefaults>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun LocalParameters.answer @fn10(this: LocalParameters, value: Long) -> Long
     bb0 entry
       return
         Type Long
         Local value
-  fun init.LocalDefaults.$c0 @fn3(this: LocalDefaults) -> Unit
+  fun init.LocalDefaults.$c0 @fn11(this: LocalDefaults) -> Unit
     bb0 entry
       return
+  fun startCoroutine<LocalDefaults> @fn12(task: SuspendTask<LocalDefaults>, completion: Continuation<LocalDefaults>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn6 interface Continuation<LocalDefaults>[0]
+        Type Continuation<LocalDefaults>
+        Local completion
+        Type LocalDefaults
+        EnumField v0 f0
+          Type CoroutineStep<LocalDefaults>
+          Local $step
+      return
+    bb2 failed
+      call @fn7 interface Continuation<LocalDefaults>[1]
+        Type Continuation<LocalDefaults>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<LocalDefaults> = @fn8 interface SuspendTask<LocalDefaults>[0]
+        Type SuspendTask<LocalDefaults>
+        Local task
+        Type Continuation<LocalDefaults>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<LocalDefaults>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<LocalParameters> @fn13(task: SuspendTask<LocalParameters>, completion: Continuation<LocalParameters>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn2 interface Continuation<LocalParameters>[0]
+        Type Continuation<LocalParameters>
+        Local completion
+        Type LocalParameters
+        EnumField v0 f0
+          Type CoroutineStep<LocalParameters>
+          Local $step
+      return
+    bb2 failed
+      call @fn3 interface Continuation<LocalParameters>[1]
+        Type Continuation<LocalParameters>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<LocalParameters> = @fn4 interface SuspendTask<LocalParameters>[0]
+        Type SuspendTask<LocalParameters>
+        Local task
+        Type Continuation<LocalParameters>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<LocalParameters>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
   coroutine_step cs0 CoroutineStep<LocalDefaults> result=LocalDefaults
   coroutine_step cs1 CoroutineStep<LocalParameters> result=LocalParameters
   coroutine_slot cl0 CoroutineSlot<LocalDefaults> value=LocalDefaults
   coroutine_slot cl1 CoroutineSlot<LocalParameters> value=LocalParameters
+  coroutine_start ct0 result=LocalDefaults function=fn12
+  coroutine_start ct1 result=LocalParameters function=fn13
+  coroutine_fn cf0 @fn4 source_return=LocalParameters step=cs1 immediate
+  coroutine_fn cf1 @fn8 source_return=LocalDefaults step=cs0 immediate
+  instance mi0 function=@fn2 <- Continuation.resume
+  instance mi1 function=@fn3 <- Continuation.resumeWithException
+  instance mi2 function=@fn4 <- SuspendTask.run
+  instance mi3 function=@fn5 <- SuspendRegistration.register
+  instance mi4 function=@fn6 <- Continuation.resume
+  instance mi5 function=@fn7 <- Continuation.resumeWithException
+  instance mi6 function=@fn8 <- SuspendTask.run
+  instance mi7 function=@fn9 <- SuspendRegistration.register
   output library

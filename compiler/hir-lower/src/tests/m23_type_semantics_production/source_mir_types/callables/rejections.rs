@@ -100,5 +100,8 @@ pub(super) fn check(
         ));
     });
 
-    lower_source_callable_bindings(output, &public, source, input, graph, types, &[]).unwrap();
+    let actual = complete_type_exports(output, input, source, graph);
+    let unit = dependencies::unit(input, graph);
+    let index = MirTypeBridgeTypeIndexV1::try_new(&[&actual, &unit]).unwrap();
+    lower_source_callable_bindings(output, &public, source, input, graph, &index, &[]).unwrap();
 }

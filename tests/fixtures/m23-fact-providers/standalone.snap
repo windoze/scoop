@@ -1,1 +1,5 @@
+local Continuation Reference ContainsManagedReferences
 local FlagValue Value { zst: NonZero } GcFree
+local Option Value { zst: NonZero } ContainsManagedReferences
+local SuspendRegistration Reference ContainsManagedReferences
+local SuspendTask Reference ContainsManagedReferences

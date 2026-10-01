@@ -26,10 +26,12 @@ impl MirTypeBridgeSemanticReferencesV1 {
             MirCallableLoweringRoleV1::PureVirtualTrap { slot } => collector.slot(slot)?,
             MirCallableLoweringRoleV1::Ordinary
             | MirCallableLoweringRoleV1::Accessor
-            | MirCallableLoweringRoleV1::StaticCallbackStorage => {}
+            | MirCallableLoweringRoleV1::StaticCallbackStorage
+            | MirCallableLoweringRoleV1::CoroutineStart => {}
         }
         if let MirCallableOriginV1::Generated { role, .. } = record.origin().as_ref() {
             match role {
+                GeneratedCallableKey::CoroutineStart { result } => collector.exact(*result)?,
                 GeneratedCallableKey::StaticNoGcCallbackStorageBridge { source, .. } => {
                     let scoop_identity::CallableTemplateOwner::Function(function) =
                         source.template()

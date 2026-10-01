@@ -14,12 +14,14 @@ mod bindings;
 mod entries;
 mod errors;
 mod inventory;
+mod signatures;
 use SharedMirDispatchComponent as Component;
 use SharedMirDispatchValidationError as Error;
 pub use errors::{SharedMirDispatchComponent, SharedMirDispatchValidationError};
 
 pub fn validate_shared_mir_dispatch(
     source: hir::CheckedSharedTypeFoundationV1<'_>,
+    core: Option<&hir::CoreCoroutineProtocolV1>,
     callables: &mir::CanonicalMirCallableBindingsV1,
     dependency_callables: &[&mir::CanonicalMirCallableBindingsV1],
     direct_callables: &[&mir::CrossConeMirBridgeSectionV1],
@@ -37,6 +39,7 @@ pub fn validate_shared_mir_dispatch(
     let mut replay = Replay {
         callables: &index,
         identities: source.metadata().identities,
+        core,
         adjustments: BTreeSet::new(),
     };
     inventory::validate(source, dispatch, &mut replay)?;
@@ -58,6 +61,7 @@ pub fn validate_shared_mir_dispatch(
 struct Replay<'c> {
     callables: &'c dyn mir::MirTypeBridgeCallableLookupV1,
     identities: &'c scoop_identity::ValidatedIdentityGraph,
+    core: Option<&'c hir::CoreCoroutineProtocolV1>,
     adjustments: BTreeSet<PersistentGeneratedCallableId>,
 }
 

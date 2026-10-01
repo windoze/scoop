@@ -242,9 +242,6 @@ pub enum MirValidationLocation {
     CallableSignature {
         entry: u32,
     },
-    ContinuationShell {
-        shell: u32,
-    },
     CoroutineStart {
         start: u32,
     },
@@ -359,10 +356,6 @@ impl std::fmt::Display for MirValidationError {
             MirValidationLocation::CallableSignature { entry } => write!(
                 formatter,
                 "invalid MIR callable signature metadata {entry}: "
-            )?,
-            MirValidationLocation::ContinuationShell { shell } => write!(
-                formatter,
-                "invalid MIR continuation-shell metadata {shell}: "
             )?,
             MirValidationLocation::CoroutineStart { start } => {
                 write!(formatter, "invalid MIR coroutine-start metadata {start}: ")?

@@ -1,0 +1,35 @@
+package consumer.coroutines
+
+private class Result<T>() : Continuation<T> {
+    var value: T? = None
+    var failure: Throwable? = None
+    var calls: Int = 0
+    public override fun resume(value: T) { this.calls += 1; this.value = Some(value) }
+    public override fun resumeWithException(exception: Throwable) { this.calls += 1; this.failure = Some(exception) }
+}
+
+private class Pending<T>() {
+    var continuation: Continuation<T>? = None
+}
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val pending = Pending<T>()
+    val result = Result<T>()
+    startCoroutine(suspend {
+        rebuiltAwait<T>() { continuation: Continuation<T> -> pending.continuation = Some(continuation) }
+    }, result)
+    if (result.calls != 0) { return 2 }
+    pending.continuation!!.resume(seed)
+    if (result.calls != 1 || read(result.value!!) != 42) { return 3 }
+    val failedPending = Pending<T>()
+    val failed = Result<T>()
+    startCoroutine(suspend {
+        rebuiltAwait<T>() { continuation: Continuation<T> -> failedPending.continuation = Some(continuation) }
+    }, failed)
+    if (failed.calls != 0) { return 4 }
+    failedPending.continuation!!.resumeWithException(UnwrapException())
+    if (failed.calls != 1 || !(failed.failure!! is UnwrapException)) { return 5 }
+    return read(seed)
+}
+
+public fun result(): Int = exercise(42, { value: Int -> value })

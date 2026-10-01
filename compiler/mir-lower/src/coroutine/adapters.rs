@@ -25,8 +25,8 @@ pub(super) fn generate_adapter(
     failure_slot: FrameSlot,
     outer_step: &mir::Type,
     outer_continuation: mir::InterfaceId,
-    outer_resume: mir::FunctionId,
-    outer_failure: mir::FunctionId,
+    outer_resume: &mir::CallTarget,
+    outer_failure: &mir::CallTarget,
     source_name: &str,
     driver: mir::FunctionId,
     source: hir::CallableMaterialization,
@@ -115,12 +115,24 @@ pub(super) fn generate_adapter(
         state,
         safe_latches.as_ref().map(|(_, failure)| failure.clone()),
     );
+    let mut slots = [
+        (protocol.continuation_resume, resume),
+        (protocol.continuation_resume_with_exception, failure),
+    ]
+    .map(|(source, function)| {
+        let method = module.functions[source]
+            .receiver
+            .method()
+            .expect("a continuation member has a receiver");
+        let hir::MethodDispatch::Interface { slot, .. } = method.dispatch else {
+            unreachable!("continuation methods retain interface slots")
+        };
+        (slot, mir::TableSlot::Function(function))
+    });
+    slots.sort_by_key(|(slot, _)| *slot);
     lowerer.classes[class].itables = vec![mir::ItableRecord {
         interface: continuation,
-        slots: vec![
-            mir::TableSlot::Function(resume),
-            mir::TableSlot::Function(failure),
-        ],
+        slots: slots.into_iter().map(|(_, target)| target).collect(),
     }];
     GeneratedAdapter {
         class,

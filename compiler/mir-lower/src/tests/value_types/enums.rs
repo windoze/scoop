@@ -65,6 +65,13 @@ fn enum_instances_are_created_once_with_substituted_fields() {
     let names: Vec<&str> = module
         .enums
         .iter()
+        .filter(|(id, _)| {
+            module
+                .meta
+                .generated_exact_types
+                .get(mir::GeneratedExactTypeLocation::Enum(*id))
+                .is_none()
+        })
         .map(|(_, def)| def.name.as_str())
         .collect();
     assert_eq!(
@@ -75,9 +82,7 @@ fn enum_instances_are_created_once_with_substituted_fields() {
             "ForeignCallbackState",
             "Option",
             "Option",
-            "Option",
-            "CoroutineStep<String>",
-            "CoroutineSlot<String>"
+            "Option"
         ]
     );
 
@@ -214,56 +219,10 @@ fn option_consumers_become_guarded_representation_independent_primitives() {
     );
     let module = lower(&h.finish(main));
 
-    let expected = "\
-Module
-  enum ForeignCallbackMode
-    Reusable()
-    OneShot()
-  enum ForeignCallbackState
-    Registered()
-    Active()
-    Completed()
-    Failed()
-  enum Option<Int>
-    Some(_1: Int)
-    None()
-  enum CoroutineStep<String>
-    Completed(value: String)
-    Suspended()
-  enum CoroutineSlot<String>
-    Empty()
-    Value(value: String)
-  generated_exact_type get0 location=enum3 nominal_id=2b41b14d885fa38a57063f4b172f305c10201de466a744b67467d982b9b03e4d exact_id=54f75c5f7a246468d3b9a26b12b55f3682e8d4c3461904f2d2dad148dd1d3381
-  generated_exact_type get1 location=enum4 nominal_id=97de422daaa5f55d61a1aa042f57df4b345a1c739e7c8cdb9828340e5643c8de exact_id=c6dfe2e2b19c7e12085f2e1cfcac8c2868bd073baad4765dd757d63390b273e4
-  fun main @fn0() -> Unit
-    bb0 entry
-      val o: Option<Int>
-        Type Option<Int>
-        VariantConstruct Option<Int> v0
-          Type Int
-          IntegerLiteral Int value=41 bits=0x00000029
-      val n: Option<Int>
-        Type Option<Int>
-        VariantConstruct Option<Int> v1
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<Int> v0
-          Type Option<Int>
-          Local o
-    bb1 if.then.1
-      val y: Int
-        Type Int
-        VariantPayloadProject Option<Int> v0 f0
-          Type Option<Int>
-          Local o
-      goto bb2
-    bb2 if.merge.2
-      return
-  coroutine_step cs0 CoroutineStep<String> result=String
-  coroutine_slot cl0 CoroutineSlot<String> value=String
-  output executable @fn0
-";
-    assert_eq!(dump(&module), expected);
+    check_mir_snapshot(
+        "option_consumers_become_guarded_representation_independent_primitives",
+        &module,
+    );
     assert_eq!(module.validate(), Ok(()));
 }
 
@@ -307,73 +266,7 @@ fn trapping_unwrap_becomes_a_guarded_extraction() {
     // The operand is evaluated once into `$opt.1`; the semantic variant test
     // guards the representation-independent extraction, and the else branch throws
     // `UnwrapException()` (M8) — an ordinary constructor call.
-    let expected = "\
-Module
-  enum ForeignCallbackMode
-    Reusable()
-    OneShot()
-  enum ForeignCallbackState
-    Registered()
-    Active()
-    Completed()
-    Failed()
-  enum Option<Int>
-    Some(_1: Int)
-    None()
-  enum CoroutineStep<String>
-    Completed(value: String)
-    Suspended()
-  enum CoroutineSlot<String>
-    Empty()
-    Value(value: String)
-  class UnwrapException vtable=0 itables=0
-  generated_exact_type get0 location=enum3 nominal_id=2b41b14d885fa38a57063f4b172f305c10201de466a744b67467d982b9b03e4d exact_id=54f75c5f7a246468d3b9a26b12b55f3682e8d4c3461904f2d2dad148dd1d3381
-  generated_exact_type get1 location=enum4 nominal_id=97de422daaa5f55d61a1aa042f57df4b345a1c739e7c8cdb9828340e5643c8de exact_id=c6dfe2e2b19c7e12085f2e1cfcac8c2868bd073baad4765dd757d63390b273e4
-  fun main @fn0() -> Unit
-    bb0 entry
-      val o: Option<Int>
-        Type Option<Int>
-        VariantConstruct Option<Int> v0
-          Type Int
-          IntegerLiteral Int value=1 bits=0x00000001
-      val $opt.1: Option<Int>
-        Type Option<Int>
-        Local o
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<Int> v0
-          Type Option<Int>
-          Local $opt.1
-    bb1 if.then.1
-      val $uw.2: Int
-        Type Int
-        VariantPayloadProject Option<Int> v0 f0
-          Type Option<Int>
-          Local $opt.1
-      goto bb3
-    bb2 if.else.2
-      assign $new.1
-        Type UnwrapException
-        ClassAlloc UnwrapException
-      call @fn1 direct
-        Type UnwrapException
-        Local $new.1
-      throw
-        Type UnwrapException
-        Local $new.1
-    bb3 if.merge.3
-      val y: Int
-        Type Int
-        Local $uw.2
-      return
-  fun init.UnwrapException.$c0 @fn1(this: UnwrapException) -> Unit
-    bb0 entry
-      return
-  coroutine_step cs0 CoroutineStep<String> result=String
-  coroutine_slot cl0 CoroutineSlot<String> value=String
-  output executable @fn0
-";
-    assert_eq!(dump(&module), expected);
+    check_mir_snapshot("trapping_unwrap_becomes_a_guarded_extraction", &module);
     assert_eq!(module.validate(), Ok(()));
 }
 

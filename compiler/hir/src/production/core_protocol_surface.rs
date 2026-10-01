@@ -91,6 +91,16 @@ protocol_product!(
 );
 protocol_product!(CoreSourceLocationProtocolV1, SOURCE_LOCATION_PROTOCOL_COUNT);
 
+impl CoreCoroutineProtocolV1 {
+    pub fn continuation(&self) -> PersistentGenericTypeId {
+        generic_entry(self.entries(), 0)
+    }
+
+    pub fn suspend_task(&self) -> PersistentGenericTypeId {
+        generic_entry(self.entries(), 5)
+    }
+}
+
 /// Complete typed declaration references for compiler protocols. Every
 /// constituent is a closed product and the eight products are validated as
 /// one complete set of declaration references.

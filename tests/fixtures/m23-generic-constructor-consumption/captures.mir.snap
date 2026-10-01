@@ -1,4 +1,7 @@
 Module
+  enum Option<String>
+    Some(_0: String)
+    None()
   enum CoroutineStep<Payload>
     Completed(value: Payload)
     Suspended()
@@ -7,8 +10,15 @@ Module
     Value(value: Payload)
   class Payload vtable=0 itables=0
   class Captured<Payload> vtable=0 itables=0
-  generated_exact_type get0 location=enum1 nominal_id=4d1560498c84b48fc2b00e5bde24268b9e3c51ef50038b4179165cd9161fd0dd exact_id=4182e3a97e0821d1c70355a732c48c4c54c8c52fa3f68c9f164619a389bc87df
-  generated_exact_type get1 location=enum0 nominal_id=3b05339e9aa555c63df8a259b7162decd88d970c1b5519636d586d148ff1a3d3 exact_id=89e7456e679d5a1714585caf61694a97fb66ce27dfc8a89f7e1e7b0700644601
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<Payload>
+  interface SuspendTask<Payload>
+  interface SuspendRegistration<Payload>
+  generated_exact_type get0 location=enum2 nominal_id=4d1560498c84b48fc2b00e5bde24268b9e3c51ef50038b4179165cd9161fd0dd exact_id=4182e3a97e0821d1c70355a732c48c4c54c8c52fa3f68c9f164619a389bc87df
+  generated_exact_type get1 location=enum1 nominal_id=3b05339e9aa555c63df8a259b7162decd88d970c1b5519636d586d148ff1a3d3 exact_id=89e7456e679d5a1714585caf61694a97fb66ce27dfc8a89f7e1e7b0700644601
+  generated_callable gc0 function=@fn10 id=c016db18d303173dbb2faa6661ba3588dc41a4c1e4353f5902bd0d1a1f55d9c7
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -20,7 +30,7 @@ Module
       assign $new.1
         Type Payload
         ClassAlloc Payload
-      call @fn4 direct
+      call @fn8 direct
         Type Payload
         Local $new.1
         Type Int
@@ -34,7 +44,7 @@ Module
       assign $new.2
         Type Captured<Payload>
         ClassAlloc Captured<Payload>
-      call @fn5 direct
+      call @fn9 direct
         Type Captured<Payload>
         Local $new.2
         Type Payload
@@ -51,7 +61,7 @@ Module
       assign $new.3
         Type Payload
         ClassAlloc Payload
-      call @fn4 direct
+      call @fn8 direct
         Type Payload
         Local $new.3
         Type Int
@@ -68,7 +78,7 @@ Module
       assign $new.4
         Type Payload
         ClassAlloc Payload
-      call @fn4 direct
+      call @fn8 direct
         Type Payload
         Local $new.4
         Type Int
@@ -101,7 +111,19 @@ Module
       return
         Type Payload
         Local $capture.0
-  fun init.Payload.$c0 @fn4(this: Payload, value: Int) -> Unit
+  fun Continuation.resume @fn4(this: Continuation<Payload>, value: Payload) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn5(this: Continuation<Payload>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn6(this: SuspendTask<Payload>, $completion: Continuation<Payload>) -> CoroutineStep<Payload>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn7(this: SuspendRegistration<Payload>, continuation: Continuation<Payload>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Payload.$c0 @fn8(this: Payload, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Payload
@@ -109,7 +131,7 @@ Module
         Type Int
         Local value
       return
-  fun init.Captured.$c0 @fn5(this: Captured<Payload>, value: Payload) -> Unit
+  fun init.Captured.$c0 @fn9(this: Captured<Payload>, value: Payload) -> Unit
     bb0 entry
       field_set 0
         Type Captured<Payload>
@@ -128,9 +150,57 @@ Module
         Type Payload
         Local $call.1
       return
+  fun startCoroutine<Payload> @fn10(task: SuspendTask<Payload>, completion: Continuation<Payload>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn4 interface Continuation<Payload>[0]
+        Type Continuation<Payload>
+        Local completion
+        Type Payload
+        EnumField v0 f0
+          Type CoroutineStep<Payload>
+          Local $step
+      return
+    bb2 failed
+      call @fn5 interface Continuation<Payload>[1]
+        Type Continuation<Payload>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Payload> = @fn6 interface SuspendTask<Payload>[0]
+        Type SuspendTask<Payload>
+        Local task
+        Type Continuation<Payload>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Payload>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
   coroutine_step cs0 CoroutineStep<Payload> result=Payload
   coroutine_slot cl0 CoroutineSlot<Payload> value=Payload
+  coroutine_start ct0 result=Payload function=fn10
+  coroutine_fn cf0 @fn6 source_return=Payload step=cs0 immediate
   instance mi0 function=@fn1 <- output
   instance mi1 function=@fn2 <- copy
   instance mi2 function=@fn3 <- fromSaved
+  instance mi3 function=@fn4 <- Continuation.resume
+  instance mi4 function=@fn5 <- Continuation.resumeWithException
+  instance mi5 function=@fn6 <- SuspendTask.run
+  instance mi6 function=@fn7 <- SuspendRegistration.register
   output library

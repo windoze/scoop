@@ -20,6 +20,7 @@ mod closures;
 mod constructor_definitions;
 mod constructor_slots;
 mod constructor_work;
+mod coroutines;
 mod enums;
 mod functions;
 mod globals;
@@ -76,7 +77,10 @@ pub(crate) fn lower_output(
     requirements: &export::PublicNominalShapeRequirementsV1,
 ) -> Result<export::LocalConcreteHirOutput, Vec<scoop_ast::Diagnostic>> {
     let module = output.module();
-    let concretizer = Concretizer::new(module).map_err(nominal_root_diagnostic)?;
+    let mut concretizer = Concretizer::new(module).map_err(nominal_root_diagnostic)?;
+    concretizer
+        .shape_sources
+        .extend(requirements.roots().iter().map(|root| root.source()));
     let (module, output_kind) = match output.output_kind() {
         export::ConeOutputKind::Library => {
             (concretizer.run()?, export::LocalConeOutputKind::Library)
@@ -115,6 +119,9 @@ struct Concretizer<'a> {
     source: &'a export::Module,
     automatic: AutomaticNominalRoots,
     core: &'a export::CoreProtocols,
+    coroutine_results: std::collections::BTreeSet<concrete::TypeId>,
+    shared_types: std::collections::BTreeSet<concrete::TypeId>,
+    shape_sources: std::collections::BTreeSet<scoop_identity::PersistentTypeId>,
     types: Arena<concrete::Type>,
     type_by_kind: HashMap<concrete::TypeKind, concrete::TypeId>,
     function_types: Arena<concrete::FunctionType>,
@@ -304,6 +311,9 @@ impl<'a> Concretizer<'a> {
             source,
             automatic,
             core: &source.core_protocols,
+            coroutine_results: std::collections::BTreeSet::new(),
+            shared_types: std::collections::BTreeSet::new(),
+            shape_sources: std::collections::BTreeSet::new(),
             types: Arena::new(),
             type_by_kind: HashMap::new(),
             function_types: Arena::new(),

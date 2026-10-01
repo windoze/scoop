@@ -13,12 +13,16 @@ mod mutations;
 pub(super) fn check(
     name: &str,
     source: hir::CheckedSharedTypeFoundationV1<'_>,
+    core: &hir::CoreBootstrapInterfaceSectionV1,
     foundation: &mir::CanonicalMirFoundation,
     ordinary: &mir::CrossConeMirBridgeSectionV1,
     section: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
 ) {
     let replay = Replay {
         source,
+        core: core
+            .compiler_protocols()
+            .map(|core| core.coroutine_protocol()),
         foundation,
         ordinary,
         callables: mir::MirTypeBridgeCallableIndexV1::try_new(&[section.callables()], &[ordinary])
@@ -56,6 +60,7 @@ pub(super) fn check(
 
 struct Replay<'a> {
     source: hir::CheckedSharedTypeFoundationV1<'a>,
+    core: Option<&'a hir::CoreCoroutineProtocolV1>,
     foundation: &'a mir::CanonicalMirFoundation,
     ordinary: &'a mir::CrossConeMirBridgeSectionV1,
     callables: mir::MirTypeBridgeCallableIndexV1<'a>,
@@ -70,6 +75,7 @@ impl Replay<'_> {
     ) -> Result<(), Error> {
         scoop_slib::validate_shared_mir_dispatch(
             self.source,
+            self.core,
             callables,
             &[],
             &[self.ordinary],

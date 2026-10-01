@@ -373,7 +373,6 @@ impl Lowerer {
                 coroutine_functions: self.coroutines.functions,
                 coroutine_steps: self.coroutines.steps,
                 coroutine_slots: self.coroutines.slots,
-                continuation_shells: self.coroutines.continuation_shells,
                 coroutine_starts: self.coroutines.start_helpers,
                 coroutine_saved_values: self.coroutines.saved_values,
                 coroutine_failure_values: self.coroutines.failure_values,
@@ -527,18 +526,6 @@ fn generated_callables(module: &mir::Module) -> mir::MirGeneratedCallableIdentit
             );
         }
     }
-    for shell in &module.meta.continuation_shells {
-        register(
-            shell.success(),
-            shell.identity().success_callable_record(),
-            shell.identity().success_signature_record().subject(),
-        );
-        register(
-            shell.failure(),
-            shell.identity().failure_callable_record(),
-            shell.identity().failure_signature_record().subject(),
-        );
-    }
     for start in &module.meta.coroutine_starts {
         register(
             start.function(),
@@ -607,10 +594,6 @@ fn callable_signatures(module: &mir::Module) -> mir::MirCallableSignatures {
             register(driver_identity.signature_record());
         }
     }
-    for shell in &module.meta.continuation_shells {
-        register(shell.identity().success_signature_record());
-        register(shell.identity().failure_signature_record());
-    }
     for start in &module.meta.coroutine_starts {
         register(start.identity().signature_record());
     }
@@ -622,6 +605,17 @@ fn callable_signatures(module: &mir::Module) -> mir::MirCallableSignatures {
         register(adjust.identity().signature_record());
     }
 
+    for (_, coroutine) in module.meta.coroutine_functions.iter() {
+        let subject = module
+            .meta
+            .callable_signature_subject(coroutine.function)
+            .expect("a coroutine retains its callable subject");
+        let record = entries
+            .iter_mut()
+            .find(|record| record.subject() == subject)
+            .expect("the coroutine source signature was recorded");
+        *record = mir::CallableSignatureRecord::new(subject, coroutine.lowered_signature.clone());
+    }
     mir::MirCallableSignatures::checked(entries)
         .expect("MIR callable signature subjects are globally unique")
 }

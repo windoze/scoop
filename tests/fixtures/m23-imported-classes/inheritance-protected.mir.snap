@@ -1,4 +1,7 @@
 Module
+  enum Option<String>
+    Some(_0: String)
+    None()
   enum CoroutineStep<Derived>
     Completed(value: Derived)
     Suspended()
@@ -8,8 +11,15 @@ Module
   class Derived vtable=1 itables=0
   class ProtectedParent vtable=1 itables=0
   class Counter vtable=0 itables=0
-  generated_exact_type get0 location=enum1 nominal_id=e16891dd4e49c3bcd6fe76419f3e4f5df771b2a9be9203dca5673bca4eea3fb0 exact_id=420577ed4e56f3f15d71e0ab9818184fcf080f4d1e0a0801827df3ee6d354997
-  generated_exact_type get1 location=enum0 nominal_id=99e6aad4852803944206756c37cb5ecb3bf2de730dcd953da7f089611e8bfca8 exact_id=46e252e547ce5912bef5ef1c5bc28c49dfe4b1a0ac800e0069b1abbe39149687
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<Derived>
+  interface SuspendTask<Derived>
+  interface SuspendRegistration<Derived>
+  generated_exact_type get0 location=enum2 nominal_id=e16891dd4e49c3bcd6fe76419f3e4f5df771b2a9be9203dca5673bca4eea3fb0 exact_id=420577ed4e56f3f15d71e0ab9818184fcf080f4d1e0a0801827df3ee6d354997
+  generated_exact_type get1 location=enum1 nominal_id=99e6aad4852803944206756c37cb5ecb3bf2de730dcd953da7f089611e8bfca8 exact_id=46e252e547ce5912bef5ef1c5bc28c49dfe4b1a0ac800e0069b1abbe39149687
+  generated_callable gc0 function=@fn7 id=b5a58c235178f318112c518cad1d855884211b65373d7d879fbef4ffc658014b
   fun Derived.exposed @fn0(this: Derived) -> Long
     bb0 entry
       val $dependency.receiver: ProtectedParent
@@ -28,7 +38,7 @@ Module
       assign $new.1
         Type Derived
         ClassAlloc Derived
-      call @fn2 direct
+      call @fn6 direct
         Type Derived
         Local $new.1
       val $receiver: Derived
@@ -51,7 +61,19 @@ Module
       return
         Type Counter
         Local $new.2
-  fun init.Derived.$c0 @fn2(this: Derived) -> Unit
+  fun Continuation.resume @fn2(this: Continuation<Derived>, value: Derived) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn3(this: Continuation<Derived>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn4(this: SuspendTask<Derived>, $completion: Continuation<Derived>) -> CoroutineStep<Derived>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn5(this: SuspendRegistration<Derived>, continuation: Continuation<Derived>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Derived.$c0 @fn6(this: Derived) -> Unit
     bb0 entry
       val $dependency.argument.0: Long
         Type Long
@@ -67,6 +89,54 @@ Module
         Type Long
         Local $dependency.parameter.seed
       return
+  fun startCoroutine<Derived> @fn7(task: SuspendTask<Derived>, completion: Continuation<Derived>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn2 interface Continuation<Derived>[0]
+        Type Continuation<Derived>
+        Local completion
+        Type Derived
+        EnumField v0 f0
+          Type CoroutineStep<Derived>
+          Local $step
+      return
+    bb2 failed
+      call @fn3 interface Continuation<Derived>[1]
+        Type Continuation<Derived>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Derived> = @fn4 interface SuspendTask<Derived>[0]
+        Type SuspendTask<Derived>
+        Local task
+        Type Continuation<Derived>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Derived>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
   coroutine_step cs0 CoroutineStep<Derived> result=Derived
   coroutine_slot cl0 CoroutineSlot<Derived> value=Derived
+  coroutine_start ct0 result=Derived function=fn7
+  coroutine_fn cf0 @fn4 source_return=Derived step=cs0 immediate
+  instance mi0 function=@fn2 <- Continuation.resume
+  instance mi1 function=@fn3 <- Continuation.resumeWithException
+  instance mi2 function=@fn4 <- SuspendTask.run
+  instance mi3 function=@fn5 <- SuspendRegistration.register
   output library

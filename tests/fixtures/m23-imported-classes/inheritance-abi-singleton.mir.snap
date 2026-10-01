@@ -3,6 +3,9 @@ Module
   global1 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
   init0 object:Singleton singleton lazy global0 initializer=@fn2 ensure=@fn3 failure=1 deps=[]
   struct ReferenceAggregate (first: MutableCell, second: MutableCell, tag: Long)
+  enum Option<String>
+    Some(_0: String)
+    None()
   enum CoroutineStep<Singleton>
     Completed(value: Singleton)
     Suspended()
@@ -13,8 +16,15 @@ Module
   class MutableCell vtable=0 itables=0
   class ReferenceParent vtable=1 itables=0
   class Counter vtable=0 itables=0
-  generated_exact_type get0 location=enum1 nominal_id=4b11410e03a130b7a5a6adb3c0cc54e9fe5f79cca829bc0407fe5f7bd8e3e4ac exact_id=153ae78f6fc4c597a8d16684f130a38231b8ab2620162828ffe09cb5d037555b
-  generated_exact_type get1 location=enum0 nominal_id=238bf6ece2189433ed4991989840247944f5f6be2a564a625f398499f42e903a exact_id=ff70c1f4b9a6ebb35770c24b3db5791a3671ae8b1327870067a379d63db55f24
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<Singleton>
+  interface SuspendTask<Singleton>
+  interface SuspendRegistration<Singleton>
+  generated_exact_type get0 location=enum2 nominal_id=4b11410e03a130b7a5a6adb3c0cc54e9fe5f79cca829bc0407fe5f7bd8e3e4ac exact_id=153ae78f6fc4c597a8d16684f130a38231b8ab2620162828ffe09cb5d037555b
+  generated_exact_type get1 location=enum1 nominal_id=238bf6ece2189433ed4991989840247944f5f6be2a564a625f398499f42e903a exact_id=ff70c1f4b9a6ebb35770c24b3db5791a3671ae8b1327870067a379d63db55f24
+  generated_callable gc0 function=@fn10 id=694250bd9bc95c02359257625d3f7f35686424ebe6b6a053af641f7f1f6d451c
   fun Singleton.transfer @fn0(this: Singleton, input: ReferenceAggregate) -> ReferenceAggregate
     bb0 entry
       val $dependency.receiver: ReferenceParent
@@ -109,7 +119,7 @@ Module
       assign $new.1
         Type Singleton
         ClassAlloc Singleton
-      call @fn5 direct
+      call @fn9 direct
         Type Singleton
         Local $new.1
       global_assign $singleton$Singleton
@@ -315,7 +325,19 @@ Module
       return
         Type Counter
         Local $new.2
-  fun init.Singleton.$c0 @fn5(this: Singleton) -> Unit
+  fun Continuation.resume @fn5(this: Continuation<Singleton>, value: Singleton) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn6(this: Continuation<Singleton>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn7(this: SuspendTask<Singleton>, $completion: Continuation<Singleton>) -> CoroutineStep<Singleton>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn8(this: SuspendRegistration<Singleton>, continuation: Continuation<Singleton>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Singleton.$c0 @fn9(this: Singleton) -> Unit
     bb0 entry
       val $dependency.argument.0: Long
         Type Long
@@ -400,6 +422,54 @@ Module
         Type MutableCell
         Local $new.3
       return
+  fun startCoroutine<Singleton> @fn10(task: SuspendTask<Singleton>, completion: Continuation<Singleton>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn5 interface Continuation<Singleton>[0]
+        Type Continuation<Singleton>
+        Local completion
+        Type Singleton
+        EnumField v0 f0
+          Type CoroutineStep<Singleton>
+          Local $step
+      return
+    bb2 failed
+      call @fn6 interface Continuation<Singleton>[1]
+        Type Continuation<Singleton>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Singleton> = @fn7 interface SuspendTask<Singleton>[0]
+        Type SuspendTask<Singleton>
+        Local task
+        Type Continuation<Singleton>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Singleton>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
   coroutine_step cs0 CoroutineStep<Singleton> result=Singleton
   coroutine_slot cl0 CoroutineSlot<Singleton> value=Singleton
+  coroutine_start ct0 result=Singleton function=fn10
+  coroutine_fn cf0 @fn7 source_return=Singleton step=cs0 immediate
+  instance mi0 function=@fn5 <- Continuation.resume
+  instance mi1 function=@fn6 <- Continuation.resumeWithException
+  instance mi2 function=@fn7 <- SuspendTask.run
+  instance mi3 function=@fn8 <- SuspendRegistration.register
   output library

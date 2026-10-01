@@ -218,7 +218,6 @@ impl<'a> OriginRequirements<'a> {
                         | GeneratedCallableKey::FunctionAdapter { .. }
                         | GeneratedCallableKey::DynamicFunctionAdapter { .. }
                         | GeneratedCallableKey::ForeignCallbackManagedAdapter { .. }
-                        | GeneratedCallableKey::ContinuationShell { .. }
                         | GeneratedCallableKey::CoroutineStart { .. }
                         | GeneratedCallableKey::FunctionBridge { .. }
                         | GeneratedCallableKey::BoxingAdjust { .. } => return Ok(None),

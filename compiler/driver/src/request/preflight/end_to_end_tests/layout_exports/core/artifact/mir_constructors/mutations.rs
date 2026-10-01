@@ -103,23 +103,16 @@ impl Replay<'_> {
         lowered: Signature,
         role: Role,
     ) -> mir::ParamFreeMirCallableBindingV1 {
-        let surface = mir::StrongCallableBridgeSurfaceV1::from_foundation(self.foundation);
         let mut foundation = self.foundation.clone();
         foundation
             .set_callable_signatures(
-                surface
-                    .bridges()
+                self.foundation
+                    .callable_signatures()
                     .iter()
                     .map(|bridge| {
                         mir::CallableSignatureRecord::new(
                             bridge.subject(),
-                            if bridge.implementation()
-                                == original
-                                    .implementation()
-                                    .strong_owner()
-                                    .unwrap()
-                                    .callable_owner()
-                            {
+                            if bridge.subject() == original.implementation().into() {
                                 lowered.exact().clone()
                             } else {
                                 bridge.signature().clone()
@@ -129,7 +122,6 @@ impl Replay<'_> {
                     .collect(),
             )
             .unwrap();
-        let foundation = mir::OdrFreeMirFoundation::try_new(foundation).unwrap();
         mir::ParamFreeMirCallableBindingV1::try_new(
             mir::MirCallableBridgeAuthority {
                 identities: self.source.metadata().identities,

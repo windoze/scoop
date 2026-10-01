@@ -3,6 +3,7 @@ use super::*;
 impl Context<'_> {
     pub(super) fn entries(
         &self,
+        local: &hir::LocalConcreteHir,
         owner: PersistentExactTypeId,
         schema: &hir::InheritanceSlotSchemaV1,
         targets: &[CallableDefinitionOwner],
@@ -26,7 +27,15 @@ impl Context<'_> {
             parameters.extend_from_slice(exact.parameters());
 
             let signature = mir::MirBridgeCallableSignatureV1::new(
-                ExactCallableSignature::new(exact.effect(), receiver, parameters, exact.result()),
+                crate::coroutine_registry::lowered_signature(
+                    local,
+                    &ExactCallableSignature::new(
+                        exact.effect(),
+                        receiver,
+                        parameters,
+                        exact.result(),
+                    ),
+                ),
                 match contract.signature().effects().gc_effect() {
                     scoop_identity::GcEffect::Managed => mir::GcEffect::Managed,
                     scoop_identity::GcEffect::NoGc => mir::GcEffect::NoGc,

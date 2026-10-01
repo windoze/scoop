@@ -1,5 +1,8 @@
 Module
   struct Payload<Int> (value: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
   enum CoroutineStep<Nested>
     Completed(value: Nested)
     Suspended()
@@ -31,16 +34,35 @@ Module
   class Hidden vtable=0 itables=0
   class HiddenChild vtable=1 itables=0
   class Base<Hidden> vtable=1 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
   interface ClosedReader : Reader<Int>
   interface Reader<Int>
-  generated_exact_type get0 location=enum7 nominal_id=1d9a8cd540e15bebd525b5a6ac6bbaad9968941b6ce9536fd94fc64bae65244b exact_id=363fdf1de3097260129cf9f76ea2dc74c34d4c922dea15e91242a3377cc2057f
-  generated_exact_type get1 location=enum5 nominal_id=656d8fa938a801e4c94cc3a0e4e9496a31786c4e5e37829a542aaba11ffe95eb exact_id=38e8cb4be5a57ac0fa30c34af91dc7e9f4fd233fd06e85f1f37af2de76bb04e5
-  generated_exact_type get2 location=enum3 nominal_id=75c675801aaa1302c1cda12548b1f23ee48e461f56540bb5f5b9f68d21624a97 exact_id=4c8f408bad6630a747e25f69ab0b01ce31533803df9688f8509e5468c9b259bd
-  generated_exact_type get3 location=enum1 nominal_id=cd1b1cdc1a22536f3cf212a8837c40772200cbd14d174d99386ef45831d5a554 exact_id=96904a1a615249a39c49a29b9779b07c65cd190d15b863c463f198765eed49a7
-  generated_exact_type get4 location=enum4 nominal_id=eac0e5bde441985d240c7f0fb9869864788df0fd149722a71798dc799b8b0d23 exact_id=a02889d7e897ec546835372851b7a4c312a4ed46f3083f37e4e13866f871474c
-  generated_exact_type get5 location=enum6 nominal_id=9e815559ddb609487fcaa42a2c8673f614c5881b9ed01e0be8ca54e7447e49f9 exact_id=c94315ea68314726ccab634aeaf5c45a72d59c87b4c1b3dc4f1f18eb7e1ac754
-  generated_exact_type get6 location=enum0 nominal_id=89eb9467f5936af7e16d432711b3232750c2c197a851f25c44bef8c2de116399 exact_id=d510605e25af90d20a9f42241e97e645b1afb563d2efb0a554fc3dcb704ea677
-  generated_exact_type get7 location=enum2 nominal_id=afc0619ca85c025e6d995dddbdb02a62b176eca0f1dac36a16635a072a2785df exact_id=f8c5d3a6b8e523f813e7513280c3b0a07c1917d0db135223dca159937205baa2
+  interface Continuation<ClosedReader>
+  interface SuspendTask<ClosedReader>
+  interface SuspendRegistration<ClosedReader>
+  interface Continuation<Combined>
+  interface SuspendTask<Combined>
+  interface SuspendRegistration<Combined>
+  interface Continuation<Nested>
+  interface SuspendTask<Nested>
+  interface SuspendRegistration<Nested>
+  interface Continuation<Hidden>
+  interface SuspendTask<Hidden>
+  interface SuspendRegistration<Hidden>
+  generated_exact_type get0 location=enum8 nominal_id=1d9a8cd540e15bebd525b5a6ac6bbaad9968941b6ce9536fd94fc64bae65244b exact_id=363fdf1de3097260129cf9f76ea2dc74c34d4c922dea15e91242a3377cc2057f
+  generated_exact_type get1 location=enum6 nominal_id=656d8fa938a801e4c94cc3a0e4e9496a31786c4e5e37829a542aaba11ffe95eb exact_id=38e8cb4be5a57ac0fa30c34af91dc7e9f4fd233fd06e85f1f37af2de76bb04e5
+  generated_exact_type get2 location=enum4 nominal_id=75c675801aaa1302c1cda12548b1f23ee48e461f56540bb5f5b9f68d21624a97 exact_id=4c8f408bad6630a747e25f69ab0b01ce31533803df9688f8509e5468c9b259bd
+  generated_exact_type get3 location=enum2 nominal_id=cd1b1cdc1a22536f3cf212a8837c40772200cbd14d174d99386ef45831d5a554 exact_id=96904a1a615249a39c49a29b9779b07c65cd190d15b863c463f198765eed49a7
+  generated_exact_type get4 location=enum5 nominal_id=eac0e5bde441985d240c7f0fb9869864788df0fd149722a71798dc799b8b0d23 exact_id=a02889d7e897ec546835372851b7a4c312a4ed46f3083f37e4e13866f871474c
+  generated_exact_type get5 location=enum7 nominal_id=9e815559ddb609487fcaa42a2c8673f614c5881b9ed01e0be8ca54e7447e49f9 exact_id=c94315ea68314726ccab634aeaf5c45a72d59c87b4c1b3dc4f1f18eb7e1ac754
+  generated_exact_type get6 location=enum1 nominal_id=89eb9467f5936af7e16d432711b3232750c2c197a851f25c44bef8c2de116399 exact_id=d510605e25af90d20a9f42241e97e645b1afb563d2efb0a554fc3dcb704ea677
+  generated_exact_type get7 location=enum3 nominal_id=afc0619ca85c025e6d995dddbdb02a62b176eca0f1dac36a16635a072a2785df exact_id=f8c5d3a6b8e523f813e7513280c3b0a07c1917d0db135223dca159937205baa2
+  generated_callable gc0 function=@fn36 id=98710dbb5ed901859a8cd1f34152cc826ea01a51f83d7a8b0d2472aed85a09d1
+  generated_callable gc1 function=@fn37 id=a3277c4d1f214e0ab982d4b395f89ee5fe1351357bdc4c50d7925469a4480c0f
+  generated_callable gc2 function=@fn34 id=ddb2bb1cb1e1adc546eccd8fe78a8b4a27fe490d3f253c1fe574d1e0b17e01c6
+  generated_callable gc3 function=@fn35 id=e055cf8ab080a3238afd4caaad55b735877ad91c9dfc2a8b1ee744d77c291187
   fun read @fn0(this: ReadingBase<Int>) -> Int
     bb0 entry
       call $call.1: Int = @fn6 direct
@@ -110,7 +132,7 @@ Module
       assign $new.1
         Type Nested
         ClassAlloc Nested
-      call @fn11 direct
+      call @fn27 direct
         Type Nested
         Local $new.1
         Type Int
@@ -160,7 +182,7 @@ Module
       assign $new.3
         Type Combined
         ClassAlloc Combined
-      call @fn10 direct
+      call @fn26 direct
         Type Combined
         Local $new.3
         Type Int
@@ -207,7 +229,7 @@ Module
       assign $new.4
         Type Hidden
         ClassAlloc Hidden
-      call @fn12 direct
+      call @fn28 direct
         Type Hidden
         Local $new.4
         Type Int
@@ -221,7 +243,7 @@ Module
       assign $new.5
         Type HiddenChild
         ClassAlloc HiddenChild
-      call @fn13 direct
+      call @fn29 direct
         Type HiddenChild
         Local $new.5
         Type Hidden
@@ -263,7 +285,55 @@ Module
         FieldAccess 0
           Type Base<Hidden>
           Local this
-  fun init.Combined.$c0 @fn10(this: Combined, value: Int) -> Unit
+  fun Continuation.resume @fn10(this: Continuation<ClosedReader>, value: ClosedReader) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn11(this: Continuation<ClosedReader>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn12(this: SuspendTask<ClosedReader>, $completion: Continuation<ClosedReader>) -> CoroutineStep<ClosedReader>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn13(this: SuspendRegistration<ClosedReader>, continuation: Continuation<ClosedReader>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn14(this: Continuation<Combined>, value: Combined) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn15(this: Continuation<Combined>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn16(this: SuspendTask<Combined>, $completion: Continuation<Combined>) -> CoroutineStep<Combined>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn17(this: SuspendRegistration<Combined>, continuation: Continuation<Combined>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn18(this: Continuation<Nested>, value: Nested) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn19(this: Continuation<Nested>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn20(this: SuspendTask<Nested>, $completion: Continuation<Nested>) -> CoroutineStep<Nested>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn21(this: SuspendRegistration<Nested>, continuation: Continuation<Nested>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn22(this: Continuation<Hidden>, value: Hidden) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn23(this: Continuation<Hidden>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn24(this: SuspendTask<Hidden>, $completion: Continuation<Hidden>) -> CoroutineStep<Hidden>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn25(this: SuspendRegistration<Hidden>, continuation: Continuation<Hidden>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Combined.$c0 @fn26(this: Combined, value: Int) -> Unit
     bb0 entry
       val $dependency.argument.0: Int
         Type Int
@@ -271,7 +341,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn14 direct
+      call @fn30 direct
         Type ReadingBase<Int>
         Retype ReadingBase<Int>
           Type Combined
@@ -279,7 +349,7 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
-  fun init.Nested.$c1 @fn11(this: Nested, value: Int) -> Unit
+  fun init.Nested.$c1 @fn27(this: Nested, value: Int) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -287,13 +357,13 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $dependency.argument.0: Payload<Int> = @fn17 direct
+      call $dependency.argument.0: Payload<Int> = @fn33 direct
         Type Int
         Local $parameter.value
       val $dependency.parameter.value: Payload<Int>
         Type Payload<Int>
         Local $dependency.argument.0
-      call @fn15 direct
+      call @fn31 direct
         Type Base<Payload<Int>>
         Retype Base<Payload<Int>>
           Type Nested
@@ -301,7 +371,7 @@ Module
         Type Payload<Int>
         Local $dependency.parameter.value
       return
-  fun init.Hidden.$c2 @fn12(this: Hidden, number: Int) -> Unit
+  fun init.Hidden.$c2 @fn28(this: Hidden, number: Int) -> Unit
     bb0 entry
       field_set 0
         Type Hidden
@@ -309,7 +379,7 @@ Module
         Type Int
         Local number
       return
-  fun init.HiddenChild.$c3 @fn13(this: HiddenChild, value: Hidden) -> Unit
+  fun init.HiddenChild.$c3 @fn29(this: HiddenChild, value: Hidden) -> Unit
     bb0 entry
       val $dependency.argument.0: Hidden
         Type Hidden
@@ -317,7 +387,7 @@ Module
       val $dependency.parameter.value: Hidden
         Type Hidden
         Local $dependency.argument.0
-      call @fn16 direct
+      call @fn32 direct
         Type Base<Hidden>
         Retype Base<Hidden>
           Type HiddenChild
@@ -325,7 +395,7 @@ Module
         Type Hidden
         Local $dependency.parameter.value
       return
-  fun init.ReadingBase.$c0 @fn14(this: ReadingBase<Int>, value: Int) -> Unit
+  fun init.ReadingBase.$c0 @fn30(this: ReadingBase<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type ReadingBase<Int>
@@ -333,7 +403,7 @@ Module
         Type Int
         Local value
       return
-  fun init.Base.$c1 @fn15(this: Base<Payload<Int>>, value: Payload<Int>) -> Unit
+  fun init.Base.$c1 @fn31(this: Base<Payload<Int>>, value: Payload<Int>) -> Unit
     bb0 entry
       field_set 0
         Type Base<Payload<Int>>
@@ -341,7 +411,7 @@ Module
         Type Payload<Int>
         Local value
       return
-  fun init.Base.$c1 @fn16(this: Base<Hidden>, value: Hidden) -> Unit
+  fun init.Base.$c1 @fn32(this: Base<Hidden>, value: Hidden) -> Unit
     bb0 entry
       field_set 0
         Type Base<Hidden>
@@ -349,13 +419,181 @@ Module
         Type Hidden
         Local value
       return
-  fun ctor.Payload.$c0 @fn17(value: Int) -> Payload<Int> <no-gc>
+  fun ctor.Payload.$c0 @fn33(value: Int) -> Payload<Int> <no-gc>
     bb0 entry
       return
         Type Payload<Int>
         StructInit Payload<Int>
           Type Int
           Local value
+  fun startCoroutine<Nested> @fn34(task: SuspendTask<Nested>, completion: Continuation<Nested>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn18 interface Continuation<Nested>[0]
+        Type Continuation<Nested>
+        Local completion
+        Type Nested
+        EnumField v0 f0
+          Type CoroutineStep<Nested>
+          Local $step
+      return
+    bb2 failed
+      call @fn19 interface Continuation<Nested>[1]
+        Type Continuation<Nested>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Nested> = @fn20 interface SuspendTask<Nested>[0]
+        Type SuspendTask<Nested>
+        Local task
+        Type Continuation<Nested>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Nested>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<ClosedReader> @fn35(task: SuspendTask<ClosedReader>, completion: Continuation<ClosedReader>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn10 interface Continuation<ClosedReader>[0]
+        Type Continuation<ClosedReader>
+        Local completion
+        Type ClosedReader
+        EnumField v0 f0
+          Type CoroutineStep<ClosedReader>
+          Local $step
+      return
+    bb2 failed
+      call @fn11 interface Continuation<ClosedReader>[1]
+        Type Continuation<ClosedReader>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<ClosedReader> = @fn12 interface SuspendTask<ClosedReader>[0]
+        Type SuspendTask<ClosedReader>
+        Local task
+        Type Continuation<ClosedReader>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<ClosedReader>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Hidden> @fn36(task: SuspendTask<Hidden>, completion: Continuation<Hidden>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn22 interface Continuation<Hidden>[0]
+        Type Continuation<Hidden>
+        Local completion
+        Type Hidden
+        EnumField v0 f0
+          Type CoroutineStep<Hidden>
+          Local $step
+      return
+    bb2 failed
+      call @fn23 interface Continuation<Hidden>[1]
+        Type Continuation<Hidden>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Hidden> = @fn24 interface SuspendTask<Hidden>[0]
+        Type SuspendTask<Hidden>
+        Local task
+        Type Continuation<Hidden>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Hidden>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Combined> @fn37(task: SuspendTask<Combined>, completion: Continuation<Combined>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn14 interface Continuation<Combined>[0]
+        Type Continuation<Combined>
+        Local completion
+        Type Combined
+        EnumField v0 f0
+          Type CoroutineStep<Combined>
+          Local $step
+      return
+    bb2 failed
+      call @fn15 interface Continuation<Combined>[1]
+        Type Continuation<Combined>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Combined> = @fn16 interface SuspendTask<Combined>[0]
+        Type SuspendTask<Combined>
+        Local task
+        Type Continuation<Combined>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Combined>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
   coroutine_step cs0 CoroutineStep<Nested> result=Nested
   coroutine_step cs1 CoroutineStep<ClosedReader> result=ClosedReader
   coroutine_step cs2 CoroutineStep<Hidden> result=Hidden
@@ -364,6 +602,14 @@ Module
   coroutine_slot cl1 CoroutineSlot<ClosedReader> value=ClosedReader
   coroutine_slot cl2 CoroutineSlot<Hidden> value=Hidden
   coroutine_slot cl3 CoroutineSlot<Combined> value=Combined
+  coroutine_start ct0 result=Nested function=fn34
+  coroutine_start ct1 result=ClosedReader function=fn35
+  coroutine_start ct2 result=Hidden function=fn36
+  coroutine_start ct3 result=Combined function=fn37
+  coroutine_fn cf0 @fn12 source_return=ClosedReader step=cs1 immediate
+  coroutine_fn cf1 @fn16 source_return=Combined step=cs3 immediate
+  coroutine_fn cf2 @fn20 source_return=Nested step=cs0 immediate
+  coroutine_fn cf3 @fn24 source_return=Hidden step=cs2 immediate
   instance mi0 function=@fn0 <- read
   instance mi1 function=@fn1 <- again
   instance mi2 function=@fn3 <- read
@@ -372,4 +618,20 @@ Module
   instance mi5 function=@fn7 <- Reader.read
   instance mi6 function=@fn8 <- value
   instance mi7 function=@fn9 <- value
+  instance mi8 function=@fn10 <- Continuation.resume
+  instance mi9 function=@fn11 <- Continuation.resumeWithException
+  instance mi10 function=@fn12 <- SuspendTask.run
+  instance mi11 function=@fn13 <- SuspendRegistration.register
+  instance mi12 function=@fn14 <- Continuation.resume
+  instance mi13 function=@fn15 <- Continuation.resumeWithException
+  instance mi14 function=@fn16 <- SuspendTask.run
+  instance mi15 function=@fn17 <- SuspendRegistration.register
+  instance mi16 function=@fn18 <- Continuation.resume
+  instance mi17 function=@fn19 <- Continuation.resumeWithException
+  instance mi18 function=@fn20 <- SuspendTask.run
+  instance mi19 function=@fn21 <- SuspendRegistration.register
+  instance mi20 function=@fn22 <- Continuation.resume
+  instance mi21 function=@fn23 <- Continuation.resumeWithException
+  instance mi22 function=@fn24 <- SuspendTask.run
+  instance mi23 function=@fn25 <- SuspendRegistration.register
   output library

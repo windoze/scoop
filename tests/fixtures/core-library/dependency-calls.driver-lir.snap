@@ -30,7 +30,10 @@
     br @if.merge.6
   block if.merge.6
     ret
-  td td20 n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=O;x=LocalTools) @scoop$1$td$3eb168e79f89664ce64b02bfe679ad503422e832d214ae2a27b9072d2890abd0 type-id=10263454389031268026 shape=FixedObject minimum-size=16 align=8 parent=none vtable=[] itables=[]
+  td td94 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=O;x=LocalTools)]) @scoop$1$td$d02a868490f988f15e1d14869e7cac30aae095f0a444470290a54dc1d1157764 type-id=6272306169112054543 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td95 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=O;x=LocalTools)]) @scoop$1$td$772a20bb1abc4efce4ef66e49e8a4ee5bb61064c98de92f45fddda59a540097d type-id=2124580175680875931 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td96 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=O;x=LocalTools)]) @scoop$1$td$b12752e18142550a48be9dc1d75efa98c5af0c527e46fbabd55500eaf5bb150b type-id=5245689034854576584 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td110 n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=O;x=LocalTools) @scoop$1$td$3eb168e79f89664ce64b02bfe679ad503422e832d214ae2a27b9072d2890abd0 type-id=10263454389031268026 shape=FixedObject minimum-size=16 align=8 parent=none vtable=[] itables=[]
   layout CoroutineStep<LocalTools> size=8 align=8 enum-scan=refs[0]
   layout CoroutineSlot<LocalTools> size=8 align=8 enum-scan=refs[0]
   layout LocalTools value size=8 align=8 refs=[0]

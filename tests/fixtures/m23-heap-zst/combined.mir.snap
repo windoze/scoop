@@ -5,6 +5,9 @@ Module
   init0 object:HeapSingleton singleton lazy global1 initializer=@fn10 ensure=@fn11 failure=2 deps=[]
   struct HeapEmpty ()
   struct HeapPair (first: HeapEmpty, second: HeapEmpty)
+  enum Option<String>
+    Some(_0: String)
+    None()
   enum CoroutineStep<HeapCell>
     Completed(value: HeapCell)
     Suspended()
@@ -45,38 +48,65 @@ Module
   class HeapBase vtable=0 itables=0
   class HeapDerived vtable=0 itables=0
   class HeapSingleton vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
   class box<HeapEmpty> vtable=0 itables=0
   class box<HeapPair> vtable=0 itables=0
+  interface Continuation<HeapEmpty>
+  interface SuspendTask<HeapEmpty>
+  interface SuspendRegistration<HeapEmpty>
+  interface Continuation<HeapPair>
+  interface SuspendTask<HeapPair>
+  interface SuspendRegistration<HeapPair>
+  interface Continuation<HeapCell>
+  interface SuspendTask<HeapCell>
+  interface SuspendRegistration<HeapCell>
+  interface Continuation<HeapBase>
+  interface SuspendTask<HeapBase>
+  interface SuspendRegistration<HeapBase>
+  interface Continuation<HeapDerived>
+  interface SuspendTask<HeapDerived>
+  interface SuspendRegistration<HeapDerived>
+  interface Continuation<HeapSingleton>
+  interface SuspendTask<HeapSingleton>
+  interface SuspendRegistration<HeapSingleton>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn16 captures=1
-    bridge function_type1 -> @fn26 id=34a5146a1d1ffdfb105e31277abc35b9863986ad7eae014863e8cbf83376f48f
+    bridge function_type1 -> @fn56 id=34a5146a1d1ffdfb105e31277abc35b9863986ad7eae014863e8cbf83376f48f
   closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn17 captures=1
-    bridge function_type1 -> @fn27 id=05b4b72c19aba687e03d8b7ff20afcd1dc6e3d0aa26790dd81af5ed3df1fc6a1
+    bridge function_type1 -> @fn57 id=05b4b72c19aba687e03d8b7ff20afcd1dc6e3d0aa26790dd81af5ed3df1fc6a1
   closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn18 captures=1
-    bridge function_type1 -> @fn28 id=0a1c31c6f3dea8764844d8a0d75e3b46cb7135deb6f45b5acc10519d9ad0fab1
+    bridge function_type1 -> @fn58 id=0a1c31c6f3dea8764844d8a0d75e3b46cb7135deb6f45b5acc10519d9ad0fab1
   closure cc3 $Closure$lambda3 type=function_type0 invoke=@fn19 captures=1
-    bridge function_type1 -> @fn29 id=dd0000e435c11d71af122fce0eb7bbd42c0aa33c58d8ce51e6232a3dfe4d69f3
-  generated_exact_type get0 location=enum8 nominal_id=981f1503d64db886acecc0e1b4d18f93ca9eb09b9e6f712e82ea0ad956e44aea exact_id=1246064da34f404a04d2149173683262d56a7032e82bbedced0b1df768b52f10
-  generated_exact_type get1 location=class5 nominal_id=925a77258bc47ca36b176c940ff137420b2508d0482cec835e2e5ce3cc893f3b exact_id=1636256d1cd8085ef47cbc8f948ae25692ebe04ef446f4c562a242e196d18509
-  generated_exact_type get2 location=enum7 nominal_id=7e4f7bef1d89e471476a0a751fbe7aa0da2abccf60e3a5448fbd3639b8c56f37 exact_id=1860ba9cf317626950e6a5a7fcc5a5a4dcb85b628950c7f85519b5c5983c320f
-  generated_exact_type get3 location=enum2 nominal_id=d052ecd2cd631e94907cf63f68ef6c835f93a581a40cca301e10d86fa1fa2335 exact_id=1c6d8fe1f10c417fe9d2d0a6aac6b98ceafdd5c199248868b871398bb37ff177
+    bridge function_type1 -> @fn59 id=dd0000e435c11d71af122fce0eb7bbd42c0aa33c58d8ce51e6232a3dfe4d69f3
+  generated_exact_type get0 location=enum9 nominal_id=981f1503d64db886acecc0e1b4d18f93ca9eb09b9e6f712e82ea0ad956e44aea exact_id=1246064da34f404a04d2149173683262d56a7032e82bbedced0b1df768b52f10
+  generated_exact_type get1 location=class8 nominal_id=925a77258bc47ca36b176c940ff137420b2508d0482cec835e2e5ce3cc893f3b exact_id=1636256d1cd8085ef47cbc8f948ae25692ebe04ef446f4c562a242e196d18509
+  generated_exact_type get2 location=enum8 nominal_id=7e4f7bef1d89e471476a0a751fbe7aa0da2abccf60e3a5448fbd3639b8c56f37 exact_id=1860ba9cf317626950e6a5a7fcc5a5a4dcb85b628950c7f85519b5c5983c320f
+  generated_exact_type get3 location=enum3 nominal_id=d052ecd2cd631e94907cf63f68ef6c835f93a581a40cca301e10d86fa1fa2335 exact_id=1c6d8fe1f10c417fe9d2d0a6aac6b98ceafdd5c199248868b871398bb37ff177
   generated_exact_type get4 location=closure0 nominal_id=1628eef54727f901eca0c11cde7c492508a5da3420dec4a3ee500a4bbff09710 exact_id=2e6c609e7d301fef574d5de11437ca50acdacc5ecfbbfb63e81cc7d6667a25b5
-  generated_exact_type get5 location=enum5 nominal_id=665885659effae17c5bdd7ce40105925f2f746addae13015795c5fd91f715e68 exact_id=3d695ee88b8ba7d61a635fd168083c1d4a80d00278d8e239cd70d4a7faf44b22
+  generated_exact_type get5 location=enum6 nominal_id=665885659effae17c5bdd7ce40105925f2f746addae13015795c5fd91f715e68 exact_id=3d695ee88b8ba7d61a635fd168083c1d4a80d00278d8e239cd70d4a7faf44b22
   generated_exact_type get6 location=closure3 nominal_id=5192790e9de135232cd11383a35e7156d8289be210ae6f87d931293856da2391 exact_id=70c4cb4a746a3ee105fbaf09b3fdfbe68225d42be7d65abd9cfb95dbc4f30a02
-  generated_exact_type get7 location=class4 nominal_id=69ff3ebaec7a1e2f7aa13df6d85de42b440ea3d0f7b2a3115c5c737f78edb359 exact_id=79d270a6c76ecae41fc664603953fac40d1f5c9707be51ac4161f4ac919e4fe0
-  generated_exact_type get8 location=enum9 nominal_id=bd21bc578520b43e87625c755e89b7372823b6f7bc7c41ea4b09a2e96c7ba784 exact_id=a5cc6aefdb872aa6caf05f4b29f2b8333164ae1847a9a4925e5e23a503e5d822
+  generated_exact_type get7 location=class7 nominal_id=69ff3ebaec7a1e2f7aa13df6d85de42b440ea3d0f7b2a3115c5c737f78edb359 exact_id=79d270a6c76ecae41fc664603953fac40d1f5c9707be51ac4161f4ac919e4fe0
+  generated_exact_type get8 location=enum10 nominal_id=bd21bc578520b43e87625c755e89b7372823b6f7bc7c41ea4b09a2e96c7ba784 exact_id=a5cc6aefdb872aa6caf05f4b29f2b8333164ae1847a9a4925e5e23a503e5d822
   generated_exact_type get9 location=closure1 nominal_id=7bf8768fbc9f247f311153dd0519e58426e2e2eac3eec50cd096367ff2cdd444 exact_id=aa06db1d47dacc901eed5ba19a97541a3b1aab48c8ff491bf95d0b67c9d29259
   generated_exact_type get10 location=closure2 nominal_id=ddb4d29abc1bfc98c9a29122f200a57614994d187785bc5c0d88fdd3ce6f0d9a exact_id=aacdc5618df706cfc55dac80def9efb796cf98c1e17efd710a54d9d087fe132b
-  generated_exact_type get11 location=enum6 nominal_id=8a864bf192f1e10a4572893c06aa49dde7c00e19bffa78c823b1fdcbc235615a exact_id=b866b7ed30799ecd30cd09679dec0d3d6cc33bd5e23ac34a36e0cbf36e858511
-  generated_exact_type get12 location=enum0 nominal_id=3420b1c58a2f9b9e4360d6a782fe56451a6e02e01b966c4746956ef16d2567ac exact_id=c28067e6ee47333860a06d83663a8406c26ed06482fd1b50b6c6a1b7130a06f6
-  generated_exact_type get13 location=enum3 nominal_id=530e9d639ee2c0e4ab03f8017edc8c1e9dc752049193f9c15d02f5de3ab7ca8d exact_id=c96c1c1448e5a37de10f480341a079d5b6a9dccb705e683b2088b673ddba61dd
-  generated_exact_type get14 location=enum4 nominal_id=ae440f4ac336d6ae00be92187988c85900fddb4b98b4871aaaac85bdb2220611 exact_id=cbaf2bb2431692912ad7c9a2b5e9ffe9b78605d941ecb67cae17f76d3abb6444
-  generated_exact_type get15 location=enum11 nominal_id=4f58082a59a0cf093b0dd080504cfbb27bd34f4b41ea2844e839e25287addf7c exact_id=da12dc561777ef24dbe0f7d8caf6493c7d3f1d9f4cbae09d7cf264bd1007522e
-  generated_exact_type get16 location=enum1 nominal_id=d1e7e9de197ef8667609027649d331cd0f626d26e7852fc8ca76a464591b6d99 exact_id=e8c882ace32b43568046aa9062fefe73dd6e1e28ed88fcfd039360c510eda335
-  generated_exact_type get17 location=enum10 nominal_id=eb9e633080f99eb44794d5826011b0de92e0d809cdcfe75cd7176e28ff8d9982 exact_id=fc26628b4e460544a10489447b5be8fd95027b31414de6b0c59b3ef701728e33
-  generated_callable gc0 function=@fn27 id=05b4b72c19aba687e03d8b7ff20afcd1dc6e3d0aa26790dd81af5ed3df1fc6a1
-  generated_callable gc1 function=@fn28 id=0a1c31c6f3dea8764844d8a0d75e3b46cb7135deb6f45b5acc10519d9ad0fab1
-  generated_callable gc2 function=@fn26 id=34a5146a1d1ffdfb105e31277abc35b9863986ad7eae014863e8cbf83376f48f
-  generated_callable gc3 function=@fn29 id=dd0000e435c11d71af122fce0eb7bbd42c0aa33c58d8ce51e6232a3dfe4d69f3
+  generated_exact_type get11 location=enum7 nominal_id=8a864bf192f1e10a4572893c06aa49dde7c00e19bffa78c823b1fdcbc235615a exact_id=b866b7ed30799ecd30cd09679dec0d3d6cc33bd5e23ac34a36e0cbf36e858511
+  generated_exact_type get12 location=enum1 nominal_id=3420b1c58a2f9b9e4360d6a782fe56451a6e02e01b966c4746956ef16d2567ac exact_id=c28067e6ee47333860a06d83663a8406c26ed06482fd1b50b6c6a1b7130a06f6
+  generated_exact_type get13 location=enum4 nominal_id=530e9d639ee2c0e4ab03f8017edc8c1e9dc752049193f9c15d02f5de3ab7ca8d exact_id=c96c1c1448e5a37de10f480341a079d5b6a9dccb705e683b2088b673ddba61dd
+  generated_exact_type get14 location=enum5 nominal_id=ae440f4ac336d6ae00be92187988c85900fddb4b98b4871aaaac85bdb2220611 exact_id=cbaf2bb2431692912ad7c9a2b5e9ffe9b78605d941ecb67cae17f76d3abb6444
+  generated_exact_type get15 location=enum12 nominal_id=4f58082a59a0cf093b0dd080504cfbb27bd34f4b41ea2844e839e25287addf7c exact_id=da12dc561777ef24dbe0f7d8caf6493c7d3f1d9f4cbae09d7cf264bd1007522e
+  generated_exact_type get16 location=enum2 nominal_id=d1e7e9de197ef8667609027649d331cd0f626d26e7852fc8ca76a464591b6d99 exact_id=e8c882ace32b43568046aa9062fefe73dd6e1e28ed88fcfd039360c510eda335
+  generated_exact_type get17 location=enum11 nominal_id=eb9e633080f99eb44794d5826011b0de92e0d809cdcfe75cd7176e28ff8d9982 exact_id=fc26628b4e460544a10489447b5be8fd95027b31414de6b0c59b3ef701728e33
+  generated_callable gc0 function=@fn57 id=05b4b72c19aba687e03d8b7ff20afcd1dc6e3d0aa26790dd81af5ed3df1fc6a1
+  generated_callable gc1 function=@fn58 id=0a1c31c6f3dea8764844d8a0d75e3b46cb7135deb6f45b5acc10519d9ad0fab1
+  generated_callable gc2 function=@fn55 id=26acef41e13fa4c7da8f004b307fb51fc5c85fd5e4c46739dd2f68b1ff31512c
+  generated_callable gc3 function=@fn56 id=34a5146a1d1ffdfb105e31277abc35b9863986ad7eae014863e8cbf83376f48f
+  generated_callable gc4 function=@fn51 id=6fb4440a966cd2e2ea734a6d65f1cb3917507e93ed9f63c46be9caa3dfc87622
+  generated_callable gc5 function=@fn54 id=769ed6aadddf4d5224dc428d1a0de19a48b105e3b7ed6a5bcc32d0794a4fe387
+  generated_callable gc6 function=@fn53 id=93d725488b84ac97a75c628f82a894bf3db4ef32544d0a587cbb2c25d9578576
+  generated_callable gc7 function=@fn52 id=ccccc837f515bf2d3ae7a34865a36d96e0df0f03760fa39cc73ecaddb455a101
+  generated_callable gc8 function=@fn59 id=dd0000e435c11d71af122fce0eb7bbd42c0aa33c58d8ce51e6232a3dfe4d69f3
+  generated_callable gc9 function=@fn50 id=e2998bd9b08ed3dbc052b238ea844dc83f99d7e49d2f84de0ed9d3c34f56f90e
   fun HeapCell.$get$empty @fn0(this: HeapCell) -> HeapEmpty
     bb0 entry
       return
@@ -157,7 +187,7 @@ Module
       assign $new.1
         Type HeapSingleton
         ClassAlloc HeapSingleton
-      call @fn23 direct
+      call @fn47 direct
         Type HeapSingleton
         Local $new.1
       global_assign $singleton$HeapSingleton
@@ -278,7 +308,7 @@ Module
           Local $dependency.receiver
           Type Int
           Local $dependency.parameter.other
-      call $call.1: HeapEmpty = @fn24 direct
+      call $call.1: HeapEmpty = @fn48 direct
       return
         Type HeapEmpty
         Local $call.1
@@ -288,14 +318,14 @@ Module
       val $argument.0: HeapEmpty
         Type HeapEmpty
         Local empty
-      call $argument.1: HeapEmpty = @fn24 direct
+      call $argument.1: HeapEmpty = @fn48 direct
       val $parameter.first: HeapEmpty
         Type HeapEmpty
         Local $argument.0
       val $parameter.second: HeapEmpty
         Type HeapEmpty
         Local $argument.1
-      call pair: HeapPair = @fn25 direct
+      call pair: HeapPair = @fn49 direct
         Type HeapEmpty
         Local $parameter.first
         Type HeapEmpty
@@ -315,7 +345,7 @@ Module
       assign $new.1
         Type HeapDerived
         ClassAlloc HeapDerived
-      call @fn22 direct
+      call @fn46 direct
         Type HeapDerived
         Local $new.1
         Type Int
@@ -334,7 +364,7 @@ Module
       assign $new.2
         Type HeapCell
         ClassAlloc HeapCell
-      call @fn20 direct
+      call @fn44 direct
         Type HeapCell
         Local $new.2
         Type HeapEmpty
@@ -467,7 +497,79 @@ Module
       return
         Type HeapEmpty
         Local $call.1
-  fun init.HeapCell.$c0 @fn20(this: HeapCell, empty: HeapEmpty) -> Unit
+  fun Continuation.resume @fn20(this: Continuation<HeapEmpty>, value: HeapEmpty) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn21(this: Continuation<HeapEmpty>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn22(this: SuspendTask<HeapEmpty>, $completion: Continuation<HeapEmpty>) -> CoroutineStep<HeapEmpty>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn23(this: SuspendRegistration<HeapEmpty>, continuation: Continuation<HeapEmpty>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn24(this: Continuation<HeapPair>, value: HeapPair) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn25(this: Continuation<HeapPair>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn26(this: SuspendTask<HeapPair>, $completion: Continuation<HeapPair>) -> CoroutineStep<HeapPair>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn27(this: SuspendRegistration<HeapPair>, continuation: Continuation<HeapPair>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn28(this: Continuation<HeapCell>, value: HeapCell) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn29(this: Continuation<HeapCell>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn30(this: SuspendTask<HeapCell>, $completion: Continuation<HeapCell>) -> CoroutineStep<HeapCell>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn31(this: SuspendRegistration<HeapCell>, continuation: Continuation<HeapCell>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn32(this: Continuation<HeapBase>, value: HeapBase) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn33(this: Continuation<HeapBase>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn34(this: SuspendTask<HeapBase>, $completion: Continuation<HeapBase>) -> CoroutineStep<HeapBase>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn35(this: SuspendRegistration<HeapBase>, continuation: Continuation<HeapBase>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn36(this: Continuation<HeapDerived>, value: HeapDerived) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn37(this: Continuation<HeapDerived>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn38(this: SuspendTask<HeapDerived>, $completion: Continuation<HeapDerived>) -> CoroutineStep<HeapDerived>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn39(this: SuspendRegistration<HeapDerived>, continuation: Continuation<HeapDerived>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn40(this: Continuation<HeapSingleton>, value: HeapSingleton) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn41(this: Continuation<HeapSingleton>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn42(this: SuspendTask<HeapSingleton>, $completion: Continuation<HeapSingleton>) -> CoroutineStep<HeapSingleton>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn43(this: SuspendRegistration<HeapSingleton>, continuation: Continuation<HeapSingleton>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.HeapCell.$c0 @fn44(this: HeapCell, empty: HeapEmpty) -> Unit
     bb0 entry
       field_set 0
         Type HeapCell
@@ -475,7 +577,7 @@ Module
         Type HeapEmpty
         Local empty
       return
-  fun init.HeapBase.$c1 @fn21(this: HeapBase, first: HeapEmpty) -> Unit
+  fun init.HeapBase.$c1 @fn45(this: HeapBase, first: HeapEmpty) -> Unit
     bb0 entry
       field_set 0
         Type HeapBase
@@ -483,13 +585,13 @@ Module
         Type HeapEmpty
         Local first
       return
-  fun init.HeapDerived.$c2 @fn22(this: HeapDerived, number: Int, pair: HeapPair) -> Unit
+  fun init.HeapDerived.$c2 @fn46(this: HeapDerived, number: Int, pair: HeapPair) -> Unit
     bb0 entry
-      call $argument.0: HeapEmpty = @fn24 direct
+      call $argument.0: HeapEmpty = @fn48 direct
       val $parameter.first: HeapEmpty
         Type HeapEmpty
         Local $argument.0
-      call @fn21 direct
+      call @fn45 direct
         Type HeapBase
         Retype HeapBase
           Type HeapDerived
@@ -507,7 +609,7 @@ Module
         Type HeapPair
         Local pair
       return
-  fun init.HeapSingleton.$c3 @fn23(this: HeapSingleton) -> Unit
+  fun init.HeapSingleton.$c3 @fn47(this: HeapSingleton) -> Unit
     bb0 entry
       call $call.1: HeapEmpty = @fn12 direct
       field_set 0
@@ -516,12 +618,12 @@ Module
         Type HeapEmpty
         Local $call.1
       return
-  fun ctor.HeapEmpty.$c0 @fn24() -> HeapEmpty <no-gc>
+  fun ctor.HeapEmpty.$c0 @fn48() -> HeapEmpty <no-gc>
     bb0 entry
       return
         Type HeapEmpty
         StructInit HeapEmpty
-  fun ctor.HeapPair.$c1 @fn25(first: HeapEmpty, second: HeapEmpty) -> HeapPair <no-gc>
+  fun ctor.HeapPair.$c1 @fn49(first: HeapEmpty, second: HeapEmpty) -> HeapPair <no-gc>
     bb0 entry
       return
         Type HeapPair
@@ -530,7 +632,259 @@ Module
           Local first
           Type HeapEmpty
           Local second
-  fun function_bridge.$Closure$lambda0.() -> Any @fn26($source: () -> HeapEmpty) -> Any
+  fun startCoroutine<HeapCell> @fn50(task: SuspendTask<HeapCell>, completion: Continuation<HeapCell>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn28 interface Continuation<HeapCell>[0]
+        Type Continuation<HeapCell>
+        Local completion
+        Type HeapCell
+        EnumField v0 f0
+          Type CoroutineStep<HeapCell>
+          Local $step
+      return
+    bb2 failed
+      call @fn29 interface Continuation<HeapCell>[1]
+        Type Continuation<HeapCell>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<HeapCell> = @fn30 interface SuspendTask<HeapCell>[0]
+        Type SuspendTask<HeapCell>
+        Local task
+        Type Continuation<HeapCell>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<HeapCell>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<HeapEmpty> @fn51(task: SuspendTask<HeapEmpty>, completion: Continuation<HeapEmpty>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn20 interface Continuation<HeapEmpty>[0]
+        Type Continuation<HeapEmpty>
+        Local completion
+        Type HeapEmpty
+        EnumField v0 f0
+          Type CoroutineStep<HeapEmpty>
+          Local $step
+      return
+    bb2 failed
+      call @fn21 interface Continuation<HeapEmpty>[1]
+        Type Continuation<HeapEmpty>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<HeapEmpty> = @fn22 interface SuspendTask<HeapEmpty>[0]
+        Type SuspendTask<HeapEmpty>
+        Local task
+        Type Continuation<HeapEmpty>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<HeapEmpty>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<HeapDerived> @fn52(task: SuspendTask<HeapDerived>, completion: Continuation<HeapDerived>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn36 interface Continuation<HeapDerived>[0]
+        Type Continuation<HeapDerived>
+        Local completion
+        Type HeapDerived
+        EnumField v0 f0
+          Type CoroutineStep<HeapDerived>
+          Local $step
+      return
+    bb2 failed
+      call @fn37 interface Continuation<HeapDerived>[1]
+        Type Continuation<HeapDerived>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<HeapDerived> = @fn38 interface SuspendTask<HeapDerived>[0]
+        Type SuspendTask<HeapDerived>
+        Local task
+        Type Continuation<HeapDerived>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<HeapDerived>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<HeapPair> @fn53(task: SuspendTask<HeapPair>, completion: Continuation<HeapPair>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn24 interface Continuation<HeapPair>[0]
+        Type Continuation<HeapPair>
+        Local completion
+        Type HeapPair
+        EnumField v0 f0
+          Type CoroutineStep<HeapPair>
+          Local $step
+      return
+    bb2 failed
+      call @fn25 interface Continuation<HeapPair>[1]
+        Type Continuation<HeapPair>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<HeapPair> = @fn26 interface SuspendTask<HeapPair>[0]
+        Type SuspendTask<HeapPair>
+        Local task
+        Type Continuation<HeapPair>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<HeapPair>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<HeapSingleton> @fn54(task: SuspendTask<HeapSingleton>, completion: Continuation<HeapSingleton>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn40 interface Continuation<HeapSingleton>[0]
+        Type Continuation<HeapSingleton>
+        Local completion
+        Type HeapSingleton
+        EnumField v0 f0
+          Type CoroutineStep<HeapSingleton>
+          Local $step
+      return
+    bb2 failed
+      call @fn41 interface Continuation<HeapSingleton>[1]
+        Type Continuation<HeapSingleton>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<HeapSingleton> = @fn42 interface SuspendTask<HeapSingleton>[0]
+        Type SuspendTask<HeapSingleton>
+        Local task
+        Type Continuation<HeapSingleton>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<HeapSingleton>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<HeapBase> @fn55(task: SuspendTask<HeapBase>, completion: Continuation<HeapBase>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn32 interface Continuation<HeapBase>[0]
+        Type Continuation<HeapBase>
+        Local completion
+        Type HeapBase
+        EnumField v0 f0
+          Type CoroutineStep<HeapBase>
+          Local $step
+      return
+    bb2 failed
+      call @fn33 interface Continuation<HeapBase>[1]
+        Type Continuation<HeapBase>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<HeapBase> = @fn34 interface SuspendTask<HeapBase>[0]
+        Type SuspendTask<HeapBase>
+        Local task
+        Type Continuation<HeapBase>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<HeapBase>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$lambda0.() -> Any @fn56($source: () -> HeapEmpty) -> Any
     bb0 entry
       call $call.1: HeapEmpty = <closure:function_type0> closure[function_type0]
         Type () -> HeapEmpty
@@ -540,7 +894,7 @@ Module
         Box
           Type HeapEmpty
           Local $call.1
-  fun function_bridge.$Closure$lambda1.() -> Any @fn27($source: () -> HeapPair) -> Any
+  fun function_bridge.$Closure$lambda1.() -> Any @fn57($source: () -> HeapPair) -> Any
     bb0 entry
       call $call.1: HeapPair = <closure:function_type2> closure[function_type2]
         Type () -> HeapPair
@@ -550,7 +904,7 @@ Module
         Box
           Type HeapPair
           Local $call.1
-  fun function_bridge.$Closure$lambda2.() -> Any @fn28($source: () -> HeapDerived) -> Any
+  fun function_bridge.$Closure$lambda2.() -> Any @fn58($source: () -> HeapDerived) -> Any
     bb0 entry
       call $call.1: HeapDerived = <closure:function_type3> closure[function_type3]
         Type () -> HeapDerived
@@ -560,7 +914,7 @@ Module
         Retype Any
           Type HeapDerived
           Local $call.1
-  fun function_bridge.$Closure$lambda3.() -> Any @fn29($source: () -> HeapEmpty) -> Any
+  fun function_bridge.$Closure$lambda3.() -> Any @fn59($source: () -> HeapEmpty) -> Any
     bb0 entry
       call $call.1: HeapEmpty = <closure:function_type0> closure[function_type0]
         Type () -> HeapEmpty
@@ -582,4 +936,40 @@ Module
   coroutine_slot cl3 CoroutineSlot<HeapPair> value=HeapPair
   coroutine_slot cl4 CoroutineSlot<HeapSingleton> value=HeapSingleton
   coroutine_slot cl5 CoroutineSlot<HeapBase> value=HeapBase
+  coroutine_start ct0 result=HeapCell function=fn50
+  coroutine_start ct1 result=HeapEmpty function=fn51
+  coroutine_start ct2 result=HeapDerived function=fn52
+  coroutine_start ct3 result=HeapPair function=fn53
+  coroutine_start ct4 result=HeapSingleton function=fn54
+  coroutine_start ct5 result=HeapBase function=fn55
+  coroutine_fn cf0 @fn22 source_return=HeapEmpty step=cs1 immediate
+  coroutine_fn cf1 @fn26 source_return=HeapPair step=cs3 immediate
+  coroutine_fn cf2 @fn30 source_return=HeapCell step=cs0 immediate
+  coroutine_fn cf3 @fn34 source_return=HeapBase step=cs5 immediate
+  coroutine_fn cf4 @fn38 source_return=HeapDerived step=cs2 immediate
+  coroutine_fn cf5 @fn42 source_return=HeapSingleton step=cs4 immediate
+  instance mi0 function=@fn20 <- Continuation.resume
+  instance mi1 function=@fn21 <- Continuation.resumeWithException
+  instance mi2 function=@fn22 <- SuspendTask.run
+  instance mi3 function=@fn23 <- SuspendRegistration.register
+  instance mi4 function=@fn24 <- Continuation.resume
+  instance mi5 function=@fn25 <- Continuation.resumeWithException
+  instance mi6 function=@fn26 <- SuspendTask.run
+  instance mi7 function=@fn27 <- SuspendRegistration.register
+  instance mi8 function=@fn28 <- Continuation.resume
+  instance mi9 function=@fn29 <- Continuation.resumeWithException
+  instance mi10 function=@fn30 <- SuspendTask.run
+  instance mi11 function=@fn31 <- SuspendRegistration.register
+  instance mi12 function=@fn32 <- Continuation.resume
+  instance mi13 function=@fn33 <- Continuation.resumeWithException
+  instance mi14 function=@fn34 <- SuspendTask.run
+  instance mi15 function=@fn35 <- SuspendRegistration.register
+  instance mi16 function=@fn36 <- Continuation.resume
+  instance mi17 function=@fn37 <- Continuation.resumeWithException
+  instance mi18 function=@fn38 <- SuspendTask.run
+  instance mi19 function=@fn39 <- SuspendRegistration.register
+  instance mi20 function=@fn40 <- Continuation.resume
+  instance mi21 function=@fn41 <- Continuation.resumeWithException
+  instance mi22 function=@fn42 <- SuspendTask.run
+  instance mi23 function=@fn43 <- SuspendRegistration.register
   output library

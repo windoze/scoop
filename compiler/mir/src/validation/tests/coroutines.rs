@@ -1,5 +1,7 @@
 use super::*;
 
+mod signatures;
+
 struct CoroutineFixture {
     module: Module,
     driver: FunctionId,
@@ -73,7 +75,7 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
     let mut wrapper_locals = Arena::new();
     let completion_local = wrapper_locals.alloc(Local {
         name: "$completion".to_string(),
-        ty: Type::Boolean,
+        ty: Type::Interface(continuation),
         mutable: false,
     });
     let wrapper = module.functions.alloc(Function {
@@ -81,7 +83,7 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
         name: "pending".to_string(),
         params: vec![Param {
             name: "$completion".to_string(),
-            ty: Type::Boolean,
+            ty: Type::Interface(continuation),
             local: completion_local,
         }],
         return_ty: Type::Enum(step_enum, Vec::new()),
@@ -105,6 +107,19 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
         source,
         source_odr_group: None,
         logical_signature: source_signature.clone(),
+        lowered_signature: scoop_identity::ExactCallableSignature::new(
+            scoop_identity::Effect::Ordinary,
+            None,
+            vec![test_exact_type(&Type::Interface(continuation)).id()],
+            scoop_identity::CborIdentityRecord::from_key(scoop_identity::ExactTypeKey::Nominal(
+                module.meta.coroutine_steps[step]
+                    .identity()
+                    .generated_type_record()
+                    .id(),
+            ))
+            .unwrap()
+            .id(),
+        ),
         source_return: result.clone(),
         step,
         lowering: CoroutineLowering::Immediate,
@@ -122,7 +137,7 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
                 },
                 Field {
                     name: "completion".to_string(),
-                    ty: Type::Boolean,
+                    ty: Type::Interface(continuation),
                 },
                 Field {
                     name: "return".to_string(),

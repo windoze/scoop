@@ -26,6 +26,8 @@ pub struct Module {
     pub callback_applications: CallbackApplicationIdentities,
     pub function_types: Arena<FunctionType>,
     pub native_callback_signatures: Vec<NativeCallbackSignature>,
+    /// Complete instances of the actual core coroutine declarations.
+    pub coroutine_protocols: Vec<CoroutineProtocol>,
     pub lambdas: Arena<Lambda>,
     pub anonymous_functions: Arena<AnonymousFunction>,
     pub local_functions: Arena<LocalFunction>,
@@ -124,7 +126,6 @@ pub enum ConcreteCoreProtocols {
 pub struct DefinedConcreteCoreProtocols {
     pub option: Vec<OptionCore>,
     pub exceptions: CompilerExceptionCore,
-    pub coroutines: Vec<CoroutineProtocol>,
     pub foreign_callbacks: ForeignCallbackCore,
     /// Nominal owners of the fixed compiler-represented types. Generic
     /// intrinsic families are represented by each concrete class instance,
@@ -451,10 +452,7 @@ impl Module {
         &self,
         function: FunctionId,
     ) -> Option<&CoroutineProtocol> {
-        let ConcreteCoreProtocols::Defined(protocols) = &self.core_protocols else {
-            return None;
-        };
-        protocols.coroutines.iter().find(|protocol| {
+        self.coroutine_protocols.iter().find(|protocol| {
             protocol.start_coroutine == function || protocol.suspend_coroutine == function
         })
     }

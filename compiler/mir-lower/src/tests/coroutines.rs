@@ -251,32 +251,6 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
         mir::CallableSignatureSubject::Strong(scoop_identity::CallableOwner::Generated(id))
             if id == driver_identity.callable_record().id()
     ));
-    let shells = module
-        .meta
-        .continuation_shells
-        .iter()
-        .find(|shell| shell.result() == &caller.source_return)
-        .expect("state-machine result has exact continuation shells");
-    assert!(matches!(
-        shells.identity().success_callable_record().key(),
-        scoop_identity::GeneratedCallableKey::ContinuationShell {
-            result,
-            role: scoop_identity::ContinuationShellRole::Success,
-        } if *result == shells.identity().result_record().id()
-    ));
-    assert!(matches!(
-        shells.identity().failure_callable_record().key(),
-        scoop_identity::GeneratedCallableKey::ContinuationShell {
-            role: scoop_identity::ContinuationShellRole::Failure,
-            ..
-        }
-    ));
-    assert!(matches!(
-        shells.identity().success_root(),
-        mir::ExactOwnerRoot::SourceNominal(_)
-    ));
-    let success = &module.functions[shells.success()];
-    let failure = &module.functions[shells.failure()];
     let exact = |ty: &mir::Type| {
         module
             .meta
@@ -286,23 +260,6 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
             .identity_record()
             .id()
     };
-    let success_signature = shells.identity().success_signature_record().signature();
-    assert_eq!(
-        success_signature.receiver(),
-        scoop_identity::OptionalExactOwner::Present(exact(&success.params[0].ty))
-    );
-    assert_eq!(
-        success_signature.parameters(),
-        &[exact(&caller.source_return)]
-    );
-    assert_eq!(success_signature.result(), exact(&mir::Type::Unit));
-    let failure_signature = shells.identity().failure_signature_record().signature();
-    assert_eq!(failure_signature.receiver(), success_signature.receiver());
-    assert_eq!(
-        failure_signature.parameters(),
-        &[exact(&failure.params[1].ty)]
-    );
-    assert_eq!(failure_signature.result(), success_signature.result());
     let frame = &module.meta.coroutine_frames[*frame];
     assert_eq!(frame.identity().source(), caller.source);
     let frame_exact = module

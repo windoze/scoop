@@ -22,6 +22,9 @@ Module
   enum CoroutineSlot<LocalNative>
     Empty()
     Value(value: LocalNative)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
   class box<LocalCell<String>> vtable=0 itables=2
   class box<RemoteCell<String>> vtable=0 itables=2
   class box<LocalCell<Unit>> vtable=0 itables=2
@@ -37,47 +40,51 @@ Module
   interface Readable<Unit>
   interface Reader<Int> : Readable<Int>
   interface Readable<Int>
+  interface Continuation<LocalNative>
+  interface SuspendTask<LocalNative>
+  interface SuspendRegistration<LocalNative>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
-    bridge function_type1 -> @fn47 id=147c5b22230a8056c05c7658bddc4fde2d70e4e02ce71de63c704cc716594a4b
+    bridge function_type1 -> @fn52 id=147c5b22230a8056c05c7658bddc4fde2d70e4e02ce71de63c704cc716594a4b
   closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn3 captures=0
-    bridge function_type1 -> @fn48 id=730291278e7957ee0213567271e986e8b7b971988c3f7b482cf6e27449d97853
+    bridge function_type1 -> @fn53 id=730291278e7957ee0213567271e986e8b7b971988c3f7b482cf6e27449d97853
   closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn5 captures=0
-    bridge function_type1 -> @fn49 id=abadc1fea961535f7bd6243f6834acb7fb2098f6893aed54454523693699bd89
+    bridge function_type1 -> @fn54 id=abadc1fea961535f7bd6243f6834acb7fb2098f6893aed54454523693699bd89
   generated_exact_type get0 location=enum3 nominal_id=b104f0bbb4b23f98e8789ca007bdc61431affc2e964f5f9d26ad61bad324bf4e exact_id=13c6b36817ca66f4db866056660b45afbcf808cc63260aa87aba93615a227e1c
   generated_exact_type get1 location=closure2 nominal_id=96272f17e553c1196fe301da4e11ddfcf8487f057fefb3d6f99058d1cf5df2eb exact_id=1a0ea94052e7e36190c6c50ba53e0baceec1893d85069b36bcd54e7f2783313f
-  generated_exact_type get2 location=class8 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get2 location=class11 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
   generated_exact_type get3 location=closure1 nominal_id=e8e3db53349aae836e66711ac2d576f96916c14a6926bf507fd16e46ec684dee exact_id=46e26da1b3ba278b7d1a6d2635133290f09fa8ce2c89e07e7e51e67f236b210d
   generated_exact_type get4 location=closure0 nominal_id=25f45eb6b724476435a849c90250eb0440989d695b3e9b37a472b1811eba3335 exact_id=4bf6336c3b606572bf153f55ff636900681e9c89ef82f6aebb3781f074207c79
-  generated_exact_type get5 location=class3 nominal_id=1b6654e9b87b86e0b5d0a54270cf12131992e2e9c2279ef54d249a33aee45268 exact_id=5440d41ac21accee998a7638455d02d8d8f95fddb6bacc4c0d2eae3de12a0644
-  generated_exact_type get6 location=class5 nominal_id=e84adddfe73a97466d07e1331a29af0e57e58e427a40c9a5ea8a485517aa676c exact_id=955f603ce05c4e8e94c0a4a2868e10b3fa108f32236e5782788a115c8190f508
-  generated_exact_type get7 location=class1 nominal_id=89e88f682e8c2971cd02318db5f39a463cf2997aeaa381061c8992b48cbfeeb1 exact_id=9ad0aa049881a9b8548e9a45ea02beabbd04bff257f280fe9528bd2a6b100189
-  generated_exact_type get8 location=class4 nominal_id=57b5a61db8977446d445c603df9ac1a616aadda04f067534755a2f9d700a7c6a exact_id=bb5e036bc8e3e2791f2b13c48d98508ccc874a53ecb5e98bb54b11ab86c29694
-  generated_exact_type get9 location=class2 nominal_id=7d23bacecdd9fbbf4eafecd29960df8072bcd446f13ae4ea68478a74fc214a73 exact_id=d06fa40ab9edd1f14f257e96f92fc6ea2e559f650351135980416779facba339
-  generated_exact_type get10 location=class6 nominal_id=ce2b3fa11a1999120a3dc6e0612fb071c2d23b85920f34526a9eb4e884f85f1a exact_id=d99d71e049fe137e3f9c258b8c56e05ca78ce13ae2355dc9712750dcdd2ad1e3
-  generated_exact_type get11 location=class7 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get5 location=class6 nominal_id=1b6654e9b87b86e0b5d0a54270cf12131992e2e9c2279ef54d249a33aee45268 exact_id=5440d41ac21accee998a7638455d02d8d8f95fddb6bacc4c0d2eae3de12a0644
+  generated_exact_type get6 location=class8 nominal_id=e84adddfe73a97466d07e1331a29af0e57e58e427a40c9a5ea8a485517aa676c exact_id=955f603ce05c4e8e94c0a4a2868e10b3fa108f32236e5782788a115c8190f508
+  generated_exact_type get7 location=class4 nominal_id=89e88f682e8c2971cd02318db5f39a463cf2997aeaa381061c8992b48cbfeeb1 exact_id=9ad0aa049881a9b8548e9a45ea02beabbd04bff257f280fe9528bd2a6b100189
+  generated_exact_type get8 location=class7 nominal_id=57b5a61db8977446d445c603df9ac1a616aadda04f067534755a2f9d700a7c6a exact_id=bb5e036bc8e3e2791f2b13c48d98508ccc874a53ecb5e98bb54b11ab86c29694
+  generated_exact_type get9 location=class5 nominal_id=7d23bacecdd9fbbf4eafecd29960df8072bcd446f13ae4ea68478a74fc214a73 exact_id=d06fa40ab9edd1f14f257e96f92fc6ea2e559f650351135980416779facba339
+  generated_exact_type get10 location=class9 nominal_id=ce2b3fa11a1999120a3dc6e0612fb071c2d23b85920f34526a9eb4e884f85f1a exact_id=d99d71e049fe137e3f9c258b8c56e05ca78ce13ae2355dc9712750dcdd2ad1e3
+  generated_exact_type get11 location=class10 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get12 location=enum4 nominal_id=70c19f4b240472c770da25a71b58e9db5803b222a6110d435b290e6ba21569a1 exact_id=e86f11953e923e66fcf8d2ee7e30a1eab69df9b30cf76b09f4b8ab77ee6a92d1
-  generated_exact_type get13 location=class0 nominal_id=1578b4ef86ca500c5b9b9614f634afcc6979020d9daa0ff39b68e95558ba0bb5 exact_id=ecd682f35937bc10970f7f8f9d35adfeb571466cc6663e2f5a0e6185dc846873
-  generated_callable gc0 function=@fn46 id=07a8f322b89031e2c9b1f4cf4f137d4d8b08a3973f9ed43ebeba5733e1b35192
-  generated_callable gc1 function=@fn38 id=0bd8ebc3d1a352b2fc943b59a23ca26d78ed1e91506ab7fbf07f25f7e221bfdd
-  generated_callable gc2 function=@fn34 id=12f12c76230b9dee94c24d980f5769080d459e72e968f2fb4c0c28034365d7c2
-  generated_callable gc3 function=@fn47 id=147c5b22230a8056c05c7658bddc4fde2d70e4e02ce71de63c704cc716594a4b
-  generated_callable gc4 function=@fn42 id=1ff77ab18dfe1eda53e97efc4c07005e01fee867853e72f7693621d6527f35f5
-  generated_callable gc5 function=@fn40 id=2ff57fc974600b48c17e075646c632ea0738423e2036db7108bcbb34686e53c0
-  generated_callable gc6 function=@fn31 id=3787c3cdbc6b9b09a9114c085341fc3be72dd34a073b5a6e779ad46e08754e06
-  generated_callable gc7 function=@fn33 id=719648af4b74995ff28318f300829642b7403578a1937ba79140132bca8e6db9
-  generated_callable gc8 function=@fn37 id=72ed83a7653135e7db884509a10edddd0ee81a8f5b3b8728cc48e665da10f6b5
-  generated_callable gc9 function=@fn48 id=730291278e7957ee0213567271e986e8b7b971988c3f7b482cf6e27449d97853
-  generated_callable gc10 function=@fn32 id=8a43f2fd78cf3d61e0c81db13a480ca9326511930640e49bebe3e80de0aa750e
-  generated_callable gc11 function=@fn41 id=8e080f9d0e4d08b1a075a1fe8bf23803235a114e7e24475932e090b34feb976f
-  generated_callable gc12 function=@fn39 id=8fbf9b821d121c0b383755aea76608be9fa2674ed1346286cc7dd95e61dd8b54
-  generated_callable gc13 function=@fn49 id=abadc1fea961535f7bd6243f6834acb7fb2098f6893aed54454523693699bd89
-  generated_callable gc14 function=@fn43 id=b327a796bb9ee7700e613ec009092dc0601ab02cd4fecf94ca335c4ac984a6a2
-  generated_callable gc15 function=@fn45 id=c13d824fb6c4f830ac7f9ea2302a2bd8f7ff9313db2549ae30be972f9b1c1b69
-  generated_callable gc16 function=@fn36 id=e56727aea73f2d81cea065c1857ef72bd8ed9a70858e5805d8b4ae7b7c8d2818
-  generated_callable gc17 function=@fn29 id=f0212232fef976d66e6b8b53d455c48df35be82bef1922f2c764e3412c73c4dc
-  generated_callable gc18 function=@fn35 id=faf680935de9caadbc45b9fe8a8cba1e998ecd1c00de8c87546536925ba329cd
-  generated_callable gc19 function=@fn30 id=fd4ad02e0df31b4e7d6031e796561565f8909ec23a47cf2dc175efaf095a3f59
-  generated_callable gc20 function=@fn44 id=fdcba3096791e0cb3d5fa8d46ac52fb9c19fbb8abac237d1eef6b0562f92583e
+  generated_exact_type get13 location=class3 nominal_id=1578b4ef86ca500c5b9b9614f634afcc6979020d9daa0ff39b68e95558ba0bb5 exact_id=ecd682f35937bc10970f7f8f9d35adfeb571466cc6663e2f5a0e6185dc846873
+  generated_callable gc0 function=@fn51 id=07a8f322b89031e2c9b1f4cf4f137d4d8b08a3973f9ed43ebeba5733e1b35192
+  generated_callable gc1 function=@fn43 id=0bd8ebc3d1a352b2fc943b59a23ca26d78ed1e91506ab7fbf07f25f7e221bfdd
+  generated_callable gc2 function=@fn33 id=0eb9aec50ee6fe17246ff4c568fb78c55742413a1481093c43cf7797e5d639a0
+  generated_callable gc3 function=@fn39 id=12f12c76230b9dee94c24d980f5769080d459e72e968f2fb4c0c28034365d7c2
+  generated_callable gc4 function=@fn52 id=147c5b22230a8056c05c7658bddc4fde2d70e4e02ce71de63c704cc716594a4b
+  generated_callable gc5 function=@fn47 id=1ff77ab18dfe1eda53e97efc4c07005e01fee867853e72f7693621d6527f35f5
+  generated_callable gc6 function=@fn45 id=2ff57fc974600b48c17e075646c632ea0738423e2036db7108bcbb34686e53c0
+  generated_callable gc7 function=@fn36 id=3787c3cdbc6b9b09a9114c085341fc3be72dd34a073b5a6e779ad46e08754e06
+  generated_callable gc8 function=@fn38 id=719648af4b74995ff28318f300829642b7403578a1937ba79140132bca8e6db9
+  generated_callable gc9 function=@fn42 id=72ed83a7653135e7db884509a10edddd0ee81a8f5b3b8728cc48e665da10f6b5
+  generated_callable gc10 function=@fn53 id=730291278e7957ee0213567271e986e8b7b971988c3f7b482cf6e27449d97853
+  generated_callable gc11 function=@fn37 id=8a43f2fd78cf3d61e0c81db13a480ca9326511930640e49bebe3e80de0aa750e
+  generated_callable gc12 function=@fn46 id=8e080f9d0e4d08b1a075a1fe8bf23803235a114e7e24475932e090b34feb976f
+  generated_callable gc13 function=@fn44 id=8fbf9b821d121c0b383755aea76608be9fa2674ed1346286cc7dd95e61dd8b54
+  generated_callable gc14 function=@fn54 id=abadc1fea961535f7bd6243f6834acb7fb2098f6893aed54454523693699bd89
+  generated_callable gc15 function=@fn48 id=b327a796bb9ee7700e613ec009092dc0601ab02cd4fecf94ca335c4ac984a6a2
+  generated_callable gc16 function=@fn50 id=c13d824fb6c4f830ac7f9ea2302a2bd8f7ff9313db2549ae30be972f9b1c1b69
+  generated_callable gc17 function=@fn41 id=e56727aea73f2d81cea065c1857ef72bd8ed9a70858e5805d8b4ae7b7c8d2818
+  generated_callable gc18 function=@fn34 id=f0212232fef976d66e6b8b53d455c48df35be82bef1922f2c764e3412c73c4dc
+  generated_callable gc19 function=@fn40 id=faf680935de9caadbc45b9fe8a8cba1e998ecd1c00de8c87546536925ba329cd
+  generated_callable gc20 function=@fn35 id=fd4ad02e0df31b4e7d6031e796561565f8909ec23a47cf2dc175efaf095a3f59
+  generated_callable gc21 function=@fn49 id=fdcba3096791e0cb3d5fa8d46ac52fb9c19fbb8abac237d1eef6b0562f92583e
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: String
@@ -199,7 +206,7 @@ Module
       val $parameter.remote: RemoteCell<String>
         Type RemoteCell<String>
         Local $argument.1
-      call local: LocalCell<String> = @fn23 direct
+      call local: LocalCell<String> = @fn27 direct
         Type String
         Local $parameter.value
         Type RemoteCell<String>
@@ -372,7 +379,7 @@ Module
       val $parameter.right: Int
         Type Int
         Local $argument.1
-      call second: LocalNative = @fn22 direct
+      call second: LocalNative = @fn26 direct
         Type Int
         Local $parameter.left
         Type Int
@@ -422,7 +429,7 @@ Module
       val $parameter.remote: RemoteCell<Unit>
         Type RemoteCell<Unit>
         Local $argument.1
-      call local: LocalCell<Unit> = @fn24 direct
+      call local: LocalCell<Unit> = @fn28 direct
         Type Unit
         Local $parameter.value
         Type RemoteCell<Unit>
@@ -595,7 +602,7 @@ Module
       val $parameter.right: Int
         Type Int
         Local $argument.1
-      call second: LocalNative = @fn22 direct
+      call second: LocalNative = @fn26 direct
         Type Int
         Local $parameter.left
         Type Int
@@ -645,7 +652,7 @@ Module
       val $parameter.remote: RemoteCell<Int>
         Type RemoteCell<Int>
         Local $argument.1
-      call local: LocalCell<Int> = @fn25 direct
+      call local: LocalCell<Int> = @fn29 direct
         Type Int
         Local $parameter.value
         Type RemoteCell<Int>
@@ -818,7 +825,7 @@ Module
       val $parameter.right: Int
         Type Int
         Local $argument.1
-      call second: LocalNative = @fn22 direct
+      call second: LocalNative = @fn26 direct
         Type Int
         Local $parameter.left
         Type Int
@@ -892,7 +899,7 @@ Module
       val $dependency.local.6: Option<String>
         Type Option<String>
         Local $dependency.local.4
-      call $call.1: RemoteCell<String> = @fn26 direct
+      call $call.1: RemoteCell<String> = @fn30 direct
         Type String
         Local $dependency.local.5
         Type Option<String>
@@ -950,7 +957,7 @@ Module
       val $dependency.local.6: Option<Unit>
         Type Option<Unit>
         Local $dependency.local.4
-      call $call.1: RemoteCell<Unit> = @fn27 direct
+      call $call.1: RemoteCell<Unit> = @fn31 direct
         Type Unit
         Local $dependency.local.5
         Type Option<Unit>
@@ -1010,7 +1017,7 @@ Module
       val $dependency.local.6: Option<Int>
         Type Option<Int>
         Local $dependency.local.4
-      call $call.1: RemoteCell<Int> = @fn28 direct
+      call $call.1: RemoteCell<Int> = @fn32 direct
         Type Int
         Local $dependency.local.5
         Type Option<Int>
@@ -1021,7 +1028,19 @@ Module
   fun Readable.get @fn21(this: Readable<Int>) -> Int
     bb0 entry
       trap "call to abstract method `Readable.get`"
-  fun ctor.LocalNative.$c1 @fn22(left: Int, right: Int) -> LocalNative <no-gc>
+  fun Continuation.resume @fn22(this: Continuation<LocalNative>, value: LocalNative) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn23(this: Continuation<LocalNative>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn24(this: SuspendTask<LocalNative>, $completion: Continuation<LocalNative>) -> CoroutineStep<LocalNative>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn25(this: SuspendRegistration<LocalNative>, continuation: Continuation<LocalNative>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.LocalNative.$c1 @fn26(left: Int, right: Int) -> LocalNative <no-gc>
     bb0 entry
       return
         Type LocalNative
@@ -1030,7 +1049,7 @@ Module
           Local left
           Type Int
           Local right
-  fun ctor.LocalCell.$c0 @fn23(value: String, remote: RemoteCell<String>) -> LocalCell<String> <no-gc>
+  fun ctor.LocalCell.$c0 @fn27(value: String, remote: RemoteCell<String>) -> LocalCell<String> <no-gc>
     bb0 entry
       return
         Type LocalCell<String>
@@ -1039,7 +1058,7 @@ Module
           Local value
           Type RemoteCell<String>
           Local remote
-  fun ctor.LocalCell.$c0 @fn24(value: Unit, remote: RemoteCell<Unit>) -> LocalCell<Unit> <no-gc>
+  fun ctor.LocalCell.$c0 @fn28(value: Unit, remote: RemoteCell<Unit>) -> LocalCell<Unit> <no-gc>
     bb0 entry
       return
         Type LocalCell<Unit>
@@ -1048,7 +1067,7 @@ Module
           Local value
           Type RemoteCell<Unit>
           Local remote
-  fun ctor.LocalCell.$c0 @fn25(value: Int, remote: RemoteCell<Int>) -> LocalCell<Int> <no-gc>
+  fun ctor.LocalCell.$c0 @fn29(value: Int, remote: RemoteCell<Int>) -> LocalCell<Int> <no-gc>
     bb0 entry
       return
         Type LocalCell<Int>
@@ -1057,7 +1076,7 @@ Module
           Local value
           Type RemoteCell<Int>
           Local remote
-  fun ctor.RemoteCell.$c0 @fn26(value: String, optional: Option<String>) -> RemoteCell<String> <no-gc>
+  fun ctor.RemoteCell.$c0 @fn30(value: String, optional: Option<String>) -> RemoteCell<String> <no-gc>
     bb0 entry
       return
         Type RemoteCell<String>
@@ -1066,7 +1085,7 @@ Module
           Local value
           Type Option<String>
           Local optional
-  fun ctor.RemoteCell.$c0 @fn27(value: Unit, optional: Option<Unit>) -> RemoteCell<Unit> <no-gc>
+  fun ctor.RemoteCell.$c0 @fn31(value: Unit, optional: Option<Unit>) -> RemoteCell<Unit> <no-gc>
     bb0 entry
       return
         Type RemoteCell<Unit>
@@ -1075,7 +1094,7 @@ Module
           Local value
           Type Option<Unit>
           Local optional
-  fun ctor.RemoteCell.$c0 @fn28(value: Int, optional: Option<Int>) -> RemoteCell<Int> <no-gc>
+  fun ctor.RemoteCell.$c0 @fn32(value: Int, optional: Option<Int>) -> RemoteCell<Int> <no-gc>
     bb0 entry
       return
         Type RemoteCell<Int>
@@ -1084,7 +1103,49 @@ Module
           Local value
           Type Option<Int>
           Local optional
-  fun thunk<LocalCell<String>> Reader.get() @fn29(this: Reader<String>) -> String
+  fun startCoroutine<LocalNative> @fn33(task: SuspendTask<LocalNative>, completion: Continuation<LocalNative>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn22 interface Continuation<LocalNative>[0]
+        Type Continuation<LocalNative>
+        Local completion
+        Type LocalNative
+        EnumField v0 f0
+          Type CoroutineStep<LocalNative>
+          Local $step
+      return
+    bb2 failed
+      call @fn23 interface Continuation<LocalNative>[1]
+        Type Continuation<LocalNative>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<LocalNative> = @fn24 interface SuspendTask<LocalNative>[0]
+        Type SuspendTask<LocalNative>
+        Local task
+        Type Continuation<LocalNative>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<LocalNative>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun thunk<LocalCell<String>> Reader.get() @fn34(this: Reader<String>) -> String
     bb0 entry
       call $call.1: String = @fn9 direct
         Type LocalCell<String>
@@ -1094,7 +1155,7 @@ Module
       return
         Type String
         Local $call.1
-  fun thunk<LocalCell<String>> Reader.read() @fn30(this: Reader<String>) -> String
+  fun thunk<LocalCell<String>> Reader.read() @fn35(this: Reader<String>) -> String
     bb0 entry
       call $call.1: String = @fn8 direct
         Type Reader<String>
@@ -1104,7 +1165,7 @@ Module
       return
         Type String
         Local $call.1
-  fun thunk<LocalCell<String>> Readable.get() @fn31(this: Readable<String>) -> String
+  fun thunk<LocalCell<String>> Readable.get() @fn36(this: Readable<String>) -> String
     bb0 entry
       call $call.1: String = @fn9 direct
         Type LocalCell<String>
@@ -1114,7 +1175,7 @@ Module
       return
         Type String
         Local $call.1
-  fun thunk<RemoteCell<String>> Reader.get() @fn32(this: Reader<String>) -> String
+  fun thunk<RemoteCell<String>> Reader.get() @fn37(this: Reader<String>) -> String
     bb0 entry
       call $call.1: String = @fn7 direct
         Type RemoteCell<String>
@@ -1124,7 +1185,7 @@ Module
       return
         Type String
         Local $call.1
-  fun thunk<RemoteCell<String>> Reader.read() @fn33(this: Reader<String>) -> String
+  fun thunk<RemoteCell<String>> Reader.read() @fn38(this: Reader<String>) -> String
     bb0 entry
       call $call.1: String = @fn8 direct
         Type Reader<String>
@@ -1134,7 +1195,7 @@ Module
       return
         Type String
         Local $call.1
-  fun thunk<RemoteCell<String>> Readable.get() @fn34(this: Readable<String>) -> String
+  fun thunk<RemoteCell<String>> Readable.get() @fn39(this: Readable<String>) -> String
     bb0 entry
       call $call.1: String = @fn7 direct
         Type RemoteCell<String>
@@ -1144,7 +1205,7 @@ Module
       return
         Type String
         Local $call.1
-  fun thunk<LocalCell<Unit>> Reader.get() @fn35(this: Reader<Unit>) -> Unit
+  fun thunk<LocalCell<Unit>> Reader.get() @fn40(this: Reader<Unit>) -> Unit
     bb0 entry
       call @fn14 direct
         Type LocalCell<Unit>
@@ -1152,7 +1213,7 @@ Module
           Type Reader<Unit>
           Local this
       return
-  fun thunk<LocalCell<Unit>> Reader.read() @fn36(this: Reader<Unit>) -> Unit
+  fun thunk<LocalCell<Unit>> Reader.read() @fn41(this: Reader<Unit>) -> Unit
     bb0 entry
       call @fn13 direct
         Type Reader<Unit>
@@ -1160,7 +1221,7 @@ Module
           Type Reader<Unit>
           Local this
       return
-  fun thunk<LocalCell<Unit>> Readable.get() @fn37(this: Readable<Unit>) -> Unit
+  fun thunk<LocalCell<Unit>> Readable.get() @fn42(this: Readable<Unit>) -> Unit
     bb0 entry
       call @fn14 direct
         Type LocalCell<Unit>
@@ -1168,7 +1229,7 @@ Module
           Type Readable<Unit>
           Local this
       return
-  fun thunk<RemoteCell<Unit>> Reader.get() @fn38(this: Reader<Unit>) -> Unit
+  fun thunk<RemoteCell<Unit>> Reader.get() @fn43(this: Reader<Unit>) -> Unit
     bb0 entry
       call @fn12 direct
         Type RemoteCell<Unit>
@@ -1176,7 +1237,7 @@ Module
           Type Reader<Unit>
           Local this
       return
-  fun thunk<RemoteCell<Unit>> Reader.read() @fn39(this: Reader<Unit>) -> Unit
+  fun thunk<RemoteCell<Unit>> Reader.read() @fn44(this: Reader<Unit>) -> Unit
     bb0 entry
       call @fn13 direct
         Type Reader<Unit>
@@ -1184,7 +1245,7 @@ Module
           Type Reader<Unit>
           Local this
       return
-  fun thunk<RemoteCell<Unit>> Readable.get() @fn40(this: Readable<Unit>) -> Unit
+  fun thunk<RemoteCell<Unit>> Readable.get() @fn45(this: Readable<Unit>) -> Unit
     bb0 entry
       call @fn12 direct
         Type RemoteCell<Unit>
@@ -1192,7 +1253,7 @@ Module
           Type Readable<Unit>
           Local this
       return
-  fun thunk<LocalCell<Int>> Reader.get() @fn41(this: Reader<Int>) -> Int
+  fun thunk<LocalCell<Int>> Reader.get() @fn46(this: Reader<Int>) -> Int
     bb0 entry
       call $call.1: Int = @fn19 direct
         Type LocalCell<Int>
@@ -1202,7 +1263,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun thunk<LocalCell<Int>> Reader.read() @fn42(this: Reader<Int>) -> Int
+  fun thunk<LocalCell<Int>> Reader.read() @fn47(this: Reader<Int>) -> Int
     bb0 entry
       call $call.1: Int = @fn18 direct
         Type Reader<Int>
@@ -1212,7 +1273,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun thunk<LocalCell<Int>> Readable.get() @fn43(this: Readable<Int>) -> Int
+  fun thunk<LocalCell<Int>> Readable.get() @fn48(this: Readable<Int>) -> Int
     bb0 entry
       call $call.1: Int = @fn19 direct
         Type LocalCell<Int>
@@ -1222,7 +1283,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun thunk<RemoteCell<Int>> Reader.get() @fn44(this: Reader<Int>) -> Int
+  fun thunk<RemoteCell<Int>> Reader.get() @fn49(this: Reader<Int>) -> Int
     bb0 entry
       call $call.1: Int = @fn17 direct
         Type RemoteCell<Int>
@@ -1232,7 +1293,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun thunk<RemoteCell<Int>> Reader.read() @fn45(this: Reader<Int>) -> Int
+  fun thunk<RemoteCell<Int>> Reader.read() @fn50(this: Reader<Int>) -> Int
     bb0 entry
       call $call.1: Int = @fn18 direct
         Type Reader<Int>
@@ -1242,7 +1303,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun thunk<RemoteCell<Int>> Readable.get() @fn46(this: Readable<Int>) -> Int
+  fun thunk<RemoteCell<Int>> Readable.get() @fn51(this: Readable<Int>) -> Int
     bb0 entry
       call $call.1: Int = @fn17 direct
         Type RemoteCell<Int>
@@ -1252,7 +1313,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn47($source: (String) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn52($source: (String) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (String) -> Int
@@ -1266,7 +1327,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn48($source: (Unit) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn53($source: (Unit) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
@@ -1280,7 +1341,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn49($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn54($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
@@ -1296,6 +1357,8 @@ Module
           Local $call.1
   coroutine_step cs0 CoroutineStep<LocalNative> result=LocalNative
   coroutine_slot cl0 CoroutineSlot<LocalNative> value=LocalNative
+  coroutine_start ct0 result=LocalNative function=fn33
+  coroutine_fn cf0 @fn24 source_return=LocalNative step=cs0 immediate
   instance mi0 function=@fn2 <- exercise
   instance mi1 function=@fn4 <- exercise
   instance mi2 function=@fn6 <- exercise
@@ -1314,5 +1377,9 @@ Module
   instance mi15 function=@fn19 <- LocalCell.get
   instance mi16 function=@fn20 <- create
   instance mi17 function=@fn21 <- Readable.get
+  instance mi18 function=@fn22 <- Continuation.resume
+  instance mi19 function=@fn23 <- Continuation.resumeWithException
+  instance mi20 function=@fn24 <- SuspendTask.run
+  instance mi21 function=@fn25 <- SuspendRegistration.register
   str @str0 "value"
   output library

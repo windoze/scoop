@@ -30,6 +30,7 @@ Module
   class Cursor<Int> vtable=1 itables=1
   class DiamondCursor<Int> vtable=0 itables=4
   class Sequence<Int> vtable=0 itables=1
+  class IllegalStateException vtable=0 itables=0
   class box<ValueCursor<Int>> vtable=0 itables=1
   class box<EnumCursor<Int>> vtable=0 itables=1
   class box<Int> vtable=0 itables=0
@@ -40,33 +41,37 @@ Module
   interface Diamond<Int> : Left<Int>, Right<Int>
   interface Left<Int> : Iterator<Int>
   interface Right<Int> : Iterator<Int>
+  interface Continuation<Reference>
+  interface SuspendTask<Reference>
+  interface SuspendRegistration<Reference>
   closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn20 captures=2
-    bridge function_type3 -> @fn51 id=ce17b7a6e63599bb8828ae63a7ad434c6c32b60e8ce9775d637b49b3fef5b4d2
-  closure cc1 $Closure$reference0 type=function_type0 invoke=@fn34 captures=0
-    bridge function_type1 -> @fn52 id=b3b5e8c792c1e44f7f32a9cbf9330faed33532b7096a5567d92b436b094f2b9a
-  closure cc2 $Closure$reference1 type=function_type0 invoke=@fn35 captures=0
-    bridge function_type1 -> @fn53 id=cefae5546078e5c1380bbd8833d993e062710e59ce797b93f7dc7c9935687a1a
-  closure cc3 $Closure$reference2 type=function_type0 invoke=@fn36 captures=0
-    bridge function_type1 -> @fn54 id=89ed7535b0aa67a4d786114331333341074789b0dbd79b70fb1f5b7095965c39
-  closure cc4 $Closure$reference3 type=function_type0 invoke=@fn37 captures=0
-    bridge function_type1 -> @fn55 id=1df5c6b3aa1f6926ada9d8fbb79decdd1205f88d298a8aab49d589a43a84b87b
+    bridge function_type3 -> @fn56 id=ce17b7a6e63599bb8828ae63a7ad434c6c32b60e8ce9775d637b49b3fef5b4d2
+  closure cc1 $Closure$reference0 type=function_type0 invoke=@fn38 captures=0
+    bridge function_type1 -> @fn57 id=b3b5e8c792c1e44f7f32a9cbf9330faed33532b7096a5567d92b436b094f2b9a
+  closure cc2 $Closure$reference1 type=function_type0 invoke=@fn39 captures=0
+    bridge function_type1 -> @fn58 id=cefae5546078e5c1380bbd8833d993e062710e59ce797b93f7dc7c9935687a1a
+  closure cc3 $Closure$reference2 type=function_type0 invoke=@fn40 captures=0
+    bridge function_type1 -> @fn59 id=89ed7535b0aa67a4d786114331333341074789b0dbd79b70fb1f5b7095965c39
+  closure cc4 $Closure$reference3 type=function_type0 invoke=@fn41 captures=0
+    bridge function_type1 -> @fn60 id=1df5c6b3aa1f6926ada9d8fbb79decdd1205f88d298a8aab49d589a43a84b87b
   generated_exact_type get0 location=closure4 nominal_id=7122537a32879ac0daf67f2d216ad930e30b5c03f96ea240ca6d00e85a4dae35 exact_id=16d522b5934d9224538fec3963dc0789f5c48b4694854a8d1de4c7a53081448e
   generated_exact_type get1 location=closure1 nominal_id=0aef275c219ee190fd5bf0b8dcfa37da55205535b77843ff6799eccbfb46da83 exact_id=992ca02ab2aa17a5489c988d6c764a9311563c0b85d8bdde4a8e1a5566fc6a88
   generated_exact_type get2 location=enum4 nominal_id=3c5316bbfaf1a9aaa720d020edb0146c5ebeee915441378840a9b9bfebed1402 exact_id=b5bb421f143a41fe2427c1def4932b29fa4c28a91cbb9631703eca638a7d8767
   generated_exact_type get3 location=closure2 nominal_id=8118058a8d8b99d66e535bdef8c43d7fd684db6ed0131e51332251fcacc1a7a1 exact_id=b72a59a92b964140a4b41ed302d7f48b454d01febb439906fed9eaacad64c9e0
-  generated_exact_type get4 location=class12 nominal_id=03aa53f4c43cbd8bc78008fb22f6ab6752d9dfd8d256114d915cd23d539ab93b exact_id=bc337c562ffc1ca18e8b78da47d146dba6c18243f77c818c3b5062f4bcc9643a
+  generated_exact_type get4 location=class13 nominal_id=03aa53f4c43cbd8bc78008fb22f6ab6752d9dfd8d256114d915cd23d539ab93b exact_id=bc337c562ffc1ca18e8b78da47d146dba6c18243f77c818c3b5062f4bcc9643a
   generated_exact_type get5 location=closure0 nominal_id=541d862916f31aae70de4347edb6bc1368eba50439525fe242edba42966a4431 exact_id=be19ca0f975fcd11ba0dad01b38423c4caf83e1cd8685a6de1bbfa9427864cbb
-  generated_exact_type get6 location=class11 nominal_id=58406229412dc999b74a0cb3905512e8f5828ffadeb0522f5128e6f173f118c5 exact_id=becd2bc86ca1b1cce4cc421222f15851e5e7a990a20ef42d418c833df18f8362
+  generated_exact_type get6 location=class12 nominal_id=58406229412dc999b74a0cb3905512e8f5828ffadeb0522f5128e6f173f118c5 exact_id=becd2bc86ca1b1cce4cc421222f15851e5e7a990a20ef42d418c833df18f8362
   generated_exact_type get7 location=enum5 nominal_id=00cf4ef0c271502aacfd7c78d22fbec1b8cf7812ad6424e43d0399760045277b exact_id=c7d7b0a6f9e5263d11b3222243f4f29946c55068529f046b88202520048324c1
-  generated_exact_type get8 location=class13 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get8 location=class14 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get9 location=closure3 nominal_id=737ecddecce9e8c55ba303f5a744e71a839e761f818437c38107ab016b00fcfc exact_id=fec4a508baeaff79e7330dbebc63b8a376eee5292ad9749a95dfeb20202771ff
-  generated_callable gc0 function=@fn55 id=1df5c6b3aa1f6926ada9d8fbb79decdd1205f88d298a8aab49d589a43a84b87b
-  generated_callable gc1 function=@fn49 id=5941f915eb8600343764ca8b4d7ac913749d9bfe15eb9ed295f83051291dd33f
-  generated_callable gc2 function=@fn54 id=89ed7535b0aa67a4d786114331333341074789b0dbd79b70fb1f5b7095965c39
-  generated_callable gc3 function=@fn50 id=8b76d817dc16e020f5c7636f7c0e580ebf32fa25b82c98057fb1a615c5d3c767
-  generated_callable gc4 function=@fn52 id=b3b5e8c792c1e44f7f32a9cbf9330faed33532b7096a5567d92b436b094f2b9a
-  generated_callable gc5 function=@fn51 id=ce17b7a6e63599bb8828ae63a7ad434c6c32b60e8ce9775d637b49b3fef5b4d2
-  generated_callable gc6 function=@fn53 id=cefae5546078e5c1380bbd8833d993e062710e59ce797b93f7dc7c9935687a1a
+  generated_callable gc0 function=@fn60 id=1df5c6b3aa1f6926ada9d8fbb79decdd1205f88d298a8aab49d589a43a84b87b
+  generated_callable gc1 function=@fn54 id=5941f915eb8600343764ca8b4d7ac913749d9bfe15eb9ed295f83051291dd33f
+  generated_callable gc2 function=@fn59 id=89ed7535b0aa67a4d786114331333341074789b0dbd79b70fb1f5b7095965c39
+  generated_callable gc3 function=@fn55 id=8b76d817dc16e020f5c7636f7c0e580ebf32fa25b82c98057fb1a615c5d3c767
+  generated_callable gc4 function=@fn53 id=9db018e7fb11963bbe735ca2f8508a2635a0968dd604bddda571f3b8d26eafe0
+  generated_callable gc5 function=@fn57 id=b3b5e8c792c1e44f7f32a9cbf9330faed33532b7096a5567d92b436b094f2b9a
+  generated_callable gc6 function=@fn56 id=ce17b7a6e63599bb8828ae63a7ad434c6c32b60e8ce9775d637b49b3fef5b4d2
+  generated_callable gc7 function=@fn58 id=cefae5546078e5c1380bbd8833d993e062710e59ce797b93f7dc7c9935687a1a
   fun readInt @fn0(value: Int) -> Int
     bb0 entry
       return
@@ -208,7 +213,7 @@ Module
       assign $new.1
         Type Reference
         ClassAlloc Reference
-      call @fn38 direct
+      call @fn42 direct
         Type Reference
         Local $new.1
         Type Int
@@ -225,7 +230,7 @@ Module
       assign $new.2
         Type Reference
         ClassAlloc Reference
-      call @fn38 direct
+      call @fn42 direct
         Type Reference
         Local $new.2
         Type Int
@@ -615,7 +620,7 @@ Module
       assign $new.1
         Type ArrayIterator<Int>
         ClassAlloc ArrayIterator<Int>
-      call @fn39 direct
+      call @fn43 direct
         Type ArrayIterator<Int>
         Local $new.1
         Type Array<Int>
@@ -644,7 +649,7 @@ Module
       assign $new.1
         Type ArrayIterator<Reference>
         ClassAlloc ArrayIterator<Reference>
-      call @fn40 direct
+      call @fn44 direct
         Type ArrayIterator<Reference>
         Local $new.1
         Type Array<Reference>
@@ -1064,7 +1069,7 @@ Module
       assign $new.1
         Type Sequence<Int>
         ClassAlloc Sequence<Int>
-      call @fn41 direct
+      call @fn45 direct
         Type Sequence<Int>
         Local $new.1
         Type Array<Int>
@@ -1168,7 +1173,7 @@ Module
       assign $new.2
         Type Cursor<Int>
         ClassAlloc Cursor<Int>
-      call @fn42 direct
+      call @fn46 direct
         Type Cursor<Int>
         Local $new.2
         Type Array<Int>
@@ -1219,7 +1224,7 @@ Module
       assign $new.3
         Type Cursor<Int>
         ClassAlloc Cursor<Int>
-      call @fn42 direct
+      call @fn46 direct
         Type Cursor<Int>
         Local $new.3
         Type Array<Int>
@@ -1230,7 +1235,7 @@ Module
       val $dependency.local.39: Cursor<Int>
         Type Cursor<Int>
         Local $dependency.local.38
-      call $dependency.local.40: ValueCursor<Int> = @fn44 direct
+      call $dependency.local.40: ValueCursor<Int> = @fn48 direct
         Type Cursor<Int>
         Local $dependency.local.39
       val $dependency.local.41: (Int) -> Int
@@ -1276,7 +1281,7 @@ Module
       assign $new.4
         Type Cursor<Int>
         ClassAlloc Cursor<Int>
-      call @fn42 direct
+      call @fn46 direct
         Type Cursor<Int>
         Local $new.4
         Type Array<Int>
@@ -1335,7 +1340,7 @@ Module
       assign $new.5
         Type Cursor<Int>
         ClassAlloc Cursor<Int>
-      call @fn42 direct
+      call @fn46 direct
         Type Cursor<Int>
         Local $new.5
         Type Array<Int>
@@ -1349,7 +1354,7 @@ Module
       assign $new.6
         Type DiamondCursor<Int>
         ClassAlloc DiamondCursor<Int>
-      call @fn43 direct
+      call @fn47 direct
         Type DiamondCursor<Int>
         Local $new.6
         Type Cursor<Int>
@@ -1658,7 +1663,7 @@ Module
       assign $new.1
         Type Cursor<Int>
         ClassAlloc Cursor<Int>
-      call @fn42 direct
+      call @fn46 direct
         Type Cursor<Int>
         Local $new.1
         Type Array<Int>
@@ -1750,7 +1755,7 @@ Module
       val $dependency.local.5: Cursor<Int>
         Type Cursor<Int>
         Local $dependency.local.4
-      call $dependency.local.6: Direct<Cursor<Int>> = @fn45 direct
+      call $dependency.local.6: Direct<Cursor<Int>> = @fn49 direct
         Type Cursor<Int>
         Local $dependency.local.5
       val $dependency.local.7: Direct<Cursor<Int>>
@@ -1817,7 +1822,7 @@ Module
       val $dependency.local.5: ValueCursor<Int>
         Type ValueCursor<Int>
         Local $dependency.local.4
-      call $dependency.local.6: Direct<ValueCursor<Int>> = @fn46 direct
+      call $dependency.local.6: Direct<ValueCursor<Int>> = @fn50 direct
         Type ValueCursor<Int>
         Local $dependency.local.5
       val $dependency.local.7: Direct<ValueCursor<Int>>
@@ -1884,7 +1889,7 @@ Module
       val $dependency.local.5: EnumCursor<Int>
         Type EnumCursor<Int>
         Local $dependency.local.4
-      call $dependency.local.6: Direct<EnumCursor<Int>> = @fn47 direct
+      call $dependency.local.6: Direct<EnumCursor<Int>> = @fn51 direct
         Type EnumCursor<Int>
         Local $dependency.local.5
       val $dependency.local.7: Direct<EnumCursor<Int>>
@@ -1951,7 +1956,7 @@ Module
       val $dependency.local.5: DiamondCursor<Int>
         Type DiamondCursor<Int>
         Local $dependency.local.4
-      call $dependency.local.6: Direct<DiamondCursor<Int>> = @fn48 direct
+      call $dependency.local.6: Direct<DiamondCursor<Int>> = @fn52 direct
         Type DiamondCursor<Int>
         Local $dependency.local.5
       val $dependency.local.7: Direct<DiamondCursor<Int>>
@@ -2059,7 +2064,19 @@ Module
         FieldAccess 0
           Type Direct<DiamondCursor<Int>>
           Local this
-  fun $reference.0 @fn34($closure: (Int) -> Int, arg0: Int) -> Int
+  fun Continuation.resume @fn34(this: Continuation<Reference>, value: Reference) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn35(this: Continuation<Reference>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn36(this: SuspendTask<Reference>, $completion: Continuation<Reference>) -> CoroutineStep<Reference>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn37(this: SuspendRegistration<Reference>, continuation: Continuation<Reference>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun $reference.0 @fn38($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = @fn0 direct
         Type Int
@@ -2067,7 +2084,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.1 @fn35($closure: (Int) -> Int, arg0: Int) -> Int
+  fun $reference.1 @fn39($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = @fn0 direct
         Type Int
@@ -2075,7 +2092,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.2 @fn36($closure: (Int) -> Int, arg0: Int) -> Int
+  fun $reference.2 @fn40($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = @fn0 direct
         Type Int
@@ -2083,7 +2100,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.3 @fn37($closure: (Int) -> Int, arg0: Int) -> Int
+  fun $reference.3 @fn41($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = @fn0 direct
         Type Int
@@ -2091,7 +2108,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun init.Reference.$c0 @fn38(this: Reference, value: Int) -> Unit
+  fun init.Reference.$c0 @fn42(this: Reference, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Reference
@@ -2099,7 +2116,7 @@ Module
         Type Int
         Local value
       return
-  fun init.ArrayIterator.$c4 @fn39(this: ArrayIterator<Int>, source: Array<Int>, index: Long) -> Unit
+  fun init.ArrayIterator.$c4 @fn43(this: ArrayIterator<Int>, source: Array<Int>, index: Long) -> Unit
     bb0 entry
       field_set 0
         Type ArrayIterator<Int>
@@ -2112,7 +2129,7 @@ Module
         Type Long
         Local index
       return
-  fun init.ArrayIterator.$c4 @fn40(this: ArrayIterator<Reference>, source: Array<Reference>, index: Long) -> Unit
+  fun init.ArrayIterator.$c4 @fn44(this: ArrayIterator<Reference>, source: Array<Reference>, index: Long) -> Unit
     bb0 entry
       field_set 0
         Type ArrayIterator<Reference>
@@ -2125,7 +2142,7 @@ Module
         Type Long
         Local index
       return
-  fun init.Sequence.$c0 @fn41(this: Sequence<Int>, values: Array<Int>) -> Unit
+  fun init.Sequence.$c0 @fn45(this: Sequence<Int>, values: Array<Int>) -> Unit
     bb0 entry
       field_set 0
         Type Sequence<Int>
@@ -2133,7 +2150,7 @@ Module
         Type Array<Int>
         Local values
       return
-  fun init.Cursor.$c1 @fn42(this: Cursor<Int>, values: Array<Int>) -> Unit
+  fun init.Cursor.$c1 @fn46(this: Cursor<Int>, values: Array<Int>) -> Unit
     bb0 entry
       field_set 0
         Type Cursor<Int>
@@ -2146,7 +2163,7 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
-  fun init.DiamondCursor.$c3 @fn43(this: DiamondCursor<Int>, inner: Cursor<Int>) -> Unit
+  fun init.DiamondCursor.$c3 @fn47(this: DiamondCursor<Int>, inner: Cursor<Int>) -> Unit
     bb0 entry
       field_set 0
         Type DiamondCursor<Int>
@@ -2154,42 +2171,84 @@ Module
         Type Cursor<Int>
         Local inner
       return
-  fun ctor.ValueCursor.$c2 @fn44(inner: Cursor<Int>) -> ValueCursor<Int> <no-gc>
+  fun ctor.ValueCursor.$c2 @fn48(inner: Cursor<Int>) -> ValueCursor<Int> <no-gc>
     bb0 entry
       return
         Type ValueCursor<Int>
         StructInit ValueCursor<Int>
           Type Cursor<Int>
           Local inner
-  fun ctor.Direct.$c5 @fn45(value: Cursor<Int>) -> Direct<Cursor<Int>> <no-gc>
+  fun ctor.Direct.$c5 @fn49(value: Cursor<Int>) -> Direct<Cursor<Int>> <no-gc>
     bb0 entry
       return
         Type Direct<Cursor<Int>>
         StructInit Direct<Cursor<Int>>
           Type Cursor<Int>
           Local value
-  fun ctor.Direct.$c5 @fn46(value: ValueCursor<Int>) -> Direct<ValueCursor<Int>> <no-gc>
+  fun ctor.Direct.$c5 @fn50(value: ValueCursor<Int>) -> Direct<ValueCursor<Int>> <no-gc>
     bb0 entry
       return
         Type Direct<ValueCursor<Int>>
         StructInit Direct<ValueCursor<Int>>
           Type ValueCursor<Int>
           Local value
-  fun ctor.Direct.$c5 @fn47(value: EnumCursor<Int>) -> Direct<EnumCursor<Int>> <no-gc>
+  fun ctor.Direct.$c5 @fn51(value: EnumCursor<Int>) -> Direct<EnumCursor<Int>> <no-gc>
     bb0 entry
       return
         Type Direct<EnumCursor<Int>>
         StructInit Direct<EnumCursor<Int>>
           Type EnumCursor<Int>
           Local value
-  fun ctor.Direct.$c5 @fn48(value: DiamondCursor<Int>) -> Direct<DiamondCursor<Int>> <no-gc>
+  fun ctor.Direct.$c5 @fn52(value: DiamondCursor<Int>) -> Direct<DiamondCursor<Int>> <no-gc>
     bb0 entry
       return
         Type Direct<DiamondCursor<Int>>
         StructInit Direct<DiamondCursor<Int>>
           Type DiamondCursor<Int>
           Local value
-  fun thunk<ValueCursor<Int>> Iterator.next() @fn49(this: Iterator<Int>) -> Option<Int>
+  fun startCoroutine<Reference> @fn53(task: SuspendTask<Reference>, completion: Continuation<Reference>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn34 interface Continuation<Reference>[0]
+        Type Continuation<Reference>
+        Local completion
+        Type Reference
+        EnumField v0 f0
+          Type CoroutineStep<Reference>
+          Local $step
+      return
+    bb2 failed
+      call @fn35 interface Continuation<Reference>[1]
+        Type Continuation<Reference>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Reference> = @fn36 interface SuspendTask<Reference>[0]
+        Type SuspendTask<Reference>
+        Local task
+        Type Continuation<Reference>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Reference>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun thunk<ValueCursor<Int>> Iterator.next() @fn54(this: Iterator<Int>) -> Option<Int>
     bb0 entry
       call $call.1: Option<Int> = @fn15 direct
         Type ValueCursor<Int>
@@ -2199,7 +2258,7 @@ Module
       return
         Type Option<Int>
         Local $call.1
-  fun thunk<EnumCursor<Int>> Iterator.next() @fn50(this: Iterator<Int>) -> Option<Int>
+  fun thunk<EnumCursor<Int>> Iterator.next() @fn55(this: Iterator<Int>) -> Option<Int>
     bb0 entry
       call $call.1: Option<Int> = @fn16 direct
         Type EnumCursor<Int>
@@ -2209,7 +2268,7 @@ Module
       return
         Type Option<Int>
         Local $call.1
-  fun function_bridge.$Closure$lambda0.() -> Any @fn51($source: () -> Int) -> Any
+  fun function_bridge.$Closure$lambda0.() -> Any @fn56($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type () -> Int
@@ -2219,7 +2278,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference0.(Any) -> Any @fn52($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn57($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
@@ -2233,7 +2292,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference1.(Any) -> Any @fn53($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference1.(Any) -> Any @fn58($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
@@ -2247,7 +2306,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference2.(Any) -> Any @fn54($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference2.(Any) -> Any @fn59($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
@@ -2261,7 +2320,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference3.(Any) -> Any @fn55($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference3.(Any) -> Any @fn60($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
@@ -2277,6 +2336,8 @@ Module
           Local $call.1
   coroutine_step cs0 CoroutineStep<Reference> result=Reference
   coroutine_slot cl0 CoroutineSlot<Reference> value=Reference
+  coroutine_start ct0 result=Reference function=fn53
+  coroutine_fn cf0 @fn36 source_return=Reference step=cs0 immediate
   instance mi0 function=@fn3 <- iterator
   instance mi1 function=@fn4 <- iterator
   instance mi2 function=@fn5 <- Iterator.next
@@ -2308,4 +2369,8 @@ Module
   instance mi28 function=@fn31 <- iterator
   instance mi29 function=@fn32 <- iterator
   instance mi30 function=@fn33 <- iterator
+  instance mi31 function=@fn34 <- Continuation.resume
+  instance mi32 function=@fn35 <- Continuation.resumeWithException
+  instance mi33 function=@fn36 <- SuspendTask.run
+  instance mi34 function=@fn37 <- SuspendRegistration.register
   output library

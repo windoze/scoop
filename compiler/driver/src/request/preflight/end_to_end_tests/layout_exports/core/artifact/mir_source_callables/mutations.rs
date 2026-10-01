@@ -30,18 +30,21 @@ impl Replay<'_> {
         &self,
         implementation: scoop_identity::StrongCallableDefinitionOwner,
         signature: &ExactCallableSignature,
-    ) -> mir::OdrFreeMirFoundation {
-        let surface = mir::StrongCallableBridgeSurfaceV1::from_foundation(self.foundation);
+    ) -> mir::CanonicalMirFoundation {
         let mut foundation = self.foundation.clone();
         foundation
             .set_callable_signatures(
-                surface
-                    .bridges()
+                self.foundation
+                    .callable_signatures()
                     .iter()
                     .map(|bridge| {
                         mir::CallableSignatureRecord::new(
                             bridge.subject(),
-                            if bridge.implementation() == implementation.callable_owner() {
+                            if bridge.subject()
+                                == mir::CallableSignatureSubject::Strong(
+                                    implementation.callable_owner(),
+                                )
+                            {
                                 signature.clone()
                             } else {
                                 bridge.signature().clone()
@@ -51,7 +54,7 @@ impl Replay<'_> {
                     .collect(),
             )
             .unwrap();
-        mir::OdrFreeMirFoundation::try_new(foundation).unwrap()
+        foundation
     }
 
     pub(super) fn replace(

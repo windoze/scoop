@@ -64,8 +64,8 @@ pub use entity::{
     Signedness, TargetCallingConvention,
 };
 pub use entity::{
-    CallableAdapterEnvironmentKey, ClosureEnvironmentRole, ContinuationShellRole,
-    CoroutineAdapterRole, DecodedCallableAdapterEnvironmentKey, DecodedEnumVariantFieldKey,
+    CallableAdapterEnvironmentKey, ClosureEnvironmentRole, CoroutineAdapterRole,
+    DecodedCallableAdapterEnvironmentKey, DecodedEnumVariantFieldKey,
     DecodedEnumVariantFieldSelector, DecodedEnumVariantIdentityKey, DecodedExactCallableSignature,
     DecodedGeneratedCallableKey, DecodedGeneratedNominalKey, DecodedLexicalCallableParent,
     DecodedOptionalExactOwner, EnumVariantFieldKey, EnumVariantFieldResolutionError,

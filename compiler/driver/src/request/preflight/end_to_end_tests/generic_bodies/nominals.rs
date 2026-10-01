@@ -108,6 +108,20 @@ fn generic_nominal_consumers_create_payload_instances_from_artifacts() {
             "the provider has never instantiated these generic payloads"
         );
         let (sections, _) = closure.artifact(coordinate.identity().unwrap()).unwrap();
+        let is_provider_nominal = |group| {
+            let graph = sections.identity_graph();
+            let key = graph
+                .canonical_key::<_, scoop_identity::SpecializationKey>(group)
+                .unwrap();
+            let scoop_identity::SpecializationKey::Nominal { origin, .. } = key.as_ref() else {
+                return false;
+            };
+            graph
+                .canonical_key::<_, scoop_identity::SourceDeclarationKey>(*origin)
+                .unwrap()
+                .origin()
+                == provider_coordinate.identity().unwrap()
+        };
         let expected_types = if case == "standalone" { 1 } else { 4 };
         let registrations = sections
             .lir_strong_production()
@@ -115,10 +129,8 @@ fn generic_nominal_consumers_create_payload_instances_from_artifacts() {
             .registrations()
             .iter()
             .filter(|registration| {
-                matches!(
-                    registration.definition_owner(),
-                    scoop_lir::RegistrationDefinitionOwner::Odr { .. }
-                )
+                matches!(registration.definition_owner(), scoop_lir::RegistrationDefinitionOwner::Odr { group, .. }
+                    if is_provider_nominal(group))
             })
             .count();
         assert_eq!(registrations, expected_types);

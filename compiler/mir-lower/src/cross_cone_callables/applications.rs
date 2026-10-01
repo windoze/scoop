@@ -23,7 +23,8 @@ pub(super) fn append(
         if !matches!(
             function.materialization.context(),
             CallableMaterializationContext::Application(_)
-        ) || function.receiver.method().is_none()
+        ) || (function.receiver.method().is_none() && !function.is_suspend)
+            || matches!(function.kind, hir::concrete::FunctionKind::Intrinsic(_))
         {
             continue;
         }
@@ -147,6 +148,15 @@ impl Producer<'_> {
         if source.signature_record().signature() != &lowered {
             return Err(Error::ApplicationMaterialization(materialization));
         }
+        let lowered = self
+            .input
+            .module()
+            .meta
+            .callable_signatures
+            .get(source.signature_record().subject())
+            .ok_or(Error::ApplicationMaterialization(materialization))?
+            .signature()
+            .clone();
         let origin = match materialization.template() {
             CallableTemplateOwner::Generated(callable) => {
                 let key = self

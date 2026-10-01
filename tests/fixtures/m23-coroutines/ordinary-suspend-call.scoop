@@ -1,0 +1,3 @@
+import templates.coroutines.immediate
+
+public fun result(): Long = immediate(42L)

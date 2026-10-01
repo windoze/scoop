@@ -3,9 +3,8 @@
 use std::fmt;
 
 use scoop_identity::{
-    CallableTemplateOrigin, DependencyCallableDeclarationId, Effect, ExactCallableSignature,
-    GcEffect, PersistentExactTypeId, PersistentTypeId, SignatureTypeKey,
-    StrongCallableDefinitionOwner,
+    CallableTemplateOrigin, DependencyCallableDeclarationId, ExactCallableSignature, GcEffect,
+    PersistentExactTypeId, PersistentTypeId, SignatureTypeKey, StrongCallableDefinitionOwner,
 };
 
 use crate::{
@@ -99,7 +98,6 @@ fn eligible_declaration(
     };
     if !direct_owner
         || !callable.type_parameters().is_empty()
-        || callable.effects().execution() != Effect::Ordinary
         || callable.effects().implementation() != CallableImplementationV1::Scoop
     {
         return None;
@@ -132,7 +130,9 @@ impl ParamFreeNominalCallableV1 {
     /// The existing direct-callable table stores functions and accessors.
     /// Other definitions retain their complete M23-6 lowering records.
     pub const fn direct_declaration(&self) -> Option<DependencyCallableDeclarationId> {
-        if matches!(self.modality, CallableModalityV1::Abstract) {
+        if matches!(self.modality, CallableModalityV1::Abstract)
+            || matches!(self.signature.effect(), scoop_identity::Effect::Suspend)
+        {
             return None;
         }
         match self.implementation {

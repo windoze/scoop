@@ -1,5 +1,8 @@
 Module
   struct HeapEmpty ()
+  enum Option<String>
+    Some(_0: String)
+    None()
   enum CoroutineStep<HeapCell>
     Completed(value: HeapCell)
     Suspended()
@@ -13,12 +16,23 @@ Module
     Empty()
     Value(value: HeapEmpty)
   class HeapCell vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
   class box<HeapEmpty> vtable=0 itables=0
-  generated_exact_type get0 location=enum0 nominal_id=6ccea2f80541667f3fa5c6cdf51a304c6f08d73fe816f45ce077e2b2fad8b960 exact_id=0079a0c1cf6b0bcdc146e3023b1088db0ae8471b6f6e3c8ba4ef14d96b74f904
-  generated_exact_type get1 location=enum3 nominal_id=c93471b4459deed984e45d9ca5093d69303daca66de74fde7fbc9a28fd9497b6 exact_id=4da99289a0ee784743980979db3a745fed25590c5e1bdef6514c939e7a8b04ad
-  generated_exact_type get2 location=enum1 nominal_id=e33f25c0db78b3d67e75e3e384617e1faf5cc4489f8d0d7cf8f49e0f1be32996 exact_id=4ddb91dffa51a25688791b7e85709d2384297866918845ddb4055b7a54ac4217
-  generated_exact_type get3 location=class1 nominal_id=fffde6270412d52196774a1c507eb3992d6c71265caa71f23e5f8c8cc8ddea85 exact_id=b828c2b2c1f9a7b8f939219f1d04ebb658fe88ee1ce9887c0eb88e6c3d4ba58e
-  generated_exact_type get4 location=enum2 nominal_id=1e45a2a74a412e786e7b4a6ff7caeb0a26734fb2654e80430738ad99827f54bb exact_id=ee1b2bc054225237ad343b741a521c55d7eea392fca16e4704a93122539cb246
+  interface Continuation<HeapEmpty>
+  interface SuspendTask<HeapEmpty>
+  interface SuspendRegistration<HeapEmpty>
+  interface Continuation<HeapCell>
+  interface SuspendTask<HeapCell>
+  interface SuspendRegistration<HeapCell>
+  generated_exact_type get0 location=enum1 nominal_id=6ccea2f80541667f3fa5c6cdf51a304c6f08d73fe816f45ce077e2b2fad8b960 exact_id=0079a0c1cf6b0bcdc146e3023b1088db0ae8471b6f6e3c8ba4ef14d96b74f904
+  generated_exact_type get1 location=enum4 nominal_id=c93471b4459deed984e45d9ca5093d69303daca66de74fde7fbc9a28fd9497b6 exact_id=4da99289a0ee784743980979db3a745fed25590c5e1bdef6514c939e7a8b04ad
+  generated_exact_type get2 location=enum2 nominal_id=e33f25c0db78b3d67e75e3e384617e1faf5cc4489f8d0d7cf8f49e0f1be32996 exact_id=4ddb91dffa51a25688791b7e85709d2384297866918845ddb4055b7a54ac4217
+  generated_exact_type get3 location=class4 nominal_id=fffde6270412d52196774a1c507eb3992d6c71265caa71f23e5f8c8cc8ddea85 exact_id=b828c2b2c1f9a7b8f939219f1d04ebb658fe88ee1ce9887c0eb88e6c3d4ba58e
+  generated_exact_type get4 location=enum3 nominal_id=1e45a2a74a412e786e7b4a6ff7caeb0a26734fb2654e80430738ad99827f54bb exact_id=ee1b2bc054225237ad343b741a521c55d7eea392fca16e4704a93122539cb246
+  generated_callable gc0 function=@fn16 id=1bb0a53bcd9fcf6b5fd747153599bb09346580d618d58f4823b1b73a10873a2e
+  generated_callable gc1 function=@fn15 id=d4d669f5363ebef41ae0aa5adacb20f2659827a5d8401979f595cf0101ffacb4
   fun HeapCell.$get$empty @fn0(this: HeapCell) -> HeapEmpty
     bb0 entry
       return
@@ -36,7 +50,7 @@ Module
       return
   fun heapEmptySource @fn2() -> HeapEmpty
     bb0 entry
-      call $call.1: HeapEmpty = @fn6 direct
+      call $call.1: HeapEmpty = @fn14 direct
       return
         Type HeapEmpty
         Local $call.1
@@ -49,7 +63,7 @@ Module
       assign $new.1
         Type HeapCell
         ClassAlloc HeapCell
-      call @fn5 direct
+      call @fn13 direct
         Type HeapCell
         Local $new.1
         Type HeapEmpty
@@ -72,7 +86,31 @@ Module
       return
         Type HeapEmpty
         Local $call.2
-  fun init.HeapCell.$c0 @fn5(this: HeapCell, empty: HeapEmpty) -> Unit
+  fun Continuation.resume @fn5(this: Continuation<HeapEmpty>, value: HeapEmpty) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn6(this: Continuation<HeapEmpty>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn7(this: SuspendTask<HeapEmpty>, $completion: Continuation<HeapEmpty>) -> CoroutineStep<HeapEmpty>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn8(this: SuspendRegistration<HeapEmpty>, continuation: Continuation<HeapEmpty>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn9(this: Continuation<HeapCell>, value: HeapCell) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn10(this: Continuation<HeapCell>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn11(this: SuspendTask<HeapCell>, $completion: Continuation<HeapCell>) -> CoroutineStep<HeapCell>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn12(this: SuspendRegistration<HeapCell>, continuation: Continuation<HeapCell>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.HeapCell.$c0 @fn13(this: HeapCell, empty: HeapEmpty) -> Unit
     bb0 entry
       field_set 0
         Type HeapCell
@@ -80,13 +118,109 @@ Module
         Type HeapEmpty
         Local empty
       return
-  fun ctor.HeapEmpty.$c0 @fn6() -> HeapEmpty <no-gc>
+  fun ctor.HeapEmpty.$c0 @fn14() -> HeapEmpty <no-gc>
     bb0 entry
       return
         Type HeapEmpty
         StructInit HeapEmpty
+  fun startCoroutine<HeapCell> @fn15(task: SuspendTask<HeapCell>, completion: Continuation<HeapCell>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn9 interface Continuation<HeapCell>[0]
+        Type Continuation<HeapCell>
+        Local completion
+        Type HeapCell
+        EnumField v0 f0
+          Type CoroutineStep<HeapCell>
+          Local $step
+      return
+    bb2 failed
+      call @fn10 interface Continuation<HeapCell>[1]
+        Type Continuation<HeapCell>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<HeapCell> = @fn11 interface SuspendTask<HeapCell>[0]
+        Type SuspendTask<HeapCell>
+        Local task
+        Type Continuation<HeapCell>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<HeapCell>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<HeapEmpty> @fn16(task: SuspendTask<HeapEmpty>, completion: Continuation<HeapEmpty>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn5 interface Continuation<HeapEmpty>[0]
+        Type Continuation<HeapEmpty>
+        Local completion
+        Type HeapEmpty
+        EnumField v0 f0
+          Type CoroutineStep<HeapEmpty>
+          Local $step
+      return
+    bb2 failed
+      call @fn6 interface Continuation<HeapEmpty>[1]
+        Type Continuation<HeapEmpty>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<HeapEmpty> = @fn7 interface SuspendTask<HeapEmpty>[0]
+        Type SuspendTask<HeapEmpty>
+        Local task
+        Type Continuation<HeapEmpty>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<HeapEmpty>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
   coroutine_step cs0 CoroutineStep<HeapCell> result=HeapCell
   coroutine_step cs1 CoroutineStep<HeapEmpty> result=HeapEmpty
   coroutine_slot cl0 CoroutineSlot<HeapCell> value=HeapCell
   coroutine_slot cl1 CoroutineSlot<HeapEmpty> value=HeapEmpty
+  coroutine_start ct0 result=HeapCell function=fn15
+  coroutine_start ct1 result=HeapEmpty function=fn16
+  coroutine_fn cf0 @fn7 source_return=HeapEmpty step=cs1 immediate
+  coroutine_fn cf1 @fn11 source_return=HeapCell step=cs0 immediate
+  instance mi0 function=@fn5 <- Continuation.resume
+  instance mi1 function=@fn6 <- Continuation.resumeWithException
+  instance mi2 function=@fn7 <- SuspendTask.run
+  instance mi3 function=@fn8 <- SuspendRegistration.register
+  instance mi4 function=@fn9 <- Continuation.resume
+  instance mi5 function=@fn10 <- Continuation.resumeWithException
+  instance mi6 function=@fn11 <- SuspendTask.run
+  instance mi7 function=@fn12 <- SuspendRegistration.register
   output library

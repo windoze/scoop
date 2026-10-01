@@ -1,3 +1,3 @@
-types=159 callables=55 dispatch=51 objects=2 shapes=42 units=2 selected=0
+types=285 callables=265 dispatch=177 objects=2 shapes=42 units=2 selected=0
 unit companion:SharedConstructorBase.Companion: Ordinary Managed
 unit companion:SharedConstructorPrivate.Companion: Ordinary Managed

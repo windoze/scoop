@@ -596,8 +596,7 @@ GeneratedCallableKey =
                                       signature: ExactCallableSignature } // tag 7
   | ForeignCallbackManagedAdapter { application: PersistentCallbackApplicationId } // tag 8
   | CoroutineDriver { source_callable: CallableMaterialization }          // tag 9
-  | ContinuationShell { result: PersistentExactTypeId,
-                        role: ContinuationShellRole }                       // tag 10
+  // tag 10 retired: continuation dispatch uses the actual core methods
   | CoroutineStart { result: PersistentExactTypeId }                         // tag 11
   | CoroutineAdapter { source_callable: CallableMaterialization,
                        suspension_site: StructuralDefinitionPath,
@@ -621,7 +620,7 @@ GeneratedCallableKey =
 
 `LexicalCallableRole`为`LambdaBody=1, AnonymousFunctionBody=2`；named local function无论是否generic都走带LexicalScoped的source function declaration identity，不进入此sum。tag 1/6都不把exact signature写入identity，因为Export HIR中的合法signature仍可能含binder；每个param-free实现或concrete application的完整signature改由第9.2节以Strong/ODR subject记录。callable-reference的resolved target也不进入identity：它继续保存在当前typed HIR body，未来实际承载body/default的required HIR capability必须以封闭target sum覆盖named/local/bound/derived-equality/dispatch形态并将target/source/target signature纳入HIR semantic projection。identity-foundation本身不宣称序列化body。这样同一lexical site不会因alias/dispatch refinement换identity，也不要求`CallableOwner`假装覆盖全部call target。
 
-`InitializationCallableRole`为`Initializer=1, Ensure=2`；`ContinuationShellRole`与`CoroutineAdapterRole`均为`Success=1, Failure=2`。`CallbackRegistrationKey`是map `1=parent: LexicalCallableParent, 2=StructuralDefinitionPath, 3=SourceCAbiFunctionSignature, 4=context_index: CallbackParameterIndex, 5=managed SignatureCallableShape, 6=CallbackMode`。`SignatureCallableShape`精确为map `1=effect, 2=OptionalSignatureType receiver, 3=array<SignatureTypeKey> parameters, 4=SignatureTypeKey result`，复用第5.1节允许binder的type tree，不能在Export HIR阶段伪造exact type。这是HIR可验证的target-independent callback declaration，不引用到LIR才产生的`GeneratedBridgeUnitId`。
+`InitializationCallableRole`为`Initializer=1, Ensure=2`；`CoroutineAdapterRole`为`Success=1, Failure=2`；M23-7 删除仅重复保存协议签名的 `ContinuationShell` 与 `ContinuationShellRole`，tag 10 退役且不复用。`CallbackRegistrationKey`是map `1=parent: LexicalCallableParent, 2=StructuralDefinitionPath, 3=SourceCAbiFunctionSignature, 4=context_index: CallbackParameterIndex, 5=managed SignatureCallableShape, 6=CallbackMode`。`SignatureCallableShape`精确为map `1=effect, 2=OptionalSignatureType receiver, 3=array<SignatureTypeKey> parameters, 4=SignatureTypeKey result`，复用第5.1节允许binder的type tree，不能在Export HIR阶段伪造exact type。这是HIR可验证的target-independent callback declaration，不引用到LIR才产生的`GeneratedBridgeUnitId`。
 
 concrete callback application另有`CallbackApplicationKey {1=PersistentCallbackRegistrationId, 2=CallableMaterializationContext}`及`PersistentCallbackApplicationId = DomainSeparatedCborHash("scoop-callback-application-id-v1", key)`。NoSubstitution只允许两份source signature都无binder；否则普通callable site使用恰好覆盖registration parent binder stack的Application，generic delegated initializer/ensure site使用同property、完整receiver arguments的InitializationApplication；替换后每个type都必须exact且C-safe。MIR relation以该application为主键加入exact managed signature与固定storage/status ABI；target-specific canonical C signature到LIR才产生。由此同一generic source site可有多个concrete callback application，同一canonical C signature/index仍可复用一个trampoline unit。
 
@@ -972,7 +971,7 @@ ODR group表记录实际materialization closure的root，不是exact-type表中�
 | StaticNoGcCallbackStorageBridge | `MaterializationRoot(source)` | signature |
 | ForeignCallbackManagedAdapter | `CallbackRoot(application)` | 无 |
 | CoroutineDriver | `MaterializationRoot(source_callable)` | 无 |
-| ContinuationShell / CoroutineStart | `ExactOwnerRoot(result)` | role（如有） |
+| CoroutineStart | `ExactOwnerRoot(result)` | generated callable id |
 | CoroutineAdapter | `MaterializationRoot(source_callable)` | suspension site/role |
 | FunctionBridge | referenced environment的`GeneratedNominalRoot` | target signature |
 | DispatchAdjust | `ExactOwnerRoot(implementor)` | slot与target callable |
@@ -982,7 +981,7 @@ Lexical、Initialization与CallableReferenceInvoke的template id本身没有conc
 
 validator从完整canonical key/typed relation重算上述可达性；producer Cone、object member、symbol、同layout或“当前只有一个候选”都不是provenance。无法回溯到恰好一个root的member拒绝，而不是任意归组。
 
-`ExactOwnerRoot`落到source nominal定义Cone时，同时形成该定义artifact的materialization obligation，而不是授权consumer替别的Cone发Strong定义；该root只决定当前entity的owner，不豁免其typed dependency所需的ODR能力。M23-3对当前Cone已实际使用的param-free source exact subject闭合box/coroutine step/slot等非callable有限shape support；M23-5/6在开放跨Cone surface与LIR bridge时，要求每个可被下游合法请求的param-free exported exact subject把同一非callable有限support closure非可选地包含在定义artifact的production proof中。`ContinuationShell<R>`与`CoroutineStart<R>`因signature依赖`Continuation<R>`/`SuspendTask<R>` nominal application，只能到M23-7随实际 ODR 定义和引用闭包加入 callable closure，不能因helper root属于source Cone就把dependency降级成Strong。consumer只能引用该owner，缺失时按required capability失败；不得改由当前Cone发同名Strong、临时Hidden或为source nominal伪造StructuralType组。nominal application和非nominal exact type仍分别由Nominal/Structural ODR组按需物化，不要求template定义Cone穷举应用。
+`ExactOwnerRoot`落到source nominal定义Cone时，同时形成该定义artifact的materialization obligation，而不是授权consumer替别的Cone发Strong定义；该root只决定当前entity的owner，不豁免其typed dependency所需的ODR能力。M23-3对当前Cone已实际使用的param-free source exact subject闭合box/coroutine step/slot等非callable有限shape support；M23-5/6在开放跨Cone surface与LIR bridge时，要求每个可被下游合法请求的param-free exported exact subject把同一非callable有限support closure非可选地包含在定义artifact的production proof中。`CoroutineStart<R>`因signature依赖`Continuation<R>`/`SuspendTask<R>` nominal application，只能到M23-7随实际 ODR 定义和引用闭包加入 callable closure，不能因helper root属于source Cone就把dependency降级成Strong。consumer只能引用该owner，缺失时按required capability失败；不得改由当前Cone发同名Strong、临时Hidden或为source nominal伪造StructuralType组。nominal application和非nominal exact type仍分别由Nominal/Structural ODR组按需物化，不要求template定义Cone穷举应用。
 
 M24 generic release hook使用`{group = 该owner的Nominal specialization group, role = ReleaseHook, discriminator = ExactType(该owner application)}`。validator必须逐字段证明group的`origin + arguments`与该`PersistentExactTypeId`的`NominalApplication` key一致；每个有release policy的generic exact owner恰有一个该member，hook body的ObjectDefinitionPlan owner就是它，`cb(CallableBodyKeyV2::ReleaseHook(owner))`取`OdrWeak`。另有且只有一个同组`RegistrationRecord/CallableBody(body id)` member供`cr`使用；TD relocation必须命中该`cb` entry，不得再为同一hook制造`CallableBody` member或`od`第二primary，release body也不得有`safepoint/sr`。若body调用verified pure C leaf bridge，canonical definition只引用unit并按前述规则把producer-local atom relocation正规化。
 

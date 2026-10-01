@@ -1,0 +1,6 @@
+span=101..115
+expression=suspend { 42 }
+ordinary and suspend function types are incompatible
+span=127..135
+expression=function
+unknown function `function`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation

@@ -26,7 +26,14 @@ pub(super) fn project(
     let actual = signatures
         .get(root.subject())
         .ok_or(Error::MissingSignature(declaration))?;
-    if actual.signature() != &expected || expected.effect() != source.execution {
+    let semantic = input
+        .module()
+        .meta
+        .source_callable_materializations
+        .get(root.function())
+        .ok_or(Error::MissingMirMaterialization(declaration))?;
+    if semantic.signature_record().signature() != &expected || expected.effect() != source.execution
+    {
         return Err(Error::SourceSignatureMismatch(declaration));
     }
     let origin = match declaration {
@@ -43,7 +50,7 @@ pub(super) fn project(
         implementation,
         mir::MirBridgeCallableSignatureV1::new(expected.clone(), source.gc),
         mir::MirBridgeCallableSignatureV1::new(
-            expected,
+            actual.signature().clone(),
             input.module().functions[root.function()].gc_effect,
         ),
         role,

@@ -18,7 +18,9 @@ mod operators;
 mod overloads;
 mod reference_types;
 mod singletons;
+mod snapshots;
 mod source_exact_types;
+use snapshots::check_mir_snapshot;
 mod value_types;
 
 trait TestExecutableEntry {

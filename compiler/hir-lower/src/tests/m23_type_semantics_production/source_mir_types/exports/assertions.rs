@@ -13,26 +13,32 @@ pub(super) fn bytes(exports: &mir::MirTypeBridgeExportConstituentsV1) -> [Vec<u8
     ]
 }
 
+fn callable(
+    input: &mir::ConeMirInput,
+    binding: &mir::ParamFreeMirCallableBindingV1,
+) -> (mir::CallableSignatureSubject, mir::FunctionId) {
+    input
+        .materialization()
+        .callable_roots()
+        .iter()
+        .map(|root| (root.subject(), root.function()))
+        .chain(input.module().meta.coroutine_starts.iter().map(|start| {
+            (
+                start.identity().signature_record().subject(),
+                start.function(),
+            )
+        }))
+        .find(|(subject, _)| *subject == binding.implementation().into())
+        .unwrap()
+}
+
 pub(super) fn actual(
     input: MirTypeBridgeExportInputV1<'_>,
     dependencies: &mir::CanonicalParamFreeMirTypeExportsV1,
     exports: &mir::MirTypeBridgeExportConstituentsV1,
 ) {
-    let roots = input.mir.materialization().callable_roots();
     for record in exports.callables().entries() {
-        let root = roots
-            .iter()
-            .find(|root| {
-                root.subject()
-                    == scoop_mir::CallableSignatureSubject::Strong(
-                        record
-                            .implementation()
-                            .strong_owner()
-                            .unwrap()
-                            .callable_owner(),
-                    )
-            })
-            .unwrap();
+        let (subject, function) = callable(input.mir, record);
         assert_eq!(
             record.lowered_signature().exact(),
             input
@@ -40,13 +46,13 @@ pub(super) fn actual(
                 .module()
                 .meta
                 .callable_signatures
-                .get(root.subject())
+                .get(subject)
                 .unwrap()
-                .signature(),
+                .signature()
         );
         assert_eq!(
             record.lowered_signature().gc_effect(),
-            input.mir.module().functions[root.function()].gc_effect
+            input.mir.module().functions[function].gc_effect
         );
     }
     assert_eq!(input.ordinary.exports().len(), 1);
@@ -164,26 +170,12 @@ pub(super) fn dump(
     }
     let mut callables = Vec::new();
     for record in exports.callables().entries() {
-        let root = input
-            .mir
-            .materialization()
-            .callable_roots()
-            .iter()
-            .find(|root| {
-                root.subject()
-                    == scoop_mir::CallableSignatureSubject::Strong(
-                        record
-                            .implementation()
-                            .strong_owner()
-                            .unwrap()
-                            .callable_owner(),
-                    )
-            })
-            .unwrap();
-        let name = &input.mir.module().functions[root.function()].name;
+        let (_, function) = callable(input.mir, record);
+        let name = &input.mir.module().functions[function].name;
         let role = match record.lowering_role() {
             Role::Ordinary => "ordinary",
             Role::StaticCallbackStorage => "static-callback-storage",
+            Role::CoroutineStart => "coroutine-start",
             Role::Accessor => "accessor",
             Role::PureVirtualTrap { .. } => "trap",
             Role::ClassInitializer { .. } => "class-initializer",

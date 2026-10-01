@@ -3,6 +3,9 @@ Module
   struct Reader<Int, String> (content: Int, serial: Int)
   struct Reader<Int, Int> (content: Int, serial: Int)
   struct CurrentPair<Built<Int, String>, Unit> (value: Built<Int, String>)
+  enum Option<String>
+    Some(_0: String)
+    None()
   enum CoroutineStep<Trace>
     Completed(value: Trace)
     Suspended()
@@ -18,30 +21,37 @@ Module
   class Base<Int, Unit> vtable=0 itables=0
   class Terminal<Int, String> vtable=0 itables=0
   class Current<Int, Unit> vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
   class box<Int> vtable=0 itables=0
+  interface Continuation<Trace>
+  interface SuspendTask<Trace>
+  interface SuspendRegistration<Trace>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn4 captures=0
-    bridge function_type1 -> @fn40 id=24fc409459c0b5e79aebfac4c2ad37716355f93a5970922980354b9dc7f7f772
+    bridge function_type1 -> @fn45 id=24fc409459c0b5e79aebfac4c2ad37716355f93a5970922980354b9dc7f7f772
   closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn15 captures=1
-    bridge function_type3 -> @fn41 id=94435a576391f57fc034380ea31018b06c78adc76654ede87e585fb66ca97425
+    bridge function_type3 -> @fn46 id=94435a576391f57fc034380ea31018b06c78adc76654ede87e585fb66ca97425
   closure cc2 $Closure$lambda2 type=function_type2 invoke=@fn20 captures=1
-    bridge function_type3 -> @fn42 id=420bb54d26c29645a0a366c932276390cfa2667db970720867b4b9c0fe4c722c
+    bridge function_type3 -> @fn47 id=420bb54d26c29645a0a366c932276390cfa2667db970720867b4b9c0fe4c722c
   closure cc3 $Closure$anonymous0 type=function_type2 invoke=@fn14 captures=1
-    bridge function_type3 -> @fn43 id=2595ad1a92a293b2253db5156a02bf88bd7f015495e2a193b20c42428ea66a59
+    bridge function_type3 -> @fn48 id=2595ad1a92a293b2253db5156a02bf88bd7f015495e2a193b20c42428ea66a59
   closure cc4 $Closure$anonymous1 type=function_type2 invoke=@fn19 captures=1
-    bridge function_type3 -> @fn44 id=524d74321dbbfdb124cf8e66a9d674dcf7505a0444adc6b04f40b9af31a827c5
+    bridge function_type3 -> @fn49 id=524d74321dbbfdb124cf8e66a9d674dcf7505a0444adc6b04f40b9af31a827c5
   generated_exact_type get0 location=closure1 nominal_id=5e13f3283bd8c6421f9d66ff4b85d2844af6fb7d165db6470322968800c6aa88 exact_id=060a67a806b89b4b5c96b7206eaaa06901174da8c8fb543e2cf0dcabecaa815b
-  generated_exact_type get1 location=enum1 nominal_id=4b9c1a6943e5fa77ceb75c27d5ab9c6550c643774a65e106260ef6d12c212072 exact_id=879865accac26e3bac963d3698fb5182aa1e3f2b68f8733dad7eed8920856abe
+  generated_exact_type get1 location=enum2 nominal_id=4b9c1a6943e5fa77ceb75c27d5ab9c6550c643774a65e106260ef6d12c212072 exact_id=879865accac26e3bac963d3698fb5182aa1e3f2b68f8733dad7eed8920856abe
   generated_exact_type get2 location=closure3 nominal_id=baf38fcbf4cb4a740969f3159a8cfd2893807caafd38bb9ac4c78e6cf77f3dab exact_id=9a75cbe92faa1a358c7b6c2b0f428440884a5d1414fa5a87e2801999b26b2e61
   generated_exact_type get3 location=closure0 nominal_id=b9505e494ce99dc5b5194ca56f09c0d9896793e8b9bb8e44c5c17ce702be1c54 exact_id=c87bb9a85d34ade8d0f63c3da7033c0792f4b7b6de1a8ac2719701eff15f23b2
-  generated_exact_type get4 location=enum0 nominal_id=4b3f3f6effc69d08843f1cb2a32ae0a47f03cea670fde7aa9271bfc603df9621 exact_id=cc0c2baedf84f354f50b0d354cc4c720b484e7a19880ab2a9979290093a94be0
+  generated_exact_type get4 location=enum1 nominal_id=4b3f3f6effc69d08843f1cb2a32ae0a47f03cea670fde7aa9271bfc603df9621 exact_id=cc0c2baedf84f354f50b0d354cc4c720b484e7a19880ab2a9979290093a94be0
   generated_exact_type get5 location=closure4 nominal_id=4b2a63c0b005ff2d3e318599025d4bc2f9c21c585ff7c2897e97f63fa95b4cb9 exact_id=ddf6b463129c7de8bfcdba8f4187f17435cf36655a3381225df942c5ad714a36
-  generated_exact_type get6 location=class9 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get6 location=class12 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get7 location=closure2 nominal_id=e3c3f474955ae0e1c0129e4e072239ffe26e46c175f40f1cdaa05864374f791f exact_id=f9ed2009adaf23cc07eaf23b11d3f698270a58003d900ab50866e536b17d8f95
-  generated_callable gc0 function=@fn40 id=24fc409459c0b5e79aebfac4c2ad37716355f93a5970922980354b9dc7f7f772
-  generated_callable gc1 function=@fn43 id=2595ad1a92a293b2253db5156a02bf88bd7f015495e2a193b20c42428ea66a59
-  generated_callable gc2 function=@fn42 id=420bb54d26c29645a0a366c932276390cfa2667db970720867b4b9c0fe4c722c
-  generated_callable gc3 function=@fn44 id=524d74321dbbfdb124cf8e66a9d674dcf7505a0444adc6b04f40b9af31a827c5
-  generated_callable gc4 function=@fn41 id=94435a576391f57fc034380ea31018b06c78adc76654ede87e585fb66ca97425
+  generated_callable gc0 function=@fn44 id=0e7a4226cecfa6550f6768ecd60d47e45185b6ea72c3ce0199d69b6067310211
+  generated_callable gc1 function=@fn45 id=24fc409459c0b5e79aebfac4c2ad37716355f93a5970922980354b9dc7f7f772
+  generated_callable gc2 function=@fn48 id=2595ad1a92a293b2253db5156a02bf88bd7f015495e2a193b20c42428ea66a59
+  generated_callable gc3 function=@fn47 id=420bb54d26c29645a0a366c932276390cfa2667db970720867b4b9c0fe4c722c
+  generated_callable gc4 function=@fn49 id=524d74321dbbfdb124cf8e66a9d674dcf7505a0444adc6b04f40b9af31a827c5
+  generated_callable gc5 function=@fn46 id=94435a576391f57fc034380ea31018b06c78adc76654ede87e585fb66ca97425
   fun Trace.mark @fn0(this: Trace, value: Int) -> Int
     bb0 entry
       call $dependency.receiver: Int = @fn1 direct
@@ -131,7 +141,7 @@ Module
       assign $new.1
         Type Trace
         ClassAlloc Trace
-      call @fn24 direct
+      call @fn28 direct
         Type Trace
         Local $new.1
         Type Int
@@ -151,7 +161,7 @@ Module
       val $parameter.trace: Trace
         Type Trace
         Local $argument.1
-      call pair: Pair<Int, Unit> = @fn35 direct
+      call pair: Pair<Int, Unit> = @fn39 direct
         Type Int
         Local $parameter.value
         Type Trace
@@ -269,7 +279,7 @@ Module
       assign $new.2
         Type Built<Int, String>
         ClassAlloc Built<Int, String>
-      call @fn25 direct
+      call @fn29 direct
         Type Built<Int, String>
         Local $new.2
         Type Int
@@ -420,7 +430,7 @@ Module
       assign $new.6
         Type Built<Int, Int>
         ClassAlloc Built<Int, Int>
-      call @fn26 direct
+      call @fn30 direct
         Type Built<Int, Int>
         Local $new.6
         Type Int
@@ -509,7 +519,7 @@ Module
       assign $new.8
         Type Terminal<Int, Unit>
         ClassAlloc Terminal<Int, Unit>
-      call @fn27 direct
+      call @fn31 direct
         Type Terminal<Int, Unit>
         Local $new.8
         Type Int
@@ -602,7 +612,7 @@ Module
       assign $new.10
         Type Terminal<Int, String>
         ClassAlloc Terminal<Int, String>
-      call @fn28 direct
+      call @fn32 direct
         Type Terminal<Int, String>
         Local $new.10
         Type Int
@@ -693,7 +703,7 @@ Module
       assign $new.12
         Type Current<Int, Unit>
         ClassAlloc Current<Int, Unit>
-      call @fn29 direct
+      call @fn33 direct
         Type Current<Int, Unit>
         Local $new.12
         Type Int
@@ -768,7 +778,7 @@ Module
       val $parameter.value: Built<Int, String>
         Type Built<Int, String>
         Local $argument.0
-      call copy: CurrentPair<Built<Int, String>, Unit> = @fn36 direct
+      call copy: CurrentPair<Built<Int, String>, Unit> = @fn40 direct
         Type Built<Int, String>
         Local $parameter.value
       call $call.14: Int = @fn7 direct
@@ -915,7 +925,19 @@ Module
       return
         Type Int
         Local $capture.digit
-  fun init.Trace.$c0 @fn24(this: Trace, digits: Int) -> Unit
+  fun Continuation.resume @fn24(this: Continuation<Trace>, value: Trace) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn25(this: Continuation<Trace>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn26(this: SuspendTask<Trace>, $completion: Continuation<Trace>) -> CoroutineStep<Trace>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn27(this: SuspendRegistration<Trace>, continuation: Continuation<Trace>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Trace.$c0 @fn28(this: Trace, digits: Int) -> Unit
     bb0 entry
       field_set 0
         Type Trace
@@ -923,7 +945,7 @@ Module
         Type Int
         Local digits
       return
-  fun init.Built.$c3 @fn25(this: Built<Int, String>, value: Int, trace: Trace, flag: Boolean) -> Unit
+  fun init.Built.$c3 @fn29(this: Built<Int, String>, value: Int, trace: Trace, flag: Boolean) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -937,7 +959,7 @@ Module
       val $parameter.trace: Trace
         Type Trace
         Local $argument.1
-      call @fn30 direct
+      call @fn34 direct
         Type Built<Int, String>
         Local this
         Type Int
@@ -959,7 +981,7 @@ Module
         Type Int
         Local $parameter.value
       return
-  fun init.Built.$c2 @fn26(this: Built<Int, Int>, value: Int, trace: Trace) -> Unit
+  fun init.Built.$c2 @fn30(this: Built<Int, Int>, value: Int, trace: Trace) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -973,7 +995,7 @@ Module
       val $parameter.trace: Trace
         Type Trace
         Local $argument.1
-      call @fn31 direct
+      call @fn35 direct
         Type Base<Int, Int>
         Retype Base<Int, Int>
           Type Built<Int, Int>
@@ -1024,7 +1046,7 @@ Module
       val $parameter.serial: Int
         Type Int
         Local $argument.1
-      call $call.2: Reader<Int, Int> = @fn38 direct
+      call $call.2: Reader<Int, Int> = @fn42 direct
         Type Int
         Local $parameter.content
         Type Int
@@ -1102,7 +1124,7 @@ Module
         Type Int
         Local $parameter.value
       return
-  fun init.Terminal.$c4 @fn27(this: Terminal<Int, Unit>, value: Int, trace: Trace) -> Unit
+  fun init.Terminal.$c4 @fn31(this: Terminal<Int, Unit>, value: Int, trace: Trace) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -1116,7 +1138,7 @@ Module
       val $parameter.trace: Trace
         Type Trace
         Local $argument.1
-      call @fn32 direct
+      call @fn36 direct
         Type Base<Int, Unit>
         Retype Base<Int, Unit>
           Type Terminal<Int, Unit>
@@ -1167,7 +1189,7 @@ Module
         Type Int
         Local $parameter.value
       return
-  fun init.Terminal.$c5 @fn28(this: Terminal<Int, String>, value: Int, trace: Trace, flag: Boolean) -> Unit
+  fun init.Terminal.$c5 @fn32(this: Terminal<Int, String>, value: Int, trace: Trace, flag: Boolean) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -1181,7 +1203,7 @@ Module
       val $parameter.trace: Trace
         Type Trace
         Local $argument.1
-      call @fn33 direct
+      call @fn37 direct
         Type Terminal<Int, String>
         Local this
         Type Int
@@ -1203,7 +1225,7 @@ Module
         Type Int
         Local $parameter.value
       return
-  fun init.Current.$c6 @fn29(this: Current<Int, Unit>, value: Int, trace: Trace) -> Unit
+  fun init.Current.$c6 @fn33(this: Current<Int, Unit>, value: Int, trace: Trace) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -1217,7 +1239,7 @@ Module
       val $parameter.trace: Trace
         Type Trace
         Local $argument.1
-      call @fn32 direct
+      call @fn36 direct
         Type Base<Int, Unit>
         Retype Base<Int, Unit>
           Type Current<Int, Unit>
@@ -1246,7 +1268,7 @@ Module
         Type Int
         Local $call.1
       return
-  fun init.Built.$c2 @fn30(this: Built<Int, String>, value: Int, trace: Trace) -> Unit
+  fun init.Built.$c2 @fn34(this: Built<Int, String>, value: Int, trace: Trace) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -1260,7 +1282,7 @@ Module
       val $parameter.trace: Trace
         Type Trace
         Local $argument.1
-      call @fn34 direct
+      call @fn38 direct
         Type Base<Int, String>
         Retype Base<Int, String>
           Type Built<Int, String>
@@ -1311,7 +1333,7 @@ Module
       val $parameter.serial: Int
         Type Int
         Local $argument.1
-      call $call.2: Reader<Int, String> = @fn39 direct
+      call $call.2: Reader<Int, String> = @fn43 direct
         Type Int
         Local $parameter.content
         Type Int
@@ -1389,7 +1411,7 @@ Module
         Type Int
         Local $parameter.value
       return
-  fun init.Base.$c1 @fn31(this: Base<Int, Int>, value: Int, trace: Trace) -> Unit
+  fun init.Base.$c1 @fn35(this: Base<Int, Int>, value: Int, trace: Trace) -> Unit
     bb0 entry
       field_set 0
         Type Base<Int, Int>
@@ -1416,7 +1438,7 @@ Module
         Type Int
         Local $call.1
       return
-  fun init.Base.$c1 @fn32(this: Base<Int, Unit>, value: Int, trace: Trace) -> Unit
+  fun init.Base.$c1 @fn36(this: Base<Int, Unit>, value: Int, trace: Trace) -> Unit
     bb0 entry
       field_set 0
         Type Base<Int, Unit>
@@ -1443,7 +1465,7 @@ Module
         Type Int
         Local $call.1
       return
-  fun init.Terminal.$c4 @fn33(this: Terminal<Int, String>, value: Int, trace: Trace) -> Unit
+  fun init.Terminal.$c4 @fn37(this: Terminal<Int, String>, value: Int, trace: Trace) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -1457,7 +1479,7 @@ Module
       val $parameter.trace: Trace
         Type Trace
         Local $argument.1
-      call @fn34 direct
+      call @fn38 direct
         Type Base<Int, String>
         Retype Base<Int, String>
           Type Terminal<Int, String>
@@ -1508,7 +1530,7 @@ Module
         Type Int
         Local $parameter.value
       return
-  fun init.Base.$c1 @fn34(this: Base<Int, String>, value: Int, trace: Trace) -> Unit
+  fun init.Base.$c1 @fn38(this: Base<Int, String>, value: Int, trace: Trace) -> Unit
     bb0 entry
       field_set 0
         Type Base<Int, String>
@@ -1535,7 +1557,7 @@ Module
         Type Int
         Local $call.1
       return
-  fun ctor.Pair.$c1 @fn35(value: Int, trace: Trace) -> Pair<Int, Unit>
+  fun ctor.Pair.$c1 @fn39(value: Int, trace: Trace) -> Pair<Int, Unit>
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -1560,7 +1582,7 @@ Module
       val $parameter.serial: Int
         Type Int
         Local $argument.1
-      call $this: Pair<Int, Unit> = @fn37 direct
+      call $this: Pair<Int, Unit> = @fn41 direct
         Type Int
         Local $parameter.value
         Type Int
@@ -1582,14 +1604,14 @@ Module
       return
         Type Pair<Int, Unit>
         Local $this
-  fun ctor.CurrentPair.$c3 @fn36(value: Built<Int, String>) -> CurrentPair<Built<Int, String>, Unit> <no-gc>
+  fun ctor.CurrentPair.$c3 @fn40(value: Built<Int, String>) -> CurrentPair<Built<Int, String>, Unit> <no-gc>
     bb0 entry
       return
         Type CurrentPair<Built<Int, String>, Unit>
         StructInit CurrentPair<Built<Int, String>, Unit>
           Type Built<Int, String>
           Local value
-  fun ctor.Pair.$c0 @fn37(value: Int, serial: Int) -> Pair<Int, Unit> <no-gc>
+  fun ctor.Pair.$c0 @fn41(value: Int, serial: Int) -> Pair<Int, Unit> <no-gc>
     bb0 entry
       return
         Type Pair<Int, Unit>
@@ -1598,7 +1620,7 @@ Module
           Local value
           Type Int
           Local serial
-  fun ctor.Reader.$c2 @fn38(content: Int, serial: Int) -> Reader<Int, Int> <no-gc>
+  fun ctor.Reader.$c2 @fn42(content: Int, serial: Int) -> Reader<Int, Int> <no-gc>
     bb0 entry
       return
         Type Reader<Int, Int>
@@ -1607,7 +1629,7 @@ Module
           Local content
           Type Int
           Local serial
-  fun ctor.Reader.$c2 @fn39(content: Int, serial: Int) -> Reader<Int, String> <no-gc>
+  fun ctor.Reader.$c2 @fn43(content: Int, serial: Int) -> Reader<Int, String> <no-gc>
     bb0 entry
       return
         Type Reader<Int, String>
@@ -1616,7 +1638,49 @@ Module
           Local content
           Type Int
           Local serial
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn40($source: (Int) -> Int, arg0: Any) -> Any
+  fun startCoroutine<Trace> @fn44(task: SuspendTask<Trace>, completion: Continuation<Trace>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn24 interface Continuation<Trace>[0]
+        Type Continuation<Trace>
+        Local completion
+        Type Trace
+        EnumField v0 f0
+          Type CoroutineStep<Trace>
+          Local $step
+      return
+    bb2 failed
+      call @fn25 interface Continuation<Trace>[1]
+        Type Continuation<Trace>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Trace> = @fn26 interface SuspendTask<Trace>[0]
+        Type SuspendTask<Trace>
+        Local task
+        Type Continuation<Trace>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Trace>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn45($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
@@ -1630,7 +1694,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda1.() -> Any @fn41($source: () -> Int) -> Any
+  fun function_bridge.$Closure$lambda1.() -> Any @fn46($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type () -> Int
@@ -1640,7 +1704,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda2.() -> Any @fn42($source: () -> Int) -> Any
+  fun function_bridge.$Closure$lambda2.() -> Any @fn47($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type () -> Int
@@ -1650,7 +1714,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$anonymous0.() -> Any @fn43($source: () -> Int) -> Any
+  fun function_bridge.$Closure$anonymous0.() -> Any @fn48($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type () -> Int
@@ -1660,7 +1724,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$anonymous1.() -> Any @fn44($source: () -> Int) -> Any
+  fun function_bridge.$Closure$anonymous1.() -> Any @fn49($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type () -> Int
@@ -1672,6 +1736,8 @@ Module
           Local $call.1
   coroutine_step cs0 CoroutineStep<Trace> result=Trace
   coroutine_slot cl0 CoroutineSlot<Trace> value=Trace
+  coroutine_start ct0 result=Trace function=fn44
+  coroutine_fn cf0 @fn26 source_return=Trace step=cs0 immediate
   instance mi0 function=@fn5 <- exercise
   instance mi1 function=@fn6 <- Built.$get$delegated
   instance mi2 function=@fn7 <- Built.$get$retained
@@ -1691,4 +1757,8 @@ Module
   instance mi16 function=@fn21 <- $local.0.copy
   instance mi17 function=@fn22 <- $local.1.copy
   instance mi18 function=@fn23 <- $local.2.read
+  instance mi19 function=@fn24 <- Continuation.resume
+  instance mi20 function=@fn25 <- Continuation.resumeWithException
+  instance mi21 function=@fn26 <- SuspendTask.run
+  instance mi22 function=@fn27 <- SuspendRegistration.register
   output library

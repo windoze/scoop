@@ -41,6 +41,7 @@ Module
   class MutableArrayIterator<(Reference, Reference)> vtable=0 itables=1
   class ArrayIterator<Payload<Large>> vtable=0 itables=1
   class MutableArrayIterator<Payload<Large>> vtable=0 itables=1
+  class IllegalStateException vtable=0 itables=0
   class box<Large> vtable=0 itables=0
   class box<Payload<Large>> vtable=0 itables=0
   class box<Int> vtable=0 itables=0
@@ -53,26 +54,34 @@ Module
   interface Iterator<(Reference, Reference)>
   interface Iterable<Payload<Large>>
   interface Iterator<Payload<Large>>
-  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn47 captures=0
-    bridge function_type1 -> @fn59 id=dcaced2f60a1f5c0674536db438e770d010a803da90f9968b213b181ca22d03d
-  closure cc1 $Closure$reference1 type=function_type2 invoke=@fn48 captures=0
-    bridge function_type1 -> @fn60 id=be64bad426c87f352db070be6cecb0cbc0261640a03067c46f776cd51431880d
-  closure cc2 $Closure$reference2 type=function_type3 invoke=@fn49 captures=0
-    bridge function_type1 -> @fn61 id=49f63ac0613aa574f3d12208d10662a29f0c6ed5783e943abfb5f7240eb8c290
-  generated_exact_type get0 location=class19 nominal_id=7a4fd7c11d1ab90b525b734ca6be440ee6f522aea4d11b5854ebd1d6f93422ed exact_id=22337e462ff52ea1ba53c67bc864c5fe844145512062ed2c6199286fb9e1dd10
+  interface Continuation<Large>
+  interface SuspendTask<Large>
+  interface SuspendRegistration<Large>
+  interface Continuation<Reference>
+  interface SuspendTask<Reference>
+  interface SuspendRegistration<Reference>
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn55 captures=0
+    bridge function_type1 -> @fn69 id=dcaced2f60a1f5c0674536db438e770d010a803da90f9968b213b181ca22d03d
+  closure cc1 $Closure$reference1 type=function_type2 invoke=@fn56 captures=0
+    bridge function_type1 -> @fn70 id=be64bad426c87f352db070be6cecb0cbc0261640a03067c46f776cd51431880d
+  closure cc2 $Closure$reference2 type=function_type3 invoke=@fn57 captures=0
+    bridge function_type1 -> @fn71 id=49f63ac0613aa574f3d12208d10662a29f0c6ed5783e943abfb5f7240eb8c290
+  generated_exact_type get0 location=class20 nominal_id=7a4fd7c11d1ab90b525b734ca6be440ee6f522aea4d11b5854ebd1d6f93422ed exact_id=22337e462ff52ea1ba53c67bc864c5fe844145512062ed2c6199286fb9e1dd10
   generated_exact_type get1 location=closure2 nominal_id=31ef804034f22b28ce718646b080174404429c0fafa06a7ca0976cdbbd159572 exact_id=28ce1e6dce2a34049924d1ef233d3857e510ea56f249f7a04b65708914c8081d
-  generated_exact_type get2 location=class21 nominal_id=30a9003ef00cb622101c0335d80cc9871e59c98195836072312681dcd5308231 exact_id=53b6facfeaefdbd6fc1174d9b45890364d563e1e026298e1d7c57a70fbe871c8
+  generated_exact_type get2 location=class22 nominal_id=30a9003ef00cb622101c0335d80cc9871e59c98195836072312681dcd5308231 exact_id=53b6facfeaefdbd6fc1174d9b45890364d563e1e026298e1d7c57a70fbe871c8
   generated_exact_type get3 location=closure0 nominal_id=e9efcf9b40866ba3a51bd98a177cd84e39f27ab908bc07425bddc9fdf5c72253 exact_id=9b1f8392cbd0601e49e7e7c2aec9e83e054686cda67dacdb7dc49cb6046b4abf
-  generated_exact_type get4 location=class18 nominal_id=d2e83963acd8e1465f9be2b6c29482a410864faaa3fd0a3d20de908f83c04051 exact_id=9ba3a1e807b294c582ef46fb18ecd3879f02c58d772a4eacaae016287f40de5d
+  generated_exact_type get4 location=class19 nominal_id=d2e83963acd8e1465f9be2b6c29482a410864faaa3fd0a3d20de908f83c04051 exact_id=9ba3a1e807b294c582ef46fb18ecd3879f02c58d772a4eacaae016287f40de5d
   generated_exact_type get5 location=enum6 nominal_id=a1ee010076c95270e0656371011ec9a1e30312a685509d45212ac020ca8295cf exact_id=a68dea99dd8320517a599a43b7fa0668197b7d079ca0a021bb956a30d1160e4b
   generated_exact_type get6 location=enum7 nominal_id=2f890cf2d1893353acd1ac453677b4d0e9973103c60b204ccb8066e982301221 exact_id=a8b2f69b5e5d564d9277b1b7e3e1afc51e9ba0360adb89cdc1e4aad7e124b9db
   generated_exact_type get7 location=closure1 nominal_id=913068ff4fd0f7db4651bd667eba84d84b2a20de31e485725f3cea2476a344b9 exact_id=b936120e86427ebcc2ae252fbb22ee303ac72ca28275c5badc361d0bfdaecef2
   generated_exact_type get8 location=enum9 nominal_id=4cb1e16a209b0485d85f6fc4b9836c8e4cd45f729861e407e73145abb6155bb9 exact_id=c1a0302c3c51ec5874fbb260ca1d645c1658d279d2a8b0a57dea7933aa640af2
-  generated_exact_type get9 location=class20 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get9 location=class21 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get10 location=enum8 nominal_id=02686f3bb926529c6f4bead080662d7851ba0888a19b9ad03c39b6dea71d6e4a exact_id=f27369c1812a404ad7dd2e64e834cd72793032547d0d0a1cc4fc5c9b1010ce32
-  generated_callable gc0 function=@fn61 id=49f63ac0613aa574f3d12208d10662a29f0c6ed5783e943abfb5f7240eb8c290
-  generated_callable gc1 function=@fn60 id=be64bad426c87f352db070be6cecb0cbc0261640a03067c46f776cd51431880d
-  generated_callable gc2 function=@fn59 id=dcaced2f60a1f5c0674536db438e770d010a803da90f9968b213b181ca22d03d
+  generated_callable gc0 function=@fn71 id=49f63ac0613aa574f3d12208d10662a29f0c6ed5783e943abfb5f7240eb8c290
+  generated_callable gc1 function=@fn67 id=af04c57b5b3da355d991b27da4eca2dc3098b890a7d1621b230bf91b21aca92a
+  generated_callable gc2 function=@fn70 id=be64bad426c87f352db070be6cecb0cbc0261640a03067c46f776cd51431880d
+  generated_callable gc3 function=@fn69 id=dcaced2f60a1f5c0674536db438e770d010a803da90f9968b213b181ca22d03d
+  generated_callable gc4 function=@fn68 id=e147aa97356eedc8db74ec12654c71b8a4db0c06d1d7717572e474979387b239
   fun readLarge @fn0(value: Large) -> Int
     bb0 entry
       val $dependency.receiver: Int
@@ -207,7 +216,7 @@ Module
       assign $new.1
         Type Reference
         ClassAlloc Reference
-      call @fn50 direct
+      call @fn58 direct
         Type Reference
         Local $new.1
         Type Int
@@ -224,7 +233,7 @@ Module
       assign $new.2
         Type Reference
         ClassAlloc Reference
-      call @fn50 direct
+      call @fn58 direct
         Type Reference
         Local $new.2
         Type Int
@@ -241,7 +250,7 @@ Module
       assign $new.3
         Type Reference
         ClassAlloc Reference
-      call @fn50 direct
+      call @fn58 direct
         Type Reference
         Local $new.3
         Type Int
@@ -258,7 +267,7 @@ Module
       val $parameter.third: Reference
         Type Reference
         Local $argument.2
-      call large: Large = @fn58 direct
+      call large: Large = @fn66 direct
         Type Reference
         Local $parameter.first
         Type Reference
@@ -317,7 +326,7 @@ Module
       assign $new.4
         Type Reference
         ClassAlloc Reference
-      call @fn50 direct
+      call @fn58 direct
         Type Reference
         Local $new.4
         Type Int
@@ -325,7 +334,7 @@ Module
       assign $new.5
         Type Reference
         ClassAlloc Reference
-      call @fn50 direct
+      call @fn58 direct
         Type Reference
         Local $new.5
         Type Int
@@ -469,7 +478,7 @@ Module
       assign $new.6
         Type Reference
         ClassAlloc Reference
-      call @fn50 direct
+      call @fn58 direct
         Type Reference
         Local $new.6
         Type Int
@@ -486,7 +495,7 @@ Module
       assign $new.7
         Type Reference
         ClassAlloc Reference
-      call @fn50 direct
+      call @fn58 direct
         Type Reference
         Local $new.7
         Type Int
@@ -503,7 +512,7 @@ Module
       assign $new.8
         Type Reference
         ClassAlloc Reference
-      call @fn50 direct
+      call @fn58 direct
         Type Reference
         Local $new.8
         Type Int
@@ -520,7 +529,7 @@ Module
       val $parameter.third: Reference
         Type Reference
         Local $argument.2
-      call $dependency.argument.2: Large = @fn58 direct
+      call $dependency.argument.2: Large = @fn66 direct
         Type Reference
         Local $parameter.first
         Type Reference
@@ -722,7 +731,7 @@ Module
       assign $new.11
         Type Reference
         ClassAlloc Reference
-      call @fn50 direct
+      call @fn58 direct
         Type Reference
         Local $new.11
         Type Int
@@ -796,7 +805,7 @@ Module
       assign $new.1
         Type ArrayIterator<Large>
         ClassAlloc ArrayIterator<Large>
-      call @fn51 direct
+      call @fn59 direct
         Type ArrayIterator<Large>
         Local $new.1
         Type Array<Large>
@@ -825,7 +834,7 @@ Module
       assign $new.1
         Type MutableArrayIterator<Large>
         ClassAlloc MutableArrayIterator<Large>
-      call @fn52 direct
+      call @fn60 direct
         Type MutableArrayIterator<Large>
         Local $new.1
         Type MutableArray<Large>
@@ -854,7 +863,7 @@ Module
       assign $new.1
         Type ArrayIterator<Array<Large>>
         ClassAlloc ArrayIterator<Array<Large>>
-      call @fn53 direct
+      call @fn61 direct
         Type ArrayIterator<Array<Large>>
         Local $new.1
         Type Array<Array<Large>>
@@ -2878,7 +2887,7 @@ Module
       assign $new.1
         Type ArrayIterator<(Reference, Reference)>
         ClassAlloc ArrayIterator<(Reference, Reference)>
-      call @fn54 direct
+      call @fn62 direct
         Type ArrayIterator<(Reference, Reference)>
         Local $new.1
         Type Array<(Reference, Reference)>
@@ -2907,7 +2916,7 @@ Module
       assign $new.1
         Type MutableArrayIterator<(Reference, Reference)>
         ClassAlloc MutableArrayIterator<(Reference, Reference)>
-      call @fn55 direct
+      call @fn63 direct
         Type MutableArrayIterator<(Reference, Reference)>
         Local $new.1
         Type MutableArray<(Reference, Reference)>
@@ -3190,7 +3199,7 @@ Module
       assign $new.1
         Type ArrayIterator<Payload<Large>>
         ClassAlloc ArrayIterator<Payload<Large>>
-      call @fn56 direct
+      call @fn64 direct
         Type ArrayIterator<Payload<Large>>
         Local $new.1
         Type Array<Payload<Large>>
@@ -3219,7 +3228,7 @@ Module
       assign $new.1
         Type MutableArrayIterator<Payload<Large>>
         ClassAlloc MutableArrayIterator<Payload<Large>>
-      call @fn57 direct
+      call @fn65 direct
         Type MutableArrayIterator<Payload<Large>>
         Local $new.1
         Type MutableArray<Payload<Large>>
@@ -3997,7 +4006,31 @@ Module
         VariantConstruct Option<Payload<Large>> v0
           Type Payload<Large>
           Local $dependency.local.12
-  fun $reference.0 @fn47($closure: (Large) -> Int, arg0: Large) -> Int
+  fun Continuation.resume @fn47(this: Continuation<Large>, value: Large) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn48(this: Continuation<Large>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn49(this: SuspendTask<Large>, $completion: Continuation<Large>) -> CoroutineStep<Large>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn50(this: SuspendRegistration<Large>, continuation: Continuation<Large>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn51(this: Continuation<Reference>, value: Reference) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn52(this: Continuation<Reference>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn53(this: SuspendTask<Reference>, $completion: Continuation<Reference>) -> CoroutineStep<Reference>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn54(this: SuspendRegistration<Reference>, continuation: Continuation<Reference>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun $reference.0 @fn55($closure: (Large) -> Int, arg0: Large) -> Int
     bb0 entry
       call $call.1: Int = @fn0 direct
         Type Large
@@ -4005,7 +4038,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.1 @fn48($closure: ((Reference, Reference)) -> Int, arg0: (Reference, Reference)) -> Int
+  fun $reference.1 @fn56($closure: ((Reference, Reference)) -> Int, arg0: (Reference, Reference)) -> Int
     bb0 entry
       call $call.1: Int = @fn1 direct
         Type (Reference, Reference)
@@ -4013,7 +4046,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.2 @fn49($closure: (Payload<Large>) -> Int, arg0: Payload<Large>) -> Int
+  fun $reference.2 @fn57($closure: (Payload<Large>) -> Int, arg0: Payload<Large>) -> Int
     bb0 entry
       call $call.1: Int = @fn2 direct
         Type Payload<Large>
@@ -4021,7 +4054,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun init.Reference.$c0 @fn50(this: Reference, value: Int) -> Unit
+  fun init.Reference.$c0 @fn58(this: Reference, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Reference
@@ -4029,7 +4062,7 @@ Module
         Type Int
         Local value
       return
-  fun init.ArrayIterator.$c0 @fn51(this: ArrayIterator<Large>, source: Array<Large>, index: Long) -> Unit
+  fun init.ArrayIterator.$c0 @fn59(this: ArrayIterator<Large>, source: Array<Large>, index: Long) -> Unit
     bb0 entry
       field_set 0
         Type ArrayIterator<Large>
@@ -4042,7 +4075,7 @@ Module
         Type Long
         Local index
       return
-  fun init.MutableArrayIterator.$c1 @fn52(this: MutableArrayIterator<Large>, source: MutableArray<Large>, index: Long) -> Unit
+  fun init.MutableArrayIterator.$c1 @fn60(this: MutableArrayIterator<Large>, source: MutableArray<Large>, index: Long) -> Unit
     bb0 entry
       field_set 0
         Type MutableArrayIterator<Large>
@@ -4055,7 +4088,7 @@ Module
         Type Long
         Local index
       return
-  fun init.ArrayIterator.$c0 @fn53(this: ArrayIterator<Array<Large>>, source: Array<Array<Large>>, index: Long) -> Unit
+  fun init.ArrayIterator.$c0 @fn61(this: ArrayIterator<Array<Large>>, source: Array<Array<Large>>, index: Long) -> Unit
     bb0 entry
       field_set 0
         Type ArrayIterator<Array<Large>>
@@ -4068,7 +4101,7 @@ Module
         Type Long
         Local index
       return
-  fun init.ArrayIterator.$c0 @fn54(this: ArrayIterator<(Reference, Reference)>, source: Array<(Reference, Reference)>, index: Long) -> Unit
+  fun init.ArrayIterator.$c0 @fn62(this: ArrayIterator<(Reference, Reference)>, source: Array<(Reference, Reference)>, index: Long) -> Unit
     bb0 entry
       field_set 0
         Type ArrayIterator<(Reference, Reference)>
@@ -4081,7 +4114,7 @@ Module
         Type Long
         Local index
       return
-  fun init.MutableArrayIterator.$c1 @fn55(this: MutableArrayIterator<(Reference, Reference)>, source: MutableArray<(Reference, Reference)>, index: Long) -> Unit
+  fun init.MutableArrayIterator.$c1 @fn63(this: MutableArrayIterator<(Reference, Reference)>, source: MutableArray<(Reference, Reference)>, index: Long) -> Unit
     bb0 entry
       field_set 0
         Type MutableArrayIterator<(Reference, Reference)>
@@ -4094,7 +4127,7 @@ Module
         Type Long
         Local index
       return
-  fun init.ArrayIterator.$c0 @fn56(this: ArrayIterator<Payload<Large>>, source: Array<Payload<Large>>, index: Long) -> Unit
+  fun init.ArrayIterator.$c0 @fn64(this: ArrayIterator<Payload<Large>>, source: Array<Payload<Large>>, index: Long) -> Unit
     bb0 entry
       field_set 0
         Type ArrayIterator<Payload<Large>>
@@ -4107,7 +4140,7 @@ Module
         Type Long
         Local index
       return
-  fun init.MutableArrayIterator.$c1 @fn57(this: MutableArrayIterator<Payload<Large>>, source: MutableArray<Payload<Large>>, index: Long) -> Unit
+  fun init.MutableArrayIterator.$c1 @fn65(this: MutableArrayIterator<Payload<Large>>, source: MutableArray<Payload<Large>>, index: Long) -> Unit
     bb0 entry
       field_set 0
         Type MutableArrayIterator<Payload<Large>>
@@ -4120,7 +4153,7 @@ Module
         Type Long
         Local index
       return
-  fun ctor.Large.$c0 @fn58(first: Reference, second: Reference, third: Reference) -> Large <no-gc>
+  fun ctor.Large.$c0 @fn66(first: Reference, second: Reference, third: Reference) -> Large <no-gc>
     bb0 entry
       return
         Type Large
@@ -4131,7 +4164,91 @@ Module
           Local second
           Type Reference
           Local third
-  fun function_bridge.$Closure$reference0.(Any) -> Any @fn59($source: (Large) -> Int, arg0: Any) -> Any
+  fun startCoroutine<Reference> @fn67(task: SuspendTask<Reference>, completion: Continuation<Reference>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn51 interface Continuation<Reference>[0]
+        Type Continuation<Reference>
+        Local completion
+        Type Reference
+        EnumField v0 f0
+          Type CoroutineStep<Reference>
+          Local $step
+      return
+    bb2 failed
+      call @fn52 interface Continuation<Reference>[1]
+        Type Continuation<Reference>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Reference> = @fn53 interface SuspendTask<Reference>[0]
+        Type SuspendTask<Reference>
+        Local task
+        Type Continuation<Reference>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Reference>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Large> @fn68(task: SuspendTask<Large>, completion: Continuation<Large>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn47 interface Continuation<Large>[0]
+        Type Continuation<Large>
+        Local completion
+        Type Large
+        EnumField v0 f0
+          Type CoroutineStep<Large>
+          Local $step
+      return
+    bb2 failed
+      call @fn48 interface Continuation<Large>[1]
+        Type Continuation<Large>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Large> = @fn49 interface SuspendTask<Large>[0]
+        Type SuspendTask<Large>
+        Local task
+        Type Continuation<Large>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Large>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn69($source: (Large) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Large) -> Int
@@ -4145,7 +4262,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference1.(Any) -> Any @fn60($source: ((Reference, Reference)) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference1.(Any) -> Any @fn70($source: ((Reference, Reference)) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type ((Reference, Reference)) -> Int
@@ -4159,7 +4276,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference2.(Any) -> Any @fn61($source: (Payload<Large>) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference2.(Any) -> Any @fn71($source: (Payload<Large>) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type3> closure[function_type3]
         Type (Payload<Large>) -> Int
@@ -4177,6 +4294,10 @@ Module
   coroutine_step cs1 CoroutineStep<Large> result=Large
   coroutine_slot cl0 CoroutineSlot<Reference> value=Reference
   coroutine_slot cl1 CoroutineSlot<Large> value=Large
+  coroutine_start ct0 result=Reference function=fn67
+  coroutine_start ct1 result=Large function=fn68
+  coroutine_fn cf0 @fn49 source_return=Large step=cs1 immediate
+  coroutine_fn cf1 @fn53 source_return=Reference step=cs0 immediate
   instance mi0 function=@fn4 <- iterator
   instance mi1 function=@fn5 <- iterator
   instance mi2 function=@fn6 <- iterator
@@ -4220,4 +4341,12 @@ Module
   instance mi40 function=@fn44 <- next
   instance mi41 function=@fn45 <- next
   instance mi42 function=@fn46 <- next
+  instance mi43 function=@fn47 <- Continuation.resume
+  instance mi44 function=@fn48 <- Continuation.resumeWithException
+  instance mi45 function=@fn49 <- SuspendTask.run
+  instance mi46 function=@fn50 <- SuspendRegistration.register
+  instance mi47 function=@fn51 <- Continuation.resume
+  instance mi48 function=@fn52 <- Continuation.resumeWithException
+  instance mi49 function=@fn53 <- SuspendTask.run
+  instance mi50 function=@fn54 <- SuspendRegistration.register
   output library

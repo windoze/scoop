@@ -253,7 +253,8 @@ fn initialization_call_roots_require_their_own_generated_body_and_application() 
         .set_callable_signatures(vec![signatures[1].clone()])
         .unwrap();
     let index =
-        crate::hir_dependency_calls::applications::signatures(&foundation, &identities).unwrap();
+        crate::hir_dependency_calls::applications::signatures(&foundation, &identities, None)
+            .unwrap();
     validate_root(roots[1], &fixture.strong, &index, &identities).unwrap();
     assert!(matches!(
         validate_root(roots[0], &fixture.strong, &index, &identities),
@@ -261,7 +262,8 @@ fn initialization_call_roots_require_their_own_generated_body_and_application() 
     ));
     foundation.set_callable_signatures(signatures).unwrap();
     let index =
-        crate::hir_dependency_calls::applications::signatures(&foundation, &identities).unwrap();
+        crate::hir_dependency_calls::applications::signatures(&foundation, &identities, None)
+            .unwrap();
     validate_root(roots[0], &fixture.strong, &index, &identities).unwrap();
     let mut other = roots[0];
     other.root = CallableMaterialization::new(

@@ -1,17 +1,26 @@
 //! Intrinsics need the actual declaration signature, never a fabricated body.
 
 use super::*;
+use crate::call_resolution::candidates::DeclarationSignature;
 use crate::imported_core::ImportedTypeBindings;
 use scoop_identity::SignatureTypeKey;
 
-pub(in crate::expr) struct ImportedIntrinsicSignature {
-    pub(super) declaration: hir::ImportedCallableDeclaration,
-    pub(super) signature: LoadedCallableSignature,
-    pub(super) bindings: ImportedTypeBindings,
+#[derive(Clone)]
+pub(crate) struct LoadedCallableSignature {
+    pub(crate) signature: DeclarationSignature<hir::ExportDefaultTemplateKeyV1>,
+    pub(crate) receiver: Option<hir::TypeId>,
+    pub(crate) origin: hir::DefinitionOrigin,
+    pub(crate) span: hir::Span,
+}
+
+pub(crate) struct ImportedIntrinsicSignature {
+    pub(crate) declaration: hir::ImportedCallableDeclaration,
+    pub(crate) signature: LoadedCallableSignature,
+    pub(crate) bindings: ImportedTypeBindings,
 }
 
 impl ImportedIntrinsicSignature {
-    pub(super) fn prepare(
+    pub(crate) fn prepare(
         state: &mut Lowerer,
         declaration: hir::ImportedCallableDeclaration,
     ) -> Result<Self, String> {
@@ -93,6 +102,78 @@ impl ImportedIntrinsicSignature {
                 span: origin.span,
             },
             bindings,
+        })
+    }
+}
+
+impl Lowerer {
+    pub(super) fn prepare_imported_intrinsic(
+        &mut self,
+        declaration: hir::ImportedCallableDeclaration,
+        identity: hir::ImportedCallableTemplateOrigin,
+    ) -> Result<PreparedImportedGeneric, String> {
+        let prepared = ImportedIntrinsicSignature::prepare(self, declaration)?;
+        let signature = prepared.signature;
+        let mut locals = Arena::new();
+        let values = signature
+            .receiver
+            .map(|ty| ("this".to_owned(), ty))
+            .into_iter()
+            .chain(
+                signature
+                    .signature
+                    .value_parameters
+                    .iter()
+                    .map(|p| (p.name.clone(), p.ty)),
+            );
+        let params = values
+            .enumerate()
+            .map(|(index, (name, ty))| {
+                let selector = if signature.receiver.is_some() && index == 0 {
+                    scoop_identity::LocalValueSelector::This
+                } else {
+                    scoop_identity::LocalValueSelector::Parameter {
+                        declaration_index: (index - usize::from(signature.receiver.is_some()))
+                            as u32,
+                    }
+                };
+                let local = locals.alloc(hir::Local {
+                    binding: self.fresh_binding(),
+                    selector,
+                    definition: hir::LocalValueDefinitionSite::Source(signature.origin),
+                    name: name.clone(),
+                    ty,
+                    mutable: false,
+                });
+                hir::Param { name, ty, local }
+            })
+            .collect();
+        let type_parameters = signature
+            .signature
+            .owner_parameters
+            .into_iter()
+            .chain(signature.signature.callable_parameters)
+            .collect();
+        Ok(PreparedImportedGeneric {
+            signature: hir::ImportedGenericCallableSignature {
+                declaration: identity,
+                signature: hir::CallableSignature::from_source_effects(
+                    prepared.declaration.name().to_owned(),
+                    params,
+                    signature.signature.return_type,
+                    prepared.declaration.interface().effects(),
+                    signature.span,
+                ),
+                type_parameters: hir::ImportedCallableTypeParameters::Declared(type_parameters),
+                no_gc_type_params: Vec::new(),
+                gc_free_pointee_requirements: Vec::new(),
+                receiver: signature.receiver,
+                origin: signature.origin,
+            },
+            source: PreparedImportedCallableSource::Declaration(Box::new(prepared.declaration)),
+            bindings: prepared.bindings,
+            locals,
+            statements: None,
         })
     }
 }

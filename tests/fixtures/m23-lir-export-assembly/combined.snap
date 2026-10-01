@@ -1,10 +1,46 @@
-layouts=62 descriptors=31 dispatch=36 callables=18 shapes=9
+layouts=118 descriptors=59 dispatch=64 callables=63 shapes=9
 callable $init$body$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$ensure$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable Choice.equals: OrdinaryManaged receiver=true args=["Indirect(8)", "Indirect(8)"] result=Direct(1)
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Indirect(8)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=UnitVoid
+callable Continuation.resume: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable Continuation.resumeWithException: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
 callable Contract.$get$token: OrdinaryManaged receiver=true args=["Direct(8)"] result=Zst(0)
 callable Contract.run: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
 callable Pair.equals: OrdinaryManaged receiver=true args=["Zst(0)", "Zst(0)"] result=Direct(1)
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendRegistration.register: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Direct(8)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Direct(8)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Direct(8)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Direct(8)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Direct(8)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Indirect(16)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Indirect(8)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Indirect(8)
+callable SuspendTask.run: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Indirect(8)
 callable Token.equals: OrdinaryManaged receiver=true args=["Zst(0)", "Zst(0)"] result=Direct(1)
 callable ctor.Pair.$c1: OrdinaryNoGc receiver=false args=["Zst(0)", "Zst(0)"] result=Zst(0)
 callable ctor.Pair.$c2: OrdinaryNoGc receiver=false args=[] result=Zst(0)
@@ -14,9 +50,46 @@ callable init.Base.$c0: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)
 callable init.Base.$c1: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
 callable init.Derived.$c2: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=UnitVoid
 callable init.Pending.$c3: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
+callable startCoroutine<Base>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<Choice>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<Contract>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<Derived>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<Pair>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<Pending>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<Registry>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<Token>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
+callable startCoroutine<Value>: OrdinaryManaged receiver=false args=["Direct(8)", "Direct(8)"] result=UnitVoid
 callable thunk<Value> Contract.$get$token(): OrdinaryManaged receiver=true args=["Direct(8)"] result=Zst(0)
 callable thunk<Value> Contract.echo(Token): OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
 callable thunk<Value> Contract.run(Token): OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: References([16]), inline_scan: References([0]) } scan=References([16]) vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=C;x=Base)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=C;x=Derived)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=C;x=Pending)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=E;x=Choice)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=I;x=Contract)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=O;x=Registry)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Pair)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Token)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Value)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=C;x=Base)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=C;x=Derived)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=C;x=Pending)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=E;x=Choice)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=I;x=Contract)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=O;x=Registry)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Pair)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Token)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Value)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=C;x=Base)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=C;x=Derived)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=C;x=Pending)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=E;x=Choice)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=I;x=Contract)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=O;x=Registry)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Pair)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Token)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Value)]): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
 descriptor g(r=00000005;i=579bd5c849fe7f1ca097c7d8e500ba4401ec423b841f6eb293b54daf975220b8): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: References([16]), inline_scan: References([0]) } scan=References([16]) vslots=0 itables=0
 descriptor g(r=00000005;i=5c0e790317a8b197b6e61fe8664a34c8c1aa0898257cfa51665822f30979bec2): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
 descriptor g(r=00000005;i=83f31769a7293b0826e14ad3a0c580b2e1b456397a3fec0deac9169b1f0b1c6a): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: References([16]), inline_scan: References([0]) } scan=References([16]) vslots=0 itables=0
@@ -48,6 +121,34 @@ descriptor n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=O;x=Registry): Type
 descriptor n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Pair): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: ZeroSized, minimum_size: 16, instance_alignment: 8, inline_offset: 16, inline_size: 0, inline_stride: 0, inline_alignment: 1, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
 descriptor n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Token): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: ZeroSized, minimum_size: 16, instance_alignment: 8, inline_offset: 16, inline_size: 0, inline_stride: 0, inline_alignment: 1, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
 descriptor n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Value): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: ZeroSized, minimum_size: 16, instance_alignment: 8, inline_offset: 16, inline_size: 0, inline_stride: 0, inline_alignment: 1, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=C;x=Base)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=C;x=Derived)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=C;x=Pending)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=E;x=Choice)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=I;x=Contract)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=O;x=Registry)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Pair)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Token)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Value)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=C;x=Base)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=C;x=Derived)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=C;x=Pending)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=E;x=Choice)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=I;x=Contract)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=O;x=Registry)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Pair)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Token)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Value)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=C;x=Base)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=C;x=Derived)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=C;x=Pending)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=E;x=Choice)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=I;x=Contract)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=O;x=Registry)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Pair)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Token)]) [Vtable]: []
+dispatch a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Value)]) [Vtable]: []
 dispatch g(r=00000005;i=579bd5c849fe7f1ca097c7d8e500ba4401ec423b841f6eb293b54daf975220b8) [Vtable]: []
 dispatch g(r=00000005;i=5c0e790317a8b197b6e61fe8664a34c8c1aa0898257cfa51665822f30979bec2) [Vtable]: []
 dispatch g(r=00000005;i=83f31769a7293b0826e14ad3a0c580b2e1b456397a3fec0deac9169b1f0b1c6a) [Vtable]: []
@@ -87,6 +188,15 @@ dispatch n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Value) [Vtable]: 
 layout Base [ManagedObject]: size=16 align=8 fields=[(0, 1)] scan=Plain { scan: None }
 layout Base value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
 layout Choice [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: None }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Continuation value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
 layout Contract value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
 layout CoroutineSlot<Base> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: References([0]) }
 layout CoroutineSlot<Choice> [ManagedValue]: size=16 align=8 fields=[] scan=Enum { scan: None }
@@ -108,11 +218,30 @@ layout CoroutineStep<Token> [ManagedValue]: size=8 align=8 fields=[] scan=Enum {
 layout CoroutineStep<Value> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: None }
 layout Derived [ManagedObject]: size=16 align=8 fields=[(0, 1)] scan=Plain { scan: None }
 layout Derived value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Option [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: References([0]) }
 layout Pair [ManagedValue]: size=0 align=1 fields=[(0, 1), (0, 1)] scan=Plain { scan: None }
 layout Pending [ManagedObject]: size=16 align=8 fields=[] scan=Plain { scan: None }
 layout Pending value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
 layout Registry [ManagedObject]: size=16 align=8 fields=[(0, 1)] scan=Plain { scan: None }
 layout Registry value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendRegistration value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout SuspendTask value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
 layout Token [ManagedValue]: size=0 align=1 fields=[] scan=Plain { scan: None }
 layout Value [ManagedValue]: size=0 align=1 fields=[] scan=Plain { scan: None }
 layout box<Choice> [ManagedObject]: size=24 align=8 fields=[(16, 8)] scan=Plain { scan: None }

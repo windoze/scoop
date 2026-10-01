@@ -31,7 +31,15 @@ fn lowers_hello_world() {
     // Intrinsics are excluded from `top_level`; declaration order
     // kept: the two core overloads the test uses, then the user
     // functions.
-    assert_eq!(module.top_level.len(), 4);
+    assert_eq!(
+        module
+            .top_level
+            .iter()
+            .take(4)
+            .map(|id| module.functions[*id].name.as_str())
+            .collect::<Vec<_>>(),
+        ["print", "println", "helper", "main"]
+    );
     let helper = &module.functions[module.top_level[2]];
     let main = &module.functions[module.top_level[3]];
     assert_eq!(helper.name, "helper");
@@ -86,61 +94,7 @@ fn lowers_hello_world() {
     assert!(module.meta.dispatch_tables.is_empty());
 
     // Golden dump locks the output structure.
-    let expected = "\
-Module
-  extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
-  enum ForeignCallbackMode
-    Reusable()
-    OneShot()
-  enum ForeignCallbackState
-    Registered()
-    Active()
-    Completed()
-    Failed()
-  enum CoroutineStep<String>
-    Completed(value: String)
-    Suspended()
-  enum CoroutineSlot<String>
-    Empty()
-    Value(value: String)
-  generated_exact_type get0 location=enum2 nominal_id=2b41b14d885fa38a57063f4b172f305c10201de466a744b67467d982b9b03e4d exact_id=54f75c5f7a246468d3b9a26b12b55f3682e8d4c3461904f2d2dad148dd1d3381
-  generated_exact_type get1 location=enum3 nominal_id=97de422daaa5f55d61a1aa042f57df4b345a1c739e7c8cdb9828340e5643c8de exact_id=c6dfe2e2b19c7e12085f2e1cfcac8c2868bd073baad4765dd757d63390b273e4
-  fun print @fn0(message: String) -> Unit
-    bb0 entry
-      call extern0 @scoop_rt_write direct
-        Type String
-        Local message
-      return
-  fun println @fn1(message: String) -> Unit
-    bb0 entry
-      call extern0 @scoop_rt_write direct
-        Type String
-        Local message
-      call extern0 @scoop_rt_write direct
-        Type String
-        StringConst @str0
-      return
-  fun helper @fn2() -> Unit
-    bb0 entry
-      call @fn0 direct
-        Type String
-        StringConst @str1
-      return
-  fun main @fn3() -> Unit
-    bb0 entry
-      call @fn1 direct
-        Type String
-        StringConst @str2
-      call @fn2 direct
-      return
-  coroutine_step cs0 CoroutineStep<String> result=String
-  coroutine_slot cl0 CoroutineSlot<String> value=String
-  str @str0 \"\\n\"
-  str @str1 \"!\"
-  str @str2 \"hello, world\"
-  output executable @fn3
-";
-    assert_eq!(dump(&module), expected);
+    check_mir_snapshot("lowers_hello_world", &module);
 }
 
 #[test]

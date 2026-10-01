@@ -184,6 +184,7 @@ pub struct ImportedDependencyCallableUse {
     reference: crate::ImportedDependencyCallableRef,
     dispatch: ImportedDependencyDispatch,
     receiver: Option<crate::TypeId>,
+    effect: scoop_identity::Effect,
 }
 
 /// The source-selected dispatch table and its provider-defined slot position.
@@ -204,12 +205,18 @@ impl ImportedDependencyCallableUse {
         reference: crate::ImportedDependencyCallableRef,
         dispatch: ImportedDependencyDispatch,
         receiver: Option<crate::TypeId>,
+        effect: scoop_identity::Effect,
     ) -> Self {
         Self {
             reference,
             dispatch,
             receiver,
+            effect,
         }
+    }
+
+    pub const fn effect(self) -> scoop_identity::Effect {
+        self.effect
     }
 
     pub const fn reference(self) -> crate::ImportedDependencyCallableRef {

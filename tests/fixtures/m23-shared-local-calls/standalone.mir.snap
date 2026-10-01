@@ -17,24 +17,29 @@ Module
   class Throwable vtable=0 itables=0
   class ArrayIterator<Int> vtable=0 itables=1
   class IndexOutOfBoundsException vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
   class box<Int> vtable=0 itables=0
   interface Iterable<Int>
   interface Iterator<Int>
+  interface Continuation<Trace>
+  interface SuspendTask<Trace>
+  interface SuspendRegistration<Trace>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
-    bridge function_type1 -> @fn22 id=514211169cd7629f8a51b94865d52eef6978d37fbcc418ac1dab7d08ab2b7e95
-  closure cc1 $Closure$reference0 type=function_type0 invoke=@fn18 captures=2
-    bridge function_type1 -> @fn23 id=80d1c63825ebfd2ea24e43087bdffeab67d78fa677c2b7591dc1417373e4fb0c
-  closure cc2 $Closure$reference1 type=function_type0 invoke=@fn19 captures=2
-    bridge function_type1 -> @fn24 id=5f3ae6a1cd756d5d2e5c7143ae0f5df4d5d8e3451459d0c4232d8f969fb77552
+    bridge function_type1 -> @fn27 id=514211169cd7629f8a51b94865d52eef6978d37fbcc418ac1dab7d08ab2b7e95
+  closure cc1 $Closure$reference0 type=function_type0 invoke=@fn22 captures=2
+    bridge function_type1 -> @fn28 id=80d1c63825ebfd2ea24e43087bdffeab67d78fa677c2b7591dc1417373e4fb0c
+  closure cc2 $Closure$reference1 type=function_type0 invoke=@fn23 captures=2
+    bridge function_type1 -> @fn29 id=5f3ae6a1cd756d5d2e5c7143ae0f5df4d5d8e3451459d0c4232d8f969fb77552
   generated_exact_type get0 location=closure0 nominal_id=21e1f5921d30e6805833a6257784e99dd21d3ebc85c2f358e496c393890798f7 exact_id=419f2dd3da24d834a1bd9c88844f9e585bcabdd2511ffc3994be364b5abcb833
   generated_exact_type get1 location=closure2 nominal_id=c1c0be209e1ec1779babb38bd45114097e5da9beaee5138137775c994d648574 exact_id=a3fd28d5b3a04f58988be22105ac7e27cf130551037fd6a80d2a46d535c12192
   generated_exact_type get2 location=enum2 nominal_id=9c4cf09fd5f04cc9eb9a51e309d5ec1710bd6dbc8e1340eb687b9dd3fd24e7f8 exact_id=b71a6d3bcc7c3b9751e298ead8304907da781e5647fbefd51be30cf330bf79c4
   generated_exact_type get3 location=enum3 nominal_id=5f1b81920d01bc520798b619c8e961e8cf8db038d96b21b6b1b0652cd8d8177b exact_id=bcc1a711d654e87d852451e247a3172cba89b321d8212382b131ea97b3681153
-  generated_exact_type get4 location=class7 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get4 location=class8 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get5 location=closure1 nominal_id=7243ee2c2d76ac9c88b95452361084bbc7a7fa296623de91a6366c3dee6936a2 exact_id=eb2f4b2b86b532aa2abe246283df11e80a5d81130905af75855b5c34f865b46d
-  generated_callable gc0 function=@fn22 id=514211169cd7629f8a51b94865d52eef6978d37fbcc418ac1dab7d08ab2b7e95
-  generated_callable gc1 function=@fn24 id=5f3ae6a1cd756d5d2e5c7143ae0f5df4d5d8e3451459d0c4232d8f969fb77552
-  generated_callable gc2 function=@fn23 id=80d1c63825ebfd2ea24e43087bdffeab67d78fa677c2b7591dc1417373e4fb0c
+  generated_callable gc0 function=@fn27 id=514211169cd7629f8a51b94865d52eef6978d37fbcc418ac1dab7d08ab2b7e95
+  generated_callable gc1 function=@fn26 id=56f0363b886cde7cbff86a1a4610a53dbcd634414782d75606f10384959ec158
+  generated_callable gc2 function=@fn29 id=5f3ae6a1cd756d5d2e5c7143ae0f5df4d5d8e3451459d0c4232d8f969fb77552
+  generated_callable gc3 function=@fn28 id=80d1c63825ebfd2ea24e43087bdffeab67d78fa677c2b7591dc1417373e4fb0c
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -319,7 +324,7 @@ Module
       assign $new.3
         Type Trace
         ClassAlloc Trace
-      call @fn20 direct
+      call @fn24 direct
         Type Trace
         Local $new.3
         Type Int
@@ -692,7 +697,7 @@ Module
       assign $new.1
         Type ArrayIterator<Int>
         ClassAlloc ArrayIterator<Int>
-      call @fn21 direct
+      call @fn25 direct
         Type ArrayIterator<Int>
         Local $new.1
         Type Array<Int>
@@ -1139,7 +1144,19 @@ Module
         VariantConstruct Option<Int> v0
           Type Int
           Local $dependency.local.12
-  fun $reference.0 @fn18($closure: (Int) -> Int, arg0: Int) -> Int
+  fun Continuation.resume @fn18(this: Continuation<Trace>, value: Trace) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn19(this: Continuation<Trace>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn20(this: SuspendTask<Trace>, $completion: Continuation<Trace>) -> CoroutineStep<Trace>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn21(this: SuspendRegistration<Trace>, continuation: Continuation<Trace>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun $reference.0 @fn22($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = @fn7 direct
         Type Int
@@ -1155,7 +1172,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.1 @fn19($closure: (Int) -> Int, arg0: Int) -> Int
+  fun $reference.1 @fn23($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = @fn9 direct
         Type Int
@@ -1171,7 +1188,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun init.Trace.$c0 @fn20(this: Trace, value: Int) -> Unit
+  fun init.Trace.$c0 @fn24(this: Trace, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Trace
@@ -1179,7 +1196,7 @@ Module
         Type Int
         Local value
       return
-  fun init.ArrayIterator.$c0 @fn21(this: ArrayIterator<Int>, source: Array<Int>, index: Long) -> Unit
+  fun init.ArrayIterator.$c0 @fn25(this: ArrayIterator<Int>, source: Array<Int>, index: Long) -> Unit
     bb0 entry
       field_set 0
         Type ArrayIterator<Int>
@@ -1192,7 +1209,49 @@ Module
         Type Long
         Local index
       return
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn22($source: (Int) -> Int, arg0: Any) -> Any
+  fun startCoroutine<Trace> @fn26(task: SuspendTask<Trace>, completion: Continuation<Trace>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn18 interface Continuation<Trace>[0]
+        Type Continuation<Trace>
+        Local completion
+        Type Trace
+        EnumField v0 f0
+          Type CoroutineStep<Trace>
+          Local $step
+      return
+    bb2 failed
+      call @fn19 interface Continuation<Trace>[1]
+        Type Continuation<Trace>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Trace> = @fn20 interface SuspendTask<Trace>[0]
+        Type SuspendTask<Trace>
+        Local task
+        Type Continuation<Trace>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Trace>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn27($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
@@ -1206,7 +1265,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference0.(Any) -> Any @fn23($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn28($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
@@ -1220,7 +1279,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference1.(Any) -> Any @fn24($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference1.(Any) -> Any @fn29($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
@@ -1236,6 +1295,8 @@ Module
           Local $call.1
   coroutine_step cs0 CoroutineStep<Trace> result=Trace
   coroutine_slot cl0 CoroutineSlot<Trace> value=Trace
+  coroutine_start ct0 result=Trace function=fn26
+  coroutine_fn cf0 @fn20 source_return=Trace step=cs0 immediate
   instance mi0 function=@fn2 <- exercise
   instance mi1 function=@fn3 <- choose
   instance mi2 function=@fn4 <- choose
@@ -1252,5 +1313,9 @@ Module
   instance mi13 function=@fn15 <- $local.0.pick
   instance mi14 function=@fn16 <- $local.0.pick
   instance mi15 function=@fn17 <- next
+  instance mi16 function=@fn18 <- Continuation.resume
+  instance mi17 function=@fn19 <- Continuation.resumeWithException
+  instance mi18 function=@fn20 <- SuspendTask.run
+  instance mi19 function=@fn21 <- SuspendRegistration.register
   str @str0 "complete"
   output library

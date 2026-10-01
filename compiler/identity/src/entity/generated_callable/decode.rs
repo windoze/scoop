@@ -3,9 +3,8 @@ use std::fmt;
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 use super::{
-    ContinuationShellRole, CoroutineAdapterRole, GeneratedCallableIdentityError,
-    GeneratedCallableKey, InitializationCallableRole, LexicalCallableParent, LexicalCallableRole,
-    LexicalParentError,
+    CoroutineAdapterRole, GeneratedCallableIdentityError, GeneratedCallableKey,
+    InitializationCallableRole, LexicalCallableParent, LexicalCallableRole, LexicalParentError,
 };
 use crate::{
     DecodedCallableMaterialization, DecodedExactCallableSignature, DecodedPersistentId,
@@ -148,10 +147,6 @@ pub enum DecodedGeneratedCallableKey {
     CoroutineDriver {
         source_callable: DecodedCallableMaterialization,
     },
-    ContinuationShell {
-        result: DecodedPersistentId<PersistentExactTypeId>,
-        role: ContinuationShellRole,
-    },
     CoroutineStart {
         result: DecodedPersistentId<PersistentExactTypeId>,
     },
@@ -245,10 +240,6 @@ impl DecodedGeneratedCallableKey {
                     .resolve(resolver)
                     .map_err(GeneratedCallableResolutionError::Reference)?,
             },
-            Self::ContinuationShell { result, role } => GeneratedCallableKey::ContinuationShell {
-                result: resolve_id(resolver, result)?,
-                role,
-            },
             Self::CoroutineStart { result } => GeneratedCallableKey::CoroutineStart {
                 result: resolve_id(resolver, result)?,
             },
@@ -332,9 +323,6 @@ impl WireEncode for DecodedGeneratedCallableKey {
             }
             Self::CoroutineDriver { source_callable } => {
                 encode_value_sum(encoder, 9, source_callable)
-            }
-            Self::ContinuationShell { result, role } => {
-                encode_two_value_sum(encoder, 10, result, role)
             }
             Self::CoroutineStart { result } => encode_value_sum(encoder, 11, result),
             Self::CoroutineAdapter {
@@ -421,13 +409,7 @@ impl WireDecode for DecodedGeneratedCallableKey {
                     .field(1, DecodedCallableMaterialization::decode)
                     .map(|source_callable| Self::CoroutineDriver { source_callable })
             }
-            10 => {
-                expect_sum_length(decoder, fields, 3)?;
-                Ok(Self::ContinuationShell {
-                    result: decoder.field(1, DecodedPersistentId::decode)?,
-                    role: decoder.field(2, ContinuationShellRole::decode)?,
-                })
-            }
+            // Tag 10 (ContinuationShell) is retired.
             11 => decode_id_variant(decoder, fields, |result| Self::CoroutineStart { result }),
             12 => {
                 expect_sum_length(decoder, fields, 4)?;
@@ -477,12 +459,6 @@ impl WireDecode for LexicalCallableRole {
 impl WireDecode for InitializationCallableRole {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decode_binary_role(decoder, Self::Initializer, Self::Ensure)
-    }
-}
-
-impl WireDecode for ContinuationShellRole {
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decode_binary_role(decoder, Self::Success, Self::Failure)
     }
 }
 

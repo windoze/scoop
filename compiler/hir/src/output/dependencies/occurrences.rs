@@ -152,6 +152,9 @@ pub(super) fn visit<'a>(
                     if callee.into_raw().into_u32() as usize >= local.functions.len() {
                         return Err(DependencyCallOccurrenceError::MissingUse(position));
                     }
+                    if matches!(local.functions[*callee].kind, concrete::FunctionKind::Intrinsic(_)) {
+                        return Ok(());
+                    }
                     let materialization = local.functions[*callee].materialization;
                     let scoop_identity::CallableTemplateOwner::GenericFunction(declaration) =
                         materialization.template()

@@ -22,14 +22,19 @@ Module
   class UnwrapException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
   class box<Option<Int>> vtable=0 itables=0
+  interface Continuation<Cell>
+  interface SuspendTask<Cell>
+  interface SuspendRegistration<Cell>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn5 captures=1
-    bridge function_type1 -> @fn11 id=7372335e0ec44d18a61bf892675d94fa27828126edcb5661a0e68ced4160beff
+    bridge function_type1 -> @fn16 id=7372335e0ec44d18a61bf892675d94fa27828126edcb5661a0e68ced4160beff
   generated_exact_type get0 location=closure0 nominal_id=fb210f27032952bbab47716a0542412f753aa9c995bc71d7808d1f143e69a6f2 exact_id=0464dfcfe184575a7f2a4a7e35ae4c39e78b583692197eb5f7447cc3ef3a33f1
   generated_exact_type get1 location=enum5 nominal_id=f052ece47e51712c05f5fe0f396c49dfe99de0134fadb08f92194a8bc7b09b2c exact_id=6accb09a864aa7da6bf5985ae05e79f627076ff6d82b066ec3d85ded8678670c
   generated_exact_type get2 location=enum4 nominal_id=07583e80842bdf2384f8915b607de704a8bc2af383ab375d8da8790b69edf1b0 exact_id=9cb554e688486ea23550354e2093f75bf4f6162ce626c4dcf482efee69147f97
-  generated_exact_type get3 location=class4 nominal_id=3395593155143e4a4592da790b768720098257cf53aae28356f8a2fc0b159f2c exact_id=ed1c904d9474aece883148a0c7c98672b8a78eb30b31357e10699e29c53a48b5
-  generated_callable gc0 function=@fn11 id=7372335e0ec44d18a61bf892675d94fa27828126edcb5661a0e68ced4160beff
+  generated_exact_type get3 location=class5 nominal_id=3395593155143e4a4592da790b768720098257cf53aae28356f8a2fc0b159f2c exact_id=ed1c904d9474aece883148a0c7c98672b8a78eb30b31357e10699e29c53a48b5
+  generated_callable gc0 function=@fn16 id=7372335e0ec44d18a61bf892675d94fa27828126edcb5661a0e68ced4160beff
+  generated_callable gc1 function=@fn15 id=bb1fe1533b3399f205a6eb635378ad41de023294775bb341ebdf63a434cf2e45
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -276,7 +281,7 @@ Module
       assign $new.1
         Type Cell
         ClassAlloc Cell
-      call @fn10 direct
+      call @fn14 direct
         Type Cell
         Local $new.1
         Type Int
@@ -299,7 +304,7 @@ Module
       assign $new.2
         Type Cell
         ClassAlloc Cell
-      call @fn10 direct
+      call @fn14 direct
         Type Cell
         Local $new.2
         Type Int
@@ -568,7 +573,19 @@ Module
       return
         Type Cell
         Local $uw.2
-  fun init.Cell.$c0 @fn10(this: Cell, number: Int) -> Unit
+  fun Continuation.resume @fn10(this: Continuation<Cell>, value: Cell) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn11(this: Continuation<Cell>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn12(this: SuspendTask<Cell>, $completion: Continuation<Cell>) -> CoroutineStep<Cell>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn13(this: SuspendRegistration<Cell>, continuation: Continuation<Cell>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Cell.$c0 @fn14(this: Cell, number: Int) -> Unit
     bb0 entry
       field_set 0
         Type Cell
@@ -576,7 +593,49 @@ Module
         Type Int
         Local number
       return
-  fun function_bridge.$Closure$lambda0.() -> Any @fn11($source: () -> Option<Int>) -> Any
+  fun startCoroutine<Cell> @fn15(task: SuspendTask<Cell>, completion: Continuation<Cell>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn10 interface Continuation<Cell>[0]
+        Type Continuation<Cell>
+        Local completion
+        Type Cell
+        EnumField v0 f0
+          Type CoroutineStep<Cell>
+          Local $step
+      return
+    bb2 failed
+      call @fn11 interface Continuation<Cell>[1]
+        Type Continuation<Cell>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Cell> = @fn12 interface SuspendTask<Cell>[0]
+        Type SuspendTask<Cell>
+        Local task
+        Type Continuation<Cell>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Cell>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$lambda0.() -> Any @fn16($source: () -> Option<Int>) -> Any
     bb0 entry
       call $call.1: Option<Int> = <closure:function_type0> closure[function_type0]
         Type () -> Option<Int>
@@ -588,6 +647,8 @@ Module
           Local $call.1
   coroutine_step cs0 CoroutineStep<Cell> result=Cell
   coroutine_slot cl0 CoroutineSlot<Cell> value=Cell
+  coroutine_start ct0 result=Cell function=fn15
+  coroutine_fn cf0 @fn12 source_return=Cell step=cs0 immediate
   instance mi0 function=@fn3 <- exercise
   instance mi1 function=@fn4 <- reorderedWrap
   instance mi2 function=@fn5 <- $lambda.0
@@ -595,4 +656,8 @@ Module
   instance mi4 function=@fn7 <- reorderedDefault
   instance mi5 function=@fn8 <- reorderedWrap
   instance mi6 function=@fn9 <- reorderedForce
+  instance mi7 function=@fn10 <- Continuation.resume
+  instance mi8 function=@fn11 <- Continuation.resumeWithException
+  instance mi9 function=@fn12 <- SuspendTask.run
+  instance mi10 function=@fn13 <- SuspendRegistration.register
   output library

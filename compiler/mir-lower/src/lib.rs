@@ -195,6 +195,7 @@ struct ImportedCallableTarget {
     callable: mir::ExternalCallableUseId,
     lowering_role: mir::MirCallableLoweringRoleV1,
     signature: scoop_identity::ExactCallableSignature,
+    semantic_signature: scoop_identity::ExactCallableSignature,
 }
 
 type ImportedCallableMap = HashMap<hir::ImportedDependencyCallableUseId, ImportedCallableTarget>;

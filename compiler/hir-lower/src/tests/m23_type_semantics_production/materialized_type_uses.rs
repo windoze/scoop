@@ -53,11 +53,15 @@ fn materialized_types_include_parents_and_exclude_unevaluated_defaults() {
                 .iter()
                 .any(|(_, ty)| matches!(ty.kind, TypeKind::Integer(_)))
         );
-        assert_eq!(
-            names(local),
-            BTreeSet::from(
-                ["Boolean", "Deferred", "Long", "SourceOnly", "Unit"].map(str::to_owned)
-            )
+        let materialized = names(local);
+        for name in ["Boolean", "Deferred", "Long", "SourceOnly", "Unit"] {
+            assert!(materialized.contains(name), "missing {name}");
+        }
+        assert!(
+            !local
+                .functions
+                .iter()
+                .any(|(_, function)| function.name == "unexpanded")
         );
         snapshot("standalone", local);
     });

@@ -19,8 +19,10 @@ impl ValidatedCrossConeSemanticClosure {
         let mut arithmetic_required = false;
         let mut unwrap_required = false;
         let mut bounds_required = false;
+        let mut coroutine_required = false;
         module
             .visit_executable_expressions(|occurrence| {
+                coroutine_required |= requires_coroutine_state(module, occurrence.expression);
                 unwrap_required |= matches!(
                     occurrence.expression.kind,
                     concrete::ExprKind::Unwrap {
@@ -62,6 +64,10 @@ impl ValidatedCrossConeSemanticClosure {
                 concrete::ExecutableExpressionVisitError::Visitor(never) => match never {},
             })?;
         for (required, constructor) in [
+            (
+                coroutine_required,
+                protocols.exceptions().illegal_state_exception_constructor(),
+            ),
             (
                 unwrap_required,
                 protocols.exceptions().unwrap_exception_constructor(),
@@ -136,5 +142,34 @@ impl ValidatedCrossConeSemanticClosure {
                 .map_err(|_| Error::SignatureMismatch { provider, target })?,
         );
         Ok(())
+    }
+}
+
+fn requires_coroutine_state(module: &concrete::Module, expression: &concrete::Expr) -> bool {
+    let function_type = match expression.kind {
+        concrete::ExprKind::Call { callee, .. } => {
+            return match callee {
+                concrete::CallableTarget::Local(callable) => {
+                    module.functions[module.callable_function(callable)].is_suspend
+                }
+                concrete::CallableTarget::Imported(callable) => {
+                    module.imported_dependency_callables[callable].effect()
+                        == scoop_identity::Effect::Suspend
+                }
+            };
+        }
+        concrete::ExprKind::CallableCall { function_type, .. } => {
+            return module.function_types[function_type].is_suspend;
+        }
+        concrete::ExprKind::Lambda(_)
+        | concrete::ExprKind::AnonymousFunction(_)
+        | concrete::ExprKind::CallableReference(_)
+        | concrete::ExprKind::FunctionCoercion { .. } => expression.ty,
+        concrete::ExprKind::Cast { check_ty, .. } => check_ty,
+        _ => return false,
+    };
+    match module.types[function_type].kind {
+        concrete::TypeKind::Function(function) => module.function_types[function].is_suspend,
+        _ => false,
     }
 }

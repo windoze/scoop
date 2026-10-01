@@ -133,6 +133,20 @@ fn check_initializations(cases: &[&str]) {
                 .len(),
             if case == "combined" { 5 } else { 2 },
         );
+        let is_provider_nominal = |group| {
+            let graph = sections.identity_graph();
+            let key = graph
+                .canonical_key::<_, scoop_identity::SpecializationKey>(group)
+                .unwrap();
+            let scoop_identity::SpecializationKey::Nominal { origin, .. } = key.as_ref() else {
+                return false;
+            };
+            graph
+                .canonical_key::<_, scoop_identity::SourceDeclarationKey>(*origin)
+                .unwrap()
+                .origin()
+                == provider_coordinate.identity().unwrap()
+        };
         let production = sections.lir_strong_production();
         let shapes = production.canonical_shape_definitions().definitions();
         let expected_types = if case == "standalone" { 2 } else { 4 };
@@ -140,7 +154,13 @@ fn check_initializations(cases: &[&str]) {
             dispatch::check(sections, if case == "dispatch" { 1 } else { 2 });
             assert!(!shapes.is_empty());
         } else {
-            assert_eq!(shapes.len(), expected_types * 6);
+            assert_eq!(
+                shapes
+                    .iter()
+                    .filter(|shape| is_provider_nominal(shape.group()))
+                    .count(),
+                expected_types * 6
+            );
         }
         for shape in shapes {
             let definition = closure
@@ -158,7 +178,7 @@ fn check_initializations(cases: &[&str]) {
             if let scoop_lir::RegistrationDefinitionOwner::Odr { group, member } =
                 plan.definition_owner()
             {
-                registrations += 1;
+                registrations += usize::from(is_provider_nominal(group));
                 let definition = closure.odr_definitions().get(group, member).unwrap();
                 assert_eq!(
                     definition.key().role(),

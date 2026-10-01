@@ -99,8 +99,25 @@ pub(super) fn validate_sources(
                         .iter()
                         .map(|position| inputs[*position].2.callables()),
                 );
+                let coroutine = parts
+                    .hir_core
+                    .compiler_protocols()
+                    .or_else(|| {
+                        reachable
+                            .iter()
+                            .find_map(|position| inputs[*position].1.hir_core.compiler_protocols())
+                    })
+                    .map(|core| core.coroutine_protocol());
+                super::super::mir_coroutines::validate_shared_mir_coroutines(
+                    coroutine,
+                    parts.identities,
+                    mir.shape_support(),
+                    mir.callables(),
+                )
+                .map_err(|error| Error::Coroutines(Box::new(error)))?;
                 super::super::mir_dispatch::validate_shared_mir_dispatch(
                     *source,
+                    coroutine,
                     mir.callables(),
                     &dependency_callables,
                     &std::iter::once(parts.mir_ordinary)

@@ -15,6 +15,18 @@ impl Concretizer<'_> {
             })
             .or(previous);
         let expression = self.lower_expr_at_site(source, substitution, locals);
+        if let concrete::ExprKind::Call {
+            callee: concrete::CallableTarget::Imported(callee),
+            ..
+        } = expression.kind
+            && self.imported_dependency_callables[callee].effect()
+                == scoop_identity::Effect::Suspend
+        {
+            self.coroutine_results.insert(expression.ty);
+        }
+        if let Some(ty) = expression.shared_representation_type(&self.types) {
+            self.shared_types.insert(ty);
+        }
         self.type_use_site = previous;
         expression
     }

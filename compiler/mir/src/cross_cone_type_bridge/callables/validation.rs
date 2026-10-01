@@ -5,6 +5,7 @@ use scoop_identity::{
 };
 
 mod applications;
+mod coroutines;
 mod generated;
 mod traps;
 
@@ -133,7 +134,9 @@ impl MirCallableBridgeAuthority<'_> {
                 | MirCallableLoweringRoleV1::BoxingAdjust { .. }
         ) && binding.semantic.gc_effect() == crate::GcEffect::NoGc
             && binding.lowered.gc_effect() == crate::GcEffect::Managed;
-        if semantic.effect() != lowered.effect()
+        if (semantic.effect() != lowered.effect()
+            && !(semantic.effect() == scoop_identity::Effect::Suspend
+                && lowered.effect() == scoop_identity::Effect::Ordinary))
             || (binding.semantic.gc_effect() != binding.lowered.gc_effect()
                 && !wraps_no_gc
                 && !primary)
@@ -299,6 +302,8 @@ impl MirCallableBridgeAuthority<'_> {
     ) -> Result<(), MirCallableBridgeError> {
         if binding.semantic == binding.lowered {
             Ok(())
+        } else if binding.semantic.exact().effect() == scoop_identity::Effect::Suspend {
+            self.coroutine_signature(binding.semantic.exact(), binding.lowered.exact())
         } else {
             Err(MirCallableBridgeError::SignatureMismatch)
         }

@@ -1,0 +1,53 @@
+package consumer.coroutines
+import templates.coroutines.*
+
+class LongTask(val gate: Gate<Long>) : SuspendTask<Long> {
+    public override suspend fun run(): Long = awaitLong(this.gate) + 1L
+}
+
+class Node(public val value: Int)
+struct Large(val left: Long, val node: Node, val right: Long)
+enum Payload<T> { Full(T), Empty }
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val gate = Gate<T>()
+    val completion = Completion<T>()
+    val counter = Counter()
+    startCoroutine(WaitingTask(gate, seed, read, counter), completion)
+    if (completion.calls != 0) { return 2 }
+    if (allocateAfterSuspension() != 42) { return 9 }
+    gate.complete(seed)
+    if (completion.calls != 1 || counter.value != 42) { return 3 }
+    return read(completion.value!!)
+}
+
+public fun result(): Int {
+    val gate = Gate<Long>()
+    val completion = Completion<Long>()
+    startCoroutine(LongTask(gate), completion)
+    if (completion.calls != 0) { return 4 }
+    if (allocateAfterSuspension() != 42) { return 9 }
+    gate.complete(41L)
+    if (completion.value!! != 42L || completion.calls != 1) { return 5 }
+    if (exercise(Large(10L, Node(42), 32L), { value: Large ->
+        if (value.left + value.right == 42L) { value.node.value } else { 6 }
+    }) != 42) { return 7 }
+    return exercise(Payload.Full(Node(42)), { value: Payload<Node> ->
+        when (value) {
+            Full(node) -> node.value
+            Empty -> 8
+        }
+    })
+}
+
+fun allocateAfterSuspension(): Int {
+    val retained = Counter()
+    retained.value = 42
+    var index = 0
+    while (index < 128) {
+        val temporary = Counter()
+        temporary.value = index
+        index = temporary.value + 1
+    }
+    return retained.value
+}

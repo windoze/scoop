@@ -20,16 +20,19 @@ pub fn lower_current_cone(
     lower_initialization_callables(hir, &selected_callables, &mut callables)?;
     lower_runtime_constructors(hir, &selected_callables, &mut callables)?;
     for selected in selected_callables.callables() {
-        if selected.lowering_role() == mir::MirCallableLoweringRoleV1::StaticCallbackStorage {
-            let reference = selected_callables
-                .callable_for(selected.provider(), selected.implementation())
-                .expect("selected callback storage retains its reference");
-            callables.alloc(
-                selected_callables
-                    .callable_use(reference, mir::GcEffect::NoGc)
-                    .expect("selected callback storage has a complete NoGC signature"),
-            );
-        }
+        let effect = match selected.lowering_role() {
+            mir::MirCallableLoweringRoleV1::StaticCallbackStorage => mir::GcEffect::NoGc,
+            mir::MirCallableLoweringRoleV1::CoroutineStart => mir::GcEffect::Managed,
+            _ => continue,
+        };
+        let reference = selected_callables
+            .callable_for(selected.provider(), selected.implementation())
+            .expect("a selected generated helper retains its reference");
+        callables.alloc(
+            selected_callables
+                .callable_use(reference, effect)
+                .expect("a selected generated helper retains its complete signature"),
+        );
     }
     let objects = selected_callables
         .objects()
@@ -57,8 +60,13 @@ pub fn lower_current_cone(
     for (_, callable) in callables.iter() {
         let signature = selected_callables
             .resolve_callable(callable.reference())
-            .expect("every external use retains its selected callable")
-            .signature();
+            .expect("every external use retains its selected callable");
+        let signature =
+            if signature.semantic_signature().effect() == scoop_identity::Effect::Suspend {
+                signature.semantic_signature()
+            } else {
+                signature.signature()
+            };
         for exact in signature
             .receiver()
             .into_option()
@@ -159,6 +167,7 @@ fn lower_dependency_callables(
             callable,
             lowering_role: target.lowering_role(),
             signature: target.signature().clone(),
+            semantic_signature: target.semantic_signature().clone(),
         };
         mapping.insert(source_id, target.clone());
         definitions.insert(definition, target);
@@ -197,6 +206,7 @@ fn lower_runtime_constructors(
         protocols.exceptions().class_cast_exception_constructor(),
         protocols.exceptions().arithmetic_exception_constructor(),
         protocols.exceptions().unwrap_exception_constructor(),
+        protocols.exceptions().illegal_state_exception_constructor(),
         protocols
             .exceptions()
             .index_out_of_bounds_exception_constructor(),

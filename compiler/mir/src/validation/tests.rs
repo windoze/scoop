@@ -308,18 +308,6 @@ fn install_generated_callables(module: &mut Module) {
             );
         }
     }
-    for shell in &module.meta.continuation_shells {
-        register(
-            shell.success(),
-            shell.identity().success_callable_record(),
-            shell.identity().success_signature_record().subject(),
-        );
-        register(
-            shell.failure(),
-            shell.identity().failure_callable_record(),
-            shell.identity().failure_signature_record().subject(),
-        );
-    }
     for start in &module.meta.coroutine_starts {
         register(
             start.function(),
@@ -396,10 +384,6 @@ fn install_callable_signatures(module: &mut Module) {
             register(driver_identity.signature_record());
         }
     }
-    for shell in &module.meta.continuation_shells {
-        register(shell.identity().success_signature_record());
-        register(shell.identity().failure_signature_record());
-    }
     for start in &module.meta.coroutine_starts {
         register(start.identity().signature_record());
     }
@@ -409,6 +393,17 @@ fn install_callable_signatures(module: &mut Module) {
     }
     for adjust in &module.meta.boxing_adjusts {
         register(adjust.identity().signature_record());
+    }
+    for (_, coroutine) in module.meta.coroutine_functions.iter() {
+        let subject = module
+            .meta
+            .callable_signature_subject(coroutine.function)
+            .unwrap();
+        let record = entries
+            .iter_mut()
+            .find(|record| record.subject() == subject)
+            .unwrap();
+        *record = CallableSignatureRecord::new(subject, coroutine.lowered_signature.clone());
     }
     module.meta.callable_signatures = MirCallableSignatures::checked(entries).unwrap();
 }
@@ -452,15 +447,6 @@ fn test_step_identity(ty: &Type) -> CoroutineStepIdentity {
 
 fn test_slot_identity(ty: &Type) -> CoroutineSlotIdentity {
     CoroutineSlotIdentity::new(&test_exact_type(ty), None).unwrap()
-}
-
-fn test_continuation_shell_identity(
-    result: &Type,
-    receiver: &Type,
-    failure: &Type,
-) -> ContinuationShellIdentity {
-    let (success, failure) = test_continuation_signatures(result, receiver, failure);
-    ContinuationShellIdentity::new(&test_exact_type(result), None, success, failure).unwrap()
 }
 
 fn test_continuation_signatures(

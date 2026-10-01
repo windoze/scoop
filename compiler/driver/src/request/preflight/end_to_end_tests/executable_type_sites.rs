@@ -128,7 +128,8 @@ fn published_type_occurrences_replay_from_bytes_without_dependency_sources() {
             assert!(declarations[0] > 2 && declarations[1] > 1 && declarations[2] > 0);
             assert!(declarations[3] > 0);
         } else if name == "storage-standalone" {
-            assert_eq!(declarations[4..], [0, 0, 1, 0]);
+            // The finite coroutine start also needs core Option<String> storage.
+            assert_eq!(declarations[4..], [0, 1, 1, 0]);
         } else if name == "storage-combined" {
             assert!(declarations[4..].iter().all(|count| *count > 0));
         } else if name == "standalone" {

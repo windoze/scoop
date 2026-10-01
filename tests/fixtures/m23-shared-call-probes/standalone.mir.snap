@@ -1,4 +1,7 @@
 Module
+  enum Option<String>
+    Some(_0: String)
+    None()
   enum Packet<Int>
     Item(value: Int)
     Missing()
@@ -12,34 +15,41 @@ Module
   class Empty<Int> vtable=0 itables=0
   class Pair<Int, Int> vtable=0 itables=0
   class Holder<Int> vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
   class box<Int> vtable=0 itables=0
+  interface Continuation<Counter>
+  interface SuspendTask<Counter>
+  interface SuspendRegistration<Counter>
   closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn5 captures=0
-    bridge function_type1 -> @fn23 id=aff991e5a3b4f94e9251853e41659166dc26611fcc716c1a088f628068e2dd08
+    bridge function_type1 -> @fn28 id=aff991e5a3b4f94e9251853e41659166dc26611fcc716c1a088f628068e2dd08
   closure cc1 $Closure$lambda1 type=function_type3 invoke=@fn10 captures=1
-    bridge function_type4 -> @fn24 id=0fa99e9f2922ce8be8403d5e7883923e130557bd70d9902a0d79f0a393731b12
+    bridge function_type4 -> @fn29 id=0fa99e9f2922ce8be8403d5e7883923e130557bd70d9902a0d79f0a393731b12
   closure cc2 $Closure$lambda2 type=function_type2 invoke=@fn12 captures=0
-    bridge function_type1 -> @fn25 id=63fed1aa5a7e6a6cf1576804a6dbd4514a709cb5e1fa64af85291066f4112f41
+    bridge function_type1 -> @fn30 id=63fed1aa5a7e6a6cf1576804a6dbd4514a709cb5e1fa64af85291066f4112f41
   closure cc3 $Closure$lambda3 type=function_type2 invoke=@fn14 captures=0
-    bridge function_type1 -> @fn26 id=fc55cf499fbecc78039184b613414550822ef73292475c29a553cb36aa1a7030
+    bridge function_type1 -> @fn31 id=fc55cf499fbecc78039184b613414550822ef73292475c29a553cb36aa1a7030
   closure cc4 $Closure$lambda4 type=function_type2 invoke=@fn15 captures=1
-    bridge function_type1 -> @fn27 id=f0990741d153805794f85abe70db8aea12b7aca3242f7432029010b68e73946c
+    bridge function_type1 -> @fn32 id=f0990741d153805794f85abe70db8aea12b7aca3242f7432029010b68e73946c
   closure cc5 $Closure$anonymous0 type=function_type2 invoke=@fn17 captures=0
-    bridge function_type1 -> @fn28 id=c9a784de950e23158bbb9e562825956d57b87e5e40a1b9d9ab69956fad7ac5d6
+    bridge function_type1 -> @fn33 id=c9a784de950e23158bbb9e562825956d57b87e5e40a1b9d9ab69956fad7ac5d6
   generated_exact_type get0 location=closure5 nominal_id=5da6e031c8bc819bc7d8f32d95a963c699402612dfaa7a26fb6aa7d0e77322d7 exact_id=108d335b0431f3f66d0d4d59a7ae75e90dafca533108b6103fb5c32e29a1b9f9
-  generated_exact_type get1 location=enum1 nominal_id=4692c61f383c78dfbbcddfa9720baff50a97670ddc9a0fef4e3c85c6288ccd6d exact_id=2077085b49cc2bca601fec63a3ec31501cdf37482ca0f22748193d4fbdfb5353
+  generated_exact_type get1 location=enum2 nominal_id=4692c61f383c78dfbbcddfa9720baff50a97670ddc9a0fef4e3c85c6288ccd6d exact_id=2077085b49cc2bca601fec63a3ec31501cdf37482ca0f22748193d4fbdfb5353
   generated_exact_type get2 location=closure4 nominal_id=773a2523062646cebc3738798076aee971804344534d9af38da6574f68def2aa exact_id=504ec6e8a08c63e3012711f37ec348fcf28a7b378d8a9b526d5a380afa0cba48
   generated_exact_type get3 location=closure1 nominal_id=e1327a30fd2efcebfa4151b4142ccd6a517b7d3f85200606d0989692bb9250f5 exact_id=70424db60be02b69daf5bc17dff646ea0012b0a34bbf422d031103c801219ab9
   generated_exact_type get4 location=closure0 nominal_id=77b06d063ab0e5dd608a0cc72eb16c84a1a87525eb96aef1180450e9158abff0 exact_id=81e70ef3b0cecbb55a34bded7eaf45474c81475e7063b16ee06d3a9cf3546958
   generated_exact_type get5 location=closure3 nominal_id=9f4c7d5a93ba23f00c558c06e4a5b78795dcf6d04f7b8229ceed4dea4a266c2f exact_id=9a377ee959e6ec6bc3f4f231a0ad0394d3f8a20eee5cbb544612a55605f30585
-  generated_exact_type get6 location=enum2 nominal_id=5a6b0d75e081d1dd00222e0f45fddcc5ccf6a5310957d0dda415b8e93c9f01f3 exact_id=a2b0215341acb601d101d07e9751e35809ee0b5f6ab406cedff6d3f4a04f29a2
+  generated_exact_type get6 location=enum3 nominal_id=5a6b0d75e081d1dd00222e0f45fddcc5ccf6a5310957d0dda415b8e93c9f01f3 exact_id=a2b0215341acb601d101d07e9751e35809ee0b5f6ab406cedff6d3f4a04f29a2
   generated_exact_type get7 location=closure2 nominal_id=7dd2dbb88dba015fd4bdb55d61ebaf7b5a11b3db04f00a88affb358af105bf33 exact_id=c8d0af963eee1f4cb6afad7a2c31f1eb71f88d043bdd9fbaf2e59d9ef75f5cfd
-  generated_exact_type get8 location=class4 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
-  generated_callable gc0 function=@fn24 id=0fa99e9f2922ce8be8403d5e7883923e130557bd70d9902a0d79f0a393731b12
-  generated_callable gc1 function=@fn25 id=63fed1aa5a7e6a6cf1576804a6dbd4514a709cb5e1fa64af85291066f4112f41
-  generated_callable gc2 function=@fn23 id=aff991e5a3b4f94e9251853e41659166dc26611fcc716c1a088f628068e2dd08
-  generated_callable gc3 function=@fn28 id=c9a784de950e23158bbb9e562825956d57b87e5e40a1b9d9ab69956fad7ac5d6
-  generated_callable gc4 function=@fn27 id=f0990741d153805794f85abe70db8aea12b7aca3242f7432029010b68e73946c
-  generated_callable gc5 function=@fn26 id=fc55cf499fbecc78039184b613414550822ef73292475c29a553cb36aa1a7030
+  generated_exact_type get8 location=class7 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn29 id=0fa99e9f2922ce8be8403d5e7883923e130557bd70d9902a0d79f0a393731b12
+  generated_callable gc1 function=@fn27 id=216c6c8cb47f923f5f18fe5f463720d650e79e2f6c2cefcdbb1bb45b4596cc1c
+  generated_callable gc2 function=@fn30 id=63fed1aa5a7e6a6cf1576804a6dbd4514a709cb5e1fa64af85291066f4112f41
+  generated_callable gc3 function=@fn28 id=aff991e5a3b4f94e9251853e41659166dc26611fcc716c1a088f628068e2dd08
+  generated_callable gc4 function=@fn33 id=c9a784de950e23158bbb9e562825956d57b87e5e40a1b9d9ab69956fad7ac5d6
+  generated_callable gc5 function=@fn32 id=f0990741d153805794f85abe70db8aea12b7aca3242f7432029010b68e73946c
+  generated_callable gc6 function=@fn31 id=fc55cf499fbecc78039184b613414550822ef73292475c29a553cb36aa1a7030
   fun Counter.$get$calls @fn0(this: Counter) -> Int
     bb0 entry
       return
@@ -107,7 +117,7 @@ Module
       assign $new.1
         Type Empty<Int>
         ClassAlloc Empty<Int>
-      call @fn20 direct
+      call @fn24 direct
         Type Empty<Int>
         Local $new.1
       val empty: Empty<Int>
@@ -162,7 +172,7 @@ Module
       assign $new.2
         Type Pair<Int, Int>
         ClassAlloc Pair<Int, Int>
-      call @fn21 direct
+      call @fn25 direct
         Type Pair<Int, Int>
         Local $new.2
         Type Int
@@ -238,7 +248,7 @@ Module
       assign $new.4
         Type Holder<Int>
         ClassAlloc Holder<Int>
-      call @fn22 direct
+      call @fn26 direct
         Type Holder<Int>
         Local $new.4
         Type Int
@@ -461,7 +471,7 @@ Module
       assign $new.7
         Type Counter
         ClassAlloc Counter
-      call @fn19 direct
+      call @fn23 direct
         Type Counter
         Local $new.7
       val counter: Counter
@@ -743,7 +753,19 @@ Module
         FieldAccess 0
           Type Holder<Int>
           Local this
-  fun init.Counter.$c0 @fn19(this: Counter) -> Unit
+  fun Continuation.resume @fn19(this: Continuation<Counter>, value: Counter) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn20(this: Continuation<Counter>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn21(this: SuspendTask<Counter>, $completion: Continuation<Counter>) -> CoroutineStep<Counter>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn22(this: SuspendRegistration<Counter>, continuation: Continuation<Counter>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Counter.$c0 @fn23(this: Counter) -> Unit
     bb0 entry
       field_set 0
         Type Counter
@@ -751,10 +773,10 @@ Module
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       return
-  fun init.Empty.$c1 @fn20(this: Empty<Int>) -> Unit
+  fun init.Empty.$c1 @fn24(this: Empty<Int>) -> Unit
     bb0 entry
       return
-  fun init.Pair.$c2 @fn21(this: Pair<Int, Int>, first: Int, second: Int) -> Unit
+  fun init.Pair.$c2 @fn25(this: Pair<Int, Int>, first: Int, second: Int) -> Unit
     bb0 entry
       field_set 0
         Type Pair<Int, Int>
@@ -767,7 +789,7 @@ Module
         Type Int
         Local second
       return
-  fun init.Holder.$c3 @fn22(this: Holder<Int>, value: Int) -> Unit
+  fun init.Holder.$c3 @fn26(this: Holder<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Holder<Int>
@@ -775,7 +797,49 @@ Module
         Type Int
         Local value
       return
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn23($source: (Int) -> Int, arg0: Any) -> Any
+  fun startCoroutine<Counter> @fn27(task: SuspendTask<Counter>, completion: Continuation<Counter>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn19 interface Continuation<Counter>[0]
+        Type Continuation<Counter>
+        Local completion
+        Type Counter
+        EnumField v0 f0
+          Type CoroutineStep<Counter>
+          Local $step
+      return
+    bb2 failed
+      call @fn20 interface Continuation<Counter>[1]
+        Type Continuation<Counter>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Counter> = @fn21 interface SuspendTask<Counter>[0]
+        Type SuspendTask<Counter>
+        Local task
+        Type Continuation<Counter>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Counter>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn28($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int
@@ -789,7 +853,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda1.(Any, Any) -> Any @fn24($source: (Int, Int) -> Int, arg0: Any, arg1: Any) -> Any
+  fun function_bridge.$Closure$lambda1.(Any, Any) -> Any @fn29($source: (Int, Int) -> Int, arg0: Any, arg1: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type3> closure[function_type3]
         Type (Int, Int) -> Int
@@ -807,7 +871,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn25($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn30($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int
@@ -821,7 +885,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda3.(Any) -> Any @fn26($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda3.(Any) -> Any @fn31($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int
@@ -835,7 +899,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda4.(Any) -> Any @fn27($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda4.(Any) -> Any @fn32($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int
@@ -849,7 +913,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$anonymous0.(Any) -> Any @fn28($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$anonymous0.(Any) -> Any @fn33($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int
@@ -865,6 +929,8 @@ Module
           Local $call.1
   coroutine_step cs0 CoroutineStep<Counter> result=Counter
   coroutine_slot cl0 CoroutineSlot<Counter> value=Counter
+  coroutine_start ct0 result=Counter function=fn27
+  coroutine_fn cf0 @fn21 source_return=Counter step=cs0 immediate
   instance mi0 function=@fn6 <- exercise
   instance mi1 function=@fn7 <- Empty.identity
   instance mi2 function=@fn8 <- Pair.$get$first
@@ -878,5 +944,9 @@ Module
   instance mi10 function=@fn16 <- choose
   instance mi11 function=@fn17 <- $anonymous.0
   instance mi12 function=@fn18 <- Holder.$get$value
+  instance mi13 function=@fn19 <- Continuation.resume
+  instance mi14 function=@fn20 <- Continuation.resumeWithException
+  instance mi15 function=@fn21 <- SuspendTask.run
+  instance mi16 function=@fn22 <- SuspendRegistration.register
   str @str0 "rejected"
   output library

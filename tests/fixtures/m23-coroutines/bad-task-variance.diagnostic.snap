@@ -1,0 +1,3 @@
+span=98..111
+expression=DerivedTask()
+initializer of `task` must be of type SuspendTask<BaseResult>, found DerivedTask; nominal application `SuspendTask` is invariant: first differing type argument 1 (`T`) is `DerivedResult` in `SuspendTask<DerivedResult>`, but `BaseResult` in `SuspendTask<BaseResult>`; construct the target application directly or convert explicitly

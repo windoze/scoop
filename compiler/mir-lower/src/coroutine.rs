@@ -10,12 +10,14 @@ use super::Lowerer;
 
 mod adapters;
 mod construction;
+mod errors;
 mod intrinsics;
 mod liveness;
 mod sites;
 
 use adapters::*;
 use construction::*;
+use errors::protocol_error_block;
 use intrinsics::*;
 use liveness::*;
 use sites::*;
@@ -111,12 +113,7 @@ fn transform_function(
     let completion_old = completion.local;
     let completion_ty = completion.ty.clone();
     let source_params = &old_params[..old_params.len() - 1];
-    let throwable_ty = mir::Type::Class(
-        lowerer.class_map[&crate::defined_protocols(&lowerer.core_protocols)
-            .exceptions
-            .throwable
-            .class()],
-    );
+    let throwable_ty = crate::coroutine_registry::throwable_type(module, &lowerer.class_map);
     lowerer
         .source_exact_types
         .get(&throwable_ty)
@@ -307,18 +304,17 @@ fn transform_function(
         lowerer.interfaces.mir_id(protocol.continuation),
         "the hidden completion type matches the concrete coroutine protocol",
     );
-    let (outer_resume, outer_failure) = lowerer.coroutines.continuation_shells(
-        &lowerer.source_exact_types,
-        &source_return,
-        crate::source_callables::exact_function_signature(module, protocol.continuation_resume),
-        crate::source_callables::exact_function_signature(
-            module,
-            protocol.continuation_resume_with_exception,
-        ),
-        continuation,
-        throwable_ty,
-        &mut lowerer.functions,
-        &lowerer.shell,
+    let outer_resume = crate::coroutine_registry::protocol_call(
+        module,
+        &lowerer.instances,
+        &lowerer.interfaces,
+        protocol.continuation_resume,
+    );
+    let outer_failure = crate::coroutine_registry::protocol_call(
+        module,
+        &lowerer.instances,
+        &lowerer.interfaces,
+        protocol.continuation_resume_with_exception,
     );
 
     sites.sort_by_key(|site| (raw(site.block), site.statement));
@@ -339,8 +335,8 @@ fn transform_function(
             failure_value,
             &step_ty,
             continuation,
-            outer_resume,
-            outer_failure,
+            &outer_resume,
+            &outer_failure,
             &source_name,
             driver,
             source_materialization,

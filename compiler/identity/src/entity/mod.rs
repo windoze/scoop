@@ -127,11 +127,10 @@ pub use exact_type::{
     ExactTypeKey, ExactTypeResolutionError,
 };
 pub use generated_callable::{
-    ContinuationShellRole, CoroutineAdapterRole, DecodedGeneratedCallableKey,
-    DecodedLexicalCallableParent, GeneratedCallableIdentityError, GeneratedCallableKey,
-    GeneratedCallableResolutionError, InitializationCallableRole, LexicalCallableParent,
-    LexicalCallableRole, LexicalParentError, StaticNoGcCallbackStorageBridgeId,
-    StaticNoGcCallbackStorageBridgeIdentityError,
+    CoroutineAdapterRole, DecodedGeneratedCallableKey, DecodedLexicalCallableParent,
+    GeneratedCallableIdentityError, GeneratedCallableKey, GeneratedCallableResolutionError,
+    InitializationCallableRole, LexicalCallableParent, LexicalCallableRole, LexicalParentError,
+    StaticNoGcCallbackStorageBridgeId, StaticNoGcCallbackStorageBridgeIdentityError,
 };
 pub use generated_nominal::{
     CallableAdapterEnvironmentKey, ClosureEnvironmentRole, DecodedCallableAdapterEnvironmentKey,

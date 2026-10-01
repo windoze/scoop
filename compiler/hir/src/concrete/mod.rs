@@ -33,6 +33,9 @@ pub use super::{
 mod types;
 pub use types::*;
 
+mod type_relations;
+pub use type_relations::*;
+
 mod exact_types;
 pub use exact_types::*;
 

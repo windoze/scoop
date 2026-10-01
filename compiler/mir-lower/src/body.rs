@@ -3,6 +3,7 @@ use super::*;
 mod callbacks;
 mod calls;
 mod casts;
+mod coroutines;
 mod exceptions;
 mod expressions;
 mod function;

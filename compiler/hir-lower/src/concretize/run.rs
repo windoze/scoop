@@ -128,6 +128,7 @@ impl Concretizer<'_> {
                 concrete::ConcreteCoreProtocols::Imported(protocols.clone())
             }
         };
+        let coroutine_protocols = self.build_coroutine_protocols();
         if !self.initialization_requests.is_empty()
             || self.source.cone
                 == scoop_identity::CoreBuiltinNominal::Any
@@ -207,6 +208,7 @@ impl Concretizer<'_> {
             callback_applications: identities.callback_applications,
             function_types: self.function_types,
             native_callback_signatures,
+            coroutine_protocols,
             lambdas: self.lambdas,
             anonymous_functions: self.anonymous_functions,
             local_functions: self.local_functions,

@@ -186,10 +186,26 @@ fn suspend_effect(
                 )
             });
         }
-        mir::Callee::CoroutineSuspend { .. }
-        | mir::Callee::Extern(_)
-        | mir::Callee::External(_)
-        | mir::Callee::Runtime(_) => {
+        mir::Callee::External(external) => {
+            let suspends = lowerer
+                .imported_dependency_callable_map
+                .values()
+                .any(|target| {
+                    target.callable == external
+                        && target.semantic_signature.effect() == scoop_identity::Effect::Suspend
+                });
+            return suspends.then(|| {
+                (
+                    destination,
+                    destination
+                        .map(|local| body.locals[local].ty.clone())
+                        .unwrap_or(mir::Type::Unit),
+                    SuspendKind::Call,
+                    call.pending.clone(),
+                )
+            });
+        }
+        mir::Callee::CoroutineSuspend { .. } | mir::Callee::Extern(_) | mir::Callee::Runtime(_) => {
             return None;
         }
     };

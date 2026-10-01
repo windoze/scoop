@@ -1,0 +1,316 @@
+Module
+  fun exercise<T>(seed: T0, read: (T0) -> Int): Int
+    val local2
+      ClassInit Gate<T0> : Gate<T0>
+    val local3
+      ClassInit Gate<Unit> : Gate<Unit>
+    val local4
+      Call external #0 : Counter
+    val local5
+      ClassInit Completion<T0> : Completion<T0>
+    val local6
+      Local gate : Gate<T0>
+    val local7
+      Local cleanup : Gate<Unit>
+    val local8
+      Local seed : T0
+    val local9
+      Local counter : Counter
+    val local10
+      Local $dependency.argument.0 : Gate<T0>
+    val local11
+      Local $dependency.argument.1 : Gate<Unit>
+    val local12
+      Local $dependency.argument.2 : T0
+    val local13
+      Local $dependency.argument.3 : Counter
+    val local14
+      Call recoveringFunction<T0> : suspend () -> T0
+        Local $dependency.parameter.gate : Gate<T0>
+        Local $dependency.parameter.cleanup : Gate<Unit>
+        Local $dependency.parameter.fallback : T0
+        Local $dependency.parameter.counter : Counter
+    val local15
+      ReferenceUpcast : Continuation<T0>
+        Local done : Completion<T0>
+    val local16
+      Local $dependency.argument.0 : suspend () -> T0
+    val local17
+      Local $dependency.argument.1 : Continuation<T0>
+    Call startCoroutine<T0> : Unit
+      Local $dependency.parameter.task : suspend () -> T0
+      Local $dependency.parameter.completion : Continuation<T0>
+    val local18
+      MethodCall calls<T0> : Int
+        Local done : Completion<T0>
+    val local19
+      IntegerLiteral 0 : Int
+    val local20
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 2 : Int
+    val local21
+      Local gate : Gate<T0>
+    val local22
+      ReferenceUpcast : Throwable
+        Call external #1 : UnwrapException
+    val local23
+      Local $dependency.argument.0 : Throwable
+    MethodCall fail<T0> : Unit
+      Local $dependency.receiver : Gate<T0>
+      Local $dependency.parameter.exception : Throwable
+    val local24
+      MethodCall calls<T0> : Int
+        Local done : Completion<T0>
+    val local25
+      IntegerLiteral 0 : Int
+    val local26
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local30
+        BoolLiteral true : Boolean
+    else
+      val local27
+        Call external #2 : Int
+          Local counter : Counter
+      val local28
+        IntegerLiteral 0 : Int
+      val local29
+        Local $dependency.argument.0 : Int
+      val local30
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.0 : Boolean
+      return
+        IntegerLiteral 3 : Int
+    val local31
+      Local cleanup : Gate<Unit>
+    val local32
+      UnitLiteral : Unit
+    val local33
+      Local $dependency.argument.0 : Unit
+    MethodCall complete<Unit> : Unit
+      Local $dependency.receiver : Gate<Unit>
+      Local $dependency.parameter.value : Unit
+    val local34
+      MethodCall calls<T0> : Int
+        Local done : Completion<T0>
+    val local35
+      IntegerLiteral 1 : Int
+    val local36
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local40
+        BoolLiteral true : Boolean
+    else
+      val local37
+        Call external #2 : Int
+          Local counter : Counter
+      val local38
+        IntegerLiteral 1 : Int
+      val local39
+        Local $dependency.argument.0 : Int
+      val local40
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.1 : Boolean
+      val local44
+        BoolLiteral true : Boolean
+    else
+      val local41
+        CallableCall function_type0 : Int
+          Local read : (T0) -> Int
+          Unwrap trap=true : T0
+            MethodCall value<T0> : Option<T0>
+              Local done : Completion<T0>
+      val local42
+        IntegerLiteral 42 : Int
+      val local43
+        Local $dependency.argument.0 : Int
+      val local44
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.2 : Boolean
+      return
+        IntegerLiteral 4 : Int
+    val local45
+      ClassInit Gate<T0> : Gate<T0>
+    val local46
+      ClassInit Gate<Unit> : Gate<Unit>
+    val local47
+      Call external #0 : Counter
+    val local48
+      ClassInit Completion<T0> : Completion<T0>
+    val local49
+      Lambda lambda0 invoke=$lambda.0 captures=3 : suspend () -> T0
+        capture failedGate binding89 : Gate<T0>
+        capture failedCleanup binding90 : Gate<Unit>
+        capture failedCounter binding91 : Counter
+    val local50
+      Local task : suspend () -> T0
+    val local51
+      ReferenceUpcast : Continuation<T0>
+        Local failed : Completion<T0>
+    val local52
+      Local $dependency.argument.0 : suspend () -> T0
+    val local53
+      Local $dependency.argument.1 : Continuation<T0>
+    Call startCoroutine<T0> : Unit
+      Local $dependency.parameter.task : suspend () -> T0
+      Local $dependency.parameter.completion : Continuation<T0>
+    val local54
+      Local failedGate : Gate<T0>
+    val local55
+      ReferenceUpcast : Throwable
+        Call external #1 : UnwrapException
+    val local56
+      Local $dependency.argument.0 : Throwable
+    MethodCall fail<T0> : Unit
+      Local $dependency.receiver : Gate<T0>
+      Local $dependency.parameter.exception : Throwable
+    val local57
+      MethodCall calls<T0> : Int
+        Local failed : Completion<T0>
+    val local58
+      IntegerLiteral 0 : Int
+    val local59
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local63
+        BoolLiteral true : Boolean
+    else
+      val local60
+        Call external #2 : Int
+          Local failedCounter : Counter
+      val local61
+        IntegerLiteral 0 : Int
+      val local62
+        Local $dependency.argument.0 : Int
+      val local63
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.3 : Boolean
+      return
+        IntegerLiteral 5 : Int
+    val local64
+      Call external #0 : Counter
+    val local65
+      Local retained : Counter
+    Call external #3 : Unit
+      Local $place.4 : Counter
+      IntegerLiteral 42 : Int
+    val local66
+      Local failedCleanup : Gate<Unit>
+    val local67
+      UnitLiteral : Unit
+    val local68
+      Local $dependency.argument.0 : Unit
+    MethodCall complete<Unit> : Unit
+      Local $dependency.receiver : Gate<Unit>
+      Local $dependency.parameter.value : Unit
+    val local69
+      MethodCall calls<T0> : Int
+        Local failed : Completion<T0>
+    val local70
+      IntegerLiteral 1 : Int
+    val local71
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local75
+        BoolLiteral true : Boolean
+    else
+      val local72
+        Call external #2 : Int
+          Local failedCounter : Counter
+      val local73
+        IntegerLiteral 1 : Int
+      val local74
+        Local $dependency.argument.0 : Int
+      val local75
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.5 : Boolean
+      val local79
+        BoolLiteral true : Boolean
+    else
+      val local76
+        Call external #2 : Int
+          Local retained : Counter
+      val local77
+        IntegerLiteral 42 : Int
+      val local78
+        Local $dependency.argument.0 : Int
+      val local79
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.6 : Boolean
+      return
+        IntegerLiteral 6 : Int
+    val local80
+      IsInstance UnwrapException : Boolean
+        Unwrap trap=true : Throwable
+          MethodCall failure<T0> : Option<Throwable>
+            Local failed : Completion<T0>
+    if
+      PrimitiveUnary BooleanNot : Boolean
+        Local $dependency.receiver : Boolean
+      return
+        IntegerLiteral 7 : Int
+    return
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        Local seed : T0
+  fun result(): Int
+    val local0
+      IntegerLiteral 42 : Int
+    val local1
+      Lambda lambda1 invoke=$lambda.1 captures=0 : (Int) -> Int
+    val local2
+      Local $argument.0 : Int
+    val local3
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.seed : Int
+        Local $parameter.read : (Int) -> Int
+  output library
+  instance exercise<Int>

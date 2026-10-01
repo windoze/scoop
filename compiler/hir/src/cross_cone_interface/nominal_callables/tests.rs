@@ -202,15 +202,24 @@ fn ordinary_scoop_function_with_core_closed_signature_is_executable() {
 }
 
 #[test]
-fn unsupported_execution_and_signature_shapes_remain_semantic_only() {
+fn suspend_callables_retain_the_source_effect_and_result() {
+    let (classifier, unit, exact) = classifier();
+    let callable = callable(
+        SignatureTypeKey::Nominal(unit),
+        Effect::Suspend,
+        CallableImplementationV1::Scoop,
+        GcEffect::Managed,
+    );
+    let classified = classifier.classify_callable(&callable).unwrap().unwrap();
+    assert_eq!(classified.signature().effect(), Effect::Suspend);
+    assert_eq!(classified.signature().result(), exact);
+    assert_eq!(classified.direct_declaration(), None);
+}
+
+#[test]
+fn external_and_unresolved_signatures_remain_semantic_only() {
     let (classifier, unit, _) = classifier();
     let cases = [
-        callable(
-            SignatureTypeKey::Nominal(unit),
-            Effect::Suspend,
-            CallableImplementationV1::Scoop,
-            GcEffect::Managed,
-        ),
         callable(
             SignatureTypeKey::Nominal(unit),
             Effect::Ordinary,

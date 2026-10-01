@@ -25,6 +25,7 @@ pub(super) struct Signatures<'a> {
 pub(super) fn signatures<'a>(
     foundation: &'a CanonicalMirFoundation,
     identities: &ValidatedIdentityGraph,
+    callables: Option<&'a scoop_mir::CanonicalMirCallableBindingsV1>,
 ) -> Result<Signatures<'a>, Error> {
     let mut applications = BTreeMap::new();
     let mut generated = BTreeSet::new();
@@ -52,7 +53,15 @@ pub(super) fn signatures<'a>(
             .origin();
         let entry = ApplicationSignature {
             origin,
-            signature: signature.signature(),
+            // Shared bindings retain the source signature; the foundation
+            // records the physical continuation/step ABI of suspend bodies.
+            signature: callables
+                .and_then(|callables| {
+                    callables.get(scoop_identity::CallableDefinitionOwner::Odr(member))
+                })
+                .map_or(signature.signature(), |binding| {
+                    binding.semantic_signature().exact()
+                }),
             group: key.group(),
         };
         if applications.insert(application, entry).is_some() {

@@ -15,6 +15,11 @@ impl MirCallableBridgeAuthority<'_> {
         let lowered = binding.lowered.exact();
         match (generated, binding.role) {
             (
+                GeneratedCallableKey::CoroutineStart { result },
+                MirCallableLoweringRoleV1::CoroutineStart,
+            ) => self.start_signature(binding, *result),
+
+            (
                 GeneratedCallableKey::StaticNoGcCallbackStorageBridge { source, signature },
                 MirCallableLoweringRoleV1::StaticCallbackStorage,
             ) => {
@@ -144,6 +149,7 @@ impl MirCallableBridgeAuthority<'_> {
             }
             (
                 GeneratedCallableKey::StaticNoGcCallbackStorageBridge { .. }
+                | GeneratedCallableKey::CoroutineStart { .. }
                 | GeneratedCallableKey::Initialization { .. }
                 | GeneratedCallableKey::ZeroArgumentConstructorAdapter { .. }
                 | GeneratedCallableKey::DerivedEquality { .. }
@@ -237,11 +243,21 @@ impl MirCallableBridgeAuthority<'_> {
         // callable index, including definitions from dependency providers.
         if semantic.receiver() != OptionalExactOwner::Present(implementor)
             || !lowered.receiver().is_present()
-            || semantic.parameters() != lowered.parameters()
-            || semantic.result() != lowered.result()
         {
             return Err(MirCallableBridgeError::InvalidAdjustTarget);
         }
-        Ok(())
+        let adjusted = ExactCallableSignature::new(
+            semantic.effect(),
+            lowered.receiver().into_option(),
+            semantic.parameters().to_vec(),
+            semantic.result(),
+        );
+        if semantic.effect() == scoop_identity::Effect::Suspend {
+            self.coroutine_signature(&adjusted, lowered)
+        } else if &adjusted == lowered {
+            Ok(())
+        } else {
+            Err(MirCallableBridgeError::InvalidAdjustTarget)
+        }
     }
 }

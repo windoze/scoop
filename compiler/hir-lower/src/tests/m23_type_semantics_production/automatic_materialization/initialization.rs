@@ -11,12 +11,10 @@ fn initialization_and_object_ids_follow_materialized_entities_after_skipped_decl
         assert_eq!(local.initialization_units.len(), 3);
         assert_eq!(local.initialization_failure_roots.len(), 3);
         assert!(!nominal_names(local).contains("DeferredHost"));
-        assert!(
-            !local
-                .functions
-                .iter()
-                .any(|(_, function)| function.is_suspend)
-        );
+        for (_, unit) in local.initialization_units.iter() {
+            assert!(!local.functions[unit.initializer].is_suspend);
+            assert!(!local.functions[unit.ensure].is_suspend);
+        }
         for (id, object) in local.objects.iter() {
             let (source_id, source) = export
                 .objects

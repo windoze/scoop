@@ -66,22 +66,27 @@ fn shape_demands_are_validated_against_real_mir_without_a_production_root_copy()
         };
         error
     };
-    for mutate in [
-        |module: &mut scoop_mir::Module| module.meta.coroutine_steps.clear(),
-        |module: &mut scoop_mir::Module| module.meta.coroutine_slots.clear(),
-    ] {
-        let error = invalid_module(mutate);
-        assert!(matches!(
-            error.location,
-            scoop_mir::MirValidationLocation::GeneratedExactType { .. }
-        ));
-        assert_eq!(
-            error.kind,
-            scoop_mir::MirValidationErrorKind::InvalidGeneratedExactType {
-                reason: "the exact-type relation contains an unclaimed generated nominal",
-            }
-        );
-    }
+    let error = invalid_module(|module| module.meta.coroutine_steps.clear());
+    assert_eq!(
+        *error,
+        scoop_mir::MirValidationError {
+            location: scoop_mir::MirValidationLocation::CoroutineStart { start: 0 },
+            kind: scoop_mir::MirValidationErrorKind::InvalidCoroutineMetadata {
+                reason: "coroutine start helper and CoroutineStep disagree on the exact result",
+            },
+        }
+    );
+    let error = invalid_module(|module| module.meta.coroutine_slots.clear());
+    assert!(matches!(
+        error.location,
+        scoop_mir::MirValidationLocation::GeneratedExactType { .. }
+    ));
+    assert_eq!(
+        error.kind,
+        scoop_mir::MirValidationErrorKind::InvalidGeneratedExactType {
+            reason: "the exact-type relation contains an unclaimed generated nominal",
+        }
+    );
     let error = invalid_module(|module| module.meta.boxed_types.clear());
     assert_eq!(
         *error,
@@ -116,11 +121,11 @@ fn seal(
     let module = scoop_mir_lower::lower(&hir.hir.output().local).unwrap();
     let selected = scoop_mir::SelectedExternalMirSet::empty(module.cone);
     let output = scoop_mir::DependencyMirOutput::try_new(module, selected).unwrap();
-    let foundation = output.strong_foundation().unwrap();
+    let foundation = output.foundation();
     let production = scoop_mir_lower::lower_production_section(
         output.module().cone,
         &hir.production_section,
-        &foundation,
+        foundation,
     )
     .unwrap();
     scoop_mir::ConeMirInput::try_new(output, production, sources)

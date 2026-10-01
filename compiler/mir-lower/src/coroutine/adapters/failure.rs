@@ -12,8 +12,8 @@ pub(super) fn generate_failure_method(
     failure_slot: FrameSlot,
     outer_step: &mir::Type,
     outer_continuation: mir::InterfaceId,
-    outer_resume: mir::FunctionId,
-    outer_failure: mir::FunctionId,
+    outer_resume: &mir::CallTarget,
+    outer_failure: &mir::CallTarget,
     driver: mir::FunctionId,
     state: mir::CoroutineSuspendStateId,
     latch: Option<FrameSlot>,
@@ -22,12 +22,7 @@ pub(super) fn generate_failure_method(
         .coroutines
         .step_metadata_for_type(outer_step)
         .completed();
-    let throwable = mir::Type::Class(
-        lowerer.class_map[&crate::defined_protocols(&lowerer.core_protocols)
-            .exceptions
-            .throwable
-            .class()],
-    );
+    let throwable = crate::coroutine_registry::throwable_type(module, &lowerer.class_map);
     let mut locals = Arena::new();
     let this = locals.alloc(local("this", mir::Type::Class(adapter)));
     let exception = locals.alloc(local("exception", throwable.clone()));

@@ -7,6 +7,7 @@
 pub struct ImportedDependencyCallableUse {
     reference: crate::ImportedDependencyCallableRef,
     dispatch: crate::ImportedDependencyDispatch,
+    effect: scoop_identity::Effect,
 }
 
 impl ImportedDependencyCallableUse {
@@ -14,7 +15,12 @@ impl ImportedDependencyCallableUse {
         Self {
             reference: source.reference(),
             dispatch: source.dispatch(),
+            effect: source.effect(),
         }
+    }
+
+    pub const fn effect(self) -> scoop_identity::Effect {
+        self.effect
     }
 
     pub const fn reference(self) -> crate::ImportedDependencyCallableRef {

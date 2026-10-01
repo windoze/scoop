@@ -33,22 +33,35 @@ Module
   class Throwable vtable=0 itables=0
   class Calculator<Int> vtable=0 itables=0
   class ExtensionCalculator<Int> vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
   class box<Packet> vtable=0 itables=0
   class box<Int> vtable=0 itables=0
   interface Iterable<Int>
   interface Iterator<Int>
+  interface Continuation<Packet>
+  interface SuspendTask<Packet>
+  interface SuspendRegistration<Packet>
+  interface Continuation<Tape>
+  interface SuspendTask<Tape>
+  interface SuspendRegistration<Tape>
+  interface Continuation<Ordinary>
+  interface SuspendTask<Ordinary>
+  interface SuspendRegistration<Ordinary>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn11 captures=0
-    bridge function_type1 -> @fn28 id=1f0a1713fe9afb4b19b41a7a8fa3f85ba82237b397a1389dffac7880f0727e80
+    bridge function_type1 -> @fn43 id=1f0a1713fe9afb4b19b41a7a8fa3f85ba82237b397a1389dffac7880f0727e80
   generated_exact_type get0 location=closure0 nominal_id=86fa621ca7aa94f00fe43690b39417e771df248888dda42b673aa0b3ed934f2d exact_id=1a3a5865ae7c6f306f38590de76d77f4b11ec877ab6554ee346ee5e8527db9b2
   generated_exact_type get1 location=enum4 nominal_id=f7592d0b758cd586d13e49b23e8ef1d9bb3d124c3bf6c405683c376240cc8a7a exact_id=361a021b859ece4af67003edd713d1ea48bb69cb7495c5315e658ef164b0088d
   generated_exact_type get2 location=enum7 nominal_id=721e61750f3b2fd7a0828101e8abc641765868faa0bd47fb33d1a5a369799085 exact_id=4df4baee3c2c15d7a45da7affa1c66d245174ce08672bee997f5cff608909fd9
   generated_exact_type get3 location=enum8 nominal_id=dddab312d8ac0cf2c43b18a1ca61fccc71d5ea0462cbf1f6cb24cfb42e361de0 exact_id=5ecbbed881462555671ff96025a3373fbb6e925a84d856a33a25bd301a12e00f
-  generated_exact_type get4 location=class9 nominal_id=e903c76d047bf056c125937696430e02c024a17fad5732b3a1feb9298b0e16dd exact_id=74a2ce4ed725d06a1b2c9a81a6d60ccd5b3e73ac4651bf3a94e6b01a36e3bb1e
+  generated_exact_type get4 location=class10 nominal_id=e903c76d047bf056c125937696430e02c024a17fad5732b3a1feb9298b0e16dd exact_id=74a2ce4ed725d06a1b2c9a81a6d60ccd5b3e73ac4651bf3a94e6b01a36e3bb1e
   generated_exact_type get5 location=enum6 nominal_id=7c829d8295356516cf41f5f65cc58c37bbea74f2f9921fd230170cd5ed65e72f exact_id=7f879f253fcbb167646d5889e55ce6de0b304bc0b87784cba95915978240ac3a
   generated_exact_type get6 location=enum3 nominal_id=40b5f1e33375f2773a47aa4893bed8f6578c36ff30a6189b25cbde004f9a1749 exact_id=a40754345291a7953faf17e0cad6cf2e14c6f50430897257f577bc6c7826a1e9
   generated_exact_type get7 location=enum5 nominal_id=da559d2f569a2d73ef9617ab8d5ec3bb60858df9274ac6c30a368ce253eeb880 exact_id=c257d398e24228378a4d7cbe50d809a999d68e412b8556e78af6185786ab126a
-  generated_exact_type get8 location=class10 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
-  generated_callable gc0 function=@fn28 id=1f0a1713fe9afb4b19b41a7a8fa3f85ba82237b397a1389dffac7880f0727e80
+  generated_exact_type get8 location=class11 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn43 id=1f0a1713fe9afb4b19b41a7a8fa3f85ba82237b397a1389dffac7880f0727e80
+  generated_callable gc1 function=@fn42 id=27ae45910325702b3c64339f6c82e6ae9c897a3f3ed480c2d33a7fb4b4af1f81
+  generated_callable gc2 function=@fn40 id=f4819c9cd3140900abd0b76981c0128371a621ac903bf70b2db45bf5489b937d
+  generated_callable gc3 function=@fn41 id=ff83dcffe46fb3a7ee8f669ff72308340c27526e51647ab4eeb4be2d2b2784b8
   fun Tape.mark @fn0(this: Tape, value: Int) -> Int
     bb0 entry
       call $dependency.receiver: Int = @fn2 direct
@@ -163,7 +176,7 @@ Module
       assign $new.1
         Type ArrayIterator<Int>
         ClassAlloc ArrayIterator<Int>
-      call @fn25 direct
+      call @fn37 direct
         Type ArrayIterator<Int>
         Local $new.1
         Type Array<Int>
@@ -362,7 +375,7 @@ Module
       assign $new.1
         Type Tape
         ClassAlloc Tape
-      call @fn23 direct
+      call @fn35 direct
         Type Tape
         Local $new.1
       val tape: Tape
@@ -840,7 +853,7 @@ Module
       assign $new.5
         Type Calculator<Int>
         ClassAlloc Calculator<Int>
-      call @fn26 direct
+      call @fn38 direct
         Type Calculator<Int>
         Local $new.5
         Type Int
@@ -1180,7 +1193,7 @@ Module
       assign $new.7
         Type ExtensionCalculator<Int>
         ClassAlloc ExtensionCalculator<Int>
-      call @fn27 direct
+      call @fn39 direct
         Type ExtensionCalculator<Int>
         Local $new.7
         Type Int
@@ -1858,7 +1871,43 @@ Module
           Local $dependency.receiver
           Type Int
           Local $dependency.parameter.other
-  fun init.Tape.$c0 @fn23(this: Tape) -> Unit
+  fun Continuation.resume @fn23(this: Continuation<Packet>, value: Packet) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn24(this: Continuation<Packet>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn25(this: SuspendTask<Packet>, $completion: Continuation<Packet>) -> CoroutineStep<Packet>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn26(this: SuspendRegistration<Packet>, continuation: Continuation<Packet>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn27(this: Continuation<Tape>, value: Tape) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn28(this: Continuation<Tape>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn29(this: SuspendTask<Tape>, $completion: Continuation<Tape>) -> CoroutineStep<Tape>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn30(this: SuspendRegistration<Tape>, continuation: Continuation<Tape>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn31(this: Continuation<Ordinary>, value: Ordinary) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn32(this: Continuation<Ordinary>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn33(this: SuspendTask<Ordinary>, $completion: Continuation<Ordinary>) -> CoroutineStep<Ordinary>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn34(this: SuspendRegistration<Ordinary>, continuation: Continuation<Ordinary>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Tape.$c0 @fn35(this: Tape) -> Unit
     bb0 entry
       field_set 0
         Type Tape
@@ -1871,10 +1920,10 @@ Module
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       return
-  fun init.Ordinary.$c3 @fn24(this: Ordinary) -> Unit
+  fun init.Ordinary.$c3 @fn36(this: Ordinary) -> Unit
     bb0 entry
       return
-  fun init.ArrayIterator.$c0 @fn25(this: ArrayIterator<Int>, source: Array<Int>, index: Long) -> Unit
+  fun init.ArrayIterator.$c0 @fn37(this: ArrayIterator<Int>, source: Array<Int>, index: Long) -> Unit
     bb0 entry
       field_set 0
         Type ArrayIterator<Int>
@@ -1887,7 +1936,7 @@ Module
         Type Long
         Local index
       return
-  fun init.Calculator.$c1 @fn26(this: Calculator<Int>, value: Int, tape: Tape, first: Int, second: Int) -> Unit
+  fun init.Calculator.$c1 @fn38(this: Calculator<Int>, value: Int, tape: Tape, first: Int, second: Int) -> Unit
     bb0 entry
       field_set 0
         Type Calculator<Int>
@@ -1910,7 +1959,7 @@ Module
         Type Int
         Local second
       return
-  fun init.ExtensionCalculator.$c2 @fn27(this: ExtensionCalculator<Int>, value: Int, tape: Tape) -> Unit
+  fun init.ExtensionCalculator.$c2 @fn39(this: ExtensionCalculator<Int>, value: Int, tape: Tape) -> Unit
     bb0 entry
       field_set 0
         Type ExtensionCalculator<Int>
@@ -1923,7 +1972,133 @@ Module
         Type Tape
         Local tape
       return
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn28($source: (Int) -> Int, arg0: Any) -> Any
+  fun startCoroutine<Ordinary> @fn40(task: SuspendTask<Ordinary>, completion: Continuation<Ordinary>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn31 interface Continuation<Ordinary>[0]
+        Type Continuation<Ordinary>
+        Local completion
+        Type Ordinary
+        EnumField v0 f0
+          Type CoroutineStep<Ordinary>
+          Local $step
+      return
+    bb2 failed
+      call @fn32 interface Continuation<Ordinary>[1]
+        Type Continuation<Ordinary>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Ordinary> = @fn33 interface SuspendTask<Ordinary>[0]
+        Type SuspendTask<Ordinary>
+        Local task
+        Type Continuation<Ordinary>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Ordinary>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Tape> @fn41(task: SuspendTask<Tape>, completion: Continuation<Tape>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn27 interface Continuation<Tape>[0]
+        Type Continuation<Tape>
+        Local completion
+        Type Tape
+        EnumField v0 f0
+          Type CoroutineStep<Tape>
+          Local $step
+      return
+    bb2 failed
+      call @fn28 interface Continuation<Tape>[1]
+        Type Continuation<Tape>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Tape> = @fn29 interface SuspendTask<Tape>[0]
+        Type SuspendTask<Tape>
+        Local task
+        Type Continuation<Tape>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Tape>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Packet> @fn42(task: SuspendTask<Packet>, completion: Continuation<Packet>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn23 interface Continuation<Packet>[0]
+        Type Continuation<Packet>
+        Local completion
+        Type Packet
+        EnumField v0 f0
+          Type CoroutineStep<Packet>
+          Local $step
+      return
+    bb2 failed
+      call @fn24 interface Continuation<Packet>[1]
+        Type Continuation<Packet>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Packet> = @fn25 interface SuspendTask<Packet>[0]
+        Type SuspendTask<Packet>
+        Local task
+        Type Continuation<Packet>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Packet>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn43($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
@@ -1943,6 +2118,12 @@ Module
   coroutine_slot cl0 CoroutineSlot<Ordinary> value=Ordinary
   coroutine_slot cl1 CoroutineSlot<Tape> value=Tape
   coroutine_slot cl2 CoroutineSlot<Packet> value=Packet
+  coroutine_start ct0 result=Ordinary function=fn40
+  coroutine_start ct1 result=Tape function=fn41
+  coroutine_start ct2 result=Packet function=fn42
+  coroutine_fn cf0 @fn25 source_return=Packet step=cs2 immediate
+  coroutine_fn cf1 @fn29 source_return=Tape step=cs1 immediate
+  coroutine_fn cf2 @fn33 source_return=Ordinary step=cs0 immediate
   instance mi0 function=@fn6 <- iterator
   instance mi1 function=@fn10 <- next
   instance mi2 function=@fn12 <- exercise
@@ -1956,4 +2137,16 @@ Module
   instance mi10 function=@fn20 <- Calculator.invoke
   instance mi11 function=@fn21 <- ExtensionCalculator.$get$tape
   instance mi12 function=@fn22 <- $extension.invoke
+  instance mi13 function=@fn23 <- Continuation.resume
+  instance mi14 function=@fn24 <- Continuation.resumeWithException
+  instance mi15 function=@fn25 <- SuspendTask.run
+  instance mi16 function=@fn26 <- SuspendRegistration.register
+  instance mi17 function=@fn27 <- Continuation.resume
+  instance mi18 function=@fn28 <- Continuation.resumeWithException
+  instance mi19 function=@fn29 <- SuspendTask.run
+  instance mi20 function=@fn30 <- SuspendRegistration.register
+  instance mi21 function=@fn31 <- Continuation.resume
+  instance mi22 function=@fn32 <- Continuation.resumeWithException
+  instance mi23 function=@fn33 <- SuspendTask.run
+  instance mi24 function=@fn34 <- SuspendRegistration.register
   output library

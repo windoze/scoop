@@ -15,7 +15,7 @@
 | 泛型函数 | top-level、extension、local function 及 final generic method 可从依赖模板实例化；显式实参、`_`、推导、class/interface 与 `value`/`ref` bound 使用同一前端 |
 | 泛型名义类型 | class、struct、enum、interface 的完整 application 保留真实字段、父类型、构造器、成员、属性、默认实现、exact RTTI 与 ABI |
 | 模板内部实现依赖 | 可引用定义处合法的 private/internal helper、类型与属性；名称查找仍只公开原来的 public binding |
-| 函数值与生成实体 | 实例化正文中的 lambda/local function、capture、callable reference、function adapter、coroutine frame/step/slot/shell/start 形成完整的 typed 定义与引用 |
+| 函数值与生成实体 | 实例化正文中的 lambda/local function、capture、callable reference、function adapter、coroutine frame/step/slot/start 形成完整的 typed 定义与引用 |
 | 泛型委托扩展属性 | getter/setter 共用由 property origin 与完整 receiver arguments 决定的 lazy storage、cell、failure root 和初始化实现 |
 | 产物与 ODR | Strong 与 ODR 共用正式生产、读取和对象处理路径；重复 member 必须定义一致，同组独立 helper 可以按实际需要分别发射 |
 
@@ -246,7 +246,7 @@ core 的 `Option` 语法使用既有 imported protocol 的 typed owner/variant/p
 | generic delegate storage 和 initialization | `SpecializationKey::DelegatedProperty` |
 | tuple、function、raw/native pointer 的结构形状 | `SpecializationKey::StructuralType` |
 | closure/coroutine frame 及其本体 helper | enclosing callable 或 initialization materialization |
-| box、coroutine step/slot、shell/start、derived equality | 既有 `ExactOwnerRoot` |
+| box、coroutine step/slot/start、derived equality | 既有 `ExactOwnerRoot` |
 | static/dynamic function adapter 及 environment | 既有目标 `FunctionShape` 的 Structural root，source signature 仍属于 member key |
 | dispatch/boxing adjust | implementor/payload 的既有 root；slot 和目标实现是 typed 依赖 |
 
@@ -282,11 +282,17 @@ descriptor 的父类型或接口已在当前 MIR 表示清单与 LIR instance la
 
 ### 5.3 参数自由类型的有限支持
 
-M23-6 已发布的 box、coroutine step/slot 继续由 source nominal 的定义 Cone 提供。M23-7 为可跨 Cone 请求的参数自由 source exact 补齐 `ContinuationShell<R>` 的 success/failure 与 `CoroutineStart<R>`、canonical ABI、callable registration 及其真实 `Continuation<R>`/`SuspendTask<R>` 依赖。
+M23-6 已发布的 box、coroutine step/slot 继续由 source nominal 的定义 Cone 提供。M23-7 为可跨 Cone 请求的参数自由 source exact 补齐 `CoroutineStart<R>`、canonical ABI、callable registration 及其真实 `Continuation<R>`/`SuspendTask<R>` 依赖。continuation 派发直接引用实际具体化的 `resume`／`resumeWithException` 声明及其槽；旧 `ContinuationShell` 只重复保存这两个签名，并无独立执行正文，予以删除。generated callable 的旧 tag 10 退役，不再生成或复用。
 
-这些依赖 application 只产生其表示、dispatch 和实际被调用的方法，不递归补齐所有新 application 的 shell/start。对 nominal application 和结构类型，helper 按实际使用物化，并仍归既有 root；member 并集规则使不同使用集合可以正常链接。
+这些依赖 application 只产生其表示、dispatch 和实际被调用的方法，不递归补齐所有新 application 的 start。对 nominal application 和结构类型，helper 按实际使用物化，并仍归既有 root；member 并集规则使不同使用集合可以正常链接。
 
 缺失定义方的参数自由 helper 是产物错误，不能由消费方生成第二个 Strong 或伪造 Structural root。
+
+reader 在共有 MIR 与实际 core 协议相接的边界核对有限 shape-support 根各自的 start，并检查 start 的 task/completion 参数及挂起 callable 的隐藏 continuation 引用实际 core 协议类型。其他签名、step、归属和 ABI 不变量复用 MIR 表已经完成的验证，不重新执行源码语义或布局检查。
+
+core 定义处按协议成员名称和签名选择 typed declaration，不限制 `Continuation` 的两个方法的源码顺序。具体化、状态机和派发表均保留实际方法槽；调换声明顺序后重建 core 的真实产物必须仍能恢复值与异常。
+
+协议实例由共同 HIR 具体化工作队列从实际 core 声明请求；LocalConcrete HIR 的完整协程协议集合不依赖 core 是本地定义还是外来产物。intrinsic 使用其真实签名与 kind，抽象协议成员使用既有成员实例。源挂起 callable 的语义签名与内部 continuation/step ABI 分开保留，外来调用仍由原 MIR 状态机处理。MIR 派发槽使用相同的内部签名；抽象接口槽也从实际结果类型的协议实例取得 continuation 类型，不要求额外生成可执行正文。有限支持根包含实际共有表示所需的私有声明，继续排除无关私有类型；协议自身新生成的 nominal application 只补齐直接表示与调用依赖。
 
 ## 6. MIR 与 LIR 的统一生产
 
@@ -509,7 +515,7 @@ HIR→MIR 的调用对接按每个 call site 的真实 application 查消费方�
 | `org.scoop-lang.manifest/single-cone-production` | `/2` | 保留单 Cone 产物含义，完整 Strong/ODR materialization 与新增必需 ODR member 目录 |
 | `org.scoop-lang.hir/cross-cone-interface` | `/43` | 保留名义实例化条件；Literal field 1 使用完整 typed 表达式，保留原定义与求值位置；捕获 field 4 分离读取值来源与原绑定；for 在 Export 前展开，撤销专用 For 与 portable binding-plan 编码；公开绑定引用不要求终点 provider 是 direct；AliasTarget 只保存实际 typed 引用；原 field 1～10 保持；必需 field 11、12、13 分别承载 callable body、constructor initialization 与 delegate template；实际调用记录保存 application，共享表达式保存原求值位置，bound receiver 保存完整类型 key |
 | `org.scoop-lang.hir/cross-cone-type-semantics` | `/11` | exact application 的完整 facts、继承和 actual type uses；退役重复 slot domain field 5 与槽根／目标 owner field 2，以原声明和完整 receiver 查询泛型父类型 |
-| `org.scoop-lang.mir/cross-cone-type-bridge` | `/5` | 参数自由 NoGC callback storage 使用 role tag 12，语义签名保留源函数、物理签名为结果及参数的 Ptr 序列并返回 Unit； 原类型表示表保存 application origin；callable 和实际 dispatch 使用 Strong/ODR 目标；槽种类 tag 3 保存 interface 的完整签名契约，与具有必需实现的物理表项分开 |
+| `org.scoop-lang.mir/cross-cone-type-bridge` | `/6` | 协程启动 helper 使用 role tag 13，保留真实 task/continuation 参数及完整 ABI；挂起声明保存源码与内部 continuation/step 两个签名；参数自由 NoGC callback storage 使用 role tag 12，语义签名保留源函数、物理签名为结果及参数的 Ptr 序列并返回 Unit； 原类型表示表保存 application origin；callable 和实际 dispatch 使用 Strong/ODR 目标；槽种类 tag 3 保存 interface 的完整签名契约，与具有必需实现的物理表项分开 |
 | `org.scoop-lang.lir/identity-foundation` | `/2` | 新的 member digest owner；拒绝旧 group owner tag 8 |
 | `org.scoop-lang.lir/cross-cone-layout-abi` | `/5` | 布局、descriptor、dispatch 和 callable 的 Strong/ODR 定义引用；完整 callable ABI 保留实际 callable member |
 | `org.scoop-lang.lir/cross-cone-link-closure` | `/2` | 普通 callable requirement 扩展到实际 ODR target |

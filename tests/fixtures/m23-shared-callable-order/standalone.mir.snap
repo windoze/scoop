@@ -12,30 +12,35 @@ Module
   class ArithmeticException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
   class box<Int> vtable=0 itables=0
+  interface Continuation<Tape>
+  interface SuspendTask<Tape>
+  interface SuspendRegistration<Tape>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn7 captures=0
-    bridge function_type1 -> @fn15 id=a1467fa26dd7d064714edb98b5721c45efe78d8a3c1eade4652c72dd377f14de
+    bridge function_type1 -> @fn20 id=a1467fa26dd7d064714edb98b5721c45efe78d8a3c1eade4652c72dd377f14de
   closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn10 captures=0
-    bridge function_type3 -> @fn16 id=77d0841f0cafc7e265d8065d5c600436e811796f8d284fcd1918c455f1c01bec
+    bridge function_type3 -> @fn21 id=77d0841f0cafc7e265d8065d5c600436e811796f8d284fcd1918c455f1c01bec
   closure cc2 $Closure$lambda2 type=function_type2 invoke=@fn11 captures=0
-    bridge function_type3 -> @fn17 id=be7d3fdae440fdc50af25b95ae39283e1f127bfa0d171a290d0c74a6ed5778a5
+    bridge function_type3 -> @fn22 id=be7d3fdae440fdc50af25b95ae39283e1f127bfa0d171a290d0c74a6ed5778a5
   closure cc3 $Closure$lambda3 type=function_type2 invoke=@fn12 captures=0
-    bridge function_type3 -> @fn18 id=45ebca78919fa8addea5d1922d7356ce0e4cf22ed97b0395593c94e9e7490aa6
+    bridge function_type3 -> @fn23 id=45ebca78919fa8addea5d1922d7356ce0e4cf22ed97b0395593c94e9e7490aa6
   closure cc4 $Closure$lambda4 type=function_type2 invoke=@fn13 captures=2
-    bridge function_type3 -> @fn19 id=4adb46e7645f01503c7e2ee95662e26ce8b73cf640bbca483848d2e9af1cc63a
+    bridge function_type3 -> @fn24 id=4adb46e7645f01503c7e2ee95662e26ce8b73cf640bbca483848d2e9af1cc63a
   generated_exact_type get0 location=closure2 nominal_id=425ddbfeaa91a57081f46108417766990d883ea141821994b76b02d49ceb2d7d exact_id=05496ab8edeff709d5cb22346e68b2a0b3c9a2ba6a8ac5da7aa04e98cf95062e
   generated_exact_type get1 location=closure1 nominal_id=410f07fc335127286ee54b5d1c5ec2807fafc851f9d6fa60dd0b7fad849f2283 exact_id=1a1e73ab003c866c9f8f519023ec541c75196f64f9cf8e9d2098c688a26c7575
   generated_exact_type get2 location=enum1 nominal_id=baba3f378b1ca86f5b4f2df244f9a5f3a92f9adeb171ef2fb692be61d2f86215 exact_id=5375731fbada1437f853c2211383b8457ce3a17af1b14dcc31d3d3bb544cf129
   generated_exact_type get3 location=enum2 nominal_id=ac3ff7fb94f78ed53167337ba8fdc47b5f09d6af75a353f5b608e93a5be88737 exact_id=66dec3e30166b54fb7fbb36efeb0b71c364de4f850620663b773494420ad0a94
   generated_exact_type get4 location=closure0 nominal_id=a86ce2a0d423cddb4def3306f82682a1c1c8e18b3d4d085e32c20bdf5c7a1c00 exact_id=8c4da86c56aeb0c0b8eb54818fc411d55934adc40568739660f302a1a2609f07
   generated_exact_type get5 location=closure3 nominal_id=e3b9914854d88ec4674743116ad4cd105d4c55a7a227499fec0406e743f6340f exact_id=ae7a1c3bb52306dcf5b47acb94146f075c9e66005cec04d5c31896ca29e5d8e1
-  generated_exact_type get6 location=class4 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get6 location=class5 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get7 location=closure4 nominal_id=2bdd3d437901f5bfb763724fec2585b245378c30a3a3bfa53277bb4c7a85a800 exact_id=e889568d90aa23935278d1062f44ba66f569783fb97ed08f9c8f26475dc1bf64
-  generated_callable gc0 function=@fn18 id=45ebca78919fa8addea5d1922d7356ce0e4cf22ed97b0395593c94e9e7490aa6
-  generated_callable gc1 function=@fn19 id=4adb46e7645f01503c7e2ee95662e26ce8b73cf640bbca483848d2e9af1cc63a
-  generated_callable gc2 function=@fn16 id=77d0841f0cafc7e265d8065d5c600436e811796f8d284fcd1918c455f1c01bec
-  generated_callable gc3 function=@fn15 id=a1467fa26dd7d064714edb98b5721c45efe78d8a3c1eade4652c72dd377f14de
-  generated_callable gc4 function=@fn17 id=be7d3fdae440fdc50af25b95ae39283e1f127bfa0d171a290d0c74a6ed5778a5
+  generated_callable gc0 function=@fn23 id=45ebca78919fa8addea5d1922d7356ce0e4cf22ed97b0395593c94e9e7490aa6
+  generated_callable gc1 function=@fn24 id=4adb46e7645f01503c7e2ee95662e26ce8b73cf640bbca483848d2e9af1cc63a
+  generated_callable gc2 function=@fn21 id=77d0841f0cafc7e265d8065d5c600436e811796f8d284fcd1918c455f1c01bec
+  generated_callable gc3 function=@fn20 id=a1467fa26dd7d064714edb98b5721c45efe78d8a3c1eade4652c72dd377f14de
+  generated_callable gc4 function=@fn22 id=be7d3fdae440fdc50af25b95ae39283e1f127bfa0d171a290d0c74a6ed5778a5
+  generated_callable gc5 function=@fn19 id=c8f0454e6be3688e6078f99b5de4ee9a69d88b22b1ccc3927b75c95216d57d98
   fun Tape.mark @fn0(this: Tape, value: Int) -> Int
     bb0 entry
       call $dependency.receiver: Int = @fn2 direct
@@ -143,7 +148,7 @@ Module
       assign $new.1
         Type Tape
         ClassAlloc Tape
-      call @fn14 direct
+      call @fn18 direct
         Type Tape
         Local $new.1
       val tape: Tape
@@ -895,7 +900,19 @@ Module
         ClosureCapture cc4 1
           Type (Int, Int) -> Int
           Local $closure
-  fun init.Tape.$c0 @fn14(this: Tape) -> Unit
+  fun Continuation.resume @fn14(this: Continuation<Tape>, value: Tape) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn15(this: Continuation<Tape>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn16(this: SuspendTask<Tape>, $completion: Continuation<Tape>) -> CoroutineStep<Tape>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn17(this: SuspendRegistration<Tape>, continuation: Continuation<Tape>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Tape.$c0 @fn18(this: Tape) -> Unit
     bb0 entry
       field_set 0
         Type Tape
@@ -903,7 +920,49 @@ Module
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       return
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn15($source: (Int) -> Int, arg0: Any) -> Any
+  fun startCoroutine<Tape> @fn19(task: SuspendTask<Tape>, completion: Continuation<Tape>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn14 interface Continuation<Tape>[0]
+        Type Continuation<Tape>
+        Local completion
+        Type Tape
+        EnumField v0 f0
+          Type CoroutineStep<Tape>
+          Local $step
+      return
+    bb2 failed
+      call @fn15 interface Continuation<Tape>[1]
+        Type Continuation<Tape>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Tape> = @fn16 interface SuspendTask<Tape>[0]
+        Type SuspendTask<Tape>
+        Local task
+        Type Continuation<Tape>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Tape>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn20($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
@@ -917,7 +976,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda1.(Any, Any) -> Any @fn16($source: (Int, Int) -> Int, arg0: Any, arg1: Any) -> Any
+  fun function_bridge.$Closure$lambda1.(Any, Any) -> Any @fn21($source: (Int, Int) -> Int, arg0: Any, arg1: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Int, Int) -> Int
@@ -935,7 +994,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda2.(Any, Any) -> Any @fn17($source: (Int, Int) -> Int, arg0: Any, arg1: Any) -> Any
+  fun function_bridge.$Closure$lambda2.(Any, Any) -> Any @fn22($source: (Int, Int) -> Int, arg0: Any, arg1: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Int, Int) -> Int
@@ -953,7 +1012,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda3.(Any, Any) -> Any @fn18($source: (Int, Int) -> Int, arg0: Any, arg1: Any) -> Any
+  fun function_bridge.$Closure$lambda3.(Any, Any) -> Any @fn23($source: (Int, Int) -> Int, arg0: Any, arg1: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Int, Int) -> Int
@@ -971,7 +1030,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda4.(Any, Any) -> Any @fn19($source: (Int, Int) -> Int, arg0: Any, arg1: Any) -> Any
+  fun function_bridge.$Closure$lambda4.(Any, Any) -> Any @fn24($source: (Int, Int) -> Int, arg0: Any, arg1: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Int, Int) -> Int
@@ -991,10 +1050,16 @@ Module
           Local $call.1
   coroutine_step cs0 CoroutineStep<Tape> result=Tape
   coroutine_slot cl0 CoroutineSlot<Tape> value=Tape
+  coroutine_start ct0 result=Tape function=fn19
+  coroutine_fn cf0 @fn16 source_return=Tape step=cs0 immediate
   instance mi0 function=@fn8 <- exercise
   instance mi1 function=@fn9 <- prepare
   instance mi2 function=@fn10 <- $lambda.1
   instance mi3 function=@fn11 <- $lambda.2
   instance mi4 function=@fn12 <- $lambda.3
   instance mi5 function=@fn13 <- $lambda.0
+  instance mi6 function=@fn14 <- Continuation.resume
+  instance mi7 function=@fn15 <- Continuation.resumeWithException
+  instance mi8 function=@fn16 <- SuspendTask.run
+  instance mi9 function=@fn17 <- SuspendRegistration.register
   output library

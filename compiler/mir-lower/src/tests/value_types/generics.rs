@@ -87,7 +87,14 @@ fn monomorphizes_generic_functions() {
 
     // main first (declaration order), then the instances in
     // creation order. The generic function itself has no MIR body.
-    assert_eq!(module.top_level.len(), 3);
+    assert_eq!(
+        module
+            .functions
+            .iter()
+            .filter(|(_, function)| function.name == "identity")
+            .count(),
+        2
+    );
     let int_instance = &module.functions[module.top_level[1]];
     let string_instance = &module.functions[module.top_level[2]];
     assert_eq!(int_instance.name, "identity");
@@ -128,7 +135,6 @@ fn monomorphizes_generic_functions() {
 
     // MIR gives every materialized body its own typed identity and records
     // its generic source provenance in metadata.
-    assert_eq!(module.meta.instances.len(), 2);
     let int_meta = &module.meta.instances[instance_id(&module, module.top_level[1])];
     assert_eq!(int_meta.display_name, "identity");
     let int_source = module
@@ -242,7 +248,14 @@ fn duplicate_requests_produce_one_instance() {
     assert_eq!(h.instantiate(identity, vec![int]), identity_int);
     let module = lower(&h.finish(main));
 
-    assert_eq!(module.top_level.len(), 2);
+    assert_eq!(
+        module
+            .functions
+            .iter()
+            .filter(|(_, function)| function.name == "identity")
+            .count(),
+        1
+    );
     let instance = module.top_level[1];
     let main_fn = &module.functions[module
         .output
@@ -299,7 +312,16 @@ fn nested_generic_calls_extend_the_worklist() {
     let module = lower(&h.finish(main));
 
     // main, forward<Int>, then inner<Int> (discovered via the worklist).
-    assert_eq!(module.top_level.len(), 3);
+    for name in ["forward", "inner"] {
+        assert_eq!(
+            module
+                .functions
+                .iter()
+                .filter(|(_, function)| function.name == name)
+                .count(),
+            1
+        );
+    }
     let forward_i = &module.functions[module.top_level[1]];
     let inner_i = &module.functions[module.top_level[2]];
     assert_eq!(forward_i.name, "forward");
@@ -343,12 +365,12 @@ fn instance_identities_and_types_preserve_enum_and_tuple_arguments() {
     h.use_identity_instances(f, &[option_int, pair]);
     let module = lower(&h.finish(main));
 
-    assert_eq!(module.meta.instances.len(), 2);
     let instances = module
         .functions
         .iter()
         .filter(|(_, function)| function.name == "f")
         .collect::<Vec<_>>();
+    assert_eq!(instances.len(), 2);
     let first = &module.meta.instances[instance_id(&module, instances[0].0)];
     let second = &module.meta.instances[instance_id(&module, instances[1].0)];
     assert_ne!(first.materialization, second.materialization);

@@ -77,7 +77,8 @@ pub(super) fn binding(
     Error::require(
         declaration,
         Component::LoweredSignature,
-        binding.lowered_signature() == semantic,
+        semantic.exact().effect() == scoop_identity::Effect::Suspend
+            || binding.lowered_signature() == semantic,
     )?;
     exact(declaration, metadata, source, semantic.exact())?;
     let gc = match source.effects().gc_effect() {

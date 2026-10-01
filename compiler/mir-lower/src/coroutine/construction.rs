@@ -147,52 +147,6 @@ pub(super) fn dispatch_block(
     })
 }
 
-pub(super) fn protocol_error_block(
-    lowerer: &Lowerer,
-    _module: &hir::Module,
-    locals: &mut Arena<mir::Local>,
-    blocks: &mut Arena<mir::BasicBlock>,
-    unwind: Option<mir::BlockId>,
-) -> mir::BlockId {
-    let class = crate::defined_protocols(&lowerer.core_protocols)
-        .exceptions
-        .illegal_state_exception
-        .class();
-    let constructor = crate::defined_protocols(&lowerer.core_protocols)
-        .exceptions
-        .illegal_state_exception
-        .callable();
-    let mir_class = lowerer.class_map[&class];
-    let exception = locals.alloc(local("$protocol_error", mir::Type::Class(mir_class)));
-    blocks.alloc(mir::BasicBlock {
-        name: "coroutine.protocol_error".to_string(),
-        statements: vec![
-            statement(mir::StatementKind::ValDecl {
-                local: exception,
-                init: mir::Expr::new(
-                    mir::Type::Class(mir_class),
-                    mir::ExprKind::ClassAlloc {
-                        class_id: mir_class,
-                    },
-                ),
-            }),
-            statement(mir::StatementKind::Call(mir::CallEffect::Unit(mir::Call {
-                target: mir::CallTarget {
-                    kind: mir::CallKind::Direct,
-                    callee: mir::Callee::User(lowerer.ctors[&constructor]),
-                },
-                args: vec![mir::Expr::local(exception, mir::Type::Class(mir_class))],
-                pending: mir::CoroutinePendingContext::Root,
-            }))),
-        ],
-        terminator: mir::Terminator::Throw {
-            exception: mir::Expr::local(exception, mir::Type::Class(mir_class)),
-            unwind,
-        },
-        unwind,
-    })
-}
-
 pub(super) fn save_statement(
     frame: mir::Expr,
     value: mir::Expr,
@@ -428,8 +382,21 @@ pub(super) fn callee_return_type(lowerer: &Lowerer, callee: mir::Callee) -> mir:
         mir::Callee::Extern(extern_id) => {
             return lowerer.extern_functions[extern_id].return_type.clone();
         }
-        mir::Callee::External(_) => {
-            unreachable!("imported parameter-free callables cannot suspend")
+        mir::Callee::External(external) => {
+            let target = lowerer
+                .imported_dependency_callable_map
+                .values()
+                .find(|target| target.callable == external)
+                .expect("a suspend external call retains its physical signature");
+            return lowerer
+                .coroutines
+                .steps
+                .iter()
+                .find_map(|(_, step)| {
+                    (step.identity().result_record().id() == target.semantic_signature.result())
+                        .then_some(mir::Type::Enum(step.enum_id(), Vec::new()))
+                })
+                .expect("the suspend result has its provider-defined CoroutineStep");
         }
         mir::Callee::Closure(function_type) | mir::Callee::FunctionBridge(function_type) => {
             let signature = &lowerer.shell.function_types[function_type];

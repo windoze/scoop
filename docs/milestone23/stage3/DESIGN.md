@@ -666,13 +666,7 @@ registration子闭包；generated identity分别从`BoxedValue(owner)`、`Corout
 `5=descriptor`、`6=registration`。这些product不允许省略可由其他字段派生的值；重复值是跨stage
 关系证明的一部分，并由reader重算后逐byte核对。
 
-`ContinuationShell(owner)`与`CoroutineStart(owner)`的generated identity及其
-`ExactOwnerRoot(owner)`规则仍由M23-2冻结，但不属于本阶段production closure。二者的合法signature
-分别依赖`Continuation<owner>`以及`SuspendTask<owner>`/`Continuation<owner>`的generic nominal
-application；这些application按M23-2必须进入Nominal ODR group。helper自身回溯到source Cone并不能把
-其generic dependency改写成Strong，也不能让定义Cone以“预物化support”为由跳过第10.2节。M23-7在完整
-ODR member/definition proof可用后一次性加入这两个callable closure；M23-3 reader不解码旧的10-field
-roles product，也不提供可选占位、legacy tag或兼容分支。
+`CoroutineStart(owner)` 按 M23-2 的 `ExactOwnerRoot(owner)` 归属，但不属于本阶段的历史 Strong-only production closure。其合法签名依赖实际 `SuspendTask<owner>`／`Continuation<owner>` generic nominal application，这些依赖继续使用 Nominal ODR group。M23-7 在共有管线中补齐其实际 callable、ABI 和引用闭包；helper 属于 source Cone 不改变依赖 application 的归属。原 `ContinuationShell` 仅重复保存 success/failure 签名而无独立正文，已在 M23-7 删除，generated callable tag 10 退役；continuation 派发复用实际 core 方法及其已解析槽，详见 [M23-7 §5.3](../stage7/DESIGN.md#53-参数自由类型的有限支持)。本阶段 reader 不恢复旧的 10-field roles product 或占位兼容分支。
 
 所有实际definition沿M23-2的`ExactOwnerRoot`回到实际source Cone并使用`ConeStrong`；每个definition plan
 必须存在且有唯一primary atom，每个registration必须出现在`StrongRegistrationPlanSet`。因此
@@ -1534,7 +1528,7 @@ bootstrap路径。
 `ExactTypeKey::NominalApplication`。后者必须原样保留在其最早声明层的exact-type identity表；若当前Cone没有为它选择layout、scan、
 TypeDescriptor、adapter或generated helper，canonical projection从一开始就不产生Nominal ODR group，而不是在
 profile收窄时删除记录。任何实际materialization仍须建立group/member并被本阶段拒绝；第7.6节所列
-`ContinuationShell`/`CoroutineStart`正因需要generic dependency物化而继续失败。
+`CoroutineStart` 因需要 generic dependency 物化，在本阶段的历史 Strong-only profile 中失败；M23-7 通过共有 ODR 管线提供其完整定义，`ContinuationShell` 已退役。
 
 三层lowering完成后，driver必须消费完整IR链调用`seal_strong_profile`。成功的
 `SingleConeStrongIrProductionV1`同时拥有从canonical HIR收窄出的`OdrFreeHirFoundation`以及原链中的

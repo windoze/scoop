@@ -238,7 +238,7 @@ impl MirDispatchSchemaAuthority<'_> {
                 }
                 if !relation
                     || target.lowered_signature() != entry.signature()
-                    || self.callable(semantic_target)?.lowered_signature()
+                    || self.callable(semantic_target)?.semantic_signature()
                         != target.semantic_signature()
                 {
                     return Err(invalid());

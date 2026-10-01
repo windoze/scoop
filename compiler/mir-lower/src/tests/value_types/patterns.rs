@@ -88,104 +88,7 @@ fn when_lowers_to_a_decision_sequence() {
     // edge unreachable. (`print` /
     // `println` are ordinary core functions — M7 — so the arms
     // call the overloads, not runtime shims.)
-    let expected = "\
-Module
-  extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
-  extern ef1 coreLongToString @scoop_rt_long_to_string(Long) -> String <abi=scoop managed>
-  enum ForeignCallbackMode
-    Reusable()
-    OneShot()
-  enum ForeignCallbackState
-    Registered()
-    Active()
-    Completed()
-    Failed()
-  enum Option<Int>
-    Some(_1: Int)
-    None()
-  enum CoroutineStep<String>
-    Completed(value: String)
-    Suspended()
-  enum CoroutineSlot<String>
-    Empty()
-    Value(value: String)
-  generated_exact_type get0 location=enum3 nominal_id=2b41b14d885fa38a57063f4b172f305c10201de466a744b67467d982b9b03e4d exact_id=54f75c5f7a246468d3b9a26b12b55f3682e8d4c3461904f2d2dad148dd1d3381
-  generated_exact_type get1 location=enum4 nominal_id=97de422daaa5f55d61a1aa042f57df4b345a1c739e7c8cdb9828340e5643c8de exact_id=c6dfe2e2b19c7e12085f2e1cfcac8c2868bd073baad4765dd757d63390b273e4
-  fun print @fn0(message: Int) -> Unit
-    bb0 entry
-      call $call.1: String = extern1 @scoop_rt_long_to_string direct
-        Type Long
-        IntegerConversion Int -> Long
-          Type Int
-          Local message
-      call extern0 @scoop_rt_write direct
-        Type String
-        Local $call.1
-      return
-  fun println @fn1(message: String) -> Unit
-    bb0 entry
-      call extern0 @scoop_rt_write direct
-        Type String
-        Local message
-      call extern0 @scoop_rt_write direct
-        Type String
-        StringConst @str0
-      return
-  fun main @fn2() -> Unit
-    bb0 entry
-      val o: Option<Int>
-        Type Option<Int>
-        VariantConstruct Option<Int> v0
-          Type Int
-          IntegerLiteral Int value=1 bits=0x00000001
-      val $when.1: Option<Int>
-        Type Option<Int>
-        Local o
-      val $pattern.subject.2: Option<Int>
-        Type Option<Int>
-        Local $when.1
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<Int> v0
-          Type Option<Int>
-          Local $pattern.subject.2
-    bb1 pattern.pass.1
-      val x: Int
-        Type Int
-        VariantPayloadProject Option<Int> v0 f0
-          Type Option<Int>
-          Local $pattern.subject.2
-      call @fn0 direct
-        Type Int
-        Local x
-      goto bb3
-    bb2 pattern.else.2
-      val $pattern.subject.3: Option<Int>
-        Type Option<Int>
-        Local $when.1
-      branch bb4 bb5
-        Type Boolean
-        VariantTest Option<Int> v1
-          Type Option<Int>
-          Local $pattern.subject.3
-    bb3 pattern.merge.3
-      return
-    bb4 pattern.pass.4
-      call @fn1 direct
-        Type String
-        StringConst @str1
-      goto bb6
-    bb5 pattern.else.5
-      unreachable
-    bb6 pattern.merge.6
-      goto bb3
-  coroutine_step cs0 CoroutineStep<String> result=String
-  coroutine_slot cl0 CoroutineSlot<String> value=String
-  str @str0 \"\\n\"
-  str @str1 \"none\"
-  output executable @fn2
-";
-    assert_eq!(dump(&module), expected);
+    check_mir_snapshot("when_lowers_to_a_decision_sequence", &module);
     assert_eq!(module.validate(), Ok(()));
 }
 
@@ -360,8 +263,12 @@ fn recursive_fields_guard_payload_projection_and_evaluate_the_subject_once() {
     assert!(matches!(operand.kind, mir::ExprKind::Local(local) if local == nested_local));
     assert_eq!(module.validate(), Ok(()));
     let rendered = dump(&module);
-    assert!(!rendered.contains("MachineEq(EnumTag)"));
-    assert!(!rendered.contains("EnumField v"));
+    let main = rendered
+        .split("  fun ")
+        .find(|function| function.starts_with("main "))
+        .unwrap();
+    assert!(!main.contains("MachineEq(EnumTag)"));
+    assert!(!main.contains("EnumField v"));
 }
 
 #[test]
@@ -760,109 +667,7 @@ fn a_failed_guard_falls_through_to_the_next_arm() {
     // The guard nests inside the typed variant test's then branch; failing
     // it falls through to the next arm — the `else` body here,
     // which is lowered once per fallthrough edge.
-    let expected = "\
-Module
-  extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
-  extern ef1 coreLongToString @scoop_rt_long_to_string(Long) -> String <abi=scoop managed>
-  enum ForeignCallbackMode
-    Reusable()
-    OneShot()
-  enum ForeignCallbackState
-    Registered()
-    Active()
-    Completed()
-    Failed()
-  enum Option<Int>
-    Some(_1: Int)
-    None()
-  enum CoroutineStep<String>
-    Completed(value: String)
-    Suspended()
-  enum CoroutineSlot<String>
-    Empty()
-    Value(value: String)
-  generated_exact_type get0 location=enum3 nominal_id=2b41b14d885fa38a57063f4b172f305c10201de466a744b67467d982b9b03e4d exact_id=54f75c5f7a246468d3b9a26b12b55f3682e8d4c3461904f2d2dad148dd1d3381
-  generated_exact_type get1 location=enum4 nominal_id=97de422daaa5f55d61a1aa042f57df4b345a1c739e7c8cdb9828340e5643c8de exact_id=c6dfe2e2b19c7e12085f2e1cfcac8c2868bd073baad4765dd757d63390b273e4
-  fun print @fn0(message: Int) -> Unit
-    bb0 entry
-      call $call.1: String = extern1 @scoop_rt_long_to_string direct
-        Type Long
-        IntegerConversion Int -> Long
-          Type Int
-          Local message
-      call extern0 @scoop_rt_write direct
-        Type String
-        Local $call.1
-      return
-  fun println @fn1(message: String) -> Unit
-    bb0 entry
-      call extern0 @scoop_rt_write direct
-        Type String
-        Local message
-      call extern0 @scoop_rt_write direct
-        Type String
-        StringConst @str0
-      return
-  fun main @fn2() -> Unit
-    bb0 entry
-      val $when.1: Option<Int>
-        Type Option<Int>
-        Local o
-      val $pattern.subject.2: Option<Int>
-        Type Option<Int>
-        Local $when.1
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<Int> v0
-          Type Option<Int>
-          Local $pattern.subject.2
-    bb1 pattern.pass.1
-      val x: Int
-        Type Int
-        VariantPayloadProject Option<Int> v0 f0
-          Type Option<Int>
-          Local $pattern.subject.2
-      val threshold: Int
-        Type Int
-        IntegerLiteral Int value=0 bits=0x00000000
-      branch bb4 bb5
-        Type Boolean
-        IntegerCompare greater-than operands=Long result=Boolean
-          Type Long
-          IntegerCompareTo operands=Int result=Long
-            Type Int
-            Local x
-            Type Int
-            Local threshold
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb2 pattern.else.2
-      call @fn1 direct
-        Type String
-        StringConst @str2
-      goto bb3
-    bb3 pattern.merge.3
-      return
-    bb4 if.then.4
-      call @fn0 direct
-        Type Int
-        Local x
-      goto bb6
-    bb5 if.else.5
-      call @fn1 direct
-        Type String
-        StringConst @str1
-      goto bb6
-    bb6 if.merge.6
-      goto bb3
-  coroutine_step cs0 CoroutineStep<String> result=String
-  coroutine_slot cl0 CoroutineSlot<String> value=String
-  str @str0 \"\\n\"
-  str @str1 \"neg\"
-  str @str2 \"neg\"
-  output executable @fn2
-";
-    assert_eq!(dump(&module), expected);
+    check_mir_snapshot("a_failed_guard_falls_through_to_the_next_arm", &module);
     assert_eq!(module.validate(), Ok(()));
 }
 
@@ -1239,71 +1044,5 @@ fn destructuring_val_declarations_extract_bindings() {
 
     // Each destructuring declaration evaluates its init once into
     // a hidden local, then binds the extracted fields.
-    let expected = "\
-Module
-  struct Point (x: Int, y: Int)
-  enum ForeignCallbackMode
-    Reusable()
-    OneShot()
-  enum ForeignCallbackState
-    Registered()
-    Active()
-    Completed()
-    Failed()
-  enum CoroutineStep<String>
-    Completed(value: String)
-    Suspended()
-  enum CoroutineSlot<String>
-    Empty()
-    Value(value: String)
-  generated_exact_type get0 location=enum2 nominal_id=2b41b14d885fa38a57063f4b172f305c10201de466a744b67467d982b9b03e4d exact_id=54f75c5f7a246468d3b9a26b12b55f3682e8d4c3461904f2d2dad148dd1d3381
-  generated_exact_type get1 location=enum3 nominal_id=97de422daaa5f55d61a1aa042f57df4b345a1c739e7c8cdb9828340e5643c8de exact_id=c6dfe2e2b19c7e12085f2e1cfcac8c2868bd073baad4765dd757d63390b273e4
-  fun main @fn0() -> Unit
-    bb0 entry
-      val $bind.1: (Int, String)
-        Type (Int, String)
-        TupleLiteral
-          Type Int
-          IntegerLiteral Int value=1 bits=0x00000001
-          Type String
-          StringConst @str0
-      val a: Int
-        Type Int
-        FieldAccess 0
-          Type (Int, String)
-          Local $bind.1
-      val b: String
-        Type String
-        FieldAccess 1
-          Type (Int, String)
-          Local $bind.1
-      call p: Point = @fn7 direct
-        Type Int
-        IntegerLiteral Int value=3 bits=0x00000003
-        Type Int
-        IntegerLiteral Int value=4 bits=0x00000004
-      val $bind.2: Point
-        Type Point
-        Local p
-      val x: Int
-        Type Int
-        FieldAccess 0
-          Type Point
-          Local $bind.2
-      return
-  fun ctor.Point.$c0 @fn7(x: Int, y: Int) -> Point <no-gc>
-    bb0 entry
-      return
-        Type Point
-        StructInit Point
-          Type Int
-          Local x
-          Type Int
-          Local y
-  coroutine_step cs0 CoroutineStep<String> result=String
-  coroutine_slot cl0 CoroutineSlot<String> value=String
-  str @str0 \"x\"
-  output executable @fn0
-";
-    assert_eq!(dump(&module), expected);
+    check_mir_snapshot("destructuring_val_declarations_extract_bindings", &module);
 }

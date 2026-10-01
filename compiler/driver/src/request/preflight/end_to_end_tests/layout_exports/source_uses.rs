@@ -10,8 +10,8 @@ fn actual_hir_type_uses_drive_mir_dependency_projection() {
     let bytes = std::fs::read(core.artifact().path()).unwrap();
     let fixtures = crate::workspace_root().join("tests/fixtures/m23-materialized-type-uses");
     for (name, expected) in [
-        // The materialized Deferred initializer returns Unit.
-        ("standalone", vec!["Boolean", "Unit"]),
+        // Deferred has a finite coroutine start and an initializer returning Unit.
+        ("standalone", vec!["Boolean", "String", "Throwable", "Unit"]),
         ("combined", vec!["Any", "Boolean", "String", "Unit"]),
         ("initialization", vec!["Boolean", "String", "Unit"]),
     ] {

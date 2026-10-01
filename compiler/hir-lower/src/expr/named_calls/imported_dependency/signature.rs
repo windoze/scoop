@@ -44,6 +44,13 @@ impl Lowerer {
         let generic = generic_constructor
             || candidate.pointer_intrinsic().is_some()
             || candidate.array_intrinsic().is_some()
+            || matches!(
+                interface.effects().implementation(),
+                hir::CallableImplementationV1::Intrinsic(
+                    hir::IntrinsicFunctionKind::CoroutineStart
+                        | hir::IntrinsicFunctionKind::CoroutineSuspend
+                )
+            )
             || (interface.modality() == hir::CallableModalityV1::Abstract
                 && matches!(
                     interface.owner(),
@@ -75,7 +82,7 @@ impl Lowerer {
         }
     }
 
-    pub(in crate::expr) fn imported_parameter_views(
+    pub(crate) fn imported_parameter_views(
         &self,
         declaration: &impl hir::ImportedCallableSource,
         types: impl IntoIterator<Item = hir::TypeId>,

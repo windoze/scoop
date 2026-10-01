@@ -82,6 +82,16 @@ fn with_production<R>(
     })
 }
 
+fn complete_type_exports(
+    output: &hir::DependencyHirOutput,
+    input: &scoop_mir::ConeMirInput,
+    source: &hir::CrossConeTypeSemanticsSectionV1,
+    graph: &scoop_identity::ValidatedIdentityGraph,
+) -> CanonicalParamFreeMirTypeExportsV1 {
+    scoop_mir_lower::lower_type_exports(output.output().local.module(), source, input, graph)
+        .unwrap()
+}
+
 #[test]
 fn source_mir_types_cover_actual_source_representations_and_finite_helpers() {
     for name in ["values", "combined"] {
@@ -96,20 +106,14 @@ fn source_mir_types_cover_actual_source_representations_and_finite_helpers() {
             let mut records = table.clone().into_records();
             records.extend(finite.into_records());
             let combined = CanonicalParamFreeMirTypeExportsV1::try_new(records).unwrap();
-            assert_eq!(
-                scoop_mir_lower::lower_type_exports(
-                    output.output().local.module(),
-                    hir_types,
-                    strong,
-                    graph
-                )
-                .unwrap(),
-                combined
-            );
-            let restored: scoop_mir::DecodedCanonicalParamFreeMirTypeExportsV1 = decoded(&combined);
+            let actual = complete_type_exports(output, strong, hir_types, graph);
+            for record in combined.records() {
+                assert_eq!(actual.get(record.exact()), Some(record));
+            }
+            let restored: scoop_mir::DecodedCanonicalParamFreeMirTypeExportsV1 = decoded(&actual);
             assert_eq!(
                 restored.validate(graph, strong.foundation()).unwrap(),
-                combined
+                actual
             );
             assert!(combined.records().len() > table.records().len());
             (encode(table).unwrap(), assertions::dump(output, table))

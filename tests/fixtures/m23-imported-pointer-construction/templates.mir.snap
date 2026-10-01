@@ -1,15 +1,25 @@
 Module
   struct Pair (first: Int, second: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
   enum CoroutineStep<Pair>
     Completed(value: Pair)
     Suspended()
   enum CoroutineSlot<Pair>
     Empty()
     Value(value: Pair)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
   class box<Pair> vtable=0 itables=0
-  generated_exact_type get0 location=class0 nominal_id=45118b950e2b947c2a172a06d2e4bd412d258b54f6a57c6928bf503c1cd0c021 exact_id=2d6d28a99685d7f79d8222db59c7829533b9096e01aaaf54e2713042ced34ea6
-  generated_exact_type get1 location=enum0 nominal_id=5cb1e2cd1cbd158a6e81a2c8a0d7545767d3fb80a1d93163f7ff0f0a9ae465a7 exact_id=935b67cf6bbfcb57ade2b691f86e94338c6876bb4c9c4e5243f176fffedc5ef9
-  generated_exact_type get2 location=enum1 nominal_id=ac58306cf31e80a72b04e2ab7fbf595a64a7f862412b2dd621c76716dbff3066 exact_id=f61dd78b29db11b0cd2e2773ccf6d3788bf903f2ee56577febb927d134bafb15
+  interface Continuation<Pair>
+  interface SuspendTask<Pair>
+  interface SuspendRegistration<Pair>
+  generated_exact_type get0 location=class3 nominal_id=45118b950e2b947c2a172a06d2e4bd412d258b54f6a57c6928bf503c1cd0c021 exact_id=2d6d28a99685d7f79d8222db59c7829533b9096e01aaaf54e2713042ced34ea6
+  generated_exact_type get1 location=enum1 nominal_id=5cb1e2cd1cbd158a6e81a2c8a0d7545767d3fb80a1d93163f7ff0f0a9ae465a7 exact_id=935b67cf6bbfcb57ade2b691f86e94338c6876bb4c9c4e5243f176fffedc5ef9
+  generated_exact_type get2 location=enum2 nominal_id=ac58306cf31e80a72b04e2ab7fbf595a64a7f862412b2dd621c76716dbff3066 exact_id=f61dd78b29db11b0cd2e2773ccf6d3788bf903f2ee56577febb927d134bafb15
+  generated_callable gc0 function=@fn12 id=3e1a8c14dccb6fb0149621f17819a49dc72563c6d874b9e0baa61ff349e39b36
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -38,7 +48,7 @@ Module
       val $parameter.second: Int
         Type Int
         Local $argument.1
-      call $argument.0: Pair = @fn7 direct
+      call $argument.0: Pair = @fn11 direct
         Type Int
         Local $parameter.first
         Type Int
@@ -158,7 +168,19 @@ Module
         PtrFromNonZeroULong Int
           Type ULong
           Local raw
-  fun ctor.Pair.$c0 @fn7(first: Int, second: Int) -> Pair <no-gc>
+  fun Continuation.resume @fn7(this: Continuation<Pair>, value: Pair) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn8(this: Continuation<Pair>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn9(this: SuspendTask<Pair>, $completion: Continuation<Pair>) -> CoroutineStep<Pair>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn10(this: SuspendRegistration<Pair>, continuation: Continuation<Pair>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.Pair.$c0 @fn11(first: Int, second: Int) -> Pair <no-gc>
     bb0 entry
       return
         Type Pair
@@ -167,12 +189,60 @@ Module
           Local first
           Type Int
           Local second
+  fun startCoroutine<Pair> @fn12(task: SuspendTask<Pair>, completion: Continuation<Pair>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn7 interface Continuation<Pair>[0]
+        Type Continuation<Pair>
+        Local completion
+        Type Pair
+        EnumField v0 f0
+          Type CoroutineStep<Pair>
+          Local $step
+      return
+    bb2 failed
+      call @fn8 interface Continuation<Pair>[1]
+        Type Continuation<Pair>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Pair> = @fn9 interface SuspendTask<Pair>[0]
+        Type SuspendTask<Pair>
+        Local task
+        Type Continuation<Pair>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Pair>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
   coroutine_step cs0 CoroutineStep<Pair> result=Pair
   coroutine_slot cl0 CoroutineSlot<Pair> value=Pair
+  coroutine_start ct0 result=Pair function=fn12
+  coroutine_fn cf0 @fn9 source_return=Pair step=cs0 immediate
   instance mi0 function=@fn1 <- exercise
   instance mi1 function=@fn2 <- roundTrip
   instance mi2 function=@fn3 <- copy
   instance mi3 function=@fn4 <- reencode
   instance mi4 function=@fn5 <- reconstruct
   instance mi5 function=@fn6 <- reconstruct
+  instance mi6 function=@fn7 <- Continuation.resume
+  instance mi7 function=@fn8 <- Continuation.resumeWithException
+  instance mi8 function=@fn9 <- SuspendTask.run
+  instance mi9 function=@fn10 <- SuspendRegistration.register
   output library

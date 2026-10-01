@@ -157,7 +157,10 @@ impl Concretizer<'_> {
                 self.source.imported_generic_templates[source]
                     .type_parameters
                     .len(),
-                true,
+                !matches!(
+                    self.source.imported_generic_templates[source].implementation,
+                    export::FunctionKind::Intrinsic(_) | export::FunctionKind::Extern(_)
+                ),
             ),
         };
         assert_eq!(parameter_count, key.arguments.len());

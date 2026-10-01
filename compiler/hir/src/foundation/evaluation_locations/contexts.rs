@@ -63,7 +63,6 @@ pub(super) fn source_subject(
                     | GeneratedCallableKey::FunctionAdapter { .. }
                     | GeneratedCallableKey::DynamicFunctionAdapter { .. }
                     | GeneratedCallableKey::ForeignCallbackManagedAdapter { .. }
-                    | GeneratedCallableKey::ContinuationShell { .. }
                     | GeneratedCallableKey::CoroutineStart { .. }
                     | GeneratedCallableKey::FunctionBridge { .. }
                     | GeneratedCallableKey::BoxingAdjust { .. } => return None,

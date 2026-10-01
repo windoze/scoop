@@ -56,7 +56,6 @@ pub enum MirBoxingCallableProductionError {
     MissingTargetBinding(CallableDefinitionOwner),
     TargetMismatch(CallableDefinitionOwner),
     MissingSignature(CallableSignatureSubject),
-    SignatureMismatch(CallableSignatureSubject),
 }
 impl From<WireError> for Error {
     fn from(error: WireError) -> Self {

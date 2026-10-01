@@ -2,6 +2,13 @@ use super::*;
 use scoop_identity::{CallableTemplateOwner, StrongCallableDefinitionOwner};
 use scoop_mir::MirCallableLoweringRoleV1 as Role;
 
+pub(super) fn is_source(binding: &scoop_mir::ParamFreeMirCallableBindingV1) -> bool {
+    matches!(
+        binding.origin(),
+        scoop_mir::MirCallableOriginV1::Function(_) | scoop_mir::MirCallableOriginV1::Accessor(_)
+    )
+}
+
 fn root(
     input: &scoop_mir::ConeMirInput,
     binding: &scoop_mir::ParamFreeMirCallableBindingV1,
@@ -29,7 +36,11 @@ pub(super) fn actual(
     bindings: &CanonicalMirCallableBindingsV1,
 ) {
     let local = output.output().local.module();
-    for binding in bindings.entries() {
+    for binding in bindings
+        .entries()
+        .iter()
+        .filter(|binding| is_source(binding))
+    {
         let root = root(input, binding);
         let record = input
             .module()
@@ -107,7 +118,11 @@ pub(super) fn dump(
     bindings: &CanonicalMirCallableBindingsV1,
 ) -> String {
     let mut lines = Vec::new();
-    for binding in bindings.entries() {
+    for binding in bindings
+        .entries()
+        .iter()
+        .filter(|binding| is_source(binding))
+    {
         let root = root(input, binding);
         let function = &input.module().functions[root.function()];
         let role = match binding.lowering_role() {
@@ -171,6 +186,7 @@ pub(super) fn combined(
         !bindings
             .entries()
             .iter()
+            .filter(|binding| is_source(binding))
             .any(|binding| root(input, binding).function() == secret)
     );
 }

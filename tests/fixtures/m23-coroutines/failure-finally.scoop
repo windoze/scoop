@@ -1,0 +1,48 @@
+package consumer.coroutines
+import templates.coroutines.*
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val counter = Counter()
+    val recovered = Completion<T>()
+    val recoveryGate = Gate<T>()
+    startCoroutine(RecoveryTask(recoveryGate, seed, counter), recovered)
+    if (allocateAfterSuspension() != 42) { return 9 }
+    recoveryGate.fail(UnwrapException())
+    if (recovered.calls != 1 || counter.value != 1 || read(recovered.value!!) != 42) { return 2 }
+
+    val returned = Completion<T>()
+    val returnGate = Gate<T>()
+    val returnCleanup = Gate<Unit>()
+    startCoroutine(FinallyTask(returnGate, returnCleanup, counter), returned)
+    returnGate.complete(seed)
+    if (returned.calls != 0) { return 3 }
+    if (allocateAfterSuspension() != 42) { return 9 }
+    returnCleanup.complete(Unit)
+    if (returned.calls != 1 || counter.value != 2 || read(returned.value!!) != 42) { return 4 }
+
+    val failed = Completion<T>()
+    val failureGate = Gate<T>()
+    val failureCleanup = Gate<Unit>()
+    startCoroutine(FinallyTask(failureGate, failureCleanup, counter), failed)
+    failureGate.fail(UnwrapException())
+    if (failed.calls != 0) { return 5 }
+    if (allocateAfterSuspension() != 42) { return 9 }
+    failureCleanup.complete(Unit)
+    if (failed.calls != 1 || counter.value != 3) { return 6 }
+    if (!(failed.failure!! is UnwrapException)) { return 7 }
+    return 42
+}
+
+public fun result(): Int = exercise(42, { value: Int -> value })
+
+fun allocateAfterSuspension(): Int {
+    val retained = Counter()
+    retained.value = 42
+    var index = 0
+    while (index < 128) {
+        val temporary = Counter()
+        temporary.value = index
+        index = temporary.value + 1
+    }
+    return retained.value
+}

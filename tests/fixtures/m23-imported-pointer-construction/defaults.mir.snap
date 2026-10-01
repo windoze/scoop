@@ -1,4 +1,7 @@
 Module
+  enum Option<String>
+    Some(_0: String)
+    None()
   enum CoroutineStep<Counter>
     Completed(value: Counter)
     Suspended()
@@ -6,8 +9,15 @@ Module
     Empty()
     Value(value: Counter)
   class Counter vtable=0 itables=0
-  generated_exact_type get0 location=enum1 nominal_id=dc59a25212fc796f3c815d0144e7ffd3583ccfeb18b4aa0248fb806008cda184 exact_id=6ceec49829176eefd7b08a51a0ad4b04ca56e52f84313afaf13634a40ffade88
-  generated_exact_type get1 location=enum0 nominal_id=f532d82203fea8a7a765a330d7dab8e1ce9e4cc1f76ecc53cd5bf6efb2940034 exact_id=74d4f5fb0715f3d7263627ccb90e3882ceb9c3a8bb8ba318e52c71fae956c376
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<Counter>
+  interface SuspendTask<Counter>
+  interface SuspendRegistration<Counter>
+  generated_exact_type get0 location=enum2 nominal_id=dc59a25212fc796f3c815d0144e7ffd3583ccfeb18b4aa0248fb806008cda184 exact_id=6ceec49829176eefd7b08a51a0ad4b04ca56e52f84313afaf13634a40ffade88
+  generated_exact_type get1 location=enum1 nominal_id=f532d82203fea8a7a765a330d7dab8e1ce9e4cc1f76ecc53cd5bf6efb2940034 exact_id=74d4f5fb0715f3d7263627ccb90e3882ceb9c3a8bb8ba318e52c71fae956c376
+  generated_callable gc0 function=@fn10 id=2b4b5b02fda4f7b239c1168b57c71c2e5b9e0bf993c15aee8e28ca53dba57580
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -36,7 +46,7 @@ Module
       assign $new.1
         Type Counter
         ClassAlloc Counter
-      call @fn5 direct
+      call @fn9 direct
         Type Counter
         Local $new.1
         Type Int
@@ -263,7 +273,19 @@ Module
         PtrLoad Int
           Type Ptr<Int>
           Local $dependency.receiver
-  fun init.Counter.$c0 @fn5(this: Counter, calls: Int) -> Unit
+  fun Continuation.resume @fn5(this: Continuation<Counter>, value: Counter) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn6(this: Continuation<Counter>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn7(this: SuspendTask<Counter>, $completion: Continuation<Counter>) -> CoroutineStep<Counter>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn8(this: SuspendRegistration<Counter>, continuation: Continuation<Counter>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Counter.$c0 @fn9(this: Counter, calls: Int) -> Unit
     bb0 entry
       field_set 0
         Type Counter
@@ -271,10 +293,58 @@ Module
         Type Int
         Local calls
       return
+  fun startCoroutine<Counter> @fn10(task: SuspendTask<Counter>, completion: Continuation<Counter>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn5 interface Continuation<Counter>[0]
+        Type Continuation<Counter>
+        Local completion
+        Type Counter
+        EnumField v0 f0
+          Type CoroutineStep<Counter>
+          Local $step
+      return
+    bb2 failed
+      call @fn6 interface Continuation<Counter>[1]
+        Type Continuation<Counter>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Counter> = @fn7 interface SuspendTask<Counter>[0]
+        Type SuspendTask<Counter>
+        Local task
+        Type Continuation<Counter>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Counter>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
   coroutine_step cs0 CoroutineStep<Counter> result=Counter
   coroutine_slot cl0 CoroutineSlot<Counter> value=Counter
+  coroutine_start ct0 result=Counter function=fn10
+  coroutine_fn cf0 @fn7 source_return=Counter step=cs0 immediate
   instance mi0 function=@fn1 <- exercise
   instance mi1 function=@fn2 <- $local.0.next
   instance mi2 function=@fn3 <- loadDefault
   instance mi3 function=@fn4 <- localDefault
+  instance mi4 function=@fn5 <- Continuation.resume
+  instance mi5 function=@fn6 <- Continuation.resumeWithException
+  instance mi6 function=@fn7 <- SuspendTask.run
+  instance mi7 function=@fn8 <- SuspendRegistration.register
   output library

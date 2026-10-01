@@ -28,14 +28,23 @@ Module
   class UnwrapException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
   class box<LocalOption> vtable=0 itables=0
   class box<ReverseShape> vtable=0 itables=0
+  interface Continuation<LocalOption>
+  interface SuspendTask<LocalOption>
+  interface SuspendRegistration<LocalOption>
+  interface Continuation<ReverseShape>
+  interface SuspendTask<ReverseShape>
+  interface SuspendRegistration<ReverseShape>
   generated_exact_type get0 location=enum6 nominal_id=2856a2d63e9560ae05ed708bae8fcd404945a7337ef6b9f2477a1b360a02890b exact_id=1822a26105de41ab859e9a265077b8585ecd7834cb9adcdf10bc5a7c9f527a9b
   generated_exact_type get1 location=enum5 nominal_id=ae70978d620c263fe58ce0212ede4671fb8a61eb321509fa3e69bfe6917185b8 exact_id=1bc0d4af41c06567e5e3629aad601bb82cc94531153bd5312cc25a40ce21abe7
-  generated_exact_type get2 location=class4 nominal_id=4d31c434cb17b94e215d7b01c3a2a616c5cfaf1c0ea34e80b68dbdd7960e7187 exact_id=488b69024814afc5b06994abd4250a98a53b3d1be1586e06cbbd582f09fe3e3e
+  generated_exact_type get2 location=class5 nominal_id=4d31c434cb17b94e215d7b01c3a2a616c5cfaf1c0ea34e80b68dbdd7960e7187 exact_id=488b69024814afc5b06994abd4250a98a53b3d1be1586e06cbbd582f09fe3e3e
   generated_exact_type get3 location=enum8 nominal_id=2c9ad20001b0bf7a95fc38e6a2e349fb438e0defac6b8e44e450e3716cb96a5e exact_id=68f1a371fd7e45122a115a7f0df5fada1455a21954e8277af3e6284407044410
   generated_exact_type get4 location=enum7 nominal_id=d88b4dd6cf085396aaefddd55ea91acb453953dc69e9dffbf1407b2e9eb1fb6b exact_id=ae5cc9c9bd1f4627c062c4a669f72713bbc2c026ec1182141961ec42a077fb39
-  generated_exact_type get5 location=class3 nominal_id=8548f2f2541e2fd526933dbf99f53148403474d624c7af865cc87a94a16d0d5a exact_id=aee8bcfad882d0b8087894c66de34bb7e6eb5b78f6fa76b5a7fe37177a34d89c
+  generated_exact_type get5 location=class4 nominal_id=8548f2f2541e2fd526933dbf99f53148403474d624c7af865cc87a94a16d0d5a exact_id=aee8bcfad882d0b8087894c66de34bb7e6eb5b78f6fa76b5a7fe37177a34d89c
+  generated_callable gc0 function=@fn12 id=649ce7cf23bb95eaf27ee1a2b6c43e569e45e76d9f1fe8cc6adabb9978527347
+  generated_callable gc1 function=@fn11 id=eddf6fc6374db0456abb62c1225c48b458381f5af41b66312b1f79a9d8c4c3fa
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -434,10 +443,130 @@ Module
       return
         Type Int
         Local $uw.2
+  fun Continuation.resume @fn3(this: Continuation<LocalOption>, value: LocalOption) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn4(this: Continuation<LocalOption>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn5(this: SuspendTask<LocalOption>, $completion: Continuation<LocalOption>) -> CoroutineStep<LocalOption>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn6(this: SuspendRegistration<LocalOption>, continuation: Continuation<LocalOption>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn7(this: Continuation<ReverseShape>, value: ReverseShape) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn8(this: Continuation<ReverseShape>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn9(this: SuspendTask<ReverseShape>, $completion: Continuation<ReverseShape>) -> CoroutineStep<ReverseShape>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn10(this: SuspendRegistration<ReverseShape>, continuation: Continuation<ReverseShape>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun startCoroutine<LocalOption> @fn11(task: SuspendTask<LocalOption>, completion: Continuation<LocalOption>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn3 interface Continuation<LocalOption>[0]
+        Type Continuation<LocalOption>
+        Local completion
+        Type LocalOption
+        EnumField v0 f0
+          Type CoroutineStep<LocalOption>
+          Local $step
+      return
+    bb2 failed
+      call @fn4 interface Continuation<LocalOption>[1]
+        Type Continuation<LocalOption>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<LocalOption> = @fn5 interface SuspendTask<LocalOption>[0]
+        Type SuspendTask<LocalOption>
+        Local task
+        Type Continuation<LocalOption>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<LocalOption>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<ReverseShape> @fn12(task: SuspendTask<ReverseShape>, completion: Continuation<ReverseShape>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn7 interface Continuation<ReverseShape>[0]
+        Type Continuation<ReverseShape>
+        Local completion
+        Type ReverseShape
+        EnumField v0 f0
+          Type CoroutineStep<ReverseShape>
+          Local $step
+      return
+    bb2 failed
+      call @fn8 interface Continuation<ReverseShape>[1]
+        Type Continuation<ReverseShape>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<ReverseShape> = @fn9 interface SuspendTask<ReverseShape>[0]
+        Type SuspendTask<ReverseShape>
+        Local task
+        Type Continuation<ReverseShape>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<ReverseShape>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
   coroutine_step cs0 CoroutineStep<LocalOption> result=LocalOption
   coroutine_step cs1 CoroutineStep<ReverseShape> result=ReverseShape
   coroutine_slot cl0 CoroutineSlot<LocalOption> value=LocalOption
   coroutine_slot cl1 CoroutineSlot<ReverseShape> value=ReverseShape
+  coroutine_start ct0 result=LocalOption function=fn11
+  coroutine_start ct1 result=ReverseShape function=fn12
+  coroutine_fn cf0 @fn5 source_return=LocalOption step=cs0 immediate
+  coroutine_fn cf1 @fn9 source_return=ReverseShape step=cs1 immediate
   instance mi0 function=@fn1 <- exercise
   instance mi1 function=@fn2 <- force
+  instance mi2 function=@fn3 <- Continuation.resume
+  instance mi3 function=@fn4 <- Continuation.resumeWithException
+  instance mi4 function=@fn5 <- SuspendTask.run
+  instance mi5 function=@fn6 <- SuspendRegistration.register
+  instance mi6 function=@fn7 <- Continuation.resume
+  instance mi7 function=@fn8 <- Continuation.resumeWithException
+  instance mi8 function=@fn9 <- SuspendTask.run
+  instance mi9 function=@fn10 <- SuspendRegistration.register
   output library

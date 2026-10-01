@@ -1,5 +1,17 @@
 standalone
   class-constructor DeferredRoot arity=0
+  function Continuation.resume
+  function Continuation.resume
+  function Continuation.resumeWithException
+  function Continuation.resumeWithException
+  function SuspendRegistration.register
+  function SuspendRegistration.register
+  function SuspendTask.run
+  function SuspendTask.run
+  function startCoroutine
+  function startCoroutine
+  function suspendCoroutine
+  function suspendCoroutine
   struct-constructor ReadyValue arity=1
   type DeferredGeneric
   type DeferredRoot
@@ -11,7 +23,6 @@ combined
   class-constructor DeferredDerived arity=0
   class-constructor DeferredHolder arity=1
   class-constructor DeferredLeaf arity=1
-  class-constructor DeferredObject arity=0
   class-constructor DeferredPrivate arity=0
   class-constructor DeferredPrivateHolder arity=0
   class-constructor DeferredProtected arity=0
@@ -23,11 +34,119 @@ combined
   class-constructor ReadyDirect arity=0
   function $init$body$0
   function $init$ensure$0
+  function Continuation.resume
+  function Continuation.resume
+  function Continuation.resume
+  function Continuation.resume
+  function Continuation.resume
+  function Continuation.resume
+  function Continuation.resume
+  function Continuation.resume
+  function Continuation.resume
+  function Continuation.resume
+  function Continuation.resume
+  function Continuation.resume
+  function Continuation.resume
+  function Continuation.resume
+  function Continuation.resume
+  function Continuation.resume
+  function Continuation.resume
+  function Continuation.resume
+  function Continuation.resumeWithException
+  function Continuation.resumeWithException
+  function Continuation.resumeWithException
+  function Continuation.resumeWithException
+  function Continuation.resumeWithException
+  function Continuation.resumeWithException
+  function Continuation.resumeWithException
+  function Continuation.resumeWithException
+  function Continuation.resumeWithException
+  function Continuation.resumeWithException
+  function Continuation.resumeWithException
+  function Continuation.resumeWithException
+  function Continuation.resumeWithException
+  function Continuation.resumeWithException
+  function Continuation.resumeWithException
+  function Continuation.resumeWithException
+  function Continuation.resumeWithException
+  function Continuation.resumeWithException
   function DeferredObject.take
   function DeferredProtected.read
   function DeferredSlot.take
   function DeferredVirtual.take
   function ReadyDirect.take
+  function SuspendRegistration.register
+  function SuspendRegistration.register
+  function SuspendRegistration.register
+  function SuspendRegistration.register
+  function SuspendRegistration.register
+  function SuspendRegistration.register
+  function SuspendRegistration.register
+  function SuspendRegistration.register
+  function SuspendRegistration.register
+  function SuspendRegistration.register
+  function SuspendRegistration.register
+  function SuspendRegistration.register
+  function SuspendRegistration.register
+  function SuspendRegistration.register
+  function SuspendRegistration.register
+  function SuspendRegistration.register
+  function SuspendRegistration.register
+  function SuspendRegistration.register
+  function SuspendTask.run
+  function SuspendTask.run
+  function SuspendTask.run
+  function SuspendTask.run
+  function SuspendTask.run
+  function SuspendTask.run
+  function SuspendTask.run
+  function SuspendTask.run
+  function SuspendTask.run
+  function SuspendTask.run
+  function SuspendTask.run
+  function SuspendTask.run
+  function SuspendTask.run
+  function SuspendTask.run
+  function SuspendTask.run
+  function SuspendTask.run
+  function SuspendTask.run
+  function SuspendTask.run
+  function startCoroutine
+  function startCoroutine
+  function startCoroutine
+  function startCoroutine
+  function startCoroutine
+  function startCoroutine
+  function startCoroutine
+  function startCoroutine
+  function startCoroutine
+  function startCoroutine
+  function startCoroutine
+  function startCoroutine
+  function startCoroutine
+  function startCoroutine
+  function startCoroutine
+  function startCoroutine
+  function startCoroutine
+  function startCoroutine
+  function suspendCoroutine
+  function suspendCoroutine
+  function suspendCoroutine
+  function suspendCoroutine
+  function suspendCoroutine
+  function suspendCoroutine
+  function suspendCoroutine
+  function suspendCoroutine
+  function suspendCoroutine
+  function suspendCoroutine
+  function suspendCoroutine
+  function suspendCoroutine
+  function suspendCoroutine
+  function suspendCoroutine
+  function suspendCoroutine
+  function suspendCoroutine
+  function suspendCoroutine
+  function suspendCoroutine
   struct-constructor ReadyEmpty arity=0
   type DeferredBox
   type DeferredConstructor
@@ -57,12 +176,72 @@ shape-demand
   class-constructor ReadyOuter arity=0
   class-constructor ReadyOuter.DeferredNested arity=0
   class-constructor ReadyPrivateConstructor arity=1
+  function Continuation.resume
+  function Continuation.resume
+  function Continuation.resume
+  function Continuation.resume
+  function Continuation.resume
+  function Continuation.resume
+  function Continuation.resume
+  function Continuation.resume
+  function Continuation.resume
+  function Continuation.resume
+  function Continuation.resumeWithException
+  function Continuation.resumeWithException
+  function Continuation.resumeWithException
+  function Continuation.resumeWithException
+  function Continuation.resumeWithException
+  function Continuation.resumeWithException
+  function Continuation.resumeWithException
+  function Continuation.resumeWithException
+  function Continuation.resumeWithException
+  function Continuation.resumeWithException
   function DeferredBase.$get$value
   function DeferredBase.$set$value
   function DeferredGetter.$get$value
   function DeferredSetter.$get$value
   function DeferredSetter.$set$value
   function ReadyDirect.take
+  function SuspendRegistration.register
+  function SuspendRegistration.register
+  function SuspendRegistration.register
+  function SuspendRegistration.register
+  function SuspendRegistration.register
+  function SuspendRegistration.register
+  function SuspendRegistration.register
+  function SuspendRegistration.register
+  function SuspendRegistration.register
+  function SuspendRegistration.register
+  function SuspendTask.run
+  function SuspendTask.run
+  function SuspendTask.run
+  function SuspendTask.run
+  function SuspendTask.run
+  function SuspendTask.run
+  function SuspendTask.run
+  function SuspendTask.run
+  function SuspendTask.run
+  function SuspendTask.run
+  function startCoroutine
+  function startCoroutine
+  function startCoroutine
+  function startCoroutine
+  function startCoroutine
+  function startCoroutine
+  function startCoroutine
+  function startCoroutine
+  function startCoroutine
+  function startCoroutine
+  function suspendCoroutine
+  function suspendCoroutine
+  function suspendCoroutine
+  function suspendCoroutine
+  function suspendCoroutine
+  function suspendCoroutine
+  function suspendCoroutine
+  function suspendCoroutine
+  function suspendCoroutine
+  function suspendCoroutine
   type DeferredBase
   type DeferredDerived
   type DeferredEnum

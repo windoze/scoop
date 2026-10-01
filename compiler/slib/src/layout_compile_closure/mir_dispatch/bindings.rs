@@ -58,7 +58,7 @@ impl Replay<'_> {
             owner,
             slot,
             Component::CallableSignature,
-            binding.semantic_signature() == signature && binding.lowered_signature() == signature,
+            binding.semantic_signature() == signature,
         )
     }
 
@@ -86,10 +86,10 @@ impl Replay<'_> {
                 .into_option(),
         )?;
         self.source_binding(owner, slot, target, &semantic)?;
-        let lowered = mir::MirBridgeCallableSignatureV1::new(
+        let lowered = self.lowered_signature(&mir::MirBridgeCallableSignatureV1::new(
             exact_signature(source.signature(), Some(interface))?,
             mir::GcEffect::Managed,
-        );
+        ))?;
         let implementation = StrongCallableDefinitionOwner::GeneratedCallable(callable).into();
         let binding = self.binding(implementation)?;
 

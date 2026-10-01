@@ -1,0 +1,107 @@
+use super::super::super::imported_classes::runtime;
+use super::*;
+
+#[test]
+fn imported_coroutine_roles_follow_rebuilt_core_declarations() {
+    let target = resolved_target().expect("Coroutine publication requires a target");
+    let sysroot = tempfile::tempdir().unwrap();
+    let original = bootstrap_core(sysroot.path(), &target);
+    let fixtures = crate::workspace_root().join("tests/fixtures/m23-coroutines");
+    let source =
+        |name: &str| std::fs::read_to_string(fixtures.join(format!("{name}.scoop"))).unwrap();
+    let core_source = sysroot.path().join("lib/scoop.core");
+    std::fs::write(
+        core_source.join("src/coroutine.scoop"),
+        source("core-coroutine"),
+    )
+    .unwrap();
+    let core = crate::normalize_direct_build_request(
+        &core_source,
+        vec![],
+        vec![],
+        original.artifact().path(),
+        DiagnosticOutputPolicy::Human,
+        StageDumpPolicy::None,
+    )
+    .unwrap()
+    .build_and_publish()
+    .unwrap();
+    assert_ne!(
+        original.artifact().summary().artifact_fingerprint(),
+        core.artifact().summary().artifact_fingerprint()
+    );
+    std::fs::rename(core_source.join("src"), core_source.join("unused-source")).unwrap();
+
+    let coordinate =
+        ConeCoordinate::new("dev.example", "rebuilt-coroutine-consumer", "0.1.0").unwrap();
+    let consumer_root = sysroot.path().join("consumer");
+    write_manifest_cone(
+        &consumer_root,
+        "dev.example",
+        coordinate.name(),
+        "library",
+        &source("rebuilt-core"),
+    );
+    let mut outputs = Vec::new();
+    for (kind, stage) in [
+        (StageDumpKind::Hir, "hir"),
+        (StageDumpKind::Mir, "mir"),
+        (StageDumpKind::Lir, "lir"),
+    ] {
+        let mut request = build_manifest_request(
+            sysroot.path(),
+            &target,
+            &consumer_root,
+            &sysroot.path().join("output/consumer.slib"),
+            vec![],
+            vec![],
+        );
+        request.emit = StageDumpPolicy::Stage(kind);
+        let output = request.build_and_publish().unwrap();
+        let actual = output.emitted_dump().unwrap().text();
+        let snapshot = fixtures.join(format!("rebuilt-core.{stage}.snap"));
+        if std::env::var_os("SCOOP_UPDATE_GENERIC_BODY_SNAPSHOTS").is_some() {
+            std::fs::write(&snapshot, actual).unwrap();
+        }
+        assert_eq!(actual, std::fs::read_to_string(snapshot).unwrap());
+        outputs.push(output);
+    }
+    let consumer = outputs.last().unwrap();
+    std::fs::rename(
+        consumer_root.join("src"),
+        consumer_root.join("unused-source"),
+    )
+    .unwrap();
+    let downstream_root = sysroot.path().join("downstream");
+    write_manifest_cone(
+        &downstream_root,
+        "dev.example",
+        "rebuilt-coroutine-downstream",
+        "library",
+        &source("downstream"),
+    );
+    write_dependency_manifest(
+        &downstream_root,
+        "rebuilt-coroutine-downstream",
+        &[&coordinate],
+    );
+    let downstream = build_manifest_request(
+        sysroot.path(),
+        &target,
+        &downstream_root,
+        &sysroot.path().join("output/downstream.slib"),
+        vec![consumer.artifact().path().to_path_buf()],
+        vec![],
+    )
+    .build_and_publish()
+    .unwrap();
+    let runtime = runtime::build(&target, &sysroot.path().join("runtime"));
+    runtime::check(
+        &target,
+        &[&core, consumer, &downstream],
+        &runtime,
+        &crate::workspace_root().join("tests/fixtures/m23-imported-classes"),
+        &sysroot.path().join("run"),
+        "rebuilt-coroutine-core",
+    );
+}

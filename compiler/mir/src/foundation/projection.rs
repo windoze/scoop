@@ -263,10 +263,6 @@ fn odr_records(
     for (_, slot) in module.meta.coroutine_slots.iter() {
         register_exact_root(slot.identity().root(), &mut groups, &mut members)?;
     }
-    for shell in &module.meta.continuation_shells {
-        register_exact_root(shell.identity().success_root(), &mut groups, &mut members)?;
-        register_exact_root(shell.identity().failure_root(), &mut groups, &mut members)?;
-    }
     for start in &module.meta.coroutine_starts {
         register_exact_root(start.identity().root(), &mut groups, &mut members)?;
     }

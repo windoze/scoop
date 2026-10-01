@@ -92,22 +92,6 @@ pub(super) fn validate_generated_callable_metadata(
             )?;
         }
     }
-    for shell in &module.meta.continuation_shells {
-        expect(
-            module,
-            &mut expected,
-            shell.success(),
-            shell.identity().success_callable_record(),
-            shell.identity().success_signature_record().subject(),
-        )?;
-        expect(
-            module,
-            &mut expected,
-            shell.failure(),
-            shell.identity().failure_callable_record(),
-            shell.identity().failure_signature_record().subject(),
-        )?;
-    }
     for start in &module.meta.coroutine_starts {
         expect(
             module,

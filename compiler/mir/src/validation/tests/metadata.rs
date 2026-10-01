@@ -463,21 +463,6 @@ fn coroutine_support_callables_are_bound_to_the_exact_step_result() {
     register_test_exact_type(&mut module, &task_ty);
     register_test_exact_type(&mut module, &throwable_ty);
     register_test_exact_type(&mut module, &Type::Unit);
-    let success = support_function(&mut module, vec![continuation_ty.clone(), result.clone()]);
-    let failure = support_function(
-        &mut module,
-        vec![continuation_ty.clone(), throwable_ty.clone()],
-    );
-    module.meta.continuation_shells.push(
-        CoroutineContinuationShell::checked(
-            &module.functions,
-            result.clone(),
-            success,
-            failure,
-            test_continuation_shell_identity(&result, &continuation_ty, &throwable_ty),
-        )
-        .unwrap(),
-    );
     let start = support_function(&mut module, vec![task_ty.clone(), continuation_ty.clone()]);
     module.top_level.push(start);
     module.meta.coroutine_starts.push(
@@ -493,40 +478,32 @@ fn coroutine_support_callables_are_bound_to_the_exact_step_result() {
     install_generated_callables(&mut module);
     assert_eq!(module.validate(), Ok(()));
 
-    let wrong_identity = test_continuation_shell_identity(&result, &task_ty, &throwable_ty);
-    module.meta.continuation_shells[0] = CoroutineContinuationShell::checked(
-        &module.functions,
-        result.clone(),
-        success,
-        failure,
-        wrong_identity,
-    )
-    .unwrap();
+    let wrong_identity = test_coroutine_start_identity(&result, &continuation_ty, &task_ty);
+    module.meta.coroutine_starts[0] =
+        CoroutineStart::checked(&module.functions, result.clone(), start, wrong_identity).unwrap();
     assert_eq!(
         module.validate(),
         Err(MirValidationError {
-            location: MirValidationLocation::ContinuationShell { shell: 0 },
+            location: MirValidationLocation::CoroutineStart { start: 0 },
             kind: MirValidationErrorKind::InvalidCoroutineMetadata {
-                reason: "continuation shell identity does not retain its exact logical signatures",
+                reason: "coroutine start identity does not retain its exact logical signature",
             },
         })
     );
-    module.meta.continuation_shells[0] = CoroutineContinuationShell::checked(
+    module.meta.coroutine_starts[0] = CoroutineStart::checked(
         &module.functions,
         result.clone(),
-        success,
-        failure,
-        test_continuation_shell_identity(&result, &continuation_ty, &throwable_ty),
+        start,
+        test_coroutine_start_identity(&result, &task_ty, &continuation_ty),
     )
     .unwrap();
-
-    module.functions[success].return_ty = Type::Boolean;
+    module.functions[start].return_ty = Type::Boolean;
     assert_eq!(
         module.validate(),
         Err(MirValidationError {
-            location: MirValidationLocation::ContinuationShell { shell: 0 },
+            location: MirValidationLocation::CoroutineStart { start: 0 },
             kind: MirValidationErrorKind::InvalidCoroutineMetadata {
-                reason: "continuation shells no longer have their exact generated signatures",
+                reason: "coroutine start helper no longer has its exact erased signature",
             },
         })
     );

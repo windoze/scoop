@@ -33,7 +33,7 @@ impl Lowerer {
             if root.boxed_value() == scoop_hir::LocalBoxedValueRequirement::Required {
                 self.materialize_shape_box(module, &value, root.exact());
             }
-            self.coroutines.step_for(
+            let (_, step_ty) = self.coroutines.step_for(
                 &self.source_exact_types,
                 &value,
                 &self.structs,
@@ -46,6 +46,36 @@ impl Lowerer {
                 &self.structs,
                 &mut self.enums,
                 &mut self.shell,
+            );
+            let protocol = self.coroutine_protocol(module, &value);
+            self.coroutines.start_helper(
+                &self.source_exact_types,
+                &value,
+                self.interfaces.mir_id(protocol.suspend_task),
+                self.interfaces.mir_id(protocol.continuation),
+                crate::coroutine_registry::protocol_call(
+                    module,
+                    &self.instances,
+                    &self.interfaces,
+                    protocol.suspend_task_run,
+                ),
+                crate::coroutine_registry::protocol_call(
+                    module,
+                    &self.instances,
+                    &self.interfaces,
+                    protocol.continuation_resume,
+                ),
+                crate::coroutine_registry::protocol_call(
+                    module,
+                    &self.instances,
+                    &self.interfaces,
+                    protocol.continuation_resume_with_exception,
+                ),
+                &step_ty,
+                crate::coroutine_registry::throwable_type(module, &self.class_map),
+                &mut self.functions,
+                &mut self.top_level,
+                &self.shell,
             );
         }
     }
@@ -79,6 +109,8 @@ impl Lowerer {
             let protocol = self.coroutine_protocol(module, &source.source_return);
             let continuation = self.interfaces.mir_id(protocol.continuation);
             let continuation_ty = mir::Type::Interface(continuation);
+            let lowered_signature =
+                crate::coroutine_registry::lowered_signature(module, &source.logical_signature);
             let function = &mut self.functions[source.function];
             let completion = function.body.locals.alloc(mir::Local {
                 name: "$completion".to_string(),
@@ -108,6 +140,7 @@ impl Lowerer {
                 source: source.materialization,
                 source_odr_group: source.odr_group,
                 logical_signature: source.logical_signature,
+                lowered_signature,
                 source_return: source.source_return,
                 step,
                 lowering: mir::CoroutineLowering::Immediate,
@@ -120,11 +153,7 @@ impl Lowerer {
         module: &hir::Module,
         result: &mir::Type,
     ) -> hir::CoroutineProtocol {
-        for protocol in crate::defined_protocols(&self.core_protocols)
-            .coroutines
-            .iter()
-            .copied()
-        {
+        for protocol in module.coroutine_protocols.iter().copied() {
             let lowered = Types {
                 module,
                 struct_map: &self.struct_map,
@@ -142,8 +171,8 @@ impl Lowerer {
                 return protocol;
             }
         }
-        let protocols = crate::defined_protocols(&self.core_protocols)
-            .coroutines
+        let protocols = module
+            .coroutine_protocols
             .iter()
             .map(|protocol| format!("{:?}", module.types[protocol.result_type].kind))
             .collect::<Vec<_>>();

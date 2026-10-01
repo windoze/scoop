@@ -137,7 +137,7 @@ impl Replay<'_> {
                     source.owner(),
                     *slot,
                     Component::Signature,
-                    candidate.signature() == &signature,
+                    candidate.signature() == &self.lowered_signature(&signature)?,
                 )?;
             }
             return Ok(());

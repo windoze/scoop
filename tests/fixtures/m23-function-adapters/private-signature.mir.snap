@@ -13,25 +13,30 @@ Module
   class ClassCastException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
   class box<(LocalResult, Int)> vtable=0 itables=0
   class box<Int> vtable=0 itables=0
+  interface Continuation<LocalResult>
+  interface SuspendTask<LocalResult>
+  interface SuspendRegistration<LocalResult>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
-    bridge function_type1 -> @fn7 id=c5037b7c0e810e448c0cdb8c316cc7c323c6d11bdb6e4b11c728ba6bd374587e
+    bridge function_type1 -> @fn12 id=c5037b7c0e810e448c0cdb8c316cc7c323c6d11bdb6e4b11c728ba6bd374587e
   closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn3 captures=1
-    bridge function_type1 -> @fn8 id=53e23b10323e18afe4bb30b31e3528cb2f8b7e6e4e901dd5d3d4a580357a0407
-  closure cc2 $Closure$dynamic_adapter$((LocalResult, Int)) -> Any type=function_type3 invoke=@fn6 captures=1
-    bridge function_type1 -> @fn9 id=abe58a4dac5f486eddd82b99122a2d7fbee70c71e9de6278acf3fb0410a59055
+    bridge function_type1 -> @fn13 id=53e23b10323e18afe4bb30b31e3528cb2f8b7e6e4e901dd5d3d4a580357a0407
+  closure cc2 $Closure$dynamic_adapter$((LocalResult, Int)) -> Any type=function_type3 invoke=@fn10 captures=1
+    bridge function_type1 -> @fn14 id=abe58a4dac5f486eddd82b99122a2d7fbee70c71e9de6278acf3fb0410a59055
   generated_exact_type get0 location=enum1 nominal_id=3a70ca744b3ac1f7afdf3ceca267a19c4d6ab926c544d1468347e2473dc2bcd4 exact_id=2606b50b5c9b9503d6ba2c4a035d7de83a9f4038e7089793fef97c31ab209b65
-  generated_exact_type get1 location=class5 nominal_id=7ade186a649ff58ec847f6a44a3533d7a19472d6196a9eaa9c96f336277db9f9 exact_id=2d2017a9de62eb5fe3a4e8b49905c0a1675f04d900d5b4aca73c2f2ac0474ee3
+  generated_exact_type get1 location=class6 nominal_id=7ade186a649ff58ec847f6a44a3533d7a19472d6196a9eaa9c96f336277db9f9 exact_id=2d2017a9de62eb5fe3a4e8b49905c0a1675f04d900d5b4aca73c2f2ac0474ee3
   generated_exact_type get2 location=closure1 nominal_id=5db45df09390fd174774af299efcdb3ac4e0ff3698a67e10b3e29f22c0478a36 exact_id=55c6bbd6dbdb9eb9bc5acdb3c98eb4f6b732592007afb6a6ac0f2be2b94bf237
   generated_exact_type get3 location=enum2 nominal_id=6f1d81ab5ad3fa1077063a7444949112a99114559c1cfa97e368645718d87562 exact_id=8778503b25c17dffc03c964bdd29c294b0c62165dead87a79b76c95892259a75
   generated_exact_type get4 location=closure2 nominal_id=cbcc243c6e9b8ccf82caddc178d6b75e4d0ebae10074ee158097f315bc87791a exact_id=a2f7eae358d3d030cc53ad9b3bae2beb295d2d0b0fd1b8195671c1e048864a77
-  generated_exact_type get5 location=class6 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get5 location=class7 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get6 location=closure0 nominal_id=8629bcc0faff501d9edfa854c5bcf1356c786e2fb3ba669a3028fb7673af235d exact_id=fa1c0a750b0585f16e031b81fe072d9cbe2952eb6d9d728ce6c21091a3967936
-  generated_callable gc0 function=@fn8 id=53e23b10323e18afe4bb30b31e3528cb2f8b7e6e4e901dd5d3d4a580357a0407
-  generated_callable gc1 function=@fn6 id=7a86e4a5d6e55b032a0906aacf373cd7253e46223b3e6b69538dd02c6bbb012c
-  generated_callable gc2 function=@fn9 id=abe58a4dac5f486eddd82b99122a2d7fbee70c71e9de6278acf3fb0410a59055
-  generated_callable gc3 function=@fn7 id=c5037b7c0e810e448c0cdb8c316cc7c323c6d11bdb6e4b11c728ba6bd374587e
+  generated_callable gc0 function=@fn13 id=53e23b10323e18afe4bb30b31e3528cb2f8b7e6e4e901dd5d3d4a580357a0407
+  generated_callable gc1 function=@fn10 id=7a86e4a5d6e55b032a0906aacf373cd7253e46223b3e6b69538dd02c6bbb012c
+  generated_callable gc2 function=@fn14 id=abe58a4dac5f486eddd82b99122a2d7fbee70c71e9de6278acf3fb0410a59055
+  generated_callable gc3 function=@fn12 id=c5037b7c0e810e448c0cdb8c316cc7c323c6d11bdb6e4b11c728ba6bd374587e
+  generated_callable gc4 function=@fn11 id=e366132d56a98764fd11925ca59c4aaef17813b4421b13ef341ccbf09367d4f9
   dynamic_adapter da0 class=cc2 target=function_type3
   fun result @fn0() -> Int
     bb0 entry
@@ -73,7 +78,7 @@ Module
       assign $new.1
         Type LocalResult
         ClassAlloc LocalResult
-      call @fn4 direct
+      call @fn8 direct
         Type LocalResult
         Local $new.1
         Type Int
@@ -160,7 +165,19 @@ Module
         ClosureCapture cc1 0
           Type ((LocalResult, Int)) -> LocalResult
           Local $closure
-  fun init.LocalResult.$c0 @fn4(this: LocalResult, value: Int) -> Unit
+  fun Continuation.resume @fn4(this: Continuation<LocalResult>, value: LocalResult) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn5(this: Continuation<LocalResult>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn6(this: SuspendTask<LocalResult>, $completion: Continuation<LocalResult>) -> CoroutineStep<LocalResult>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn7(this: SuspendRegistration<LocalResult>, continuation: Continuation<LocalResult>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.LocalResult.$c0 @fn8(this: LocalResult, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type LocalResult
@@ -168,7 +185,7 @@ Module
         Type Int
         Local value
       return
-  fun init.UnusedResult.$c1 @fn5(this: UnusedResult, value: Int) -> Unit
+  fun init.UnusedResult.$c1 @fn9(this: UnusedResult, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type UnusedResult
@@ -176,7 +193,7 @@ Module
         Type Int
         Local value
       return
-  fun $dynamic_adapter.((LocalResult, Int)) -> Any @fn6($closure: ((LocalResult, Int)) -> Any, arg0: (LocalResult, Int)) -> Any
+  fun $dynamic_adapter.((LocalResult, Int)) -> Any @fn10($closure: ((LocalResult, Int)) -> Any, arg0: (LocalResult, Int)) -> Any
     bb0 entry
       call $call.1: Any = <function_bridge:function_type1> function_bridge[function_type1]
         Type Any
@@ -190,7 +207,49 @@ Module
       return
         Type Any
         Local $call.1
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn7($source: (Int) -> Int, arg0: Any) -> Any
+  fun startCoroutine<LocalResult> @fn11(task: SuspendTask<LocalResult>, completion: Continuation<LocalResult>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn4 interface Continuation<LocalResult>[0]
+        Type Continuation<LocalResult>
+        Local completion
+        Type LocalResult
+        EnumField v0 f0
+          Type CoroutineStep<LocalResult>
+          Local $step
+      return
+    bb2 failed
+      call @fn5 interface Continuation<LocalResult>[1]
+        Type Continuation<LocalResult>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<LocalResult> = @fn6 interface SuspendTask<LocalResult>[0]
+        Type SuspendTask<LocalResult>
+        Local task
+        Type Continuation<LocalResult>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<LocalResult>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn12($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
@@ -204,7 +263,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn8($source: ((LocalResult, Int)) -> LocalResult, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn13($source: ((LocalResult, Int)) -> LocalResult, arg0: Any) -> Any
     bb0 entry
       call $call.1: LocalResult = <closure:function_type2> closure[function_type2]
         Type ((LocalResult, Int)) -> LocalResult
@@ -218,7 +277,7 @@ Module
         Retype Any
           Type LocalResult
           Local $call.1
-  fun function_bridge.$Closure$dynamic_adapter$((LocalResult, Int)) -> Any.(Any) -> Any @fn9($source: ((LocalResult, Int)) -> Any, arg0: Any) -> Any
+  fun function_bridge.$Closure$dynamic_adapter$((LocalResult, Int)) -> Any.(Any) -> Any @fn14($source: ((LocalResult, Int)) -> Any, arg0: Any) -> Any
     bb0 entry
       call $call.1: Any = <closure:function_type3> closure[function_type3]
         Type ((LocalResult, Int)) -> Any
@@ -232,6 +291,12 @@ Module
         Local $call.1
   coroutine_step cs0 CoroutineStep<LocalResult> result=LocalResult
   coroutine_slot cl0 CoroutineSlot<LocalResult> value=LocalResult
+  coroutine_start ct0 result=LocalResult function=fn11
+  coroutine_fn cf0 @fn6 source_return=LocalResult step=cs0 immediate
   instance mi0 function=@fn2 <- exercise
   instance mi1 function=@fn3 <- $lambda.0
+  instance mi2 function=@fn4 <- Continuation.resume
+  instance mi3 function=@fn5 <- Continuation.resumeWithException
+  instance mi4 function=@fn6 <- SuspendTask.run
+  instance mi5 function=@fn7 <- SuspendRegistration.register
   output library

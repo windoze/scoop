@@ -77,7 +77,12 @@ fn source_interface_order_matches_concrete_diamond_override_and_value_tables() {
     with_source(INTERFACES, |output, _| {
         let inventory = project(output);
         let local = output.output().local.module();
-        for (interface, declaration) in local.interfaces.iter() {
+        for (interface, declaration) in local.interfaces.iter().filter(|(_, declaration)| {
+            declaration
+                .origin
+                .source()
+                .is_some_and(|source| source.declaration().origin() == local.cone)
+        }) {
             let exact = local.exact_type_identities[declaration.canonical_type].id();
             let source = inventory.get(exact).unwrap();
             assert_eq!(source.slot_schemas().records().len(), 1);

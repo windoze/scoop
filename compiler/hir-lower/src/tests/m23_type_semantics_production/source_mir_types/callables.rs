@@ -11,9 +11,10 @@ fn actual_source_callables_cover_functions_members_accessors_and_traps() {
         let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/m23-mir-callable-production");
         let source = std::fs::read_to_string(directory.join(format!("{name}.scoop"))).unwrap();
-        let (bytes, dump) = with_production(&source, |output, input, hir, graph, types| {
+        let (bytes, dump) = with_production(&source, |output, input, hir, graph, _| {
             let unit = dependencies::unit(input, graph);
-            let index = MirTypeBridgeTypeIndexV1::try_new(&[types, &unit]).unwrap();
+            let actual = complete_type_exports(output, input, hir, graph);
+            let index = MirTypeBridgeTypeIndexV1::try_new(&[&actual, &unit]).unwrap();
             let public = public_interface(output);
             let bindings =
                 lower_source_callable_bindings(output, &public, hir, input, graph, &index, &[])
@@ -27,15 +28,16 @@ fn actual_source_callables_cover_functions_members_accessors_and_traps() {
             let dump = assertions::dump(input, &bindings);
             if name == "combined" {
                 assertions::combined(input, &bindings, &dump);
-                rejections::traps(output, input, graph, types, &unit, &bindings);
+                rejections::traps(output, input, graph, &actual, &unit, &bindings);
             }
             (encode(&bindings).unwrap(), dump)
         });
         with_production(
             &format!("private fun unrelated(value: Token): Token = value\n{source}"),
-            |output, input, hir, graph, types| {
+            |output, input, hir, graph, _| {
                 let unit = dependencies::unit(input, graph);
-                let index = MirTypeBridgeTypeIndexV1::try_new(&[types, &unit]).unwrap();
+                let actual = complete_type_exports(output, input, hir, graph);
+                let index = MirTypeBridgeTypeIndexV1::try_new(&[&actual, &unit]).unwrap();
                 let bindings = lower_source_callable_bindings(
                     output,
                     &public_interface(output),
@@ -75,21 +77,21 @@ fn actual_source_callables_reject_missing_inputs() {
     );
     with_production(
         "public interface Empty {}",
-        |output, input, hir, graph, types| {
-            assert!(
-                lower_source_callable_bindings(
-                    output,
-                    &public_interface(output),
-                    hir,
-                    input,
-                    graph,
-                    types,
-                    &[]
-                )
-                .unwrap()
-                .entries()
-                .is_empty()
-            );
+        |output, input, hir, graph, _| {
+            let actual = complete_type_exports(output, input, hir, graph);
+            let unit = dependencies::unit(input, graph);
+            let index = MirTypeBridgeTypeIndexV1::try_new(&[&actual, &unit]).unwrap();
+            let bindings = lower_source_callable_bindings(
+                output,
+                &public_interface(output),
+                hir,
+                input,
+                graph,
+                &index,
+                &[],
+            )
+            .unwrap();
+            assert!(!bindings.entries().iter().any(assertions::is_source));
         },
     );
 }

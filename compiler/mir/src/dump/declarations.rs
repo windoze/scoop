@@ -409,14 +409,6 @@ pub fn dump(module: &Module) -> String {
             type_name(module, slot.value())
         ));
     }
-    for (index, shell) in module.meta.continuation_shells.iter().enumerate() {
-        out.push_str(&format!(
-            "  continuation_shell ch{index} result={} success=fn{} failure=fn{}\n",
-            type_name(module, shell.result()),
-            shell.success().into_raw().into_u32(),
-            shell.failure().into_raw().into_u32(),
-        ));
-    }
     for (index, start) in module.meta.coroutine_starts.iter().enumerate() {
         out.push_str(&format!(
             "  coroutine_start ct{index} result={} function=fn{}\n",

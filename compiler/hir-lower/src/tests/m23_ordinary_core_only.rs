@@ -37,7 +37,17 @@ fn ordinary_library_lowers_against_imported_core_without_core_sources() {
     let output = lower_current_cone(scoop_identity::RequestedConeKind::Library, &input)
         .expect("ordinary library lowering uses imported core authority");
 
-    assert_eq!(output.output().export.source_files.len(), 1);
+    assert_eq!(
+        output
+            .output()
+            .export
+            .source_files
+            .iter()
+            .filter(|source| { source.identity.cone() == ordinary.cone() })
+            .count(),
+        1
+    );
+    assert!(output.output().export.functions.is_empty());
     assert_eq!(
         output.output().export.source_files[0].identity.cone(),
         ordinary.cone()
@@ -52,9 +62,8 @@ fn ordinary_library_lowers_against_imported_core_without_core_sources() {
     ));
     assert!(output.output().local.materialization().roots().is_empty());
     assert!(output.imported_dependencies().is_empty());
-    let foundation = scoop_hir::CanonicalHirFoundation::from_dependency_output(&output).unwrap();
-    assert_eq!(foundation.counts().external_source_types, 10);
-    assert_eq!(foundation.counts().external_generic_types, 0);
+    scoop_hir::CanonicalHirFoundation::from_dependency_output(&output).unwrap();
+    assert!(output.output().local.coroutine_protocols.is_empty());
 }
 
 #[test]
@@ -89,14 +98,26 @@ fn ordinary_executable_selects_current_main_under_imported_core_authority() {
         output.output().output_kind(),
         scoop_hir::ConeOutputKind::Executable { .. }
     ));
-    assert!(
-        output
-            .output()
-            .export
+    let export = output.output().export.module();
+    assert_eq!(
+        export
             .source_files
             .iter()
-            .all(|source| { source.identity.cone() != ConeIdentity::CORE })
+            .filter(|source| { source.identity.cone() == ordinary.cone() })
+            .count(),
+        1
     );
+    assert_eq!(export.functions.len(), 1);
+    let (id, main) = export.functions.iter().next().unwrap();
+    assert_eq!(main.name, "main");
+    let scoop_hir::HirFunctionIdentity::Source(identity) = &export.function_identities[id] else {
+        panic!("main has its source declaration identity")
+    };
+    assert_eq!(identity.declaration().origin(), ordinary.cone());
+    assert!(matches!(
+        export.core_protocols,
+        scoop_hir::CoreProtocols::Imported(_)
+    ));
 }
 
 #[test]

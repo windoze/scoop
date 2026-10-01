@@ -33,7 +33,11 @@ pub(crate) fn validate_executable_hir_calls(
     identities: &ValidatedIdentityGraph,
 ) -> Result<(), CrossConeMirClosureRelationError> {
     use CrossConeMirClosureRelationError as Error;
-    let signatures = applications::signatures(foundation, identities)?;
+    let signatures = applications::signatures(
+        foundation,
+        identities,
+        lowered.map(|(section, _)| section.exports().callables()),
+    )?;
     for record in bridge.selected() {
         let Some(reference) = interface
             .external_references()

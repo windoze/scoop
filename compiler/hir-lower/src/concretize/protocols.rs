@@ -25,7 +25,6 @@ impl Concretizer<'_> {
             protocols.exceptions.initialization_cycle_thrower,
             Vec::new(),
         );
-        let coroutine_protocols = self.build_coroutine_protocols(protocols.coroutines);
         self.drain_pending_callables();
 
         let source_callback_core = protocols.foreign_callbacks;
@@ -168,7 +167,6 @@ impl Concretizer<'_> {
                     Vec::new(),
                 )],
             },
-            coroutines: coroutine_protocols,
             foreign_callbacks: concrete::ForeignCallbackCore {
                 modes: callback_modes,
                 states: callback_states,
@@ -176,94 +174,5 @@ impl Concretizer<'_> {
             },
             fundamental_types,
         }))
-    }
-
-    fn build_coroutine_protocols(
-        &mut self,
-        core: export::CoroutineCore,
-    ) -> Vec<concrete::CoroutineProtocol> {
-        let mut protocols = Vec::new();
-        loop {
-            self.drain_pending_callables();
-            let mut results = Vec::new();
-            for (index, function) in self.function_slots.iter().enumerate() {
-                let Some(function) = function else {
-                    continue;
-                };
-                if function.is_suspend
-                    && matches!(
-                        function.kind,
-                        concrete::FunctionKind::User(_) | concrete::FunctionKind::Abstract { .. }
-                    )
-                {
-                    results.push(function.return_ty);
-                }
-                if matches!(
-                    function.kind,
-                    concrete::FunctionKind::Intrinsic(intrinsic)
-                        if matches!(
-                            intrinsic.kind,
-                            concrete::IntrinsicFunctionKind::CoroutineStart
-                                | concrete::IntrinsicFunctionKind::CoroutineSuspend
-                        )
-                ) {
-                    results.extend(self.function_key_arguments(&self.function_keys[index]));
-                }
-            }
-            // Suspend function-value variance bridges are synthesized by MIR
-            // and use the target function type's result. Include those
-            // concrete results in HIR's closed coroutine protocol set too.
-            results.extend(
-                self.function_types.iter().filter_map(|(_, function)| {
-                    function.is_suspend.then_some(function.return_type)
-                }),
-            );
-            results.sort_by_key(|id| id.into_raw().into_u32());
-            results.dedup();
-            results.retain(|result| {
-                !protocols
-                    .iter()
-                    .any(|protocol: &concrete::CoroutineProtocol| protocol.result_type == *result)
-            });
-            if results.is_empty() {
-                break;
-            }
-            protocols.extend(results.into_iter().map(|result_type| {
-                let continuation = self.ensure_interface(core.continuation, vec![result_type]);
-                let suspend_task = self.ensure_interface(core.suspend_task, vec![result_type]);
-                let suspend_registration =
-                    self.ensure_interface(core.suspend_registration, vec![result_type]);
-                concrete::CoroutineProtocol {
-                    result_type,
-                    continuation,
-                    suspend_task,
-                    suspend_registration,
-                    start_coroutine: self.request_function(core.start_coroutine, vec![result_type]),
-                    suspend_coroutine: self
-                        .request_function(core.suspend_coroutine, vec![result_type]),
-                    continuation_resume: self.request_method(
-                        core.continuation_resume,
-                        concrete::MethodOwner::Interface(continuation),
-                        Vec::new(),
-                    ),
-                    continuation_resume_with_exception: self.request_method(
-                        core.continuation_resume_with_exception,
-                        concrete::MethodOwner::Interface(continuation),
-                        Vec::new(),
-                    ),
-                    suspend_task_run: self.request_method(
-                        core.suspend_task_run,
-                        concrete::MethodOwner::Interface(suspend_task),
-                        Vec::new(),
-                    ),
-                    suspend_registration_register: self.request_method(
-                        core.suspend_registration_register,
-                        concrete::MethodOwner::Interface(suspend_registration),
-                        Vec::new(),
-                    ),
-                }
-            }));
-        }
-        protocols
     }
 }

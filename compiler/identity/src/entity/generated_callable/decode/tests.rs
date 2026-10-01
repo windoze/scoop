@@ -5,16 +5,15 @@ use super::{
 };
 use crate::{
     CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
-    CborIdentityRecord, ContinuationShellRole, CoroutineAdapterRole, DecodedCborIdentityRecord,
-    DecodedPersistentId, Effect, ExactCallableSignature, GeneratedCallableIdentityError,
-    GeneratedCallableKey, InitializationCallableRole, LexicalCallableParent, LexicalCallableRole,
-    LexicalParentError, PersistentCallableApplicationId, PersistentCallbackApplicationId,
-    PersistentConstructorId, PersistentDispatchSlotId, PersistentEnumVariantId,
-    PersistentExactTypeId, PersistentFunctionId, PersistentGeneratedCallableId,
-    PersistentGenericFunctionId, PersistentIdMismatch, PersistentIdResolver,
-    PersistentInitializationUnitId, PersistentKeyResolver, PersistentPropertyAccessorId,
-    PersistentTypeId, StructuralDefinitionPath, StructuralDefinitionSiteRole,
-    StructuralPathSegment,
+    CborIdentityRecord, CoroutineAdapterRole, DecodedCborIdentityRecord, DecodedPersistentId,
+    Effect, ExactCallableSignature, GeneratedCallableIdentityError, GeneratedCallableKey,
+    InitializationCallableRole, LexicalCallableParent, LexicalCallableRole, LexicalParentError,
+    PersistentCallableApplicationId, PersistentCallbackApplicationId, PersistentConstructorId,
+    PersistentDispatchSlotId, PersistentEnumVariantId, PersistentExactTypeId, PersistentFunctionId,
+    PersistentGeneratedCallableId, PersistentGenericFunctionId, PersistentIdMismatch,
+    PersistentIdResolver, PersistentInitializationUnitId, PersistentKeyResolver,
+    PersistentPropertyAccessorId, PersistentTypeId, StructuralDefinitionPath,
+    StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -143,10 +142,6 @@ fn all_generated_callable_records_round_trip_and_resolve() {
             application: PersistentCallbackApplicationId::expected(),
         },
         GeneratedCallableKey::CoroutineDriver { source_callable },
-        GeneratedCallableKey::ContinuationShell {
-            result: exact,
-            role: ContinuationShellRole::Failure,
-        },
         GeneratedCallableKey::CoroutineStart { result: exact },
         GeneratedCallableKey::CoroutineAdapter {
             source_callable,
@@ -241,4 +236,10 @@ fn generated_callable_decoder_rejects_unknown_tags_and_roles() {
 
     let role = decode_canonical::<LexicalCallableRole>(b"\x03").unwrap_err();
     assert_eq!(role.kind(), &WireErrorKind::UnknownTag { tag: 3 });
+}
+
+#[test]
+fn retired_continuation_shell_tag_is_rejected() {
+    let error = decode_canonical::<DecodedGeneratedCallableKey>(b"\xa1\x00\x0a").unwrap_err();
+    assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 10 });
 }
