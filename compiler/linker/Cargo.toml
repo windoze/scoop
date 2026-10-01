@@ -1,0 +1,13 @@
+[package]
+name = "scoop-linker"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+object.workspace = true
+scoop-identity.workspace = true
+scoop-lir.workspace = true
+scoop-slib.workspace = true
+scoop-toolchain.workspace = true
+scoop-wire.workspace = true
+tempfile.workspace = true

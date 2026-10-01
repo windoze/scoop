@@ -6,6 +6,7 @@ members = [
     "compiler/manifest",
     "compiler/protocol",
     "compiler/toolchain",
+    "compiler/linker",
     "compiler/scoop",
     "compiler/ast",
     "compiler/parser",
@@ -52,6 +53,7 @@ scoop-identity = { path = "compiler/identity" }
 scoop-manifest = { path = "compiler/manifest" }
 scoop-protocol = { path = "compiler/protocol" }
 scoop-toolchain = { path = "compiler/toolchain" }
+scoop-linker = { path = "compiler/linker" }
 scoop = { path = "compiler/scoop" }
 scoop-ast = { path = "compiler/ast" }
 scoop-parser = { path = "compiler/parser" }

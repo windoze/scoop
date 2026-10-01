@@ -442,6 +442,7 @@ dependencies = [
  "fs4",
  "rustix",
  "scoop-identity",
+ "scoop-linker",
  "scoop-lir",
  "scoop-manifest",
  "scoop-protocol",
@@ -503,6 +504,19 @@ version = "0.0.0"
 dependencies = [
  "scoop-wire",
  "semver",
+]
+
+[[package]]
+name = "scoop-linker"
+version = "0.0.0"
+dependencies = [
+ "object",
+ "scoop-identity",
+ "scoop-lir",
+ "scoop-slib",
+ "scoop-toolchain",
+ "scoop-wire",
+ "tempfile",
 ]
 
 [[package]]
