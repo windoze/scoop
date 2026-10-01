@@ -350,21 +350,22 @@ Strong production 的两种表示当前使用 `/13`、`/14`：删除初始化专
 - 验收同一导出图内存／wire 消费等价、合法声明位置变化、模板与实参来自不同 Cone、真实再次发布和适用的链接／移动 GC；同步实际格式迁移，删除被替代路径，不能只增加共同 facade。
 - **M23-6a 已完成并验收（2026-10-01）**：共同声明、正文、调用与具体化已切换，既有语义缺口和收尾求值顺序问题已修复。完整 workspace 首轮 5294 项通过、17 项旧快照／断言失败；核对更新后，使用文件完全相同的配套编译器严格复验这 17 项，5311 项全部覆盖通过、无忽略项。详见 [实际验收](milestone23/stage6a/ACCEPTANCE.md)。
 
-### M23-7 跨 Cone generic、ODR 与 generic delegated extension（[详细设计](milestone23/stage7/DESIGN.md)，实现中，依赖 M23-6a）
+### M23-7 跨 Cone generic、ODR 与 generic delegated extension ✅（2026-10-01 完成，[详细设计](milestone23/stage7/DESIGN.md)，[实际验收](milestone23/stage7/ACCEPTANCE.md)）
 
-以下保留已有功能与本阶段运行回归。M23-6a 的共同 HIR 前置条件已经验收；本阶段继续按机器定义、ODR 和委托运行闭环推进，不继续逐语法新增 imported 语义分支。
+M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义、ODR 和泛型委托运行闭环已完成。源码与产物沿共同语义和具体化路径进入机器输出。
 
 - 消费 6a 的共有 `.slib` 模板、共同具体化与完整类型事实，完成泛型函数/名义类型、constructor/member/default/bound、hidden support 的机器定义／引用和 generic delegate 运行；复用当前 MIR/LIR、对象集合、registration、reader 和发布路径。参数自由 source nominal 的 start 由定义方补齐，generic application 按实际引用闭合，不递归生成全部 helper。
 - 普通顶层 stored property 统一生成声明方访问器，泛型正文、嵌套 callable、构造、默认参数和 delegate initializer 共用原状态、初始化单元与 GC root；纯静态 GC-free 存储访问器保留 NoGc 合同。普通属性、泛型 enum payload、含引用大值与 ZST 的再次发布、重复实例合并及移动 GC 已有真实产物回归；本地和外来 Strong 类型描述符的对象引用统一为同一 exact type 定义，`link-identity-closure/6` 替代 `/5`。
 - 外来 core 的 `Option` 短写、泛型 enum 变体、默认值与静态 `None` 已接通共有声明和具体化路径；限定／导入／上下文构造、空安全运算、转换、含引用大值和 ZST 均有再次发布与移动 GC 回归。调换 core 变体顺序并移走源码后，下游仍按实际协议身份消费与运行。
 - 数组模板、转换构造与函数 vararg 调用已接通实际 core owner、共有类型与普通物化；数组读写、转换成员／构造、别名与同名重载、默认值、复制 identity、函数引用和迭代成员有再次发布及移动 GC 回归。导入泛型调用复用整组实参的约束固定点，后续实参可为前面的空数组、裸变体、lambda 和函数引用提供上下文，求值顺序保持源码序。数组 instance／element scan 与派发表保留各自真实身份，递归 scan 的完整字节归原对象定义；具体范围与验证见 [进度记录](milestone23/stage7/PROGRESS.md)。
-- `for` 在 Export HIR 前展开为普通调用、接口适配、Option 操作与 while，共有 HIR `/40` 撤销专用 For 和 portable binding-plan 编码。数组与本地／外来泛型迭代器、普通默认表达式、逐轮捕获、跳转和 finally 已有真实再次发布与移动 GC 回归；普通宿主的泛型父类型与整数范围迭代、消费者源码对外来类型的直接解构、外来函数值默认参数已由 6a 的共同 HIR 修正，本阶段的机器闭包、ODR 与委托运行验收继续推进。
-- 跨 Cone 首次取得参数自由 `@NoGC` 源函数的 C 地址已接通：定义方发布 C-safe 函数的 storage bridge，消费方使用原 typed callable 并按实际取址生成 C trampoline。公开、私有模板支持、精确重载、默认值、再次转导出、大值及指针写回均完成真实产物链接、C 调用和移动 GC 验证；自动属性访问器不生成此桥。共有 MIR type bridge 升至 `/5`，runtime ABI 保持。
+- `for` 在 Export HIR 前展开为普通调用、接口适配、Option 操作与 while，当前共有 HIR 为 `/43`，专用 For 和 portable binding-plan 编码已撤销。数组与本地／外来泛型迭代器、普通默认表达式、逐轮捕获、跳转和 finally 已有真实再次发布与移动 GC 回归；普通宿主的泛型父类型与整数范围迭代、消费者源码对外来类型的直接解构、外来函数值默认参数已由 6a 的共同 HIR 修正，本阶段已完成相应的机器闭包、ODR 与委托运行验收。
+- 跨 Cone 首次取得参数自由 `@NoGC` 源函数的 C 地址已接通：定义方发布 C-safe 函数的 storage bridge，消费方使用原 typed callable 并按实际取址生成 C trampoline。公开、私有模板支持、精确重载、默认值、再次转导出、大值及指针写回均完成真实产物链接、C 调用和移动 GC 验证；自动属性访问器不生成此桥。storage bridge 使用共有 MIR 的 role 12（当前 type bridge 为 `/6`），C 调用 ABI 保持。
 - 函数静态／动态适配已覆盖指针装箱、嵌套函数、lambda 结果、接口继承、私有 tuple 签名和 generic delegate initializer，全部通过再次发布、真实链接和移动 GC。closure 使用精确 FunctionShape parent 及固定 Any 动态 invoke，下游目标集合不改变共同 TD；类型关系随 cone-production `/3` 和 runtime metadata ABI 2 发布。原有真实产物回归继续通过。
-- 跨 Cone 协程已接通实际 core 协议、状态机／函数型变、完整隐藏 ABI 和参数自由 source exact 的有限 start 发布；共有 MIR type bridge 升至 `/6`。再次发布、真实挂起／恢复、异常与 finally、值类型 task、24-byte 含引用结果以及调换 core 槽声明顺序均通过普通与移动 GC 运行。严格全仓 **5330 项**通过；M23-7 继续推进旧入口清理与最终全仓验收。
+- 跨 Cone 协程已接通实际 core 协议、状态机／函数型变、完整隐藏 ABI 和参数自由 source exact 的有限 start 发布；共有 MIR type bridge 升至 `/6`。再次发布、真实挂起／恢复、异常与 finally、值类型 task、24-byte 含引用结果以及调换 core 槽声明顺序均通过普通与移动 GC 运行。关闭更新并启用实际配套编译器的最终全仓 **5333 项**通过，无失败、忽略或警告。
 - 保留四类 specialization 和既有 group/member identity；按重复 member 的完整 ABI、canonical LIR、对象/EH/stackmap 判等，独立 helper 的成员集合取并集。旧“同组全部成员必须相同”规则会拒绝不同源签名到同一目标类型的合法 adapter，现按实际定义与引用修订；不增加授权、预算或证明体系。不同源签名到共同目标类型的两组真实 sibling adapter 已完成独立成员并集、共同定义／ABI／对象比较、实际 TD 和派发地址合并，普通与移动 GC 均通过；不同 exact type 的 TD 保持不同址。
 - 重建 core 专项直接修改数组 iterator 正文并新增泛型 class／方法／函数及私有 helper，移走源码后完成实际消费、再次发布、转换构造、Option／函数引用和移动 GC；下游观察到提供方实际正文的新结果。
 - 真实泛型依赖缓存已验证正文、私有 helper、默认值、约束和实参类型变化的重编译范围；core 与未变节点命中缓存，6 轮重复输入的编译调用列表为空且产物字节一致。
+- 已删除无生产调用的旧 Strong 专用 writer、driver 收窄错误和 HIR 遗留错误项，格式测试复用已有 canonical archive 构造器。最终逐项验收、运行与格式证据见 [验收记录](milestone23/stage7/ACCEPTANCE.md)。
 - 正式产物沿原完整 layout 路径切换到 `cross-cone-generic/1`，模板、定义目录、逐 member fingerprint 与缓存同步迁移；required section 按实际 payload 分步升级，不预填尚未实现的模板或保留平行发布器。完成门包含 provider 源码移走后的下游编译，以及现有单 image 验收入口的真实链接、地址合并、委托初始化/失败共享和移动 GC；生产多 image 启动与正式 program-link 仍留给 M23-8/9。
 
 ### M23-8 runtime multi-image registry与启动
