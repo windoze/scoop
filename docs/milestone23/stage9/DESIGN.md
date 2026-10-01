@@ -107,6 +107,7 @@ producer 从同次已完成的 LIR descriptor 投影 alias。身份查询使用�
 
 - 通过目录和 section purpose 验证 actual required inventory；读取已有三层 foundation 和机器 Link sections，其余 HIR/MIR payload 仍受容器长度／摘要约束，Link 不解码模板、声明正文或语言语义表。
 - 从原 foundation 和 Link sections 取得 identity/ABI，用现有 typed key 检查建立本次引用查询；跨 Cone key 通过实际依赖闭包取得。重复 ID 的完整 key 不一致、kind 错误、缺少引用或非法依赖环均拒绝；完整 foundation 的正常数据读取不等于导入前端语义世界。
+- 字段和 callable ABI 复用 nominal layout 与结构化 exact key 的物理存储计算。内嵌 tuple、函数值和指针存储不要求独立导出的 layout identity；字段记录中的 layout ID 仍须等于由完整 exact key、target 和 representation role 得到的 ID，大小、对齐与 scan 继续接受原布局检查。
 - 将完整 production、ABI 与对象输入交给已有 Mach-O、generated-C、registration、stackmap、symbol 和 relocation 检查函数。调整函数参数以接受所需数据，不能复制一套 verifier 或把 Link 数据重新包成 HIR/MIR。
 - native contract 从实际 manifest/LIR 数据取得；不因 Link 没有 HIR 就跳过 extern 完整签名比较。ordinary 与 layout Link import 保留原 provider、typed target、required definition 和真实 use；只有真实 relocation 才要求物理覆盖。
 - 复用原 canonical digest/ODR 实现核对对象与记录，计算 Code 所需的实际贡献，核对当前 artifact 的 Code/RuntimeImage 内容；保留完整结果供后续链接使用。

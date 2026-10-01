@@ -2,6 +2,8 @@
 
 use std::fmt;
 
+pub(crate) mod value_storage;
+
 #[derive(Debug)]
 pub struct LinkDataError(pub String);
 

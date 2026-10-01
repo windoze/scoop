@@ -39,6 +39,7 @@ impl DecodedCanonicalExactLayoutExportsV1 {
             ));
         }
         let mut complete = Vec::new();
+        let mut values = crate::link_data::value_storage::ValueStorageReader::default();
         while !pending.is_empty() {
             let Some(index) = pending.iter().position(|(_, dependencies, _)| {
                 dependencies.iter().all(|id| available.contains_key(id))
@@ -49,7 +50,8 @@ impl DecodedCanonicalExactLayoutExportsV1 {
                 )));
             };
             let (id, _, record) = pending.remove(index);
-            let record = record.read_link(target, foundation, identities, &available)?;
+            let record =
+                record.read_link(target, foundation, identities, &available, &mut values)?;
             if let Some(previous) = available.insert(id, record.clone()) {
                 if previous.identity().physical_definition().provider() == foundation.producer() {
                     return Err(crate::LinkDataError(format!("duplicate layout {id}")));

@@ -20,7 +20,7 @@ impl LayoutReader<'_> {
                     .collect::<Result<Vec<_>, _>>()?;
                 ExactValueLayoutV1::tuple(
                     identity,
-                    &values.iter().map(|value| value.value()).collect::<Vec<_>>(),
+                    &values.iter().map(|value| &value.value).collect::<Vec<_>>(),
                     self.foundation,
                 )
             }
@@ -34,7 +34,7 @@ impl LayoutReader<'_> {
                     .iter()
                     .map(|(field, value)| NominalLayoutFieldInputV1 {
                         field,
-                        value: value.value(),
+                        value: &value.value,
                     })
                     .collect::<Vec<_>>();
                 match policy {
@@ -54,10 +54,20 @@ impl LayoutReader<'_> {
                             .ok_or_else(|| {
                                 LinkDataError(format!("missing C layout contract {contract}"))
                             })?;
-                        let nested = values
+                        let nested = contract
+                            .layout()
+                            .fields()
                             .iter()
-                            .map(|(_, value)| value.as_ref())
-                            .collect::<Vec<_>>();
+                            .filter_map(|field| match field.storage() {
+                                scoop_identity::CanonicalCStorageType::Struct {
+                                    exact_type,
+                                    ..
+                                } => Some(exact_type),
+                                _ => None,
+                            })
+                            .map(|exact| self.value_by_id(value_layout_id(self.target, exact)?))
+                            .collect::<Result<Vec<_>, LinkDataError>>()?;
+                        let nested = nested.iter().map(AsRef::as_ref).collect::<Vec<_>>();
                         ExactValueLayoutV1::c_struct(
                             identity,
                             *interior_mutable,
@@ -107,16 +117,10 @@ impl LayoutReader<'_> {
             .map(|fields| {
                 fields
                     .iter()
-                    .map(|(field, layout)| {
-                        let pointer_kind = match layout.representation().kind() {
-                            ExactRepresentationKindV1::QualifiedPointer(kind) => Some(kind),
-                            _ => None,
-                        };
-                        EnumLayoutFieldInputV1 {
-                            field,
-                            value: layout.value(),
-                            pointer_kind,
-                        }
+                    .map(|(field, layout)| EnumLayoutFieldInputV1 {
+                        field,
+                        value: &layout.value,
+                        pointer_kind: layout.pointer,
                     })
                     .collect::<Vec<_>>()
             })

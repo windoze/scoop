@@ -1,0 +1,33 @@
+package consumer.coroutines
+import templates.coroutines.*
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val gate = Gate<T>()
+    val cleanup = Gate<Unit>()
+    val counter = Counter()
+    val done = Completion<T>()
+    startCoroutine(recoveringFunction(gate, cleanup, seed, counter), done)
+    if (done.calls != 0) { return 2 }
+    gate.fail(UnwrapException())
+    if (done.calls != 0 || counter.value != 0) { return 3 }
+    cleanup.complete(Unit)
+    if (done.calls != 1 || counter.value != 1 || read(done.value!!) != 42) { return 4 }
+    val failedGate = Gate<T>()
+    val failedCleanup = Gate<Unit>()
+    val failedCounter = Counter()
+    val failed = Completion<T>()
+    val task: suspend () -> T = suspend { delayedFinally(failedGate, failedCleanup, failedCounter) }
+    startCoroutine(task, failed)
+    failedGate.fail(UnwrapException())
+    if (failed.calls != 0 || failedCounter.value != 0) { return 5 }
+    val retained = Counter()
+    retained.value = 42
+    failedCleanup.complete(Unit)
+    if (failed.calls != 1 || failedCounter.value != 1 || retained.value != 42) { return 6 }
+    if (!(failed.failure!! is UnwrapException)) { return 7 }
+    return read(seed)
+}
+
+public fun result(): Int = exercise(42, { value: Int -> value })
+
+fun main() { println(result()) }

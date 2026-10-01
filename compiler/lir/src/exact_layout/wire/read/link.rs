@@ -1,22 +1,22 @@
 //! Resolve stored layout constituents without importing source declarations.
 
-use std::collections::BTreeMap;
-
-use scoop_identity::{LayoutKey, PersistentIdResolver, ValidatedIdentityGraph};
+use scoop_identity::{PersistentIdResolver, ValidatedIdentityGraph};
 
 use super::*;
+use crate::link_data::value_storage::{
+    LinkLayouts, LinkValueStorage, ValueStorageReader, value_dependencies, value_layout_id,
+};
 use crate::{ConeLirFoundation, LinkDataError, LirTargetProfile, link_data::link_error};
 
 mod instance;
 mod value;
 
-pub(crate) type LinkLayouts = BTreeMap<PersistentLayoutId, ExactLayoutExportV1>;
 type NominalFieldValue = (
     scoop_identity::CborIdentityRecord<
         scoop_identity::PersistentFieldId,
         scoop_identity::FieldIdentityKey,
     >,
-    std::sync::Arc<ExactValueLayoutV1>,
+    LinkValueStorage,
 );
 
 pub(super) struct LayoutReader<'a> {
@@ -24,6 +24,7 @@ pub(super) struct LayoutReader<'a> {
     pub identities: &'a mut ValidatedIdentityGraph,
     pub foundation: &'a ConeLirFoundation,
     pub layouts: &'a LinkLayouts,
+    pub values: &'a mut ValueStorageReader,
 }
 
 impl DecodedExactLayoutExportV1 {
@@ -41,7 +42,10 @@ impl DecodedExactLayoutExportV1 {
     ) -> Result<Vec<PersistentLayoutId>, LinkDataError> {
         let mut dependencies = Vec::new();
         let mut field = |storage: &crate::DecodedFieldStorageV1| {
-            field_layout(storage, target, identities).map(|id| dependencies.push(id))
+            let exact = identities
+                .resolve(storage.link_exact())
+                .map_err(link_error)?;
+            value_dependencies(exact, target, identities, &mut dependencies)
         };
         match &self.semantic.body {
             RawBody::Value { representation, .. } => match representation {
@@ -105,6 +109,7 @@ impl DecodedExactLayoutExportV1 {
         foundation: &ConeLirFoundation,
         identities: &mut ValidatedIdentityGraph,
         layouts: &LinkLayouts,
+        values: &mut ValueStorageReader,
     ) -> Result<ExactLayoutExportV1, LinkDataError> {
         let exact = identities
             .resolve(self.semantic.exact)
@@ -121,6 +126,7 @@ impl DecodedExactLayoutExportV1 {
             identities,
             foundation,
             layouts,
+            values,
         };
         let expected = match &self.semantic.body {
             RawBody::Value { representation, .. } => reader.value(identity, representation)?.into(),
@@ -132,39 +138,17 @@ impl DecodedExactLayoutExportV1 {
     }
 }
 
-pub(super) fn value_layout_id(
-    target: LirTargetProfile,
-    exact: PersistentExactTypeId,
-) -> Result<PersistentLayoutId, LinkDataError> {
-    PersistentLayoutId::from_key(&LayoutKey::new(
-        exact,
-        target.wire_id(),
-        RepresentationRole::ManagedValue,
-    ))
-    .map_err(link_error)
-}
-
-fn field_layout(
-    field: &crate::DecodedFieldStorageV1,
-    target: LirTargetProfile,
-    identities: &mut ValidatedIdentityGraph,
-) -> Result<PersistentLayoutId, LinkDataError> {
-    match field.link_layout() {
-        Some(layout) => identities.resolve(layout).map_err(link_error),
-        None => value_layout_id(
-            target,
-            identities.resolve(field.link_exact()).map_err(link_error)?,
-        ),
-    }
-}
-
 impl LayoutReader<'_> {
     fn field_value(
         &mut self,
         field: &crate::DecodedFieldStorageV1,
-    ) -> Result<std::sync::Arc<ExactValueLayoutV1>, LinkDataError> {
-        let id = field_layout(field, self.target, self.identities)?;
-        self.value_by_id(id)
+    ) -> Result<LinkValueStorage, LinkDataError> {
+        let exact = self
+            .identities
+            .resolve(field.link_exact())
+            .map_err(link_error)?;
+        self.values
+            .read(exact, self.target, self.identities, self.layouts)
     }
 
     fn value_by_id(

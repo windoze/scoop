@@ -1001,6 +1001,8 @@ M15起`scoop`把用户target选择交给唯一registry，并原子构造不可�
 
 Link reader 检查外部字节的 envelope/hash、required inventory、identity/key、引用、ABI、对象及实际生产数据，不展开 HIR 模板、不重做可见性或从 MIR 重新计算全部布局。Compile consumer 仍检查其真正消费的完整语言语义；同次编译从已完成的 IR 直接投影 Link 数据，已有对象结果直接复用，发布不回读重放。一个已经读入的 Link 闭包保留原对象 bytes 和检查结果，program-link 不重新打开路径或完整重验。同次 Compile/Link 对同一 Link 数据调用同一个对象／引用实现。
 
+字段和 callable ABI 的结构化值存储遵循既有组成规则：nominal 值读取实际导出的 layout；tuple 由 canonical exact key 的元素存储组成，函数值、裸指针与 native function pointer 使用目标规定的指针存储。后者可以只有内嵌 `ValueLayoutConstituentV1`，不要求额外 layout identity 或物理定义。Link 从已检查的 exact key 和 nominal layout 计算这些存储并复用结果，核对实际字段的 layout ID、位置、scan 与 ABI 大小／对齐；不为满足读取器而补发无实际用途的布局定义。
+
 从显式 root artifact 读取唯一 executable entry，按 manifest 的完整 direct dependencies 检查可达闭包、单版本、重复 identity、stale semantic fingerprint、target/backend/runtime ABI 与 source form。依赖必须为 library；不可达或冲突 artifact、缺 root/dependency 均为输入错误。重复 locator 指向相同完整 artifact 时在低层请求规范化中合并；同 identity 不同内容失败。canonical order 使用语言规范 12.3 的逐次 ready-set Kahn 顺序，不按输入顺序或拓扑层排序。Link 读取不要求 caller 提供第二份 root coordinate、direct edge 或前端 session。
 
 每个 Cone 按该顺序、每个目录按 `SlibMemberId` 顺序，将全部 `LinkObject` 恰好提取一次。对象集合包括 Scoop 与已经物化的 generated-C bridge；不按文件名、扩展名、ordinal 或固定数量选择。diagnostic、opaque 和 unknown optional 成员不作为对象；当前 Link purpose 所需但不能处理的 capability 失败。私有临时目录中的文件以实际 Cone/member 分隔、create-new 写入；不同归档内相同物理成员名不发生覆盖。路径只用于 I/O 与诊断，不承担实体身份。

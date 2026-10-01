@@ -40,7 +40,13 @@ impl LayoutsResolvedCrossConeLayoutAbiSectionV1 {
         dependencies: &[&LayoutAbiExportConstituentsV1],
     ) -> Result<ExportsResolvedCrossConeLayoutAbiSectionV1, LinkDataError> {
         let callables = self.callables.read_link(target, foundation, identities)?;
-        abi::check(&self.layouts, &callables, ordinary, dependencies)?;
+        abi::check(
+            &self.layouts,
+            &callables,
+            ordinary,
+            dependencies,
+            identities,
+        )?;
         let dispatch = self.dispatch.read_link(
             target,
             foundation,

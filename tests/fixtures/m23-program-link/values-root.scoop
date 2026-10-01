@@ -1,0 +1,18 @@
+import programlink.values.*
+
+fun main() {
+    val token = keep(Token())
+    val wide = keep(Wide(10, 12, 20))
+    val boxed: Any = array(wrap(keep(payload()))!!)[0]
+    val packet = boxed as Packet
+    when (packet) {
+        Missing -> { throw IllegalStateException() }
+        Data(references, copied) -> {
+            println(references.text)
+            println(references.nested._1)
+            println(references.nested._3)
+            println(copied.first + copied.second + copied.third)
+        }
+    }
+    println(tokenValue(token) == 42 && wide.third == 20L)
+}

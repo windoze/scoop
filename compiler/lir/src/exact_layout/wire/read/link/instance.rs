@@ -55,7 +55,7 @@ impl LayoutReader<'_> {
                     .iter()
                     .map(|(field, value)| NominalLayoutFieldInputV1 {
                         field,
-                        value: value.value(),
+                        value: &value.value,
                     })
                     .collect::<Vec<_>>();
                 let backing = if let ExactTypeKey::Nominal(object) = identity.exact_key() {
