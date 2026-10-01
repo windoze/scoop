@@ -218,9 +218,9 @@ concrete type的release policy使用完备sum；物理nullable函数指针只在
 
 ### 4.1 TypeDescriptor扩展
 
-M24 bump runtime ABI fingerprint与`.slib`的HIR/MIR/LIR三层wire schema；旧M23 `.slib`必须重建，不做兼容读取。M23的program/image/entry/core及六类registration record继续使用原`abi_version == 1`、原字段顺序与精确size，不增加nullable尾字段；TypeDescriptor本身没有prefix，它在现有字段末尾追加：
+M24 bump runtime ABI fingerprint与`.slib`的HIR/MIR/LIR三层wire schema；旧M23 `.slib`必须重建，不做兼容读取。image、root entry及六类registration record继承 [M23-8](../milestone23/stage8/DESIGN.md) 的 `abi_version == 3`、原字段顺序与精确size，不恢复已删除的program/core descriptor，不增加nullable尾字段。TypeDescriptor本身没有prefix，在现有144-byte固定部分之后、`related_types[]`尾表之前增加release hook：
 
-`.slib` 仍使用 M23 的 deterministic-ar container schema 1、bootstrap manifest schema 1、persistent identity schema 1 与 persistent-v1 mangler。M24 将 compatibility 中的 HIR/MIR/LIR schema 与各 outer envelope 全部升至 2；混代或 outer/compatibility 不一致均拒绝。foundation capability 分别使用 `org.scoop-lang.hir/identity-foundation/4`、`org.scoop-lang.mir/identity-foundation/2`、`org.scoop-lang.lir/identity-foundation/3`：HIR 承接 M23-6 的 /3，LIR 承接 [M23-7](../milestone23/stage7/DESIGN.md) 的 /2。正式生产 profile 承接 `cross-cone-generic/1`，升至 `/2` 并列出完整新 required section；不恢复 identity-only profile。同一 capability/profile 的旧、新 major 不得混入同一 artifact 或依赖 world，outer 升代不能代替 section 检查。
+`.slib` 仍使用 M23 的 deterministic-ar container schema 1、bootstrap manifest schema 1、persistent identity schema 1 与 persistent-v1 mangler。M24 将 compatibility 中的 HIR/MIR/LIR schema 与各 outer envelope 全部升至 2；混代或 outer/compatibility 不一致均拒绝。foundation capability 分别使用 `org.scoop-lang.hir/identity-foundation/4`、`org.scoop-lang.mir/identity-foundation/2`、`org.scoop-lang.lir/identity-foundation/3`：HIR 承接 M23-6 的 /3，LIR 承接 [M23-7](../milestone23/stage7/DESIGN.md) 的 /2。正式生产 profile 承接 M23-8 的 `cross-cone-generic/2`，升至 `/3` 并列出完整新 required section；不恢复 identity-only profile。同一 capability/profile 的旧、新 major 不得混入同一 artifact 或依赖 world，outer 升代不能代替 section 检查。
 
 各层新 major 的 identity foundation 沿用 M23-7 delta table 的 kind 与未退役 field tag，LIR callable-body table整体改存body-v2 runtime key；HIR release template、MIR release body/publish relation、LIR release policy/definition与object proof分别由major 2的closed payload/required capability承载，不能给`/1` product加nullable field。runtime ABI没有可协商兼容模式，最终程序中的compiler、core、所有Cone与runtime必须提供同一新fingerprint。
 
@@ -233,7 +233,7 @@ LanguageAbiContractV1 {
 
 RuntimeAbiContractV1 {
     object_and_gc_contract: M24ReleaseReadyImmixV1 = 2, // field 1
-    runtime_metadata_record_abi: u32 = 1,                // field 2
+    runtime_metadata_record_abi: u32 = 3,                // field 2
     type_descriptor_contract: M24ReleaseHookV1 = 2,     // field 3
 }
 
@@ -246,7 +246,7 @@ RuntimeAbiFingerprint =
                             RuntimeAbiContractV1)
 ```
 
-`M24ReleaseReadyImmixV1=2`承诺本设计的header ready bit、publish/搬迁保留、logical-death分类及nonnull hook claim/reclaim顺序；`M24ReleaseHookV1=2`承诺TypeDescriptor追加的hook字段、精确布局与policy/nullability映射。两项必须同时取2，不能只提升TD而让collector仍按M23 header/GC contract解释，或只提升GC contract却按无hook TD读取。六类prefixed runtime metadata record的字段/size未变，因此field 2保持1。
+`M24ReleaseReadyImmixV1=2`承诺本设计的header ready bit、publish/搬迁保留、logical-death分类及nonnull hook claim/reclaim顺序；`M24ReleaseHookV1=2`承诺TypeDescriptor新增的hook字段、精确布局与policy/nullability映射。两项必须同时取2，不能只提升TD而让collector仍按M23 header/GC contract解释，或只提升GC contract却按无hook TD读取。八类prefixed runtime metadata record的字段/size承接M23-8，field 2保持3。
 
 两份deterministic Wire CBOR与fingerprint golden精确为：
 
@@ -255,9 +255,9 @@ LanguageAbiContractV1 CBOR = a10102
 LanguageAbiFingerprint =
     634ec02192ba1541f603b8b56f8c9e63dfc31d86ca5d4443a626f6afc9005391
 
-RuntimeAbiContractV1 CBOR = a3010202010302
+RuntimeAbiContractV1 CBOR = a3010202030302
 RuntimeAbiFingerprint =
-    7d317378bb7cb0ac337127f541e46496c8affcd9666b23ac9d32faed09692ece
+    61de273fbed4096c67678145902deeed00a6ff59b6dcd2e75ce6a142aa50d6d8
 ```
 
 compatibility field 12仍以M23的`IdentityAbiDescriptorV1`和原domain重算。M24 descriptor的完整值如下；除language/runtime leaf、callable body与三层wire schema外，其余字段逐项保持M23值：
@@ -266,8 +266,8 @@ compatibility field 12仍以M23的`IdentityAbiDescriptorV1`和原domain重算。
 IdentityAbiDescriptorV1 {
     language_abi: 634ec02192ba1541f603b8b56f8c9e63
                   dfc31d86ca5d4443a626f6afc9005391, // field 1
-    runtime_abi:  7d317378bb7cb0ac337127f541e46496
-                  c8affcd9666b23ac9d32faed09692ece, // field 2
+    runtime_abi:  61de273fbed4096c67678145902deeed
+                  00a6ff59b6dcd2e75ce6a142aa50d6d8, // field 2
     identity_schema: 1,                               // field 3
     wire_cbor_schema: 1,                              // field 4
     hash_framing_schema: 1,                           // field 5
@@ -290,11 +290,11 @@ CompositeIdentityAbiFingerprint =
 
 ```text
 ad015820634ec02192ba1541f603b8b56f8c9e63dfc31d86ca5d4443a626f6afc9005391
-0258207d317378bb7cb0ac337127f541e46496c8affcd9666b23ac9d32faed09692ece
+02582061de273fbed4096c67678145902deeed00a6ff59b6dcd2e75ce6a142aa50d6d8
 0301040105010602076d70657273697374656e742d7631080109010a010b020c020d02
 
 CompositeIdentityAbiFingerprint =
-    ecf6e26c3a9b045961065acd4bcb82d2156485d30ce95062cd4ebe98c0ed9724
+    e2a81ba2d311e7a11fec472671efc15b3e7b770ebd32048d6bfa7688cdc97856
 ```
 
 上面的CBOR换行只为排版，实际输入是三行hex无分隔符拼接后的bytes。writer、reader、runtime registry与program-link必须使用这些exact values；兼容检查不能只比较outer schema或producer version，也不能接受M23 language/runtime leaf与M24 descriptor字段的任意混搭。
@@ -311,11 +311,15 @@ struct ScoopTypeDescriptor {
     const ScoopItableEntryV1 *itables;
     uint64_t itable_count;
     ScoopByteSpanV1 diagnostic_name;
+    uint32_t relation_kind;
+    uint32_t related_type_count;
+    const ScoopTypeDescriptor *function_result;
     ScoopReleaseHookV1 release_hook;
+    const ScoopTypeDescriptor *related_types[];
 };
 ```
 
-物理编码固定为：
+在现有64-bit target上，`release_hook`位于offset 144，固定部分与`related_types[]`起点均为152 bytes；M23-8仍为144 bytes。物理编码固定为：
 
 - `ReleasePolicy::None` → `release_hook == NULL`；
 - `ReleasePolicy::SynchronousGcFree` → 非null且指向该exact type唯一的已登记release thunk；

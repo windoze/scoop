@@ -370,9 +370,12 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 ### M23-8 runtime multi-image registry与启动
 
-- 依赖 6a 的共同 HIR 与 Stage 7 完整机器产物，只消费实际 image、类型、扫描、初始化和 registration；不重新解释 HIR、具体化模板或补发缺失 helper。
-- 消费已有 image descriptor，按实际生产调用确定启动所需 C 数据与登记契约；实现六类registration table、全image登记、canonical eager/lazy初始化、no-throw gateway与连续LLVM v3 stackmap blob消费。
-- 使用实际编译产物的 3+ 个 image 验证 moving GC、exception、failure/cycle、ODR 重复与损坏 metadata；测试可显式构造损坏输入，但不另建只用于测试的 program descriptor 生产工厂。
+详细设计见 [M23-8](milestone23/stage8/DESIGN.md)，状态：设计完成，待实施（2026-10-01）。
+
+- 依赖已验收的 6a 共同 HIR 与 Stage 7 完整机器产物，直接消费实际 image/root entry 和六类 registration；不重新解释 HIR、具体化模板或补发 helper。
+- 以 `scoop_rt_run_program(images, image_count, root_entry)` 接通生产启动，统一 initialization registration 与 coordinator 参数，删除旧 coordinator 副本。登记全部 image 后形成 canonical Kahn/eager 顺序，每次 no-throw gateway 独立执行 EntryPending/epoch 握手；root catch 先物化 managed 异常再结束 native catch。
+- 扩展现有 stackmap parser，消费全部 LLVM v3 blob，按实际 registration、owner、原始 PC 与规范化 payload 核对 ODR 重复。GC 复用唯一静态 root/immortal/TD/PC 索引；不重算 RuntimeImage/Graph/ODR 全图或增加来源凭证。
+- 按实现规范 2.14 同批迁移 metadata ABI 3、generic profile /2、初始化 production/object 格式与缓存。完成门包含实际 3+ Cone image、Strong/ODR 地址与独立 member 并集、eager/lazy、failure/cycle、函数值/协程、ZST/大值/引用、moving GC、受控线程竞争和损坏 metadata；正式启动对象、runtime-build 与 artifact-only program-link 留给 M23-9。
 
 ### M23-9 基础artifact-only program-link
 
