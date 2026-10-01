@@ -87,7 +87,14 @@
 - 将逐次 gateway wrapper 单独放入短文件，focused C 测试直接调用生产 wrapper。覆盖非法状态码、空 failure root、错误 unit 状态，以及另一线程真正移动异常后从稳定 slot 报告 root/unit 失败。
 - 格式化与全 workspace/all-targets Clippy 通过；codegen/runtime 309 项通过。实际循环 fixture 解构 Option 后比较保存的 String 引用，验证 failure payload 的存活，不依赖额外的聚合值相等调用。
 
+## 12. 多名初始化等待者与移动 GC
+
+- 新增 focused C 组合，在生产 coordinator 和 collector 上运行一名初始化者、三名等待者；成功和失败分别执行，等待者都不能取得第二次初始化权。
+- 使用 world mutex/condition variable 等待全部真实 wait edge 发布，再触发移动 GC；断言三个等待者均停驻、初始化值地址确实变化，发布后各线程读取同一结果。失败发布后清空临时 storage，只保留 failure root，再次移动 GC 后重读失败对象，确认不会重试。
+- fixture 直接提供所测的已解析 V1 record，不改变生产 registration 边界或增加 descriptor 工厂。分配时发布真实测试 anchor，阻塞 join 期间退回 native-safe。
+- 格式化与全 workspace/all-targets Clippy 通过；codegen/runtime 310 项全部通过。
+
 ## 待完成
 
-1. 补充多名初始化等待者与真实移动 GC 的组合，并完成既有静态值/ODR/重建 core 运行矩阵回归。
+1. 完成既有静态值/ODR/重建 core 运行矩阵回归。
 2. 同步全部受格式变化影响的 golden，运行配套 scoopc 的完整 workspace 回归，整理验收文档并清理 target。

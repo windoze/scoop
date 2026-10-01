@@ -149,6 +149,25 @@ fn moving_collector_updates_all_thread_protocol_roots() {
 }
 
 #[test]
+fn initialization_waiters_share_success_and_failure_across_moving_gc() {
+    let output = compile_and_run(
+        &workspace_root(),
+        "initialization_gc_test",
+        "runtime/tests/initialization_gc_test.c",
+        false,
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        output.stdout,
+        b"initialization waiters and moving GC tests passed\n"
+    );
+}
+
+#[test]
 fn initialization_coordinator_is_exactly_once_and_gc_cooperative() {
     let workspace = workspace_root();
     let binary = std::env::temp_dir().join(format!(
