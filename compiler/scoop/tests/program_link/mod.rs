@@ -5,6 +5,8 @@ use std::sync::OnceLock;
 use scoop::{RuntimeBuildRequest, RuntimeOptimization, build_runtime};
 use scoop_toolchain::ResolvedTargetProfile;
 
+mod orchestration;
+
 pub struct Environment {
     _directory: tempfile::TempDir,
     compiler: PathBuf,
