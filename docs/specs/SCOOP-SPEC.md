@@ -1726,7 +1726,7 @@ M23-6 的共有 HIR 接口 `/30` 保留 struct 的实际 `@CLayout`、`@Interior
 
 外部调用与布局引用使用实际 provider、typed target、完整 ABI、符号和定义记录。共有 Link 消费检查实际 undefined relocation 的符号、目标和覆盖关系；Code fingerprint 记录影响代码的依赖，member/range/offset 等物理位置按 Link 合同处理。同一次编译的完整 IR 和已验证依赖直接用于发布；不再保留独立 core requirement 闭包、来源资格或发布时分别重放 Compile/Link 的证明链。provider 拥有实际 body 和 Strong definition，re-export 仅引用已有声明。
 
-独立 program-link stage 从显式 executable artifact 和完整依赖读取 Link 数据，按语言规范 12.3 的 canonical Cone order 与目录中的 `SlibMemberId` 顺序，将每个 `LinkObject` 恰好提取一次。root、image、定义、ABI、ODR 与真实 relocation 来自产物，Link 不重建 HIR 模板或重做语言语义；缺定义不能退回源码修补。M23-9 直接复用已有 foundation 身份／合同及 production、import 与对象记录，通过 `org.scoop-lang.lir/link-support/1` 的二字段 map 补齐缺失机器 ABI／布局和 runtime 数据 alias；格式和 reader 职责见实现规范 2.8。diagnostic、opaque 和 unknown optional 成员不成为对象，当前 Link purpose 不认识的 required capability 必须失败。
+独立 program-link stage 从显式 executable artifact 和完整依赖读取 Link 数据，按语言规范 12.3 的 canonical Cone order 与目录中的 `SlibMemberId` 顺序，将每个 `LinkObject` 恰好提取一次。root、image、定义、ABI、ODR 与真实 relocation 来自产物，Link 不重建 HIR 模板或重做语言语义；缺定义不能退回源码修补。M23-9 直接复用已有 foundation 身份／合同及 production、import 与对象记录，通过 `org.scoop-lang.lir/link-support/1` 的单字段 map 补齐 runtime 数据 alias，完整机器 ABI／布局仍原位读取；格式和 reader 职责见实现规范 2.8。diagnostic、opaque 和 unknown optional 成员不成为对象，当前 Link purpose 不认识的 required capability 必须失败。
 
 Cone 的 defined/undefined 记录只覆盖带 `SlibMemberId` 的 `.slib` object。program、runtime 和 native 对象保留各自实际定义、引用及对象身份，不能伪造 Cone member。动态 provider 只满足已声明且 ABI 一致的外部绑定，不能替代受控的 Scoop/runtime/program 定义。native direct object/static archive 的候选格式、符号、ABI、EH/TLS、实际抽取和隐式输入检查按实现规范 2.8 与 M23 总设计 3.7 执行；thin/nested archive、未登记 producer、bitcode/LTO 或没有合同的 autolink 不会被当作普通对象接受。
 

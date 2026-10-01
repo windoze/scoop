@@ -124,7 +124,8 @@ impl AssembledCrossConeLayoutArtifactV1 {
         } = input;
         let identity = cone.identity();
         let link_object_count = link_objects.len();
-        let (code, callable_link_closure, layout_link_closure) = layout_code.into_parts();
+        let (code, callable_link_closure, layout_link_closure, link_support) =
+            layout_code.into_parts();
 
         validate_producers(
             identity,
@@ -174,6 +175,7 @@ impl AssembledCrossConeLayoutArtifactV1 {
             link_identity_closure: &link_identity_closure,
             callable_link_closure: &callable_link_closure,
             layout_link_closure: &layout_link_closure,
+            link_support: &link_support,
         })?;
 
         let production_manifest = CrossConeLayoutProductionManifestV1::from_verified_code(code);

@@ -1809,7 +1809,7 @@ scoopc build <Cone-root-or-Cone.toml-or-file.scoop>
 
 对 executable root，M23-9 的 `scoop` 编排 runtime 构建，覆盖实际 target、C compiler、源码、头文件和 build rules，返回普通对象与符号／ABI 记录。源内容、工具链、flags 和 runtime ABI 改变使缓存失效；同次结果直接交给 program-link，外部索引和对象读入时检查一次。低层 `scoop-link --root-slib … --dep-slib … --runtime-objects … -o …` 只消费磁盘产物和明确 target，不搜索 source/manifest；对象索引是本地交接数据，不是新分发格式或来源凭证。
 
-program-link 消费独立 reader 的完整 Link 数据、runtime 对象、target/link profile 与输出路径。`org.scoop-lang.lir/link-support/1` 的二字段 map 补齐缺失机器 ABI／布局与实际 runtime 数据 alias；原三层 foundation 身份／合同、manifest、production、ODR、import 和对象表直接复用，不再经完整 HIR/MIR replay。按 canonical Cone/member 顺序提取每个 LinkObject 一次，metadata-only import 不要求虚构 relocation。所有 SourceExtern 共用声明合同合并和实际定义解析；当前输入为 runtime 对象与已选系统 provider，M23-10 再增加一般 native 输入的供应；diagnostic、opaque 和 unknown optional 成员不作为对象。
+program-link 消费独立 reader 的完整 Link 数据、runtime 对象、target/link profile 与输出路径。`org.scoop-lang.lir/link-support/1` 的单字段 map 补齐实际 runtime 数据 alias，完整机器 ABI／布局原位读取；原三层 foundation 身份／合同、manifest、production、ODR、import 和对象表直接复用，不再经完整 HIR/MIR replay。按 canonical Cone/member 顺序提取每个 LinkObject 一次，metadata-only import 不要求虚构 relocation。所有 SourceExtern 共用声明合同合并和实际定义解析；当前输入为 runtime 对象与已选系统 provider，M23-10 再增加一般 native 输入的供应；diagnostic、opaque 和 unknown optional 成员不作为对象。
 
 program-link 生成普通 C main、静态 image pointer array 和唯一 root extern 引用，调用已有 `scoop_rt_run_program`；只编译这份本次生成的 startup C，不读取 Scoop/runtime 源码、不重新生成 bridge、不调用 Scoop codegen。String 使用定义方保存的实际 TD alias，与原 TD 同址，不创建 descriptor/pointer 副本。详细启动代码、明确系统 ld/libSystem、fixup 与最终检查见 [M23-9](stage9/DESIGN.md) 第 5～7 节。
 
@@ -2541,7 +2541,7 @@ producer可输出任意非空数量的object，验证在全部member的联合定
 
 详细设计见 [M23-9](stage9/DESIGN.md)，状态为设计完成、尚未实现。前置为已验收 Stage 8，交付独立 Link reader、`compiler/linker` 库与低层 `scoop-link`、普通 runtime-build/对象索引、正式启动对象、固定 Darwin/AArch64 系统输入和必要最终检查。
 
-Link 直接复用原 foundation 身份／合同，support 只补缺失机器 ABI／布局与 runtime 数据 alias，并复用 production、对象和逐 member ODR，不再读取 HIR 模板世界或重跑 MIR 布局。program-link 不读 Scoop/runtime 源码、不加载 LLVM；其明确 C compiler 只编译本次生成的 startup C。SourceExtern 统一从实际对象／provider export 中解析，不建 core API 白名单；缺失定义和合同冲突同样报错。额外 library 等物理输入供应留给 M23-10，复用同一解析器。
+Link 直接复用原 foundation 身份／合同，完整机器 ABI／布局原位读取，support 只补 runtime 数据 alias，并复用 production、对象和逐 member ODR，不再读取 HIR 模板世界或重跑 MIR 布局。program-link 不读 Scoop/runtime 源码、不加载 LLVM；其明确 C compiler 只编译本次生成的 startup C。SourceExtern 统一从实际对象／provider export 中解析，不建 core API 白名单；缺失定义和合同冲突同样报错。额外 library 等物理输入供应留给 M23-10，复用同一解析器。
 
 完成门：全新进程在所有 Scoop/runtime 源树和前端内存状态不可用时，只凭完整产物和 runtime 对象完成链接运行；全部直接 LinkObject 各一次，固定系统输入明确，未借 `cc` 默认、raw object 或 fixture-native 注入补全。真实 Strong/ODR 地址、独立 member 并集、multi-blob stackmap、初始化、moving GC、exception gateway、重建 core 和缓存失效矩阵通过。完整实现验收见阶段设计第 10～11 节；final-link cache 不作为本阶段工作。
 

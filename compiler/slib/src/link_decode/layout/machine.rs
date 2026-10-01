@@ -71,6 +71,11 @@ impl<'a> ValidatedGraphArtifact<'a> {
             lir_cross_cone_layout_abi_capability(),
         )?;
         let link = DecodedCrossConeLayoutLinkOnlySections {
+            link_support: decode_required(
+                &lir,
+                MetadataLocation::Lir,
+                lir_link_support_capability(),
+            )?,
             production_manifest,
             link_identity_closure: decode_required(
                 &lir,

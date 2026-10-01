@@ -2,6 +2,7 @@ use super::*;
 
 #[derive(Debug)]
 pub enum LayoutLinkSymbolUseError {
+    LinkSupport(crate::LinkSupportError),
     Resource(WireError),
     Defined(DefinedLinkSymbolOwnerBuildError),
     Native(lir::CanonicalNativeExternalRequirementBuildError),
@@ -42,6 +43,7 @@ macro_rules! from_error {
     };
 }
 from_error!(WireError, Resource);
+from_error!(crate::LinkSupportError, LinkSupport);
 from_error!(DefinedLinkSymbolOwnerBuildError, Defined);
 from_error!(lir::CanonicalNativeExternalRequirementBuildError, Native);
 from_error!(CurrentConeUndefinedRequirementValidationError, Current);

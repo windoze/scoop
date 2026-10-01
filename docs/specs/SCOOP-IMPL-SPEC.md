@@ -845,7 +845,7 @@ layout artifact 的 Code 读取复用 producer 的九字段 canonical 输入和 
 
 生产 profile descriptor 只编码必需 section 清单：field 1=id、2=required_manifest、3=required_hir、4=required_mir、5=required_lir。原 field 6～9 及独立 `ArtifactValidationPolicy` 退役，不复用；删除仅服务于旧 profile 或未来占位的 availability policy、publication class、Link proof policy 与 ODR policy 数据。完整生产产物的 Code/RuntimeImage fingerprint 必须 Available，由 manifest 读取规则检查；ODR 在本阶段的 Strong 输入边界拒绝，optional/unknown section 按实际 purpose 与 registry 规则处理。`single-cone-strong`、`cross-cone-semantics-strong`、`cross-cone-layout-strong` 的 major 均升为 3，旧 `/1`、`/2` 产物和缓存重建。profile fingerprint 继续覆盖这个实际格式描述，runtime C ABI 与 String 表示不变。
 
-M23-9 的独立 Link reader 使用新增 `org.scoop-lang.lir/link-support/1`，只补既有记录缺失的机器 ABI／布局与实际 runtime 数据 alias；身份、native 合同和已有 ABI 直接复用原 foundation。该 section 对 Compile/Link 必需，普通 Code contribution 覆盖其 canonical payload；既有 language section、container、runtime ABI 与对象格式保持。`cross-cone-generic/2` required inventory 和 descriptor fingerprint 更新，旧产物／缓存重建，详细字段和消费边界见 2.8 及 [Stage 9 设计](../milestone23/stage9/DESIGN.md) 第 3、9 节。
+M23-9 的独立 Link reader 使用新增 `org.scoop-lang.lir/link-support/1`，只补实际 runtime 数据 alias；身份、native 合同、完整 ABI 和布局／scan 直接复用原 foundation 与 layout ABI 记录。该 section 对 Compile/Link 必需，普通 Code contribution 覆盖其 canonical payload；既有 language section、container、runtime ABI 与对象格式保持。`cross-cone-generic/2` required inventory 和 descriptor fingerprint 更新，旧产物／缓存重建，详细字段和消费边界见 2.8 及 [Stage 9 设计](../milestone23/stage9/DESIGN.md) 第 3、9 节。
 
 ### 2.7 `scoop` umbrella 与 single-Cone `scoopc`
 
@@ -997,7 +997,7 @@ M15起`scoop`把用户target选择交给唯一registry，并原子构造不可�
 
 详细设计见 [M23-9](../milestone23/stage9/DESIGN.md)。program-link 是独立 stage；`scoop build`、`scoop run` 与显式 `scoop link` 共用其库入口，M23-9 同时提供只接收产物的低层 `scoop-link` 进程入口。它消费完整 `.slib` Link 闭包、普通 runtime 对象集合、LIR target、final-link profile 与输出路径，不读取 Scoop 或 runtime 源码，不调用 parser、HIR lower、具体化或其他上游 stage。它可以调用 profile 中明确选择的 C 编译器，仅编译本次生成的固定启动代码；不编译用户 C/C++，不重新生成依赖中的 bridge。runtime-build 与缓存仍由 `scoop` 编排。
 
-**独立 Link 读取：**M23-8 的实际 reader 仍通过 `decode_cross_cone_layout_link_sections → into_shared_sections → replay_semantics` 读取完整 HIR/MIR；M23-9 必须解除这个依赖。共有 reader 直接复用三层 foundation 的 canonical identity key、MIR callable signature 与 LIR native/C ABI 数据；新增 `org.scoop-lang.lir/link-support/1` 只补既有 foundation/production/import 未提供的机器 ABI／布局，以及 runtime 固定数据符号到实际定义的 alias。新 section 是二字段 map，不复制原身份或合同表。已有 manifest、production、defined/undefined、ODR、对象范围和 relocation 记录原位复用，不另建语义证明表。该 section 的具体字段、闭包和 fingerprint 规则见阶段设计第 3、9 节。
+**独立 Link 读取：**M23-8 的实际 reader 仍通过 `decode_cross_cone_layout_link_sections → into_shared_sections → replay_semantics` 读取完整 HIR/MIR；M23-9 必须解除这个依赖。共有 reader 直接复用三层 foundation 的 canonical identity key、MIR callable signature 与 LIR native/C ABI 数据；新增 `org.scoop-lang.lir/link-support/1` 只补 runtime 固定数据符号到实际定义的 alias。新 section 是单字段 map `{1=runtime_data_aliases}`；原设计预留的 `abi_support` 没有实际缺项，删除该字段，不复制已有完整 ABI／布局或身份／合同表。已有 manifest、production、defined/undefined、ODR、对象范围和 relocation 记录原位复用，不另建语义证明表。该 section 的具体字段、闭包和 fingerprint 规则见阶段设计第 3、9 节。
 
 Link reader 检查外部字节的 envelope/hash、required inventory、identity/key、引用、ABI、对象及实际生产数据，不展开 HIR 模板、不重做可见性或从 MIR 重新计算全部布局。Compile consumer 仍检查其真正消费的完整语言语义；同次编译从已完成的 IR 直接投影 Link 数据，已有对象结果直接复用，发布不回读重放。一个已经读入的 Link 闭包保留原对象 bytes 和检查结果，program-link 不重新打开路径或完整重验。同次 Compile/Link 对同一 Link 数据调用同一个对象／引用实现。
 

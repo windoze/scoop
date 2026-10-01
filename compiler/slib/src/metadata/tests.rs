@@ -31,7 +31,7 @@ fn foundation_section_round_trips_without_copying_payload() {
             MetadataSection::new(
                 MetadataLocation::Hir,
                 hir_identity_foundation_capability(),
-                MemberPurposeSet::COMPILE,
+                MemberPurposeSet::COMPILE_AND_LINK,
                 payload.clone(),
             )
             .unwrap(),
@@ -124,7 +124,7 @@ fn purpose_and_known_location_contracts_are_closed() {
         MetadataSection::new(
             MetadataLocation::Mir,
             lir_identity_foundation_capability(),
-            MemberPurposeSet::COMPILE,
+            MemberPurposeSet::COMPILE_AND_LINK,
             Vec::new(),
         ),
         Err(MetadataSectionError::KnownCapabilityWrongLocation { .. })

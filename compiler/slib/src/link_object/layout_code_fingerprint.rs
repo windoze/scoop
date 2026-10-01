@@ -93,6 +93,7 @@ pub struct VerifiedCrossConeLayoutCodeFingerprintV1<'a> {
     code: VerifiedCodeFingerprintV2,
     callable_link_closure: CrossConeLinkClosureSectionV1,
     layout_link_closure: CrossConeLayoutLinkClosureSectionV1<'a>,
+    link_support: crate::LirLinkSupportSectionV1,
 }
 
 impl<'a> VerifiedCrossConeLayoutCodeFingerprintV1<'a> {
@@ -114,11 +115,13 @@ impl<'a> VerifiedCrossConeLayoutCodeFingerprintV1<'a> {
         VerifiedCodeFingerprintV2,
         CrossConeLinkClosureSectionV1,
         CrossConeLayoutLinkClosureSectionV1<'a>,
+        crate::LirLinkSupportSectionV1,
     ) {
         (
             self.code,
             self.callable_link_closure,
             self.layout_link_closure,
+            self.link_support,
         )
     }
 }
@@ -132,6 +135,7 @@ pub fn compute_cross_cone_layout_code_fingerprint_v1<'a>(
     defined_symbols: CanonicalDefinedLinkSymbolOwnerSetV1,
     undefined_partitions: FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
     external_shape: &'a VerifiedExternalShapeRequirementClosureV1<'a>,
+    link_support: crate::LirLinkSupportSectionV1,
 ) -> Result<VerifiedCrossConeLayoutCodeFingerprintV1<'a>, LayoutCodeFingerprintError> {
     let builtins = production
         .link_objects()
@@ -161,6 +165,9 @@ pub fn compute_cross_cone_layout_code_fingerprint_v1<'a>(
             layout_link_closure.semantic_imports(),
         )
         .map_err(LayoutCodeFingerprintError::LinkContributionEncoding)?;
+    let link_extension_contributions = link_extension_contributions
+        .with_link_support(&link_support)
+        .map_err(LayoutCodeFingerprintError::LinkContributionEncoding)?;
     let (undefined_symbols, _, _) = undefined_partitions.into_parts();
     let code = compute(
         production,
@@ -173,6 +180,7 @@ pub fn compute_cross_cone_layout_code_fingerprint_v1<'a>(
         code,
         callable_link_closure,
         layout_link_closure,
+        link_support,
     })
 }
 

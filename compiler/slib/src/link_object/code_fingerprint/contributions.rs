@@ -89,6 +89,20 @@ impl CanonicalKnownLinkExtensionCodeContributionSetV1 {
     pub fn contributions(&self) -> &[KnownLinkExtensionCodeContributionV1] {
         &self.contributions
     }
+
+    pub(crate) fn with_link_support(
+        mut self,
+        support: &crate::LirLinkSupportSectionV1,
+    ) -> Result<Self, scoop_wire::cbor::EncodeError> {
+        self.contributions
+            .push(KnownLinkExtensionCodeContributionV1 {
+                capability: crate::lir_link_support_capability(),
+                canonical_projection: encode(support)?,
+            });
+        self.contributions
+            .sort_unstable_by(|a, b| a.capability.cmp(&b.capability));
+        Ok(self)
+    }
 }
 
 impl WireEncode for CanonicalKnownLinkExtensionCodeContributionSetV1 {

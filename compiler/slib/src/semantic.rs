@@ -584,7 +584,7 @@ mod tests {
         MetadataSection::new(
             layer.location(),
             capability,
-            MemberPurposeSet::COMPILE,
+            MemberPurposeSet::COMPILE_AND_LINK,
             payload.to_vec(),
         )
         .unwrap()

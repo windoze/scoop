@@ -56,6 +56,7 @@ pub struct DecodedCrossConeLayoutLinkSections<'input> {
     link_identity_closure: DecodedLinkIdentityClosureSectionV1,
     cross_cone_link_closure: DecodedCrossConeLinkClosureSectionV1,
     layout_link_closure: DecodedCrossConeLayoutLinkClosureSectionV1,
+    link_support: crate::DecodedLirLinkSupportSectionV1,
 }
 
 #[cfg(test)]

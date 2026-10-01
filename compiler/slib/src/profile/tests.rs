@@ -112,19 +112,19 @@ fn capability_registry_has_the_fixed_location_purpose_and_sink_matrix() {
         (
             hir_identity_foundation_capability(),
             SectionLocation::Hir,
-            MemberPurposeSet::COMPILE,
+            MemberPurposeSet::COMPILE_AND_LINK,
             FingerprintSinkSet::HIR,
         ),
         (
             mir_identity_foundation_capability(),
             SectionLocation::Mir,
-            MemberPurposeSet::COMPILE,
+            MemberPurposeSet::COMPILE_AND_LINK,
             FingerprintSinkSet::MIR,
         ),
         (
             lir_identity_foundation_capability(),
             SectionLocation::Lir,
-            MemberPurposeSet::COMPILE,
+            MemberPurposeSet::COMPILE_AND_LINK,
             FingerprintSinkSet::LIR,
         ),
         (
@@ -160,7 +160,7 @@ fn capability_registry_has_the_fixed_location_purpose_and_sink_matrix() {
         (
             lir_cross_cone_param_free_bridge_capability(),
             SectionLocation::Lir,
-            MemberPurposeSet::COMPILE,
+            MemberPurposeSet::COMPILE_AND_LINK,
             FingerprintSinkSet::LIR,
         ),
         (

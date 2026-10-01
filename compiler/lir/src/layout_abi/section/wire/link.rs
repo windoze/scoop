@@ -3,6 +3,7 @@ use crate::{LinkDataError, link_data::link_error};
 use scoop_identity::{
     ConeCoordinate, ExactTypeDiagnosticCatalog, SourceDeclarationKey, ValidatedIdentityGraph,
 };
+mod abi;
 
 impl DecodedCrossConeLayoutAbiSectionV1 {
     pub fn read_link_layouts(
@@ -39,6 +40,7 @@ impl LayoutsResolvedCrossConeLayoutAbiSectionV1 {
         dependencies: &[&LayoutAbiExportConstituentsV1],
     ) -> Result<ExportsResolvedCrossConeLayoutAbiSectionV1, LinkDataError> {
         let callables = self.callables.read_link(target, foundation, identities)?;
+        abi::check(&self.layouts, &callables, ordinary, dependencies)?;
         let dispatch = self.dispatch.read_link(
             target,
             foundation,

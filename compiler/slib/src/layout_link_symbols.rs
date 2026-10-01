@@ -18,6 +18,7 @@ pub(crate) use verification::{ReplayInputs, replay};
 /// Complete symbols, final objects and the verified Code identity.
 #[derive(Debug)]
 pub struct ReplayedLayoutLinkSymbolUsesV1 {
+    support: crate::LirLinkSupportSectionV1,
     objects: ReplayedLayoutLinkObjectContentsV1,
     defined: CanonicalDefinedLinkSymbolOwnerSetV1,
     native: lir::CanonicalNativeExternalRequirementSurfaceV1,
@@ -28,6 +29,9 @@ pub struct ReplayedLayoutLinkSymbolUsesV1 {
 }
 
 impl ReplayedLayoutLinkSymbolUsesV1 {
+    pub const fn link_support(&self) -> &crate::LirLinkSupportSectionV1 {
+        &self.support
+    }
     pub const fn code_fingerprint(&self) -> crate::CodeFingerprint {
         self.code
     }

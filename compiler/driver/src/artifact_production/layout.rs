@@ -67,12 +67,29 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
             &self.ordinary.direct_dependencies,
             self.ordinary.hir_foundation.source_count_for_cone(current),
         )?;
+        let descriptor = self
+            .ordinary
+            .hir_core
+            .compiler_protocols()
+            .map(|protocols| {
+                self.lir_layout
+                    .descriptors()
+                    .get(protocols.string_exact_type())
+                    .ok_or_else(|| {
+                        slib::LinkSupportError("String descriptor missing from producer LIR".into())
+                    })
+            })
+            .transpose()
+            .map_err(Error::LinkSupport)?;
+        let support = slib::LirLinkSupportSectionV1::from_string_descriptor(descriptor)
+            .map_err(Error::LinkSupport)?;
         let code = slib::compute_cross_cone_layout_code_fingerprint_v1(
             finalized.projection,
             native,
             defined,
             undefined,
             &shape,
+            support,
         )
         .map_err(|error| Error::Code(Box::new(error)))?;
         let artifact = slib::AssembledCrossConeLayoutArtifactV1::write(

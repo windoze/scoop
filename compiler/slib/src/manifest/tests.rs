@@ -235,7 +235,7 @@ fn producer_cone_and_section_boundaries_are_closed() {
     assert!(matches!(
         ManifestSection::new(
             crate::hir_identity_foundation_capability(),
-            MemberPurposeSet::COMPILE,
+            MemberPurposeSet::COMPILE_AND_LINK,
             Vec::new(),
         ),
         Err(ManifestSectionError::KnownCapabilityWrongLocation { .. })

@@ -375,7 +375,7 @@ pub(crate) fn required_sections() -> (
         section(
             MetadataLocation::Hir,
             hir_identity_foundation_capability(),
-            MemberPurposeSet::COMPILE,
+            MemberPurposeSet::COMPILE_AND_LINK,
             encode(&hir_foundation).unwrap(),
         ),
         section(
@@ -389,7 +389,7 @@ pub(crate) fn required_sections() -> (
         section(
             MetadataLocation::Mir,
             mir_identity_foundation_capability(),
-            MemberPurposeSet::COMPILE,
+            MemberPurposeSet::COMPILE_AND_LINK,
             encode(&mir_foundation).unwrap(),
         ),
         section(
@@ -403,7 +403,7 @@ pub(crate) fn required_sections() -> (
         section(
             MetadataLocation::Lir,
             lir_identity_foundation_capability(),
-            MemberPurposeSet::COMPILE,
+            MemberPurposeSet::COMPILE_AND_LINK,
             encode(&lir_foundation).unwrap(),
         ),
         section(
@@ -454,7 +454,7 @@ fn sections_with_lir_odr_symbol() -> (
     *foundation_section = section(
         MetadataLocation::Lir,
         lir_identity_foundation_capability(),
-        MemberPurposeSet::COMPILE,
+        MemberPurposeSet::COMPILE_AND_LINK,
         encode(&foundation).unwrap(),
     );
     (hir, mir, lir)

@@ -93,20 +93,15 @@ manifest 的输出分支、image/root owner、native contracts、registration �
 
 HIR/MIR/LIR foundation 已保存 canonical identity keys、MIR callable signature、LIR native contract 和 C ABI signature/layout。独立 Link 直接读取这些数据表，复用各 IR crate 的 wire/key 解析；不读取 HIR interface/template/type-semantics 或 MIR type bridge 来重放语言语义，也不把原有身份和合同复制到新 section。拆开 foundation 的数据／引用检查与 Compile 语义检查，保持原编码和 typed ID。
 
-只为既有记录未携带的完整机器表示与实际 runtime 数据 alias 增加必需 LIR section `org.scoop-lang.lir/link-support/1`。其 wire 是固定二字段 map，两个集合即使为空也显式编码：
+现有 `CanonicalScoopAbiFunctionSignature` 已携带 exact type、receiver、参数顺序、size/alignment、ZST elision、direct/indirect passing、结果与 GC effect；layout ABI 原表保存完整 value/instance 表示、字段／variant、scan 及 provider。Link 原位读取并检查这些记录的机器一致性，generated-C 继续使用 foundation 中完整的 C signature/storage/layout。constructor 的 initializer ABI 返回 Unit，root/eager gateway 使用已有 C `uint32_t(void)` 合同。无需从源码形状重新求布局，也不做 subtype、override、默认值或 visibility 检查。
 
-| Field | 内容 | 实际用途 |
-| --- | --- | --- |
-| 1 | `abi_support`：既有 foundation/production/import 记录没有携带的完整 callable 机器 ABI、布局／scan 组成及 generated-C 边界表示 | 比较调用／定义与跨 provider 的真实机器合同，供原对象检查实现消费 |
-| 2 | `runtime_data_aliases`：固定 runtime 数据符号合同到本 Cone 实际定义的引用 | 接通现有 `scoop_td_String` 数据 alias，不再从 MIR 扫描或按名字猜 TD |
+实现核对没有发现需要新增 ABI 补表的实际缺项，因此删除原设计的预留 `abi_support` 字段。新增必需 LIR section `org.scoop-lang.lir/link-support/1` 只补实际 runtime 数据 alias：固定单字段 map `{1=runtime_data_aliases}`，无 alias 的 Cone 显式编码空数组。不得为了保留一个预留字段而复制原 ABI／布局表；以后出现实际缺项时再以具体输入修订对应格式。
 
-已经存在于 foundation、manifest、production、import、definition index 的记录原位引用；补表不保存它们的副本、source lookup surface、模板正文或重复 registration 表。producer 从同次已完成的 MIR/LIR 及物理生产结果直接投影；内存中复用同一完整记录。身份查询从实际 definition、import、native contract、registration、ODR directory 的引用沿 canonical key 依赖闭合；模板声明可以作为 application key 的身份组成出现，不展开模板正文。ABI 和机器 definition 必须 fully concrete，body 和 specialization 保持不同 typed ID。
-
-`abi_support` 按实际 typed owner/role 排序，复用最终 `ScoopAbiSignature`、value/instance layout 和 scan 的原编码；既有 `CanonicalScoopAbiFunctionSignature`、C signature/storage/layout 直接从原表取得。Scoop 源签名与实际 physical signature 分别保留其原有作用；constructor 的 physical initializer 仍返回 Unit，root/eager gateway 仍是 C `uint32_t(void)`。签名保留 receiver、参数顺序、GC effect、ZST elision、direct/indirect result 和 caller-root 合同。布局保留 role、extent、alignment、字段／variant 和 scan，不把同大小的类型视为同一类型。
-
-已有 production 足以描述的 TD、registration、image、entry 只通过原 typed reference 取得；不能再列一张同内容“Link 证明表”。reader 检查补表的格式、必要引用、具体 ABI、自身布局边界和 provider 一致性；不从源码形状重新求布局，也不做前端 subtype、override、默认值或 visibility 检查。
+producer 从同次已完成的 LIR descriptor 投影 alias。身份查询使用实际 definition、import、native contract、registration、ODR directory 沿 canonical key 闭合；模板声明可作为 application key 的身份组成，不展开模板正文。ABI 和机器 definition 必须 fully concrete，body 与 specialization 保持不同 typed ID。已有 production 足以描述的 TD、registration、image、entry 原位引用，不再列同内容的 Link 证明表。
 
 `runtime_data_aliases` 的 record 为 `{1=RuntimeSymbolContractId, 2=StrongDefinitionOwnerV1}`，按 contract ID 排序，target 必须由当前 Cone 实际定义。当前唯一用途是现有 runtime String TD 数据符号；定义方从 LIR 的真实 String descriptor 引用投影此条目，其他 Cone 集合为空。reader 通过该 owner 取得已有 TD、layout 和 symbol，检查原 String ABI 表示；全闭包中该符号必须有唯一 target。条目不提供类型来源资格、不追加 String layout/scan 副本，不向语言开放任意 alias 功能。
+
+三层 identity foundation、LIR ordinary bridge 与 layout ABI section 的 `required_for` 同步为 Compile|Link，既有 wire payload 与 semantic sink 不变。其余语言 section 保持 Compile purpose。
 
 ### 3.2 Link 读取过程
 
@@ -291,7 +286,7 @@ stackmap reader 在对象边界已经验证 canonical v3 payload。最终检查�
 
 | 项目 | Stage 9 决定 |
 | --- | --- |
-| 新 LIR section | `org.scoop-lang.lir/link-support/1`，固定第 3.1 节二字段 map，Compile/Link 必需；原 foundation 不复制 |
+| 新 LIR section | `org.scoop-lang.lir/link-support/1`，固定第 3.1 节单字段 map，Compile/Link 必需；原 foundation 不复制 |
 | 新 section 的 sinks | `Code` 与 `LinkValidationOnly`；通过正常 section/成员目录进入 Artifact fingerprint |
 | generic profile | 保持 `cross-cone-generic/2` 的 ID，required inventory 增加新 section，descriptor fingerprint 同步变化 |
 | 既有机器 payload | `cone-production/4`、`link-identity-closure/8`、layout link closure `/4`、object verifier `/4` 保持，复用现有对象格式 |
@@ -300,7 +295,7 @@ stackmap reader 在对象边界已经验证 canonical v3 payload。最终检查�
 | native/toolchain 记录 | runtime build 与 final-link profile 的实际 descriptor 使用各自 `/1`，内容 fingerprint 包含本阶段实际规则／工具 |
 | runtime 对象索引 | 本地 schema 1，仅用于缓存／进程交接；不成为新的 Cone artifact 类型 |
 
-新 section 的普通 Code contribution 使用已有 known-extension 编码，payload 为完整 canonical support 数据；不更改 Code hash framing 或新造 proof digest。已有 production 和对象提供的事实不复制进入 payload；语义未变时 HIR/MIR/LIR fingerprint 不因物理链接支持数据而改变。alias、完整合同、对象／定义变化仍会改变 Code、Artifact 与 Link plan。
+新 section 的普通 Code contribution 使用已有 known-extension 编码，payload 为完整 canonical alias 数据；不更改 Code hash framing 或新造 proof digest。已有 production 和对象提供的事实不复制进入 payload；语义未变时 HIR/MIR/LIR fingerprint 不因物理链接支持数据而改变。alias、完整合同、对象／定义变化仍会改变 Code、Artifact 与 Link plan。
 
 没有新 section 或 descriptor fingerprint 不匹配的旧 `.slib` 及 cache 必须重建；不能在旧 profile 下把缺项默认为空，不能借 HIR 重放兼容旧 Link 输入。保留 profile ID 不表示允许旧 required inventory。container、persistent identity、mangler、ODR key/hash、RuntimeImage 和 runtime C ABI 不因本阶段改版。
 
@@ -332,7 +327,7 @@ stackmap reader 在对象边界已经验证 canonical v3 payload。最终检查�
 
 - 每类新错误有独立负例，断言 canonical Cone/member、位置及错误内容；组合负例覆盖 native ABI 冲突、stale dependency、Strong/ODR 和 root/image 错误同时出现时的稳定诊断顺序。
 - 将相同 extern 声明分别放入修改后的 core、普通库和 root，解析结果一致；错误 library、声明间 ABI/effect 冲突、缺失符号和保留定义冲突同样失败。普通 Cone 引用未被 core/runtime 使用的实际系统 export 必须成功，不能靠扩充允许函数清单修复该 fixture。
-- 新 Link support 的二字段与 empty/nonempty 集合、既有 foundation 引用、完整 ABI、alias、required purpose/version、Code contribution 有固定向量和 corruption tests。既有 HIR/MIR/LIR golden 继续验证语义未变；新增 Link dump、startup C/object 引用和 canonical plan golden。
+- 新 Link support 的单字段与 empty/nonempty alias 集合、既有 foundation 引用、完整 ABI、alias、required purpose/version、Code contribution 有固定向量和 corruption tests。既有 HIR/MIR/LIR golden 继续验证语义未变；新增 Link dump、startup C/object 引用和 canonical plan golden。
 - 无模板／HIR session 的低层进程可以读取 Link 数据；Compile-only 可选内容变化不会触发模板 decode。截断／digest 不一致仍在 envelope 边界拒绝，不能把“无需解码 HIR”解释为跳过容器完整性。
 - object/member 变化、extra definition/undefined、缺失 image/entry、错误 ABI、错误 String target、未知 capability、物理成员重排和同名成员覆盖各有负例；opaque 中放置合法 Mach-O bytes 也不得被提取。
 - runtime 源文件和头文件修改、新增 include 候选、compiler/SDK/flags/ABI 变化、截断缓存、错 object digest、同 symbol 多定义与缺固定 export 覆盖缓存和普通输入边界。
@@ -348,7 +343,7 @@ stackmap reader 在对象边界已经验证 canonical v3 payload。最终检查�
 
 ## 11. 实现顺序与完成门
 
-1. **独立 Link 数据。** 复用原 foundation 实现 identity/ABI 数据读取，补齐缺失机器表示的 support producer/wire；复用原对象／ODR 代码，删除 Link 对完整 HIR/MIR 重放的依赖。完成真实产物和格式向量。
+1. **独立 Link 数据。** 复用原 foundation 实现 identity/ABI 数据读取，补齐实际 runtime alias 的 support producer/wire；复用原对象／ODR 代码，删除 Link 对完整 HIR/MIR 重放的依赖。完成真实产物和格式向量。
 2. **runtime 对象与统一 extern 解析。** 接通现有源集与 C toolchain、头文件依赖、普通对象索引、既有 runtime ABI 及缓存；从实际对象／SDK export 建立符号输入，统一合并声明合同并解析定义。
 3. **正式启动与固定 linker。** 生成引用原 image/root 的 C main；接通 typed String alias、明确系统 ld/libSystem、固定 flags 和多个直接对象，完成三 Cone 首个可运行闭环。
 4. **最终文件与发布。** 关联 map/symbol/bind/fixup，验证最终入口、ODR 地址、section 和 dynamic imports，完成原子输出与失败保留。
