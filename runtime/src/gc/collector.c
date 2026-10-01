@@ -220,15 +220,22 @@ static void scan_frozen_managed_segments(const ScoopThreadState *thread,
 
 static void scan_thread(const ScoopThreadState *thread, ScoopGcVisitContext *context) {
     ScoopThreadMode mode = atomic_load_explicit(&thread->mode, memory_order_acquire);
+    bool pending = thread->managed_segment == SCOOP_MANAGED_SEGMENT_PENDING;
     if (mode == SCOOP_THREAD_PARKED || mode == SCOOP_THREAD_COLLECTOR) {
         if (thread->parked_from == SCOOP_THREAD_MANAGED) {
-            ScoopGcRootVisitor visitor = root_visitor(context);
-            scoop_gc_visit_managed_stack(thread, visitor);
+            if (!pending) {
+                ScoopGcRootVisitor visitor = root_visitor(context);
+                scoop_gc_visit_managed_stack(thread, visitor);
+            }
         } else if (thread->parked_from != SCOOP_THREAD_NATIVE_BORROWED) {
             collector_fatal("parked thread has an invalid source mode");
         }
-    } else if (mode != SCOOP_THREAD_NATIVE_SAFE) {
+    } else if (mode != SCOOP_THREAD_NATIVE_SAFE &&
+               !(mode == SCOOP_THREAD_MANAGED && pending)) {
         collector_fatal("collector observed a non-quiescent thread");
+    }
+    if (pending && thread->managed_anchor != NULL) {
+        collector_fatal("pending gateway published a managed anchor");
     }
     scan_caller_roots(thread, context);
     scan_compiler_roots(thread, context);
@@ -316,7 +323,8 @@ void scoop_runtime_gc_collect(void) {
 void scoop_rt_safepoint_impl(uintptr_t return_pc, uintptr_t stack_pointer,
                              uintptr_t frame_pointer) {
     ScoopManagedAnchor anchor;
-    scoop_thread_push_managed_anchor(&anchor, return_pc, stack_pointer, frame_pointer);
+    scoop_thread_push_safepoint_anchor(&anchor, return_pc, stack_pointer,
+                                       frame_pointer);
     scoop_thread_poll();
     scoop_thread_pop_managed_anchor(&anchor);
 }

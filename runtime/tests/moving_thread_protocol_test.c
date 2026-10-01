@@ -186,7 +186,8 @@ int main(void) {
     scoop_gc_register_image_roots(no_managed_globals, 0,
                                   no_immortal_objects, 0);
     scoop_gc_heap_init();
-    scoop_thread_attach_main(&managed_boundary_marker);
+    scoop_thread_attach_main();
+    scoop_thread_enter_managed(&managed_boundary_marker);
 
     _Atomic(uint32_t) ready_count = 0;
     _Atomic(uint64_t) start_epoch = UINT64_MAX;
@@ -243,6 +244,7 @@ int main(void) {
     }
     assert(scoop_rt_thread_debug_count() == 1);
 
+    scoop_thread_leave_managed();
     scoop_thread_prepare_shutdown();
     scoop_thread_detach_main();
     scoop_thread_runtime_finish_shutdown();

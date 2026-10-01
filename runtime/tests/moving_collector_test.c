@@ -544,7 +544,8 @@ int main(void) {
         immortal_objects,
         sizeof immortal_objects / sizeof immortal_objects[0]);
     scoop_gc_heap_init();
-    scoop_thread_attach_main(&managed_boundary_marker);
+    scoop_thread_attach_main();
+    scoop_thread_enter_managed(&managed_boundary_marker);
     scoop_rt_gc_add_root(&explicit_root);
 
     test_stack_root_and_invalid_addresses();
@@ -556,6 +557,7 @@ int main(void) {
     test_large_exact_size_and_no_conservative_retention();
     test_variable_object_exact_sizes();
 
+    scoop_thread_leave_managed();
     scoop_thread_prepare_shutdown();
     scoop_thread_detach_main();
     scoop_thread_runtime_finish_shutdown();

@@ -245,12 +245,14 @@ static void test_cross_thread_cycle(void) {
 
 int main(void) {
     scoop_thread_runtime_init();
-    scoop_thread_attach_main(__builtin_frame_address(0));
+    scoop_thread_attach_main();
+    scoop_thread_enter_managed(__builtin_frame_address(0));
     test_startup_schedule();
     test_ready_and_failure();
     test_same_thread_cycle();
     test_wait_participates_in_collection();
     test_cross_thread_cycle();
+    scoop_thread_leave_managed();
     scoop_thread_prepare_shutdown();
     scoop_thread_detach_main();
     scoop_thread_runtime_finish_shutdown();

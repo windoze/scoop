@@ -304,10 +304,12 @@ static void run_mode(bool stress) {
     static const ScoopImmortalObjectDescriptor immortals[] = {{0}};
     scoop_gc_register_image_roots(globals, 0, immortals, 0);
     scoop_gc_heap_init();
-    scoop_thread_attach_main(&boundary);
+    scoop_thread_attach_main();
+    scoop_thread_enter_managed(&boundary);
     test_boxing(stress);
     test_arrays();
     test_shape_failures();
+    scoop_thread_leave_managed();
     scoop_thread_prepare_shutdown();
     scoop_thread_detach_main();
     scoop_thread_runtime_finish_shutdown();

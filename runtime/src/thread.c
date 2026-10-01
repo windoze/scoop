@@ -97,25 +97,25 @@ static void registry_remove(ScoopThreadState *state) {
 static void require_detachable(const ScoopThreadState *state,
                                ScoopThreadAttachmentKind expected_kind) {
     if (state->attachment_kind != expected_kind) {
-        scoop_thread_fatal(expected_kind == SCOOP_THREAD_MAIN
-                         ? "attempted to detach a foreign thread as the main thread"
-                         : "attempted to detach the main thread as a foreign thread");
+        scoop_thread_fatal(
+            expected_kind == SCOOP_THREAD_MAIN
+                ? "attempted to detach a foreign thread as the main thread"
+                : "attempted to detach the main thread as a foreign thread");
     }
     if (atomic_load_explicit(&state->mode, memory_order_acquire) !=
-        (expected_kind == SCOOP_THREAD_MAIN ? SCOOP_THREAD_MANAGED
-                                            : SCOOP_THREAD_NATIVE_SAFE)) {
+        SCOOP_THREAD_NATIVE_SAFE) {
         scoop_thread_fatal("thread is not in a detachable execution mode");
     }
-    if (state->managed_depth != (expected_kind == SCOOP_THREAD_MAIN ? 1 : 0) ||
+    if (state->managed_depth != 0 || state->managed_stack_boundary != NULL ||
+        state->managed_segment != SCOOP_MANAGED_SEGMENT_NONE ||
         state->callback_depth != 0 || state->native_roots != NULL ||
         state->native_region_roots != NULL || state->caller_roots != NULL ||
         state->compiler_roots != NULL || state->initialization_stack_len != 0 ||
-        state->initialization_wait != NULL ||
-        state->current_transition != NULL ||
+        state->initialization_wait != NULL || state->current_transition != NULL ||
         state->caught_exception_top != NULL || state->managed_anchor != NULL ||
         state->allocation.cursor != NULL || state->allocation.limit != NULL) {
-        scoop_thread_fatal(
-            "thread detach with active managed frames, callbacks, roots, exceptions, or transitions");
+        scoop_thread_fatal("thread detach with active managed frames, callbacks, "
+                           "roots, exceptions, or transitions");
     }
 }
 
@@ -140,34 +140,32 @@ static void detach_current(ScoopThreadAttachmentKind expected_kind) {
 
 void scoop_thread_runtime_init(void) {
     scoop_thread_registry_lock();
-    if (scoop_thread_runtime_lifecycle != SCOOP_RUNTIME_UNINITIALIZED || scoop_thread_registry_count != 0 ||
-        scoop_thread_registry != NULL) {
+    if (scoop_thread_runtime_lifecycle != SCOOP_RUNTIME_UNINITIALIZED ||
+        scoop_thread_registry_count != 0 || scoop_thread_registry != NULL) {
         scoop_thread_registry_unlock();
         scoop_thread_fatal("runtime thread registry initialized more than once");
     }
-    atomic_store_explicit(&scoop_thread_world_phase, SCOOP_WORLD_RUNNING, memory_order_release);
+    atomic_store_explicit(&scoop_thread_world_phase, SCOOP_WORLD_RUNNING,
+                          memory_order_release);
     atomic_store_explicit(&scoop_thread_gc_epoch, 0, memory_order_release);
     atomic_store_explicit(&scoop_thread_last_gc_parked_count, 0, memory_order_release);
-    atomic_store_explicit(&scoop_thread_last_gc_native_safe_count, 0, memory_order_release);
+    atomic_store_explicit(&scoop_thread_last_gc_native_safe_count, 0,
+                          memory_order_release);
     scoop_thread_runtime_lifecycle = SCOOP_RUNTIME_RUNNING;
     scoop_thread_registry_unlock();
 }
 
-void scoop_thread_attach_main(const void *managed_stack_boundary) {
+void scoop_thread_attach_main(void) {
     if (scoop_thread_tls != NULL) {
         scoop_thread_fatal("main thread is already attached");
     }
     ScoopThreadState *state =
-        new_thread_state(SCOOP_THREAD_MAIN, SCOOP_THREAD_MANAGED, 1);
-    uintptr_t boundary = (uintptr_t)managed_stack_boundary;
-    if (boundary < (uintptr_t)state->stack_low || boundary > (uintptr_t)state->stack_high) {
-        scoop_thread_fatal("main thread published an invalid managed stack boundary");
-    }
-    state->managed_stack_boundary = managed_stack_boundary;
+        new_thread_state(SCOOP_THREAD_MAIN, SCOOP_THREAD_NATIVE_SAFE, 0);
 
     scoop_thread_registry_lock();
     scoop_thread_wait_for_running_world();
-    if (scoop_thread_runtime_lifecycle != SCOOP_RUNTIME_RUNNING || scoop_thread_registry_count != 0) {
+    if (scoop_thread_runtime_lifecycle != SCOOP_RUNTIME_RUNNING ||
+        scoop_thread_registry_count != 0) {
         scoop_thread_registry_unlock();
         free(state);
         scoop_thread_fatal("main thread must be the first runtime attachment");
@@ -199,9 +197,7 @@ bool scoop_rt_attach_foreign_thread(void) {
     return true;
 }
 
-void scoop_rt_detach_foreign_thread(void) {
-    detach_current(SCOOP_THREAD_FOREIGN);
-}
+void scoop_rt_detach_foreign_thread(void) { detach_current(SCOOP_THREAD_FOREIGN); }
 
 void scoop_thread_prepare_shutdown(void) {
     ScoopThreadState *state = scoop_thread_current_required();
@@ -219,27 +215,22 @@ void scoop_thread_prepare_shutdown(void) {
     if (scoop_thread_registry_count != 1 || scoop_thread_registry != state) {
         uint64_t attached = scoop_thread_registry_count;
         scoop_thread_registry_unlock();
-        fprintf(stderr,
-                "scoop runtime: shutdown with %" PRIu64 " attached thread(s)\n",
+        fprintf(stderr, "scoop runtime: shutdown with %" PRIu64 " attached thread(s)\n",
                 attached);
         abort();
     }
-    /* Shutdown is the main thread's final managed boundary. Retire its
-     * owner-only TLAB before detach; the remaining tail is reclaimed only if
-     * a final collection is requested, but must never survive attachment. */
+    /* Managed exit already retired the TLAB. Shutdown itself stays native-safe. */
     state->allocation.cursor = NULL;
     state->allocation.limit = NULL;
     scoop_thread_registry_unlock();
 }
 
-void scoop_thread_detach_main(void) {
-    detach_current(SCOOP_THREAD_MAIN);
-}
+void scoop_thread_detach_main(void) { detach_current(SCOOP_THREAD_MAIN); }
 
 void scoop_thread_runtime_finish_shutdown(void) {
     scoop_thread_registry_lock();
-    if (scoop_thread_runtime_lifecycle != SCOOP_RUNTIME_SHUTTING_DOWN || scoop_thread_registry_count != 0 ||
-        scoop_thread_registry != NULL) {
+    if (scoop_thread_runtime_lifecycle != SCOOP_RUNTIME_SHUTTING_DOWN ||
+        scoop_thread_registry_count != 0 || scoop_thread_registry != NULL) {
         scoop_thread_registry_unlock();
         scoop_thread_fatal("runtime thread registry did not drain during shutdown");
     }
@@ -247,9 +238,7 @@ void scoop_thread_runtime_finish_shutdown(void) {
     scoop_thread_registry_unlock();
 }
 
-ScoopThreadState *scoop_thread_current(void) {
-    return scoop_thread_tls;
-}
+ScoopThreadState *scoop_thread_current(void) { return scoop_thread_tls; }
 
 ScoopThreadState *scoop_thread_current_required(void) {
     ScoopThreadState *state = scoop_thread_tls;
@@ -261,8 +250,10 @@ ScoopThreadState *scoop_thread_current_required(void) {
 
 void scoop_thread_require_managed(void) {
     ScoopThreadState *state = scoop_thread_current_required();
-    if (atomic_load_explicit(&state->mode, memory_order_acquire) != SCOOP_THREAD_MANAGED ||
-        state->managed_depth == 0) {
+    if (atomic_load_explicit(&state->mode, memory_order_acquire) !=
+            SCOOP_THREAD_MANAGED ||
+        state->managed_depth == 0 ||
+        state->managed_segment != SCOOP_MANAGED_SEGMENT_ACTIVE) {
         scoop_thread_fatal("thread entered managed code from a non-managed state");
     }
 }
@@ -281,7 +272,7 @@ const void *scoop_thread_push_managed_gateway_boundary(const void *boundary) {
 }
 
 void scoop_thread_pop_managed_gateway_boundary(const void *boundary,
-                                                const void *previous) {
+                                               const void *previous) {
     ScoopThreadState *state = scoop_thread_current_required();
     scoop_thread_require_managed();
     if (state->managed_stack_boundary != boundary || previous == NULL) {

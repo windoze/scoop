@@ -233,6 +233,8 @@ attach 只建立主线程 native-safe 状态、TLS、栈界限及空 roots，不
 
 两次 gateway 之间 C coordinator 没有活动 managed 新段。nested callback 沿已有线程/transition 链独立进入和 LIFO 恢复，保持外层 native-safe/borrowed 的 roots；不新增 callback runtime 或 scheduler。
 
+EntryPending 的空段优化限于无 managed 输入的 root/eager gateway。callback wrapper 在调用 adapter 前解析 closure handle 并发布 native roots；该准备阶段保留既有活动 managed 握手，由首个真实 poll 停止线程，不能将其携带的 managed 参数当作不存在。两种入口共用同一线程状态与 mutex/epoch 协议。
+
 ### 7.2 root 与 eager 的失败数据
 
 LIR 已有两种 gateway body key 足以表达身份与用途，不另加 `NativeGatewayEntry` ID、证书或单独 table。完整 LIR 验证这两种 body 的 C `uint32_t(void)` 签名、入口 poll、完整 catch 和 `0 | 1` 返回；所有实际新增 managed call 使用现有 root plan。

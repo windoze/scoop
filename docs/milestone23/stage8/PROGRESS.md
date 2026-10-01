@@ -55,8 +55,16 @@
 - 修复 AArch64 frame offset 在极大已加载 stack size 与正 offset 组合下的有符号加法溢出，使用边界内无符号计算。
 - 新增三个连续 blob、零 root、ODR/ConstantIndex 组合及 20 个故障注入用例。格式化与全 workspace/all-targets Clippy 通过；codegen/runtime 307 项、toolchain 9 项全部通过。此索引将在下一功能直接交给 GC。
 
+## 8. 逐次 gateway 的线程握手
+
+- 主线程 attach 改为 native-safe、零 managed depth 和空 boundary。新增无参数 gateway 的 EntryPending 状态；只有真实 safepoint 入口可在同一 world mutex/epoch 协议下发布首个 anchor 并转为活动段。
+- collector 只跳过明确 Pending 的新段，仍扫描既有 roots/冻结外层段；活动 managed 线程即使暂时没有 anchor 也必须等下一个 poll。返回到 C 后直接发布 native-safe，不能使用已离栈帧 park。
+- 普通 managed entry 和携带 closure 参数的 callback 保留活动段握手，callback 深度与 native transition 的 segment 状态按原链 LIFO 恢复。spec/design 已说明 callback 准备阶段不能作为空段跳过。
+- 新增条件变量控制的真实 GC 测试：入口前、Pending 首次 poll、活动段再次 poll、返回发布、两个 gateway 之间及两层 nested callback；另覆盖未 poll 就返回/进入其他 runtime entry 和活动段缺 anchor 的拒绝。
+- 格式化和全 workspace/all-targets Clippy 通过；codegen/runtime 308 项全部通过。旧 harness 暂时显式 enter/leave 其历史入口，随后与 GC/startup 一并替换。
+
 ## 待完成
 
 3. GC 直接消费唯一 registry，移除旧单表与重复 section 读取。
-4. EntryPending、逐次 gateway 线程握手、canonical eager 顺序、异常报告与 shutdown。
+4. 生产 startup、逐次 eager/root gateway 调用、异常报告与 shutdown。
 5. 真实 3+ Cone 产物运行、损坏输入和受控线程竞争矩阵，以及历史运行辅助迁移和最终全仓回归。

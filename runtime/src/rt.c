@@ -222,11 +222,13 @@ int main(void) {
      * segment. Runtime sources are built with frame pointers enabled, so the
      * generated frame chain reaches this exact address independently of C
      * local-variable placement. */
-    scoop_thread_attach_main(__builtin_frame_address(0));
+    scoop_thread_attach_main();
+    scoop_thread_enter_managed(__builtin_frame_address(0));
     scoop_rt_initialize_image();
     scoop_main();
     scoop_callback_prepare_shutdown();
     scoop_eh_prepare_shutdown();
+    scoop_thread_leave_managed();
     scoop_thread_prepare_shutdown();
     scoop_thread_detach_main();
     scoop_thread_runtime_finish_shutdown();

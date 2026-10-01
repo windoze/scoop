@@ -82,6 +82,25 @@ fn compile_and_run(
 }
 
 #[test]
+fn every_gateway_handshakes_before_activating_its_first_frame() {
+    let output = compile_and_run(
+        &workspace_root(),
+        "gateway_entry_test",
+        "runtime/tests/gateway_entry_test.c",
+        false,
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        output.stdout,
+        b"gateway entry and GC handshake tests passed\n"
+    );
+}
+
+#[test]
 fn fake_platform_drives_the_real_moving_collector() {
     let workspace = workspace_root();
     let output = compile_and_run(

@@ -22,11 +22,13 @@ int main(void) {
     scoop_thread_runtime_init();
     scoop_callback_runtime_init();
     scoop_rt_gc_init();
-    scoop_thread_attach_main(__builtin_frame_address(0));
+    scoop_thread_attach_main();
+    scoop_thread_enter_managed(__builtin_frame_address(0));
     int64_t result = fixture_check();
     bool collected = scoop_rt_thread_debug_gc_epoch() > 0;
     scoop_callback_prepare_shutdown();
     scoop_eh_prepare_shutdown();
+    scoop_thread_leave_managed();
     scoop_thread_prepare_shutdown();
     scoop_thread_detach_main();
     scoop_thread_runtime_finish_shutdown();

@@ -338,7 +338,7 @@ M23以后不再引用固定`scoop_image_*`符号；runtime 只遍历 2.8 启动�
 
 进入managed、离开native-safe或离开native-borrowed必须与epoch发布形成无丢失握手：转换方发布mode后复查phase/epoch，观察到`Stopping`或epoch变化时在执行第一条managed指令前park；collector先release发布`Stopping`再以acquire读取线程mode。不得把线程按native-safe计为quiescent后又允许它未经复查进入managed。
 
-M23的C startup coordinator遵守2.8逐次gateway transition协议。attach本身不构成永久managed段；首次managed指令前的`EntryPending`是已证明为空的新段，允许epoch握手但不允许扫描native frame。gateway首次poll建立自己的精确anchor后才转为活动managed段，返回时先退出该段再继续native-safe coordinator。
+M23的C startup coordinator遵守2.8逐次gateway transition协议。attach本身不构成永久managed段；首次managed指令前的`EntryPending`是已证明为空的新段，允许epoch握手但不允许扫描native frame。gateway首次poll建立自己的精确anchor后才转为活动managed段，返回时先退出该段再继续native-safe coordinator。这个空段优化只用于无managed输入的root/eager gateway。现有callback wrapper进入后需要解析closure handle并发布native roots，仍以活动managed段参与握手，collector等待其真实poll；不能把已携带managed参数的callback准备阶段当成空段跳过。native transition冻结外层段，callback的进入/恢复继续使用同一mode、boundary和深度链。
 
 foreign thread在进入任何 managed代码前必须 attach，建立 TLS thread state、栈边界、TLAB和空 native-root链；离开最后一个 managed callback后由拥有本次 attachment的入口 detach。重复使用的长期 foreign thread可以显式保持 attachment，但不得在 runtime shutdown后重新进入。
 
