@@ -6,6 +6,7 @@ pub(super) fn check(image: &FinalImage<'_>, inputs: &ProgramInputs<'_>) -> Resul
     let mut needs_eh = false;
     for input in &inputs.objects {
         let file: MachOFile64<'_> = MachOFile64::parse(input.bytes).map_err(error)?;
+        check_definition_sections(image, &file, inputs)?;
         needs_eh |= file
             .section_by_name("__eh_frame")
             .is_some_and(|section| section.size() != 0);
@@ -93,6 +94,62 @@ pub(super) fn check(image: &FinalImage<'_>, inputs: &ProgramInputs<'_>) -> Resul
         .is_none_or(|padding| padding.len() > 7 || padding.iter().any(|byte| *byte != 0))
     {
         return Err(error("unexpected data after final stackmap blobs"));
+    }
+    Ok(())
+}
+
+fn check_definition_sections(
+    image: &FinalImage<'_>,
+    source: &MachOFile64<'_>,
+    inputs: &ProgramInputs<'_>,
+) -> Result<(), LinkError> {
+    for symbol in source
+        .symbols()
+        .filter(|symbol| symbol.is_definition() && symbol.is_global())
+    {
+        let name = symbol.name().map_err(error)?;
+        if matches!(
+            inputs.definitions.get(name),
+            Some(DefinitionOwner::Scoop(
+                LinkDefinitionOwnerV1::VerifierBoundary { .. }
+            ))
+        ) {
+            continue;
+        }
+        let source = source
+            .section_by_index(
+                symbol
+                    .section_index()
+                    .ok_or_else(|| error("input definition has no section"))?,
+            )
+            .map_err(error)?;
+        let address = image.symbol(name)?;
+        let final_section = image
+            .file
+            .sections()
+            .find(|section| {
+                address >= section.address() && address - section.address() < section.size()
+            })
+            .ok_or_else(|| error(format!("final definition {name} is outside its section")))?;
+        let segment = final_section.segment_name().map_err(error)?;
+        let mutable = matches!(
+            source.kind(),
+            object::SectionKind::Data
+                | object::SectionKind::UninitializedData
+                | object::SectionKind::Tls
+                | object::SectionKind::UninitializedTls
+                | object::SectionKind::TlsVariables
+        ) && source.segment_name().map_err(error)? != Some("__DATA_CONST");
+        if (source.kind() == object::SectionKind::Text
+            && final_section.kind() != object::SectionKind::Text)
+            || (source.segment_name().map_err(error)? == Some("__DATA_CONST")
+                && segment != Some("__DATA_CONST"))
+            || (mutable && segment != Some("__DATA"))
+        {
+            return Err(error(format!(
+                "final definition {name} lost its code/metadata/writable storage section"
+            )));
+        }
     }
     Ok(())
 }

@@ -15,10 +15,16 @@ use crate::{
 };
 
 mod commands;
+mod dyld_cursor;
+mod exports;
 mod fixups;
 mod references;
 mod sections;
+mod signature;
 mod startup;
+
+#[cfg(test)]
+mod tests;
 
 struct Segment {
     address: u64,
@@ -33,6 +39,7 @@ pub(crate) struct FinalImage<'a> {
     segments: Vec<Segment>,
     rebases: BTreeSet<u64>,
     bindings: BTreeMap<u64, fixups::Binding>,
+    exports: BTreeMap<String, u64>,
 }
 
 pub(crate) fn verify(
@@ -65,8 +72,10 @@ pub(crate) fn verify(
         segments: Vec::new(),
         rebases: BTreeSet::new(),
         bindings: BTreeMap::new(),
+        exports: BTreeMap::new(),
     };
     image.read_commands(profile)?;
+    exports::check(&image, inputs)?;
     for (symbol, owner) in &inputs.definitions {
         // Object-verifier boundaries are not program definitions. ld may
         // discard them when rebuilding unwind sections; live uses below are
@@ -116,6 +125,12 @@ pub(crate) fn verify(
     }
     for binding in image.bindings.values() {
         if binding.weak && inputs.definitions.contains_key(&binding.symbol) {
+            if image.exports.get(&binding.symbol) != Some(&image.symbol(&binding.symbol)?) {
+                return Err(error(format!(
+                    "weak binding {} has no matching final export",
+                    binding.symbol
+                )));
+            }
             continue;
         }
         if binding.ordinal != 1

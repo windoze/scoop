@@ -12,6 +12,7 @@ impl FinalImage<'_> {
         let mut dyld = None;
         let mut signature = None;
         let mut libraries = 0;
+        let mut interpreters = 0;
         while let Some(command) = commands.next().map_err(error)? {
             match command.cmd() {
                 macho::LC_SEGMENT_64 => {
@@ -25,6 +26,11 @@ impl FinalImage<'_> {
                         .checked_add(file_size)
                         .is_none_or(|end| end > self.bytes.len() as u64)
                         || file_size > segment.vmsize.get(endian)
+                        || segment
+                            .vmaddr
+                            .get(endian)
+                            .checked_add(segment.vmsize.get(endian))
+                            .is_none()
                     {
                         return Err(error("final segment exceeds file/VM range"));
                     }
@@ -88,7 +94,23 @@ impl FinalImage<'_> {
                             String::from_utf8_lossy(name)
                         )));
                     }
+                    if library.dylib.current_version.get(endian)
+                        != profile.system_provider().current_version()
+                        || library.dylib.compatibility_version.get(endian)
+                            != profile.system_provider().compatibility_version()
+                    {
+                        return Err(error("final libSystem version differs from its SDK stub"));
+                    }
                     libraries += 1;
+                }
+                macho::LC_LOAD_DYLINKER => {
+                    let interpreter: &macho::DylinkerCommand<object::Endianness> =
+                        command.data().map_err(error)?;
+                    if command.string(endian, interpreter.name).map_err(error)? != b"/usr/lib/dyld"
+                    {
+                        return Err(error("unexpected final dynamic loader"));
+                    }
+                    interpreters += 1;
                 }
                 macho::LC_CODE_SIGNATURE => {
                     let data: &macho::LinkeditDataCommand<object::Endianness> =
@@ -104,7 +126,9 @@ impl FinalImage<'_> {
                 | macho::LC_LOAD_WEAK_DYLIB
                 | macho::LC_REEXPORT_DYLIB
                 | macho::LC_LOAD_UPWARD_DYLIB
-                | macho::LC_RPATH => {
+                | macho::LC_RPATH
+                | macho::LC_DYLD_ENVIRONMENT
+                | macho::LC_DYLD_EXPORTS_TRIE => {
                     return Err(error(
                         "final output uses a fixup or provider outside the selected profile",
                     ));
@@ -122,6 +146,7 @@ impl FinalImage<'_> {
             || build.minos.get(endian) != expected.minimum_os().packed()
             || build.sdk.get(endian) != expected.sdk().packed()
             || libraries != 1
+            || interpreters != 1
             || self.file.macho_header().flags.get(endian) & macho::MH_PIE == 0
         {
             return Err(error(
@@ -140,6 +165,26 @@ impl FinalImage<'_> {
             return Err(error("LC_MAIN does not point at the program C main"));
         }
         let info = dyld.ok_or_else(|| error("final output has no classic dyld info"))?;
+        let mut ranges: Vec<_> = self
+            .segments
+            .iter()
+            .filter(|segment| segment.size != 0)
+            .map(|segment| (segment.address, segment.address + segment.size))
+            .collect();
+        ranges.sort_unstable();
+        if ranges.windows(2).any(|pair| pair[0].1 > pair[1].0) {
+            return Err(error("final VM segments overlap"));
+        }
+        let base = self
+            .segments
+            .iter()
+            .find(|segment| segment.offset == 0 && segment.file_size != 0)
+            .ok_or_else(|| error("final executable header has no VM mapping"))?
+            .address;
+        self.exports = exports::read(
+            self.file_range(info.export_off.get(endian), info.export_size.get(endian))?,
+            base,
+        )?;
         let rebase = self.file_range(info.rebase_off.get(endian), info.rebase_size.get(endian))?;
         self.rebases = fixups::rebases(rebase, &self.segments)?;
         for (offset, length, weak) in [
@@ -165,13 +210,7 @@ impl FinalImage<'_> {
         }
         let (offset, length) =
             signature.ok_or_else(|| error("final output has no ad-hoc code signature"))?;
-        let bytes = self.file_range(offset, length)?;
-        if bytes.len() < 12
-            || u32::from_be_bytes(bytes[0..4].try_into().map_err(error)?) != 0xfade0cc0
-            || u32::from_be_bytes(bytes[4..8].try_into().map_err(error)?) as usize > bytes.len()
-        {
-            return Err(error("invalid final code signature structure"));
-        }
+        signature::check(self.file_range(offset, length)?, offset)?;
         Ok(())
     }
 

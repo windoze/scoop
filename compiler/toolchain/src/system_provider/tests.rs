@@ -11,6 +11,7 @@ fn system_exports_follow_reexports_and_target_selection() {
 tbd-version: 4
 targets: [arm64e-macos, x86_64-macos]
 install-name: /usr/lib/libSystem.B.dylib
+current-version: 1359.2.1
 reexported-libraries:
   - targets: [arm64e-macos]
     libraries: [/usr/lib/system/leaf.dylib]
@@ -34,6 +35,8 @@ exports:
     )
     .unwrap();
     assert_eq!(provider.exports().len(), 2);
+    assert_eq!(provider.current_version(), (1359 << 16) | (2 << 8) | 1);
+    assert_eq!(provider.compatibility_version(), 1 << 16);
     assert_eq!(provider.exports()["_tls"], SystemExportKind::ThreadLocal);
     assert!(provider.exports().contains_key("_unused_system_export"));
     let destination = tempfile::tempdir().unwrap();

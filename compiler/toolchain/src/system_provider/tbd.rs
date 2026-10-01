@@ -7,12 +7,41 @@ pub(super) struct Record {
     tbd_version: u32,
     targets: Vec<String>,
     pub install_name: String,
+    #[serde(default = "default_version", deserialize_with = "version")]
+    pub current_version: u32,
+    #[serde(default = "default_version", deserialize_with = "version")]
+    pub compatibility_version: u32,
     #[serde(default)]
     exports: Vec<Exports>,
     #[serde(default)]
     reexports: Vec<Exports>,
     #[serde(default)]
     reexported_libraries: Vec<Libraries>,
+}
+
+fn default_version() -> u32 {
+    1 << 16
+}
+
+fn version<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<u32, D::Error> {
+    use serde::de::Error;
+    let value = serde_yaml_ng::Value::deserialize(deserializer)?;
+    let text = match value {
+        serde_yaml_ng::Value::String(value) => value,
+        serde_yaml_ng::Value::Number(value) => value.to_string(),
+        _ => return Err(D::Error::custom("SDK dylib version is not a number/string")),
+    };
+    if text == "0" {
+        return Ok(0);
+    }
+    let text = if text.contains('.') {
+        text
+    } else {
+        format!("{text}.0")
+    };
+    crate::c_bridge::parse_darwin_version(&text, "SDK dylib version")
+        .map(|version| version.packed())
+        .map_err(D::Error::custom)
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]

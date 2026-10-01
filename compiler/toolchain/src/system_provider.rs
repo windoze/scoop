@@ -45,6 +45,8 @@ pub struct SystemProvider {
     files: Vec<SystemStubFile>,
     exports: BTreeMap<String, SystemExportKind>,
     reexports: BTreeSet<String>,
+    current_version: u32,
+    compatibility_version: u32,
 }
 
 impl SystemProvider {
@@ -81,10 +83,15 @@ impl SystemProvider {
             })?;
             record.collect(deployment, &mut exports, &mut pending)?;
         }
+        let root = records
+            .get(LIBSYSTEM_INSTALL_NAME)
+            .ok_or_else(|| ToolchainError("SDK stub has no libSystem record".into()))?;
         Ok(Self {
             files: files.into_values().collect(),
             exports,
             reexports,
+            current_version: root.current_version,
+            compatibility_version: root.compatibility_version,
         })
     }
 
@@ -102,6 +109,12 @@ impl SystemProvider {
     }
     pub fn reexports(&self) -> &BTreeSet<String> {
         &self.reexports
+    }
+    pub fn current_version(&self) -> u32 {
+        self.current_version
+    }
+    pub fn compatibility_version(&self) -> u32 {
+        self.compatibility_version
     }
 
     /// Materialize precisely the bytes used to construct the export directory.
