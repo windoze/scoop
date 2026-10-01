@@ -741,10 +741,17 @@
 - 运行辅助代码拆为读取和执行模块，复用同一份完整 reader 结果组织对象、root／immortal 登记和运行；原有 sibling 定义比较单独成模块。新增 Rust 模块均在 300 行以内。
 - `cargo fmt --all`、`cargo clippy --workspace --all-targets` 和配套 `scoopc` 构建通过，无警告。关闭全部快照更新开关后执行 `cargo test -p scoopc --lib siblings:: --target-dir target/m23-6a`：**6 passed、0 failed、0 ignored**，耗时 **89.95 秒**，涵盖原有 generic/string 合并、相同 member 的正文／字符串冲突、委托初始化／失败共享及本批独立成员和地址检查。日志为 `/tmp/scoop-m23-7-unions-strict-tests.log`；首次探针的 C 栈边界问题已修正，普通及移动 GC 两组均已严格复验。
 
+## 2026-10-01：真实泛型依赖缓存
+
+- 新增 `m23-generic-cache` 的 provider／consumer 源码 fixture，使用现有构建图、真实 core 和 `SCOOP_TEST_PAIRED_SCOOPC` 运行正式编译子进程。provider 包含公开泛型函数、私有泛型 helper 与默认参数，consumer 同时声明自有引用类型。
+- 顺序修改泛型正文、私有 helper 正文、默认值、`ref` 约束和调用实参类型。前四类变化要求 provider 与 consumer 重新编译，最后一类只重编译 consumer；core 始终命中已有缓存。变化节点的实际产物 fingerprint 改变，未变节点保持字节一致。
+- 初始构建和每次变化后都重复相同输入，共 **6 轮**确认所有节点为 `CacheHit`、编译调用列表为空且实际产物字节完全相同。验证复用现有缓存键和正式产物路径，没有新增缓存策略或发布入口。
+- `cargo fmt --all`、`cargo clippy --workspace --all-targets` 和配套编译器构建通过，无警告；真实专项 **1 passed、0 failed、0 ignored**，耗时 **98.93 秒**，包含上述五类变化和全部未变输入检查。日志为 `/tmp/scoop-m23-7-generic-cache-r1-tests.log`。
+
 ## 剩余主线
 
 [M23-6a 已验收](../stage6a/ACCEPTANCE.md)，普通宿主的封闭泛型父类型、整数范围、外来类型解构及函数值默认参数不再列为本阶段缺口。本阶段继续承担实际机器定义、ODR 和委托运行闭环，具体边界以修订后的 [设计](DESIGN.md) 为准。
 
-1. 核对 core、driver、reader/publisher、cache 与全部 fixture 使用共同生产路径，清理无调用的旧路径，完成实际配套编译器和 runtime 的全仓验收。
+1. 完成共有生产路径的旧入口清理及最后核对，运行最新实际配套编译器和 runtime 的全仓验收。
 
 验收始终以源码与实际产物为依据。最终必须逐项核对设计第 12、14 节，不能用局部单测替代跨 Cone 链接运行或宣布阶段完成。

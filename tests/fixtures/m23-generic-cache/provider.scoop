@@ -1,0 +1,5 @@
+package dependency.cache
+
+private fun <T> hidden(value: T, amount: Int): Int = amount + 1
+
+public fun <T> calculate(value: T, amount: Int = 41): Int = hidden(value, amount)
