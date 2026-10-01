@@ -98,7 +98,10 @@ fn eligible_declaration(
     };
     if !direct_owner
         || !callable.type_parameters().is_empty()
-        || callable.effects().implementation() != CallableImplementationV1::Scoop
+        || matches!(
+            callable.effects().implementation(),
+            CallableImplementationV1::Intrinsic(_)
+        )
     {
         return None;
     }

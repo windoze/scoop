@@ -139,11 +139,12 @@ impl Lowerer {
             .as_ref()
             .and_then(|dependencies| dependencies.callable_declaration(callee).ok())
             .ok_or(ImportedDefaultMaterializationError::MissingCallable(callee))?;
-        if candidate.interface().effects().implementation() != hir::CallableImplementationV1::Scoop
-        {
+        if matches!(
+            candidate.interface().effects().implementation(),
+            hir::CallableImplementationV1::Intrinsic(_)
+        ) {
             return Err(ImportedDefaultMaterializationError::Plan(
-                crate::imported_capabilities::ImportedCapabilityRequirement::Native
-                    .diagnostic("dependency default native call"),
+                "intrinsic dependency calls require their typed intrinsic operation".to_owned(),
             ));
         }
         self.select_imported_callable_declaration_use_with_kind(candidate, kind)

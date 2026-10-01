@@ -23,11 +23,21 @@ impl fmt::Display for CurrentConeHirStageError {
             Self::SemanticWorld(source) => source.fmt(formatter),
             Self::NominalClassifier(source) => source.fmt(formatter),
             Self::Input(source) => source.fmt(formatter),
-            Self::Lowering(diagnostics) => write!(
-                formatter,
-                "current Cone HIR lowering failed with {} diagnostic(s)",
-                diagnostics.len()
-            ),
+            Self::Lowering(diagnostics) => {
+                write!(
+                    formatter,
+                    "current Cone HIR lowering failed with {} diagnostic(s)",
+                    diagnostics.len()
+                )?;
+                for diagnostic in diagnostics {
+                    write!(formatter, "\nsource {}", diagnostic.file)?;
+                    if let Some(span) = diagnostic.span {
+                        write!(formatter, ":{}..{}", span.start, span.end)?;
+                    }
+                    write!(formatter, ": {}", diagnostic.message)?;
+                }
+                Ok(())
+            }
             Self::Foundation(source) => source.fmt(formatter),
             Self::ProductionSection(source) => source.fmt(formatter),
             Self::CrossConeSection(source) => source.fmt(formatter),

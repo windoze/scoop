@@ -72,6 +72,7 @@ impl Lowerer {
                 hir::FunctionKind::User(_)
                     | hir::FunctionKind::Abstract { .. }
                     | hir::FunctionKind::InitializationEnsure
+                    | hir::FunctionKind::Extern(_)
             ) {
                 continue;
             }
@@ -179,21 +180,24 @@ impl Lowerer {
             .collect::<HashMap<_, _>>();
 
         for (hir_id, mir_id) in user_functions {
-            let (params, return_ty, body) = if matches!(
-                module.functions[hir_id].kind,
-                hir::FunctionKind::InitializationEnsure
-            ) {
-                let unit = ensure_units[&mir_id];
-                self.lower_initialization_ensure(module, unit, module.functions[hir_id].span)
-            } else {
-                let string_owner = initialization_string_owners
-                    .get(&hir_id)
-                    .copied()
-                    .unwrap_or(mir::ImmortalObjectOwner::Callable(
-                        module.functions[hir_id].materialization,
-                    ));
-                self.lower_user_function(module, hir_id, mir_id, string_owner)
-            };
+            let (params, return_ty, body) =
+                if let hir::FunctionKind::Extern(external) = module.functions[hir_id].kind {
+                    self.lower_native_function(module, hir_id, mir_id, external)
+                } else if matches!(
+                    module.functions[hir_id].kind,
+                    hir::FunctionKind::InitializationEnsure
+                ) {
+                    let unit = ensure_units[&mir_id];
+                    self.lower_initialization_ensure(module, unit, module.functions[hir_id].span)
+                } else {
+                    let string_owner = initialization_string_owners
+                        .get(&hir_id)
+                        .copied()
+                        .unwrap_or(mir::ImmortalObjectOwner::Callable(
+                            module.functions[hir_id].materialization,
+                        ));
+                    self.lower_user_function(module, hir_id, mir_id, string_owner)
+                };
             let body = finish_cfg_body(
                 &mut self.local_values,
                 &mut self.coroutines,

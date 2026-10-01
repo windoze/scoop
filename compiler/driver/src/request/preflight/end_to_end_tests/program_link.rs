@@ -6,7 +6,7 @@ fn program_link_reads_machine_data_from_actual_executable_artifacts() {
     let workspace = tempfile::tempdir().unwrap();
     let core = bootstrap_core(workspace.path(), &target);
     let core_bytes = std::fs::read(core.artifact().path()).unwrap();
-    for case in ["read-basic", "read-combined"] {
+    for case in ["read-basic", "read-combined", "read-println"] {
         let source = std::fs::read_to_string(
             crate::workspace_root().join(format!("tests/fixtures/m23-program-link/{case}.scoop")),
         )

@@ -160,6 +160,19 @@ pub(super) fn exact_function_signature(
     function: hir::FunctionId,
 ) -> hir::ExactCallableSignature {
     let declaration = &module.functions[function];
+    if let hir::FunctionKind::Extern(external) = declaration.kind {
+        let external = &module.extern_functions[external];
+        return hir::ExactCallableSignature::new(
+            hir::Effect::Ordinary,
+            None,
+            external
+                .params
+                .iter()
+                .map(|ty| module.exact_type_identities[*ty].id())
+                .collect(),
+            module.exact_type_identities[external.return_type].id(),
+        );
+    }
     let receiver = declaration.receiver.value_type();
     let parameters = if let Some(receiver_type) = receiver {
         let (receiver, parameters) = declaration

@@ -162,6 +162,8 @@ cache 按 key 使用现有 build lock 与原子写入机制；同次新构建结
 
 普通 Mach-O/C 对象不提供可恢复的完整函数类型。Link 检查已有声明之间的完整 ABI、实际可见的 symbol kind/storage 与对象引用；同一符号已有 runtime/target ABI 合同时也必须比较。对只有普通 FFI 声明的函数，不伪造一份“从 export 读出的完整 ABI”，也不为证明它正确而新建 API 准入表。外部实现符合声明仍遵循现有 FFI 作者责任；core 中的 extern 同样承担这项责任。C ABI 调用继续使用 artifact 已携带的 generated-C bridge，链接时不补生成。
 
+源码 extern 的跨 Cone 调用使用定义方产物中的普通 Scoop ABI 入口。MIR 为每个参数自由的 source extern 生成薄函数体，参数／结果和 GC effect 保持原声明，函数体沿既有 extern lowering 调用 native 目标（C ABI 继续经过原 generated-C bridge）。入口使用原 source function 的 Strong callable body 身份，HIR implementation 与 native requirement 仍为 SourceExtern；不会把声明改成 runtime intrinsic 或在 consumer 复制实现。普通导入、泛型正文和默认参数均选择同一入口，因此 core 的 `println -> write` 和普通库中的等价调用都可消费。此前统一拒绝 dependency native call 的阶段占位限制退役；额外物理 provider 是否存在由正式 Link 输入决定。
+
 ### 5.2 定义和 ODR
 
 所有实际对象都进入链接，不能先合成 archive 再依赖抽取保留 metadata。每个 Cone 的对象合计恰好有一个实际 image；root descriptor、registration、body 和 dependency reference 均使用已解析 typed owner。
@@ -222,6 +224,8 @@ libSystem 使用已解析 SDK stub、install name、版本/target 和实际 expo
 当前固定 runtime 使用的 Level I unwind、C memory/stdio、pthread、Darwin VM/image 和 CommonCrypto 等入口均由该系统输入闭合。所需符号不存在、SDK 不兼容或出现需额外物理输入的 compiler helper 时，报告明确 toolchain/input 错误；不能静默加入 compiler-rt、另一个库或任意搜索目录。若实际支持的 toolchain 确实需要额外 helper，先把其对象及真实调用合同补入同一 profile，并完成对应 fixture；普通 SourceExtern 的解析规则不变。
 
 当前 Darwin profile 明确传入 `-no_fixup_chains`，采用 `LC_DYLD_INFO_ONLY` 的 rebase/bind 操作流；final verifier 读取该实际格式。没有使用 chained fixup 的输入或调用方，因此本阶段不增加其备用解析器。SDK v4 stub 的目标选择遵循 Darwin 的 arm64／arm64e stub 兼容规则，并以实际 `ld` 探针验证；读取完整 re-export 闭包，不按使用到的函数过滤 exports。
+
+此格式的 lazy symbol stub 由 `ld` 引用系统 `dyld_stub_binder`。profile 将该真实 linker-generated 需求及所选 SDK export 纳入解析和 fingerprint；它不要求额外对象，也不放宽普通未解析符号检查。
 
 ### 6.3 链接后生成的结构
 

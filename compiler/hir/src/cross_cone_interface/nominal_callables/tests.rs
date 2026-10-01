@@ -217,26 +217,30 @@ fn suspend_callables_retain_the_source_effect_and_result() {
 }
 
 #[test]
-fn external_and_unresolved_signatures_remain_semantic_only() {
-    let (classifier, unit, _) = classifier();
-    let cases = [
-        callable(
-            SignatureTypeKey::Nominal(unit),
-            Effect::Ordinary,
-            CallableImplementationV1::SourceExternScoop,
-            GcEffect::Managed,
-        ),
-        callable(
-            SignatureTypeKey::Nominal(foreign_type()),
-            Effect::Ordinary,
-            CallableImplementationV1::Scoop,
-            GcEffect::Managed,
-        ),
-    ];
+fn param_free_source_extern_uses_its_provider_callable_entry() {
+    let (classifier, unit, exact) = classifier();
+    let callable = callable(
+        SignatureTypeKey::Nominal(unit),
+        Effect::Ordinary,
+        CallableImplementationV1::SourceExternScoop,
+        GcEffect::Managed,
+    );
+    let entry = classifier.classify_callable(&callable).unwrap().unwrap();
+    assert_eq!(entry.signature().result(), exact);
+    assert_eq!(entry.gc_effect(), GcEffect::Managed);
+    assert!(entry.direct_declaration().is_some());
+}
 
-    for callable in cases {
-        assert_eq!(classifier.classify_callable(&callable).unwrap(), None);
-    }
+#[test]
+fn unresolved_signatures_remain_semantic_only() {
+    let (classifier, _, _) = classifier();
+    let callable = callable(
+        SignatureTypeKey::Nominal(foreign_type()),
+        Effect::Ordinary,
+        CallableImplementationV1::Scoop,
+        GcEffect::Managed,
+    );
+    assert_eq!(classifier.classify_callable(&callable).unwrap(), None);
 }
 
 fn classifier() -> (

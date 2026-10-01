@@ -1009,6 +1009,8 @@ Link reader 检查外部字节的 envelope/hash、required inventory、identity/
 
 所有 `SourceExtern` 按同一规则处理：先按实际 target/symbol 合并完整 library、function/data/TLS/mutability、C/Scoop ABI、calling convention、GC effect 及 signature/storage，再从本次实际对象和 provider export 中解析定义。M23-9 只提供 runtime 对象和固定 SDK 系统 provider，不按 core 身份、函数名或 core 已用 API 建立白名单。未被 core/runtime 使用的系统 export 同样可由普通 extern 引用；缺失定义、合同冲突及既有保留符号冲突对所有 Cone 同样报错。与实际 `RuntimeAbi`／target support 需求共用符号时，继续比较已有完整合同，不改变 SourceExtern 分类。普通外部对象没有完整函数类型时，不伪造 ABI 证明，外部实现遵守声明仍按语言 FFI 契约负责。M23-10 增加新逻辑 library、archive 等物理输入的供应，复用同一合并与解析器。
 
+定义方 MIR 为参数自由的 source extern 生成普通 Scoop ABI 薄入口，沿原 extern lowering 转发参数和结果；C ABI 继续使用已有 generated-C bridge。该入口是原 source function 的 Strong callable body，签名与 GC effect 来自同一声明，HIR implementation 和 native requirement 仍保留 SourceExtern 身份。消费者通过已有 HIR/MIR/LIR callable bridge 调用这个原 provider 的入口，普通 import、泛型正文和默认参数不另行生成包装或复制 native 声明。额外 library 的输入供应由 Link 决定；不再在 HIR 以 M23-10 阶段限制笼统拒绝 native dependency call。
+
 **runtime-build：**输入为实际 target、C toolchain、构建规则、列明的 C/assembly 源文件及所依赖头文件内容；输出为任意非空数量的普通 relocatable object 和完整定义／引用摘要。runtime 不再定义 C main、Scoop main 或第二份 image。源码和头文件、实际 compiler/SDK、flags、runtime ABI 与 build-rule 变化使缓存失效，修改 mtime 不代替内容检查。构建 key 与对象内容 fingerprint 分开；一次成功构建的完整结果直接交给 linker，缓存或独立进程读入对象时检查 bytes、格式、符号、ABI 和引用。普通对象索引只是缓存／进程交接记录，不是新的可分发容器、来源授权或不可伪造凭证。
 
 program-link 生成一个普通 C main、位于 `__DATA_CONST,__const` 的静态 image pointer array，以及唯一 root entry 的 extern 引用，精确调用 2.14 的 `scoop_rt_run_program(images, image_count, root_entry)` 并返回其结果。生成代码只使用标准 C 类型和 opaque descriptor 声明，不读取 runtime header/source，不复制 descriptor、registration、初始化状态或 gateway 正文。startup 编译器及实际 options 由 final-link projection 明确给出并进入链接输入记录；不要求安装 LLVM 或运行 Scoop codegen。
@@ -1020,6 +1022,8 @@ program-link 生成一个普通 C main、位于 `__DATA_CONST,__const` 的静态
 当前 target 禁止 `-dead_strip`、不同 body 的 function ICF、LTO、未声明的 autolink/directive、raw 用户 linker options 与 C++ ABI 依赖；显式保留 `-no_deduplicate`。`__LLVM_STACKMAPS,__llvm_stackmaps` 通过 `-rename_section` 移到 `__DATA_CONST,__llvm_stackmaps`，由 dyld 修正地址后保护为只读。固定 profile 只登记实际出现的 linker-generated header、stub/GOT、unwind、fixup 等结构；没有额外 support object 时集合为空，不创造虚拟对象或 `SlibMemberId`。未知实际输入或额外动态库是错误。
 
 当前 Darwin profile 通过 `-no_fixup_chains` 明确使用传统 rebase/bind 格式；final verifier 只实现当前实际输出，不增加没有调用方的 chained-fixup 备用 reader。SDK v4 stub 按 Darwin arm64／arm64e 兼容规则选择目标，并读取完整 re-export 闭包。
+
+传统 lazy stub 的系统需求 `dyld_stub_binder` 由 `ld` 生成；profile 明确记录该符号，检查所选 SDK export，并纳入工具链 fingerprint。它不引入额外对象，不成为接受其他未分类 undefined 的规则。
 
 **计划、产物检查与发布：**链接前保存实际 root/依赖、各 Cone Code 与对象内容、runtime 对象、startup 对象、系统 provider、String alias 和有序操作，形成普通 `ResolvedLinkPlan`。profile/toolchain/deployment 与实际参数进入其 fingerprint，物化路径和输出路径不进入。M23-9 不缓存最终 binary；不为缓存预设 receipt、CAS proof 或多层 evidence 状态机。临时文件由已读 bytes 物化，后续 command 使用同一份文件；外部路径改变不能让实际链接悄悄换输入。
 
