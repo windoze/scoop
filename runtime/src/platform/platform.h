@@ -35,9 +35,8 @@ typedef struct ScoopPlatformMetadataImages {
 } ScoopPlatformMetadataImages;
 
 bool scoop_image_range_contains(const ScoopPlatformMetadataImages *images,
-                                const void *pointer, uint64_t size,
-                                uint64_t alignment, uint32_t required,
-                                uint32_t forbidden);
+                                const void *pointer, uint64_t size, uint64_t alignment,
+                                uint32_t required, uint32_t forbidden);
 
 typedef struct ScoopManagedAnchor {
     uintptr_t return_pc;
@@ -77,14 +76,11 @@ typedef struct ScoopMetadataImageOps {
 } ScoopMetadataImageOps;
 
 typedef struct ScoopThreadVmOps {
-    bool (*stack_bounds)(ScoopPlatformStackBounds *bounds,
-                         ScoopPlatformError *error);
-    bool (*reserve_read_write)(uintptr_t preferred_address, size_t size,
-                               void **mapping,
+    bool (*stack_bounds)(ScoopPlatformStackBounds *bounds, ScoopPlatformError *error);
+    bool (*reserve_read_write)(uintptr_t preferred_address, size_t size, void **mapping,
                                ScoopPlatformError *error);
     size_t (*page_size)(void);
-    bool (*protect_none)(void *base, size_t size,
-                         ScoopPlatformError *error);
+    bool (*protect_none)(void *base, size_t size, ScoopPlatformError *error);
 } ScoopThreadVmOps;
 
 typedef struct ScoopManagedFrameOps {
@@ -92,17 +88,14 @@ typedef struct ScoopManagedFrameOps {
                             ScoopPlatformError *error);
     bool (*frame_from_anchor)(const ScoopManagedAnchor *anchor,
                               const ScoopStackMapRecord *record,
-                              ScoopPlatformStackBounds bounds,
-                              ScoopManagedFrame *frame,
+                              ScoopPlatformStackBounds bounds, ScoopManagedFrame *frame,
                               ScoopPlatformError *error);
     bool (*resolve_root)(const ScoopManagedFrame *frame, uint16_t root_index,
                          void ***slot, ScoopPlatformError *error);
-    bool (*next_frame)(const ScoopManagedFrame *frame,
-                       uintptr_t managed_boundary,
-                       ScoopPlatformStackBounds bounds,
-                       uintptr_t *return_pc, uintptr_t *stack_pointer,
-                       uintptr_t *frame_pointer, bool *has_next,
-                       ScoopPlatformError *error);
+    bool (*next_frame)(const ScoopManagedFrame *frame, uintptr_t managed_boundary,
+                       ScoopPlatformStackBounds bounds, uintptr_t *return_pc,
+                       uintptr_t *stack_pointer, uintptr_t *frame_pointer,
+                       bool *has_next, ScoopPlatformError *error);
 } ScoopManagedFrameOps;
 
 typedef struct ScoopPlatformBundle {
@@ -114,6 +107,7 @@ typedef struct ScoopPlatformBundle {
 /* The selected target profile supplies exactly one complete immutable
  * bundle. Generic runtime code must not select components with host macros. */
 const ScoopPlatformBundle *scoop_platform_bundle(void);
+bool scoop_platform_sha256(const void *bytes, size_t length, uint8_t digest[32]);
 const char *scoop_platform_error_message(ScoopPlatformErrorCode code);
 
 /* Convenience wrapper retained for thread registration. It still dispatches

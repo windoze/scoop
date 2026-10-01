@@ -48,6 +48,9 @@ typedef struct StorageMetadata {
     const ScoopInitializationUnitDescriptorV1 *unit_table[2];
     ScoopCallableRegistrationDescriptorV1 callables[8];
     const ScoopCallableRegistrationDescriptorV1 *callable_table[8];
+    ScoopSafepointRegistrationDescriptorV1 sites[3];
+    const ScoopSafepointRegistrationDescriptorV1 *site_table[3];
+    _Alignas(8) uint8_t stackmaps[512];
 } StorageMetadata;
 
 typedef struct ScoopStorageFixture {

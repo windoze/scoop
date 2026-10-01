@@ -32,22 +32,31 @@ static bool range_contains(ScoopPlatformStackBounds bounds, uintptr_t address,
                            size_t size) {
     uintptr_t low = (uintptr_t)bounds.low;
     uintptr_t high = (uintptr_t)bounds.high;
-    return low < high && address >= low && address <= high &&
-           size <= high - address;
+    return low < high && address >= low && address <= high && size <= high - address;
 }
 
 static bool location_frame_offset(const ScoopStackMapRecord *record,
                                   const ScoopStackMapLocation *location,
                                   uint64_t *offset) {
-    int64_t base = location->dwarf_register == AARCH64_DWARF_SP
-                       ? 0
-                       : (int64_t)record->stack_size -
-                             (int64_t)AARCH64_FRAME_RECORD_SIZE;
-    int64_t resolved = base + (int64_t)location->offset;
-    if (resolved < 0 || (uint64_t)resolved > record->stack_size - 8) {
+    uint64_t base = location->dwarf_register == AARCH64_DWARF_SP
+                        ? 0
+                        : record->stack_size - AARCH64_FRAME_RECORD_SIZE;
+    uint64_t resolved;
+    if (location->offset < 0) {
+        uint64_t magnitude = (uint64_t)(-(int64_t)location->offset);
+        if (magnitude > base)
+            return false;
+        resolved = base - magnitude;
+    } else {
+        uint64_t amount = (uint64_t)location->offset;
+        if (amount > record->stack_size - base)
+            return false;
+        resolved = base + amount;
+    }
+    if (resolved > record->stack_size - 8) {
         return false;
     }
-    *offset = (uint64_t)resolved;
+    *offset = resolved;
     return true;
 }
 
@@ -99,11 +108,10 @@ static bool aarch64_frame_from_anchor(const ScoopManagedAnchor *anchor,
                                       ScoopManagedFrame *frame,
                                       ScoopPlatformError *error) {
     bool frame_end_overflows =
-        anchor != NULL && anchor->frame_pointer >
-                              UINTPTR_MAX - AARCH64_FRAME_RECORD_SIZE;
-    bool stack_end_overflows =
-        anchor != NULL && record != NULL &&
-        record->stack_size > UINTPTR_MAX - anchor->stack_pointer;
+        anchor != NULL &&
+        anchor->frame_pointer > UINTPTR_MAX - AARCH64_FRAME_RECORD_SIZE;
+    bool stack_end_overflows = anchor != NULL && record != NULL &&
+                               record->stack_size > UINTPTR_MAX - anchor->stack_pointer;
     if (anchor == NULL || record == NULL || frame == NULL || error == NULL ||
         frame_end_overflows || stack_end_overflows ||
         anchor->return_pc != record->return_pc ||
@@ -126,18 +134,16 @@ static bool aarch64_frame_from_anchor(const ScoopManagedAnchor *anchor,
     return true;
 }
 
-static bool aarch64_resolve_root(const ScoopManagedFrame *frame,
-                                 uint16_t root_index, void ***slot,
-                                 ScoopPlatformError *error) {
-    if (frame == NULL || frame->record == NULL || slot == NULL ||
-        error == NULL || root_index >= frame->record->root_count) {
+static bool aarch64_resolve_root(const ScoopManagedFrame *frame, uint16_t root_index,
+                                 void ***slot, ScoopPlatformError *error) {
+    if (frame == NULL || frame->record == NULL || slot == NULL || error == NULL ||
+        root_index >= frame->record->root_count) {
         if (error != NULL) {
             error->code = SCOOP_PLATFORM_INVALID_FRAME;
         }
         return false;
     }
-    const ScoopStackMapLocation *location =
-        &frame->record->roots[root_index].base;
+    const ScoopStackMapLocation *location = &frame->record->roots[root_index].base;
     if (location->kind != SCOOP_STACKMAP_INDIRECT || location->size != 8 ||
         (location->dwarf_register != AARCH64_DWARF_SP &&
          location->dwarf_register != AARCH64_DWARF_FP)) {
@@ -165,31 +171,25 @@ static bool aarch64_resolve_root(const ScoopManagedFrame *frame,
 
 static bool aarch64_next_frame(const ScoopManagedFrame *frame,
                                uintptr_t managed_boundary,
-                               ScoopPlatformStackBounds bounds,
-                               uintptr_t *return_pc,
-                               uintptr_t *stack_pointer,
-                               uintptr_t *frame_pointer, bool *has_next,
-                               ScoopPlatformError *error) {
+                               ScoopPlatformStackBounds bounds, uintptr_t *return_pc,
+                               uintptr_t *stack_pointer, uintptr_t *frame_pointer,
+                               bool *has_next, ScoopPlatformError *error) {
     if (frame == NULL || return_pc == NULL || stack_pointer == NULL ||
         frame_pointer == NULL || has_next == NULL || error == NULL ||
         managed_boundary <= frame->frame_pointer ||
         managed_boundary > (uintptr_t)bounds.high ||
-        !range_contains(bounds, frame->frame_pointer,
-                        AARCH64_FRAME_RECORD_SIZE)) {
+        !range_contains(bounds, frame->frame_pointer, AARCH64_FRAME_RECORD_SIZE)) {
         if (error != NULL) {
             error->code = SCOOP_PLATFORM_INVALID_FRAME;
-            error->safepoint_id =
-                frame == NULL || frame->record == NULL
-                    ? 0
-                    : frame->record->safepoint_id;
+            error->safepoint_id = frame == NULL || frame->record == NULL
+                                      ? 0
+                                      : frame->record->safepoint_id;
         }
         return false;
     }
     uintptr_t frame_record[2];
-    memcpy(frame_record, (const void *)frame->frame_pointer,
-           sizeof frame_record);
-    uintptr_t next_stack_pointer =
-        frame->frame_pointer + AARCH64_FRAME_RECORD_SIZE;
+    memcpy(frame_record, (const void *)frame->frame_pointer, sizeof frame_record);
+    uintptr_t next_stack_pointer = frame->frame_pointer + AARCH64_FRAME_RECORD_SIZE;
     uintptr_t next_frame_pointer = frame_record[0];
     if (next_frame_pointer >= managed_boundary) {
         *has_next = false;
@@ -197,11 +197,9 @@ static bool aarch64_next_frame(const ScoopManagedFrame *frame,
     }
     if (next_frame_pointer <= frame->frame_pointer ||
         next_stack_pointer >= managed_boundary || frame_record[1] == 0 ||
-        !range_contains(bounds, next_frame_pointer,
-                        AARCH64_FRAME_RECORD_SIZE)) {
+        !range_contains(bounds, next_frame_pointer, AARCH64_FRAME_RECORD_SIZE)) {
         error->code = SCOOP_PLATFORM_INVALID_FRAME;
-        error->safepoint_id =
-            frame->record == NULL ? 0 : frame->record->safepoint_id;
+        error->safepoint_id = frame->record == NULL ? 0 : frame->record->safepoint_id;
         return false;
     }
     *return_pc = frame_record[1];

@@ -47,9 +47,16 @@
 - 生成直接指向原 record 的唯一 GC root 列表及 canonical eager unit 序列；lazy 只登记。新增 40 种损坏用例及 Sequence/Array、String、ZST、eager ID 顺序组合。
 - 格式化和全 workspace/all-targets Clippy 通过；codegen/runtime 306 项、toolchain 9 项通过。GC 发布和 startup 尚待完整 stackmap 关联完成。
 
+## 7. 完整 stackmap 规范化与登记关联
+
+- 将原 579 行 parser 按 blob、record 和索引职责拆分。保留前三个 location、全部 root pairs/live-outs、function address、instruction offset 及 blob offset；读取 count 后按剩余实际字节检查再分配。
+- CommonCrypto SHA-256 消费与 Rust normalizer 相同的 domain-separated runtime scalar/count 编码。C 测试逐字锁定已有 Rust 固定向量，并验证 ConstantIndex 解析后与 Constant 产生相同摘要。
+- raw records 经 typed safepoint/callable 关联、平台 root/frame 校验和 normalized fingerprint 比较后生成唯一 PC 索引。合法 ODR 多 blob 仅同 PC/完整 canonical payload 合并；额外或缺失 site、Strong 重复、owner/PC/location/live-out/fingerprint 错误均拒绝。
+- 修复 AArch64 frame offset 在极大已加载 stack size 与正 offset 组合下的有符号加法溢出，使用边界内无符号计算。
+- 新增三个连续 blob、零 root、ODR/ConstantIndex 组合及 20 个故障注入用例。格式化与全 workspace/all-targets Clippy 通过；codegen/runtime 307 项、toolchain 9 项全部通过。此索引将在下一功能直接交给 GC。
+
 ## 待完成
 
-2. 多 image 六类记录、类型/scan、静态 roots、immortal 与初始化关系登记。
-3. 完整 stackmap 规范化、registration 关联、合法 ODR 合并及 GC 接入。
+3. GC 直接消费唯一 registry，移除旧单表与重复 section 读取。
 4. EntryPending、逐次 gateway 线程握手、canonical eager 顺序、异常报告与 shutdown。
 5. 真实 3+ Cone 产物运行、损坏输入和受控线程竞争矩阵，以及历史运行辅助迁移和最终全仓回归。
