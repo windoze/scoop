@@ -440,6 +440,7 @@ name = "scoop"
 version = "0.0.0"
 dependencies = [
  "fs4",
+ "object",
  "rustix",
  "scoop-identity",
  "scoop-linker",

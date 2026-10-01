@@ -80,6 +80,9 @@ from_error!(LayoutCodeFingerprintError, CodeFingerprint);
 
 impl std::fmt::Display for LayoutLinkSymbolUseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Self::FinalMembers(source) = self {
+            return write!(f, "invalid layout Link members: {source}");
+        }
         write!(f, "invalid layout Link symbol uses: {self:?}")
     }
 }

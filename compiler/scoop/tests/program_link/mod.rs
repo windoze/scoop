@@ -8,6 +8,7 @@ use scoop_toolchain::ResolvedTargetProfile;
 mod build;
 mod combinations;
 mod initialization;
+mod inputs;
 mod native;
 mod orchestration;
 mod plans;

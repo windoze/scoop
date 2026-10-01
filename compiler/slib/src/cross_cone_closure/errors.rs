@@ -70,6 +70,25 @@ pub enum CrossConeClosureGraphError {
 
 impl fmt::Display for CrossConeClosureGraphError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Self::StaleDependency {
+            dependent,
+            dependency,
+            recorded,
+            actual,
+        } = self
+        {
+            return write!(
+                formatter,
+                "StaleDependency: Cone {dependent} requires {} ({dependency}); recorded HIR/MIR/LIR {}/{}/{}, actual {}/{}/{}",
+                recorded.coordinate(),
+                recorded.hir_fingerprint(),
+                recorded.mir_fingerprint(),
+                recorded.lir_fingerprint(),
+                actual.hir_fingerprint(),
+                actual.mir_fingerprint(),
+                actual.lir_fingerprint(),
+            );
+        }
         write!(
             formatter,
             "invalid cross-Cone semantic closure graph: {self:?}"
