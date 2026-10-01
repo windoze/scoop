@@ -748,10 +748,18 @@
 - 初始构建和每次变化后都重复相同输入，共 **6 轮**确认所有节点为 `CacheHit`、编译调用列表为空且实际产物字节完全相同。验证复用现有缓存键和正式产物路径，没有新增缓存策略或发布入口。
 - `cargo fmt --all`、`cargo clippy --workspace --all-targets` 和配套编译器构建通过，无警告；真实专项 **1 passed、0 failed、0 ignored**，耗时 **98.93 秒**，包含上述五类变化和全部未变输入检查。日志为 `/tmp/scoop-m23-7-generic-cache-r1-tests.log`。
 
+## 2026-10-01：共有发布路径与旧入口清理
+
+- 删除没有实际生产调用、只被旧格式 fixture 使用的 `SingleConeStrongArtifactInputV1`、`AssembledSingleConeStrongArtifactV1` 及对应 writer 错误；同时删除无构造点的 driver Strong-profile 错误分支与 HIR `GenericOdrRequired` 错误项。现行 archive 继续由 Strong／ODR 共用的完整 layout writer 发布。
+- 按 spec 先行同步实现规范和阶段 3／7 设计，移除旧专用发布入口与收窄条件的叙述；底层格式 fixture 复用已有 canonical archive 构造器，当前格式、fingerprint 和 runtime ABI 不变。
+- 将原 1487 行 link reader 测试按归档构造、对象、生产记录及拒绝用例拆分，主模块约 260 行，其余模块均低于 400 行。逐项比对原 34 个函数／结构体，除旧 writer 分支外保留正文；原字节重现断言改为描述实际 canonical archive 的测试名。
+- 本批前执行 `cargo clean --target-dir target/m23-6a`，删除 **1627 个文件、2.1 GiB**，日志为 `/tmp/scoop-m23-7-pre-final-clean.log`。之后使用 Rust `opt-level=1`，保留 debug assertions 与整数溢出检查，并关闭增量和调试符号，降低大型实际产物检查的运行成本。
+- `cargo fmt --all`、`cargo clippy --workspace --all-targets`、实际配套 `scoopc` 构建及 slib **584 项**全部通过，无警告。关闭全部更新开关和测试栈覆盖的 workspace 回归 **37 个测试组、5332 passed、0 failed、0 ignored**；driver **217 项**全部通过，耗时 **344.73 秒**。日志及汇总为 `/tmp/scoop-m23-7-final-r2-workspace.log`、`/tmp/scoop-m23-7-final-r2-workspace-results.json`，实际编译器摘要与构建环境保存在 `/tmp/scoop-m23-7-final-r2-compiler.json`。
+
 ## 剩余主线
 
 [M23-6a 已验收](../stage6a/ACCEPTANCE.md)，普通宿主的封闭泛型父类型、整数范围、外来类型解构及函数值默认参数不再列为本阶段缺口。本阶段继续承担实际机器定义、ODR 和委托运行闭环，具体边界以修订后的 [设计](DESIGN.md) 为准。
 
-1. 完成共有生产路径的旧入口清理及最后核对，运行最新实际配套编译器和 runtime 的全仓验收。
+1. 补齐设计第 12 节中直接修改 core 数组迭代正文并新增泛型声明的实际产物证据，再记录逐项最终验收。
 
 验收始终以源码与实际产物为依据。最终必须逐项核对设计第 12、14 节，不能用局部单测替代跨 Cone 链接运行或宣布阶段完成。

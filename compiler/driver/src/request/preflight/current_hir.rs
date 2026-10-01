@@ -1,7 +1,7 @@
-//! One complete HIR product and shared strong-profile sealing for every Cone.
+//! Complete HIR products shared by core and ordinary Cones.
 
 mod errors;
-pub use errors::{CurrentConeHirStageError, CurrentConeStrongProfileError};
+pub use errors::CurrentConeHirStageError;
 
 pub(super) struct CurrentConeHirArtifacts {
     pub hir: scoop_hir::DependencyHirOutput,

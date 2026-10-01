@@ -1209,6 +1209,10 @@ producer、reader、linker、wire/profile、版本、fingerprint、fixture、gol
 
 ### 2.13 M23-7：跨 Cone 模板实例化与 ODR 定义
 
+现行 archive 生产由同一个完整 layout writer 消费实际 Strong/ODR 定义、三层 metadata 和对象集合。
+没有实际生产调用的旧 SingleConeStrong 专用 writer、driver 的 Strong-profile 收窄错误及无构造点的 HIR `GenericOdrRequired` 错误项已删除；
+底层格式测试使用原 canonical archive 构造器，不保留另一套生产链或发布条件。
+
 协程的共有 MIR 读取沿既有类型与 callable 边界检查有限 shape-support 根各自的 `CoroutineStart<R>`，其参数必须按序为实际 core 的 `SuspendTask<R>`、`Continuation<R>`；源挂起 callable 的隐藏参数同样引用实际 `Continuation<R>`。普通签名、step、定义归属与 ABI 已在 MIR 表边界验证的结果继续复用。
 
 continuation 的 success/failure 派发复用实际 `Continuation<R>` 成员与已解析槽，不再构造无正文的 `ContinuationShell` 签名副本。旧 generated callable tag 10 退役，不复用；`CoroutineStart<R>` 仍按原 exact owner 产生实际可执行 helper。共有 MIR type bridge 升至 `/6`，lowering role tag 13 表示该启动 helper，semantic/lowered 签名均为真实 `SuspendTask<R>`、`Continuation<R>` 参数并返回 Unit。参数自由 helper 与原 shape roots 一起由定义 Cone 发布，消费方从同一 callable 表选择；application／结构 helper 沿实际 ODR 归属生成。旧 `/5` 产物和缓存需重建。

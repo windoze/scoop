@@ -1,26 +1,5 @@
 use std::fmt;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CurrentConeStrongProfileError {
-    HirOdr(scoop_hir::OdrFreeHirFoundationError),
-}
-
-impl fmt::Display for CurrentConeStrongProfileError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::HirOdr(source) => source.fmt(formatter),
-        }
-    }
-}
-
-impl std::error::Error for CurrentConeStrongProfileError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::HirOdr(source) => Some(source),
-        }
-    }
-}
-
 #[derive(Debug)]
 pub enum CurrentConeHirStageError {
     SemanticWorld(scoop_hir::ImportedSemanticWorldBuildError),

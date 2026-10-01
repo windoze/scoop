@@ -18,7 +18,7 @@ use super::{
 };
 
 mod current_hir;
-pub use current_hir::{CurrentConeHirStageError, CurrentConeStrongProfileError};
+pub use current_hir::CurrentConeHirStageError;
 mod dependencies;
 #[cfg(test)]
 mod end_to_end_tests;

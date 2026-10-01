@@ -1,4 +1,4 @@
-//! Projection of complete HIR into the shared M23-6 type section.
+//! Projection of complete HIR into the shared type section.
 
 use std::fmt;
 
@@ -13,7 +13,7 @@ mod nominals;
 impl CrossConeTypeSemanticsSectionV1 {
     /// Projects complete type representations, inheritance and dependency uses
     /// from the same Export/LocalConcrete pair as the public HIR interface.
-    /// Generic machine materialization remains part of M23-7.
+    /// Source and materialized nominal types use the same projection.
     pub fn from_dependency_hir(
         output: &DependencyHirOutput,
         metadata: crate::SharedTypeMetadataV1<'_>,
@@ -50,7 +50,6 @@ pub enum CrossConeTypeSemanticsProductionError {
     ExactIdentityMismatch(PersistentExactTypeId),
     MissingConcreteType(PersistentExactTypeId),
     MissingLocalSupport(PersistentExactTypeId),
-    GenericOdrRequired(PersistentExactTypeId),
     InvalidSourceShape {
         declaration: SourceNominalId,
         reason: String,
@@ -104,10 +103,6 @@ impl fmt::Display for CrossConeTypeSemanticsProductionError {
             Self::MissingLocalSupport(exact) => write!(
                 f,
                 "exact type {exact} needs local source support that is not exported"
-            ),
-            Self::GenericOdrRequired(exact) => write!(
-                f,
-                "exact type {exact} requires generic ODR materialization from M23-7"
             ),
             Self::InvalidSourceShape {
                 declaration,

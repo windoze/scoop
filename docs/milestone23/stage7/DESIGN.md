@@ -558,6 +558,11 @@ ReleaseHook role 16 仍只由 M24 启用，本阶段完整 profile 继续拒绝�
 
 构建管理继续只持有归档快照、manifest 摘要与依赖 fingerprint；`scoopc` 的共有 reader 消费实际 IR/对象。对同一输入，envelope、HIR、MIR/LIR、object 各自完成一次所需检查，随后复用完整记录。当前编译输出沿原有原子写入路径发布，不重新读取自己与全部依赖执行第二轮完整验证。
 
+现行生产只保留 Strong/ODR 共用的完整 layout writer。已经没有实际生产调用的旧
+`SingleConeStrongArtifactInputV1`／`AssembledSingleConeStrongArtifactV1` 及 driver 的 Strong-profile
+收窄错误分支、无构造点的 HIR `GenericOdrRequired` 错误项删除；早期底层格式用例直接复用已有 canonical archive 构造器，不为测试保留专用生产入口。
+这项清理不改变当前产物格式、fingerprint 或 runtime ABI。
+
 模板读入后直接走 6a 的共同具体化；名字、重载、访问域与默认来源不重新选择。consumer 实参产生的新类型关系及必要条件在对应边界检查，未变化的 provider 声明和布局直接复用。Link 合并只有重复定义与最终引用关系的新检查，不重跑 HIR。
 
 | 错误类别 | 诊断位置与内容 |

@@ -1501,52 +1501,23 @@ requirement surface后计算唯一Code fingerprint。`CodeFingerprintedObjectPro
 LIR foundation、C-bridge profile、final members和拥有完整code proof的production manifest；provisional bytes、
 symbol plan及各中间proof全部被消费，不存在从临时路径或未finalize bytes直接打包的旧入口。
 
-最终archive只能由`SingleConeStrongArtifactInputV1`进入
-`AssembledSingleConeStrongArtifactV1::write`。该closed input一次性要求producer、typed Cone、精确direct
-dependency、三层`OdrFree*Foundation`、HIR/MIR production、上述production manifest与final LinkObject
-members；没有逐section追加或用裸payload替换的接口。writer从code proof内部派生target selection、strong
-production与Link identity closure，固定构造HIR两节、MIR两节、LIR三节和唯一manifest production section，
-再从同一section集合计算三层semantic fingerprint并以production manifest补齐Code/RuntimeImage fingerprint。
-输入LinkObject的数量、顺序、member id与link-member fingerprint必须逐项回等code proof，LIR foundation及
-code producer必须等于Cone identity。成功状态只暴露canonical final bytes、ArtifactFingerprint与用于发布的
-target selection；不存在foundation writer升级、手工`BootstrapManifest`拼装或漏过Link closure的production
-分支。
+M23-3 的 Strong-only 打包入口已经由 M23-7 的共同生产路径替代。现行归档由
+`CrossConeLayoutArtifactInputV1` 进入 `AssembledCrossConeLayoutArtifactV1::write`，消费同一份
+canonical HIR/MIR/LIR、实际 Strong/ODR 定义、完整对象与 production manifest；外层 section、
+Link identity closure 和 fingerprint 从这些现有结果构造。旧的专用输入、writer 和 driver
+Strong-profile 错误分支已删除，底层格式测试直接使用已有的 canonical archive 构造器。
 
-driver随后必须消费`CodeFingerprintedObjectProductionV1`与不可缺项的
-`StrongArtifactMetadataInputV1`形成`AssembledStrongArtifactProductionV1`；该状态内部保留archive、从同一
-code proof派生的external bridge surface及codegen保留的C-bridge profile，不公开final bytes的直接文件写入
-方法。其唯一文件系统终态`publish`调用`publish_single_cone_artifact`，并显式接收同请求已验证的core
-defined-owner authority；不能把assembly成功、ArtifactFingerprint存在或单一reader成功当作发布权限。
+现行 HIR 成功状态在 lowering 后即持有完整 canonical foundation 与 production/interface section。
+它们不经过 `OdrFree*` 收窄，不删除实际 application、group 或 member，也不为 core 另设物化路径。
+仅存在于模板或签名中的类型继续按实际表示需求处理；实际物化进入原 specialization 与定义闭包。
+`CoroutineStart` 的有限支持及参数自由、application／结构 helper 归属见 [M23-7 第 5 节](../stage7/DESIGN.md)，
+旧 `ContinuationShell` 已退役。
 
-driver的HIR成功状态必须在lowering的同一原子转换中持有完整`CanonicalHirFoundation`与HIR production
-section，不能把foundation推迟到packager临时重算。`OdrFreeHirFoundation`是进入
-`SingleConeStrongArtifactInputV1`前的profile收窄结果：canonical HIR含任一ODR group/member/callable application时该
-转换以稳定能力错误结束，不能删除foundation记录、改写成strong owner或保留一条跳过`RejectAll`的core
-bootstrap路径。
-
-这里的`application`只指会产生body materialization的`CallableApplicationKey`，不包括仅作为完整签名类型出现的
-`ExactTypeKey::NominalApplication`。后者必须原样保留在其最早声明层的exact-type identity表；若当前Cone没有为它选择layout、scan、
-TypeDescriptor、adapter或generated helper，canonical projection从一开始就不产生Nominal ODR group，而不是在
-profile收窄时删除记录。任何实际materialization仍须建立group/member并被本阶段拒绝；第7.6节所列
-`CoroutineStart` 因需要 generic dependency 物化，在本阶段的历史 Strong-only profile 中失败；M23-7 通过共有 ODR 管线提供其完整定义，`ContinuationShell` 已退役。
-
-三层lowering完成后，driver必须消费完整IR链调用`seal_strong_profile`。成功的
-`SingleConeStrongIrProductionV1`同时拥有从canonical HIR收窄出的`OdrFreeHirFoundation`以及原链中的
-`OdrFreeMirFoundation`、`OdrFreeLirFoundation`和三层production；只有该状态可以进入object producer。
-收窄失败不返回LIR或任一可单独送入codegen的部分结果，也不为trusted core设置豁免分支。
-
-该通用IR终态的`produce_artifact`是built-in production的唯一高层入口：它从MIR production派生entry
-source，以请求级完整target profile分别运行Scoop LLVM与generated-C producer，随后按本节冻结顺序消费
-全部object验证、registration叶子/依赖、symbol closure、final patch与Code fingerprint状态，最后直接进入
-archive adapter。调用者只能额外提供typed Cone/direct dependency、临时目录、producer record和已经验证的
-core owner authority，不能取得任一producer的裸路径后自行拼装另一条production链。
-
-其中“无显式dependency input”不等于ordinary artifact的direct dependency table为空：core bootstrap传空表；
-每个ordinary请求必须从同一个`ValidatedTrustedCoreArtifact`原子投影唯一core `DependencyRecord`（coordinate、identity
-及HIR/MIR/LIR三层fingerprint），并把恰含该记录的canonical vector同时交给Code projection与archive metadata。
-不得传`Vec::new()`后仅依赖`ConeImagePlan`补出core identity，也不得从路径、slot配置或当前重新编码的core section
-拼装fingerprint。`ConeImagePlan.dependencies == [CORE]`、manifest direct dependency record及实际选用的trusted-core
-authority三者必须同源一致。
+归档与发布只承担必要的类型、格式、引用、ABI 和对象一致性检查；已经完成的对象与元数据检查直接复用。
+依赖记录从本次选用的实际产物提取 coordinate、identity 和 HIR/MIR/LIR fingerprint，
+与请求和实际引用保持一致。M23-6a 之后的 direct/support 依赖及 core 定位遵守共同声明与产物规则，
+不再要求普通请求只有 core 一个依赖。当前职责以 [实现规范 2.13](../../specs/SCOOP-IMPL-SPEC.md)
+和 [M23-7 设计](../stage7/DESIGN.md) 为准。
 
 verifier检查每个unit的producer-specific `GeneratedBridgeAtomId`、primary entry、signature/context descriptor与actual native symbol/relocation；LIR/ODR canonical target仍只保存producer-independent unit。`StaticAssertSupport`只由canonical source/template proof承诺，不得在object中伪造atom、symbol或definition range。
 
