@@ -239,6 +239,8 @@ M23-8 的私有 C 启动入口为 `int scoop_rt_run_program(const ScoopImageDesc
 
 登记只检查当前加载边界的格式、实际地址、引用、唯一性、扫描与初始化契约。编译器和 reader 已完成的语言、canonical definition、布局摘要及 ODR 内容比较不在 runtime 重放；runtime 不重算 RuntimeImage/Graph/ObjectDefinition fingerprint，不重建 canonical exact-type key 或程序来源证明。实际 stackmap 的规范化摘要核对用于确认链接后的 PC、owner 和 root locations，与重放编译语义不同。完整不可变记录检查一次，ODR 的同址重复引用和 GC 热点直接复用结果。
 
+空接口仍保留以真实 interface TD 为键的 itable entry，其无槽派发表沿既有 codegen 表示为 null；空 vtable 同理。runtime 检查非空 dispatch pointer 的只读起点，不拒绝合法的 null 空表，也不从地址或接口名称推测槽数。实际槽清单、空表与接口契约的一致性由编译器及对象 reader 验证。
+
 M23-6 删除没有实际 producer/consumer 的 `ScoopRuntimeCoreBindingsV1`、`ScoopProgramDescriptorV1`、固定 String capability ID 及其 LLVM 布局镜像和专用测试，不把它们改名后保留。未使用的 program/core magic `0x53434f4f50505247`、`0x53434f4f50434f52` 退役且不复用。M23-8/9 使用上述普通 C 参数及实际引用，String 继续通过实际 `scoop_td_String` 定义接入，不另建授权表。
 
 M23-7 实际发射的私有 metadata ABI 版本为 2；M23-8 切换为 3，明确区分统一 initialization descriptor 参数与旧 coordinator 参数，旧产物和缓存重建。带 prefix 的 record 以 `{ u64 magic; u32 abi_version; u32 struct_size; }` 开头；image/entry/storage/immortal/init/type/safepoint/callable 的 magic 依次为 `0x53434f4f50494d47`、`0x53434f4f50454e54`、`0x53434f4f5053544f`、`0x53434f4f50494d4d`、`0x53434f4f50494e49`、`0x53434f4f50545950`、`0x53434f4f50535054`、`0x53434f4f5043414c`。M23-8 要求 `abi_version == 3`，`struct_size` 与共享 header 的 `sizeof` 精确一致，reserved fields 为零。八种 record 的字段顺序与 size 保持，TypeDescriptor 仍为 M23-7 的 144-byte 固定部分加相关类型尾表。消费边界先确认 prefix 所在内存范围，再检查 prefix，最后读取完整 record。Darwin/AArch64 使用 little-endian、64-bit pointer 和 natural 8-byte struct alignment；C header 与 LLVM 布局由实际产物测试核对。

@@ -70,8 +70,10 @@ static void check_relations(const ScoopImageRegistry *registry, size_t index) {
                 scoop_metadata_fatal(&check, "duplicate itable key");
             }
         }
-        scoop_metadata_readonly(&check, entry->slots, 0, sizeof(void *), 8,
-                                "itable slots range");
+        if (entry->slots != NULL) {
+            scoop_metadata_readonly(&check, entry->slots, 0, sizeof(void *), 8,
+                                    "itable slots range");
+        }
     }
 }
 

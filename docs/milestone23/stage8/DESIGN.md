@@ -141,6 +141,8 @@ Mach-O 处理只位于现有 platform image component。它提供主 executable 
 
 登记一次核对 TD 的实际范围、runtime type ID、shape 合法矩阵、layout/descriptor fingerprint 镜像和已登记的 parent/interface/function type 引用。parent 与 interface 继承边检查非法环；不能把所有函数签名、字段类型关系当作必须无环的继承图。vtable/itable 的已知范围与 interface key 需要有效，但没有 slot count 的数组不能靠扫描到 null 来重建；slot 数和逐槽 ABI 已由编译器/对象 reader 负责。
 
+空接口保留完整 itable entry，slots 与空 vtable 沿原 codegen 表示为 null。对非空 dispatch pointer 验证只读起点；runtime 不因没有槽位而删除接口关系，也不要求空表额外分配 sentinel。image 的空 registration span 继续遵守第 2 节自己的 sentinel 合同。
+
 scan 复用 `value_shape.c` / `value_scan.c` 的实际格式与 shape 算法。所有节点先验证 readable readonly 范围，再读取 count/child；active path 检查环，共享 child 用访问记录避免重复展开。结构检查按 node address 复用，涉及 extent/translation 的检查按相应上下文复用，不能把一次小对象检查误当成另一布局的结果。
 
 References 检查 alignment、offset 与实际 extent；Sequence 按已有完整 scan 组合；Array 检查 length header、first offset、非零 stride 和 element scan。variable object 的实际 count/size 仍在分配和扫描该对象时核对。ZST/GC-free array 无 element scan，不因 logical length 很大而遍历空元素。

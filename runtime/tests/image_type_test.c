@@ -307,10 +307,14 @@ static void negative(unsigned test) {
 }
 
 int main(void) {
-    Fixture fixture = {0};
-    setup(&fixture);
-    check(&fixture);
-    assert(munmap(fixture.data, fixture.size + (size_t)sysconf(_SC_PAGESIZE)) == 0);
+    for (unsigned empty = 0; empty < 2; empty++) {
+        Fixture fixture = {0};
+        setup(&fixture);
+        if (empty)
+            fixture.data->itable.slots = NULL;
+        check(&fixture);
+        assert(munmap(fixture.data, fixture.size + (size_t)sysconf(_SC_PAGESIZE)) == 0);
+    }
     for (unsigned test = 0; test < 22; test++)
         negative(test);
     puts("image type and scan tests passed");

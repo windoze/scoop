@@ -94,6 +94,13 @@
 - fixture 直接提供所测的已解析 V1 record，不改变生产 registration 边界或增加 descriptor 工厂。分配时发布真实测试 anchor，阻塞 join 期间退回 native-safe。
 - 格式化与全 workspace/all-targets Clippy 通过；codegen/runtime 310 项全部通过。
 
+## 13. 空接口派发表的登记边界
+
+- 全 workspace 回归发现，已有泛型 bound fixture 的空 `Marker` 接口保留 itable entry，但其 slots 按原 codegen 合同为 null。新 runtime 曾把它当成必须可读的地址，导致合法程序在启动前被误拒绝。
+- spec/design 明确空 dispatch table 与 image 空 registration span 的不同表示。runtime 与空 vtable 使用相同规则，只对非空槽指针检查只读起点；真实槽清单及其 ABI 仍由原编译器/reader 负责，不增补 runtime 槽数推断。
+- C fixture 同时覆盖 null 空表、有效非空表和不可读非空指针。格式化与全 workspace/all-targets Clippy 通过；登记专项通过，4 项完整 generic bound 独立/组合/反例测试全部通过，包含普通及 moving-GC stress 运行。
+- 全量回归仍在收集剩余格式与运行结果；并发功能提交后清理专用 target，共释放 1.5 GiB，清理后重新完成 Clippy 与实际配套 scoopc 构建。
+
 ## 待完成
 
 1. 完成既有静态值/ODR/重建 core 运行矩阵回归。
