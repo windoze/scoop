@@ -13,6 +13,7 @@ mod native;
 mod orchestration;
 mod plans;
 mod publication;
+mod rebuilt_core;
 mod siblings;
 
 pub use plans::assert_plan_snapshot;
