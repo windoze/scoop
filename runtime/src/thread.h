@@ -104,9 +104,6 @@ void scoop_thread_pop_managed_anchor(ScoopManagedAnchor *anchor);
 void scoop_thread_push_safepoint_anchor(ScoopManagedAnchor *anchor, uintptr_t return_pc,
                                         uintptr_t stack_pointer,
                                         uintptr_t frame_pointer);
-const void *scoop_thread_push_managed_gateway_boundary(const void *boundary);
-void scoop_thread_pop_managed_gateway_boundary(const void *boundary,
-                                               const void *previous);
 void scoop_rt_enter_native_safe_impl(ScoopThreadTransition *transition,
                                      uintptr_t managed_stack_low, uintptr_t return_pc,
                                      uintptr_t stack_pointer, uintptr_t frame_pointer);

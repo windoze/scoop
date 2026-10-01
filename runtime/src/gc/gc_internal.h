@@ -5,13 +5,12 @@
 #include <stdint.h>
 
 #include "../generated_entries.h"
+#include "../image/registry.h"
 #include "stackmap.h"
 
 typedef void (*ScoopGcSlotVisitor)(void **slot, void *context);
-typedef void (*ScoopGcExternalObjectVisitor)(const void *object,
-                                             void *context);
-typedef void (*ScoopGcRegionVisitor)(void *base, const uint64_t *scan,
-                                    void *context);
+typedef void (*ScoopGcExternalObjectVisitor)(const void *object, void *context);
+typedef void (*ScoopGcRegionVisitor)(void *base, const uint64_t *scan, void *context);
 
 typedef struct ScoopGcRootVisitor {
     ScoopGcSlotVisitor visit_slot;
@@ -43,7 +42,7 @@ bool scoop_gc_object_was_scanned_locked(const void *object);
 bool scoop_gc_is_forwarded_old_locked(const void *object);
 bool scoop_gc_is_current_live_object_locked(const void *object);
 void scoop_gc_visit_current_objects_locked(ScoopGcHeapObjectVisitor visitor,
-                                            void *context);
+                                           void *context);
 void scoop_gc_heap_finish_collection_locked(uint64_t live_objects);
 void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size);
 
@@ -52,28 +51,21 @@ void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size);
 void scoop_gc_roots_lock(void);
 void scoop_gc_roots_unlock(void);
 _Noreturn void scoop_gc_roots_fatal(const char *message);
-void scoop_gc_register_image_roots(
-    const ScoopManagedGlobalDescriptor *managed_globals,
-    uint64_t managed_global_count,
-    const ScoopImmortalObjectDescriptor *immortal_objects,
-    uint64_t immortal_object_count);
 bool scoop_gc_is_immortal_object_locked(const void *object);
 bool scoop_gc_is_external_object_locked(const void *object);
 bool scoop_gc_is_published_object(const void *object);
 void scoop_gc_visit_handles_locked(ScoopGcRootVisitor visitor);
 void scoop_gc_visit_roots_locked(ScoopGcRootVisitor visitor);
 
-/* Immutable loaded-image stack-map index. Initialization parses and validates
- * every record through the selected target profile before managed code runs. */
-void scoop_gc_stackmaps_init(void);
+/* Startup publishes the complete, already resolved loaded-image index. */
+void scoop_rt_gc_init(const ScoopImageRegistry *registry);
+void scoop_gc_stackmaps_init(const ScoopStackMapIndex *index);
 const ScoopStackMapRecord *scoop_gc_stackmap_lookup(uintptr_t return_pc);
 void scoop_gc_visit_managed_stack(const struct ScoopThreadState *thread,
-                                   ScoopGcRootVisitor visitor);
+                                  ScoopGcRootVisitor visitor);
 void scoop_gc_visit_managed_segment(const struct ScoopThreadState *thread,
-                                    uintptr_t return_pc,
-                                    uintptr_t stack_pointer,
-                                    uintptr_t frame_pointer,
-                                    uintptr_t managed_boundary,
+                                    uintptr_t return_pc, uintptr_t stack_pointer,
+                                    uintptr_t frame_pointer, uintptr_t managed_boundary,
                                     ScoopGcRootVisitor visitor);
 void scoop_gc_collect_internal(void);
 

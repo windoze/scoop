@@ -1,0 +1,11 @@
+package schedule.next
+import schedule.base.*
+
+@Extern(name = "m23_trace")
+private fun trace(value: Long)
+
+private fun initialize(): Long {
+    @Unsafe { trace(20) }
+    return if (base.number == 10) { 20L } else { 0L }
+}
+public val next: Long = initialize()

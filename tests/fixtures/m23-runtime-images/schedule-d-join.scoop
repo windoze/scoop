@@ -1,0 +1,12 @@
+package schedule.join
+import schedule.next.*
+import schedule.peer.*
+
+@Extern(name = "m23_trace")
+private fun trace(value: Long)
+
+private fun initialize(): Long {
+    @Unsafe { trace(40) }
+    return if (next == 20L && peer == "cpeer") { 40L } else { 0L }
+}
+public val joined: Long = initialize()

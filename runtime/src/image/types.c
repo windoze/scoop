@@ -103,14 +103,6 @@ static void collect_sites(ScoopImageRegistry *registry) {
                      "64-bit safepoint ID collision");
 }
 
-const ScoopTypeRegistrationDescriptorV1 *
-scoop_image_type(const ScoopImageRegistry *registry, const ScoopTypeDescriptor *td) {
-    const ScoopRecordTable *types = &registry->tables[SCOOP_RECORD_TYPE];
-    size_t index = scoop_record_address_find(registry->type_addresses, types->count,
-                                             (uintptr_t)td);
-    return index == SIZE_MAX ? NULL : types->entries[index].record;
-}
-
 void scoop_image_validate_code_and_types(ScoopImageRegistry *registry) {
     if (registry->type_addresses != NULL) {
         scoop_metadata_fatal(NULL, "type registration repeated");

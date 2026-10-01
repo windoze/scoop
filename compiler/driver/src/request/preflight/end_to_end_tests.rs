@@ -31,6 +31,7 @@ mod imported_structs;
 mod layout_exports;
 mod nominal_signatures;
 mod publication;
+mod runtime_images;
 mod runtime_layout_gates;
 mod setter_domains;
 mod shape_materialization;

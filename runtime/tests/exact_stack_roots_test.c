@@ -5,6 +5,7 @@
 
 #include "../src/gc/gc_internal.h"
 #include "../src/thread.h"
+#include "platform/image_fixture.h"
 
 typedef struct VisitState {
     void **expected_slot;
@@ -20,7 +21,8 @@ static void replace_root(void **slot, void *raw_state) {
 }
 
 int main(void) {
-    scoop_gc_stackmaps_init();
+    ScoopStackMapIndex index = scoop_test_stackmaps();
+    scoop_gc_stackmaps_init(&index);
 
     _Alignas(16) uintptr_t stack[16] = {0};
     void *original = (void *)(uintptr_t)0x1230;
@@ -62,13 +64,13 @@ int main(void) {
 
     memcpy(&stack[0], &original, sizeof original);
     state.visits = 0;
-    scoop_gc_visit_managed_segment(
-        &thread, anchor.return_pc, anchor.stack_pointer,
-        anchor.frame_pointer, boundary, visitor);
+    scoop_gc_visit_managed_segment(&thread, anchor.return_pc, anchor.stack_pointer,
+                                   anchor.frame_pointer, boundary, visitor);
     memcpy(&updated, &stack[0], sizeof updated);
     assert(state.visits == 1);
     assert(updated == replacement);
 
+    scoop_stackmap_dispose_index(&index);
     puts("exact stack root walk passed");
     return 0;
 }

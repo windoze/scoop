@@ -49,29 +49,6 @@ void scoop_image_registry_dispose(ScoopImageRegistry *registry) {
     free(registry);
 }
 
-static int compare_identity(const void *left, const void *right) {
-    const ScoopDigest256V1 *identity = left;
-    const ScoopRegisteredRecord *entry = right;
-    return memcmp(identity->bytes, entry->identity->semantic_id.bytes, 32);
-}
-
-const ScoopRegisteredRecord *scoop_record_by_id(const ScoopImageRegistry *registry,
-                                                ScoopRecordKind kind,
-                                                const ScoopDigest256V1 *identity) {
-    const ScoopRecordTable *table = &registry->tables[kind];
-    return bsearch(identity, table->entries, table->count, sizeof *table->entries,
-                   compare_identity);
-}
-
-const ScoopRegisteredRecord *scoop_record_by_address(const ScoopImageRegistry *registry,
-                                                     ScoopRecordKind kind,
-                                                     const void *record) {
-    const ScoopRecordTable *table = &registry->tables[kind];
-    size_t index =
-        scoop_record_address_find(table->addresses, table->count, (uintptr_t)record);
-    return index == SIZE_MAX ? NULL : &table->entries[index];
-}
-
 bool scoop_records_same_owner(const ScoopRegisteredRecord *left,
                               const ScoopRegisteredRecord *right) {
     if (left->identity->linkage_kind != right->identity->linkage_kind) {

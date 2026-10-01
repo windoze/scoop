@@ -3,7 +3,8 @@ use std::path::PathBuf;
 use std::process::Command;
 
 mod execution;
-pub(in super::super) use execution::execute;
+mod runner;
+pub(in super::super) use execution::{execute, link_program};
 
 pub(in super::super) fn build(
     target: &scoop_toolchain::ResolvedTargetProfile,
@@ -17,7 +18,6 @@ pub(in super::super) fn build(
         let object = directory.join(format!("{index}.o"));
         let output = Command::new(target.final_link().linker_driver())
             .args(profile.runtime_c_flags())
-            .arg("-Dmain=scoop_fixture_runtime_main")
             .arg("-I")
             .arg(workspace.join("runtime/include"))
             .arg("-c")
@@ -89,7 +89,9 @@ pub(in super::super) fn check(
 ) -> scoop_slib::LinkSymbolsReplayedCrossConeLayoutClosure {
     let closure = read(target, artifacts);
     let template = std::fs::read_to_string(fixtures.join("runtime.c")).unwrap();
-    execute(target, &closure, runtime, &template, directory, case);
+    execute(
+        target, artifacts, &closure, runtime, &template, directory, case,
+    );
     closure
 }
 

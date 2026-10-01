@@ -120,9 +120,7 @@ static const ScoopPlatformBundle fake_bundle = {
     .managed_frames = &scoop_darwin_aarch64_managed_frame_ops,
 };
 
-const ScoopPlatformBundle *scoop_platform_bundle(void) {
-    return &fake_bundle;
-}
+const ScoopPlatformBundle *scoop_platform_bundle(void) { return &fake_bundle; }
 
 const char *scoop_platform_error_message(ScoopPlatformErrorCode code) {
     switch (code) {

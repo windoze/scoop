@@ -30,17 +30,6 @@ static _Noreturn void initialization_fatal(const char *message) {
     abort();
 }
 
-static void require_unit(const ScoopInitializationUnitDescriptorV1 *unit) {
-    if (unit == NULL ||
-        (unit->schedule_kind != SCOOP_INITIALIZATION_EAGER_STARTUP_V1 &&
-         unit->schedule_kind != SCOOP_INITIALIZATION_LAZY_ACCESS_V1) ||
-        unit->diagnostic_path.data == NULL || unit->diagnostic_path.length == 0 ||
-        unit->cell == NULL || unit->storage == NULL || unit->failure_root == NULL ||
-        unit->initializer_entry == NULL || unit->ensure_entry == NULL) {
-        initialization_fatal("initialization unit descriptor is incomplete");
-    }
-}
-
 static void push_unit(ScoopThreadState *thread,
                       const ScoopInitializationUnitDescriptorV1 *unit) {
     if (thread->initialization_stack_len == thread->initialization_stack_cap) {
@@ -219,7 +208,7 @@ static void wait_for_unit(ScoopThreadState *thread,
 }
 
 static uint64_t init_enter(const ScoopInitializationUnitDescriptorV1 *unit) {
-    require_unit(unit);
+    scoop_image_require_unit(unit);
     ScoopThreadState *thread = scoop_thread_current_required();
     scoop_thread_require_managed();
     scoop_thread_registry_lock();
@@ -265,7 +254,7 @@ static uint64_t init_enter(const ScoopInitializationUnitDescriptorV1 *unit) {
 }
 
 static void init_succeed(const ScoopInitializationUnitDescriptorV1 *unit) {
-    require_unit(unit);
+    scoop_image_require_unit(unit);
     ScoopThreadState *thread = scoop_thread_current_required();
     scoop_thread_registry_lock();
     if (unit->cell->state != SCOOP_INIT_INITIALIZING ||
@@ -283,7 +272,7 @@ static void init_succeed(const ScoopInitializationUnitDescriptorV1 *unit) {
 
 static void init_fail(const ScoopInitializationUnitDescriptorV1 *unit,
                       void *exception) {
-    require_unit(unit);
+    scoop_image_require_unit(unit);
     if (exception == NULL) {
         initialization_fatal("initialization failure publication has a null exception");
     }
@@ -304,7 +293,7 @@ static void init_fail(const ScoopInitializationUnitDescriptorV1 *unit,
 }
 
 static void *init_failure(const ScoopInitializationUnitDescriptorV1 *unit) {
-    require_unit(unit);
+    scoop_image_require_unit(unit);
     scoop_thread_registry_lock();
     if (unit->cell->state != SCOOP_INIT_FAILED ||
         *(void **)unit->failure_root->writable_base == NULL) {
@@ -358,7 +347,7 @@ const ScoopString *
 scoop_rt_init_cycle_message_impl(const ScoopInitializationUnitDescriptorV1 *unit,
                                  uintptr_t return_pc, uintptr_t stack_pointer,
                                  uintptr_t frame_pointer) {
-    require_unit(unit);
+    scoop_image_require_unit(unit);
     ScoopManagedAnchor anchor;
     scoop_thread_push_managed_anchor(&anchor, return_pc, stack_pointer, frame_pointer);
     ScoopThreadState *thread = scoop_thread_current_required();
@@ -382,48 +371,4 @@ scoop_rt_init_cycle_message_impl(const ScoopInitializationUnitDescriptorV1 *unit
     free(path);
     scoop_thread_pop_managed_anchor(&anchor);
     return message;
-}
-
-static void initialize_units(const ScoopInitializationUnitDescriptorV1 *const *units,
-                             uint64_t count) {
-    const void *gateway_boundary = __builtin_frame_address(0);
-    const void *previous_boundary =
-        scoop_thread_push_managed_gateway_boundary(gateway_boundary);
-    const uint8_t *previous_identity = NULL;
-    for (uint64_t index = 0; index < count; index++) {
-        const ScoopInitializationUnitDescriptorV1 *unit = units[index];
-        require_unit(unit);
-        if (previous_identity != NULL &&
-            memcmp(previous_identity, unit->registration.semantic_id.bytes,
-                   sizeof unit->registration.semantic_id.bytes) >= 0) {
-            initialization_fatal(
-                "initialization unit table is not in persistent-identity order");
-        }
-        if (unit->cell->state != SCOOP_INIT_UNINITIALIZED ||
-            unit->cell->owner_thread != NULL ||
-            *(void **)unit->failure_root->writable_base != NULL) {
-            initialization_fatal("initialization unit is not pristine at startup");
-        }
-        for (uint64_t previous = 0; previous < index; previous++) {
-            const ScoopInitializationUnitDescriptorV1 *seen = units[previous];
-            if (seen->cell == unit->cell || seen->storage == unit->storage ||
-                seen->failure_root == unit->failure_root) {
-                initialization_fatal(
-                    "initialization unit descriptor aliases another unit");
-            }
-        }
-        previous_identity = unit->registration.semantic_id.bytes;
-    }
-    for (uint64_t index = 0; index < count; index++) {
-        const ScoopInitializationUnitDescriptorV1 *unit = units[index];
-        if (unit->schedule_kind == SCOOP_INITIALIZATION_EAGER_STARTUP_V1) {
-            unit->ensure_entry();
-        }
-    }
-    scoop_thread_pop_managed_gateway_boundary(gateway_boundary, previous_boundary);
-}
-
-void scoop_rt_initialize_image(void) {
-    initialize_units(scoop_image_initialization_units,
-                     scoop_image_initialization_unit_count);
 }

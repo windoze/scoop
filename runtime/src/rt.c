@@ -18,9 +18,7 @@ extern const ScoopTypeDescriptor scoop_td_String;
 /* scoop_rt_alloc lives in gc.c (M9): it allocates from the GC heap and
  * may trigger a collection. */
 
-void scoop_rt_write(const ScoopString *s) {
-    fwrite(s->data, 1, s->len, stdout);
-}
+void scoop_rt_write(const ScoopString *s) { fwrite(s->data, 1, s->len, stdout); }
 
 void scoop_rt_println(const ScoopString *s) {
     scoop_rt_write(s);
@@ -62,9 +60,7 @@ const ScoopString *scoop_rt_bool_to_string(bool v) {
     return result;
 }
 
-bool scoop_rt_bool_equals(bool left, bool right) {
-    return left == right;
-}
+bool scoop_rt_bool_equals(bool left, bool right) { return left == right; }
 
 static uint64_t scoop_rt_mix_word(uint64_t value) {
     value ^= value >> 30;
@@ -79,13 +75,9 @@ int64_t scoop_rt_long_hash(int64_t v) {
     return (int64_t)scoop_rt_mix_word((uint64_t)v);
 }
 
-int64_t scoop_rt_ulong_hash(uint64_t v) {
-    return (int64_t)scoop_rt_mix_word(v);
-}
+int64_t scoop_rt_ulong_hash(uint64_t v) { return (int64_t)scoop_rt_mix_word(v); }
 
-int64_t scoop_rt_bool_hash(bool v) {
-    return v ? 1 : 0;
-}
+int64_t scoop_rt_bool_hash(bool v) { return v ? 1 : 0; }
 
 int64_t scoop_rt_string_hash(const ScoopString *s) {
     uint64_t hash = UINT64_C(1469598103934665603);
@@ -135,17 +127,11 @@ int64_t scoop_rt_string_compare(const ScoopString *a, const ScoopString *b) {
     return (a->len > b->len) - (a->len < b->len);
 }
 
-void scoop_rt_print_long(int64_t value) {
-    printf("%" PRId64, value);
-}
+void scoop_rt_print_long(int64_t value) { printf("%" PRId64, value); }
 
-void scoop_rt_println_long(int64_t value) {
-    printf("%" PRId64 "\n", value);
-}
+void scoop_rt_println_long(int64_t value) { printf("%" PRId64 "\n", value); }
 
-void scoop_rt_print_boolean(bool value) {
-    fputs(value ? "true" : "false", stdout);
-}
+void scoop_rt_print_boolean(bool value) { fputs(value ? "true" : "false", stdout); }
 
 void scoop_rt_println_boolean(bool value) {
     scoop_rt_print_boolean(value);
@@ -157,7 +143,8 @@ _Noreturn void scoop_rt_trap(const char *message) {
     abort();
 }
 
-static bool type_is_subtype(const ScoopTypeDescriptor *source, const ScoopTypeDescriptor *target) {
+static bool type_is_subtype(const ScoopTypeDescriptor *source,
+                            const ScoopTypeDescriptor *target) {
     if (target == NULL || source == target) {
         return true;
     }
@@ -165,7 +152,8 @@ static bool type_is_subtype(const ScoopTypeDescriptor *source, const ScoopTypeDe
         return false;
     }
     if (target->relation_kind == 1 || target->relation_kind == 2) {
-        while (source != NULL && source->relation_kind != 1 && source->relation_kind != 2) {
+        while (source != NULL && source->relation_kind != 1 &&
+               source->relation_kind != 2) {
             source = source->parent;
         }
         if (source == NULL || source->relation_kind != target->relation_kind ||
@@ -200,11 +188,18 @@ static bool type_is_subtype(const ScoopTypeDescriptor *source, const ScoopTypeDe
 }
 
 bool scoop_rt_is_instance(const void *obj, const ScoopTypeDescriptor *td) {
-    return type_is_subtype(((const ScoopObjectHeader *)obj)->td, td);
+    const ScoopTypeDescriptor *source = ((const ScoopObjectHeader *)obj)->td;
+    scoop_image_require_type(source);
+    if (td != NULL) {
+        scoop_image_require_type(td);
+    }
+    return type_is_subtype(source, td);
 }
 
 const void *const *scoop_rt_itable_lookup(const ScoopTypeDescriptor *obj_td,
                                           const ScoopTypeDescriptor *iface_td) {
+    scoop_image_require_type(obj_td);
+    scoop_image_require_type(iface_td);
     for (uint64_t i = 0; i < obj_td->itable_count; i++) {
         if (obj_td->itables[i].interface == iface_td) {
             return obj_td->itables[i].slots;
@@ -212,25 +207,4 @@ const void *const *scoop_rt_itable_lookup(const ScoopTypeDescriptor *obj_td,
     }
     fprintf(stderr, "scoop_rt_itable_lookup: no itable entry for the interface\n");
     abort();
-}
-
-int main(void) {
-    scoop_thread_runtime_init();
-    scoop_callback_runtime_init();
-    scoop_rt_gc_init();
-    /* The direct C gateway frame is the exclusive upper bound of the managed
-     * segment. Runtime sources are built with frame pointers enabled, so the
-     * generated frame chain reaches this exact address independently of C
-     * local-variable placement. */
-    scoop_thread_attach_main();
-    scoop_thread_enter_managed(__builtin_frame_address(0));
-    scoop_rt_initialize_image();
-    scoop_main();
-    scoop_callback_prepare_shutdown();
-    scoop_eh_prepare_shutdown();
-    scoop_thread_leave_managed();
-    scoop_thread_prepare_shutdown();
-    scoop_thread_detach_main();
-    scoop_thread_runtime_finish_shutdown();
-    return 0;
 }

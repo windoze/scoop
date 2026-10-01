@@ -68,4 +68,12 @@ scoop_image_immortal(const ScoopImageRegistry *registry, const void *object);
 void scoop_image_stackmaps(ScoopImageRegistry *registry,
                            const ScoopManagedFrameOps *frames);
 
+/* Published once after all loaded metadata has been resolved. Runtime operations
+ * only perform address membership checks; immutable layouts are not replayed. */
+void scoop_image_publish(const ScoopImageRegistry *registry);
+void scoop_image_unpublish(void);
+const ScoopImageRegistry *scoop_image_current(void);
+void scoop_image_require_type(const ScoopTypeDescriptor *td);
+void scoop_image_require_unit(const ScoopInitializationUnitDescriptorV1 *unit);
+
 #endif

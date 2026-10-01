@@ -10,6 +10,7 @@
 #include "../src/managed_entries.h"
 #include "../src/thread.h"
 #include "../src/value_shape.h"
+#include "platform/image_fixture.h"
 
 static const uint64_t value_scan[] = {1, 0};
 static const uint64_t box_scan[] = {1, 16};
@@ -48,6 +49,26 @@ static const ScoopTypeDescriptor zst_array_td = {
                        .inline_alignment = 16},
 };
 static const ScoopTypeDescriptor ref_array_td = {
+    .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_INLINE_ARRAY_V1,
+                       .inline_storage_kind = SCOOP_INLINE_STORAGE_INLINE_V1,
+                       .minimum_size = 32,
+                       .instance_alignment = 16,
+                       .inline_offset = 32,
+                       .inline_size = 16,
+                       .inline_stride = 16,
+                       .inline_alignment = 16,
+                       .inline_scan = value_scan},
+    .object_scan = array_scan,
+};
+static const ScoopTypeDescriptor zst_target_td = {
+    .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_INLINE_ARRAY_V1,
+                       .inline_storage_kind = SCOOP_INLINE_STORAGE_ZERO_SIZED_V1,
+                       .minimum_size = 32,
+                       .instance_alignment = 16,
+                       .inline_offset = 32,
+                       .inline_alignment = 16},
+};
+static const ScoopTypeDescriptor ref_target_td = {
     .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_INLINE_ARRAY_V1,
                        .inline_storage_kind = SCOOP_INLINE_STORAGE_INLINE_V1,
                        .minimum_size = 32,
@@ -219,13 +240,13 @@ static void test_arrays(void) {
     ScoopNativeRootFrame roots;
     scoop_rt_push_native_roots(&roots, slots, 3);
     const uint64_t counts[] = {0, 1, INT64_MAX};
-    ScoopTypeDescriptor target = zst_array_td;
     for (size_t i = 0; i < sizeof counts / sizeof counts[0]; i++) {
         source = allocate(&zst_array_td,
                           scoop_shape_allocation_size(&zst_array_td, counts[i]));
         source->size = counts[i];
-        copy = clone(source, &zst_array_td, &target);
-        assert(copy != source && copy->size == counts[i] && copy->header.td == &target);
+        copy = clone(source, &zst_array_td, &zst_target_td);
+        assert(copy != source && copy->size == counts[i] &&
+               copy->header.td == &zst_target_td);
         assert(scoop_rt_gc_debug_allocation_size(copy) == 32);
         collect();
         assert(copy->size == counts[i]);
@@ -238,11 +259,10 @@ static void test_arrays(void) {
     TestPayload *payload = (TestPayload *)((char *)source + 32);
     payload[0] = (TestPayload){leaf, 71};
     payload[1] = (TestPayload){leaf, 72};
-    ScoopTypeDescriptor ref_target = ref_array_td;
-    copy = clone(source, &ref_array_td, &ref_target);
+    copy = clone(source, &ref_array_td, &ref_target_td);
     collect();
     payload = (TestPayload *)((char *)copy + 32);
-    assert((uintptr_t)copy % 16 == 0 && copy->header.td == &ref_target);
+    assert((uintptr_t)copy % 16 == 0 && copy->header.td == &ref_target_td);
     assert(payload[0].reference == leaf && payload[1].reference == leaf);
     assert(payload[0].value == 71 && payload[1].value == 72);
     assert(scoop_rt_gc_debug_allocation_size(copy) == 64);
@@ -299,11 +319,11 @@ static void run_mode(bool stress) {
     }
     uintptr_t boundary = 0;
     scoop_thread_runtime_init();
-    scoop_gc_stackmaps_init();
-    static const ScoopManagedGlobalDescriptor globals[] = {{0}};
-    static const ScoopImmortalObjectDescriptor immortals[] = {{0}};
-    scoop_gc_register_image_roots(globals, 0, immortals, 0);
-    scoop_gc_heap_init();
+    static const ScoopTypeDescriptor *const types[] = {
+        &leaf_td,      &zst_box_td,    &ref_box_td,    &zst_array_td,
+        &ref_array_td, &zst_target_td, &ref_target_td, &bytes_td,
+    };
+    scoop_test_image_init(types, sizeof types / sizeof *types, NULL, 0, NULL, 0);
     scoop_thread_attach_main();
     scoop_thread_enter_managed(&boundary);
     test_boxing(stress);

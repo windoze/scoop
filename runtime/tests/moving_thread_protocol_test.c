@@ -10,6 +10,7 @@
 #include "../src/gc/gc_internal.h"
 #include "../src/managed_entries.h"
 #include "../src/thread.h"
+#include "platform/image_fixture.h"
 
 typedef struct TestLeaf {
     ScoopObjectHeader header;
@@ -20,12 +21,13 @@ static const uint64_t one_root_scan[] = {1, 0};
 
 static const ScoopTypeDescriptor leaf_td = {
     .type_id = 101,
-    .instance_shape = {
-        .instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
-        .inline_storage_kind = SCOOP_INLINE_STORAGE_NONE_V1,
-        .minimum_size = sizeof(TestLeaf),
-        .instance_alignment = _Alignof(TestLeaf),
-    },
+    .instance_shape =
+        {
+            .instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
+            .inline_storage_kind = SCOOP_INLINE_STORAGE_NONE_V1,
+            .minimum_size = sizeof(TestLeaf),
+            .instance_alignment = _Alignof(TestLeaf),
+        },
     .object_scan = NULL,
     .parent = NULL,
     .vtable = NULL,
@@ -35,8 +37,7 @@ static const ScoopTypeDescriptor leaf_td = {
                         sizeof("ThreadProtocolLeaf") - 1},
 };
 
-static const ScoopManagedGlobalDescriptor no_managed_globals[1];
-static const ScoopImmortalObjectDescriptor no_immortal_objects[1];
+static const ScoopTypeDescriptor *const registered_types[] = {&leaf_td};
 
 typedef enum ProbeKind {
     PROBE_CALLBACK_MANAGED,
@@ -83,16 +84,13 @@ static bool validate_relocated_root(ThreadProbe *probe, TestLeaf *current,
                                     uintptr_t frame_root) {
     probe->current_root = current;
     return current != probe->old_root && current == (TestLeaf *)frame_root &&
-           current->value == probe->value &&
-           scoop_rt_gc_debug_is_allocated(current) &&
+           current->value == probe->value && scoop_rt_gc_debug_is_allocated(current) &&
            !scoop_rt_gc_debug_is_allocated(probe->old_root);
 }
 
-static void run_callback_managed_probe(ThreadProbe *probe,
-                                       uintptr_t managed_boundary) {
+static void run_callback_managed_probe(ThreadProbe *probe, uintptr_t managed_boundary) {
     ScoopCallbackThreadEntry callback_entry = {0};
-    scoop_thread_enter_callback(&callback_entry,
-                                (const void *)managed_boundary);
+    scoop_thread_enter_callback(&callback_entry, (const void *)managed_boundary);
 
     TestLeaf *root = probe->old_root;
     _Alignas(16) uintptr_t frame[4];
@@ -100,8 +98,7 @@ static void run_callback_managed_probe(ThreadProbe *probe,
     atomic_fetch_add_explicit(probe->ready_count, 1, memory_order_release);
 
     wait_for_collection_start(probe);
-    scoop_rt_safepoint_impl(0x1010, (uintptr_t)&frame[0],
-                            (uintptr_t)&frame[2]);
+    scoop_rt_safepoint_impl(0x1010, (uintptr_t)&frame[0], (uintptr_t)&frame[2]);
     memcpy(&root, &frame[0], sizeof root);
     probe->passed = validate_relocated_root(probe, root, frame[0]);
 
@@ -124,21 +121,19 @@ static void run_native_transition_probe(ThreadProbe *probe,
     initialize_fake_frame(frame, root, managed_boundary);
     ScoopThreadTransition transition = {0};
     if (probe->kind == PROBE_NATIVE_SAFE) {
-        scoop_rt_enter_native_safe_impl(
-            &transition, (uintptr_t)&frame[0], 0x1010,
-            (uintptr_t)&frame[0], (uintptr_t)&frame[2]);
+        scoop_rt_enter_native_safe_impl(&transition, (uintptr_t)&frame[0], 0x1010,
+                                        (uintptr_t)&frame[0], (uintptr_t)&frame[2]);
     } else {
         assert(probe->kind == PROBE_NATIVE_BORROWED);
-        scoop_rt_enter_native_borrowed_impl(
-            &transition, (uintptr_t)&frame[0], 0x1010,
-            (uintptr_t)&frame[0], (uintptr_t)&frame[2]);
+        scoop_rt_enter_native_borrowed_impl(&transition, (uintptr_t)&frame[0], 0x1010,
+                                            (uintptr_t)&frame[0], (uintptr_t)&frame[2]);
     }
     atomic_fetch_add_explicit(probe->ready_count, 1, memory_order_release);
 
     wait_for_collection_start(probe);
     if (probe->kind == PROBE_NATIVE_SAFE) {
-        while (!atomic_load_explicit(probe->collection_finished,
-                                     memory_order_acquire)) {
+        while (
+            !atomic_load_explicit(probe->collection_finished, memory_order_acquire)) {
             sched_yield();
         }
         scoop_rt_leave_native_safe(&transition);
@@ -173,8 +168,7 @@ static TestLeaf *collect_with_stack_root(TestLeaf *root) {
     uintptr_t managed_boundary =
         (uintptr_t)scoop_thread_current_required()->managed_stack_boundary;
     initialize_fake_frame(frame, root, managed_boundary);
-    scoop_rt_gc_collect_impl(0x1010, (uintptr_t)&frame[0],
-                             (uintptr_t)&frame[2]);
+    scoop_rt_gc_collect_impl(0x1010, (uintptr_t)&frame[0], (uintptr_t)&frame[2]);
     memcpy(&root, &frame[0], sizeof root);
     return root;
 }
@@ -182,10 +176,7 @@ static TestLeaf *collect_with_stack_root(TestLeaf *root) {
 int main(void) {
     uintptr_t managed_boundary_marker = 0;
     scoop_thread_runtime_init();
-    scoop_gc_stackmaps_init();
-    scoop_gc_register_image_roots(no_managed_globals, 0,
-                                  no_immortal_objects, 0);
-    scoop_gc_heap_init();
+    scoop_test_image_init(registered_types, 1, NULL, 0, NULL, 0);
     scoop_thread_attach_main();
     scoop_thread_enter_managed(&managed_boundary_marker);
 

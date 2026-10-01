@@ -163,6 +163,7 @@ fn check_siblings(fixture_name: &str, cases: &[&str]) {
         }
         runtime::execute(
             &target,
+            &[&core, &provider, &siblings[0], &siblings[1], &consumer],
             &closure,
             &runtime,
             &template,

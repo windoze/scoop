@@ -10,6 +10,7 @@
 #include "../src/gc/gc_internal.h"
 #include "../src/managed_entries.h"
 #include "../src/thread/internal.h"
+#include "platform/image_fixture.h"
 
 typedef enum Scenario {
     BEFORE_ENTRY,
@@ -247,11 +248,7 @@ static void invalid_entry(unsigned test) {
 int main(void) {
     alarm(30); /* Deadlock watchdog; barriers above control every tested race. */
     scoop_thread_runtime_init();
-    scoop_gc_stackmaps_init();
-    static const ScoopManagedGlobalDescriptor globals[1];
-    static const ScoopImmortalObjectDescriptor immortals[1];
-    scoop_gc_register_image_roots(globals, 0, immortals, 0);
-    scoop_gc_heap_init();
+    scoop_test_image_init(NULL, 0, NULL, 0, NULL, 0);
     scoop_thread_attach_main();
     assert(scoop_rt_thread_debug_mode() == SCOOP_THREAD_NATIVE_SAFE);
     for (Scenario scenario = BEFORE_ENTRY; scenario <= NESTED_CALLBACK; scenario++)

@@ -13,6 +13,8 @@ fn run_image_test(fixture: &str, expected: &str) {
         "runtime/src/image/dependencies.c",
         "runtime/src/image/records.c",
         "runtime/src/image/registry.c",
+        "runtime/src/image/lookup.c",
+        "runtime/src/image/active.c",
         "runtime/src/image/scan_ranges.c",
         "runtime/src/image/types.c",
         "runtime/src/image/type_relations.c",

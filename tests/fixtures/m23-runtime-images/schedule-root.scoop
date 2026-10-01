@@ -1,0 +1,6 @@
+import schedule.join.*
+
+@Extern(name = "m23_trace")
+private fun trace(value: Long)
+
+fun main() { @Unsafe { trace(joined + 10L) } }

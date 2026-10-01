@@ -63,8 +63,17 @@
 - 新增条件变量控制的真实 GC 测试：入口前、Pending 首次 poll、活动段再次 poll、返回发布、两个 gateway 之间及两层 nested callback；另覆盖未 poll 就返回/进入其他 runtime entry 和活动段缺 anchor 的拒绝。
 - 格式化和全 workspace/all-targets Clippy 通过；codegen/runtime 308 项全部通过。旧 harness 暂时显式 enter/leave 其历史入口，随后与 GC/startup 一并替换。
 
+## 9. 唯一 registry、完整程序 startup 与实际运行迁移
+
+- GC 直接引用 registry 的原 static storage record、精确 immortal 索引和已关联的 stackmap 索引，删除旧 by-value 根表、单表重复检查及 GC 的第二次 section 读取。运行期类型和初始化单元只做已登记地址查询；静态布局验证与动态对象大小算法各保留一份。
+- 新增私有 `scoop_rt_run_program`，一次性完成 loaded image 收集/验证、真实 String TD 绑定、registry 发布、GC/线程/callback 初始化、逐次 eager/root gateway 调用和原有 shutdown。非法状态码与重复启动 fatal；failure reporter 在 world mutex 下重新从稳定 slot 读取异常，只将只读类型名称带出临界区。
+- 移除 runtime 自带 main、旧 `scoop_main` 绑定、旧 image 初始化循环和 C frame boundary 替换。删除已无构建/测试入口引用、仍依赖退休单表及历史直接 C managed 调用的手工 smoke runner；其值、线程、callback、handle、GC 和调度能力由现行 focused C 测试及实际产物 fixture 验证。
+- 所有现行实际产物运行辅助改为编译普通 executable runner Cone，引用各 artifact 原 image/root descriptor，并调用统一 startup；不再从 Link 数据合成 root/immortal 表。sibling 地址测试直接读取实际静态 TD/itable，保持 shutdown 后不进入 managed code。focused GC 测试直接提供所测的已解析 V1 record，加载边界仍由独立测试覆盖。
+- 新增 `m23-runtime-images` 真实 fixture：3 个 image 的 empty/ordinary/NoGC main；6 个 image 的 chain/diamond 和动态 ready-set 顺序；跨 image 静态对象/String roots；root 与 eager 未捕获异常。输入 image 枚举逆序，provider/consumer 源码在链接运行前移走；全部在普通与 moving-GC stress 模式通过。trace 使用当前 Cone 已支持的 fixture-native 声明，不引入 M23-10 的外来 generic native body 消费。
+- 格式化与全 workspace/all-targets Clippy 通过；codegen/runtime 308 项通过；实际泛型初始化组合、sibling adapter/member 并集组合及新增 3 项多 image 运行矩阵通过。已重新构建配套 scoopc。历史 core-layout artifact fingerprint snapshot 与本阶段格式尚待同步，未计为通过项。
+
 ## 待完成
 
-3. GC 直接消费唯一 registry，移除旧单表与重复 section 读取。
-4. 生产 startup、逐次 eager/root gateway 调用、异常报告与 shutdown。
-5. 真实 3+ Cone 产物运行、损坏输入和受控线程竞争矩阵，以及历史运行辅助迁移和最终全仓回归。
+1. 完整 LIR gateway 的封闭签名、首个 poll、catch 和 status 结构验证及拒绝测试。
+2. 扩展真实启动矩阵：early ensure、lazy 失败/环、静态值/ODR/重建 core 组合、生命周期与失败 invariant。
+3. 同步全部受格式变化影响的 golden，运行配套 scoopc 的完整 workspace 回归，整理验收文档并清理 target。

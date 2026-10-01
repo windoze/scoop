@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "image/registry.h"
 #include "value_shape.h"
 
 _Noreturn void scoop_shape_fatal(const char *message) {
@@ -141,25 +142,12 @@ void scoop_shape_validate(const ScoopTypeDescriptor *td) {
     }
 }
 
-/* Static metadata is checked by its compiler/reader boundary. The optional
- * verification build also checks it at runtime operation boundaries. */
 static const ScoopTypeInstanceShapeV1 *operation_shape(const ScoopTypeDescriptor *td) {
-    if (td == NULL) {
-        scoop_shape_fatal("operation has no TypeDescriptor");
-    }
+    scoop_image_require_type(td);
 #if defined(SCOOP_VERIFY_METADATA) && SCOOP_VERIFY_METADATA
     scoop_shape_validate(td);
 #endif
-    switch (td->instance_shape.instance_kind) {
-    case SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1:
-    case SCOOP_TYPE_INSTANCE_BOXED_VALUE_V1:
-    case SCOOP_TYPE_INSTANCE_INLINE_BYTES_V1:
-    case SCOOP_TYPE_INSTANCE_INLINE_ARRAY_V1:
-    case SCOOP_TYPE_INSTANCE_ABSTRACT_REF_V1:
-        return &td->instance_shape;
-    default:
-        scoop_shape_fatal("unknown managed instance kind");
-    }
+    return &td->instance_shape;
 }
 
 const ScoopTypeInstanceShapeV1 *scoop_shape_require(const ScoopTypeDescriptor *td,
@@ -171,8 +159,7 @@ const ScoopTypeInstanceShapeV1 *scoop_shape_require(const ScoopTypeDescriptor *t
     return shape;
 }
 
-size_t scoop_shape_allocation_size(const ScoopTypeDescriptor *td, uint64_t count) {
-    const ScoopTypeInstanceShapeV1 *shape = operation_shape(td);
+static size_t allocation_size(const ScoopTypeInstanceShapeV1 *shape, uint64_t count) {
     if (shape->instance_kind != SCOOP_TYPE_INSTANCE_INLINE_BYTES_V1 &&
         shape->instance_kind != SCOOP_TYPE_INSTANCE_INLINE_ARRAY_V1) {
         scoop_shape_fatal("count allocation requires variable inline storage");
@@ -189,6 +176,10 @@ size_t scoop_shape_allocation_size(const ScoopTypeDescriptor *td, uint64_t count
     return checked_size(scoop_shape_align(
         scoop_shape_add(shape->inline_offset, count * shape->inline_stride),
         shape->instance_alignment));
+}
+
+size_t scoop_shape_allocation_size(const ScoopTypeDescriptor *td, uint64_t count) {
+    return allocation_size(operation_shape(td), count);
 }
 
 size_t scoop_shape_normalize_allocation(const ScoopTypeDescriptor *td,
@@ -209,23 +200,32 @@ size_t scoop_shape_normalize_allocation(const ScoopTypeDescriptor *td,
     return normalized;
 }
 
-void scoop_shape_validate_object(const void *object, size_t allocation_size) {
-    if (object == NULL || allocation_size < sizeof(ScoopObjectHeader)) {
+void scoop_shape_validate_object_size(const void *object, size_t object_size,
+                                      const ScoopTypeDescriptor *td) {
+    if (object == NULL || object_size < sizeof(ScoopObjectHeader)) {
         scoop_shape_fatal("object range cannot hold its header");
     }
-    const ScoopTypeDescriptor *td = ((const ScoopObjectHeader *)object)->td;
-    const ScoopTypeInstanceShapeV1 *shape = operation_shape(td);
-    if (allocation_size < shape->minimum_size) {
+    const ScoopTypeInstanceShapeV1 *shape = &td->instance_shape;
+    if (object_size < shape->minimum_size) {
         scoop_shape_fatal("object side metadata is smaller than its header shape");
     }
     size_t expected = (size_t)shape->minimum_size;
     if (shape->instance_kind == SCOOP_TYPE_INSTANCE_INLINE_ARRAY_V1 ||
         shape->instance_kind == SCOOP_TYPE_INSTANCE_INLINE_BYTES_V1) {
-        expected = scoop_shape_allocation_size(td, ((const ScoopArray *)object)->size);
+        expected = allocation_size(shape, ((const ScoopArray *)object)->size);
     }
     if (shape->instance_kind == SCOOP_TYPE_INSTANCE_ABSTRACT_REF_V1 ||
-        allocation_size != expected || !valid_alignment(shape->instance_alignment) ||
+        object_size != expected || !valid_alignment(shape->instance_alignment) ||
         (uintptr_t)object % shape->instance_alignment != 0) {
         scoop_shape_fatal("object count, alignment or side-metadata size is invalid");
     }
+}
+
+void scoop_shape_validate_object(const void *object, size_t object_size) {
+    if (object == NULL || object_size < sizeof(ScoopObjectHeader)) {
+        scoop_shape_fatal("object range cannot hold its header");
+    }
+    const ScoopTypeDescriptor *td = ((const ScoopObjectHeader *)object)->td;
+    (void)operation_shape(td);
+    scoop_shape_validate_object_size(object, object_size, td);
 }

@@ -33,6 +33,10 @@ fn compile_and_run(
         .arg("-I")
         .arg(workspace.join("runtime/include"));
     for source in [
+        "runtime/src/image/lookup.c",
+        "runtime/src/image/active.c",
+        "runtime/tests/platform/image_fixture.c",
+        "runtime/tests/platform/stackmap_fixture.c",
         "runtime/src/boxing.c",
         "runtime/src/arrays.c",
         "runtime/src/value_shape.c",

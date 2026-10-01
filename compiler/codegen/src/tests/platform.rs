@@ -89,6 +89,7 @@ fn runtime_walks_and_rewrites_only_exact_stackmap_slots() {
         .arg(workspace.join("runtime/src/platform/arch/aarch64.c"))
         .arg(workspace.join("runtime/src/platform/os/darwin.c"))
         .arg(workspace.join("runtime/tests/platform/fake.c"))
+        .arg(workspace.join("runtime/tests/platform/stackmap_fixture.c"))
         .arg(workspace.join("runtime/tests/exact_stack_roots_test.c"))
         .arg("-o")
         .arg(&binary)

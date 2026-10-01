@@ -91,17 +91,3 @@ ScoopMetadataCheck scoop_record_check(const ScoopImageRegistry *registry,
     return (ScoopMetadataCheck){registry->loaded, names[kind],
                                 registry->tables[kind].entries[index].identity};
 }
-
-int scoop_record_address_compare(const void *left, const void *right) {
-    uintptr_t a = ((const ScoopRecordAddress *)left)->address;
-    uintptr_t b = ((const ScoopRecordAddress *)right)->address;
-    return (a > b) - (a < b);
-}
-
-size_t scoop_record_address_find(const ScoopRecordAddress *addresses, size_t count,
-                                 uintptr_t address) {
-    ScoopRecordAddress key = {.address = address};
-    const ScoopRecordAddress *found = bsearch(&key, addresses, count, sizeof *addresses,
-                                              scoop_record_address_compare);
-    return found == NULL ? SIZE_MAX : found->index;
-}

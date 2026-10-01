@@ -28,17 +28,12 @@ void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size) {
     abort();
 }
 
-const ScoopInitializationUnitDescriptorV1 *const scoop_image_initialization_units[] = {
-    NULL};
-const uint64_t scoop_image_initialization_unit_count = 0;
-
+/* This test isolates the coordinator state machine from loaded-image validation. */
+void scoop_image_require_unit(const ScoopInitializationUnitDescriptorV1 *unit) {
+    assert(unit != NULL && unit->cell != NULL);
+}
 static void unused_initializer(void) {}
 static void unused_ensure(void) {}
-static uint64_t eager_ensure_count;
-static uint64_t lazy_ensure_count;
-
-static void eager_ensure(void) { eager_ensure_count++; }
-static void lazy_ensure(void) { lazy_ensure_count++; }
 
 typedef struct TestUnit {
     ScoopInitializationCell cell;
@@ -68,25 +63,6 @@ static void initialize_test_unit(TestUnit *unit, uint8_t identity_byte,
         .ensure_entry = unused_ensure,
     };
     unit->descriptor.registration.semantic_id.bytes[31] = identity_byte;
-}
-
-static void test_startup_schedule(void) {
-    TestUnit lazy;
-    TestUnit eager;
-    initialize_test_unit(&lazy, 1, "top-level:lazy");
-    initialize_test_unit(&eager, 2, "top-level:eager");
-    lazy.descriptor.ensure_entry = lazy_ensure;
-    eager.descriptor.schedule_kind = SCOOP_INITIALIZATION_EAGER_STARTUP_V1;
-    eager.descriptor.ensure_entry = eager_ensure;
-    const ScoopInitializationUnitDescriptorV1 *units[] = {
-        &lazy.descriptor,
-        &eager.descriptor,
-    };
-    eager_ensure_count = 0;
-    lazy_ensure_count = 0;
-    initialize_units(units, 2);
-    assert(eager_ensure_count == 1);
-    assert(lazy_ensure_count == 0);
 }
 
 __attribute__((noinline)) static uint64_t
@@ -247,7 +223,6 @@ int main(void) {
     scoop_thread_runtime_init();
     scoop_thread_attach_main();
     scoop_thread_enter_managed(__builtin_frame_address(0));
-    test_startup_schedule();
     test_ready_and_failure();
     test_same_thread_cycle();
     test_wait_participates_in_collection();

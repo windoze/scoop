@@ -257,26 +257,3 @@ void scoop_thread_require_managed(void) {
         scoop_thread_fatal("thread entered managed code from a non-managed state");
     }
 }
-
-const void *scoop_thread_push_managed_gateway_boundary(const void *boundary) {
-    ScoopThreadState *state = scoop_thread_current_required();
-    scoop_thread_require_managed();
-    uintptr_t address = (uintptr_t)boundary;
-    if (boundary == NULL || address < (uintptr_t)state->stack_low ||
-        address > (uintptr_t)state->stack_high) {
-        scoop_thread_fatal("managed gateway published an invalid stack boundary");
-    }
-    const void *previous = state->managed_stack_boundary;
-    state->managed_stack_boundary = boundary;
-    return previous;
-}
-
-void scoop_thread_pop_managed_gateway_boundary(const void *boundary,
-                                               const void *previous) {
-    ScoopThreadState *state = scoop_thread_current_required();
-    scoop_thread_require_managed();
-    if (state->managed_stack_boundary != boundary || previous == NULL) {
-        scoop_thread_fatal("managed gateway stack boundary is corrupt");
-    }
-    state->managed_stack_boundary = previous;
-}

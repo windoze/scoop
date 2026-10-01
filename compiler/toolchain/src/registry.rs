@@ -41,6 +41,8 @@ impl ResolvedTargetProfile {
                 canonical_triple: "aarch64-apple-darwin",
                 runtime_sources: &[
                     "runtime/src/rt.c",
+                    "runtime/src/startup.c",
+                    "runtime/src/startup/failure.c",
                     "runtime/src/boxing.c",
                     "runtime/src/arrays.c",
                     "runtime/src/value_shape.c",
@@ -53,6 +55,8 @@ impl ResolvedTargetProfile {
                     "runtime/src/image/dependencies.c",
                     "runtime/src/image/records.c",
                     "runtime/src/image/registry.c",
+                    "runtime/src/image/lookup.c",
+                    "runtime/src/image/active.c",
                     "runtime/src/image/scan_ranges.c",
                     "runtime/src/image/types.c",
                     "runtime/src/image/type_relations.c",

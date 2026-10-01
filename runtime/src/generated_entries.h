@@ -10,27 +10,6 @@
  * implementations must include only runtime/include/scoop_rt.h and cannot
  * call any entry declared here directly. */
 
-/* Image metadata emitted exactly once by codegen and consumed during runtime
- * initialization. A zero-count table still contains one null sentinel. */
-typedef struct ScoopManagedGlobalDescriptor {
-    void *writable_base;
-    const uint64_t *scan;
-} ScoopManagedGlobalDescriptor;
-
-typedef struct ScoopImmortalObjectDescriptor {
-    const void *object_start;
-    uint64_t object_size;
-    const ScoopTypeDescriptor *td;
-} ScoopImmortalObjectDescriptor;
-
-extern const ScoopManagedGlobalDescriptor scoop_image_managed_globals[];
-extern const uint64_t scoop_image_managed_global_count;
-extern const ScoopImmortalObjectDescriptor scoop_image_immortal_objects[];
-extern const uint64_t scoop_image_immortal_object_count;
-
-extern const ScoopInitializationUnitDescriptorV1 *const scoop_image_initialization_units[];
-extern const uint64_t scoop_image_initialization_unit_count;
-
 /* Per-thread TLAB ABI used only by generated allocation sequences. */
 typedef struct ScoopAllocationContext {
     char *cursor;
@@ -66,7 +45,8 @@ void *scoop_rt_begin_catch(void *raw_exception);
 void scoop_rt_end_catch(void);
 uint64_t scoop_rt_init_enter(const ScoopInitializationUnitDescriptorV1 *unit);
 void scoop_rt_init_succeed(const ScoopInitializationUnitDescriptorV1 *unit);
-void scoop_rt_init_fail(const ScoopInitializationUnitDescriptorV1 *unit, void *exception);
+void scoop_rt_init_fail(const ScoopInitializationUnitDescriptorV1 *unit,
+                        void *exception);
 void *scoop_rt_init_failure(const ScoopInitializationUnitDescriptorV1 *unit);
 const ScoopString *
 scoop_rt_init_cycle_message(const ScoopInitializationUnitDescriptorV1 *unit);
@@ -125,11 +105,8 @@ extern unsigned char *scoop_gc_card_table;
 
 /* Other compiler/runtime ABI declarations that are not part of the native
  * FFI-author surface. */
-void scoop_rt_gc_init(void);
 void scoop_rt_gc_add_root(void **slot);
 void scoop_rt_gc_add_root_object(const void *object);
 void scoop_rt_gc_remove_root_object(const void *object);
-void scoop_rt_initialize_image(void);
-void scoop_main(void);
 
 #endif /* SCOOP_RT_GENERATED_ENTRIES_H */

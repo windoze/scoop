@@ -3,7 +3,6 @@ use std::collections::{BTreeMap, BTreeSet};
 use scoop_identity::{
     ConeIdentity, DeclarationName, ExactCallableSignature, ExactTypeKey, GeneratedCallableKey,
     OdrMemberDiscriminator, OdrMemberRole, SourceDeclarationKey, SpecializationKey,
-    StrongCallableDefinitionOwner,
 };
 use scoop_slib::LinkSymbolsReplayedCrossConeLayoutClosure;
 
@@ -126,9 +125,18 @@ pub(super) fn runtime_source(
         .unwrap();
     assert_eq!(slots.len(), 1);
     let probes = probes
-        .replace("UNION_LEFT_OBJECT", &symbol(closure, left, "sameType"))
-        .replace("UNION_RIGHT_OBJECT", &symbol(closure, right, "sameType"))
-        .replace("UNION_OTHER_OBJECT", &symbol(closure, right, "otherType"))
+        .replace(
+            "UNION_LEFT_TD",
+            &symbol(closure, left, scoop_mir::IntegerKind::SIGNED_32),
+        )
+        .replace(
+            "UNION_RIGHT_TD",
+            &symbol(closure, right, scoop_mir::IntegerKind::SIGNED_32),
+        )
+        .replace(
+            "UNION_OTHER_TD",
+            &symbol(closure, right, scoop_mir::IntegerKind::SIGNED_64),
+        )
         .replace(
             "UNION_INTERFACE_TD",
             &format!("_{}", descriptor.definition().symbol().symbol()),
@@ -140,25 +148,42 @@ pub(super) fn runtime_source(
 fn symbol(
     closure: &LinkSymbolsReplayedCrossConeLayoutClosure,
     provider: ConeIdentity,
-    name: &str,
+    integer: scoop_mir::IntegerKind,
 ) -> String {
+    let argument = closure.dependency_first().find_map(|(sections, _)| {
+        sections.mir_type_bridge().exports().types().records().iter().find_map(|record| {
+            matches!(record.representation(), scoop_mir::MirTypeRepresentationV1::Intrinsic(scoop_mir::MirParamFreeIntrinsicV1::Integer(kind)) if *kind == integer).then_some(record.exact())
+        })
+    }).unwrap();
     let (sections, _) = closure.artifact(provider).unwrap();
     let symbols = sections
-        .lir_cross_cone_bridge()
-        .exports()
+        .lir_exports()
+        .descriptors()
+        .records()
         .iter()
-        .filter_map(|export| {
-            let StrongCallableDefinitionOwner::Function(callable) = export.target() else {
-                return None;
-            };
+        .filter_map(|record| {
             let key = sections
                 .identity_graph()
-                .canonical_key::<_, SourceDeclarationKey>(callable)
+                .canonical_key::<_, ExactTypeKey>(record.exact())
                 .unwrap();
-            matches!(key.name(), DeclarationName::Named(actual) if actual.as_str() == name)
-                .then(|| format!("_{}", export.expected_symbol().symbol()))
+            let ExactTypeKey::NominalApplication { origin, arguments } = key.as_ref() else {
+                return None;
+            };
+            if arguments.as_slice() != [argument] {
+                return None;
+            }
+            let origin = sections
+                .identity_graph()
+                .canonical_key::<_, SourceDeclarationKey>(*origin)
+                .unwrap();
+            matches!(origin.name(), DeclarationName::Named(name) if name.as_str() == "Marker")
+                .then(|| format!("_{}", record.definition().symbol().symbol()))
         })
         .collect::<Vec<_>>();
-    assert_eq!(symbols.len(), 1, "one actual {name} probe");
+    assert_eq!(
+        symbols.len(),
+        1,
+        "one actual Marker descriptor for {integer:?}"
+    );
     symbols.into_iter().next().unwrap()
 }
