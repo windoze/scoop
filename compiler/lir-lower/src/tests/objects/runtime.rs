@@ -219,7 +219,8 @@ Module
   block failure
     (t0, t1) = landingpad : (exception_record, ptr<raw>)
     t2 = begin_catch t1 : ptr<managed>
-    global_store global0, t2
+    call managed-direct-target0 sp<managed-call:0> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
+    global_store global0, t3
     end_catch
     ret integer<UInt>(0x00000001)
   td td1 GcHandle<String> @scoop$1$td$05c79b4b37c953c45e58822887717a10433301d3b6827935c370b4e5d8454aa6 type-id=3511904370696034429 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]

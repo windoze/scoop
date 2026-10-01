@@ -28,6 +28,7 @@ fn hello_world() -> mir::Module {
 }
 
 mod control_flow;
+mod gateway;
 mod layouts;
 mod module;
 mod operators;
