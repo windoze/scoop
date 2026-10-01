@@ -144,7 +144,7 @@ impl<'input> ValidatedGraphArtifact<'input> {
     }
 }
 
-fn validate_inventories(
+pub(super) fn validate_inventories(
     profile: ArtifactCapabilityProfile,
     hir: &crate::DecodedMetadataEnvelope<'_>,
     mir: &crate::DecodedMetadataEnvelope<'_>,
@@ -165,7 +165,7 @@ fn validate_inventories(
     Ok(())
 }
 
-fn decode_required<T: scoop_wire::WireDecode>(
+pub(super) fn decode_required<T: scoop_wire::WireDecode>(
     envelope: &crate::DecodedMetadataEnvelope<'_>,
     location: MetadataLocation,
     capability: scoop_identity::CapabilityId,

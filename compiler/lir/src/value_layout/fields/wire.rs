@@ -23,6 +23,19 @@ enum RawField {
 }
 
 impl DecodedFieldStorageV1 {
+    pub(crate) fn link_exact(&self) -> DecodedPersistentId<PersistentExactTypeId> {
+        match self.0 {
+            RawField::ElidedZst { exact, .. } | RawField::Stored { exact, .. } => exact,
+        }
+    }
+
+    pub(crate) fn link_layout(&self) -> Option<DecodedPersistentId<PersistentLayoutId>> {
+        match self.0 {
+            RawField::Stored { layout, .. } => Some(layout),
+            RawField::ElidedZst { .. } => None,
+        }
+    }
+
     pub fn validate_against(
         self,
         expected: &FieldStorageV1,

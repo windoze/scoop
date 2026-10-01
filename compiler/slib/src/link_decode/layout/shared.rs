@@ -9,10 +9,10 @@ use crate::DecodedCrossConeLayoutCompileSections;
 /// semantic payloads. These fields still require object and fingerprint checks.
 #[derive(Debug)]
 pub struct DecodedCrossConeLayoutLinkOnlySections {
-    production_manifest: DecodedSingleConeProductionManifestV1,
-    link_identity_closure: DecodedLinkIdentityClosureSectionV1,
-    cross_cone_link_closure: DecodedCrossConeLinkClosureSectionV1,
-    layout_link_closure: DecodedCrossConeLayoutLinkClosureSectionV1,
+    pub(super) production_manifest: DecodedSingleConeProductionManifestV1,
+    pub(super) link_identity_closure: DecodedLinkIdentityClosureSectionV1,
+    pub(super) cross_cone_link_closure: DecodedCrossConeLinkClosureSectionV1,
+    pub(super) layout_link_closure: DecodedCrossConeLayoutLinkClosureSectionV1,
 }
 
 #[derive(Debug)]

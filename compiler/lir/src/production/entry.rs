@@ -9,6 +9,7 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, encode};
 
 use crate::{ConeLirFoundation, DigestFinalizationPlanV1, RegistrationIdentitySurfaceV1};
 
+mod link;
 mod validation;
 pub use validation::{EntryProductionPlanBuildError, EntryProductionPlanValidationError};
 use validation::{build_executable, validate_library_foundation};

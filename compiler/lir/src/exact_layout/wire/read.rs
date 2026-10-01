@@ -12,6 +12,7 @@ use crate::{DecodedTypeInstanceShapeV1, DecodedValueStorageLayoutV1};
 
 mod fields;
 mod instance;
+mod link;
 #[cfg(test)]
 mod tests;
 mod validation;

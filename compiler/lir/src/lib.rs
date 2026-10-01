@@ -142,6 +142,9 @@ pub use instruction::*;
 mod dump;
 pub use dump::dump;
 
+mod link_data;
+pub use link_data::LinkDataError;
+
 #[cfg(test)]
 mod tests;
 

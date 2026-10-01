@@ -9,6 +9,7 @@ use super::*;
 use crate::{DecodedStrongTypeDispatchCallableRefV2, production::DecodedStrongShapeDefinitionV1};
 
 mod codec;
+mod link;
 
 #[derive(Debug)]
 pub struct DecodedExactDispatchExportV1 {

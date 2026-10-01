@@ -22,7 +22,9 @@ use crate::{
 mod accessors;
 mod code_input;
 mod decode;
+mod machine;
 mod shared;
+pub(crate) use machine::DecodedMachineLinkSections;
 
 pub(crate) use code_input::layout_code_strong_input;
 pub use decode::CrossConeLayoutLinkSectionDecodeError;
