@@ -40,6 +40,10 @@ typedef struct ScoopImageRegistry {
     size_t image_count;
     const ScoopRootEntryDescriptorV1 *root;
     ScoopRecordTable tables[SCOOP_RECORD_KIND_COUNT];
+    ScoopRecordAddress *type_addresses;
+    ScoopRecordAddress *callable_addresses;
+    ScoopRecordAddress *site_ids;
+    struct ScoopScanRanges *scan_ranges;
 } ScoopImageRegistry;
 
 /* Collection has no managed side effects. Cross-record GC and initialization
@@ -49,5 +53,8 @@ ScoopImageRegistry *scoop_image_collect(const ScoopPlatformMetadataImages *loade
                                         uint64_t image_count,
                                         const ScoopRootEntryDescriptorV1 *root);
 void scoop_image_registry_dispose(ScoopImageRegistry *registry);
+void scoop_image_validate_code_and_types(ScoopImageRegistry *registry);
+const ScoopTypeRegistrationDescriptorV1 *
+scoop_image_type(const ScoopImageRegistry *registry, const ScoopTypeDescriptor *td);
 
 #endif

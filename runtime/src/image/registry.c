@@ -38,6 +38,10 @@ void scoop_image_registry_dispose(ScoopImageRegistry *registry) {
     }
     free(registry->images);
     free(registry->image_order);
+    free(registry->type_addresses);
+    free(registry->callable_addresses);
+    free(registry->site_ids);
+    scoop_metadata_scan_dispose(registry);
     free(registry);
 }
 
@@ -62,4 +66,16 @@ const ScoopRegisteredRecord *scoop_record_by_address(const ScoopImageRegistry *r
     size_t index =
         scoop_record_address_find(table->addresses, table->count, (uintptr_t)record);
     return index == SIZE_MAX ? NULL : &table->entries[index];
+}
+
+bool scoop_records_same_owner(const ScoopRegisteredRecord *left,
+                              const ScoopRegisteredRecord *right) {
+    if (left->identity->linkage_kind != right->identity->linkage_kind) {
+        return false;
+    }
+    if (left->identity->linkage_kind == SCOOP_REGISTRATION_LINKAGE_STRONG_V1) {
+        return left->producer == right->producer;
+    }
+    return scoop_digest_equal(&left->identity->odr_group_id,
+                              &right->identity->odr_group_id);
 }

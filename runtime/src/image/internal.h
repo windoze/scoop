@@ -39,5 +39,11 @@ void scoop_image_order(ScoopImageRegistry *registry,
                        const ScoopImageDescriptorV1 *const *images,
                        uint64_t image_count);
 void scoop_image_records(ScoopImageRegistry *registry);
+bool scoop_records_same_owner(const ScoopRegisteredRecord *left,
+                              const ScoopRegisteredRecord *right);
+void scoop_metadata_scan(ScoopImageRegistry *registry, const ScoopMetadataCheck *check,
+                         const uint64_t *scan);
+void scoop_metadata_scan_dispose(ScoopImageRegistry *registry);
+void scoop_image_type_relations(const ScoopImageRegistry *registry);
 
 #endif

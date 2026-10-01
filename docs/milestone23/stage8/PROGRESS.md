@@ -32,6 +32,13 @@
 - C 测试使用带不可读 guard page 的只读映射，覆盖六类相同 ID bytes 的独立命名空间、ODR helper 并集、反向输入枚举和 23 种损坏情况。动态 ready-order 用例明确区分逐次 Kahn 和按层排序。
 - 格式化与全 workspace/all-targets Clippy 通过；codegen/runtime 304 项、toolchain 9 项通过。收集接口尚未发布给 GC；类型、静态根和初始化关系将基于此完整集合继续解析。
 
+## 5. 类型、callable、safepoint 与 scan 地址关系
+
+- 在完整 typed 表上建立 TD、callable entry 和 64-bit site ID 的反向索引，拒绝不同身份共址、runtime type/site ID 碰撞、错误 owner producer 和缺失 fingerprint。
+- TD 先检查 144-byte 固定部分及完整参数尾部，再解析 parent、interface、function type 和已知 itable 范围。继承图单独检查环，函数参数/结果中的 Any 与非继承循环不被误拒绝。
+- scan 先按地址验证只读节点和 child span、检测 active-path 环并复用共享节点，再使用既有 value shape/scan 算法核对具体 extent 和平移；没有另写一套 shape 语义。
+- 新增 22 种 TD/code/scan 损坏测试，覆盖 guard-page 指针、共享 scan 在不同 extent 下的检查、box scan 平移和继承/签名关系的组合。格式化和全 workspace/all-targets Clippy 通过；image 相关 5 项 Rust/C 测试通过。静态存储和初始化关联尚待接入。
+
 ## 待完成
 
 2. 多 image 六类记录、类型/scan、静态 roots、immortal 与初始化关系登记。

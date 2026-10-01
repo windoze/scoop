@@ -51,6 +51,7 @@ mod dependency_external;
 mod enums;
 mod exceptions;
 mod external_type_descriptors;
+mod image;
 mod initialization;
 mod moving_gc;
 mod object_partition;
