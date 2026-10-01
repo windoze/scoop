@@ -36,17 +36,6 @@ pub(super) fn validate_digest_graph<D>(
         Failure::CellObjectDefinitionDirectInputs,
         Failure::CellObjectDefinitionPatchSet,
     )?;
-    let descriptor_object = require_leaf(
-        digest_plan,
-        plan,
-        DigestNodeKey::object_definition(plan.descriptor_primary_atom()),
-        plan.descriptor_definition_node(),
-        Failure::MissingDescriptorObjectDefinitionNode,
-        Failure::DescriptorObjectDefinitionNodeIdentity,
-        Failure::DescriptorObjectDefinitionDirectInputs,
-        Failure::DescriptorObjectDefinitionPatchSet,
-    )?;
-
     let registration = digest_plan
         .nodes()
         .iter()
@@ -64,7 +53,6 @@ pub(super) fn validate_digest_graph<D>(
     let mut expected_inputs = vec![
         DigestInputRefV1::from_node(registration_object),
         DigestInputRefV1::from_node(cell_object),
-        DigestInputRefV1::from_node(descriptor_object),
     ];
     let expected_gateway_patch = match plan.schedule() {
         StrongInitializationRegistrationSchedulePlanV1::EagerStartup {

@@ -23,7 +23,6 @@ impl WireDecode for OdrMemberRole {
             8 => Ok(Self::StaticStorage),
             9 => Ok(Self::ImmortalObject),
             10 => Ok(Self::InitializationCell),
-            11 => Ok(Self::InitializationDescriptor),
             12 => Ok(Self::RegistrationRecord),
             13 => Ok(Self::DiagnosticBytes),
             14 => Ok(Self::AddressTakenConstant),

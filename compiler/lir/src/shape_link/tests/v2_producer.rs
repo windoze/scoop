@@ -45,7 +45,7 @@ fn exercise_dependency_production(provider: Provider) {
     .unwrap();
     let initialization_import = ExternalShapeLinkImportV1::replay(
         &provider_view,
-        ExternalStrongShapeSubjectV1::InitializationDescriptor(provider.initialization_unit),
+        ExternalStrongShapeSubjectV1::InitializationRegistration(provider.initialization_unit),
         consumer.cone,
     )
     .unwrap();

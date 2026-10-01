@@ -69,6 +69,6 @@ pub(super) const fn contract_tag(subject: ExternalStrongShapeSubjectV1) -> u32 {
         Subject::TypeDescriptor(_) | Subject::TypeRegistration(_) => 4,
         Subject::DispatchTable(_) => 5,
         Subject::StaticStorage(_) | Subject::StaticStorageRegistration(_) => 6,
-        Subject::InitializationCell(_) | Subject::InitializationDescriptor(_) => 7,
+        Subject::InitializationCell(_) | Subject::InitializationRegistration(_) => 7,
     }
 }

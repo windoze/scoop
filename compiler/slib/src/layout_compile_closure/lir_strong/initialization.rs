@@ -48,7 +48,6 @@ pub(super) fn validate(
         }
         for (field, definition) in [
             ("cell", plan.cell_definition_plan()),
-            ("descriptor", plan.descriptor_definition_plan()),
             ("registration", plan.registration_definition_plan()),
             ("initializer", plan.initializer().body_definition_plan()),
             (

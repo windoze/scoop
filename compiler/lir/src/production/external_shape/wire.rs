@@ -16,7 +16,7 @@ pub enum DecodedExternalStrongShapeSubjectV1 {
     StaticStorage(DecodedPersistentId<PersistentStaticStorageId>),
     StaticStorageRegistration(DecodedPersistentId<PersistentStaticStorageId>),
     InitializationCell(DecodedPersistentId<PersistentInitializationUnitId>),
-    InitializationDescriptor(DecodedPersistentId<PersistentInitializationUnitId>),
+    InitializationRegistration(DecodedPersistentId<PersistentInitializationUnitId>),
 }
 
 impl DecodedExternalStrongShapeSubjectV1 {
@@ -71,8 +71,8 @@ impl DecodedExternalStrongShapeSubjectV1 {
                     .resolve(id)
                     .map_err(ExternalShapeSubjectResolutionError::Identity)?,
             ),
-            Self::InitializationDescriptor(id) => {
-                ExternalStrongShapeSubjectV1::InitializationDescriptor(
+            Self::InitializationRegistration(id) => {
+                ExternalStrongShapeSubjectV1::InitializationRegistration(
                     identities
                         .resolve(id)
                         .map_err(ExternalShapeSubjectResolutionError::Identity)?,
@@ -94,7 +94,7 @@ impl WireEncode for ExternalStrongShapeSubjectV1 {
             Self::StaticStorage(id) => encode_subject(encoder, 7, id),
             Self::StaticStorageRegistration(id) => encode_subject(encoder, 8, id),
             Self::InitializationCell(id) => encode_subject(encoder, 9, id),
-            Self::InitializationDescriptor(id) => encode_subject(encoder, 10, id),
+            Self::InitializationRegistration(id) => encode_subject(encoder, 11, id),
         }
     }
 }
@@ -111,7 +111,7 @@ impl WireEncode for DecodedExternalStrongShapeSubjectV1 {
             Self::StaticStorage(id) => encode_subject(encoder, 7, id),
             Self::StaticStorageRegistration(id) => encode_subject(encoder, 8, id),
             Self::InitializationCell(id) => encode_subject(encoder, 9, id),
-            Self::InitializationDescriptor(id) => encode_subject(encoder, 10, id),
+            Self::InitializationRegistration(id) => encode_subject(encoder, 11, id),
         }
     }
 }
@@ -156,7 +156,7 @@ impl WireDecode for DecodedExternalStrongShapeSubjectV1 {
             9 => Ok(Self::InitializationCell(
                 decoder.field(1, DecodedPersistentId::decode)?,
             )),
-            10 => Ok(Self::InitializationDescriptor(
+            11 => Ok(Self::InitializationRegistration(
                 decoder.field(1, DecodedPersistentId::decode)?,
             )),
             tag => Err(WireError::new(

@@ -64,7 +64,6 @@ pub(super) fn compute(
                 scoop_identity::OdrMemberRole::ImmortalObject
                     | scoop_identity::OdrMemberRole::StaticStorage
                     | scoop_identity::OdrMemberRole::InitializationCell
-                    | scoop_identity::OdrMemberRole::InitializationDescriptor
             )
         })
         .map(|canonical| {

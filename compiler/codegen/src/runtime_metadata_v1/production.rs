@@ -71,7 +71,7 @@ pub struct EmittedStrongRuntimeMetadataV1 {
 }
 
 /// LLVM-local emission proof used to connect generated function bodies to
-/// their canonical initialization coordinator descriptors. Only the
+/// their canonical initialization registrations. Only the
 /// packaging projection escapes codegen.
 pub(crate) struct EmittedStrongRuntimeMetadataModuleV1<'ctx> {
     packaging: EmittedStrongRuntimeMetadataV1,
@@ -427,10 +427,6 @@ fn runtime_global_atoms<'ctx, D, C, I>(
                 emitted.registration_descriptor(),
             ),
             GlobalAtomMaterializationV1::new(plan.cell_primary_atom(), emitted.cell()),
-            GlobalAtomMaterializationV1::new(
-                plan.descriptor_primary_atom(),
-                emitted.coordinator_descriptor(),
-            ),
             GlobalAtomMaterializationV1::new(emitted.diagnostic_atom(), emitted.diagnostic()),
         ]);
     }

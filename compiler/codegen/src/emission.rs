@@ -502,7 +502,7 @@ fn emit_llvm_module_with_surface<'ctx, R>(
     }
     // Runtime records require only declarations of callable bodies and type
     // descriptors. Emitting them before function bodies exposes the exact
-    // typed initialization coordinator definitions used by LIR values.
+    // typed initialization registration definitions used by LIR values.
     let (runtime_metadata, initialization_units) = emit_runtime_metadata(
         context,
         &llvm,
@@ -660,7 +660,7 @@ fn initialization_unit_globals<'ctx>(
         emitted
             .registrations()
             .iter()
-            .map(|registration| (registration.unit(), registration.coordinator_descriptor())),
+            .map(|registration| (registration.unit(), registration.registration_descriptor())),
     )
 }
 
@@ -677,7 +677,8 @@ fn declare_initialization_unit_globals<'ctx, D, C, I>(
         .iter()
         .map(|plan| (plan.semantic().unit(), plan))
         .collect::<std::collections::BTreeMap<_, _>>();
-    let ty = runtime_metadata_v1::coordinator_descriptor_type(context);
+    let ty =
+        runtime_metadata_v1::RuntimeMetadataV1Types::new(context).initialization_unit_descriptor();
     let globals = module
         .initialization_units
         .iter()
@@ -688,13 +689,13 @@ fn declare_initialization_unit_globals<'ctx, D, C, I>(
                     "initialization unit {id} has no strong production plan"
                 ))
             })?;
-            let request = plan.descriptor_symbol();
+            let request = plan.registration_symbol();
             let symbol = request.symbol();
             if llvm.get_global(symbol.as_str()).is_some()
                 || llvm.get_function(symbol.as_str()).is_some()
             {
                 return Err(CodegenError(format!(
-                    "initialization coordinator declaration `{symbol}` collides with an LLVM value"
+                    "initialization registration declaration `{symbol}` collides with an LLVM value"
                 )));
             }
             let global = llvm.add_global(ty, None, symbol.as_str());
@@ -731,7 +732,7 @@ pub(crate) fn initialization_unit_globals_from_pairs<'ctx>(
         .map(|(_, unit)| {
             by_unit.get(&unit.identity.id()).copied().ok_or_else(|| {
                 CodegenError(format!(
-                    "initialization unit {} has no emitted coordinator descriptor",
+                    "initialization unit {} has no emitted initialization registration",
                     unit.identity.id()
                 ))
             })

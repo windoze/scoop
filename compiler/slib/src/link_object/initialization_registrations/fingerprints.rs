@@ -11,7 +11,8 @@ use super::{
 };
 use crate::SlibMemberId;
 use crate::link_object::callable_registrations::object_definition::{
-    CanonicalObjectRelocationV1, ObjectDefinitionFingerprintInputV1,
+    CanonicalAssociatedObjectAtomV1, CanonicalObjectRelocationV1,
+    ObjectDefinitionFingerprintInputV1, ObjectDefinitionLeafWithAssociatedAtomsInputV1,
     ObjectDefinitionRelocationFailureV1,
 };
 use crate::link_object::{ObjectDefinitionFingerprintV1, ScoopLirObjectCandidateV1};
@@ -125,12 +126,37 @@ fn compute_strong_initialization_registration_object_fingerprints<D>(
                 StrongInitializationRegistrationObjectFingerprintError::Relocation { unit, kind }
             })?;
         }
+        let diagnostic_start =
+            usize::try_from(verified.diagnostic_checked_offset()).map_err(|_| {
+                StrongInitializationRegistrationObjectFingerprintError::RecordRange(unit)
+            })?;
+        let diagnostic_size = plan
+            .semantic()
+            .diagnostic_path()
+            .len()
+            .checked_add(1)
+            .ok_or(StrongInitializationRegistrationObjectFingerprintError::RecordRange(unit))?;
+        let diagnostic_end = diagnostic_start
+            .checked_add(diagnostic_size)
+            .ok_or(StrongInitializationRegistrationObjectFingerprintError::RecordRange(unit))?;
+        let diagnostic = object
+            .get(diagnostic_start..diagnostic_end)
+            .ok_or(StrongInitializationRegistrationObjectFingerprintError::RecordRange(unit))?;
+        let associated = [CanonicalAssociatedObjectAtomV1 {
+            atom: plan.diagnostic_atom(),
+            role: DefinitionAtomRole::AddressTakenConstant,
+            bytes: diagnostic,
+            relocations: &[],
+        }];
         let fingerprint = domain_separated_runtime_hash(
             OBJECT_DEFINITION_DOMAIN,
-            &ObjectDefinitionFingerprintInputV1 {
-                bytes: &bytes,
-                relocations: &relocations,
-                direct_inputs: &[],
+            &ObjectDefinitionLeafWithAssociatedAtomsInputV1 {
+                primary: ObjectDefinitionFingerprintInputV1 {
+                    bytes: &bytes,
+                    relocations: &relocations,
+                    direct_inputs: &[],
+                },
+                associated_atoms: &associated,
             },
         )
         .map(|digest| ObjectDefinitionFingerprintV1::from_array(*digest.as_array()))

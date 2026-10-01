@@ -29,7 +29,7 @@ pub enum ExternalStrongShapeSubjectV1 {
     StaticStorage(PersistentStaticStorageId),
     StaticStorageRegistration(PersistentStaticStorageId),
     InitializationCell(PersistentInitializationUnitId),
-    InitializationDescriptor(PersistentInitializationUnitId),
+    InitializationRegistration(PersistentInitializationUnitId),
 }
 
 impl ExternalStrongShapeSubjectV1 {
@@ -44,7 +44,7 @@ impl ExternalStrongShapeSubjectV1 {
             Self::StaticStorage(_) => 7,
             Self::StaticStorageRegistration(_) => 8,
             Self::InitializationCell(_) => 9,
-            Self::InitializationDescriptor(_) => 10,
+            Self::InitializationRegistration(_) => 11,
         }
     }
 
@@ -122,10 +122,10 @@ impl ExternalStrongShapeSubjectV1 {
                 Role::InitializationCell,
                 Symbol::InitializationCell(id),
             ),
-            Self::InitializationDescriptor(id) => (
+            Self::InitializationRegistration(id) => (
                 Entity::initialization_unit(id),
-                Role::InitializationDescriptor,
-                Symbol::InitializationDescriptor(id),
+                Role::InitializationRegistration,
+                Symbol::InitializationRegistration(id),
             ),
         })
     }
@@ -143,7 +143,7 @@ impl RuntimeEncode for ExternalStrongShapeSubjectV1 {
             Self::StaticStorage(id) | Self::StaticStorageRegistration(id) => {
                 encoder.fixed(id.as_array())
             }
-            Self::InitializationCell(id) | Self::InitializationDescriptor(id) => {
+            Self::InitializationCell(id) | Self::InitializationRegistration(id) => {
                 encoder.fixed(id.as_array())
             }
         }

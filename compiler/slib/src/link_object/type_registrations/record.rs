@@ -3,7 +3,7 @@ use scoop_lir::StrongTypeRegistrationPlan;
 use super::StrongTypeRegistrationValidationError;
 
 const DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5054_5950;
-pub(in crate::link_object) const ABI_VERSION: u32 = 2;
+pub(in crate::link_object) const ABI_VERSION: u32 = 3;
 pub(in crate::link_object) const DESCRIPTOR_SIZE: usize = 240;
 
 pub(super) fn validate_record_bytes<D: Copy, C>(

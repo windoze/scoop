@@ -105,7 +105,6 @@ pub enum DecodedPersistentSymbolKey {
     DispatchTable(DecodedPersistentId<PersistentDispatchTableId>),
     DispatchSlot(DecodedPersistentId<PersistentDispatchSlotId>),
     InitializationCell(DecodedPersistentId<PersistentInitializationUnitId>),
-    InitializationDescriptor(DecodedPersistentId<PersistentInitializationUnitId>),
     RootRegistration(DecodedPersistentId<PersistentStaticStorageId>),
     ImmortalRegistration(DecodedPersistentId<PersistentImmortalObjectId>),
     InitializationRegistration(DecodedPersistentId<PersistentInitializationUnitId>),
@@ -132,7 +131,6 @@ impl DecodedPersistentSymbolKey {
             Self::DispatchTable(_) => PersistentSymbolKind::DispatchTable,
             Self::DispatchSlot(_) => PersistentSymbolKind::DispatchSlot,
             Self::InitializationCell(_) => PersistentSymbolKind::InitializationCell,
-            Self::InitializationDescriptor(_) => PersistentSymbolKind::InitializationDescriptor,
             Self::RootRegistration(_) => PersistentSymbolKind::RootRegistration,
             Self::ImmortalRegistration(_) => PersistentSymbolKind::ImmortalRegistration,
             Self::InitializationRegistration(_) => PersistentSymbolKind::InitializationRegistration,
@@ -158,9 +156,7 @@ impl DecodedPersistentSymbolKey {
             Self::ScanProgram(id) => id.as_array(),
             Self::DispatchTable(id) => id.as_array(),
             Self::DispatchSlot(id) => id.as_array(),
-            Self::InitializationCell(id)
-            | Self::InitializationDescriptor(id)
-            | Self::InitializationRegistration(id) => id.as_array(),
+            Self::InitializationCell(id) | Self::InitializationRegistration(id) => id.as_array(),
             Self::SafepointRegistration(id) => id.as_array(),
             Self::ImageDescriptor(id) => id.as_array(),
             Self::GeneratedBridge(id) => id.as_array(),
@@ -190,9 +186,6 @@ impl DecodedPersistentSymbolKey {
             Self::InitializationCell(id) => resolver
                 .resolve(id)
                 .map(PersistentSymbolKey::InitializationCell),
-            Self::InitializationDescriptor(id) => resolver
-                .resolve(id)
-                .map(PersistentSymbolKey::InitializationDescriptor),
             Self::RootRegistration(id) => resolver
                 .resolve(id)
                 .map(PersistentSymbolKey::RootRegistration),
@@ -255,7 +248,6 @@ impl WireDecode for DecodedPersistentSymbolKey {
             7 => decode_id(decoder, Self::DispatchTable),
             8 => decode_id(decoder, Self::DispatchSlot),
             9 => decode_id(decoder, Self::InitializationCell),
-            10 => decode_id(decoder, Self::InitializationDescriptor),
             11 => decode_id(decoder, Self::RootRegistration),
             12 => decode_id(decoder, Self::ImmortalRegistration),
             13 => decode_id(decoder, Self::InitializationRegistration),

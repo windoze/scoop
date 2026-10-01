@@ -88,7 +88,6 @@ impl<D> StrongInitializationUnitRegistrationPlanSet<D> {
 pub enum InitializationObjectLeafV1 {
     Registration,
     Cell,
-    Descriptor,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

@@ -53,7 +53,7 @@ fn dependency(
 }
 
 #[test]
-fn both_schedules_keep_all_twenty_eight_registration_fields_unchanged() {
+fn both_schedules_keep_twenty_four_fields_and_reject_the_retired_record() {
     for lazy in [false, true] {
         let fixture = Fixture::new(Options {
             lazy,
@@ -63,7 +63,13 @@ fn both_schedules_keep_all_twenty_eight_registration_fields_unchanged() {
         let current = build(&fixture, Vec::new()).unwrap();
         let bytes = encode(&current.registrations()[0]).unwrap();
         assert_eq!(bytes, encode(&old.registrations()[0]).unwrap());
-        assert_eq!(&bytes[..2], &[0xb8, 28]);
+        assert_eq!(&bytes[..2], &[0xb8, 24]);
+        let mut retired = bytes.clone();
+        retired[1] = 28;
+        assert!(
+            decode_canonical::<DecodedStrongInitializationUnitRegistrationPlanV1>(&retired)
+                .is_err()
+        );
         let decoded: DecodedStrongInitializationUnitRegistrationPlanV1 =
             decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
@@ -134,14 +140,14 @@ fn both_versions_reject_duplicate_and_self_dependencies_before_registration() {
 }
 
 #[test]
-fn version_two_still_requires_complete_descriptor_definition_and_digest() {
+fn version_two_requires_complete_registration_definition_and_digest() {
     for options in [
         Options {
-            omit_descriptor_primary: true,
+            omit_registration_primary: true,
             ..Options::default()
         },
         Options {
-            omit_descriptor_input: true,
+            omit_cell_input: true,
             ..Options::default()
         },
     ] {

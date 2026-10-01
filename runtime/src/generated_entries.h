@@ -28,23 +28,7 @@ extern const uint64_t scoop_image_managed_global_count;
 extern const ScoopImmortalObjectDescriptor scoop_image_immortal_objects[];
 extern const uint64_t scoop_image_immortal_object_count;
 
-typedef struct ScoopInitializationUnitDescriptor {
-    uint64_t schedule;
-    uint8_t semantic_id[32];
-    const char *display_name;
-    ScoopInitializationCell *cell;
-    void *storage;
-    void **failure_root;
-    void (*initializer_entry)(void);
-    void (*ensure_entry)(void);
-} ScoopInitializationUnitDescriptor;
-
-enum {
-    SCOOP_INIT_EAGER_STARTUP = 0,
-    SCOOP_INIT_LAZY_ACCESS = 1,
-};
-
-extern const ScoopInitializationUnitDescriptor scoop_image_initialization_units[];
+extern const ScoopInitializationUnitDescriptorV1 *const scoop_image_initialization_units[];
 extern const uint64_t scoop_image_initialization_unit_count;
 
 /* Per-thread TLAB ABI used only by generated allocation sequences. */
@@ -80,12 +64,12 @@ _Noreturn void scoop_rt_throw(const void *object);
 _Noreturn void scoop_rt_rethrow(void);
 void *scoop_rt_begin_catch(void *raw_exception);
 void scoop_rt_end_catch(void);
-uint64_t scoop_rt_init_enter(const ScoopInitializationUnitDescriptor *unit);
-void scoop_rt_init_succeed(const ScoopInitializationUnitDescriptor *unit);
-void scoop_rt_init_fail(const ScoopInitializationUnitDescriptor *unit, void *exception);
-void *scoop_rt_init_failure(const ScoopInitializationUnitDescriptor *unit);
+uint64_t scoop_rt_init_enter(const ScoopInitializationUnitDescriptorV1 *unit);
+void scoop_rt_init_succeed(const ScoopInitializationUnitDescriptorV1 *unit);
+void scoop_rt_init_fail(const ScoopInitializationUnitDescriptorV1 *unit, void *exception);
+void *scoop_rt_init_failure(const ScoopInitializationUnitDescriptorV1 *unit);
 const ScoopString *
-scoop_rt_init_cycle_message(const ScoopInitializationUnitDescriptor *unit);
+scoop_rt_init_cycle_message(const ScoopInitializationUnitDescriptorV1 *unit);
 
 /* Compiler-published roots that remain live across one outbound native call.
  * Each entry scans one addressable value using a generated recursive scan. */

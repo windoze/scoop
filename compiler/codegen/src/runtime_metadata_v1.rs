@@ -52,12 +52,10 @@ pub use immortal_registration::{
 };
 
 mod initialization;
+pub(crate) use initialization::emit_strong_initialization_unit_registrations_v1;
 pub use initialization::{
     EmittedStrongInitializationUnitRegistrationSetV1,
     EmittedStrongInitializationUnitRegistrationV1, InitializationRegistrationPatchSiteV1,
-};
-pub(crate) use initialization::{
-    coordinator_descriptor_type, emit_strong_initialization_unit_registrations_v1,
 };
 
 mod static_storage;
@@ -578,6 +576,10 @@ impl<'ctx> RuntimeMetadataV1Types<'ctx> {
             validate_struct_layout(target_data, expected, actual)?;
         }
         Ok(())
+    }
+
+    pub(crate) const fn initialization_unit_descriptor(&self) -> StructType<'ctx> {
+        self.initialization_unit_descriptor
     }
 
     pub(crate) const fn byte_span(&self) -> StructType<'ctx> {

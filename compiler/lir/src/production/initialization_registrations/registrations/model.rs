@@ -138,9 +138,6 @@ pub struct StrongInitializationUnitRegistrationPlan<D> {
     pub(super) cell_symbol: PersistentSymbolRequest,
     pub(super) cell_definition_plan: ObjectDefinitionPlanId,
     pub(super) cell_primary_atom: ObjectDefinitionAtomId,
-    pub(super) descriptor_symbol: PersistentSymbolRequest,
-    pub(super) descriptor_definition_plan: ObjectDefinitionPlanId,
-    pub(super) descriptor_primary_atom: ObjectDefinitionAtomId,
     pub(super) diagnostic_atom: ObjectDefinitionAtomId,
     pub(super) storage: StrongInitializationStaticStorageRefPlanV1,
     pub(super) failure_root: StrongInitializationStaticStorageRefPlanV1,
@@ -149,7 +146,6 @@ pub struct StrongInitializationUnitRegistrationPlan<D> {
     pub(super) schedule: StrongInitializationRegistrationSchedulePlanV1,
     pub(super) registration_object_node: DigestNodeId,
     pub(super) cell_definition_node: DigestNodeId,
-    pub(super) descriptor_definition_node: DigestNodeId,
     pub(super) registration_fingerprint_node: DigestNodeId,
     pub(super) registration_definition_patch: DigestPatchIntentId,
 }
@@ -187,18 +183,6 @@ impl<D> StrongInitializationUnitRegistrationPlan<D> {
         self.cell_primary_atom
     }
 
-    pub const fn descriptor_symbol(&self) -> PersistentSymbolRequest {
-        self.descriptor_symbol
-    }
-
-    pub const fn descriptor_definition_plan(&self) -> ObjectDefinitionPlanId {
-        self.descriptor_definition_plan
-    }
-
-    pub const fn descriptor_primary_atom(&self) -> ObjectDefinitionAtomId {
-        self.descriptor_primary_atom
-    }
-
     pub const fn diagnostic_atom(&self) -> ObjectDefinitionAtomId {
         self.diagnostic_atom
     }
@@ -229,10 +213,6 @@ impl<D> StrongInitializationUnitRegistrationPlan<D> {
 
     pub const fn cell_definition_node(&self) -> DigestNodeId {
         self.cell_definition_node
-    }
-
-    pub const fn descriptor_definition_node(&self) -> DigestNodeId {
-        self.descriptor_definition_node
     }
 
     pub const fn registration_fingerprint_node(&self) -> DigestNodeId {

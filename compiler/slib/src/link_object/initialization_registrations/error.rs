@@ -10,19 +10,12 @@ use crate::SlibMemberId;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum InitializationArtifactRoleV1 {
     Cell,
-    CoordinatorDescriptor,
     Registration,
     DiagnosticBytes,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum InitializationRelocationRoleV1 {
-    CoordinatorDiagnostic,
-    CoordinatorCell,
-    CoordinatorStorage,
-    CoordinatorFailureRoot,
-    CoordinatorInitializer,
-    CoordinatorEnsure,
     RegistrationDiagnostic,
     RegistrationCell,
     RegistrationStorage,
@@ -56,10 +49,6 @@ pub enum InitializationRegistrationDigestPlanFailureV1 {
     CellObjectDefinitionNodeIdentity,
     CellObjectDefinitionDirectInputs,
     CellObjectDefinitionPatchSet,
-    MissingDescriptorObjectDefinitionNode,
-    DescriptorObjectDefinitionNodeIdentity,
-    DescriptorObjectDefinitionDirectInputs,
-    DescriptorObjectDefinitionPatchSet,
     MissingRegistrationNode,
     RegistrationNodeIdentity,
     RegistrationDirectInputs,

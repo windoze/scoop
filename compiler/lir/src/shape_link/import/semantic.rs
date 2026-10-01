@@ -95,7 +95,7 @@ impl ExternalShapeLinkImportV1 {
             Subject::StaticStorage(_)
             | Subject::StaticStorageRegistration(_)
             | Subject::InitializationCell(_)
-            | Subject::InitializationDescriptor(_) => return Ok(()),
+            | Subject::InitializationRegistration(_) => return Ok(()),
         };
         if !super::super::wire::equal_fields(self.contract(), &expected)? {
             return Err(ShapeLinkError::Contract);
@@ -128,6 +128,6 @@ pub(in crate::shape_link) fn semantic_target(
         Subject::StaticStorage(_)
         | Subject::StaticStorageRegistration(_)
         | Subject::InitializationCell(_)
-        | Subject::InitializationDescriptor(_) => None,
+        | Subject::InitializationRegistration(_) => None,
     })
 }

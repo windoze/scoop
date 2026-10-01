@@ -57,10 +57,10 @@ fn storage_and_initialization_targets_preserve_the_original_definition_identity(
             9,
         ),
         (
-            ExternalStrongShapeSubjectV1::InitializationDescriptor(unit),
+            ExternalStrongShapeSubjectV1::InitializationRegistration(unit),
             9,
             unit.as_array(),
-            10,
+            13,
         ),
     ] {
         let mut expected = 1_u32.to_le_bytes().to_vec();

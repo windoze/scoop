@@ -1,8 +1,7 @@
 use std::collections::BTreeMap;
 
 use scoop_identity::{
-    DefinitionAtomRole, DefinitionAtomSubkey, ObjectDefinitionAtomId, ObjectDefinitionAtomKey,
-    ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PersistentSymbolRequest,
+    DefinitionAtomRole, ObjectDefinitionAtomId, ObjectDefinitionPlanId, PersistentSymbolRequest,
     StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
@@ -24,12 +23,6 @@ use crate::link_object::{
     VerifiedRelocationTargetV1, VerifiedRelocationUseV1, VerifiedScoopLirDigestPatchSiteSetV1,
 };
 
-const COORDINATOR_DIAGNOSTIC_OFFSET: u64 = 40;
-const COORDINATOR_CELL_OFFSET: u64 = 48;
-const COORDINATOR_STORAGE_OFFSET: u64 = 56;
-const COORDINATOR_FAILURE_OFFSET: u64 = 64;
-const COORDINATOR_INITIALIZER_OFFSET: u64 = 72;
-const COORDINATOR_ENSURE_OFFSET: u64 = 80;
 const REGISTRATION_DIAGNOSTIC_OFFSET: u64 = 160;
 const REGISTRATION_CELL_OFFSET: u64 = 176;
 const REGISTRATION_STORAGE_OFFSET: u64 = 184;
@@ -47,12 +40,6 @@ struct DiagnosticTargetV1 {
 }
 
 pub(super) struct VerifiedInitializationRelocationsV1 {
-    pub(super) coordinator_diagnostic: VerifiedRelocationUseV1,
-    pub(super) coordinator_cell: StrongRelocationBindingV1,
-    pub(super) coordinator_storage: StrongRelocationBindingV1,
-    pub(super) coordinator_failure: StrongRelocationBindingV1,
-    pub(super) coordinator_initializer: StrongRelocationBindingV1,
-    pub(super) coordinator_ensure: StrongRelocationBindingV1,
     pub(super) registration_diagnostic: VerifiedRelocationUseV1,
     pub(super) registration_cell: StrongRelocationBindingV1,
     pub(super) registration_storage: StrongRelocationBindingV1,
@@ -65,17 +52,9 @@ pub(super) struct VerifiedInitializationRelocationsV1 {
 pub(super) fn verify_relocations<D>(
     patch_sites: &VerifiedScoopLirDigestPatchSiteSetV1,
     objects: &BTreeMap<SlibMemberId, &[u8]>,
-    descriptor_member: &VerifiedMemberObjectRelocationIndexV1,
     registration_member: &VerifiedMemberObjectRelocationIndexV1,
     plan: &StrongInitializationUnitRegistrationPlan<D>,
 ) -> Result<VerifiedInitializationRelocationsV1, StrongInitializationRegistrationValidationError> {
-    require_relocation_count(
-        descriptor_member,
-        plan.descriptor_primary_atom(),
-        6,
-        plan,
-        InitializationRelocationRoleV1::CoordinatorDiagnostic,
-    )?;
     let expected_registration_count = if plan.schedule().gateway().is_some() {
         7
     } else {
@@ -89,13 +68,6 @@ pub(super) fn verify_relocations<D>(
         InitializationRelocationRoleV1::RegistrationDiagnostic,
     )?;
 
-    let coordinator_diagnostic = require_physical_use(
-        descriptor_member,
-        plan.descriptor_primary_atom(),
-        COORDINATOR_DIAGNOSTIC_OFFSET,
-        plan,
-        InitializationRelocationRoleV1::CoordinatorDiagnostic,
-    )?;
     let registration_diagnostic = require_physical_use(
         registration_member,
         plan.registration_primary_atom(),
@@ -103,16 +75,8 @@ pub(super) fn verify_relocations<D>(
         plan,
         InitializationRelocationRoleV1::RegistrationDiagnostic,
     )?;
-    let expected_diagnostic = expected_diagnostic_target(descriptor_member, plan)?;
-    let coordinator_target = validate_diagnostic_target(
-        objects,
-        descriptor_member,
-        &coordinator_diagnostic,
-        expected_diagnostic,
-        plan,
-        InitializationRelocationRoleV1::CoordinatorDiagnostic,
-    )?;
-    let registration_target = validate_diagnostic_target(
+    let expected_diagnostic = expected_diagnostic_target(registration_member, plan)?;
+    validate_diagnostic_target(
         objects,
         registration_member,
         &registration_diagnostic,
@@ -120,14 +84,6 @@ pub(super) fn verify_relocations<D>(
         plan,
         InitializationRelocationRoleV1::RegistrationDiagnostic,
     )?;
-    if coordinator_target != registration_target {
-        return relocation_error(
-            plan,
-            InitializationRelocationRoleV1::RegistrationDiagnostic,
-            InitializationRelocationFailureV1::DiagnosticTarget,
-        );
-    }
-
     let cell_target = ExpectedStrongTargetV1 {
         definition: plan.cell_definition_plan(),
         atom: plan.cell_primary_atom(),
@@ -135,15 +91,6 @@ pub(super) fn verify_relocations<D>(
         role: StrongDefinitionRole::InitializationCell,
         symbol: plan.cell_symbol(),
     };
-    let coordinator_cell = verify_strong_relocation(
-        patch_sites,
-        descriptor_member,
-        plan.descriptor_primary_atom(),
-        COORDINATOR_CELL_OFFSET,
-        cell_target,
-        plan,
-        InitializationRelocationRoleV1::CoordinatorCell,
-    )?;
     let registration_cell = verify_strong_relocation(
         patch_sites,
         registration_member,
@@ -154,65 +101,26 @@ pub(super) fn verify_relocations<D>(
         InitializationRelocationRoleV1::RegistrationCell,
     )?;
 
-    let storage_target =
-        static_storage_target(patch_sites, plan.definition_owner(), plan.storage(), false);
-    let coordinator_storage = verify_strong_relocation(
-        patch_sites,
-        descriptor_member,
-        plan.descriptor_primary_atom(),
-        COORDINATOR_STORAGE_OFFSET,
-        storage_target,
-        plan,
-        InitializationRelocationRoleV1::CoordinatorStorage,
-    )?;
     let registration_storage = verify_strong_relocation(
         patch_sites,
         registration_member,
         plan.registration_primary_atom(),
         REGISTRATION_STORAGE_OFFSET,
-        static_storage_target(patch_sites, plan.definition_owner(), plan.storage(), true),
+        static_storage_target(plan.storage()),
         plan,
         InitializationRelocationRoleV1::RegistrationStorage,
     )?;
 
-    let coordinator_failure = verify_strong_relocation(
-        patch_sites,
-        descriptor_member,
-        plan.descriptor_primary_atom(),
-        COORDINATOR_FAILURE_OFFSET,
-        static_storage_target(
-            patch_sites,
-            plan.definition_owner(),
-            plan.failure_root(),
-            false,
-        ),
-        plan,
-        InitializationRelocationRoleV1::CoordinatorFailureRoot,
-    )?;
     let registration_failure = verify_strong_relocation(
         patch_sites,
         registration_member,
         plan.registration_primary_atom(),
         REGISTRATION_FAILURE_OFFSET,
-        static_storage_target(
-            patch_sites,
-            plan.definition_owner(),
-            plan.failure_root(),
-            true,
-        ),
+        static_storage_target(plan.failure_root()),
         plan,
         InitializationRelocationRoleV1::RegistrationFailureRoot,
     )?;
 
-    let coordinator_initializer = verify_strong_relocation(
-        patch_sites,
-        descriptor_member,
-        plan.descriptor_primary_atom(),
-        COORDINATOR_INITIALIZER_OFFSET,
-        callable_target(plan.initializer()),
-        plan,
-        InitializationRelocationRoleV1::CoordinatorInitializer,
-    )?;
     let registration_initializer = verify_strong_relocation(
         patch_sites,
         registration_member,
@@ -221,15 +129,6 @@ pub(super) fn verify_relocations<D>(
         callable_target(plan.initializer()),
         plan,
         InitializationRelocationRoleV1::RegistrationInitializer,
-    )?;
-    let coordinator_ensure = verify_strong_relocation(
-        patch_sites,
-        descriptor_member,
-        plan.descriptor_primary_atom(),
-        COORDINATOR_ENSURE_OFFSET,
-        callable_target(plan.ensure()),
-        plan,
-        InitializationRelocationRoleV1::CoordinatorEnsure,
     )?;
     let registration_ensure = verify_strong_relocation(
         patch_sites,
@@ -256,12 +155,6 @@ pub(super) fn verify_relocations<D>(
     };
 
     Ok(VerifiedInitializationRelocationsV1 {
-        coordinator_diagnostic,
-        coordinator_cell,
-        coordinator_storage,
-        coordinator_failure,
-        coordinator_initializer,
-        coordinator_ensure,
         registration_diagnostic,
         registration_cell,
         registration_storage,
@@ -467,11 +360,11 @@ fn expected_diagnostic_target<D>(
 ) -> Result<DiagnosticTargetV1, StrongInitializationRegistrationValidationError> {
     let definition = member
         .definitions()
-        .definition(plan.descriptor_definition_plan())
+        .definition(plan.registration_definition_plan())
         .ok_or(
             StrongInitializationRegistrationValidationError::MissingVerifiedDefinition {
                 unit: plan.semantic().unit(),
-                definition: plan.descriptor_definition_plan(),
+                definition: plan.registration_definition_plan(),
             },
         )?;
     let atom = definition
@@ -491,7 +384,7 @@ fn expected_diagnostic_target<D>(
     {
         return relocation_error(
             plan,
-            InitializationRelocationRoleV1::CoordinatorDiagnostic,
+            InitializationRelocationRoleV1::RegistrationDiagnostic,
             InitializationRelocationFailureV1::DiagnosticTarget,
         );
     }
@@ -513,28 +406,14 @@ struct ExpectedStrongTargetV1 {
 }
 
 fn static_storage_target(
-    patch_sites: &VerifiedScoopLirDigestPatchSiteSetV1,
-    owner: scoop_lir::RegistrationDefinitionOwner,
     reference: StrongInitializationStaticStorageRefPlanV1,
-    registration: bool,
 ) -> ExpectedStrongTargetV1 {
-    if registration {
-        ExpectedStrongTargetV1 {
-            definition: reference.registration_definition_plan(),
-            atom: reference.registration_primary_atom(),
-            entity: StrongDefinitionEntity::static_storage(reference.storage()),
-            role: StrongDefinitionRole::RootRegistration,
-            symbol: reference.registration_symbol(),
-        }
-    } else {
-        let definition = storage_definition(patch_sites.producer(), owner, reference.storage());
-        ExpectedStrongTargetV1 {
-            definition,
-            atom: primary_atom(definition),
-            entity: StrongDefinitionEntity::static_storage(reference.storage()),
-            role: StrongDefinitionRole::StaticStorage,
-            symbol: reference.storage_symbol(),
-        }
+    ExpectedStrongTargetV1 {
+        definition: reference.registration_definition_plan(),
+        atom: reference.registration_primary_atom(),
+        entity: StrongDefinitionEntity::static_storage(reference.storage()),
+        role: StrongDefinitionRole::RootRegistration,
+        symbol: reference.registration_symbol(),
     }
 }
 
@@ -674,43 +553,6 @@ fn validate_strong_target<D>(
         return relocation_error(plan, role, failure);
     }
     Ok(())
-}
-
-fn storage_definition(
-    producer: scoop_identity::ConeIdentity,
-    owner: scoop_lir::RegistrationDefinitionOwner,
-    storage: scoop_identity::PersistentStaticStorageId,
-) -> ObjectDefinitionPlanId {
-    let key = match owner {
-        scoop_lir::RegistrationDefinitionOwner::Strong => ObjectDefinitionPlanKey::strong(
-            producer,
-            StrongDefinitionEntity::static_storage(storage),
-            StrongDefinitionRole::StaticStorage,
-        )
-        .expect("static storage has a valid definition role"),
-        scoop_lir::RegistrationDefinitionOwner::Odr { group, .. } => {
-            let member = scoop_identity::OdrMemberKey::new(
-                group,
-                scoop_identity::OdrMemberRole::StaticStorage,
-                scoop_identity::OdrMemberDiscriminator::StaticStorage(storage),
-            )
-            .expect("a delegated storage has a valid member role");
-            ObjectDefinitionPlanKey::odr(
-                scoop_identity::OdrMemberId::from_key(&member)
-                    .expect("a delegated storage member is hashable"),
-            )
-        }
-    };
-    ObjectDefinitionPlanId::from_key(&key).expect("a static storage definition is hashable")
-}
-
-fn primary_atom(definition: ObjectDefinitionPlanId) -> ObjectDefinitionAtomId {
-    ObjectDefinitionAtomId::from_key(&ObjectDefinitionAtomKey::new(
-        definition,
-        DefinitionAtomRole::Primary,
-        DefinitionAtomSubkey::Singleton,
-    ))
-    .expect("initialization relocation target primary atom is hashable")
 }
 
 fn relocation_error<T, D>(

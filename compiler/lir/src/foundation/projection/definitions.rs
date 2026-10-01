@@ -162,16 +162,11 @@ impl CanonicalLirFoundation {
             writer.define(entity, StrongDefinitionRole::InitializationCell, Vec::new())?;
             writer.define(
                 entity,
-                StrongDefinitionRole::InitializationDescriptor,
+                StrongDefinitionRole::InitializationRegistration,
                 vec![(
                     DefinitionAtomRole::AddressTakenConstant,
                     DefinitionAtomSubkey::InitializationUnit(unit_id),
                 )],
-            )?;
-            writer.define(
-                entity,
-                StrongDefinitionRole::InitializationRegistration,
-                Vec::new(),
             )?;
         }
 

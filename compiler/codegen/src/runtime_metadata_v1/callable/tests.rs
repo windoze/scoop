@@ -64,7 +64,7 @@ fn emits_closed_strong_record_entry_and_both_zero_patch_sites() {
         constant_u64(prefix, 0),
         CALLABLE_REGISTRATION_DESCRIPTOR_MAGIC
     );
-    assert_eq!(constant_u64(prefix, 1), 2);
+    assert_eq!(constant_u64(prefix, 1), 3);
     assert_eq!(
         constant_u64(prefix, 2),
         CALLABLE_REGISTRATION_DESCRIPTOR_SIZE

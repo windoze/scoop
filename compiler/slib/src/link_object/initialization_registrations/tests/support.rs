@@ -23,7 +23,7 @@ use crate::link_object::{
 pub(super) enum Corruption {
     None,
     CellByte,
-    CoordinatorByte,
+    OldAbiVersion,
     RegistrationByte,
     StorageRegistrationTarget,
     GatewayTarget,

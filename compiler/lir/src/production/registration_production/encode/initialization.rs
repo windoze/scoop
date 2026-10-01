@@ -3,7 +3,7 @@ use super::*;
 impl<D: WireEncode> WireEncode for crate::StrongInitializationUnitRegistrationPlan<D> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         let semantic = self.semantic();
-        encoder.map(28)?;
+        encoder.map(24)?;
         super::projections::encode_unit_semantic_fields(encoder, semantic)?;
         encode_field(encoder, 9, &self.registration_symbol())?;
         encode_field(encoder, 10, &self.registration_definition_plan())?;
@@ -11,9 +11,6 @@ impl<D: WireEncode> WireEncode for crate::StrongInitializationUnitRegistrationPl
         encode_field(encoder, 12, &self.cell_symbol())?;
         encode_field(encoder, 13, &self.cell_definition_plan())?;
         encode_field(encoder, 14, &self.cell_primary_atom())?;
-        encode_field(encoder, 15, &self.descriptor_symbol())?;
-        encode_field(encoder, 16, &self.descriptor_definition_plan())?;
-        encode_field(encoder, 17, &self.descriptor_primary_atom())?;
         encode_field(encoder, 18, &self.diagnostic_atom())?;
         encoder.field(19)?;
         encode_initialization_storage_ref(encoder, self.storage())?;
@@ -27,7 +24,6 @@ impl<D: WireEncode> WireEncode for crate::StrongInitializationUnitRegistrationPl
         encode_initialization_registration_schedule(encoder, self.schedule())?;
         encode_field(encoder, 24, &self.registration_object_node())?;
         encode_field(encoder, 25, &self.cell_definition_node())?;
-        encode_field(encoder, 26, &self.descriptor_definition_node())?;
         encode_field(encoder, 27, &self.registration_fingerprint_node())?;
         encode_field(encoder, 28, &self.registration_definition_patch())
     }

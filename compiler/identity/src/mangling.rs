@@ -48,7 +48,6 @@ pub enum PersistentSymbolKind {
     DispatchTable,
     DispatchSlot,
     InitializationCell,
-    InitializationDescriptor,
     RootRegistration,
     ImmortalRegistration,
     InitializationRegistration,
@@ -75,7 +74,6 @@ impl PersistentSymbolKind {
             Self::DispatchTable => 7,
             Self::DispatchSlot => 8,
             Self::InitializationCell => 9,
-            Self::InitializationDescriptor => 10,
             Self::RootRegistration => 11,
             Self::ImmortalRegistration => 12,
             Self::InitializationRegistration => 13,
@@ -102,7 +100,6 @@ impl PersistentSymbolKind {
             Self::DispatchTable => "dt",
             Self::DispatchSlot => "ds",
             Self::InitializationCell => "ic",
-            Self::InitializationDescriptor => "id",
             Self::RootRegistration => "rr",
             Self::ImmortalRegistration => "ir",
             Self::InitializationRegistration => "nr",
@@ -130,7 +127,6 @@ pub enum PersistentSymbolKey {
     DispatchTable(PersistentDispatchTableId),
     DispatchSlot(PersistentDispatchSlotId),
     InitializationCell(PersistentInitializationUnitId),
-    InitializationDescriptor(PersistentInitializationUnitId),
     RootRegistration(PersistentStaticStorageId),
     ImmortalRegistration(PersistentImmortalObjectId),
     InitializationRegistration(PersistentInitializationUnitId),
@@ -157,7 +153,6 @@ impl PersistentSymbolKey {
             Self::DispatchTable(_) => PersistentSymbolKind::DispatchTable,
             Self::DispatchSlot(_) => PersistentSymbolKind::DispatchSlot,
             Self::InitializationCell(_) => PersistentSymbolKind::InitializationCell,
-            Self::InitializationDescriptor(_) => PersistentSymbolKind::InitializationDescriptor,
             Self::RootRegistration(_) => PersistentSymbolKind::RootRegistration,
             Self::ImmortalRegistration(_) => PersistentSymbolKind::ImmortalRegistration,
             Self::InitializationRegistration(_) => PersistentSymbolKind::InitializationRegistration,
@@ -183,9 +178,7 @@ impl PersistentSymbolKey {
             Self::ScanProgram(id) => id.as_array(),
             Self::DispatchTable(id) => id.as_array(),
             Self::DispatchSlot(id) => id.as_array(),
-            Self::InitializationCell(id)
-            | Self::InitializationDescriptor(id)
-            | Self::InitializationRegistration(id) => id.as_array(),
+            Self::InitializationCell(id) | Self::InitializationRegistration(id) => id.as_array(),
             Self::SafepointRegistration(id) => id.as_array(),
             Self::ImageDescriptor(id) => id.as_array(),
             Self::GeneratedBridge(id) => id.as_array(),
@@ -425,7 +418,6 @@ mod tests {
             PersistentSymbolKey::DispatchTable(PersistentDispatchTableId(bytes)),
             PersistentSymbolKey::DispatchSlot(PersistentDispatchSlotId(bytes)),
             PersistentSymbolKey::InitializationCell(PersistentInitializationUnitId(bytes)),
-            PersistentSymbolKey::InitializationDescriptor(PersistentInitializationUnitId(bytes)),
             PersistentSymbolKey::RootRegistration(PersistentStaticStorageId(bytes)),
             PersistentSymbolKey::ImmortalRegistration(PersistentImmortalObjectId(bytes)),
             PersistentSymbolKey::InitializationRegistration(PersistentInitializationUnitId(bytes)),
@@ -441,7 +433,7 @@ mod tests {
         ];
 
         for (index, key) in keys.into_iter().enumerate() {
-            let expected_tag = index as u64 + 1;
+            let expected_tag = index as u64 + if index < 9 { 1 } else { 2 };
             assert_eq!(key.kind().tag(), expected_tag);
             let encoded = encode(&key).unwrap();
             assert_eq!(&encoded[..4], &[0xa2, 0x00, expected_tag as u8, 0x01]);

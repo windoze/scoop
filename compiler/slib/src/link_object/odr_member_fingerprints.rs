@@ -269,7 +269,6 @@ pub(super) fn initialization_registration<D>(
     plan: &scoop_lir::StrongInitializationUnitRegistrationPlan<D>,
     object: ObjectDefinitionFingerprintV1,
     cell: ObjectDefinitionFingerprintV1,
-    descriptor: ObjectDefinitionFingerprintV1,
 ) -> Result<OdrMemberFingerprintV1, HashError> {
     let semantic = plan.semantic();
     registration(
@@ -288,10 +287,7 @@ pub(super) fn initialization_registration<D>(
         plan.registration_object_node(),
         object,
         None,
-        &[
-            object_input(plan.cell_definition_node(), cell),
-            object_input(plan.descriptor_definition_node(), descriptor),
-        ],
+        &[object_input(plan.cell_definition_node(), cell)],
     )
 }
 

@@ -52,7 +52,7 @@ pub(super) fn select<'a>(
     source.physical.extend(uses.iter().map(|usage| {
         (
             usage.provider(),
-            lir::ExternalStrongShapeSubjectV1::InitializationDescriptor(usage.dependency_unit()),
+            lir::ExternalStrongShapeSubjectV1::InitializationRegistration(usage.dependency_unit()),
         )
     }));
     source.physical.sort_unstable();

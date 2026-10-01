@@ -28,12 +28,11 @@ impl StrongInitializationArtifactRefV2 {
     }
 }
 
-/// A physical unit reference retains all three independent definitions.
+/// A physical unit reference retains the cell and registration definitions.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct StrongInitializationUnitDefinitionRefV2 {
     provider: ConeIdentity,
     unit: PersistentInitializationUnitId,
-    descriptor: StrongInitializationArtifactRefV2,
     cell: StrongInitializationArtifactRefV2,
     registration: StrongInitializationArtifactRefV2,
     registration_fingerprint: DigestNodeId,
@@ -52,11 +51,6 @@ impl StrongInitializationUnitDefinitionRefV2 {
         Some(Self {
             provider: plans.producer(),
             unit,
-            descriptor: StrongInitializationArtifactRefV2 {
-                symbol: plan.descriptor_symbol(),
-                plan: plan.descriptor_definition_plan(),
-                primary: plan.descriptor_primary_atom(),
-            },
             cell: StrongInitializationArtifactRefV2 {
                 symbol: plan.cell_symbol(),
                 plan: plan.cell_definition_plan(),
@@ -76,9 +70,6 @@ impl StrongInitializationUnitDefinitionRefV2 {
     }
     pub const fn unit(&self) -> PersistentInitializationUnitId {
         self.unit
-    }
-    pub const fn descriptor(&self) -> &StrongInitializationArtifactRefV2 {
-        &self.descriptor
     }
     pub const fn cell(&self) -> &StrongInitializationArtifactRefV2 {
         &self.cell

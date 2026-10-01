@@ -10,9 +10,17 @@
 - 首次 `cargo clean` 删除 1184 个文件，释放 2.8 GiB。验证使用 `target/m23-8`，opt-level 1、无 debug symbols、关闭增量，保留 debug assertions 与溢出检查。
 - 多 image startup 尚未接通；root/eager gateway 完整结构拒绝检查和实际 startup 异常报告随后续功能验收。
 
+## 2. 单一初始化 registration 与格式迁移
+
+- 删除旧 88-byte coordinator 的 struct、symbol、Strong/ODR role、definition atom、digest node、外来物理引用。初始化 runtime API、生成的 ensure 和跨 Cone 引用统一使用 352-byte `ScoopInitializationUnitDescriptorV1` registration，cell 仍为 16 bytes。
+- 诊断 atom 归属 registration，物理 reader 与 definition/registration fingerprints 同步；循环诊断按 byte span 长度读取，测试覆盖带尾随数据的非 NUL 结束路径。
+- metadata prefix ABI 升至 3；generic profile `/2`、cone production `/4`、layout link closure `/4`、link identity closure `/8`、Scoop object verifier `/4`。registration wire 保留 24 个字段及原编号；退休 tag/field、旧 profile 与旧 ABI 有拒绝用例。同步实际格式向量，未改变 source/exact/unit/body 身份公式。
+- 将初始化发射的声明检查与测试模块构造拆为子模块，删除只服务旧 coordinator 的 target 推导分支。
+- 格式化与全 workspace/all-targets Clippy 通过。identity 335、LIR 468、slib 584、codegen/runtime 302 项通过；最后清理后的 11 项初始化 reader 测试通过；实际 core 重建与产物消费组合测试通过（40.40 秒），未开启自动更新 golden。
+- 已清理闲置的默认 target 构建缓存；本功能提交后清理专用 `target/m23-8`。旧单 image 启动调度仍待新 registry/startup 接通后删除；生产中只保留一种初始化 record 格式。
+
 ## 待完成
 
-1. 统一初始化 registration、删除 coordinator 副本及退役 tag，原子迁移 reader/publisher/runtime 格式。
 2. 多 image 地址范围、六类记录、类型/scan、静态 roots、immortal 与初始化关系登记。
 3. 完整 stackmap 规范化、registration 关联、合法 ODR 合并及 GC 接入。
 4. EntryPending、逐次 gateway 线程握手、canonical eager 顺序、异常报告与 shutdown。

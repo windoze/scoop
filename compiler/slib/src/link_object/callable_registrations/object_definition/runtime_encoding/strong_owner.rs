@@ -36,7 +36,6 @@ pub(super) fn encode_strong_owner(
         scoop_identity::StrongDefinitionRole::DispatchTable => 7,
         scoop_identity::StrongDefinitionRole::DispatchSlot => 8,
         scoop_identity::StrongDefinitionRole::InitializationCell => 9,
-        scoop_identity::StrongDefinitionRole::InitializationDescriptor => 10,
         scoop_identity::StrongDefinitionRole::RootRegistration => 11,
         scoop_identity::StrongDefinitionRole::ImmortalRegistration => 12,
         scoop_identity::StrongDefinitionRole::InitializationRegistration => 13,

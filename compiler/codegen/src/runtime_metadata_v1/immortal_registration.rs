@@ -12,7 +12,7 @@ use scoop_lir::{
 use super::RuntimeMetadataV1Types;
 use crate::{CodegenError, ManagedAddressSpace};
 
-const METADATA_ABI_VERSION: u64 = 2;
+const METADATA_ABI_VERSION: u64 = 3;
 const IMMORTAL_OBJECT_DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5049_4d4d;
 const IMMORTAL_OBJECT_DESCRIPTOR_SIZE: u64 = 184;
 const REGISTRATION_DEFINITION_FINGERPRINT_OFFSET: u64 = 120;

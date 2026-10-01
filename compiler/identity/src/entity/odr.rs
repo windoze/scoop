@@ -83,7 +83,6 @@ pub enum OdrMemberRole {
     StaticStorage,
     ImmortalObject,
     InitializationCell,
-    InitializationDescriptor,
     RegistrationRecord,
     DiagnosticBytes,
     AddressTakenConstant,
@@ -104,7 +103,6 @@ impl WireEncode for OdrMemberRole {
             Self::StaticStorage => 8,
             Self::ImmortalObject => 9,
             Self::InitializationCell => 10,
-            Self::InitializationDescriptor => 11,
             Self::RegistrationRecord => 12,
             Self::DiagnosticBytes => 13,
             Self::AddressTakenConstant => 14,
@@ -292,10 +290,7 @@ fn role_accepts_discriminator(role: OdrMemberRole, discriminator: &OdrMemberDisc
             )
             | (R::StaticStorage, D::StaticStorage(_))
             | (R::ImmortalObject, D::ImmortalObject(_))
-            | (
-                R::InitializationCell | R::InitializationDescriptor,
-                D::InitializationUnit(_)
-            )
+            | (R::InitializationCell, D::InitializationUnit(_))
             | (
                 R::RegistrationRecord,
                 D::CallableBody(_)

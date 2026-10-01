@@ -172,6 +172,14 @@ fn symbol_decoder_rejects_unknown_tags_and_unregistered_references() {
     assert_eq!(decoded.resolve(&mut Resolver), Err(ResolutionError));
 }
 
+#[test]
+fn retired_initialization_descriptor_symbol_tag_is_rejected() {
+    let mut bytes = vec![0xa2, 0, 10, 1, 0x58, 0x20];
+    bytes.extend_from_slice(&[7; 32]);
+    let error = decode_canonical::<DecodedPersistentSymbolKey>(&bytes).unwrap_err();
+    assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 10 });
+}
+
 fn canonical_requests() -> Vec<PersistentSymbolRequest> {
     vec![
         PersistentSymbolRequest::new(
@@ -192,7 +200,7 @@ fn canonical_requests() -> Vec<PersistentSymbolRequest> {
     ]
 }
 
-fn symbol_keys() -> [PersistentSymbolKey; 22] {
+fn symbol_keys() -> [PersistentSymbolKey; 21] {
     [
         PersistentSymbolKey::CallableBody(PersistentCallableBodyId::expected()),
         PersistentSymbolKey::StaticStorage(PersistentStaticStorageId::expected()),
@@ -203,7 +211,6 @@ fn symbol_keys() -> [PersistentSymbolKey; 22] {
         PersistentSymbolKey::DispatchTable(PersistentDispatchTableId::expected()),
         PersistentSymbolKey::DispatchSlot(PersistentDispatchSlotId::expected()),
         PersistentSymbolKey::InitializationCell(PersistentInitializationUnitId::expected()),
-        PersistentSymbolKey::InitializationDescriptor(PersistentInitializationUnitId::expected()),
         PersistentSymbolKey::RootRegistration(PersistentStaticStorageId::expected()),
         PersistentSymbolKey::ImmortalRegistration(PersistentImmortalObjectId::expected()),
         PersistentSymbolKey::InitializationRegistration(PersistentInitializationUnitId::expected()),

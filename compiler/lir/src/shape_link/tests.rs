@@ -65,7 +65,7 @@ fn subjects() -> [ExternalStrongShapeSubjectV1; 10] {
         S::StaticStorage(storage),
         S::StaticStorageRegistration(storage),
         S::InitializationCell(unit),
-        S::InitializationDescriptor(unit),
+        S::InitializationRegistration(unit),
     ]
 }
 

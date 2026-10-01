@@ -109,7 +109,7 @@ pub(super) fn imports<'a>(
         StaticStorage(unit.storage()),
         StaticStorageRegistration(unit.storage()),
         InitializationCell(unit.unit()),
-        InitializationDescriptor(unit.unit()),
+        InitializationRegistration(unit.unit()),
     ];
     CanonicalExternalShapeLinkImportsV1::from_checked(
         subjects

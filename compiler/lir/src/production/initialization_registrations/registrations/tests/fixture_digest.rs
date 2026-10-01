@@ -5,7 +5,6 @@ use super::*;
 pub(super) fn digest_plan(
     foundation: &ConeLirFoundation,
     cell: &DefinitionArtifacts,
-    descriptor: &DefinitionArtifacts,
     registration: &DefinitionArtifacts,
     storages: &[DefinitionArtifacts; 2],
     callables: &[CallableArtifacts],
@@ -29,25 +28,20 @@ pub(super) fn digest_plan(
         Vec::new(),
     )
     .unwrap();
-    let descriptor_object = (!options.omit_descriptor_primary && !options.omit_descriptor_object)
+    let unit_registration_present = !options.omit_unit_registration;
+    let registration_primary_present =
+        unit_registration_present && !options.omit_registration_primary;
+    let registration_object = (unit_registration_present
+        && !options.omit_registration_primary
+        && !options.omit_registration_object)
         .then(|| {
             DigestNodeV1::new(
-                DigestNodeKey::object_definition(descriptor.primary.id()),
+                DigestNodeKey::object_definition(registration.primary.id()),
                 Vec::new(),
                 Vec::new(),
             )
             .unwrap()
         });
-
-    let unit_registration_present = !options.omit_unit_registration;
-    let registration_object = unit_registration_present.then(|| {
-        DigestNodeV1::new(
-            DigestNodeKey::object_definition(registration.primary.id()),
-            Vec::new(),
-            Vec::new(),
-        )
-        .unwrap()
-    });
     let callable_body_nodes = callables
         .iter()
         .enumerate()
@@ -55,7 +49,7 @@ pub(super) fn digest_plan(
             let key = DigestNodeKey::object_definition(item.body_definition.primary.id());
             let source = DigestNodeId::from_key(&key).unwrap();
             let is_gateway = !options.lazy && index == 2;
-            let patches = if unit_registration_present
+            let patches = if registration_primary_present
                 && ((is_gateway && !options.omit_gateway_patch)
                     || (!is_gateway
                         && options.unexpected_lazy_gateway_patch
@@ -76,7 +70,6 @@ pub(super) fn digest_plan(
 
     let mut nodes = vec![cell_object.clone()];
     nodes.extend(auxiliary_input);
-    nodes.extend(descriptor_object.clone());
     nodes.extend(registration_object.clone());
     nodes.extend(callable_body_nodes.iter().cloned());
     let mut image_inputs = Vec::new();
@@ -109,14 +102,13 @@ pub(super) fn digest_plan(
     if unit_registration_present {
         let strong_key = DigestNodeKey::strong_registration(registration.definition.id());
         let strong_source = DigestNodeId::from_key(&strong_key).unwrap();
-        let mut inputs = vec![
-            DigestInputRefV1::from_node(registration_object.as_ref().unwrap()),
-            DigestInputRefV1::from_node(&cell_object),
-        ];
-        if !options.omit_descriptor_input {
-            if let Some(descriptor) = &descriptor_object {
-                inputs.push(DigestInputRefV1::from_node(descriptor));
-            }
+        let mut inputs = registration_object
+            .as_ref()
+            .map(DigestInputRefV1::from_node)
+            .into_iter()
+            .collect::<Vec<_>>();
+        if !options.omit_cell_input {
+            inputs.push(DigestInputRefV1::from_node(&cell_object));
         }
         if !options.lazy {
             inputs.push(DigestInputRefV1::from_node(&callable_body_nodes[2]));
@@ -124,7 +116,7 @@ pub(super) fn digest_plan(
         let strong = DigestNodeV1::new(
             strong_key,
             inputs,
-            if options.omit_registration_patch {
+            if options.omit_registration_patch || !registration_primary_present {
                 Vec::new()
             } else {
                 vec![DigestPatchIntentKey::new(

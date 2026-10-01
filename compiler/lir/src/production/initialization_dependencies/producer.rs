@@ -32,7 +32,7 @@ impl StrongExternalInitializationUseV2 {
             .find(|import| {
                 import.provider() == provider
                     && import.subject()
-                        == ExternalStrongShapeSubjectV1::InitializationDescriptor(unit)
+                        == ExternalStrongShapeSubjectV1::InitializationRegistration(unit)
             })
             .ok_or(
                 StrongExternalInitializationUseErrorV2::MissingPhysicalImport { provider, unit },
@@ -41,8 +41,8 @@ impl StrongExternalInitializationUseV2 {
             return Err(StrongExternalInitializationUseErrorV2::ContractKind { provider, unit });
         };
         if unit_projection.unit() != unit
-            || import.expected_symbol() != dependency.descriptor().symbol()
-            || import.required_definition() != dependency.descriptor().plan()
+            || import.expected_symbol() != dependency.registration().symbol()
+            || import.required_definition() != dependency.registration().plan()
         {
             return Err(StrongExternalInitializationUseErrorV2::DefinitionMismatch {
                 provider,

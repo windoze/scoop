@@ -21,22 +21,13 @@ fn source_unit() -> PersistentInitializationUnitId {
 }
 
 #[test]
-fn dependency_definitions_retain_provider_and_all_three_physical_relations() {
+fn dependency_definitions_retain_provider_and_cell_and_registration_relations() {
     let fixture = Fixture::new(Options::default());
     let plans = fixture.build().unwrap();
     let definition = Definition::from_registrations(&plans, fixture.unit).unwrap();
     let plan = &plans.registrations()[0];
     assert_eq!(definition.provider(), plans.producer());
     assert_eq!(definition.unit(), fixture.unit);
-    assert_eq!(
-        definition.descriptor().plan(),
-        plan.descriptor_definition_plan()
-    );
-    assert_eq!(
-        definition.descriptor().primary(),
-        plan.descriptor_primary_atom()
-    );
-    assert_eq!(definition.descriptor().symbol(), plan.descriptor_symbol());
     assert_eq!(definition.cell().plan(), plan.cell_definition_plan());
     assert_eq!(definition.cell().primary(), plan.cell_primary_atom());
     assert_eq!(definition.cell().symbol(), plan.cell_symbol());
@@ -184,7 +175,7 @@ fn definition_resolution_rejects_missing_unit_registration_and_physical_parts() 
         ),
         (
             Options {
-                omit_descriptor_primary: true,
+                omit_registration_primary: true,
                 ..Options::default()
             },
             "primary",

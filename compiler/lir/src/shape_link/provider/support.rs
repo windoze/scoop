@@ -7,28 +7,27 @@ impl<'a> ShapeLinkProviderV1<'a> {
         physical: StrongShapeDefinitionRefV1,
     ) -> Result<ShapeLinkContractV1, ShapeLinkError> {
         use ExternalStrongShapeSubjectV1 as Subject;
-        let registration = self
-            .parts
-            .production
-            .initialization_registrations()
-            .registrations()
-            .iter()
-            .find(|registration| {
-                let unit = registration.semantic();
-                match subject {
-                    Subject::InitializationCell(id) | Subject::InitializationDescriptor(id) => {
-                        unit.unit() == id
+        let registration =
+            self.parts
+                .production
+                .initialization_registrations()
+                .registrations()
+                .iter()
+                .find(|registration| {
+                    let unit = registration.semantic();
+                    match subject {
+                        Subject::InitializationCell(id)
+                        | Subject::InitializationRegistration(id) => unit.unit() == id,
+                        Subject::StaticStorage(id) | Subject::StaticStorageRegistration(id) => {
+                            unit.storage() == id || unit.failure_root() == id
+                        }
+                        _ => false,
                     }
-                    Subject::StaticStorage(id) | Subject::StaticStorageRegistration(id) => {
-                        unit.storage() == id || unit.failure_root() == id
-                    }
-                    _ => false,
-                }
-            })
-            .ok_or(ShapeLinkError::SupportRelation(subject))?;
+                })
+                .ok_or(ShapeLinkError::SupportRelation(subject))?;
         let unit = registration.semantic();
         match subject {
-            Subject::InitializationCell(id) | Subject::InitializationDescriptor(id) => {
+            Subject::InitializationCell(id) | Subject::InitializationRegistration(id) => {
                 let (definition, symbol, atom) =
                     if matches!(subject, Subject::InitializationCell(_)) {
                         (
@@ -38,9 +37,9 @@ impl<'a> ShapeLinkProviderV1<'a> {
                         )
                     } else {
                         (
-                            registration.descriptor_definition_plan(),
-                            registration.descriptor_symbol(),
-                            registration.descriptor_primary_atom(),
+                            registration.registration_definition_plan(),
+                            registration.registration_symbol(),
+                            registration.registration_primary_atom(),
                         )
                     };
                 if id != unit.unit()

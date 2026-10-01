@@ -8,16 +8,17 @@
 
 const ScoopTypeDescriptor scoop_td_String = {
     .type_id = 1,
-    .instance_shape = {
-        .instance_kind = SCOOP_TYPE_INSTANCE_INLINE_BYTES_V1,
-        .inline_storage_kind = SCOOP_INLINE_STORAGE_INLINE_V1,
-        .minimum_size = sizeof(ScoopString),
-        .instance_alignment = _Alignof(ScoopString),
-        .inline_offset = sizeof(ScoopString),
-        .inline_size = 1,
-        .inline_stride = 1,
-        .inline_alignment = 1,
-    },
+    .instance_shape =
+        {
+            .instance_kind = SCOOP_TYPE_INSTANCE_INLINE_BYTES_V1,
+            .inline_storage_kind = SCOOP_INLINE_STORAGE_INLINE_V1,
+            .minimum_size = sizeof(ScoopString),
+            .instance_alignment = _Alignof(ScoopString),
+            .inline_offset = sizeof(ScoopString),
+            .inline_size = 1,
+            .inline_stride = 1,
+            .inline_alignment = 1,
+        },
     .diagnostic_name = {(const uint8_t *)"String", sizeof("String") - 1},
 };
 
@@ -27,7 +28,8 @@ void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size) {
     abort();
 }
 
-const ScoopInitializationUnitDescriptor scoop_image_initialization_units[] = {{0}};
+const ScoopInitializationUnitDescriptorV1 *const scoop_image_initialization_units[] = {
+    NULL};
 const uint64_t scoop_image_initialization_unit_count = 0;
 
 static void unused_initializer(void) {}
@@ -42,7 +44,9 @@ typedef struct TestUnit {
     ScoopInitializationCell cell;
     uint64_t storage;
     void *failure;
-    ScoopInitializationUnitDescriptor descriptor;
+    ScoopStaticStorageDescriptorV1 storage_registration;
+    ScoopStaticStorageDescriptorV1 failure_registration;
+    ScoopInitializationUnitDescriptorV1 descriptor;
 } TestUnit;
 
 static void initialize_test_unit(TestUnit *unit, uint8_t identity_byte,
@@ -52,43 +56,31 @@ static void initialize_test_unit(TestUnit *unit, uint8_t identity_byte,
         .storage = 0,
         .failure = NULL,
     };
-    unit->descriptor = (ScoopInitializationUnitDescriptor){
-        .schedule = SCOOP_INIT_LAZY_ACCESS,
-        .display_name = display_name,
+    unit->storage_registration.writable_base = &unit->storage;
+    unit->failure_registration.writable_base = &unit->failure;
+    unit->descriptor = (ScoopInitializationUnitDescriptorV1){
+        .schedule_kind = SCOOP_INITIALIZATION_LAZY_ACCESS_V1,
+        .diagnostic_path = {(const uint8_t *)display_name, strlen(display_name)},
         .cell = &unit->cell,
-        .storage = &unit->storage,
-        .failure_root = &unit->failure,
+        .storage = &unit->storage_registration,
+        .failure_root = &unit->failure_registration,
         .initializer_entry = unused_initializer,
         .ensure_entry = unused_ensure,
     };
-    unit->descriptor.semantic_id[31] = identity_byte;
+    unit->descriptor.registration.semantic_id.bytes[31] = identity_byte;
 }
 
 static void test_startup_schedule(void) {
-    ScoopInitializationCell cells[2] = {{0}, {0}};
-    uint64_t storage[2] = {0, 0};
-    void *failures[2] = {NULL, NULL};
-    ScoopInitializationUnitDescriptor units[2] = {
-        {
-            .schedule = SCOOP_INIT_LAZY_ACCESS,
-            .semantic_id = {1},
-            .display_name = "top-level:lazy",
-            .cell = &cells[0],
-            .storage = &storage[0],
-            .failure_root = &failures[0],
-            .initializer_entry = unused_initializer,
-            .ensure_entry = lazy_ensure,
-        },
-        {
-            .schedule = SCOOP_INIT_EAGER_STARTUP,
-            .semantic_id = {2},
-            .display_name = "top-level:eager",
-            .cell = &cells[1],
-            .storage = &storage[1],
-            .failure_root = &failures[1],
-            .initializer_entry = unused_initializer,
-            .ensure_entry = eager_ensure,
-        },
+    TestUnit lazy;
+    TestUnit eager;
+    initialize_test_unit(&lazy, 1, "top-level:lazy");
+    initialize_test_unit(&eager, 2, "top-level:eager");
+    lazy.descriptor.ensure_entry = lazy_ensure;
+    eager.descriptor.schedule_kind = SCOOP_INITIALIZATION_EAGER_STARTUP_V1;
+    eager.descriptor.ensure_entry = eager_ensure;
+    const ScoopInitializationUnitDescriptorV1 *units[] = {
+        &lazy.descriptor,
+        &eager.descriptor,
     };
     eager_ensure_count = 0;
     lazy_ensure_count = 0;
@@ -97,20 +89,18 @@ static void test_startup_schedule(void) {
     assert(lazy_ensure_count == 0);
 }
 
-__attribute__((noinline)) static uint64_t managed_enter(
-    const ScoopInitializationUnitDescriptor *unit) {
+__attribute__((noinline)) static uint64_t
+managed_enter(const ScoopInitializationUnitDescriptorV1 *unit) {
     uintptr_t stack_marker = 0;
-    return scoop_rt_init_enter_impl(
-        unit, 1, (uintptr_t)&stack_marker,
-        (uintptr_t)__builtin_frame_address(0));
+    return scoop_rt_init_enter_impl(unit, 1, (uintptr_t)&stack_marker,
+                                    (uintptr_t)__builtin_frame_address(0));
 }
 
 __attribute__((noinline)) static void empty_collection(void) {
     uintptr_t stack_marker = 0;
     ScoopManagedAnchor anchor;
-    scoop_thread_push_managed_anchor(
-        &anchor, 1, (uintptr_t)&stack_marker,
-        (uintptr_t)__builtin_frame_address(0));
+    scoop_thread_push_managed_anchor(&anchor, 1, (uintptr_t)&stack_marker,
+                                     (uintptr_t)__builtin_frame_address(0));
     assert(scoop_thread_begin_collection());
     scoop_thread_end_collection();
     scoop_thread_pop_managed_anchor(&anchor);
@@ -192,6 +182,8 @@ static void test_same_thread_cycle(void) {
     TestUnit inner;
     initialize_test_unit(&outer, 3, "object:Outer");
     initialize_test_unit(&inner, 4, "object:Inner");
+    static const uint8_t outer_path[] = "object:Outer trailing bytes";
+    outer.descriptor.diagnostic_path = (ScoopByteSpanV1){outer_path, 12};
     assert(managed_enter(&outer.descriptor) == SCOOP_INIT_RUN_INITIALIZER);
     assert(managed_enter(&inner.descriptor) == SCOOP_INIT_RUN_INITIALIZER);
     assert(managed_enter(&outer.descriptor) == SCOOP_INIT_CYCLE);

@@ -56,7 +56,7 @@ impl WireEncode for RuntimeAbiContract {
         encoder.map(3)?;
         for field in 1..=3 {
             encoder.field(field)?;
-            encoder.unsigned(if field == 1 { 2 } else { INITIAL_SCHEMA })?;
+            encoder.unsigned(if field == 1 { 3 } else { INITIAL_SCHEMA })?;
         }
         Ok(())
     }
@@ -698,11 +698,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn runtime_abi_contract_versions_the_function_descriptor_layout() {
-        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010202010301");
+    fn runtime_abi_contract_versions_the_unified_initialization_record() {
+        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010302010301");
         assert_eq!(
             RuntimeAbiContract.fingerprint().unwrap().to_string(),
-            "f189d9d787ec787e18f98906571a31997b7662f9796570b66b0e541e6b58202f"
+            "022ce30da2fd6487fa71da45fbd88c41d32867520cb8830e9ce593681e465e04"
         );
     }
 
@@ -776,7 +776,7 @@ mod tests {
         assert_eq!(allocation.symbol(), RuntimeAbiSymbolV1::AllocationContext);
         assert_eq!(
             allocation.id().to_string(),
-            "e01318a4bec2788f915dbcaa57167bf820685853695687b24238cc917581c79d"
+            "00bc9d8c33c7ef10fc956170db8ecf30936c81c413fe7689176d04f0837a7e81"
         );
         assert!(
             registry
@@ -832,7 +832,7 @@ mod tests {
                 .unwrap()
                 .id()
                 .to_string(),
-            "6710254cc0b60607d331e8970e5fbd8e284e38d18f107cb53090f433ee2b6bc2"
+            "65f31ca1ec2d31ca28b2157d36a25806893f561fffbf49b41f6dbeb0051d2c28"
         );
     }
 

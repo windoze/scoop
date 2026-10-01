@@ -23,7 +23,7 @@ fn shape_link_replays_actual_storage_unit_and_callable_definitions_for_both_sche
             Subject::StaticStorageRegistration(unit.storage()),
             Subject::StaticStorage(unit.failure_root()),
             Subject::InitializationCell(unit.unit()),
-            Subject::InitializationDescriptor(unit.unit()),
+            Subject::InitializationRegistration(unit.unit()),
             Subject::Callable(fixture.callables.records()[0].target()),
         ];
         for subject in subjects {
@@ -60,7 +60,7 @@ fn shape_link_reader_rejects_definition_symbol_and_semantic_tampering() {
     let fixture = ProviderFixture::new(true);
     let import = ExternalShapeLinkImportV1::replay(
         &fixture.provider(),
-        Subject::InitializationDescriptor(fixture.unit().unit()),
+        Subject::InitializationRegistration(fixture.unit().unit()),
         ConeIdentity::CORE,
     )
     .unwrap();
@@ -98,7 +98,7 @@ fn selected_initialization_import_materializes_a_typed_external_use() {
     let unit = fixture.unit().unit();
     let import = ExternalShapeLinkImportV1::replay(
         &fixture.provider(),
-        Subject::InitializationDescriptor(unit),
+        Subject::InitializationRegistration(unit),
         ConeIdentity::CORE,
     )
     .unwrap();

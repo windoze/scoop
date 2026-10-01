@@ -207,6 +207,7 @@ fn object_definition_decoders_reject_unknown_tags() {
     assert_unknown::<DecodedStrongDefinitionEntity>(b"\xa1\x00\x0e", 14);
     assert_unknown::<DecodedObjectDefinitionPlanOwner>(b"\xa1\x00\x03", 3);
     assert_unknown::<StrongDefinitionRole>(b"\x14", 20);
+    assert_unknown::<StrongDefinitionRole>(b"\x0a", 10);
     assert_unknown::<ObjectDefinitionPlanRole>(b"\xa1\x00\x03", 3);
     assert_unknown::<DefinitionAtomRole>(b"\x08", 8);
     assert_unknown::<ConeImageSupportRole>(b"\x0d", 13);
@@ -273,10 +274,6 @@ fn strong_plan_cases(
         (
             StrongDefinitionEntity::initialization_unit(initialization_unit()),
             R::InitializationCell,
-        ),
-        (
-            StrongDefinitionEntity::initialization_unit(initialization_unit()),
-            R::InitializationDescriptor,
         ),
         (
             StrongDefinitionEntity::initialization_unit(initialization_unit()),

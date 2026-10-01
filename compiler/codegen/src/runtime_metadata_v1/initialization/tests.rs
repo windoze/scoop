@@ -12,7 +12,7 @@ use super::{
 use support::initialization_plan;
 
 #[test]
-fn emits_distinct_cell_coordinator_and_registration_definitions() {
+fn emits_one_registration_with_its_cell_and_diagnostic() {
     let plan = initialization_plan(false);
     let expected = &plan.registrations()[0];
     let context = Context::create();
@@ -50,22 +50,13 @@ fn emits_distinct_cell_coordinator_and_registration_definitions() {
         expected.cell_symbol().symbol().as_str()
     );
     assert_eq!(
-        name(registration.coordinator_descriptor()),
-        expected.descriptor_symbol().symbol().as_str()
-    );
-    assert_eq!(
         name(registration.registration_descriptor()),
         expected.registration_symbol().symbol().as_str()
     );
     assert_ne!(
         name(registration.cell()),
-        name(registration.coordinator_descriptor())
-    );
-    assert_ne!(
-        name(registration.coordinator_descriptor()),
         name(registration.registration_descriptor())
     );
-    assert!(registration.coordinator_descriptor().is_constant());
     assert_eq!(registration.diagnostic_atom(), expected.diagnostic_atom());
     assert!(registration.diagnostic().is_constant());
     assert_eq!(
@@ -78,38 +69,6 @@ fn emits_distinct_cell_coordinator_and_registration_definitions() {
         "__TEXT,__cstring,cstring_literals"
     );
     assert!(registration.registration_descriptor().is_constant());
-
-    let coordinator = registration
-        .coordinator_descriptor()
-        .get_initializer()
-        .unwrap()
-        .into_struct_value();
-    assert_eq!(constant_u64(coordinator, 0), 0);
-    assert_eq!(
-        coordinator
-            .get_field_at_index(3)
-            .unwrap()
-            .into_pointer_value(),
-        registration.cell().as_pointer_value()
-    );
-    assert_eq!(
-        coordinator
-            .get_field_at_index(4)
-            .unwrap()
-            .into_pointer_value(),
-        llvm.get_global(expected.storage().storage_symbol().symbol().as_str())
-            .unwrap()
-            .as_pointer_value()
-    );
-    assert_eq!(
-        coordinator
-            .get_field_at_index(5)
-            .unwrap()
-            .into_pointer_value(),
-        llvm.get_global(expected.failure_root().storage_symbol().symbol().as_str())
-            .unwrap()
-            .as_pointer_value()
-    );
 
     let descriptor = registration
         .registration_descriptor()
@@ -215,6 +174,7 @@ fn emits_distinct_cell_coordinator_and_registration_definitions() {
     assert!(!ir.contains("scoop_image_initialization_units"));
     assert!(!ir.contains("scoop.init.cell."));
     assert!(!ir.contains("scoop.init.descriptor."));
+    assert!(!ir.contains("scoop$1$id$"));
     llvm.verify().unwrap();
 }
 
@@ -236,12 +196,6 @@ fn lazy_registration_has_no_gateway_or_gateway_patch() {
     let registration = emitted.registrations()[0];
 
     assert!(registration.gateway_definition_patch().is_none());
-    let coordinator = registration
-        .coordinator_descriptor()
-        .get_initializer()
-        .unwrap()
-        .into_struct_value();
-    assert_eq!(constant_u64(coordinator, 0), 1);
     let descriptor = registration
         .registration_descriptor()
         .get_initializer()
@@ -413,11 +367,7 @@ fn assert_owned_definitions_absent(
     llvm: &inkwell::module::Module<'_>,
     plan: &scoop_lir::StrongInitializationUnitRegistrationPlanV1,
 ) {
-    for request in [
-        plan.cell_symbol(),
-        plan.descriptor_symbol(),
-        plan.registration_symbol(),
-    ] {
+    for request in [plan.cell_symbol(), plan.registration_symbol()] {
         assert!(llvm.get_global(request.symbol().as_str()).is_none());
     }
     assert!(

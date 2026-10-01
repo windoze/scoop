@@ -43,12 +43,11 @@ pub(super) fn object_bytes(
     let readonly_base = text_size;
     let root_registration_base = 0;
     let callable_registration_base = 16;
-    let descriptor_relative = align_to(
+    let registration_relative = align_to(
         callable_registration_base
             + u64::try_from(callable_plans.registrations().len()).unwrap() * 192,
         8,
     );
-    let registration_relative = descriptor_relative + 88;
     let readonly_size = registration_relative + 352;
     let cstring_base = readonly_base + readonly_size;
     let diagnostic = plan
@@ -99,13 +98,6 @@ pub(super) fn object_bytes(
     }
     insert_location(
         &mut locations,
-        plan.descriptor_primary_atom(),
-        2,
-        readonly_base + descriptor_relative,
-        88,
-    );
-    insert_location(
-        &mut locations,
         plan.diagnostic_atom(),
         3,
         cstring_base,
@@ -140,9 +132,6 @@ pub(super) fn object_bytes(
                 &crate::link_object::callable_registrations::record::expected_record(*callable),
             );
     }
-    readonly[usize::try_from(descriptor_relative).unwrap()
-        ..usize::try_from(descriptor_relative + 88).unwrap()]
-        .copy_from_slice(&super::super::super::record::expected_coordinator(plan));
     readonly[usize::try_from(registration_relative).unwrap()
         ..usize::try_from(registration_relative + 352).unwrap()]
         .copy_from_slice(&super::super::super::record::expected_record(plan));
@@ -151,8 +140,8 @@ pub(super) fn object_bytes(
     let mut writable = vec![0; usize::try_from(writable_size).unwrap()];
     match corruption {
         Corruption::CellByte => writable[16] ^= 1,
-        Corruption::CoordinatorByte => {
-            readonly[usize::try_from(descriptor_relative).unwrap()] ^= 1;
+        Corruption::OldAbiVersion => {
+            readonly[usize::try_from(registration_relative + 8).unwrap()] = 2;
         }
         Corruption::RegistrationByte => {
             readonly[usize::try_from(registration_relative).unwrap()] ^= 1;
@@ -172,7 +161,6 @@ pub(super) fn object_bytes(
         plans,
         callable_plans,
         plan,
-        descriptor_relative,
         registration_relative,
         corruption,
     );
@@ -310,7 +298,6 @@ fn relocations(
     plans: &StrongInitializationUnitRegistrationPlanSetV1,
     callable_plans: &StrongCallableRegistrationPlanSetV1,
     plan: &StrongInitializationUnitRegistrationPlanV1,
-    descriptor: u64,
     registration: u64,
     corruption: Corruption,
 ) -> Vec<(u32, u32)> {
@@ -320,19 +307,9 @@ fn relocations(
         symbols,
         static_storage_definition(plans.producer(), plan.storage().storage()),
     );
-    let failure = primary_symbol_index(
-        symbols,
-        static_storage_definition(plans.producer(), plan.failure_root().storage()),
-    );
     let initializer = primary_symbol_index(symbols, plan.initializer().body_definition_plan());
     let ensure = primary_symbol_index(symbols, plan.ensure().body_definition_plan());
     let mut items = vec![
-        (descriptor + 40, local_diagnostic),
-        (descriptor + 48, cell),
-        (descriptor + 56, storage),
-        (descriptor + 64, failure),
-        (descriptor + 72, initializer),
-        (descriptor + 80, ensure),
         (registration + 160, local_diagnostic),
         (registration + 176, cell),
         (

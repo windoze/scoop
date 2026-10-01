@@ -132,12 +132,7 @@ impl DigestGraphWriter<'_> {
             let cell_node = DigestNodeKey::object_definition(cell.primary);
             self.ensure(cell_node);
 
-            let descriptor =
-                self.definition(entity, StrongDefinitionRole::InitializationDescriptor)?;
-            let descriptor_node = DigestNodeKey::object_definition(descriptor.primary);
-            self.ensure(descriptor_node);
-
-            let mut inputs = vec![registration_object, cell_node, descriptor_node];
+            let mut inputs = vec![registration_object, cell_node];
             if let StrongInitializationSchedulePlanV1::EagerStartup { gateway } = schedule {
                 let gateway = self.definition(
                     StrongDefinitionEntity::callable_body(gateway),

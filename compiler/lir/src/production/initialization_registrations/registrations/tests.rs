@@ -37,17 +37,9 @@ fn joins_unit_storage_callable_and_digest_relations() {
         plan.cell_symbol().key(),
         PersistentSymbolKey::InitializationCell(fixture.unit)
     );
-    assert_eq!(
-        plan.descriptor_symbol().key(),
-        PersistentSymbolKey::InitializationDescriptor(fixture.unit)
-    );
     assert_ne!(
         plan.registration_definition_plan(),
         plan.cell_definition_plan()
-    );
-    assert_ne!(
-        plan.cell_definition_plan(),
-        plan.descriptor_definition_plan()
     );
     assert_eq!(plan.storage().storage(), fixture.storage);
     assert_eq!(
@@ -77,7 +69,7 @@ fn joins_unit_storage_callable_and_digest_relations() {
         node(&fixture.digests, plan.registration_fingerprint_node())
             .direct_inputs()
             .len(),
-        4
+        3
     );
 }
 
@@ -100,7 +92,7 @@ fn lazy_unit_has_no_gateway_input_or_patch() {
         node(&fixture.digests, plan.registration_fingerprint_node())
             .direct_inputs()
             .len(),
-        3
+        2
     );
 }
 
@@ -138,7 +130,7 @@ fn requires_complete_unit_and_referenced_registration_coverage() {
 }
 
 #[test]
-fn requires_all_three_distinct_definition_surfaces_and_leaf_nodes() {
+fn requires_cell_registration_and_diagnostic_definition_surfaces() {
     assert!(matches!(
         Fixture::new(Options {
             omit_cell_symbol: true,
@@ -149,7 +141,7 @@ fn requires_all_three_distinct_definition_surfaces_and_leaf_nodes() {
     ));
     assert!(matches!(
         Fixture::new(Options {
-            omit_descriptor_primary: true,
+            omit_registration_primary: true,
             ..Options::default()
         })
         .build(),
@@ -160,7 +152,7 @@ fn requires_all_three_distinct_definition_surfaces_and_leaf_nodes() {
     ));
     assert!(matches!(
         Fixture::new(Options {
-            omit_descriptor_object: true,
+            omit_registration_object: true,
             ..Options::default()
         })
         .build(),
@@ -196,7 +188,7 @@ fn requires_all_three_distinct_definition_surfaces_and_leaf_nodes() {
 fn requires_exact_inputs_and_schedule_specific_patch_writers() {
     assert!(matches!(
         Fixture::new(Options {
-            omit_descriptor_input: true,
+            omit_cell_input: true,
             ..Options::default()
         })
         .build(),

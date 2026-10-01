@@ -76,14 +76,14 @@ fn subjects() -> [ExternalStrongShapeSubjectV1; 10] {
         Subject::StaticStorage(storage.identity_record().id()),
         Subject::StaticStorageRegistration(storage.identity_record().id()),
         Subject::InitializationCell(unit),
-        Subject::InitializationDescriptor(unit),
+        Subject::InitializationRegistration(unit),
     ]
 }
 
 #[test]
 fn all_ten_subjects_have_closed_cbor_and_distinct_runtime_tags() {
     for (index, subject) in subjects().iter().enumerate() {
-        let tag = (index + 1) as u32;
+        let tag = if index == 9 { 11 } else { (index + 1) as u32 };
         let bytes = encode(subject).unwrap();
         assert_eq!(&bytes[..4], &[0xa2, 0, tag as u8, 1]);
         let decoded: DecodedExternalStrongShapeSubjectV1 = decode_canonical(&bytes).unwrap();
@@ -106,7 +106,7 @@ fn all_ten_subjects_have_closed_cbor_and_distinct_runtime_tags() {
             assert!(decode_canonical::<DecodedExternalStrongShapeSubjectV1>(&bad).is_err());
         }
     }
-    for tag in [0, 11, 255] {
+    for tag in [0, 10, 12, 255] {
         let mut bytes = vec![0xa2, 0];
         if tag < 24 {
             bytes.push(tag);

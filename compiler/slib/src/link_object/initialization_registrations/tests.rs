@@ -25,13 +25,12 @@ fn verifies_exact_eager_initialization_artifacts() {
         fixture.plan.registrations()[0].semantic().unit()
     );
     assert_eq!(registration.cell_checked_offset() % 8, 0);
-    assert_eq!(registration.descriptor_checked_offset() % 8, 0);
     assert_eq!(registration.checked_offset() % 8, 0);
     assert_eq!(
         registration
-            .coordinator_diagnostic_relocation()
+            .registration_diagnostic_relocation()
             .offset_within_atom(),
-        40
+        160
     );
     assert_eq!(
         registration
@@ -76,8 +75,8 @@ fn rejects_noncanonical_initialization_bytes() {
     for (corruption, role) in [
         (Corruption::CellByte, InitializationArtifactRoleV1::Cell),
         (
-            Corruption::CoordinatorByte,
-            InitializationArtifactRoleV1::CoordinatorDescriptor,
+            Corruption::OldAbiVersion,
+            InitializationArtifactRoleV1::Registration,
         ),
         (
             Corruption::RegistrationByte,
@@ -144,7 +143,7 @@ fn rejects_diagnostic_bytes_that_do_not_match_the_semantic_path() {
         Err(
             StrongInitializationRegistrationValidationError::RelocationMismatch {
                 unit,
-                role: InitializationRelocationRoleV1::CoordinatorDiagnostic,
+                role: InitializationRelocationRoleV1::RegistrationDiagnostic,
                 kind: InitializationRelocationFailureV1::DiagnosticTarget,
             }
         )
@@ -269,7 +268,7 @@ fn computes_canonical_initialization_registration_object_leaves() {
     );
     assert_eq!(
         eager_fingerprint.fingerprint().to_string(),
-        "9ced1635d0a48aedb4f4d6ae4f3ddc17a0d6e8bf5aaa2e588bfe7fcc8d50608d"
+        "1c1f92b60820ffd00896f4d42f4f50342cd2072da590751983c8c3032c3aabfe"
     );
 
     let lazy = Fixture::new(true, Corruption::None);
@@ -338,14 +337,9 @@ fn computes_canonical_initialization_definition_leaves() {
     let plan = &fixture.plan.registrations()[0];
     assert_eq!(actual.unit(), plan.semantic().unit());
     assert_eq!(actual.cell_node(), plan.cell_definition_node());
-    assert_eq!(actual.descriptor_node(), plan.descriptor_definition_node());
     assert_eq!(
         actual.cell().to_string(),
         "fef44222d61515cf41819495ce12d74e5d045b1a8aa1aab159bed810e3658735"
-    );
-    assert_eq!(
-        actual.descriptor().to_string(),
-        "2b7188a7e3c35a816aba0e91924a58d7984327dc3bc7dd14a6f8b7b8022b4045"
     );
 }
 
@@ -377,7 +371,7 @@ fn computes_canonical_initialization_strong_fingerprints() {
     );
     assert_eq!(
         eager_actual.registration().to_string(),
-        "bbdb9514f77771bd408a26916162b8fe532b4c47ccfec5e0e4142cc6f959ffef"
+        "d4f4dc5a67675808492dad84d2a54eb7f9aa8d7ac7dc5f7409a8428868d320cd"
     );
     let eager_patched =
         crate::link_object::strong_registration_finalization::patch_initializations_for_test(

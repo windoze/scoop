@@ -221,7 +221,6 @@ impl WireDecode for StrongDefinitionRole {
             7 => Ok(Self::DispatchTable),
             8 => Ok(Self::DispatchSlot),
             9 => Ok(Self::InitializationCell),
-            10 => Ok(Self::InitializationDescriptor),
             11 => Ok(Self::RootRegistration),
             12 => Ok(Self::ImmortalRegistration),
             13 => Ok(Self::InitializationRegistration),

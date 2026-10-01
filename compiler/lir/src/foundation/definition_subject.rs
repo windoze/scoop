@@ -97,10 +97,6 @@ pub(super) fn member_subject(key: &OdrMemberKey) -> Option<(StrongDefinitionEnti
             StrongDefinitionEntity::initialization_unit(*id),
             S::InitializationCell,
         ),
-        (R::InitializationDescriptor, D::InitializationUnit(id)) => (
-            StrongDefinitionEntity::initialization_unit(*id),
-            S::InitializationDescriptor,
-        ),
         (R::RegistrationRecord, D::CallableBody(id)) => (
             StrongDefinitionEntity::callable_body(*id),
             S::CallableRegistration,

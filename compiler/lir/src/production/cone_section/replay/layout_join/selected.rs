@@ -141,7 +141,8 @@ fn initialization(
     let unit = unit_ref.unit();
 
     let Some(import) = selected.physical().records().iter().find(|import| {
-        import.provider() == provider && import.subject() == Subject::InitializationDescriptor(unit)
+        import.provider() == provider
+            && import.subject() == Subject::InitializationRegistration(unit)
     }) else {
         return Err(
             StrongProductionLayoutJoinError::MissingPhysicalInitialization { provider, unit },
@@ -151,8 +152,8 @@ fn initialization(
         return Err(StrongProductionLayoutJoinError::InitializationDefinition { provider, unit });
     };
     if unit_projection.unit() != unit
-        || import.required_definition() != unit_ref.descriptor().plan()
-        || import.expected_symbol() != unit_ref.descriptor().symbol()
+        || import.required_definition() != unit_ref.registration().plan()
+        || import.expected_symbol() != unit_ref.registration().symbol()
     {
         return Err(StrongProductionLayoutJoinError::InitializationDefinition { provider, unit });
     }

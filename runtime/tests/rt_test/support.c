@@ -108,7 +108,7 @@ const ScoopImmortalObjectDescriptor scoop_image_immortal_objects[] = {
     {&world, sizeof world, &scoop_td_String},
 };
 const uint64_t scoop_image_immortal_object_count = 2;
-const ScoopInitializationUnitDescriptor scoop_image_initialization_units[] = {{0}};
+const ScoopInitializationUnitDescriptorV1 *const scoop_image_initialization_units[] = {NULL};
 const uint64_t scoop_image_initialization_unit_count = 0;
 
 /* 64-byte plain object without references: exactly two per line, for

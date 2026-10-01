@@ -54,7 +54,7 @@ fn shared_provider_references_reject_retired_and_cross_profile_versions_in_every
                 ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
                 ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
             ][..],
-            &[1, 2, 3, 4, 5, 6][..],
+            &[1, 2, 3, 4, 5, 6, 7][..],
         ),
         (
             lir_strong_production_capability(),
@@ -67,7 +67,7 @@ fn shared_provider_references_reject_retired_and_cross_profile_versions_in_every
         (
             lir_cone_production_capability(),
             &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC][..],
-            &[1, 2][..],
+            &[1, 2, 3][..],
         ),
         (
             lir_cross_cone_layout_abi_capability(),
@@ -77,7 +77,7 @@ fn shared_provider_references_reject_retired_and_cross_profile_versions_in_every
         (
             lir_cross_cone_layout_link_closure_capability(),
             &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC][..],
-            &[1, 2][..],
+            &[1, 2, 3][..],
         ),
     ] {
         for &version in rejected {

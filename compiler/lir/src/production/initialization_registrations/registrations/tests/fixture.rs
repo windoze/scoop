@@ -12,11 +12,11 @@ pub(super) struct Options {
     pub(super) omit_storage_registration: bool,
     pub(super) omit_callable_registration: bool,
     pub(super) omit_cell_symbol: bool,
-    pub(super) omit_descriptor_primary: bool,
-    pub(super) omit_descriptor_object: bool,
+    pub(super) omit_registration_primary: bool,
+    pub(super) omit_registration_object: bool,
     pub(super) omit_diagnostic_atom: bool,
     pub(super) cell_object_input: bool,
-    pub(super) omit_descriptor_input: bool,
+    pub(super) omit_cell_input: bool,
     pub(super) omit_registration_patch: bool,
     pub(super) omit_gateway_patch: bool,
     pub(super) unexpected_lazy_gateway_patch: bool,
@@ -106,22 +106,17 @@ impl Fixture {
             StrongDefinitionEntity::initialization_unit(unit),
             StrongDefinitionRole::InitializationCell,
         );
-        let descriptor = definition_artifacts(
-            producer,
-            StrongDefinitionEntity::initialization_unit(unit),
-            StrongDefinitionRole::InitializationDescriptor,
-        );
-        let diagnostic_atom = CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
-            descriptor.definition.id(),
-            DefinitionAtomRole::AddressTakenConstant,
-            DefinitionAtomSubkey::InitializationUnit(unit),
-        ))
-        .unwrap();
         let registration = definition_artifacts(
             producer,
             StrongDefinitionEntity::initialization_unit(unit),
             StrongDefinitionRole::InitializationRegistration,
         );
+        let diagnostic_atom = CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
+            registration.definition.id(),
+            DefinitionAtomRole::AddressTakenConstant,
+            DefinitionAtomSubkey::InitializationUnit(unit),
+        ))
+        .unwrap();
         let storage_registrations = [storage, failure_root].map(|storage| {
             definition_artifacts(
                 producer,
@@ -147,7 +142,7 @@ impl Fixture {
             .unwrap();
         canonical
             .set_definition_plans(
-                [cell.definition.clone(), descriptor.definition.clone()]
+                [cell.definition.clone()]
                     .into_iter()
                     .chain(
                         (!options.omit_unit_registration).then(|| registration.definition.clone()),
@@ -182,9 +177,14 @@ impl Fixture {
             .set_definition_atoms(
                 [cell.primary.clone()]
                     .into_iter()
-                    .chain((!options.omit_descriptor_primary).then(|| descriptor.primary.clone()))
-                    .chain((!options.omit_diagnostic_atom).then_some(diagnostic_atom))
-                    .chain((!options.omit_unit_registration).then(|| registration.primary.clone()))
+                    .chain(
+                        (!options.omit_diagnostic_atom && !options.omit_unit_registration)
+                            .then_some(diagnostic_atom),
+                    )
+                    .chain(
+                        (!options.omit_unit_registration && !options.omit_registration_primary)
+                            .then(|| registration.primary.clone()),
+                    )
                     .chain(
                         storage_registrations
                             .iter()
@@ -212,10 +212,9 @@ impl Fixture {
                     .collect(),
             )
             .unwrap();
-        let symbols = [
-            symbol(PersistentSymbolKey::InitializationDescriptor(unit)),
-            symbol(PersistentSymbolKey::InitializationRegistration(unit)),
-        ]
+        let symbols = [symbol(PersistentSymbolKey::InitializationRegistration(
+            unit,
+        ))]
         .into_iter()
         .chain(
             (!options.omit_cell_symbol)
@@ -252,7 +251,6 @@ impl Fixture {
         let digests = digest_plan(
             &foundation,
             &cell,
-            &descriptor,
             &registration,
             &storage_registrations,
             &callables,

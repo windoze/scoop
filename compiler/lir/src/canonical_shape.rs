@@ -181,7 +181,6 @@ fn identities(
                 | OdrMemberRole::ImmortalObject
                 | OdrMemberRole::StaticStorage
                 | OdrMemberRole::InitializationCell
-                | OdrMemberRole::InitializationDescriptor
         ) {
             continue;
         }

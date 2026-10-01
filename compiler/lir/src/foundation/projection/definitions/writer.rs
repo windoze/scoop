@@ -70,11 +70,7 @@ impl DefinitionWriter {
                 let group =
                     OdrGroupId::from_key(&key).map_err(LirFoundationBuildError::DefinitionHash)?;
                 let root = crate::MaterializationRoot::prior_stage_odr(group);
-                for role in [
-                    R::InitializationCell,
-                    R::InitializationDescriptor,
-                    R::RegistrationRecord,
-                ] {
+                for role in [R::InitializationCell, R::RegistrationRecord] {
                     writer.materialization(
                         &root,
                         role,

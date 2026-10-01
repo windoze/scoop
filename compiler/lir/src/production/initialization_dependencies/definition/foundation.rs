@@ -27,7 +27,6 @@ impl StrongInitializationUnitDefinitionRefV2 {
             .iter()
             .find(|identity| identity.semantic_id() == unit)
             .ok_or(Error::MissingRegistrationIdentity(unit))?;
-        let descriptor = artifact(unit, ArtifactRole::Descriptor, foundation)?;
         let cell = artifact(unit, ArtifactRole::Cell, foundation)?;
         let registration = artifact(unit, ArtifactRole::Registration, foundation)?;
         if identity.definition_plan() != registration.plan() {
@@ -52,7 +51,6 @@ impl StrongInitializationUnitDefinitionRefV2 {
         Ok(Self {
             provider: foundation.producer(),
             unit,
-            descriptor,
             cell,
             registration,
             registration_fingerprint: fingerprint.id(),
@@ -62,7 +60,6 @@ impl StrongInitializationUnitDefinitionRefV2 {
 
 #[derive(Clone, Copy)]
 enum ArtifactRole {
-    Descriptor,
     Cell,
     Registration,
 }
@@ -70,14 +67,12 @@ enum ArtifactRole {
 impl ArtifactRole {
     fn definition(self) -> StrongDefinitionRole {
         match self {
-            Self::Descriptor => StrongDefinitionRole::InitializationDescriptor,
             Self::Cell => StrongDefinitionRole::InitializationCell,
             Self::Registration => StrongDefinitionRole::InitializationRegistration,
         }
     }
     fn symbol(self, unit: PersistentInitializationUnitId) -> PersistentSymbolKey {
         match self {
-            Self::Descriptor => PersistentSymbolKey::InitializationDescriptor(unit),
             Self::Cell => PersistentSymbolKey::InitializationCell(unit),
             Self::Registration => PersistentSymbolKey::InitializationRegistration(unit),
         }
@@ -120,7 +115,7 @@ fn artifact(
         record.key().plan() == definition.id() && record.key().role() != DefinitionAtomRole::Primary
     });
     match role {
-        ArtifactRole::Descriptor => {
+        ArtifactRole::Registration => {
             let expected = ObjectDefinitionAtomKey::new(
                 definition.id(),
                 DefinitionAtomRole::AddressTakenConstant,
@@ -131,7 +126,7 @@ fn artifact(
                 return Err(Error::AssociatedAtoms(definition.id()));
             }
         }
-        ArtifactRole::Cell | ArtifactRole::Registration => {
+        ArtifactRole::Cell => {
             if associated.next().is_some() {
                 return Err(Error::AssociatedAtoms(definition.id()));
             }

@@ -128,7 +128,7 @@ fn complete_reader_recomputes_every_physical_field_and_table_coverage() {
         Err(Error::TableLength { .. })
     ));
     let mut bytes = encode(&plans.registrations()[0]).unwrap();
-    let plan = plans.registrations()[0].descriptor_definition_plan();
+    let plan = plans.registrations()[0].registration_definition_plan();
     let position = bytes
         .windows(32)
         .position(|bytes| bytes == plan.as_array())

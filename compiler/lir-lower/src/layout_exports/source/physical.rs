@@ -150,9 +150,9 @@ pub(super) fn project(input: LayoutAbiExportInputV1<'_>) -> Result<Vec<RequiredI
                     &mut imports,
                     RequiredImport {
                         provider,
-                        subject: Subject::InitializationDescriptor(unit_ref.unit()),
-                        symbol: unit_ref.descriptor().symbol(),
-                        definition: unit_ref.descriptor().plan(),
+                        subject: Subject::InitializationRegistration(unit_ref.unit()),
+                        symbol: unit_ref.registration().symbol(),
+                        definition: unit_ref.registration().plan(),
                     },
                 )?;
             }

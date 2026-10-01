@@ -156,38 +156,6 @@ impl WireEncode for ShapeProjection<'_> {
                 }
                 Ok(())
             }
-            ShapeContent::InitializationDescriptor(unit) => {
-                tagged(e, 10, if self.abi { 4 } else { 10 })?;
-                e.field(1)?;
-                unit.identity.id().encode(e)?;
-                e.field(2)?;
-                e.unsigned(88)?;
-                e.field(3)?;
-                e.unsigned(8)?;
-                if !self.abi {
-                    e.field(4)?;
-                    e.unsigned(match unit.schedule {
-                        InitializationSchedule::EagerStartup => 0,
-                        InitializationSchedule::LazyAccess => 1,
-                    })?;
-                    for (field, global) in [(5, unit.kind.storage()), (6, unit.failure_root)] {
-                        let GlobalInit::Storage { identity, .. } =
-                            &self.module.globals[global].init
-                        else {
-                            unreachable!("a complete initialization unit has local static storage")
-                        };
-                        e.field(field)?;
-                        identity.identity_record().id().encode(e)?;
-                    }
-                    e.field(7)?;
-                    self.callable(CallableRef::Local(unit.initializer.declaration()), e)?;
-                    e.field(8)?;
-                    e.text(&unit.display_name)?;
-                    e.field(9)?;
-                    self.callable(CallableRef::Local(unit.ensure.declaration()), e)?;
-                }
-                Ok(())
-            }
         }
     }
 }

@@ -1,19 +1,14 @@
 use std::fmt;
 
-use scoop_identity::{DefinitionAtomRole, DigestNodeId, PersistentInitializationUnitId};
-use scoop_lir::StrongInitializationUnitRegistrationPlan;
+use scoop_identity::{DigestNodeId, PersistentInitializationUnitId};
 use scoop_wire::{HashError, domain_separated_runtime_hash};
 
 use super::StrongInitializationRegistrationValidationError;
 use super::fingerprints::VerifiedStrongInitializationRegistrationObjectFingerprintSetV1;
 use super::physical::validate_objects;
-use super::record::{CELL_SIZE, COORDINATOR_SIZE};
+use super::record::CELL_SIZE;
 use crate::SlibMemberId;
-use crate::link_object::callable_registrations::object_definition::{
-    CanonicalAssociatedObjectAtomV1, CanonicalObjectRelocationV1,
-    ObjectDefinitionFingerprintInputV1, ObjectDefinitionLeafWithAssociatedAtomsInputV1,
-    ObjectDefinitionRelocationFailureV1,
-};
+use crate::link_object::callable_registrations::object_definition::ObjectDefinitionFingerprintInputV1;
 use crate::link_object::{ObjectDefinitionFingerprintV1, ScoopLirObjectCandidateV1};
 
 const OBJECT_DEFINITION_DOMAIN: &str = "scoop-object-definition-v1";
@@ -23,8 +18,6 @@ pub struct VerifiedStrongInitializationDefinitionFingerprintV1 {
     unit: PersistentInitializationUnitId,
     cell_node: DigestNodeId,
     cell: ObjectDefinitionFingerprintV1,
-    descriptor_node: DigestNodeId,
-    descriptor: ObjectDefinitionFingerprintV1,
 }
 
 impl VerifiedStrongInitializationDefinitionFingerprintV1 {
@@ -39,18 +32,9 @@ impl VerifiedStrongInitializationDefinitionFingerprintV1 {
     pub const fn cell(self) -> ObjectDefinitionFingerprintV1 {
         self.cell
     }
-
-    pub const fn descriptor_node(self) -> DigestNodeId {
-        self.descriptor_node
-    }
-
-    pub const fn descriptor(self) -> ObjectDefinitionFingerprintV1 {
-        self.descriptor
-    }
 }
 
-/// Canonical initialization cell and coordinator descriptor leaves, including
-/// the descriptor's owned diagnostic associated atom.
+/// Canonical writable initialization cell leaves.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedStrongInitializationDefinitionFingerprintSetV1<
     D = scoop_identity::PersistentInitializationUnitId,
@@ -151,64 +135,10 @@ fn compute_strong_initialization_definition_fingerprints<D>(
         .map(|digest| ObjectDefinitionFingerprintV1::from_array(*digest.as_array()))
         .map_err(|source| StrongInitializationDefinitionFingerprintError::Hash { unit, source })?;
 
-        let descriptor_object = objects.get(&verified.descriptor_member()).copied().ok_or(
-            StrongInitializationDefinitionFingerprintError::MissingObject(
-                verified.descriptor_member(),
-            ),
-        )?;
-        let mut descriptor_bytes = exact_bytes(
-            descriptor_object,
-            verified.descriptor_checked_offset(),
-            COORDINATOR_SIZE,
-            unit,
-            InitializationDefinitionArtifactV1::Descriptor,
-        )?
-        .to_vec();
-        let relocations = descriptor_relocations(plan, verified);
-        for relocation in &relocations {
-            relocation
-                .normalize_bytes(&mut descriptor_bytes)
-                .map_err(
-                    |kind| StrongInitializationDefinitionFingerprintError::Relocation {
-                        unit,
-                        kind,
-                    },
-                )?;
-        }
-        let diagnostic_len = plan.semantic().diagnostic_path().len() + 1;
-        let diagnostic_bytes = exact_bytes(
-            descriptor_object,
-            verified.diagnostic_checked_offset(),
-            diagnostic_len,
-            unit,
-            InitializationDefinitionArtifactV1::Diagnostic,
-        )?;
-        let associated_atoms = [CanonicalAssociatedObjectAtomV1 {
-            atom: plan.diagnostic_atom(),
-            role: DefinitionAtomRole::AddressTakenConstant,
-            bytes: diagnostic_bytes,
-            relocations: &[],
-        }];
-        let descriptor = domain_separated_runtime_hash(
-            OBJECT_DEFINITION_DOMAIN,
-            &ObjectDefinitionLeafWithAssociatedAtomsInputV1 {
-                primary: ObjectDefinitionFingerprintInputV1 {
-                    bytes: &descriptor_bytes,
-                    relocations: &relocations,
-                    direct_inputs: &[],
-                },
-                associated_atoms: &associated_atoms,
-            },
-        )
-        .map(|digest| ObjectDefinitionFingerprintV1::from_array(*digest.as_array()))
-        .map_err(|source| StrongInitializationDefinitionFingerprintError::Hash { unit, source })?;
-
         fingerprints.push(VerifiedStrongInitializationDefinitionFingerprintV1 {
             unit,
             cell_node: plan.cell_definition_node(),
             cell,
-            descriptor_node: plan.descriptor_definition_node(),
-            descriptor,
         });
     }
 
@@ -235,31 +165,9 @@ fn exact_bytes(
         .ok_or(StrongInitializationDefinitionFingerprintError::Range { unit, artifact })
 }
 
-fn descriptor_relocations<D>(
-    plan: &StrongInitializationUnitRegistrationPlan<D>,
-    verified: &super::VerifiedStrongInitializationRegistrationV1,
-) -> [CanonicalObjectRelocationV1; 6] {
-    use super::super::registration_identity::canonical_local_relocation;
-    [
-        CanonicalObjectRelocationV1::owning_associated_atom_offset(
-            40,
-            plan.diagnostic_atom(),
-            DefinitionAtomRole::AddressTakenConstant,
-            0,
-        ),
-        canonical_local_relocation(verified.coordinator_cell_relocation()),
-        canonical_local_relocation(verified.coordinator_storage_relocation()),
-        canonical_local_relocation(verified.coordinator_failure_relocation()),
-        canonical_local_relocation(verified.coordinator_initializer_relocation()),
-        canonical_local_relocation(verified.coordinator_ensure_relocation()),
-    ]
-}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum InitializationDefinitionArtifactV1 {
     Cell,
-    Descriptor,
-    Diagnostic,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -273,10 +181,6 @@ pub enum StrongInitializationDefinitionFingerprintError {
     Range {
         unit: PersistentInitializationUnitId,
         artifact: InitializationDefinitionArtifactV1,
-    },
-    Relocation {
-        unit: PersistentInitializationUnitId,
-        kind: ObjectDefinitionRelocationFailureV1,
     },
     Hash {
         unit: PersistentInitializationUnitId,

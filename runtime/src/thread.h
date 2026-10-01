@@ -58,10 +58,10 @@ typedef struct ScoopThreadState {
     ScoopNativeRegionRootFrame *native_region_roots;
     ScoopCallerRootFrame *caller_roots;
     ScoopCompilerRootFrame *compiler_roots;
-    const ScoopInitializationUnitDescriptor **initialization_stack;
+    const ScoopInitializationUnitDescriptorV1 **initialization_stack;
     size_t initialization_stack_len;
     size_t initialization_stack_cap;
-    const ScoopInitializationUnitDescriptor *initialization_wait;
+    const ScoopInitializationUnitDescriptorV1 *initialization_wait;
     char *initialization_cycle_path;
     ScoopThreadTransition *current_transition;
     struct ScoopExceptionRecord *caught_exception_top;

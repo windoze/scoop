@@ -7,7 +7,7 @@ void generated_entry_header_probe(void) {
     ScoopThreadTransition transition = {0};
     ScoopAllocationContext allocation = {0};
     ScoopInitializationCell initialization_cell = {0};
-    ScoopInitializationUnitDescriptor initialization_unit = {0};
+    ScoopInitializationUnitDescriptorV1 initialization_unit = {0};
 
     (void)entry;
     (void)caller;

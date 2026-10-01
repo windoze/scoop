@@ -30,8 +30,6 @@ pub struct VerifiedStrongInitializationFingerprintV1 {
     registration_object: ObjectDefinitionFingerprintV1,
     cell_definition_node: DigestNodeId,
     cell_definition: ObjectDefinitionFingerprintV1,
-    descriptor_definition_node: DigestNodeId,
-    descriptor_definition: ObjectDefinitionFingerprintV1,
     gateway_body: Option<PersistentCallableBodyId>,
     gateway_definition_node: Option<DigestNodeId>,
     gateway_definition: Option<ObjectDefinitionFingerprintV1>,
@@ -58,14 +56,6 @@ impl VerifiedStrongInitializationFingerprintV1 {
 
     pub const fn cell_definition(self) -> ObjectDefinitionFingerprintV1 {
         self.cell_definition
-    }
-
-    pub const fn descriptor_definition_node(self) -> DigestNodeId {
-        self.descriptor_definition_node
-    }
-
-    pub const fn descriptor_definition(self) -> ObjectDefinitionFingerprintV1 {
-        self.descriptor_definition
     }
 
     pub const fn gateway_body(self) -> Option<PersistentCallableBodyId> {
@@ -173,10 +163,7 @@ fn compute_strong_initialization_fingerprints<D>(
         {
             return Err(StrongInitializationFingerprintError::RegistrationObjectMismatch { unit });
         }
-        if definition.unit() != unit
-            || definition.cell_node() != plan.cell_definition_node()
-            || definition.descriptor_node() != plan.descriptor_definition_node()
-        {
+        if definition.unit() != unit || definition.cell_node() != plan.cell_definition_node() {
             return Err(StrongInitializationFingerprintError::DefinitionMismatch { unit });
         }
         let gateway = gateway_definition(plan, callable_bodies)?;
@@ -187,8 +174,6 @@ fn compute_strong_initialization_fingerprints<D>(
                 registration_object.fingerprint(),
                 definition.cell_node(),
                 definition.cell(),
-                definition.descriptor_node(),
-                definition.descriptor(),
                 gateway,
             )
             .map(RegistrationFingerprintV1::Strong),
@@ -196,44 +181,30 @@ fn compute_strong_initialization_fingerprints<D>(
                 if gateway.is_some() {
                     return Err(StrongInitializationFingerprintError::DefinitionMismatch { unit });
                 }
-                for (role, plan_id, fingerprint) in [
-                    (
-                        scoop_identity::OdrMemberRole::InitializationCell,
-                        plan.cell_definition_plan(),
+                let content = canonical
+                    .definitions()
+                    .iter()
+                    .find(|content| {
+                        content.definition() == plan.cell_definition_plan()
+                            && content.group() == group
+                            && content.role() == scoop_identity::OdrMemberRole::InitializationCell
+                    })
+                    .ok_or(StrongInitializationFingerprintError::DefinitionMismatch { unit })?;
+                odr_definitions.push(
+                    super::super::odr_member_fingerprints::shape_definition(
+                        *content,
                         definition.cell(),
-                    ),
-                    (
-                        scoop_identity::OdrMemberRole::InitializationDescriptor,
-                        plan.descriptor_definition_plan(),
-                        definition.descriptor(),
-                    ),
-                ] {
-                    let content = canonical
-                        .definitions()
-                        .iter()
-                        .find(|content| {
-                            content.definition() == plan_id
-                                && content.group() == group
-                                && content.role() == role
-                        })
-                        .ok_or(StrongInitializationFingerprintError::DefinitionMismatch { unit })?;
-                    odr_definitions.push(
-                        super::super::odr_member_fingerprints::shape_definition(
-                            *content,
-                            fingerprint,
-                        )
-                        .map_err(|source| {
-                            StrongInitializationFingerprintError::Hash { unit, source }
-                        })?,
-                    );
-                }
+                    )
+                    .map_err(|source| {
+                        StrongInitializationFingerprintError::Hash { unit, source }
+                    })?,
+                );
                 super::super::odr_member_fingerprints::initialization_registration(
                     group,
                     member,
                     plan,
                     registration_object.fingerprint(),
                     definition.cell(),
-                    definition.descriptor(),
                 )
                 .map(RegistrationFingerprintV1::Odr)
             }
@@ -245,8 +216,6 @@ fn compute_strong_initialization_fingerprints<D>(
             registration_object: registration_object.fingerprint(),
             cell_definition_node: definition.cell_node(),
             cell_definition: definition.cell(),
-            descriptor_definition_node: definition.descriptor_node(),
-            descriptor_definition: definition.descriptor(),
             gateway_body: gateway.map(|gateway| gateway.body),
             gateway_definition_node: gateway.map(|gateway| gateway.node),
             gateway_definition: gateway.map(|gateway| gateway.fingerprint),
@@ -307,8 +276,6 @@ fn strong_initialization_fingerprint<D>(
     registration_object: ObjectDefinitionFingerprintV1,
     cell_definition_node: DigestNodeId,
     cell_definition: ObjectDefinitionFingerprintV1,
-    descriptor_definition_node: DigestNodeId,
-    descriptor_definition: ObjectDefinitionFingerprintV1,
     gateway: Option<GatewayDefinitionV1>,
 ) -> Result<StrongRegistrationFingerprintV1, HashError> {
     let mut direct_inputs = vec![
@@ -321,11 +288,6 @@ fn strong_initialization_fingerprint<D>(
             kind: DigestKind::ObjectDefinition,
             node: cell_definition_node,
             digest: *cell_definition.as_array(),
-        },
-        CanonicalDigestInputV1 {
-            kind: DigestKind::ObjectDefinition,
-            node: descriptor_definition_node,
-            digest: *descriptor_definition.as_array(),
         },
     ];
     if let Some(gateway) = gateway {

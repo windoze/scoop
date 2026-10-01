@@ -12,10 +12,7 @@ use scoop_lir::{
 
 use super::digest::validate_digest_graph;
 use super::physical::{atom_file_range, validate_objects, verified_member};
-use super::record::{
-    CELL_SIZE, COORDINATOR_SIZE, DESCRIPTOR_SIZE, validate_cell_bytes, validate_coordinator_bytes,
-    validate_record_bytes,
-};
+use super::record::{CELL_SIZE, DESCRIPTOR_SIZE, validate_cell_bytes, validate_record_bytes};
 use super::relocations::{VerifiedInitializationRelocationsV1, verify_relocations};
 use super::{
     InitializationArtifactRoleV1, InitializationRegistrationPatchFailureV1,
@@ -42,16 +39,7 @@ pub struct VerifiedStrongInitializationRegistrationV1 {
     cell_member: SlibMemberId,
     cell_primary_symbol_table_index: u32,
     cell_checked_offset: u64,
-    descriptor_member: SlibMemberId,
-    descriptor_primary_symbol_table_index: u32,
-    descriptor_checked_offset: u64,
     diagnostic_checked_offset: u64,
-    coordinator_diagnostic_relocation: VerifiedRelocationUseV1,
-    coordinator_cell_relocation: StrongRelocationBindingV1,
-    coordinator_storage_relocation: StrongRelocationBindingV1,
-    coordinator_failure_relocation: StrongRelocationBindingV1,
-    coordinator_initializer_relocation: StrongRelocationBindingV1,
-    coordinator_ensure_relocation: StrongRelocationBindingV1,
     registration_diagnostic_relocation: VerifiedRelocationUseV1,
     registration_cell_relocation: StrongRelocationBindingV1,
     registration_storage_relocation: StrongRelocationBindingV1,
@@ -92,44 +80,8 @@ impl VerifiedStrongInitializationRegistrationV1 {
         self.cell_checked_offset
     }
 
-    pub const fn descriptor_member(&self) -> SlibMemberId {
-        self.descriptor_member
-    }
-
-    pub const fn descriptor_primary_symbol_table_index(&self) -> u32 {
-        self.descriptor_primary_symbol_table_index
-    }
-
-    pub const fn descriptor_checked_offset(&self) -> u64 {
-        self.descriptor_checked_offset
-    }
-
     pub const fn diagnostic_checked_offset(&self) -> u64 {
         self.diagnostic_checked_offset
-    }
-
-    pub const fn coordinator_diagnostic_relocation(&self) -> &VerifiedRelocationUseV1 {
-        &self.coordinator_diagnostic_relocation
-    }
-
-    pub const fn coordinator_cell_relocation(&self) -> &StrongRelocationBindingV1 {
-        &self.coordinator_cell_relocation
-    }
-
-    pub const fn coordinator_storage_relocation(&self) -> &StrongRelocationBindingV1 {
-        &self.coordinator_storage_relocation
-    }
-
-    pub const fn coordinator_failure_relocation(&self) -> &StrongRelocationBindingV1 {
-        &self.coordinator_failure_relocation
-    }
-
-    pub const fn coordinator_initializer_relocation(&self) -> &StrongRelocationBindingV1 {
-        &self.coordinator_initializer_relocation
-    }
-
-    pub const fn coordinator_ensure_relocation(&self) -> &StrongRelocationBindingV1 {
-        &self.coordinator_ensure_relocation
     }
 
     pub const fn registration_diagnostic_relocation(&self) -> &VerifiedRelocationUseV1 {
@@ -170,7 +122,7 @@ impl VerifiedStrongInitializationRegistrationV1 {
 }
 
 /// Proof that every final-LIR initialization unit has exactly one canonical
-/// cell, coordinator descriptor, and provisional strong registration.
+/// cell and provisional initialization registration.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedStrongInitializationRegistrationSetV1<D = PersistentInitializationUnitId> {
     patch_sites: VerifiedScoopLirDigestPatchSiteSetV1,
@@ -279,30 +231,13 @@ where
         return Err(
             StrongInitializationRegistrationValidationError::RelocationMismatch {
                 unit: plan.semantic().unit(),
-                role: InitializationRelocationRoleV1::CoordinatorCell,
+                role: InitializationRelocationRoleV1::RegistrationCell,
                 kind: InitializationRelocationFailureV1::Count,
             },
         );
     }
     validate_cell_bytes(objects[&cell_member], cell_start, plan)?;
     debug_assert_eq!(cell_end - cell_start, CELL_SIZE as u64);
-
-    let descriptor_member =
-        required_scoop_member(builtins, plan, plan.descriptor_definition_plan())?;
-    let descriptor_index = verified_member(builtins, descriptor_member)?;
-    let (descriptor_primary_symbol_table_index, descriptor_start, descriptor_end) =
-        require_primary_atom(
-            descriptor_index,
-            plan,
-            plan.descriptor_definition_plan(),
-            plan.descriptor_primary_atom(),
-            InitializationArtifactRoleV1::CoordinatorDescriptor,
-            BuiltinObjectSectionRoleV1::ReadOnlyData,
-            COORDINATOR_SIZE as u64,
-        )?;
-    let diagnostic_checked_offset = require_diagnostic_atom(descriptor_index, plan)?;
-    validate_coordinator_bytes(objects[&descriptor_member], descriptor_start, plan)?;
-    debug_assert_eq!(descriptor_end - descriptor_start, COORDINATOR_SIZE as u64);
 
     let member = required_scoop_member(builtins, plan, plan.registration_definition_plan())?;
     let registration_index = verified_member(builtins, member)?;
@@ -315,16 +250,11 @@ where
         BuiltinObjectSectionRoleV1::ReadOnlyData,
         DESCRIPTOR_SIZE as u64,
     )?;
+    let diagnostic_checked_offset = require_diagnostic_atom(registration_index, plan)?;
     validate_record_bytes(objects[&member], checked_offset, plan)?;
     debug_assert_eq!(registration_end - checked_offset, DESCRIPTOR_SIZE as u64);
 
-    let relocations = verify_relocations(
-        patch_sites,
-        objects,
-        descriptor_index,
-        registration_index,
-        plan,
-    )?;
+    let relocations = verify_relocations(patch_sites, objects, registration_index, plan)?;
     let registration_definition_patch = require_patch(
         patch_sites,
         plan,
@@ -361,9 +291,6 @@ where
         cell_member,
         cell_primary_symbol_table_index,
         cell_start,
-        descriptor_member,
-        descriptor_primary_symbol_table_index,
-        descriptor_start,
         diagnostic_checked_offset,
         relocations,
         registration_definition_patch,
@@ -377,7 +304,7 @@ fn require_diagnostic_atom<D>(
 ) -> Result<u64, StrongInitializationRegistrationValidationError> {
     let definition = member
         .definitions()
-        .definition(plan.descriptor_definition_plan())
+        .definition(plan.registration_definition_plan())
         .expect("descriptor primary validation already proved the definition");
     let atom = definition
         .atoms()
@@ -432,9 +359,6 @@ fn build_verified<D>(
     cell_member: SlibMemberId,
     cell_primary_symbol_table_index: u32,
     cell_checked_offset: u64,
-    descriptor_member: SlibMemberId,
-    descriptor_primary_symbol_table_index: u32,
-    descriptor_checked_offset: u64,
     diagnostic_checked_offset: u64,
     relocations: VerifiedInitializationRelocationsV1,
     registration_definition_patch: VerifiedMaterializedPatchSiteV1,
@@ -448,16 +372,7 @@ fn build_verified<D>(
         cell_member,
         cell_primary_symbol_table_index,
         cell_checked_offset,
-        descriptor_member,
-        descriptor_primary_symbol_table_index,
-        descriptor_checked_offset,
         diagnostic_checked_offset,
-        coordinator_diagnostic_relocation: relocations.coordinator_diagnostic,
-        coordinator_cell_relocation: relocations.coordinator_cell,
-        coordinator_storage_relocation: relocations.coordinator_storage,
-        coordinator_failure_relocation: relocations.coordinator_failure,
-        coordinator_initializer_relocation: relocations.coordinator_initializer,
-        coordinator_ensure_relocation: relocations.coordinator_ensure,
         registration_diagnostic_relocation: relocations.registration_diagnostic,
         registration_cell_relocation: relocations.registration_cell,
         registration_storage_relocation: relocations.registration_storage,

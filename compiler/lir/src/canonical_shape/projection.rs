@@ -12,7 +12,6 @@ pub(super) enum ShapeContent<'a> {
     Immortal(StrongImmortalObjectSemanticPlanV1, &'a str),
     Storage(&'a StrongStaticStorageSemanticPlanV1),
     InitializationCell(scoop_identity::PersistentInitializationUnitId),
-    InitializationDescriptor(&'a InitializationUnit),
 }
 
 pub(super) struct ShapeContents<'a> {
@@ -108,7 +107,7 @@ impl<'a> ShapeContents<'a> {
         for (_, unit) in module.initialization_units.iter() {
             values.insert(
                 StrongDefinitionEntity::initialization_unit(unit.identity.id()),
-                ShapeContent::InitializationDescriptor(unit),
+                ShapeContent::InitializationCell(unit.identity.id()),
             );
         }
         Self { values }
@@ -117,15 +116,8 @@ impl<'a> ShapeContents<'a> {
     pub(super) fn get(
         &self,
         entity: StrongDefinitionEntity,
-        role: scoop_identity::OdrMemberRole,
+        _role: scoop_identity::OdrMemberRole,
     ) -> Option<ShapeContent<'a>> {
-        match self.values.get(&entity).copied() {
-            Some(ShapeContent::InitializationDescriptor(unit))
-                if role == scoop_identity::OdrMemberRole::InitializationCell =>
-            {
-                Some(ShapeContent::InitializationCell(unit.identity.id()))
-            }
-            content => content,
-        }
+        self.values.get(&entity).copied()
     }
 }

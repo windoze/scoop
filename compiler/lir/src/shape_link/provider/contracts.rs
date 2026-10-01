@@ -133,7 +133,7 @@ impl<'a> ShapeLinkProviderV1<'a> {
             Subject::StaticStorage(_)
             | Subject::StaticStorageRegistration(_)
             | Subject::InitializationCell(_)
-            | Subject::InitializationDescriptor(_) => self.support_contract(subject, physical)?,
+            | Subject::InitializationRegistration(_) => self.support_contract(subject, physical)?,
         })
     }
 }

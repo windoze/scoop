@@ -1,16 +1,13 @@
-use scoop_lir::{
-    StrongInitializationRegistrationSchedulePlanV1, StrongInitializationUnitRegistrationPlan,
-};
+use scoop_lir::StrongInitializationUnitRegistrationPlan;
 
 use super::{InitializationArtifactRoleV1, StrongInitializationRegistrationValidationError};
 
 const DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5049_4e49;
-pub(in crate::link_object) const ABI_VERSION: u32 = 2;
+pub(in crate::link_object) const ABI_VERSION: u32 = 3;
 const DEFINITION_FINGERPRINT_OFFSET: usize = 120;
 const GATEWAY_DEFINITION_FINGERPRINT_OFFSET: usize = 312;
 const DIGEST_WIDTH: usize = 32;
 pub(super) const CELL_SIZE: usize = 16;
-pub(super) const COORDINATOR_SIZE: usize = 88;
 pub(in crate::link_object) const DESCRIPTOR_SIZE: usize = 352;
 
 pub(super) fn validate_cell_bytes<D>(
@@ -24,20 +21,6 @@ pub(super) fn validate_cell_bytes<D>(
         &[0; CELL_SIZE],
         plan,
         InitializationArtifactRoleV1::Cell,
-    )
-}
-
-pub(super) fn validate_coordinator_bytes<D>(
-    object: &[u8],
-    file_start: u64,
-    plan: &StrongInitializationUnitRegistrationPlan<D>,
-) -> Result<(), StrongInitializationRegistrationValidationError> {
-    validate_bytes(
-        object,
-        file_start,
-        &expected_coordinator(plan),
-        plan,
-        InitializationArtifactRoleV1::CoordinatorDescriptor,
     )
 }
 
@@ -88,19 +71,6 @@ fn validate_bytes<D>(
         );
     }
     Ok(())
-}
-
-pub(super) fn expected_coordinator<D>(
-    plan: &StrongInitializationUnitRegistrationPlan<D>,
-) -> [u8; COORDINATOR_SIZE] {
-    let mut bytes = [0; COORDINATOR_SIZE];
-    let schedule = match plan.schedule() {
-        StrongInitializationRegistrationSchedulePlanV1::EagerStartup { .. } => 0,
-        StrongInitializationRegistrationSchedulePlanV1::LazyAccess => 1,
-    };
-    write_u64(&mut bytes, 0, schedule);
-    bytes[8..40].copy_from_slice(plan.semantic().unit().as_array());
-    bytes
 }
 
 pub(super) fn expected_record<D>(

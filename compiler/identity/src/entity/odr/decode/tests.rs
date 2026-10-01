@@ -180,6 +180,9 @@ fn decoders_reject_empty_specialization_arguments_and_unknown_tags() {
     let error = decode_canonical::<DecodedSpecializationKey>(b"\xa1\x00\x05").unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 5 });
 
+    let error = decode_canonical::<OdrMemberRole>(b"\x0b").unwrap_err();
+    assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 11 });
+
     let error = decode_canonical::<OdrMemberRole>(b"\x11").unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 17 });
 
@@ -237,10 +240,6 @@ fn member_cases() -> Vec<(OdrMemberRole, OdrMemberDiscriminator)> {
         (R::ImmortalObject, D::ImmortalObject(immortal_object())),
         (
             R::InitializationCell,
-            D::InitializationUnit(initialization_unit()),
-        ),
-        (
-            R::InitializationDescriptor,
             D::InitializationUnit(initialization_unit()),
         ),
         (R::RegistrationRecord, D::CallableBody(callable_body())),

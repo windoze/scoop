@@ -5,7 +5,7 @@ fn shape_link_canonical_table_sorts_real_imports_and_rejects_duplicate_or_wire_o
     let fixture = ProviderFixture::new(false);
     let provider = fixture.provider();
     let imports = [
-        Subject::InitializationDescriptor(fixture.unit().unit()),
+        Subject::InitializationRegistration(fixture.unit().unit()),
         Subject::StaticStorage(fixture.unit().storage()),
     ]
     .map(|subject| {

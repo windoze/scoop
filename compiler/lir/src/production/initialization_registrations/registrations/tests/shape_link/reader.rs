@@ -16,7 +16,7 @@ fn shape_link_artifact_reader_uses_the_replayed_strong_v2_semantic_plans() {
         dispatch: layout_abi.dispatch(),
     })
     .unwrap();
-    let subject = Subject::InitializationDescriptor(fixture.unit().unit());
+    let subject = Subject::InitializationRegistration(fixture.unit().unit());
     let from_reader =
         ExternalShapeLinkImportV1::replay(&provider, subject, ConeIdentity::CORE).unwrap();
     let from_producer =

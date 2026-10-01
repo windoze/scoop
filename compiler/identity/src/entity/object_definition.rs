@@ -139,7 +139,6 @@ pub enum StrongDefinitionRole {
     DispatchTable,
     DispatchSlot,
     InitializationCell,
-    InitializationDescriptor,
     RootRegistration,
     ImmortalRegistration,
     InitializationRegistration,
@@ -163,7 +162,6 @@ impl WireEncode for StrongDefinitionRole {
             Self::DispatchTable => 7,
             Self::DispatchSlot => 8,
             Self::InitializationCell => 9,
-            Self::InitializationDescriptor => 10,
             Self::RootRegistration => 11,
             Self::ImmortalRegistration => 12,
             Self::InitializationRegistration => 13,
@@ -306,10 +304,6 @@ impl StrongDefinitionEntity {
                 StrongDefinitionEntityKind::InitializationUnit(id),
                 StrongDefinitionRole::InitializationCell,
             ) => Some(PersistentSymbolKey::InitializationCell(id)),
-            (
-                StrongDefinitionEntityKind::InitializationUnit(id),
-                StrongDefinitionRole::InitializationDescriptor,
-            ) => Some(PersistentSymbolKey::InitializationDescriptor(id)),
             (
                 StrongDefinitionEntityKind::StaticStorage(id),
                 StrongDefinitionRole::RootRegistration,
@@ -566,7 +560,7 @@ mod tests {
         PersistentSymbolKey,
     };
 
-    const ALL_STRONG_ROLES: [StrongDefinitionRole; 19] = [
+    const ALL_STRONG_ROLES: [StrongDefinitionRole; 18] = [
         StrongDefinitionRole::CallableBody,
         StrongDefinitionRole::StaticStorage,
         StrongDefinitionRole::ImmortalObject,
@@ -576,7 +570,6 @@ mod tests {
         StrongDefinitionRole::DispatchTable,
         StrongDefinitionRole::DispatchSlot,
         StrongDefinitionRole::InitializationCell,
-        StrongDefinitionRole::InitializationDescriptor,
         StrongDefinitionRole::RootRegistration,
         StrongDefinitionRole::ImmortalRegistration,
         StrongDefinitionRole::InitializationRegistration,
@@ -635,11 +628,7 @@ mod tests {
             ),
             (
                 StrongDefinitionEntity::initialization_unit(PersistentInitializationUnitId(bytes)),
-                &[
-                    R::InitializationCell,
-                    R::InitializationDescriptor,
-                    R::InitializationRegistration,
-                ],
+                &[R::InitializationCell, R::InitializationRegistration],
             ),
             (
                 StrongDefinitionEntity::safepoint_site(PersistentSafepointSiteId(bytes)),
@@ -759,11 +748,6 @@ mod tests {
                 StrongDefinitionEntity::initialization_unit(initialization),
                 R::InitializationCell,
                 PersistentSymbolKey::InitializationCell(initialization),
-            ),
-            (
-                StrongDefinitionEntity::initialization_unit(initialization),
-                R::InitializationDescriptor,
-                PersistentSymbolKey::InitializationDescriptor(initialization),
             ),
             (
                 StrongDefinitionEntity::static_storage(storage),

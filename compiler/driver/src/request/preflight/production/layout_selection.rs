@@ -82,7 +82,7 @@ pub(in crate::request::preflight) fn select_lir_dependencies<'a>(
     physical.extend(initialization.into_iter().map(|(provider, unit)| {
         (
             provider,
-            lir::ExternalStrongShapeSubjectV1::InitializationDescriptor(unit),
+            lir::ExternalStrongShapeSubjectV1::InitializationRegistration(unit),
         )
     }));
     roots.sort_unstable();

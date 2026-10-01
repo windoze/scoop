@@ -49,7 +49,6 @@ pub(super) fn build_registration<D: crate::StrongInitializationDependencyReferen
         );
     }
     let registration_primary_atom = require_primary_atom(foundation, registration_definition.id())?;
-    require_associated_atoms(foundation, unit, registration_definition.id(), [])?;
     let registration_symbol = require_symbol(
         foundation,
         PersistentSymbolKey::InitializationRegistration(unit),
@@ -66,26 +65,15 @@ pub(super) fn build_registration<D: crate::StrongInitializationDependencyReferen
         identity.owner().linkage(),
     )?;
 
-    let descriptor_definition = require_definition(
-        foundation,
-        entity,
-        StrongDefinitionRole::InitializationDescriptor,
-    )?;
-    let descriptor_primary_atom = require_primary_atom(foundation, descriptor_definition.id())?;
     let [diagnostic_atom] = require_associated_atoms(
         foundation,
         unit,
-        descriptor_definition.id(),
+        registration_definition.id(),
         [ObjectDefinitionAtomKey::new(
-            descriptor_definition.id(),
+            registration_definition.id(),
             DefinitionAtomRole::AddressTakenConstant,
             DefinitionAtomSubkey::InitializationUnit(unit),
         )],
-    )?;
-    let descriptor_symbol = require_symbol(
-        foundation,
-        PersistentSymbolKey::InitializationDescriptor(unit),
-        identity.owner().linkage(),
     )?;
 
     let storage = require_static_storage(foundation, identities, semantic.storage(), digests)?;
@@ -101,11 +89,6 @@ pub(super) fn build_registration<D: crate::StrongInitializationDependencyReferen
     )?;
     let cell_object =
         require_leaf_object_node(digests, cell_primary_atom, InitializationObjectLeafV1::Cell)?;
-    let descriptor_object = require_leaf_object_node(
-        digests,
-        descriptor_primary_atom,
-        InitializationObjectLeafV1::Descriptor,
-    )?;
     let registration_fingerprint = require_digest_node(
         digests,
         identity.owner().digest_key(registration_definition.id()),
@@ -123,7 +106,6 @@ pub(super) fn build_registration<D: crate::StrongInitializationDependencyReferen
     let mut expected_inputs = vec![
         DigestInputRefV1::from_node(registration_object),
         DigestInputRefV1::from_node(cell_object),
-        DigestInputRefV1::from_node(descriptor_object),
     ];
     let schedule = match semantic.schedule() {
         StrongInitializationSchedulePlanV1::EagerStartup { gateway } => {
@@ -189,9 +171,6 @@ pub(super) fn build_registration<D: crate::StrongInitializationDependencyReferen
         cell_symbol,
         cell_definition_plan: cell_definition.id(),
         cell_primary_atom,
-        descriptor_symbol,
-        descriptor_definition_plan: descriptor_definition.id(),
-        descriptor_primary_atom,
         diagnostic_atom,
         storage,
         failure_root,
@@ -200,7 +179,6 @@ pub(super) fn build_registration<D: crate::StrongInitializationDependencyReferen
         schedule,
         registration_object_node: registration_object.id(),
         cell_definition_node: cell_object.id(),
-        descriptor_definition_node: descriptor_object.id(),
         registration_fingerprint_node: registration_fingerprint.id(),
         registration_definition_patch,
     })

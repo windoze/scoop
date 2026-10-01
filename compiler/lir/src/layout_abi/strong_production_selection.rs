@@ -130,6 +130,6 @@ fn semantic_target(
         Subject::StaticStorage(_)
         | Subject::StaticStorageRegistration(_)
         | Subject::InitializationCell(_)
-        | Subject::InitializationDescriptor(_) => None,
+        | Subject::InitializationRegistration(_) => None,
     })
 }
