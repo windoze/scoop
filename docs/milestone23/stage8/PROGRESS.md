@@ -101,6 +101,13 @@
 - C fixture 同时覆盖 null 空表、有效非空表和不可读非空指针。格式化与全 workspace/all-targets Clippy 通过；登记专项通过，4 项完整 generic bound 独立/组合/反例测试全部通过，包含普通及 moving-GC stress 运行。
 - 全量回归仍在收集剩余格式与运行结果；并发功能提交后清理专用 target，共释放 1.5 GiB，清理后重新完成 Clippy 与实际配套 scoopc 构建。
 
+## 14. ABI/profile 迁移的固定向量与产物快照
+
+- 同步 2 个缓存固定向量及实际 ODR body/registration/safepoint 的 5 个摘要字段。原 body/site 身份、逻辑 ABI 和 LIR 向量保持；缓存 24 项及实际泛型机器产物专项在未开启自动更新时通过。
+- 受控重建 56 份快照，其中 45 份为 artifact fingerprint 快照。去除摘要后的差异只有：旧 coordinator 的摘要节点和符号/引用数量减少，以及发布 profile `/1` → `/2`。HIR/MIR 和其他语言结构没有变更；非摘要差异均逐项核对。
+- 带 1/3 个初始化单元的 production 分别减少 1/3 个摘要节点；符号集合按每个退役 coordinator 减少 3 个物理符号及 2 个引用，与删除的旧 atom/range 和 descriptor 关联一致。
+- 25 项 core/layout/Link 组合完成快照生成及既有语义/对象/反例检查。本次生成运行不作为关闭更新开关的最终回归；随后完整 workspace 将显式清除所有 `SCOOP_UPDATE_*`、snapshot 目录覆盖、`INSTA_UPDATE` 和 `RUST_MIN_STACK`，使用配套 scoopc 重新验收。
+
 ## 待完成
 
 1. 完成既有静态值/ODR/重建 core 运行矩阵回归。
