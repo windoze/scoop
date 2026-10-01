@@ -1,0 +1,6 @@
+import startup.early.answer
+private fun trace(value: Long) { println(value) }
+fun main() {
+    if (answer() != 6L) { throw IllegalStateException() }
+    @Unsafe { trace(7L) }
+}

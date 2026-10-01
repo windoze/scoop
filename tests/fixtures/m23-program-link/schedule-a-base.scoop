@@ -1,0 +1,10 @@
+package schedule.base
+
+private fun trace(value: Long) { println(value) }
+
+public class Base public constructor(public val number: Int)
+private fun initialize(): Base {
+    @Unsafe { trace(10) }
+    return Base(10)
+}
+public val base: Base = initialize()

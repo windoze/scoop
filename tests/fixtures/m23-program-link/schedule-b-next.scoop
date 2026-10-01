@@ -1,0 +1,10 @@
+package schedule.next
+import schedule.base.*
+
+private fun trace(value: Long) { println(value) }
+
+private fun initialize(): Long {
+    @Unsafe { trace(20) }
+    return if (base.number == 10) { 20L } else { 0L }
+}
+public val next: Long = initialize()

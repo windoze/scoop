@@ -1,0 +1,5 @@
+import schedule.join.*
+
+private fun trace(value: Long) { println(value) }
+
+fun main() { @Unsafe { trace(joined + 10L) } }
