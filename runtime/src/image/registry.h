@@ -1,0 +1,53 @@
+#ifndef SCOOP_IMAGE_REGISTRY_H
+#define SCOOP_IMAGE_REGISTRY_H
+
+#include "../platform/platform.h"
+#include "scoop_runtime_metadata_v1.h"
+
+/* Each table has its own semantic ID namespace. These are the six concrete
+ * metadata kinds in the runtime ABI, not extensible registration providers. */
+typedef enum ScoopRecordKind {
+    SCOOP_RECORD_STORAGE,
+    SCOOP_RECORD_IMMORTAL,
+    SCOOP_RECORD_UNIT,
+    SCOOP_RECORD_TYPE,
+    SCOOP_RECORD_SITE,
+    SCOOP_RECORD_CALLABLE,
+    SCOOP_RECORD_KIND_COUNT
+} ScoopRecordKind;
+
+typedef struct ScoopRegisteredRecord {
+    const void *record;
+    const ScoopRegistrationIdentityV1 *identity;
+    const ScoopImageDescriptorV1 *producer;
+} ScoopRegisteredRecord;
+
+typedef struct ScoopRecordAddress {
+    uintptr_t address;
+    size_t index;
+} ScoopRecordAddress;
+
+typedef struct ScoopRecordTable {
+    ScoopRegisteredRecord *entries;
+    ScoopRecordAddress *addresses;
+    size_t count;
+} ScoopRecordTable;
+
+typedef struct ScoopImageRegistry {
+    const ScoopPlatformMetadataImages *loaded;
+    const ScoopImageDescriptorV1 **images;
+    const ScoopImageDescriptorV1 **image_order;
+    size_t image_count;
+    const ScoopRootEntryDescriptorV1 *root;
+    ScoopRecordTable tables[SCOOP_RECORD_KIND_COUNT];
+} ScoopImageRegistry;
+
+/* Collection has no managed side effects. Cross-record GC and initialization
+ * relations are resolved on the complete collection before publication. */
+ScoopImageRegistry *scoop_image_collect(const ScoopPlatformMetadataImages *loaded,
+                                        const ScoopImageDescriptorV1 *const *images,
+                                        uint64_t image_count,
+                                        const ScoopRootEntryDescriptorV1 *root);
+void scoop_image_registry_dispose(ScoopImageRegistry *registry);
+
+#endif

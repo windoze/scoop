@@ -25,6 +25,13 @@
 - 编译器将含地址修正的不可变元数据放入 `__DATA_CONST`；最终链接将 LLVM stackmap section 归入同一段。dyld 完成地址修正后，runtime 按实际 VM 权限要求两者只读。实机用含函数地址重定位的 stackmap 验证该约定；直接改变原段权限会触发 linker text-relocation 错误，因此设计和链接参数已同步采用 section 迁移。
 - 格式化与全 workspace/all-targets Clippy 通过；codegen/runtime 303 项、toolchain 9 项通过；实际 core 重建与产物消费组合测试通过（39.71 秒），未开启自动更新 golden。
 
+## 4. 多 image 收集、身份与依赖闭包
+
+- 增加按六种 record kind 分开的 ID/地址索引；所有 prefix、表和 byte span 先检查完整只读范围，再读取内容。ODR 只接受同址合并，Strong 重复 producer 拒绝；同组独立 helper member 取并集，并检查跨 kind 的 group/member 冲突。
+- 在完整 image 集合上检查 root 可达闭包、重复坐标/版本、缺失或重复 dependency、自环和环。Kahn 每次重新选取当前 ready set 的最小坐标，返回唯一 image 顺序。
+- C 测试使用带不可读 guard page 的只读映射，覆盖六类相同 ID bytes 的独立命名空间、ODR helper 并集、反向输入枚举和 23 种损坏情况。动态 ready-order 用例明确区分逐次 Kahn 和按层排序。
+- 格式化与全 workspace/all-targets Clippy 通过；codegen/runtime 304 项、toolchain 9 项通过。收集接口尚未发布给 GC；类型、静态根和初始化关系将基于此完整集合继续解析。
+
 ## 待完成
 
 2. 多 image 六类记录、类型/scan、静态 roots、immortal 与初始化关系登记。

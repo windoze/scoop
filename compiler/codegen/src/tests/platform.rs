@@ -1,4 +1,40 @@
 #[test]
+fn runtime_collects_complete_image_registrations_before_execution() {
+    let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(std::path::Path::parent)
+        .unwrap();
+    let binary = std::env::temp_dir().join(format!("scoop_image_registry_{}", std::process::id()));
+    let mut command = std::process::Command::new("cc");
+    command.args(["-std=c11", "-Wall", "-Wextra", "-Werror"]);
+    command.arg("-I").arg(workspace.join("runtime/include"));
+    for source in [
+        "runtime/src/image/ranges.c",
+        "runtime/src/image/checks.c",
+        "runtime/src/image/dependencies.c",
+        "runtime/src/image/records.c",
+        "runtime/src/image/registry.c",
+        "runtime/tests/image_registry_test.c",
+    ] {
+        command.arg(workspace.join(source));
+    }
+    let compile = command.arg("-o").arg(&binary).output().unwrap();
+    assert!(
+        compile.status.success(),
+        "{}",
+        String::from_utf8_lossy(&compile.stderr)
+    );
+    let output = std::process::Command::new(&binary).output().unwrap();
+    std::fs::remove_file(&binary).unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.stdout, b"image registry collection tests passed\n");
+}
+
+#[test]
 fn loaded_image_ranges_use_current_vm_permissions() {
     let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
