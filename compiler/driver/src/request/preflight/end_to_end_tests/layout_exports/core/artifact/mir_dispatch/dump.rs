@@ -59,7 +59,7 @@ pub(super) fn check(replay: &Replay<'_>, name: &str) {
                 .iter()
                 .map(|id| exact(*id))
                 .collect::<Vec<_>>();
-            let receiver = signature.exact().receiver().into_option().map(&exact);
+            let receiver = signature.exact().receiver().into_option().map(exact);
             rows.push(format!(
                 "mir {owner} interface-slot[{}]: {:?} {:?} ({receiver:?}; {parameters:?}) -> {} {:?}\n",
                 slot.position().get(),
@@ -86,7 +86,7 @@ pub(super) fn check(replay: &Replay<'_>, name: &str) {
                     .iter()
                     .map(|id| exact(*id))
                     .collect::<Vec<_>>();
-                let receiver = signature.exact().receiver().into_option().map(&exact);
+                let receiver = signature.exact().receiver().into_option().map(exact);
                 rows.push(format!(
                     "mir {owner} {table}[{}]: {} {:?} ({receiver:?}; {parameters:?}) -> {} {:?}\n",
                     entry.position().get(),

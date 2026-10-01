@@ -56,16 +56,15 @@ pub fn validate_type_registration_constituents_v2(
     digests: &DigestFinalizationPlanV1,
 ) -> Result<crate::StrongTypeDescriptorSemanticPlanSetV2, StrongRegistrationProductionValidationError>
 {
-    for actual in [definitions.consumer()] {
-        if actual != foundation.producer() {
-            return Err(
-                crate::StrongTypeReferenceResolutionErrorV2::ProducerMismatch {
-                    expected: foundation.producer(),
-                    actual,
-                }
-                .into(),
-            );
-        }
+    let actual = definitions.consumer();
+    if actual != foundation.producer() {
+        return Err(
+            crate::StrongTypeReferenceResolutionErrorV2::ProducerMismatch {
+                expected: foundation.producer(),
+                actual,
+            }
+            .into(),
+        );
     }
     validate_types_with_references(
         decoded,

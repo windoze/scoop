@@ -96,15 +96,14 @@ fn classify(
 ) -> Result<VerifiedCrossConeStrongRequirementClosureV1, CrossConeStrongRequirementValidationError>
 {
     let consumer = strong_closure.producer();
-    for bridge in [semantic_imports.consumer()] {
-        if consumer != bridge {
-            return Err(
-                CrossConeStrongRequirementValidationError::ConsumerMismatch {
-                    object: consumer,
-                    bridge,
-                },
-            );
-        }
+    let bridge = semantic_imports.consumer();
+    if consumer != bridge {
+        return Err(
+            CrossConeStrongRequirementValidationError::ConsumerMismatch {
+                object: consumer,
+                bridge,
+            },
+        );
     }
     let dependencies = dependency_index(consumer, dependency_owners)?;
     let normalization = target.contract().native_symbol_normalization();
