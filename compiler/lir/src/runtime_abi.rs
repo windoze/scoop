@@ -17,6 +17,9 @@ const RUNTIME_SYMBOL_CONTRACT_DOMAIN: &str = "scoop-runtime-symbol-contract-v1";
 const TARGET_EH_REQUIREMENT_DOMAIN: &str = "scoop-target-eh-requirement-v1";
 const INITIAL_SCHEMA: u64 = 1;
 
+mod machine;
+pub use machine::{CompilerNativeContractV1, CompilerNativeValueV1};
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct RuntimeAbiFingerprint([u8; 32]);
 

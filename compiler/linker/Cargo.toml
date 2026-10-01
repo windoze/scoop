@@ -11,3 +11,8 @@ scoop-slib.workspace = true
 scoop-toolchain.workspace = true
 scoop-wire.workspace = true
 tempfile.workspace = true
+clap.workspace = true
+
+[[bin]]
+name = "scoop-link"
+path = "src/main.rs"

@@ -1,7 +1,14 @@
 //! Artifact-only program linking and its ordinary runtime object inputs.
+mod artifacts;
+mod final_image;
+mod link;
 mod native_object;
+mod program;
 mod runtime;
+mod startup;
 
+pub use artifacts::{ArtifactLinkRequest, read_program_artifacts};
+pub use link::{ProgramLinkOutput, ResolvedLinkPlanFingerprint, link_program};
 pub use native_object::{NativeObjectInfo, NativeSymbolDefinition, NativeSymbolKind};
 pub use runtime::*;
 

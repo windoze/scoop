@@ -93,6 +93,10 @@ impl ValidatedFinalLinkProfile {
         &self.system
     }
 
+    pub fn linker_system_requirements(&self) -> &'static [&'static str] {
+        &["dyld_stub_binder"]
+    }
+
     pub fn fingerprint(&self) -> Result<Digest256, ToolchainError> {
         domain_separated_cbor_hash("scoop-final-link-profile-v1", self).map_err(error)
     }
@@ -124,7 +128,7 @@ impl ValidatedFinalLinkProfile {
 
 impl WireEncode for ValidatedFinalLinkProfile {
     fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        e.map(7)?;
+        e.map(8)?;
         e.field(1)?;
         self.target().wire_id().encode(e)?;
         e.field(2)?;
@@ -148,6 +152,11 @@ impl WireEncode for ValidatedFinalLinkProfile {
             e.text(&file.relative_path().to_string_lossy())?;
             e.field(2)?;
             file.digest().encode(e)?;
+        }
+        e.field(8)?;
+        e.array(self.linker_system_requirements().len() as u64)?;
+        for symbol in self.linker_system_requirements() {
+            e.text(symbol)?;
         }
         Ok(())
     }

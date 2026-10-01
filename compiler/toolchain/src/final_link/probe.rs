@@ -2,6 +2,13 @@ use super::*;
 use object::{Architecture, Object, ObjectKind, macho, read::macho::MachOFile64};
 
 pub(super) fn check(profile: &ValidatedFinalLinkProfile) -> Result<(), ToolchainError> {
+    for symbol in profile.linker_system_requirements() {
+        if !profile.system.exports().contains_key(*symbol) {
+            return Err(error(format!(
+                "SDK is missing linker support symbol {symbol}"
+            )));
+        }
+    }
     let directory = tempfile::Builder::new()
         .prefix("scoop-link-probe-")
         .tempdir()
