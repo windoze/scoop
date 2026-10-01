@@ -424,6 +424,7 @@ mod tests {
                 "-fno-stack-protector",
                 "-fno-unwind-tables",
                 "-fno-asynchronous-unwind-tables",
+                "-fno-builtin",
             ]
         );
         assert_eq!(

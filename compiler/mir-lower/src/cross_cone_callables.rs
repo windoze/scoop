@@ -88,7 +88,7 @@ impl SourceContract {
     fn new(effects: hir::CallableSourceEffectsV1, modality: hir::CallableModalityV1) -> Self {
         Self {
             execution: effects.execution(),
-            gc: match effects.gc_effect() {
+            gc: match effects.provider_entry_gc_effect() {
                 scoop_identity::GcEffect::Managed => mir::GcEffect::Managed,
                 scoop_identity::GcEffect::NoGc => mir::GcEffect::NoGc,
             },

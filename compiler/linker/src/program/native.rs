@@ -6,14 +6,19 @@ use crate::{NativeSymbolDefinition, NativeSymbolKind};
 
 mod contracts;
 
+struct Declarations<'a> {
+    contract: &'a NativeExternalContract,
+    origins: Vec<String>,
+    difference: Option<String>,
+}
+
 pub(super) fn resolve(
     closure: &ProgramLinkClosure,
     runtime: &RuntimeObjectSet,
     profile: &ValidatedFinalLinkProfile,
     inputs: &mut ProgramInputs<'_>,
 ) -> Result<(), LinkError> {
-    let mut declarations: BTreeMap<String, (&NativeExternalContract, Vec<String>)> =
-        BTreeMap::new();
+    let mut declarations: BTreeMap<String, Declarations<'_>> = BTreeMap::new();
     for (artifact, symbols) in closure.artifacts() {
         for requirement in symbols.native_requirements().contracts() {
             let symbol = String::from_utf8(
@@ -30,23 +35,41 @@ pub(super) fn resolve(
                 requirement.sources()
             );
             match declarations.get_mut(&symbol) {
-                Some((first, origins)) => {
-                    origins.push(origin);
-                    if *first != requirement.contract() {
-                        return Err(error(format!(
-                            "native contract conflict for {symbol}: {}; origins: {}",
-                            contracts::difference(first, requirement.contract()),
-                            origins.join(", ")
-                        )));
+                Some(existing) => {
+                    existing.origins.push(origin);
+                    if existing.contract != requirement.contract() && existing.difference.is_none()
+                    {
+                        existing.difference = Some(contracts::difference(
+                            existing.contract,
+                            requirement.contract(),
+                        ));
                     }
                 }
                 None => {
-                    declarations.insert(symbol, (requirement.contract(), vec![origin]));
+                    declarations.insert(
+                        symbol,
+                        Declarations {
+                            contract: requirement.contract(),
+                            origins: vec![origin],
+                            difference: None,
+                        },
+                    );
                 }
             }
         }
     }
-    for (symbol, (contract, origins)) in &declarations {
+    for (symbol, declarations) in &declarations {
+        let Declarations {
+            contract,
+            origins,
+            difference,
+        } = declarations;
+        if let Some(difference) = difference {
+            return Err(error(format!(
+                "native contract conflict for {symbol}: {difference}; origins: {}",
+                origins.join(", ")
+            )));
+        }
         if contract.library() != NativeLibraryBinding::DefaultNativeNamespace {
             return Err(error(format!(
                 "native input for {symbol} requires library {:?}, absent from the M23-9 runtime/system input set (additional providers belong to M23-10); origins: {}",
@@ -68,7 +91,8 @@ pub(super) fn resolve(
             )));
         }
         if let Some(definition) = runtime.symbols().definitions.get(symbol) {
-            check_kind(symbol, contract, *definition)?;
+            check_kind(symbol, contract, *definition)
+                .map_err(|err| error(format!("{err}; origins: {}", origins.join(", "))))?;
         } else if let Some(kind) = profile.system_provider().exports().get(symbol) {
             let tls = matches!(
                 contract,
@@ -87,7 +111,8 @@ pub(super) fn resolve(
                 origins.join(", ")
             )));
         }
-        contracts::check_compiler_contract(symbol, contract, profile, closure)?;
+        contracts::check_compiler_contract(symbol, contract, profile, closure)
+            .map_err(|err| error(format!("{err}; origins: {}", origins.join(", "))))?;
         inputs.requirements.insert(symbol.clone());
     }
     for symbol in &inputs.requirements {

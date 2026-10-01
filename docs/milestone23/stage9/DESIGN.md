@@ -178,6 +178,8 @@ Strong definition 只由其原 provider 贡献；consumer 不补同名实现。�
 
 alias target 使用定义方的现有 TD symbol/owner；provider 的版本、声明位置或重新构建造成 symbol 变化时自然跟随新产物。不得按固定 CORE digest、`String` 文本或“找到唯一 InlineBytes”反推目标。改建 core 和包含同名普通类型的 fixture 必须经过该路径。
 
+参数自由 source extern 的 provider generated-C canonical flags 包含 `-fno-builtin`（flag tag 13），保留普通 extern 的真实符号调用及其 relocation，旧 flag fingerprint 的产物与缓存需重建。入口包含 native transition 与 caller-root publication，其 Scoop callable effect 为 Managed；原 native callee 的 NoGc/Managed 合同保留在 source extern record 中，不能用于取消入口的边界切换。
+
 ## 6. 启动对象与固定 target 输入
 
 ### 6.1 启动对象只连接已有入口

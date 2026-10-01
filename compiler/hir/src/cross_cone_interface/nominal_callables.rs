@@ -40,7 +40,7 @@ impl NominalExactLeafClassifierV1 {
         Ok(Some(ParamFreeNominalCallableV1 {
             implementation,
             signature,
-            gc_effect: callable.effects().gc_effect(),
+            gc_effect: callable.effects().provider_entry_gc_effect(),
             modality: callable.modality(),
         }))
     }

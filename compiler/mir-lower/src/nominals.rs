@@ -367,7 +367,11 @@ impl Lowerer {
         let function = &module.functions[hir_id];
         let name = fn_name(function);
         let id = self.functions.alloc(mir::Function {
-            gc_effect: lower_gc_effect(function.attributes.gc_effect),
+            gc_effect: if matches!(function.kind, hir::FunctionKind::Extern(_)) {
+                mir::GcEffect::Managed
+            } else {
+                lower_gc_effect(function.attributes.gc_effect)
+            },
             name,
             // Filled in when the body is lowered below.
             params: Vec::new(),

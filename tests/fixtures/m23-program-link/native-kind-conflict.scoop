@@ -1,0 +1,4 @@
+@Extern(name = "scoop_rt_run_program")
+@Global
+private var wrong: ULong
+fun main() {}
