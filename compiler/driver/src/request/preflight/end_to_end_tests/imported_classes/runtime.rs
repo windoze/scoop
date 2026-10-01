@@ -76,7 +76,12 @@ pub(in super::super) fn read(
         ),
         target.c_bridge_toolchain().profile(),
     )
-    .unwrap()
+    .unwrap_or_else(|error| {
+        panic!(
+            "reading runtime closure for {:?}: {error:?}",
+            artifacts[current].artifact().summary().coordinate()
+        )
+    })
 }
 
 pub(in super::super) fn check(

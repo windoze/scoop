@@ -1,0 +1,4 @@
+package startup.later
+@Extern(name = "m23_trace") private fun trace(value: Long)
+private fun initialize(): Long { @Unsafe { trace(99L) }; return 99L }
+public val later: Long = initialize()

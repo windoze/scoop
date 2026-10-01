@@ -80,7 +80,14 @@
 - 增加 managed main、NoGC main、eager 三种正例及 23 种错误结构；包含缺 poll、poll 重排、错误 runtime/ensure 目标、catch 生命周期、错误 owner/failure storage、lazy gateway 和非法状态码。
 - 格式化与全 workspace/all-targets Clippy 通过；LIR 473 项、codegen/runtime 308 项通过；重建配套 scoopc 后，全部 3 项真实多 image 启动矩阵再次通过。上次提交后的专用 target 清理释放 893.7 MiB，清理后的 toolchain 9 项通过。
 
+## 11. 启动生命周期、lazy 失败与实际初始化环
+
+- 新增实际 3+ Cone 运行组合：六层 eager 提前 ensure、未访问 lazy 无副作用、lazy 失败不重试及其内部引用跨移动 GC 保留、间接初始化环和 initializer 内捕获自身环后成功。eager provider 失败时，后续依赖单元和 main 均未执行。
+- 重复启动和 initializer 内 C 重入沿同一 startup 入口拒绝；实际 image 输入为空或缺失 core 时，在任何 eager 副作用之前失败。所有 provider 源码在消费前移走，完整 8 项启动矩阵在普通与 moving-GC stress 模式均通过。
+- 将逐次 gateway wrapper 单独放入短文件，focused C 测试直接调用生产 wrapper。覆盖非法状态码、空 failure root、错误 unit 状态，以及另一线程真正移动异常后从稳定 slot 报告 root/unit 失败。
+- 格式化与全 workspace/all-targets Clippy 通过；codegen/runtime 309 项通过。实际循环 fixture 解构 Option 后比较保存的 String 引用，验证 failure payload 的存活，不依赖额外的聚合值相等调用。
+
 ## 待完成
 
-1. 扩展真实启动矩阵：early ensure、lazy 失败/环、静态值/ODR/重建 core 组合、生命周期与失败 invariant。
+1. 补充多名初始化等待者与真实移动 GC 的组合，并完成既有静态值/ODR/重建 core 运行矩阵回归。
 2. 同步全部受格式变化影响的 golden，运行配套 scoopc 的完整 workspace 回归，整理验收文档并清理 target。

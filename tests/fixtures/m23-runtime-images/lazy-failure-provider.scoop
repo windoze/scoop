@@ -1,0 +1,15 @@
+package startup.lazy
+@Extern(name = "m23_trace") private fun trace(value: Long)
+public class Box public constructor(public val value: Long)
+public class Fault public constructor(public val payload: Box) : Throwable()
+private var attempts: Int = 0
+private fun fail(): Long {
+    attempts += 1
+    @Unsafe { trace(1L) }
+    throw Fault(Box(42L))
+}
+private object Broken { val value: Long = fail() }
+private object Unused { val value: Long = if (true) { @Unsafe { trace(99L) }; throw IllegalStateException() } else { 0L } }
+public fun readFailure(): Long = Broken.value
+public fun unused(): Long = Unused.value
+public fun count(): Int = attempts

@@ -43,6 +43,7 @@ impl ResolvedTargetProfile {
                     "runtime/src/rt.c",
                     "runtime/src/startup.c",
                     "runtime/src/startup/failure.c",
+                    "runtime/src/startup/gateway.c",
                     "runtime/src/boxing.c",
                     "runtime/src/arrays.c",
                     "runtime/src/value_shape.c",

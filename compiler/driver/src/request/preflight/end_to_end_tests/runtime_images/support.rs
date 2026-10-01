@@ -67,8 +67,13 @@ pub(super) fn run(
     )
     .unwrap();
     let executable = runtime::link_program(target, &closure, library, &template, directory);
+    check_runs(&executable, expected, failure);
+}
+
+pub(super) fn check_runs(executable: &Path, expected: &str, failure: Option<&str>) {
+    let directory = executable.parent().unwrap();
     for stress in [false, true] {
-        let mut command = std::process::Command::new(&executable);
+        let mut command = std::process::Command::new(executable);
         command.env_remove("SCOOP_GC_STRESS_MOVE");
         if stress {
             command.env("SCOOP_GC_STRESS_MOVE", "1");

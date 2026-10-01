@@ -1,0 +1,6 @@
+import startup.early.answer
+@Extern(name = "m23_trace") private fun trace(value: Long)
+fun main() {
+    if (answer() != 6L) { throw IllegalStateException() }
+    @Unsafe { trace(7L) }
+}

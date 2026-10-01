@@ -1,0 +1,16 @@
+import startup.lazy.*
+@Extern(name = "m23_trace") private fun trace(value: Long)
+private fun failure(): Fault = try {
+    readFailure()
+    throw IllegalStateException()
+} catch (error: Fault) { error }
+fun main() {
+    val first = failure()
+    val allocated = Box(7L)
+    val second = failure()
+    if (count() != 1 || first.payload.value != 42L ||
+        first.payload !== second.payload || allocated.value != 7L) {
+        throw IllegalStateException()
+    }
+    @Unsafe { trace(second.payload.value) }
+}

@@ -28,16 +28,6 @@ static const ScoopPlatformBundle *require_platform(void) {
     return bundle;
 }
 
-__attribute__((noinline)) static uint32_t call_gateway(uint32_t (*gateway)(void)) {
-    scoop_thread_enter_gateway(__builtin_frame_address(0));
-    uint32_t status = gateway();
-    scoop_thread_leave_managed();
-    if (status > 1) {
-        scoop_startup_fatal("gateway returned an invalid status");
-    }
-    return status;
-}
-
 int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *images,
                          uint64_t image_count,
                          const ScoopRootEntryDescriptorV1 *root_entry) {
@@ -67,11 +57,11 @@ int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *images,
     scoop_thread_attach_main();
     for (size_t index = 0; index < registry->eager_unit_count; index++) {
         const ScoopInitializationUnitDescriptorV1 *unit = registry->eager_units[index];
-        if (call_gateway(unit->startup_gateway) != 0) {
+        if (scoop_startup_call_gateway(unit->startup_gateway) != 0) {
             scoop_startup_report_failure(unit->failure_root, unit);
         }
     }
-    if (call_gateway(root_entry->gateway) != 0) {
+    if (scoop_startup_call_gateway(root_entry->gateway) != 0) {
         scoop_startup_report_failure(root_entry->failure_root, NULL);
     }
     scoop_callback_prepare_shutdown();

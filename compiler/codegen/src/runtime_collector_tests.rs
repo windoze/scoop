@@ -37,6 +37,8 @@ fn compile_and_run(
         "runtime/src/image/active.c",
         "runtime/tests/platform/image_fixture.c",
         "runtime/tests/platform/stackmap_fixture.c",
+        "runtime/src/startup/failure.c",
+        "runtime/src/startup/gateway.c",
         "runtime/src/boxing.c",
         "runtime/src/arrays.c",
         "runtime/src/value_shape.c",
@@ -273,4 +275,20 @@ fn runtime_scan_graphs_reuse_shared_children_and_reject_cycles() {
         String::from_utf8_lossy(&output.stderr)
     );
     assert_eq!(output.stdout, b"reference scan graph tests passed\n");
+}
+
+#[test]
+fn startup_gateway_statuses_and_failure_reporting_preserve_published_roots() {
+    let output = compile_and_run(
+        &workspace_root(),
+        "startup_gateway_test",
+        "runtime/tests/startup_gateway_test.c",
+        false,
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.stdout, b"startup gateway invariants passed\n");
 }
