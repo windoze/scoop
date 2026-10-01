@@ -1,0 +1,7 @@
+public class RebuiltCell<T> public constructor(public val value: T) {
+    public fun copy(): RebuiltCell<T> = RebuiltCell(this.value)
+}
+
+private fun <T> rebuiltHidden(value: T): RebuiltCell<T> = RebuiltCell(value)
+
+public fun <T> rebuiltCell(value: T): RebuiltCell<T> = rebuiltHidden(value)

@@ -1,0 +1,11 @@
+import consumer.rebuiltcore.exercise
+import consumer.rebuiltcore.result
+
+class Local(public val value: Int)
+
+public fun check(): Int {
+    if (result() != 42) { return 1 }
+    if (exercise(Local(42), { value: Local -> value.value }) != 42) { return 2 }
+    if (exercise(42, { value: Int -> value }) != 42) { return 3 }
+    return exercise(Unit, { value: Unit -> 42 })
+}

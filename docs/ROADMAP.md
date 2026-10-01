@@ -363,6 +363,7 @@ Strong production 的两种表示当前使用 `/13`、`/14`：删除初始化专
 - 函数静态／动态适配已覆盖指针装箱、嵌套函数、lambda 结果、接口继承、私有 tuple 签名和 generic delegate initializer，全部通过再次发布、真实链接和移动 GC。closure 使用精确 FunctionShape parent 及固定 Any 动态 invoke，下游目标集合不改变共同 TD；类型关系随 cone-production `/3` 和 runtime metadata ABI 2 发布。原有真实产物回归继续通过。
 - 跨 Cone 协程已接通实际 core 协议、状态机／函数型变、完整隐藏 ABI 和参数自由 source exact 的有限 start 发布；共有 MIR type bridge 升至 `/6`。再次发布、真实挂起／恢复、异常与 finally、值类型 task、24-byte 含引用结果以及调换 core 槽声明顺序均通过普通与移动 GC 运行。严格全仓 **5330 项**通过；M23-7 继续推进旧入口清理与最终全仓验收。
 - 保留四类 specialization 和既有 group/member identity；按重复 member 的完整 ABI、canonical LIR、对象/EH/stackmap 判等，独立 helper 的成员集合取并集。旧“同组全部成员必须相同”规则会拒绝不同源签名到同一目标类型的合法 adapter，现按实际定义与引用修订；不增加授权、预算或证明体系。不同源签名到共同目标类型的两组真实 sibling adapter 已完成独立成员并集、共同定义／ABI／对象比较、实际 TD 和派发地址合并，普通与移动 GC 均通过；不同 exact type 的 TD 保持不同址。
+- 重建 core 专项直接修改数组 iterator 正文并新增泛型 class／方法／函数及私有 helper，移走源码后完成实际消费、再次发布、转换构造、Option／函数引用和移动 GC；下游观察到提供方实际正文的新结果。
 - 真实泛型依赖缓存已验证正文、私有 helper、默认值、约束和实参类型变化的重编译范围；core 与未变节点命中缓存，6 轮重复输入的编译调用列表为空且产物字节一致。
 - 正式产物沿原完整 layout 路径切换到 `cross-cone-generic/1`，模板、定义目录、逐 member fingerprint 与缓存同步迁移；required section 按实际 payload 分步升级，不预填尚未实现的模板或保留平行发布器。完成门包含 provider 源码移走后的下游编译，以及现有单 image 验收入口的真实链接、地址合并、委托初始化/失败共享和移动 GC；生产多 image 启动与正式 program-link 仍留给 M23-8/9。
 

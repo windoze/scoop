@@ -756,10 +756,17 @@
 - 本批前执行 `cargo clean --target-dir target/m23-6a`，删除 **1627 个文件、2.1 GiB**，日志为 `/tmp/scoop-m23-7-pre-final-clean.log`。之后使用 Rust `opt-level=1`，保留 debug assertions 与整数溢出检查，并关闭增量和调试符号，降低大型实际产物检查的运行成本。
 - `cargo fmt --all`、`cargo clippy --workspace --all-targets`、实际配套 `scoopc` 构建及 slib **584 项**全部通过，无警告。关闭全部更新开关和测试栈覆盖的 workspace 回归 **37 个测试组、5332 passed、0 failed、0 ignored**；driver **217 项**全部通过，耗时 **344.73 秒**。日志及汇总为 `/tmp/scoop-m23-7-final-r2-workspace.log`、`/tmp/scoop-m23-7-final-r2-workspace-results.json`，实际编译器摘要与构建环境保存在 `/tmp/scoop-m23-7-final-r2-compiler.json`。
 
+## 2026-10-01：重建 core 数组正文与新增泛型声明
+
+- 新增 `m23-rebuilt-core-generics` 的 **4 份 Scoop 源码、6 份 HIR／MIR／LIR golden**。在测试目录中把 core 的 `Array`／`MutableArray` 源 `iterator` 正文改为从索引 1 开始，同时加入 `RebuiltCell<T>`、其公开构造／copy 方法、公开泛型工厂和私有泛型 helper。
+- 重建后的 core 具有不同的实际产物 fingerprint。移走 core 源码后，独立与组合 consumer 必须观察到修改后的迭代结果；再移走 consumer 源码，以第三个 Cone 的自有引用类型、Int 和 Unit 再次实例化、发布和运行。组合覆盖数组转换构造、Option、函数引用、泛型方法及移动 GC。
+- 该测试复用普通 core 构建、共有 reader、实际对象和既有运行入口，新增 Rust 模块 **108 行**。没有修改仓库中标准 core 的数组行为。
+- `cargo fmt --all`、`cargo clippy --workspace --all-targets` 与实际配套编译器构建通过，无警告。关闭全部快照更新及测试栈覆盖后的最终 workspace **37 个测试组、5333 passed、0 failed、0 ignored**；driver **218 项**全部通过，耗时 **346.62 秒**。slib 专项 **584 项**同样全部通过。日志、汇总和实际编译器摘要分别为 `/tmp/scoop-m23-7-final-r3-workspace.log`、`/tmp/scoop-m23-7-final-r3-workspace-results.json`、`/tmp/scoop-m23-7-final-r3-compiler.json`。
+
 ## 剩余主线
 
 [M23-6a 已验收](../stage6a/ACCEPTANCE.md)，普通宿主的封闭泛型父类型、整数范围、外来类型解构及函数值默认参数不再列为本阶段缺口。本阶段继续承担实际机器定义、ODR 和委托运行闭环，具体边界以修订后的 [设计](DESIGN.md) 为准。
 
-1. 补齐设计第 12 节中直接修改 core 数组迭代正文并新增泛型声明的实际产物证据，再记录逐项最终验收。
+1. 实现、实际 fixture 和最终全仓回归已完成，整理逐项验收记录并归档结果。
 
 验收始终以源码与实际产物为依据。最终必须逐项核对设计第 12、14 节，不能用局部单测替代跨 Cone 链接运行或宣布阶段完成。

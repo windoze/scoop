@@ -1,0 +1,183 @@
+Module
+  fun exercise<T>(seed: T0, read: (T0) -> Int): Int
+    val local2
+      ArrayLiteral : Array<T0>
+        Local seed : T0
+        Local seed : T0
+    val local3
+      Local immutable : Array<T0>
+    val local4
+      Local $argument.0 : Array<T0>
+    val local5
+      ArrayClone : MutableArray<T0>
+        Local $parameter.source : Array<T0>
+    val local6
+      VariantConstruct Option.None<T0> : Option<T0>
+    val local7
+      IntegerLiteral 0 : Int
+    val local8
+      Local mutable : MutableArray<T0>
+    val local9
+      Local $for.source.0 : MutableArray<T0>
+    val local10
+      MethodCall iterator<T0> : Iterator<T0>
+        Local $dependency.receiver : MutableArray<T0>
+    val local11
+      Local $for.iterator.result.1 : Iterator<T0>
+    while
+      condition setup
+        val local12
+          MethodCall Iterator.next<T0> : Option<T0>
+            Local $for.iterator.2 : Iterator<T0>
+      IsSome : Boolean
+        Local $for.next.3 : Option<T0>
+      val local13
+        Unwrap trap=false : T0
+          Local $for.next.3 : Option<T0>
+      val local14
+        Local $for.element.4 : T0
+      val local15
+        Local value : T0
+      val local16
+        Local $dependency.argument.0 : T0
+      assign saved
+        VariantConstruct Option.Some<T0> : Option<T0>
+          Local $dependency.parameter._1 : T0
+      val local17
+        Local count : Int
+      val local18
+        Local $old.5 : Int
+      val local19
+        IntegerLiteral 1 : Int
+      val local20
+        Local $dependency.argument.0 : Int
+      assign count
+        IntegerOperation int.add <no-gc> : Int
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+    val local21
+      Local count : Int
+    val local22
+      IntegerLiteral 1 : Int
+    val local23
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 2 : Int
+    val local24
+      Local mutable : MutableArray<T0>
+    val local25
+      Local $argument.0 : MutableArray<T0>
+    val local26
+      ArrayClone : Array<T0>
+        Local $parameter.source : MutableArray<T0>
+    val local27
+      IntegerLiteral 0 : Int
+    val local28
+      IntegerLiteral 0 : Int
+    val local29
+      Local copied : Array<T0>
+    val local30
+      Local $for.source.6 : Array<T0>
+    val local31
+      MethodCall iterator<T0> : Iterator<T0>
+        Local $dependency.receiver : Array<T0>
+    val local32
+      Local $for.iterator.result.7 : Iterator<T0>
+    while
+      condition setup
+        val local33
+          MethodCall Iterator.next<T0> : Option<T0>
+            Local $for.iterator.8 : Iterator<T0>
+      IsSome : Boolean
+        Local $for.next.9 : Option<T0>
+      val local34
+        Unwrap trap=false : T0
+          Local $for.next.9 : Option<T0>
+      val local35
+        Local $for.element.10 : T0
+      val local36
+        Local copiedCount : Int
+      val local37
+        Local $old.11 : Int
+      val local38
+        IntegerLiteral 1 : Int
+      val local39
+        Local $dependency.argument.0 : Int
+      assign copiedCount
+        IntegerOperation int.add <no-gc> : Int
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local43
+        Local read : (T0) -> Int
+      val local40
+        Local value : T0
+      val local41
+        Local $dependency.argument.0 : T0
+      val local42
+        Call rebuiltCell<T0> : RebuiltCell<T0>
+          Local $dependency.parameter.value : T0
+      assign result
+        CallableCall function_type0 : Int
+          Local $callable.receiver : (T0) -> Int
+          MethodCall value<T0> : T0
+            MethodCall copy<T0> : RebuiltCell<T0>
+              Local $dependency.receiver : RebuiltCell<T0>
+    val local44
+      Local copiedCount : Int
+    val local45
+      IntegerLiteral 1 : Int
+    val local46
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local50
+        BoolLiteral true : Boolean
+    else
+      val local47
+        Local result : Int
+      val local48
+        IntegerLiteral 42 : Int
+      val local49
+        Local $dependency.argument.0 : Int
+      val local50
+        Unary Not : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int
+            Local $dependency.parameter.other : Int
+    if
+      Local $shortCircuit.12 : Boolean
+      return
+        IntegerLiteral 3 : Int
+    val local51
+      CallableReference reference0 target=rebuiltCell<T0> captures=0 : (T0) -> RebuiltCell<T0>
+    return
+      CallableCall function_type0 : Int
+        Local read : (T0) -> Int
+        MethodCall value<T0> : T0
+          CallableCall function_type1 : RebuiltCell<T0>
+            Local build : (T0) -> RebuiltCell<T0>
+            Unwrap trap=true : T0
+              Local saved : Option<T0>
+  fun result(): Int
+    val local0
+      IntegerLiteral 42 : Int
+    val local1
+      Lambda lambda0 invoke=$lambda.0 captures=0 : (Int) -> Int
+    val local2
+      Local $argument.0 : Int
+    val local3
+      Local $argument.1 : (Int) -> Int
+    return
+      Call exercise<Int> : Int
+        Local $parameter.seed : Int
+        Local $parameter.read : (Int) -> Int
+  output library
+  instance exercise<Int>
