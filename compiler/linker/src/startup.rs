@@ -9,6 +9,7 @@ pub(crate) const IMAGE_ARRAY: &str = "_scoop_program_images";
 pub(crate) struct StartupObject {
     pub source: String,
     pub bytes: Vec<u8>,
+    pub references: BTreeSet<String>,
 }
 
 impl StartupObject {
@@ -69,6 +70,10 @@ impl StartupObject {
                 "startup object definitions or image/root/runtime references differ from its plan",
             ));
         }
-        Ok(Self { source, bytes })
+        Ok(Self {
+            source,
+            bytes,
+            references: info.requirements,
+        })
     }
 }

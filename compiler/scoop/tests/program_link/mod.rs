@@ -10,8 +10,11 @@ mod combinations;
 mod initialization;
 mod native;
 mod orchestration;
+mod plans;
 mod publication;
 mod siblings;
+
+pub use plans::assert_plan_snapshot;
 
 pub struct Environment {
     _directory: tempfile::TempDir,

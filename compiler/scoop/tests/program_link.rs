@@ -28,6 +28,7 @@ fn artifact_only_process_links_core_library_and_executable() {
     let result = environment.link(&root, &[&library], &executable);
     assert!(result.contains("program-link v1\n"), "{result}");
     assert!(result.contains("images=3 "), "{result}");
+    support::assert_plan_snapshot(&result);
     assert_eq!(run(&executable, false), "42\n");
     assert_eq!(run(&executable, true), "42\n");
 }

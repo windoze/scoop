@@ -183,6 +183,10 @@ fn dump(
         inputs.string_target
     ));
     text.push_str("link inputs: startup, cone/member order, runtime/object order, libSystem\n");
+    text.push_str("startup object references:\n");
+    for symbol in &startup.references {
+        text.push_str(&format!("  {symbol}\n"));
+    }
     text.push_str(&startup.source);
     text
 }
