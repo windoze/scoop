@@ -266,13 +266,15 @@ root gateway 的物化 call、unit descriptor relocation、startup poll 与新�
 | metadata prefix ABI | 3；八种 record 的字段/size、144-byte TD 固定部分保持 |
 | `cross-cone-generic` profile | /2 |
 | `cone-production` | /4 |
-| `cross-cone-layout-link-closure` | /3 |
+| `cross-cone-layout-link-closure` | /4 |
 | `link-identity-closure` | /8 |
 | `scoop-lir` object verifier | /4 |
 
 旧 `InitializationDescriptor` 的 mangler tag 10（`id`）、Strong role 10、ODR role 11 和 external shape subject tag 10 退役。保留原 `InitializationRegistration` / `RegistrationRecord`；external shape subject 新 tag 11 为 unit 的 registration。registration plan 退役 fields 15、16、17、26，保留其余编号，并从 dependency plan 删除同一 coordinator 分量。退役字段/tag 不复用，不用保留的名称暗换旧 layout。
 
 HIR `/43`、MIR type bridge `/6`、LIR layout ABI `/5`、manifest production `/2` 与 outer schema 1 不因 runtime 接通而升级。source/exact/application/unit/body/ODR group 的身份公式保持；删除的 member 不再进入目录，受影响的实际定义、ODR、profile 和 runtime ABI fingerprint 更新。
+
+实施核对：M23-7 的函数适配已经将 `cross-cone-layout-link-closure` 升至 `/3`，因此本阶段从 `/3` 升至 `/4`；不能以相同 major 发布不同 initialization subject 格式。
 
 新 reader/publisher/runtime 原子切换，core、provider、consumer、runtime 与构建缓存重建；旧 prefix ABI 及旧 profile 有明确拒绝测试。版本是设计目标，实际发布前不得把当前 Stage 7 的 ABI 2 标记为已迁移。M24 的 generic profile 顺延为 /3，prefixed record 继承 ABI 3；release-hook/TD/outer schema 的后续变更不混入本阶段。
 

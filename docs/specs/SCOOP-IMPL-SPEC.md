@@ -1392,7 +1392,7 @@ profile 的 required inventory 随实际 section 生产分步迁移，具体当�
 | runtime metadata `abi_version` | 2 → 3 | 私有 init entry 的 descriptor 参数改变；record 字段/size 与 144-byte TD 固定部分保持 |
 | `cross-cone-generic` profile | /1 → /2 | 原子选择新初始化生产与加载契约 |
 | LIR `cone-production` | /3 → /4 | 删除 coordinator atom/plan 和相应跨 Cone 引用 |
-| LIR `cross-cone-layout-link-closure` | /2 → /3 | 实际物理 subject 改为 initialization registration |
+| LIR `cross-cone-layout-link-closure` | /3 → /4 | 承接 M23-7 函数适配的 /3，实际物理 subject 改为 initialization registration |
 | LIR `link-identity-closure` | /7 → /8 | 相同物理 subject 进入真实 undefined requirement |
 | `scoop-lir` object verifier | /3 → /4 | 对象集合只含统一 unit record，删除旧 coordinator object 合同 |
 
