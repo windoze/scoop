@@ -23,8 +23,7 @@ use crate::link_object::{
 };
 
 mod projection;
-#[cfg(test)]
-use projection::distribution;
+pub(crate) use projection::distribution;
 pub(crate) use projection::{ProductionPlanInputs, verify_production_code_projection_common};
 
 mod wire;
@@ -357,10 +356,10 @@ fn verify_production_code_projection_v1(
     strong_production: ConeProductionSectionV1,
     link_objects: VerifiedCodeLinkObjectMemberSetV1,
 ) -> Result<VerifiedSingleConeProductionCodeProjectionV1, ProductionCodeProjectionError> {
+    projection::distribution(cone, dependency_identities, source_count)?;
     let projection = verify_production_code_projection_common(
         cone,
         dependency_identities,
-        source_count,
         ProductionPlanInputs::from(&strong_production),
         &link_objects,
     )?;
@@ -390,6 +389,7 @@ fn encode_array(
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ProductionCodeProjectionError {
+    InvalidSingleFileLinkRoot,
     ConeMismatch,
     DependencyMismatch,
     DigestPlanMismatch,

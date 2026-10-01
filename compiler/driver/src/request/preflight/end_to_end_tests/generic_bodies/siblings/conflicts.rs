@@ -114,6 +114,8 @@ fn check_conflicting_members(case: &str) {
     }
     let first = closures[0].artifact(identities[0]).unwrap();
     let second = closures[1].artifact(identities[1]).unwrap();
+    let first = (first.0.identity_graph(), first.1);
+    let second = (second.0.identity_graph(), second.1);
     let error = scoop_slib::merge_cross_cone_odr_definitions([first, second]).unwrap_err();
     let scoop_slib::OdrDefinitionMergeError::Conflict(conflict) = error else {
         panic!("expected a duplicate member conflict: {error:?}");

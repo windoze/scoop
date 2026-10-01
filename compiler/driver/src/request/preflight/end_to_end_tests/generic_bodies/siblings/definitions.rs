@@ -22,6 +22,7 @@ pub(super) fn check(
     let reversed = scoop_slib::merge_cross_cone_odr_definitions(
         closure
             .dependency_first()
+            .map(|(sections, artifact)| (sections.identity_graph(), artifact))
             .collect::<Vec<_>>()
             .into_iter()
             .rev(),
