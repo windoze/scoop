@@ -135,7 +135,7 @@ Strong production 的两种表示使用 `/11`、`/12`，删除初始化专用 AB
 | M23-7 | 跨 Cone generic、ODR 与 generic delegated extension（[详细设计](stage7/DESIGN.md)） | 消费 6a 的共同 HIR，闭合机器定义与引用、逐 member ODR、委托存储和真实运行 |
 | M23-8 | runtime multi-image registry 与启动（[详细设计](stage8/DESIGN.md)） | 统一 unit record、实际 image/registration 消费、逐次 gateway 握手与完整 stackmap |
 | M23-9 | 基础 artifact-only program-link（[详细设计](stage9/DESIGN.md)、[实际验收](stage9/ACCEPTANCE.md)） | 独立 Link reader、普通 runtime 对象、固定系统输入、启动对象与真实链接 |
-| M23-10 | 一般 native 输入与链接闭包（[详细设计](stage10/DESIGN.md)，设计完成、待实施） | 复用 extern 解析，增加 object/archive/provider 供应、实际成员选择、TLS／FFI、动态绑定与最终检查 |
+| M23-10 | 一般 native 输入与链接闭包（[详细设计](stage10/DESIGN.md)、[实际验收](stage10/ACCEPTANCE.md)） | 复用 extern 解析，增加 object/archive/provider 供应、实际成员选择、TLS／FFI、动态绑定与最终检查 |
 | M23-11 | umbrella CLI、单文件模式与总验收 | 正式工具边界、fixture迁移与旧路径删除 |
 
 persistent identity、mangler、container 和 section 使用显式版本管理；任何必要的合同修正先改 spec，再升级实际改变的 section/schema 和缓存，不以既有冻结条款保留错误分层。M23-6 的布局与 ABI 算法继续复用，M23-6a 统一语义表示与输入；实际机器适配若需要格式变化，按相同规则迁移。M23-7 及后续不得恢复 param-free/source-only 语义 gate、来源专用 HIR 或导入正文重建器。每个中间里程碑输出必须结构完备，未完成状态不能混入成功 IR 或通过旧管线回退。
@@ -2206,9 +2206,9 @@ Link 直接复用原 foundation 身份／合同，完整机器 ABI／布局原�
 
 ### M23-10：一般 native 输入与链接闭包
 
-详细设计见 [M23-10](stage10/DESIGN.md)，状态：设计完成、待实施（2026-10-02）。前置条件为已验收的 M23-9；设计状态不表示实际产物已验收。
+详细设计见 [M23-10](stage10/DESIGN.md)，状态：已完成并验收（2026-10-02）；真实产物、最终绑定、功能组合及完整回归见 [验收记录](stage10/ACCEPTANCE.md)。前置条件为已验收的 M23-9。
 
-本地调用、默认值、泛型实例和依赖调用均从 6a 共同 HIR 继承已选 native contract、effects 和完整类型，MIR/LIR 生成实际 ABI 与 requirement。本阶段只解析已有 requirement 对应的 native 输入，不能重跑 HIR 类型／重载选择或另建 generic native 前端。正负例复用共同 HIR 的直接／模板调用组合。
+本地调用、默认值、泛型实例和依赖调用均从 6a 共同 HIR 继承已选 native contract、effects 和完整类型，MIR/LIR 生成实际 ABI 与 requirement。补齐导入 global／TLS、GC intrinsic、callback 协议和泛型 FunPtr 的共有消费；program-link 只解析已有 requirement 对应的 native 输入，不能重跑 HIR 类型／重载选择或另建 generic native 前端。正负例复用共同 HIR 的直接／模板调用组合。
 
 扩展同一物理输入模型，增加 direct native object、static archive、一般 dylib/framework 的定位与供应。archive 由有限符号工作集选择，选中成员独立交给 ld；dynamic 保留真实 export/load/re-export 关系、two-level provider binding 和必要 RPATH。复用原 extern、对象、startup、map/trace 与 final verifier，不为 core 或普通库另开路径。CLI 或 fixture 只用 `--library-path` 为 artifact 已有逻辑 requirement 提供候选，不注入 raw `.o`、archive、linker option 或 script。
 

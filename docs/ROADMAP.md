@@ -389,9 +389,9 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 ### M23-10 一般 native 输入与链接闭包
 
-详细设计见 [M23-10](milestone23/stage10/DESIGN.md)，状态：设计完成、待实施（2026-10-02），前置条件为已验收的 M23-9。
+详细设计见 [M23-10](milestone23/stage10/DESIGN.md)，状态：已完成并验收（2026-10-02）；真实产物、功能组合、完整回归与分批提交见 [验收记录](milestone23/stage10/ACCEPTANCE.md)。前置条件为已验收的 M23-9。
 
-- 继承共同 HIR 已选的 native 签名／effects 和 MIR/LIR 的实际 ABI requirement；直接、默认值、泛型实例和依赖调用共用前端规则，本阶段只解析对应 native 输入。
+- 继承共同 HIR 已选的 native 签名／effects 和 MIR/LIR 的实际 ABI requirement；直接、默认值、泛型实例和依赖调用共用前端规则。补齐外来 global／TLS、GC intrinsic、callback 协议和泛型 FunPtr 的共有消费；program-link 只解析已有 requirement 对应的 native 输入。
 - 复用 M23-9 的 extern、对象、startup 与最终检查，增加 direct object/archive/dylib/framework 的明确候选解析；archive 在有限符号工作集中选择成员并独立交给 ld，dynamic 保留 export/load/re-export，从已选 binding 生成标准链接 stub 以保证重名 export 下的显式选库，并检查实际 two-level binding。输入快照、map/trace、全局数据／TLS 和实际 RPATH 均进入对应链接职责。
 - 普通 native 输入不要求 Scoop producer 来源凭证或通用 verifier/effect 框架；删除逐 selection/contribution/binding 的证明外层及未选 archive 成员的完整效果拒绝。不为不存在的调用方新增 blob handler、Cone 内 C/C++ producer 或 whole-archive 模式；unknown Link-required capability 继续诊断。
 - native 候选经 `.slib` 已有 typed requirement 和显式 `--library-path` 定位，不直接注入 raw `.o`、archive、linker option 或 script；全部 `LinkObject` 按原目录参与，非 link blob 永不误入。plan/profile 使用新的 v2 内容规则，实际 install name/RPATH 纳入摘要，既有 `.slib`、native ABI 和 runtime metadata ABI 3 保持；本阶段不实现 final-link cache。

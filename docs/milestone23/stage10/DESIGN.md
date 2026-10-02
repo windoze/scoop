@@ -1,6 +1,6 @@
 # M23-10 设计：一般 native 输入与链接闭包
 
-状态：设计完成，待实施（2026-10-02）。前置条件为已验收的 [M23-9](../stage9/ACCEPTANCE.md)；代码基线为 `afa3cebe5`。本文不表示实现或运行验收已经完成。
+状态：已完成并验收（2026-10-02）。前置条件为已验收的 [M23-9](../stage9/ACCEPTANCE.md)；设计基线为 `afa3cebe5`，最终代码与测试基线为 `06e347a5c`。真实产物、运行矩阵、功能提交与完整回归见 [验收记录](ACCEPTANCE.md)。
 
 本阶段交付：在全新 `scoop-link` 进程中，仅凭完整 `.slib` 闭包、runtime 对象索引、明确 toolchain 和 `--library-path`，定位已有 FFI requirement 对应的 native object、archive、dylib/framework，完成符号解析、实际成员选择、最终绑定检查和可执行文件发布。库的 Scoop/native 源码在链接时均不需要。
 
