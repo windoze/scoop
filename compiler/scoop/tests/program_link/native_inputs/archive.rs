@@ -145,55 +145,6 @@ fn archive_selected_member_conflicts_and_missing_helpers_report_chain() {
 }
 
 #[test]
-fn archive_corrupt_containers_and_incompatible_members_fail_at_input() {
-    let environment = environment();
-    let directory = tempfile::tempdir().unwrap();
-    let root = environment.build(
-        directory.path(),
-        "archive",
-        "executable",
-        &native_fixture("direct/root.scoop"),
-        &[],
-    );
-    let object = compile_native(
-        directory.path(),
-        "source",
-        &native_fixture("direct/native.c"),
-        &[],
-    );
-    let archive = archive_native(directory.path(), "m23_math", &[&object]);
-    let original = std::fs::read(&archive).unwrap();
-    for bytes in [
-        b"!<thin>\n".to_vec(),
-        original[..original.len() - 8].to_vec(),
-        b"!<arch>\ninvalid header".to_vec(),
-    ] {
-        std::fs::write(&archive, bytes).unwrap();
-        reject_native(
-            environment,
-            &root,
-            &[],
-            directory.path(),
-            &[directory.path().join("native")],
-            &["native candidate", "libm23_math.a"],
-        );
-    }
-    std::fs::write(&archive, &original).unwrap();
-    let nested = directory.path().join("nested.a");
-    std::fs::copy(&archive, &nested).unwrap();
-    std::fs::remove_file(&archive).unwrap();
-    archive_native(directory.path(), "m23_math", &[&nested]);
-    reject_native(
-        environment,
-        &root,
-        &[],
-        directory.path(),
-        &[directory.path().join("native")],
-        &["nested archive"],
-    );
-}
-
-#[test]
 fn archive_symbol_table_offsets_and_member_definitions_are_checked() {
     let environment = environment();
     let directory = tempfile::tempdir().unwrap();

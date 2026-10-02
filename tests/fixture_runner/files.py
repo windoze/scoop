@@ -45,6 +45,12 @@ def prepare(operations, context, base):
                 raise ConfigurationError("byte patch is outside the file")
             contents[offset : offset + len(replacement)] = replacement
             target.write_bytes(contents)
+        elif kind == "truncate":
+            size = value["size"]
+            with target.open("r+b") as output:
+                if size < 0 or size > output.seek(0, os.SEEK_END):
+                    raise ConfigurationError("truncate size is outside the existing file")
+                output.truncate(size)
         elif kind == "symlink":
             target.symlink_to(source, target_is_directory=source.is_dir())
         elif kind == "hardlink":

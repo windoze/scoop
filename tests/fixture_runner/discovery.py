@@ -60,8 +60,8 @@ def discover(suite: Path, update=False):
     fixtures, names, covered = [], set(), set()
     for locator, data in raw:
         try:
-            validate(data)
             base = locator.parent
+            validate(data, base)
             expectation_files(data["steps"], base, update)
             inputs = input_files(base, data["inputs"])
             support = input_files(base, data.get("support", []))

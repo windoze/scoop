@@ -136,6 +136,14 @@ M0 的源程序使用 `print`，真实 stdout 为 `hello, world`，末尾没有 
 
 删除 `native_inputs/{cabi,callbacks,mixed,runtime,scoopabi,source,storage}.rs` 七个模块、相应注册以及 `direct.rs` 中已迁移的两个测试；同时删除 78 份失去调用者的旧阶段快照。其余 archive／dynamic／corruption 测试仍使用的 native helper 暂留，继续逐项迁移。
 
-## 4. 后续批次
+## 4. 归档损坏与 fixture 配置预检
+
+原 `archive_corrupt_containers_and_incompatible_members_fail_at_input` 已迁到 `m23-cli-native-link/archive-corrupt/fixture.toml`，保留 thin archive、截掉 payload 末尾 8 字节、坏 member header 和嵌套 archive 四种输入。正常归档先通过公开 build 并输出 42，之后移走源码和 loose object；每次独立 link 失败都严格比较完整 canonical 诊断，并确认原 `previous executable` 字节未被覆盖。原 Rust 测试删除，其他 archive 断言留待后续批次。
+
+fixture 的 `truncate(path,size)` 只缩短现有文件；对应归档的初始完整摘要明确写在数据中，避免编译工具变化后误把其他损坏当成原 payload 截断。这个动作与现有 copy／patch 共用文件步骤，不包含归档解析器或 case 专用代码。
+
+统一预检补齐嵌套进程／文件／断言值类型、每个变体的变量作用域、后台结果必须等 wait 完成，以及独立诊断文件中的前向引用。20 项 infra 测试全部通过。新增归档用例只读运行通过（1 变体、9 次进程、4 个 golden）；已有 CLI 4 项和 native 13 项分别再次只读通过，保留 5／14 个变体、42／24 次进程与 28／26 个 golden。完整发现仍明确报告 1691 份尚未迁移的源码，未将部分验收计为全仓通过。
+
+## 5. 后续批次
 
 parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end、program-link/native 以及需要外部构建的 runtime 测试仍按原断言逐批迁移。直接构造内存 typed IR 的内部单元测试保留。完成每批后补充对应关系、删除的 helper 与实际验证结果；全部完成前不将 M23-11 标记完成。

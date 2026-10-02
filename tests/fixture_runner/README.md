@@ -3,7 +3,7 @@
 运行 `python3 tests/run_fixtures.py --all` 完整验收。开发时可用
 `--suite tests/fixtures/m23-cli` 或 `--filter 'cli-*'`；`--list` 使用同一发现与校验。
 所有被扫描的 `.scoop` 必须归属于声明的 `inputs` 或 `support`，支持文件不单独计为通过。
-缺少工具、期望文件、未知字段、重复载体与前向步骤引用均报配置／环境错误。
+缺少工具、期望文件、未知字段、嵌套类型错误、重复载体与前向步骤引用均报配置／环境错误。
 Python 3.11+ 只用标准库；格式化／lint 使用 `tests/requirements-dev.txt` 固定的 Ruff。
 默认最多并行运行四个用例，可用 `--jobs N` 调整，`--jobs 1` 顺序运行。
 每个用例的步骤与变体保持有序；报告按发现顺序保存。中断时清理运行中的进程，
@@ -76,11 +76,16 @@ canonical source、span、code、message 或 notes。stdout/stderr 仍严格比�
 其余动作及必需参数：`move/symlink/hardlink(from,to)`、`remove/mkdir/touch(path)`、
 `write(path,data)`、`replace(path,old,new)`（必须唯一匹配）、`patch(path,offset,hex)`
 （不可越界）、`chmod(path,mode)`（八进制字符串）。修改均应指向本次私有工作区。
+`truncate(path,size)` 将现有文件缩短为指定非负字节数；超过当前文件长度时报配置错误，
+不扩展或修改文件。它与精确 byte patch 共用于 archive／cache corruption 用例。
 
 并发进程声明 `background = true`，其结果期望在后续 `wait = "step"` 时检查。
 `await_file = "${work}/ready"` 等待被测程序写出的就绪文件；
 `send_signal = {process = "step", signal = "SIGTERM"}` 只向那个进程发送真实信号。
 所有后台步骤必须有 wait。失败或中断时 runner 清理自己启动的进程并收割。
+wait 之前只有后台进程的 `.pid` 可引用；result／stdout 等要等完成后才可用。
+变量按每个变体分别校验，不能借用其他变体才声明的变量。
+长诊断 JSON 文件在发现时加载和校验引用，避免启动编译后才发现配置错误。
 不允许逐 case Python/shell 编排脚本、动态 predicate 或专用注册表。
 
 报告单列用例、变体、进程和 golden 数量，不将支持文件或目标不适用项计作通过。
