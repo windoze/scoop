@@ -19,26 +19,39 @@ pub(super) fn artifacts(
         let artifact = read(path)?;
         let identity = artifact.summary.cone().identity();
         if identity == root_id {
-            return Err(failure("root artifact cannot also be a dependency"));
+            return Err(failure("root artifact cannot also be a dependency")
+                .at_artifact(&artifact.path, "manifest:cone.identity"));
         }
         insert(&mut artifacts, artifact)?;
     }
-    let mut pending = root.summary.direct_dependencies().to_vec();
+    let mut pending = root
+        .summary
+        .direct_dependencies()
+        .iter()
+        .map(|edge| (root.path.clone(), edge.clone()))
+        .collect::<Vec<_>>();
     let mut visited = BTreeSet::from([root_id]);
-    while let Some(edge) = pending.pop() {
+    while let Some((dependent, edge)) = pending.pop() {
         if !visited.insert(edge.identity()) {
             continue;
         }
         if !artifacts.contains_key(&edge.identity()) {
-            let artifact = locate(request, edge.coordinate())?;
+            let artifact = locate(request, edge.coordinate()).map_err(|error| {
+                if error.artifact.is_some() {
+                    error
+                } else {
+                    error.at_artifact(&dependent, "manifest:direct_dependencies")
+                }
+            })?;
             insert(&mut artifacts, artifact)?;
         }
+        let artifact = &artifacts[&edge.identity()];
         pending.extend(
-            artifacts[&edge.identity()]
+            artifact
                 .summary
                 .direct_dependencies()
                 .iter()
-                .cloned(),
+                .map(|edge| (artifact.path.clone(), edge.clone())),
         );
     }
     Ok((root, artifacts.into_values().collect()))
@@ -76,7 +89,8 @@ fn insert(
                 "different complete artifacts for {identity}: {} and {}",
                 previous.path.display(),
                 artifact.path.display()
-            )));
+            ))
+            .at_artifact(&artifact.path, "manifest:cone.identity"));
         }
         if previous.path <= artifact.path {
             return Ok(());
@@ -108,7 +122,10 @@ fn locate(request: &LinkRequest, coordinate: &ConeCoordinate) -> BuildResult<Loc
     for path in paths {
         match std::fs::symlink_metadata(&path) {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
-            Err(error) => return Err(failure(format!("artifact {}: {error}", path.display()))),
+            Err(error) => {
+                return Err(failure(format!("artifact {}: {error}", path.display()))
+                    .at_artifact(&path, "container:$"));
+            }
             Ok(_) => {}
         }
         let artifact = read(&path)?;
@@ -117,7 +134,8 @@ fn locate(request: &LinkRequest, coordinate: &ConeCoordinate) -> BuildResult<Loc
                 "artifact {} has coordinate {}, expected {coordinate}",
                 path.display(),
                 artifact.summary.cone().coordinate()
-            )));
+            ))
+            .at_artifact(&path, "manifest:cone.coordinate"));
         }
         insert(&mut candidates, artifact)?;
     }

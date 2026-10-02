@@ -880,6 +880,8 @@ build/run 接受 `--profile <debug|release>`，默认 debug；`--release` 等价
 
 产物读取错误同样保留本次 locator 和 reader 已有的结构位置：容器、manifest、metadata 或实际 member 加其 wire field path。入口不得先将 typed reader error 压成字符串再猜测位置，也不得为补诊断重新读取或校验产物；human 与 JSON 展示同一位置。整份产物的 I/O 失败定位到容器，不能伪造成当前源码 span。
 
+独立 Link reader 的失败保留当前正在消费的 ConeIdentity 及已有 member／section／语义字段位置，入口从本次产物清单附加 locator。依赖闭包错误沿实际 typed 边定位到 dependent，缺失 provider 不能被报告成某份并不存在的源码；wrong kind、extra provider 和内容冲突保留对应实际产物位置。诊断位置不进入产物格式或内容摘要。
+
 构建准备完成时保存实际 cache root 的解析路径，之后输出发布复用该路径检查目标是否落入缓存。源码和缓存条目在快照完成后移走，不得使已经完成的内存产物链接或发布失败。输出与输入的别名检查只取得路径和文件元信息，不重新打开输入内容；不存在的旧 locator 仍按其路径比较，不要求恢复原文件。
 
 公开构建结果区分 Library／Executable，提供可定位的 root、完整 dependency artifact 清单和所选构建 profile；Executable 另含实际发布的 binary、runtime index 和 link-plan fingerprint，不返回已经销毁的 staging 路径。清单供显式 link 复用，不是另一套图或产物协议。`run` 与 build 共用稳定输出布局，在程序启动前完成工具输出，随后原样继承程序 stderr，不把程序输出包装为 JSON；用于确保本次执行不被并发发布替换的私有副本仅保留到程序退出，稳定输出继续保留。

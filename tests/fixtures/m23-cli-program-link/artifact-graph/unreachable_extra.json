@@ -1,0 +1,14 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "invalid cross-Cone semantic closure graph: UnreachableSupport { identity: ConeIdentity([207, 87, 60, 156, 122, 51, 192, 199, 83, 50, 223, 9, 188, 188, 176, 58, 22, 201, 24, 77, 11, 143, 30, 161, 27, 142, 148, 189, 26, 216, 22, 25]) }",
+    "notes": [],
+    "origin": {
+      "kind": "artifact",
+      "member": "manifest:cone",
+      "path": "${work}/artifacts/extra.slib"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

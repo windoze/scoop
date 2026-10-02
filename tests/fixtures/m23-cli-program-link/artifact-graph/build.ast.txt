@@ -1,0 +1,8 @@
+SourceFile
+  QualifiedPackage programlink.basic
+  ImportExact Local programlink.library.answer
+  fun main()
+    Call println
+      Binary Add
+        Call answer
+        IntLiteral 2

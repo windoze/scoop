@@ -12,6 +12,7 @@ pub fn read_program_link_closure(
     let mut artifacts = Vec::with_capacity(graph.dependency_first.len());
     let mut symbols = Vec::with_capacity(graph.dependency_first.len());
     for (position, input) in graph.dependency_first.into_iter().enumerate() {
+        let identity = input.identity();
         let coordinate = input.coordinate().clone();
         let reachable = crate::dependency_reachability::transitive_positions(
             position,
@@ -20,7 +21,7 @@ pub fn read_program_link_closure(
         .map_err(error)?;
         let (artifact, symbol) =
             read_artifact(input, &artifacts, &symbols, &reachable, selection, profile)
-                .map_err(|err| error(format!("{coordinate}: {err}")))?;
+                .map_err(|err| err.context(identity, &coordinate))?;
         artifacts.push(artifact);
         symbols.push(symbol);
     }
@@ -56,7 +57,9 @@ fn read_artifact(
         ordinary,
         layout,
         link,
-    } = graph.decode_machine_link_sections().map_err(error)?;
+    } = graph
+        .decode_machine_link_sections()
+        .map_err(super::error::section)?;
     let dependencies = reachable
         .iter()
         .map(|&index| &previous[index])
@@ -170,7 +173,8 @@ fn read_artifact(
     let objects =
         crate::layout_link_objects::replay(&link, &mut graph, &foundation, &production, profile)
             .map_err(|source| error(format!("{source:?}")))?;
-    let code_strong = crate::link_decode::layout_code_strong_input(&mut graph).map_err(error)?;
+    let code_strong =
+        crate::link_decode::layout_code_strong_input(&mut graph).map_err(super::error::section)?;
     let symbols = crate::layout_link_symbols::replay(
         objects,
         crate::layout_link_symbols::ReplayInputs {
@@ -188,7 +192,7 @@ fn read_artifact(
         previous.iter().map(|artifact| &artifact.layout),
         reachable,
     )
-    .map_err(error)?;
+    .map_err(super::error::symbols)?;
     Ok((
         ProgramLinkArtifact {
             manifest: graph.envelope.into_manifest(),

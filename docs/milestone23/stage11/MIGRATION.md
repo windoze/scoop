@@ -207,6 +207,14 @@ fixture 的 `truncate(path,size)` 只缩短现有文件；对应归档的初始�
 
 删除基础 Rust 进程测试、publication/rebuilt_core 模块、只服务于旧基础 plan 的 helper 和 `SCOOP_UPDATE_PROGRAM_LINK_SNAPSHOTS` 入口，以及退役的 `m23-program-link/basic.plan`。新期望只由统一 runner 的显式更新参数维护。
 
-## 9. 后续批次
+## 9. 产物闭包、opaque member 与 reader 来源
+
+`artifact_graph_rejects_missing_stale_extra_and_conflicting_inputs` 迁为 `artifact-graph`，保留 library root、missing/stale/conflicting library、unreachable extra、executable provider、multiple versions，以及 stale 优先于缺失 native 的八种拒绝。全部比较完整诊断及已有 binary bytes，最后运行原程序得到 42；公开入口的 missing 诊断使用实际 locator 规则的 `artifact not found`，定位到记录依赖边的 manifest。
+
+`optional_machine_bytes_and_compile_only_payloads_remain_opaque` 迁为 `optional-members`。真实 Mach-O payload 作为 optional/diagnostic member，Compile-only section 保留 `ff`；两种 member 不成为 LinkObject，完整 plan/fingerprint 与原产物相等，普通／moving 运行均为 42。Link-required 未知 member 仍准确拒绝并保留旧输出。manifest/header 测试片段由现有 `.slib` writer 生成，系统 `tar` 提取本次编译的真实 payload，TOML 按明确顺序重组；原始和重组 SHA 均固定，Python 没有语言、IR 或 `.slib` reader。生成条件保存在 vectors/README.md。
+
+独立 reader 现在保留当前 ConeIdentity 和实际 member/section/语义字段位置，公开入口仅从已读清单附加 locator。stale 指向 dependent，wrong kind/extra/冲突保留实际输入位置；没有重读产物，也不从 Display 消息解析来源。本批两项只读通过，共 2 个变体、24 次进程、31 次 golden 比较。删除原 inputs 编排、重打包 helper，以及不再使用的 scoop `object` dev-dependency。
+
+## 10. 后续批次
 
 parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end、program-link/native 以及需要外部构建的 runtime 测试仍按原断言逐批迁移。直接构造内存 typed IR 的内部单元测试保留。完成每批后补充对应关系、删除的 helper 与实际验证结果；全部完成前不将 M23-11 标记完成。

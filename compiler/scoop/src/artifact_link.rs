@@ -52,7 +52,7 @@ pub fn link_artifacts(request: LinkRequest) -> BuildResult<LinkOutcome> {
         scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
         profile.startup_toolchain().profile(),
     )
-    .map_err(failure)?;
+    .map_err(|error| read_failure(error, &root, &dependencies))?;
     let runtime = RuntimeObjectSet::read_index(
         &request.runtime_index,
         profile.target(),
@@ -91,4 +91,27 @@ pub fn link_artifacts(request: LinkRequest) -> BuildResult<LinkOutcome> {
 
 fn failure(error: impl std::fmt::Display) -> Box<BuildFailure> {
     BuildFailure::tool("SCOOP_LINK_FAILED", BuildFailurePhase::FinalLink, error)
+}
+
+fn read_failure(
+    error: scoop_slib::ProgramLinkReadError,
+    root: &LocatedLinkArtifact,
+    dependencies: &[LocatedLinkArtifact],
+) -> Box<BuildFailure> {
+    let Some(identity) = error.artifact() else {
+        return failure(error);
+    };
+    let Some(artifact) = std::iter::once(root)
+        .chain(dependencies)
+        .find(|artifact| artifact.summary.cone().identity() == identity)
+    else {
+        return BuildFailure::tool(
+            "SCOOP_INTERNAL_ERROR",
+            BuildFailurePhase::FinalLink,
+            format!(
+                "Link diagnostic references an artifact outside its inputs: {identity}: {error}"
+            ),
+        );
+    };
+    failure(&error).at_artifact(&artifact.path, error.semantic_path())
 }
