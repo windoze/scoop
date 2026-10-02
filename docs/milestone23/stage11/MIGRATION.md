@@ -245,8 +245,9 @@ fixture 的 `truncate(path,size)` 只缩短现有文件；对应归档的初始�
 | `rebuilt_intrinsic_declarations_inherit_interface_default_members` | 4／2 | 52／20 | 12 份旧阶段逐字相同；2 份诊断相同 |
 | `integer_division_compiles_and_runs_through_actual_artifacts` | 5／2 | 63／25 | 15 份旧阶段逐字相同；2 份诊断相同 |
 | `initialization_compiles_and_runs_through_rebuilt_core_and_actual_artifacts` | 3／1 | 37／15 | 3 份 HIR Export 相同；6 份 MIR/LIR 仅初始化说明补全来源；1 份诊断相同 |
+| `caught_references_escape_handlers_through_actual_artifacts` | 2／0 | 22／10 | 6 份旧阶段逐字相同 |
 
-本节目前覆盖 88 项；其余类、接口及继承用例继续逐功能迁移。共享的旧 runtime helper 仍被其他待迁测试调用，随那些调用一起退役。
+本节目前覆盖 90 项；其余类、接口及继承用例继续逐功能迁移。共享的旧 runtime helper 仍被其他待迁测试调用，随那些调用一起退役。
 
 ## 12. 后续批次
 

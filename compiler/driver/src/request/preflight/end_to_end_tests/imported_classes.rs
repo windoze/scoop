@@ -5,15 +5,6 @@ mod inheritance;
 pub(super) mod runtime;
 
 #[test]
-fn caught_references_escape_handlers_through_actual_artifacts() {
-    check_class_cases(
-        "direct",
-        &["exception-return", "exception-stored-dispatch"],
-        &[],
-    );
-}
-
-#[test]
 fn runtime_arithmetic_failures_use_the_providers_default_constructor_adapter() {
     check_class_cases("default", &["arithmetic-zero", "arithmetic-direct"], &[]);
 }

@@ -1,0 +1,44 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.Readable
+  ImportExact Local dependency.classes.StructReader
+  ImportExact Local dependency.classes.throwValue
+  private class Saved(val error: RebuiltFailure, val reader: Readable)
+  private fun saved(): Saved
+    =
+      TryExpression
+        Call throwValue
+          Call RebuiltFailure
+            IntLiteral 21
+        Call Saved
+          Call RebuiltFailure
+            IntLiteral 0
+          Call StructReader
+            IntLiteral 0
+        catch error: RebuiltFailure
+          Call Saved
+            Var error
+            Call StructReader
+              IntLiteral 20
+  public fun primary(): Counter
+    val value
+      Call saved
+    val allocated
+      Call Counter
+        MethodCall answer
+          FieldAccess reader
+            Var value
+    return
+      IfExpression
+        Binary Eq
+          MethodCall twice
+            Var allocated
+          IntLiteral 42
+        Call Counter
+          FieldAccess code
+            FieldAccess error
+              Var value
+        else
+        Call Counter
+          IntLiteral 0
