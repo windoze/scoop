@@ -22,6 +22,7 @@ fn imported_coroutine_roles_follow_rebuilt_core_declarations() {
         original.artifact().path(),
         DiagnosticOutputPolicy::Human,
         StageDumpPolicy::None,
+        Default::default(),
     )
     .unwrap()
     .build_and_publish()

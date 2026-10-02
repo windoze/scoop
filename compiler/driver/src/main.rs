@@ -30,7 +30,13 @@ enum Command {
         /// Required destination for the validated current-Cone artifact.
         #[arg(long = "out-slib")]
         out_slib: PathBuf,
-        /// Print the text dump of one pipeline stage to stdout.
+        /// Target triple; defaults to the supported host.
+        #[arg(long)]
+        target: Option<String>,
+        /// Core sysroot; defaults to SCOOP_SYSROOT and the development layout.
+        #[arg(long)]
+        sysroot: Option<PathBuf>,
+        /// Print pipeline stage dumps from this compilation to stdout.
         #[arg(long, value_enum)]
         emit: Option<Emit>,
     },
@@ -48,6 +54,7 @@ enum Emit {
     Hir,
     Mir,
     Lir,
+    All,
 }
 
 fn main() -> ExitCode {
@@ -59,7 +66,16 @@ fn main() -> ExitCode {
             support_slibs,
             out_slib,
             emit,
-        } => build(input, direct_slibs, support_slibs, out_slib, emit),
+            target,
+            sysroot,
+        } => build(
+            input,
+            direct_slibs,
+            support_slibs,
+            out_slib,
+            emit,
+            scoopc::DirectBuildOptions { target, sysroot },
+        ),
         Command::MachineCapability => write_machine_capability(),
         Command::ChildProtocol { version } => child_protocol::run(version),
     }
@@ -94,17 +110,17 @@ fn build(
     support_slibs: Vec<PathBuf>,
     out_slib: PathBuf,
     emit: Option<Emit>,
+    options: scoopc::DirectBuildOptions,
 ) -> ExitCode {
     let emit = match emit {
         None => scoopc::StageDumpPolicy::None,
-        Some(emit) => {
-            scoopc::StageDumpPolicy::Stages(scoop_protocol::StageDumpSet::one(match emit {
-                Emit::Ast => scoopc::StageDumpKind::Ast,
-                Emit::Hir => scoopc::StageDumpKind::Hir,
-                Emit::Mir => scoopc::StageDumpKind::Mir,
-                Emit::Lir => scoopc::StageDumpKind::Lir,
-            }))
-        }
+        Some(emit) => scoopc::StageDumpPolicy::Stages(match emit {
+            Emit::Ast => scoop_protocol::StageDumpSet::one(scoopc::StageDumpKind::Ast),
+            Emit::Hir => scoop_protocol::StageDumpSet::one(scoopc::StageDumpKind::Hir),
+            Emit::Mir => scoop_protocol::StageDumpSet::one(scoopc::StageDumpKind::Mir),
+            Emit::Lir => scoop_protocol::StageDumpSet::one(scoopc::StageDumpKind::Lir),
+            Emit::All => scoop_protocol::StageDumpSet::all(),
+        }),
     };
     let request = match scoopc::normalize_direct_build_request(
         input,
@@ -113,6 +129,7 @@ fn build(
         out_slib,
         scoopc::DiagnosticOutputPolicy::Human,
         emit,
+        options,
     ) {
         Ok(request) => request,
         Err(error) => {
@@ -157,7 +174,11 @@ mod tests {
             "--out-slib",
             "current.slib",
             "--emit",
-            "lir",
+            "all",
+            "--target",
+            "arm64-apple-darwin",
+            "--sysroot",
+            "custom-sysroot",
         ])
         .unwrap();
         let Command::Build {
@@ -166,6 +187,8 @@ mod tests {
             support_slibs,
             out_slib,
             emit,
+            target,
+            sysroot,
         } = cli.command
         else {
             panic!("expected build command");
@@ -174,7 +197,9 @@ mod tests {
         assert_eq!(direct_slibs, [PathBuf::from("direct.slib")]);
         assert_eq!(support_slibs, [PathBuf::from("support.slib")]);
         assert_eq!(out_slib, PathBuf::from("current.slib"));
-        assert!(matches!(emit, Some(Emit::Lir)));
+        assert!(matches!(emit, Some(Emit::All)));
+        assert_eq!(target.as_deref(), Some("arm64-apple-darwin"));
+        assert_eq!(sysroot, Some(PathBuf::from("custom-sysroot")));
     }
 
     #[test]

@@ -19,6 +19,7 @@ fn core_request_retains_direct_and_support_inputs_for_common_preflight() {
         directory.0.join("core.slib"),
         DiagnosticOutputPolicy::Human,
         StageDumpPolicy::None,
+        Default::default(),
     )
     .unwrap();
     assert!(matches!(

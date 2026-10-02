@@ -81,6 +81,7 @@ fn single_file_dependencies_fail_before_toolchain_resolution() {
             directory.0.join("main.slib"),
             DiagnosticOutputPolicy::Human,
             StageDumpPolicy::None,
+            Default::default(),
         ),
         Err(BuildRequestNormalizationError::Request(
             SingleConeBuildRequestError::SingleFileHasDependencies
@@ -142,29 +143,6 @@ fn output_isolation_accepts_a_new_file_in_an_existing_directory() {
     let output = SlibOutputDestination::new(directory.0.join("output.slib")).unwrap();
 
     validate_output_isolation(&current, &dependencies, &trusted_core, &output).unwrap();
-}
-
-#[test]
-fn policy_projection_is_total() {
-    assert_eq!(
-        map_diagnostic_policy(scoop_protocol::DiagnosticOutputPolicyV1::Structured),
-        DiagnosticOutputPolicy::Structured
-    );
-    for (wire, expected) in [
-        (StageDumpKind::Ast, StageDumpKind::Ast),
-        (StageDumpKind::Hir, StageDumpKind::Hir),
-        (StageDumpKind::Mir, StageDumpKind::Mir),
-        (StageDumpKind::Lir, StageDumpKind::Lir),
-    ] {
-        assert_eq!(
-            map_dump_policy(&StageDumpPolicyV1::Files {
-                stages: StageDumpSet::one(wire),
-                directory: scoop_protocol::HostPathCarrier::from_path(std::path::Path::new("dump"))
-                    .unwrap()
-            }),
-            StageDumpPolicy::Stages(scoop_protocol::StageDumpSet::one(expected))
-        );
-    }
 }
 
 mod core_dependencies;

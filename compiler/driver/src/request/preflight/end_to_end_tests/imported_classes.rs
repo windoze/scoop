@@ -333,6 +333,7 @@ fn check_class_cases(cast_variant: &str, cases: &[&str], negative_cases: &[&str]
         core.artifact().path(),
         DiagnosticOutputPolicy::Human,
         StageDumpPolicy::None,
+        Default::default(),
     )
     .unwrap()
     .build_and_publish()

@@ -144,6 +144,7 @@ fn build_core(source: &Path, artifact: &Path) -> SingleConeProductionSuccess {
         artifact,
         DiagnosticOutputPolicy::Human,
         StageDumpPolicy::None,
+        Default::default(),
     )
     .unwrap()
     .build_and_publish()

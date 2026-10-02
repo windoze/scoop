@@ -1,7 +1,5 @@
 //! Single-Cone compiler driver and artifact-production pipeline.
 
-use std::path::{Path, PathBuf};
-
 mod artifact_production;
 mod object_production;
 mod request;
@@ -25,7 +23,7 @@ pub use request::{
     CurrentConeHirStageError, CurrentConeInput, CurrentConeLirStageError, CurrentConeMirStageError,
     CurrentConeOperandError, CurrentConeOperandErrorKind, CurrentConeProductionError,
     CurrentConeProductionFailure, CurrentConeSourceStageError, DiagnosticMappingError,
-    DiagnosticOutputPolicy, EmittedStageDump, ExplicitDependencyArtifactInput,
+    DiagnosticOutputPolicy, DirectBuildOptions, EmittedStageDump, ExplicitDependencyArtifactInput,
     ExplicitDependencyInputs, ExplicitDependencyLoadError, ExplicitDependencyLoadOperation,
     ExplicitDependencyRole, ExplicitDependencyValidationError, HostArtifactLocator,
     LoadedCurrentConeInput, LoadedSingleConeBuildRequest, OutputAliasRole,
@@ -43,9 +41,7 @@ pub use trusted_core::{
 };
 
 /// Root of the Cargo workspace (the driver crate lives in `compiler/driver`).
-pub(crate) fn workspace_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .canonicalize()
-        .expect("workspace root exists")
+#[cfg(test)]
+pub(crate) fn workspace_root() -> std::path::PathBuf {
+    scoop_toolchain::development_workspace_root()
 }

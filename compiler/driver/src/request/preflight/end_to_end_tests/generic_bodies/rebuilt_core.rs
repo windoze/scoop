@@ -30,6 +30,7 @@ fn modified_core_array_bodies_and_new_generic_templates_republish_and_execute() 
         original.artifact().path(),
         DiagnosticOutputPolicy::Human,
         StageDumpPolicy::None,
+        Default::default(),
     )
     .unwrap()
     .build_and_publish()
