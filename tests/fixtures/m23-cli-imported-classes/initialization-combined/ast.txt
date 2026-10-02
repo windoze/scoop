@@ -1,0 +1,42 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.Readable
+  ImportExact Local dependency.classes.StructReader
+  ImportExact Local dependency.classes.Token
+  private object Saved
+    val marker: Token =
+      Call Token
+    val reader: Readable =
+      Call StructReader
+        IntLiteral 20
+    val value: Counter =
+      Call Counter
+        MethodCall answer
+          Var reader
+  public fun primary(): Counter
+    val first
+      FieldAccess value
+        Var Saved
+    val allocated
+      Call Counter
+        MethodCall answer
+          FieldAccess reader
+            Var Saved
+    val second
+      FieldAccess value
+        Var Saved
+    return
+      IfExpression
+        Binary And
+          Binary RefEq
+            Var first
+            Var second
+          Binary Eq
+            MethodCall twice
+              Var allocated
+            IntLiteral 42
+        Var first
+        else
+        Call Counter
+          IntLiteral 0

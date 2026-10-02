@@ -5,9 +5,9 @@ Module
   global3 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
   global4 $init$failure$1: Any managed initial=zeroed-for-runtime-unit
   global5 $init$failure$2: Any managed initial=zeroed-for-runtime-unit
-  init0 object-private:main.scoop:Attempts singleton lazy global0 initializer=@fn2 ensure=@fn3 failure=3 deps=[]
-  init1 object-private:main.scoop:Left singleton lazy global1 initializer=@fn5 ensure=@fn6 failure=4 deps=[]
-  init2 object-private:main.scoop:Right singleton lazy global2 initializer=@fn7 ensure=@fn8 failure=5 deps=[]
+  init0 object-private:dev.example:classes-initialization-cycle:0.1.0/src/main.scoop:Attempts singleton lazy global0 initializer=@fn2 ensure=@fn3 failure=3 deps=[]
+  init1 object-private:dev.example:classes-initialization-cycle:0.1.0/src/main.scoop:Left singleton lazy global1 initializer=@fn5 ensure=@fn6 failure=4 deps=[]
+  init2 object-private:dev.example:classes-initialization-cycle:0.1.0/src/main.scoop:Right singleton lazy global2 initializer=@fn7 ensure=@fn8 failure=5 deps=[]
   class Attempts vtable=0 itables=0
   class Left vtable=0 itables=0
   class Right vtable=0 itables=0
@@ -46,7 +46,7 @@ Module
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 object-private:main.scoop:Attempts
+        InitializationUnitAddress init0 object-private:dev.example:classes-initialization-cycle:0.1.0/src/main.scoop:Attempts
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(InitializationOutcome)
@@ -90,7 +90,7 @@ Module
       call @fn2 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 object-private:main.scoop:Attempts
+        InitializationUnitAddress init0 object-private:dev.example:classes-initialization-cycle:0.1.0/src/main.scoop:Attempts
       goto bb10
     bb12 try.catch.12
       call $catch.1: Any = @scoop_rt_materialize_exception direct
@@ -105,7 +105,7 @@ Module
     bb13 scope.13 unwind bb6
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 object-private:main.scoop:Attempts
+        InitializationUnitAddress init0 object-private:dev.example:classes-initialization-cycle:0.1.0/src/main.scoop:Attempts
         Type Any
         Local $init.caught
       throw unwind bb6
@@ -126,14 +126,14 @@ Module
     bb17 if.then.17
       call $init.failure: Any = @scoop_rt_init_failure direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 object-private:main.scoop:Attempts
+        InitializationUnitAddress init0 object-private:dev.example:classes-initialization-cycle:0.1.0/src/main.scoop:Attempts
       throw
         Type Any
         Local $init.failure
     bb18 if.else.18
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 object-private:main.scoop:Attempts
+        InitializationUnitAddress init0 object-private:dev.example:classes-initialization-cycle:0.1.0/src/main.scoop:Attempts
       call external4 direct
         Type String
         Local $init.message
@@ -184,7 +184,7 @@ Module
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
-        InitializationUnitAddress init1 object-private:main.scoop:Left
+        InitializationUnitAddress init1 object-private:dev.example:classes-initialization-cycle:0.1.0/src/main.scoop:Left
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(InitializationOutcome)
@@ -228,7 +228,7 @@ Module
       call @fn5 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
-        InitializationUnitAddress init1 object-private:main.scoop:Left
+        InitializationUnitAddress init1 object-private:dev.example:classes-initialization-cycle:0.1.0/src/main.scoop:Left
       goto bb10
     bb12 try.catch.12
       call $catch.1: Any = @scoop_rt_materialize_exception direct
@@ -243,7 +243,7 @@ Module
     bb13 scope.13 unwind bb6
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
-        InitializationUnitAddress init1 object-private:main.scoop:Left
+        InitializationUnitAddress init1 object-private:dev.example:classes-initialization-cycle:0.1.0/src/main.scoop:Left
         Type Any
         Local $init.caught
       throw unwind bb6
@@ -264,14 +264,14 @@ Module
     bb17 if.then.17
       call $init.failure: Any = @scoop_rt_init_failure direct
         Type Ptr<Unit>
-        InitializationUnitAddress init1 object-private:main.scoop:Left
+        InitializationUnitAddress init1 object-private:dev.example:classes-initialization-cycle:0.1.0/src/main.scoop:Left
       throw
         Type Any
         Local $init.failure
     bb18 if.else.18
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
-        InitializationUnitAddress init1 object-private:main.scoop:Left
+        InitializationUnitAddress init1 object-private:dev.example:classes-initialization-cycle:0.1.0/src/main.scoop:Left
       call external4 direct
         Type String
         Local $init.message
@@ -294,7 +294,7 @@ Module
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
-        InitializationUnitAddress init2 object-private:main.scoop:Right
+        InitializationUnitAddress init2 object-private:dev.example:classes-initialization-cycle:0.1.0/src/main.scoop:Right
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(InitializationOutcome)
@@ -338,7 +338,7 @@ Module
       call @fn7 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
-        InitializationUnitAddress init2 object-private:main.scoop:Right
+        InitializationUnitAddress init2 object-private:dev.example:classes-initialization-cycle:0.1.0/src/main.scoop:Right
       goto bb10
     bb12 try.catch.12
       call $catch.1: Any = @scoop_rt_materialize_exception direct
@@ -353,7 +353,7 @@ Module
     bb13 scope.13 unwind bb6
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
-        InitializationUnitAddress init2 object-private:main.scoop:Right
+        InitializationUnitAddress init2 object-private:dev.example:classes-initialization-cycle:0.1.0/src/main.scoop:Right
         Type Any
         Local $init.caught
       throw unwind bb6
@@ -374,14 +374,14 @@ Module
     bb17 if.then.17
       call $init.failure: Any = @scoop_rt_init_failure direct
         Type Ptr<Unit>
-        InitializationUnitAddress init2 object-private:main.scoop:Right
+        InitializationUnitAddress init2 object-private:dev.example:classes-initialization-cycle:0.1.0/src/main.scoop:Right
       throw
         Type Any
         Local $init.failure
     bb18 if.else.18
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
-        InitializationUnitAddress init2 object-private:main.scoop:Right
+        InitializationUnitAddress init2 object-private:dev.example:classes-initialization-cycle:0.1.0/src/main.scoop:Right
       call external4 direct
         Type String
         Local $init.message

@@ -1,7 +1,7 @@
 Module
   global @scoop$1$ss$1bc49a5f43504c704ffd532100fcc6eb067944480caa6d01dbfbace172d525ba : ptr<managed> scan=refs[0]
   global @scoop$1$ss$32c5f23be46350a240077d8a4b455f5b5b09797f411d1a17986c3c7683a6a44b : ptr<managed> scan=refs[0]
-  init0 object-private:main.scoop:Saved lazy storage=@scoop$1$ss$1bc49a5f43504c704ffd532100fcc6eb067944480caa6d01dbfbace172d525ba failure=@scoop$1$ss$32c5f23be46350a240077d8a4b455f5b5b09797f411d1a17986c3c7683a6a44b initializer=@scoop$1$cb$b618e19a94c3362616d91cf110a8f31901e947d2265a6d00cd0d5b4bbba7cc77 ensure=@scoop$1$cb$c67e9ecc2a5a1f8d7d2d8e89255ffcf5a5eeacc46875821778e1ecddffa23812 deps=[]
+  init0 object-private:dev.example:classes-initialization-combined:0.1.0/src/main.scoop:Saved lazy storage=@scoop$1$ss$1bc49a5f43504c704ffd532100fcc6eb067944480caa6d01dbfbace172d525ba failure=@scoop$1$ss$32c5f23be46350a240077d8a4b455f5b5b09797f411d1a17986c3c7683a6a44b initializer=@scoop$1$cb$b618e19a94c3362616d91cf110a8f31901e947d2265a6d00cd0d5b4bbba7cc77 ensure=@scoop$1$cb$c67e9ecc2a5a1f8d7d2d8e89255ffcf5a5eeacc46875821778e1ecddffa23812 deps=[]
   fun @scoop$1$cb$b618e19a94c3362616d91cf110a8f31901e947d2265a6d00cd0d5b4bbba7cc77() -> void
     local %0 $new.1: ptr<managed>
   block entry

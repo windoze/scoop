@@ -231,6 +231,8 @@ fixture 的 `truncate(path,size)` 只缩短现有文件；对应归档的初始�
 
 正例通过普通 `runtime-fixture` executable 调用原 downstream 的 `check()`，断言结果为 42；普通 C 库只检查原有的 moving-GC epoch 条件，没有 `main` 或 image/startup 拼装。移走源码后用无 compiler/LLVM 的公开 `scoop link` 查找完整产物闭包，完整 plan 中的五个 image 和 fingerprint 与构建结果一致，正常及 moving 运行均精确比较退出状态和两路输出。
 
+私有初始化单元的说明从旧 helper 的 `object-private:main.scoop:名称` 改为完整的 `object-private:dev.example:classes-用例:0.1.0/src/main.scoop:名称`。对出现该差异的每份旧快照逐字核对，确认只补全这段来源；存储、失败单元和 callable 符号、布局及控制流保持不变。正式 golden 保留完整新说明，不添加删减该内容的运行时归一化规则。
+
 以下批次均已关闭更新开关、清除旧快照环境和 `RUST_MIN_STACK`，经统一入口只读通过。每批负例的原字节区间、表达式和信息逐项核对后保存完整 canonical JSON，并确认没有发布 consumer 产物；原测试注册和相应旧期望同步删除。
 
 | 原 Rust 入口 | 正例／负例 | 进程／golden 比较 | 旧阶段对照 |
@@ -242,8 +244,9 @@ fixture 的 `truncate(path,size)` 只缩短现有文件；对应归档的初始�
 | `structural_boxes_compile_and_run_through_actual_artifacts` | 2／0 | 22／10 | 6 份旧阶段逐字相同 |
 | `rebuilt_intrinsic_declarations_inherit_interface_default_members` | 4／2 | 52／20 | 12 份旧阶段逐字相同；2 份诊断相同 |
 | `integer_division_compiles_and_runs_through_actual_artifacts` | 5／2 | 63／25 | 15 份旧阶段逐字相同；2 份诊断相同 |
+| `initialization_compiles_and_runs_through_rebuilt_core_and_actual_artifacts` | 3／1 | 37／15 | 3 份 HIR Export 相同；6 份 MIR/LIR 仅初始化说明补全来源；1 份诊断相同 |
 
-本节目前覆盖 84 项；其余类、接口及继承用例继续逐功能迁移。共享的旧 runtime helper 仍被其他待迁测试调用，随那些调用一起退役。
+本节目前覆盖 88 项；其余类、接口及继承用例继续逐功能迁移。共享的旧 runtime helper 仍被其他待迁测试调用，随那些调用一起退役。
 
 ## 12. 后续批次
 

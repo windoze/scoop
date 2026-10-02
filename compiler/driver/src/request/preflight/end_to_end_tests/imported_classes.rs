@@ -5,19 +5,6 @@ mod inheritance;
 pub(super) mod runtime;
 
 #[test]
-fn initialization_compiles_and_runs_through_rebuilt_core_and_actual_artifacts() {
-    check_class_cases(
-        "direct",
-        &[
-            "initialization-singleton",
-            "initialization-cycle",
-            "initialization-combined",
-        ],
-        &["initialization-internal-service"],
-    );
-}
-
-#[test]
 fn caught_references_escape_handlers_through_actual_artifacts() {
     check_class_cases(
         "direct",

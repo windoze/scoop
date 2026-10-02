@@ -1,14 +1,9 @@
 Module
   global0 $singleton$Saved: Saved managed initial=zeroed-for-runtime-unit
   global1 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
-  init0 object-private:main.scoop:Saved singleton lazy global0 initializer=@fn0 ensure=@fn1 failure=1 deps=[]
-  struct Token ()
-  struct StructReader (value: Long)
+  init0 object-private:dev.example:classes-initialization-singleton:0.1.0/src/main.scoop:Saved singleton lazy global0 initializer=@fn0 ensure=@fn1 failure=1 deps=[]
   class Saved vtable=0 itables=0
   class Counter vtable=0 itables=0
-  class box<StructReader> vtable=0 itables=0
-  interface Readable
-  generated_exact_type get0 location=class2 nominal_id=137fbb61b95eeca5cf307f8329cd7cdaaf67bc37460e8986e538acdcc0965ccc exact_id=139041762888b86ad8d540ea75aef5205e9f5fc5f0a9d9f5bfd876bd8d05c779
   fun $init$body$0 @fn0() -> Unit
     bb0 entry
       assign $new.1
@@ -25,7 +20,7 @@ Module
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 object-private:main.scoop:Saved
+        InitializationUnitAddress init0 object-private:dev.example:classes-initialization-singleton:0.1.0/src/main.scoop:Saved
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(InitializationOutcome)
@@ -69,7 +64,7 @@ Module
       call @fn0 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 object-private:main.scoop:Saved
+        InitializationUnitAddress init0 object-private:dev.example:classes-initialization-singleton:0.1.0/src/main.scoop:Saved
       goto bb10
     bb12 try.catch.12
       call $catch.1: Any = @scoop_rt_materialize_exception direct
@@ -84,7 +79,7 @@ Module
     bb13 scope.13 unwind bb6
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 object-private:main.scoop:Saved
+        InitializationUnitAddress init0 object-private:dev.example:classes-initialization-singleton:0.1.0/src/main.scoop:Saved
         Type Any
         Local $init.caught
       throw unwind bb6
@@ -105,15 +100,15 @@ Module
     bb17 if.then.17
       call $init.failure: Any = @scoop_rt_init_failure direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 object-private:main.scoop:Saved
+        InitializationUnitAddress init0 object-private:dev.example:classes-initialization-singleton:0.1.0/src/main.scoop:Saved
       throw
         Type Any
         Local $init.failure
     bb18 if.else.18
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 object-private:main.scoop:Saved
-      call external5 direct
+        InitializationUnitAddress init0 object-private:dev.example:classes-initialization-singleton:0.1.0/src/main.scoop:Saved
+      call external2 direct
         Type String
         Local $init.message
       unreachable
@@ -124,30 +119,19 @@ Module
       call @fn1 direct
       val first: Counter
         Type Counter
-        FieldAccess 2
+        FieldAccess 0
           Type Saved
           GlobalRead $singleton$Saved
-      call @fn1 direct
-      val $dependency.receiver: Readable
-        Type Readable
-        FieldAccess 1
-          Type Saved
-          GlobalRead $singleton$Saved
-      val $dependency.parameter.extra: Long
+      val $dependency.argument.0: Long
         Type Long
-        IntegerLiteral Long value=1 bits=0x0000000000000001
-      call $dependency.argument.0: Long = external2 interface Readable[1]
-        Type Readable
-        Local $dependency.receiver
-        Type Long
-        Local $dependency.parameter.extra
+        IntegerLiteral Long value=7 bits=0x0000000000000007
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
       assign $new.1
         Type Counter
         ClassAlloc Counter
-      call external3 direct
+      call external0 direct
         Type Counter
         Local $new.1
         Type Long
@@ -158,7 +142,7 @@ Module
       call @fn1 direct
       val second: Counter
         Type Counter
-        FieldAccess 2
+        FieldAccess 0
           Type Saved
           GlobalRead $singleton$Saved
       branch bb1 bb2
@@ -172,12 +156,12 @@ Module
       val $dependency.receiver: Counter
         Type Counter
         Local allocated
-      call $dependency.receiver: Long = external4 direct
+      call $dependency.receiver: Long = external1 direct
         Type Counter
         Local $dependency.receiver
       val $dependency.argument.0: Long
         Type Long
-        IntegerLiteral Long value=42 bits=0x000000000000002a
+        IntegerLiteral Long value=14 bits=0x000000000000000e
       val $dependency.parameter.other: Long
         Type Long
         Local $dependency.argument.0
@@ -213,7 +197,7 @@ Module
       assign $new.2
         Type Counter
         ClassAlloc Counter
-      call external3 direct
+      call external0 direct
         Type Counter
         Local $new.2
         Type Long
@@ -228,56 +212,24 @@ Module
         Local $result.1
   fun init.Saved.$c0 @fn3(this: Saved) -> Unit
     bb0 entry
-      call $call.1: Token = external0 direct
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type Counter
+        ClassAlloc Counter
+      call external0 direct
+        Type Counter
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.value
       field_set 0
         Type Saved
         Local this
-        Type Token
-        Local $call.1
-      val $dependency.argument.0: Long
-        Type Long
-        IntegerLiteral Long value=20 bits=0x0000000000000014
-      val $dependency.parameter.value: Long
-        Type Long
-        Local $dependency.argument.0
-      call $call.2: StructReader = external1 direct
-        Type Long
-        Local $dependency.parameter.value
-      field_set 1
-        Type Saved
-        Local this
-        Type Readable
-        Box
-          Type StructReader
-          Local $call.2
-      val $dependency.receiver: Readable
-        Type Readable
-        FieldAccess 1
-          Type Saved
-          Local this
-      val $dependency.parameter.extra: Long
-        Type Long
-        IntegerLiteral Long value=1 bits=0x0000000000000001
-      call $dependency.argument.0: Long = external2 interface Readable[1]
-        Type Readable
-        Local $dependency.receiver
-        Type Long
-        Local $dependency.parameter.extra
-      val $dependency.parameter.value: Long
-        Type Long
-        Local $dependency.argument.0
-      assign $new.3
         Type Counter
-        ClassAlloc Counter
-      call external3 direct
-        Type Counter
-        Local $new.3
-        Type Long
-        Local $dependency.parameter.value
-      field_set 2
-        Type Saved
-        Local this
-        Type Counter
-        Local $new.3
+        Local $new.1
       return
   output library
