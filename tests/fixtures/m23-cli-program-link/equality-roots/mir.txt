@@ -1,0 +1,252 @@
+Module
+  struct Parts (labels: (String, String), count: Int)
+  struct Slot<(String, Int)> (value: (String, Int))
+  enum Container
+    Empty()
+    Item(_0: Parts)
+  class box<Boolean> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn2 captures=2
+    bridge function_type1 -> @fn4 id=e9ecce68ec7929d382a1ae16b4ab42efb2160f521a7a9c94db9214be510a3609
+  generated_exact_type get0 location=closure0 nominal_id=18e7792baa5d0e360d8f8402a85c4ebc23793cbf5c33a6f14acad1a1c765938e exact_id=12102ceaa8f704b1f4e7a642be4950cc4cabb6d9240ab82bcdf4bc718bcef6a5
+  generated_exact_type get1 location=class0 nominal_id=3536333a8ba0aaed76b3bec081995b49af64f164523f6560324f8e64e7ef08e0 exact_id=c4a33308c9b1a4e41424f4d1ffe01aa6e97556fe61c06a7387e42b4ddf522d17
+  generated_callable gc0 function=@fn4 id=e9ecce68ec7929d382a1ae16b4ab42efb2160f521a7a9c94db9214be510a3609
+  fun main @fn0() -> Unit
+    bb0 entry
+      call first: Parts = external0 direct
+      val $dependency.argument.0: (String, String)
+        Type (String, String)
+        TupleLiteral
+          Type String
+          StringConst @str0
+          Type String
+          StringConst @str1
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.labels: (String, String)
+        Type (String, String)
+        Local $dependency.argument.0
+      val $dependency.parameter.count: Int
+        Type Int
+        Local $dependency.argument.1
+      call second: Parts = external1 direct
+        Type (String, String)
+        Local $dependency.parameter.labels
+        Type Int
+        Local $dependency.parameter.count
+      call $dependency.argument.0: Boolean = external7 direct
+        Type Parts
+        Local first
+        Type Parts
+        Local second
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Parts
+        Type Parts
+        Local first
+      val $dependency.parameter._1: Parts
+        Type Parts
+        Local $dependency.argument.0
+      val $equality.lhs: Container
+        Type Container
+        VariantConstruct Container v1
+          Type Parts
+          Local $dependency.parameter._1
+      val $dependency.argument.0: Parts
+        Type Parts
+        Local second
+      val $dependency.parameter._1: Parts
+        Type Parts
+        Local $dependency.argument.0
+      call $dependency.argument.0: Boolean = external6 direct
+        Type Container
+        Local $equality.lhs
+        Type Container
+        VariantConstruct Container v1
+          Type Parts
+          Local $dependency.parameter._1
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $equality.lhs: Parts
+        Type Parts
+        Local first
+      val $dependency.argument.0: (String, String)
+        Type (String, String)
+        TupleLiteral
+          Type String
+          StringConst @str2
+          Type String
+          StringConst @str3
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.labels: (String, String)
+        Type (String, String)
+        Local $dependency.argument.0
+      val $dependency.parameter.count: Int
+        Type Int
+        Local $dependency.argument.1
+      call $call.1: Parts = external1 direct
+        Type (String, String)
+        Local $dependency.parameter.labels
+        Type Int
+        Local $dependency.parameter.count
+      call $call.2: Boolean = external7 direct
+        Type Parts
+        Local $equality.lhs
+        Type Parts
+        Local $call.1
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.2
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      call $dependency.argument.0: Slot<(String, Int)> = external2 direct
+      val $dependency.argument.0: (String, Int)
+        Type (String, Int)
+        TupleLiteral
+          Type String
+          StringConst @str4
+          Type Int
+          IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.value: (String, Int)
+        Type (String, Int)
+        Local $dependency.argument.0
+      call $dependency.argument.1: Slot<(String, Int)> = @fn3 direct
+        Type (String, Int)
+        Local $dependency.parameter.value
+      val $dependency.parameter.left: Slot<(String, Int)>
+        Type Slot<(String, Int)>
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Slot<(String, Int)>
+        Type Slot<(String, Int)>
+        Local $dependency.argument.1
+      call $dependency.argument.0: Boolean = external3 direct
+        Type Slot<(String, Int)>
+        Local $dependency.parameter.left
+        Type Slot<(String, Int)>
+        Local $dependency.parameter.right
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val compare: () -> Boolean
+        Type () -> Boolean
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type Parts
+            Local first
+          CaptureInit field=1
+            Type Parts
+            Local second
+      call @scoop_rt_gc_collect direct
+      call $dependency.argument.0: Boolean = <closure:function_type0> closure[function_type0]
+        Type () -> Boolean
+        Local compare
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      return
+  fun println @fn1(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external4 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external5 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str5
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external5 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun $lambda.0 @fn2($closure: () -> Boolean) -> Boolean
+    bb0 entry
+      val $dependency.argument.0: Parts
+        Type Parts
+        ClosureCapture cc0 0
+          Type () -> Boolean
+          Local $closure
+      val $dependency.parameter._1: Parts
+        Type Parts
+        Local $dependency.argument.0
+      val $equality.lhs: Container
+        Type Container
+        VariantConstruct Container v1
+          Type Parts
+          Local $dependency.parameter._1
+      val $dependency.argument.0: Parts
+        Type Parts
+        ClosureCapture cc0 1
+          Type () -> Boolean
+          Local $closure
+      val $dependency.parameter._1: Parts
+        Type Parts
+        Local $dependency.argument.0
+      call $call.1: Boolean = external6 direct
+        Type Container
+        Local $equality.lhs
+        Type Container
+        VariantConstruct Container v1
+          Type Parts
+          Local $dependency.parameter._1
+      return
+        Type Boolean
+        Local $call.1
+  fun ctor.Slot.$c0 @fn3(value: (String, Int)) -> Slot<(String, Int)> <no-gc>
+    bb0 entry
+      return
+        Type Slot<(String, Int)>
+        StructInit Slot<(String, Int)>
+          Type (String, Int)
+          Local value
+  fun function_bridge.$Closure$lambda0.() -> Any @fn4($source: () -> Boolean) -> Any
+    bb0 entry
+      call $call.1: Boolean = <closure:function_type0> closure[function_type0]
+        Type () -> Boolean
+        Local $source
+      return
+        Type Any
+        Box
+          Type Boolean
+          Local $call.1
+  instance mi0 function=@fn1 <- println
+  str @str0 "left"
+  str @str1 "right"
+  str @str2 "right"
+  str @str3 "left"
+  str @str4 "slot"
+  str @str5 "\n"
+  output executable @fn0

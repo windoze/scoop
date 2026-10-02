@@ -1,0 +1,60 @@
+SourceFile
+  RootPackage
+  ImportStar Local programlink.values.*
+  fun main()
+    val token
+      Call keep
+        Call Token
+    val wide
+      Call keep
+        Call Wide
+          IntLiteral 10
+          IntLiteral 12
+          IntLiteral 20
+    val boxed: Any
+      Index
+        Call array
+          NullAssert
+            Call wrap
+              Call keep
+                Call payload
+        IntLiteral 0
+    val packet
+      Cast Packet optional=false
+        Var boxed
+    when
+      Var packet
+      arm Missing
+        throw
+          Call IllegalStateException
+      arm Data(references, copied)
+        Call println
+          FieldAccess text
+            Var references
+        Call println
+          FieldAccess _1
+            FieldAccess nested
+              Var references
+        Call println
+          FieldAccess _3
+            FieldAccess nested
+              Var references
+        Call println
+          Binary Add
+            Binary Add
+              FieldAccess first
+                Var copied
+              FieldAccess second
+                Var copied
+            FieldAccess third
+              Var copied
+    Call println
+      Binary And
+        Binary Eq
+          Call tokenValue
+            Var token
+          IntLiteral 42
+        Binary Eq
+          FieldAccess third
+            Var wide
+          IntLiteral 20L

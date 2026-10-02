@@ -265,6 +265,17 @@ fn initialization_call_roots_require_their_own_generated_body_and_application() 
         crate::hir_dependency_calls::applications::signatures(&foundation, &identities, None)
             .unwrap();
     validate_root(roots[0], &fixture.strong, &index, &identities).unwrap();
+    let no_substitution = scoop_hir::concrete::ExecutableExpressionPosition {
+        root: CallableMaterialization::new(
+            roots[0].root.template(),
+            CallableMaterializationContext::NoSubstitution,
+        ),
+        expression_index: 0,
+    };
+    assert!(matches!(
+        validate_root(no_substitution, &fixture.strong, &index, &identities),
+        Err(CrossConeMirClosureRelationError::CallRoot { .. })
+    ));
     let mut other = roots[0];
     other.root = CallableMaterialization::new(
         other.root.template(),
