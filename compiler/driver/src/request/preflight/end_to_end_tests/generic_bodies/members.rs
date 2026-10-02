@@ -2,30 +2,6 @@ use super::super::imported_classes::runtime;
 use super::*;
 
 #[test]
-fn generic_extension_properties_republish_and_execute_from_artifacts() {
-    check_member_cases(
-        &[
-            "extension-read",
-            "extension-write",
-            "extension-write-only",
-            "extension-abi",
-            "extension-inherited",
-            "extension-captured",
-            "extension-overloads",
-            "extension-order",
-        ],
-        &[
-            "extension-readonly",
-            "extension-private-setter",
-            "extension-rhs-type",
-            "extension-result-type",
-            "extension-kind-bound",
-        ],
-        "extension-downstream",
-    );
-}
-
-#[test]
 fn protected_generic_members_republish_and_execute_from_artifacts() {
     check_member_cases(
         &[

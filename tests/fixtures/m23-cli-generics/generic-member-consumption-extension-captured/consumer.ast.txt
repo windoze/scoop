@@ -1,0 +1,13 @@
+SourceFile
+  QualifiedPackage consumer.members
+  ImportStar Local templates.members.*
+  public fun result(): Int
+    =
+      FieldAccess extensionCaptured
+        Call Box<Int>
+          IntLiteral 42
+  public fun make<T>(value: T): T
+    =
+      FieldAccess extensionCaptured
+        Call Box<T>
+          Var value

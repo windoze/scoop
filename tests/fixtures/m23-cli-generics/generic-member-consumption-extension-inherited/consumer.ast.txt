@@ -1,0 +1,14 @@
+SourceFile
+  QualifiedPackage consumer.members
+  ImportStar Local templates.members.*
+  private typealias Numeric = Inherited<Int>
+  public fun result(): Int
+    =
+      FieldAccess extensionValue
+        Call Numeric
+          IntLiteral 42
+  public fun make<T>(value: T): T
+    =
+      FieldAccess extensionValue
+        Call Inherited<T>
+          Var value

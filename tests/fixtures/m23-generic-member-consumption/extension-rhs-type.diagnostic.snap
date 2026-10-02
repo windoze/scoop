@@ -1,3 +1,0 @@
-span=144..151
-expression="wrong"
-cannot assign value of type String to property `extensionState` of type Int

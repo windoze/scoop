@@ -1,3 +1,0 @@
-span=164..182
-expression=extensionValueOnly
-dependency function `extensionValueOnly`: type argument `Reference` for `T` must satisfy `value`

@@ -1,0 +1,75 @@
+SourceFile
+  QualifiedPackage consumer.members
+  ImportStar Local templates.members.*
+  private class Reference(val value: Int)
+  private struct Large
+    field first: Reference
+    field second: Reference
+    field third: Reference
+  public fun result(): Int
+    val token
+      FieldAccess extensionValueOnly
+        Call Box<Unit>
+          UnitLiteral
+    val empty
+      Call PropertyItem<Unit>
+        Var token
+    assign .extensionState
+      Var empty
+      Var token
+    val unit
+      FieldAccess extensionState
+        Var empty
+    val cell
+      Call PropertyItem<Large>
+        Call Large
+          Call Reference
+            IntLiteral 1
+          Call Reference
+            IntLiteral 2
+          Call Reference
+            IntLiteral 3
+    assign .extensionState
+      Var cell
+      Call Large
+        Call Reference
+          IntLiteral 10
+        Call Reference
+          IntLiteral 12
+        Call Reference
+          IntLiteral 20
+    val value
+      FieldAccess extensionValue
+        Call Box<Large>
+          FieldAccess extensionState
+            Var cell
+    val first
+      Call Reference
+        IntLiteral 1
+    val second
+      Call Reference
+        IntLiteral 2
+    return
+      Binary Add
+        Binary Add
+          FieldAccess value
+            FieldAccess first
+              Var value
+          FieldAccess value
+            FieldAccess second
+              Var value
+        FieldAccess value
+          FieldAccess third
+            Var value
+  public fun make<T>(value: T): T
+    val cell
+      Call PropertyItem<T>
+        Var value
+    assign .extensionState
+      Var cell
+      Var value
+    return
+      FieldAccess extensionValue
+        Call Box<T>
+          FieldAccess extensionState
+            Var cell

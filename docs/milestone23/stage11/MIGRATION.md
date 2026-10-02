@@ -354,3 +354,4 @@ parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end，
 | 原 Rust 入口 | 原源码组 | 正例／负例 | 进程／golden 比较 | 旧阶段与诊断对照 |
 | --- | --- | --- | --- | --- |
 | `generic_member_templates_republish_and_execute_from_artifacts` | `m23-generic-member-consumption` | 18／0 | 216／234 | 54 份阶段、0 份诊断逐项相同 |
+| `generic_extension_properties_republish_and_execute_from_artifacts` | `m23-generic-member-consumption` | 8／5 | 111／104 | 24 份阶段、5 份诊断逐项相同 |
