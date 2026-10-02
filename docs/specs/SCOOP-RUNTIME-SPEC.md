@@ -241,7 +241,7 @@ M23-9 的正式链接按 [阶段设计](../milestone23/stage9/DESIGN.md) 生成 
 
 M23-10 的普通 native object、archive 成员与进程装载时引入的 dylib/framework 按 [阶段设计](../milestone23/stage10/DESIGN.md) 参与 FFI 符号解析，不成为新的 Scoop logical image，不增加 registration、program descriptor 或 runtime metadata ABI。native C 的全局数据与静态初始化 TLS 仍为 GC-free 外部存储；Darwin TLV bootstrap 不登记 managed root，也不等同于本节禁止的运行时新增 Cone。SourceExtern 的 C native-safe、Scoop native-borrowed、caller-root、回调 attach 和异常边界继续按第 3～5 章执行。链接器检查实际选中对象和装载绑定，不要求 runtime 再次扫描 native 文件、确认 producer 身份或重放 link plan；外部实现遵守 FFI 契约仍由作者负责。
 
-M23-11 的公开 `scoop build/run/link` 复用上述正式启动对象和 `scoop_rt_run_program`，不增加 CLI 专用 runtime 入口、registration 或第二份初始化顺序。`run` 在新的程序进程内执行 binary；构建、缓存、诊断、argv 转交和退出状态由工具层处理，详见实现规范 2.7 及 [阶段设计](../milestone23/stage11/DESIGN.md)。metadata ABI 3、GC／FFI／异常合同和 native 装载规则保持，历史 fixture 迁移同样消费实际多 image 启动。
+M23-11 的公开 `scoop build/run/link` 复用上述正式启动对象和 `scoop_rt_run_program`，不增加 CLI 专用 runtime 入口、registration 或第二份初始化顺序。`run` 在新的程序进程内执行 binary；默认当前 `Cone.toml`、debug/release 构建 profile、输出布局、缓存、诊断、argv 转交和退出状态由工具层处理，详见实现规范 2.7 及 [阶段设计](../milestone23/stage11/DESIGN.md)。两种构建 profile 当前沿用相同 runtime 构建设置，不按 profile 名切换 GC／检查／异常行为；后续优化设置由实际 runtime-build 输入表达。metadata ABI 3、GC／FFI／异常合同和 native 装载规则保持，历史 fixture 迁移同样消费实际多 image 启动。
 
 登记只检查当前加载边界的格式、实际地址、引用、唯一性、扫描与初始化契约。编译器和 reader 已完成的语言、canonical definition、布局摘要及 ODR 内容比较不在 runtime 重放；runtime 不重算 RuntimeImage/Graph/ObjectDefinition fingerprint，不重建 canonical exact-type key 或程序来源证明。实际 stackmap 的规范化摘要核对用于确认链接后的 PC、owner 和 root locations，与重放编译语义不同。完整不可变记录检查一次，ODR 的同址重复引用和 GC 热点直接复用结果。
 

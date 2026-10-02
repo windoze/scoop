@@ -104,6 +104,7 @@ Strong production 的两种表示使用 `/11`、`/12`，删除初始化专用 AB
 - M23 v1只支持最终链接前已完整解析的、**静态无环Cone图**。不实现registry下载、版本范围求解、lockfile生成、运行期加载Cone、`dlopen`、image卸载或ABI-stable plugin；M23-10 允许进程装载时引入普通 native FFI dylib/framework，它们不成为新的 Scoop image；
 - `Cone.toml` v1使用exact coordinate与library/executable kind。dependency locator可以是source path、`.slib`路径或搜索路径中的exact artifact，但locator不进入Cone identity和产物metadata；
 - **`scoop`与`scoopc`的关系类比Cargo与rustc。** `scoop`拥有manifest locator解析、完整DAG、缓存与多Cone调用顺序；`scoopc`只发现并编译命令行指定的当前Cone，要求完整上游`.slib`闭包作为显式输入，不递归定位、构建或重建任何上游Cone；
+- `scoop build/run` 可省略 root，此时使用当前目录的 `Cone.toml`；构建 profile 仅 debug/release，默认 debug，当前只区分选择和输出布局，优化延后。默认输出目录为 `target/<canonical-target-triple>/<profile>`，`--target-dir` 可替换 target 根；
 - **`scoop build <file.scoop>` / `scoop run <file.scoop>`是正式单文件模式。** 该文件被建模为只含一个source、只具有默认 core Cone 依赖的synthetic executable Cone，仍通过普通single-Cone `scoopc` → `.slib` → program-link路径。它不扫描相邻manifest、其他`.scoop`、C/C++源码或blob；FFI native library requirement不是Cone dependency，只能由`.slib`中已有的typed requirement经显式`--library-path`解析；
 - `ConeIdentity`由canonical `group:name:version`产生，artifact content另有fingerprint；同coordinate不同metadata不能伪装成同一个可替换artifact；
 - source `package`、exact/star import、`as` alias和`public import`由M23-1先冻结语法与本Cone结构，再由M23-5接入跨Cone semantic world。re-export只建立新的公开binding，保留最终实体的origin identity，不复制声明或改写type identity；
@@ -211,7 +212,7 @@ kind = "executable" # 或 "library"
 ### 1.3 source discovery、single-file root、package与entry
 
 - `scoopc`只为当前Cone递归收集`src/`下扩展名精确为`.scoop`的regular file，以标准化Cone-relative `/`路径按UTF-8 byte顺序排序；空source set、非UTF-8路径、两个路径归一化到同一identity、或symlink逃出Cone root均为single-Cone compiler错误；
-- `scoop`的root operand是封闭sum `BuildRootInput::ManifestCone | SingleFile`。operand basename的扩展名精确为`.scoop`且跟随symlink后的目标是已存在regular file时选择`SingleFile`；symlink cycle、dangling link或最终目标非regular file稳定失败，resolved host path仍只作locator。即使该文件所在目录含`Cone.toml`或其他source，也不能切换为manifest mode或发现旁文件。目录operand要求其下存在`Cone.toml`，regular file operand只有精确命名的`Cone.toml`或满足上述`.scoop`规则时合法；不存在、错类型或其他扩展名不作启发式回退；
+- `scoop build/run` 省略 root operand 时，先补为调用者 cwd 下的 `Cone.toml`，不向父目录搜索或猜测 `.scoop` 文件；进入 `BuildRootInput::ManifestCone | SingleFile` 时输入已经明确，低层 `scoopc build` 仍要求 operand。显式 operand basename的扩展名精确为`.scoop`且跟随symlink后的目标是已存在regular file时选择`SingleFile`；symlink cycle、dangling link或最终目标非regular file稳定失败，resolved host path仍只作locator。即使该文件所在目录含`Cone.toml`或其他source，也不能切换为manifest mode或发现旁文件。目录operand要求其下存在`Cone.toml`，regular file operand只有精确命名的`Cone.toml`或满足上述`.scoop`规则时合法；不存在、错类型或其他扩展名不作启发式回退；
 - `SingleFile`构造固定semantic projection：`ConeCoordinate = scoop:single-file:0.0.0`、`ConeOutputKind::Executable`、source set恰好为该文件且logical path固定为`main.scoop`、direct Cone dependency恰好为trusted `scoop:scoop.core:0.1.0`。它不接受dependency locator、`--direct-slib`、`--support-slib`或相邻source discovery，源码中对非core Cone的import按普通不可达诊断；
 - single-file `.slib`是local executable-root artifact，可进入content-addressed cache，并可由产生它的`scoop build/run`或显式`scoop link --root-slib`作为唯一root消费；它不能作为可分发artifact发布、作为另一Cone的dependency或由manifest `artifact` locator引用。一个resolved graph中最多有一个该synthetic root；缓存键除固定projection外必须包含source content digest、core三层fingerprint、compiler/schema/target/toolchain身份，因而不同文件不会因共用Cone identity而命中同一artifact；
 - host绝对路径、调用时的相对/绝对/symlink spelling、目录枚举顺序、inode、mtime和canonicalized临时目录不进入任何semantic identity。manifest Cone的source path identity是`(ConeIdentity, normalized Cone-relative path)`；single-file root使用相同pair形态，但第一项固定为由reserved `scoop:single-file:0.0.0`计算的`ConeIdentity`，第二项固定为`main.scoop`。当次CLI可用用户输入路径装饰当前source诊断，但该display locator不写入`.slib`、persistent id、`SourceLocation.file`或cache key；
@@ -1430,9 +1431,11 @@ M23固定三层工具边界。面向用户的umbrella binary是`scoop`；`scoopc
 workspace 的实际映射为：`compiler/driver` 继续提供 single-Cone `scoopc`；`compiler/scoop` 拥有 DAG、配套 compiler、runtime 构建与缓存编排；`compiler/linker` 提供 `scoop-linker` 库和低层 `scoop-link`，供公开 `scoop build/run/link` 共用。runtime-build 当前只有该编排调用方，按职责作为 scoop 模块实现，不为尚无复用的需求新建 stage 或工厂。`compiler/toolchain` 解析各明确工具与相容 profile；manifest/protocol 保存共有数据和子进程消息。scoop 不依赖 parser/lower/codegen，linker 不依赖这些上游实现或 LLVM，scoopc 不依赖 scoop/runtime-build/program-link。IR/meta 保存实际跨边界数据，工具路径和缓存状态不进入语言 IR。
 
 ```text
-scoop build <root-input> [--cone-path <root> ...]
+scoop build [<root-input>] [--cone-path <root> ...]
+            [--profile <debug|release> | --release] [--target-dir <dir>]
             [--library-path <root> ...] [-o <artifact-or-binary>]
-scoop run <root-input> [--cone-path <root> ...]
+scoop run [<root-input>] [--cone-path <root> ...]
+          [--profile <debug|release> | --release] [--target-dir <dir>]
           [--library-path <root> ...] [-- <program-arg> ...]
 scoop link --root-slib <root.slib> --dependency-slib <upstream.slib>...
            --runtime-objects <index> [--cone-path <root> ...]
@@ -1444,9 +1447,13 @@ scoopc build <Cone-root-or-Cone.toml-or-file.scoop>
     --out-slib <current.slib>
 ```
 
-`root-input`是第1.3节的封闭sum：目录或`Cone.toml`选择manifest Cone，regular `.scoop`文件选择single-file root；显式文件operand始终优先，不查找相邻manifest。`scoop run`对library root报错，对executable manifest root与single-file root采用同一路径。target profile与sysroot仍是每个命令的显式、规范化配置，示意中省略。用于定位／展示的 CLI path 不进入 Cone/member/entity identity、fingerprint 或 semantic source identity；M23-10 实际写入 executable 的 install name/RPATH 属于装载语义，按 3.7 和阶段设计纳入 link plan；大量dependency以后可以增加与上述参数逐项等价的response-file传输形式，但它不能成为第二套graph/artifact协议。host native library search path只属于`scoop`/program-link；`scoopc`仅把源码与member capability产生的逻辑native requirement写入`.slib`，不能让当前机器的`-L`选择改变single-Cone semantic/code artifact。单文件旁边的`.c`/`.cc`、archive或blob不会被自动发现；需要它们的调用方或fixture runner必须先显式构建出满足已有typed requirement的library，再只通过`--library-path`把候选搜索根交给program-link。CLI不提供无来源的raw object/archive注入参数。
+`root-input` 省略时只取当前目录的 `Cone.toml`，缺失或无效时失败；`run -- <args>` 也按此选择，`--` 后内容均为程序参数。显式输入按第1.3节的封闭sum：目录或`Cone.toml`选择manifest Cone，regular `.scoop`文件选择single-file root；显式文件operand始终优先，不查找相邻manifest。`scoop run`对library root报错，对executable manifest root与single-file root采用同一路径。target profile与sysroot仍是每个命令的显式、规范化配置，示意中省略。用于定位／展示的 CLI path 不进入 Cone/member/entity identity、fingerprint 或 semantic source identity；M23-10 实际写入 executable 的 install name/RPATH 属于装载语义，按 3.7 和阶段设计纳入 link plan；大量dependency以后可以增加与上述参数逐项等价的response-file传输形式，但它不能成为第二套graph/artifact协议。host native library search path只属于`scoop`/program-link；`scoopc`仅把源码与member capability产生的逻辑native requirement写入`.slib`，不能让当前机器的`-L`选择改变single-Cone semantic/code artifact。单文件旁边的`.c`/`.cc`、archive或blob不会被自动发现；需要它们的调用方或fixture runner必须先显式构建出满足已有typed requirement的library，再只通过`--library-path`把候选搜索根交给program-link。CLI不提供无来源的raw object/archive注入参数。
 
-`scoop build <file.scoop>`省略`-o`时，把最终binary原子物化到调用者cwd下的`.scoop/build/single-file/<target-profile-id>/<ResolvedLinkPlanFingerprint>/<sanitized-input-stem>`；fingerprint使用完整值建立目录，示意路径可缩写显示，stem只影响展示文件名而不进入semantic/cache identity。同一输出位置由build lock串行发布，因而并行fixture不会因共享reserved Cone coordinate、相同basename、不同core/toolchain或不同native解析结果而覆盖。显式`-o`只改变materialization destination，不改变artifact或link plan。`scoop run <file.scoop>`默认直接执行本次build得到的已验证binary；它可以位于受检cache或私有临时物化目录，但不额外承诺一个用户可见输出路径，需要保留binary时使用`build -o`。manifest root的默认输出仍位于其自己的build目录，不能与single-file默认路径混用。
+`BuildProfile::{Debug,Release}` 是与 target/ABI 和 artifact profile 分开的构建配置：默认 debug，`--profile` 可显式选择，`--release` 为 release 简写；两种选择方式同时出现或未知名称均报参数错误。M23-11 只实现选择、输出布局和结果展示，两种 profile 仍用相同既有编译／runtime 设置并可共享内部缓存，不新增优化或调试信息策略。将来优化实施时须把实际生效设置传给 producer 并纳入对应编译／runtime 缓存键，不能只改目录。
+
+build/run 默认 target root 为 `<Cone-root>/target`，single-file 则为 `<调用者 cwd>/target`；`--target-dir <dir>` 相对调用者 cwd 解析并替换该根。输出目录统一为 `<target-root>/<canonical-target-triple>/<profile>`，省略 target 也保留 host triple；library 文件名为 `<cone-name>.slib`，manifest executable 为 `<cone-name>`，single-file 为 `<sanitized-input-stem>`。完整 fingerprint 仍记录实际内容，但不再组成用户输出路径。build 的 `-o` 只覆盖最终 root 文件的完整路径，不追加 triple/profile，可与 `--target-dir` 同用；run 不接受 `-o`。同一输出位置以锁和原子发布保证完整文件，后一次成功发布替换旧内容，失败保留旧结果；需要同时保留同名结果时显式选择不同目录或文件名。
+
+`scoop run` 先发布与 build 相同的稳定产物，再执行同次已检查链接结果保留的私有副本，不因并发覆盖稳定路径运行另一程序。副本位于稳定 binary 同目录以保留 `@executable_path` 等相对装载语义，argv[0] 使用稳定 binary 路径；运行后清理副本，稳定产物继续保留。用户输出位置与 profile 名称不进入语言 identity，内部 artifact cache 仍按实际内容和生产配置管理。
 
 `scoop run` 等价于完整执行一次`scoop build`后启动其已验证binary，不存在interpreter、JIT、跳过`.slib`或跳过program-link的快速路径。`--`之后的参数原样作为program argv，不进入build/cache key；child继承调用者的cwd、environment与stdin/stdout/stderr。`scoop`自身的diagnostic/warning只写stderr，不污染program stdout；启动成功后透传program的exit status或signal结果，启动失败则使用独立的tool error状态。
 
@@ -1459,7 +1466,7 @@ scoopc build <Cone-root-or-Cone.toml-or-file.scoop>
 5. 所有link object联合起来恰好定义本Cone的一个image descriptor；全部undefined relocation按`{SlibMemberId, use}`验证、收集contract/requirement。之后原子写`--out-slib`临时文件，核对写入字节与同次编译归档一致，再rename；不把当前产物及全部依赖重新交给 Compile/Link reader；
 6. 无论manifest kind是library还是executable，唯一产物都是当前Cone `.slib`。executable分支结构上额外携带非可选typed main/root gateway metadata，但`scoopc`不生成program descriptor、不读取或构建runtime输入，也不调用最终native linker。
 
-M23-11 的具体 CLI／配置、诊断／dump、输出路径及恢复历史覆盖见 [阶段设计](stage11/DESIGN.md)。公开 `link` 必需显式 runtime index，只沿 root artifact 的 exact edge 查找已有 `.slib`，不启动 compiler、不读 Scoop/runtime 源码或重建缺失依赖。build/run 可选择实际 runtime source build 或显式对象索引，使用同一 program-link。manifest 默认输出按 target 和完整 artifact／link-plan fingerprint 放在 Cone root 的 `.scoop/build/`；single-file 路径保持上述规则。默认路径需要本次 link-plan fingerprint 时，先在私有目录链接一次，再移交同一已检查 binary，不二次链接或重验。
+M23-11 的具体 CLI／配置、诊断／dump、输出路径及恢复历史覆盖见 [阶段设计](stage11/DESIGN.md)。公开 `link` 必需显式 runtime index，只沿 root artifact 的 exact edge 查找已有 `.slib`，不启动 compiler、不读 Scoop/runtime 源码或重建缺失依赖。build/run 可选择实际 runtime source build 或显式对象索引，使用同一 program-link。默认 target/triple/profile 路径在配置解析后确定；先在目的文件系统的私有位置链接一次，再原子发布同一已检查 binary，不二次链接或重验，link-plan fingerprint 继续作为真实结果返回。
 
 child 协议 2 保留单 request／response 的 canonical CBOR framing，以明确 stage 集合和文件目录请求观察输出；machine stdout 只保存 response frame，返回全部请求 stage 的文件位置与内容摘要。HIR dump 显示 Export 和 LocalConcrete。正常 cache hit 零 child；显式 dump 对指定 source 节点重新编译一次，不从 `.slib` 反造瞬时 IR，不缓存 dump。语言诊断在尚持有实际 source 映射的边界保留 primary／note 的 canonical source/span，父进程只增加本次显示路径，cache warning 同样保持。协议／配套 capability 与 compile key 同步迁移，既有 `.slib`、runtime ABI 3 和 link-plan v2 不因 CLI 变更升级。
 
@@ -1999,6 +2006,8 @@ non-generic delegated extension继续按M21普通top-level eager storage；两�
 ### 9.1 manifest、graph与parser
 
 - library/executable、path/artifact/search dependency三种locator、implicit core；
+- build/run 省略 root 与显式当前 `Cone.toml`／`.` 等价；缺当前 manifest、仅父目录有 manifest、只有单个 `.scoop` 或无效 manifest 时失败；`run -- <args>` 正确透传参数，显式 source 仍不读取相邻 manifest；
+- debug 默认值、显式 debug/release、`--release` 简写、未知／冲突参数；`target/<canonical-target-triple>/<profile>` 目录、`--target-dir` 与 `-o` 的相对／绝对路径和覆盖规则；当前两 profile 的编译产物可复用，输出分开且程序行为相同；
 - root operand精确区分Cone目录、`Cone.toml`与regular `.scoop`文件；不存在、错扩展名、非regular file和歧义输入稳定失败。显式`.scoop`文件位于某Cone目录中时仍只编译该文件，不读取旁边manifest、其他Scoop/C/C++源码或blob；
 - single-file root在相对路径、绝对路径与等价symlink spelling下产生相同Cone/source/entity identity与`.slib` bytes，只有CLI diagnostic decorator不同；不同源码内容必须产生不同cache entry。该artifact只能作唯一executable root（包括显式`scoop link --root-slib`），不能作为可分发artifact发布、作dependency或由manifest locator引用；
 - single-file source的Cone dependency闭包恒为trusted core；对非core Cone的import、direct/support `.slib`参数均稳定失败。另行覆盖`@Extern`所需native library只由artifact中的typed requirement加显式`--library-path`成功解析，证明它不被误当作Cone dependency，也不能用raw object注入绕过requirement；
@@ -2009,7 +2018,7 @@ non-generic delegated extension继续按M21普通top-level eager storage；两�
 - recursive multi-file source、不同package、root package、source排序/路径归一化；
 - package/import/public import/alias/star语法与多错误恢复；
 - library无main、dependency main不抢entry、root main缺失/重复/ordinary/Unit规则。
-- `scoop run <file> -- ...`与对同一输入`scoop build`后执行的结果一致；program argv不影响build key，cwd/environment/stdio继承，stdout不含tool diagnostic，正常退出码、signal与启动失败分别被正确透传/区分。
+- `scoop run [root] -- ...`与对同一输入、target 和构建 profile 的`scoop build`后执行结果一致，稳定产物在运行后保留；并发覆盖不改变本次运行的内容，私有副本清理和相对动态库装载正常。program argv不影响build key，cwd/environment/stdio继承，stdout不含tool diagnostic，正常退出码、signal与启动失败分别被正确透传/区分。
 
 ### 9.2 resolver与visibility
 
@@ -2231,11 +2240,11 @@ Link 直接复用原 foundation 身份／合同，完整机器 ABI／布局原�
 
 CLI 只编排同一编译管线。总验收继承 6a 的源码／wire 等价、声明位置变化和双向泛型组合矩阵，并覆盖 Stage 7–10 的实际产物与运行；历史 fixture 不能通过旧本地/core 拼接入口掩盖依赖消费差异。
 
-正式启用`compiler/scoop` bin、配套`scoopc`协议2、现有artifact cache和`scoop build/run/link`。补齐canonical primary/note、cache warning及一次多stage文件dump；普通命中零child，显式观察重新编译指定source节点一次。实现第1.3/5.5节的manifest/single-file分流、默认输出原子物化和run语义；公开link必须消费现有runtime index与产物，不读源码或启动compiler。final-link cache不在本阶段实现。
+正式启用`compiler/scoop` bin、配套`scoopc`协议2、现有artifact cache和`scoop build/run/link`。补齐canonical primary/note、cache warning及一次多stage文件dump；普通命中零child，显式观察重新编译指定source节点一次。实现第1.3/5.5节省略 root 使用当前 `Cone.toml`、显式manifest/single-file分流、debug/release 选择、target/triple/profile 默认输出原子物化和run语义；profile 默认 debug，优化实现延后。公开link必须消费现有runtime index与产物，不读源码或启动compiler。final-link cache不在本阶段实现。
 
 旧 driver executable 入口和 fixture runner 已经在 `c02bd245c` 删除。本阶段以统一 Python infra 恢复 M1–M22 及 M25 历史端到端 fixture 到正式 `scoop build <file>`，保留 stage dump/warning/diagnostic 和运行结果；现有 Rust 文件 fixture harness（含阶段 golden、program-link/native）一并迁移，明确各源码归属并补 CLI 规则覆盖。acceptance criteria 采用源码注释／附加 TOML 的同一 schema，统一表达条件、步骤和断言；新增 fixture 原则上只改数据，只有无法表达新的实际能力时才扩展公共规则，禁止 case-by-case 分支。FFI companion 由公共步骤按声明构建，仅通过 `--library-path` 参与解析。恢复覆盖后删除原 Rust fixture infra、专用 helper／依赖／入口和剩余临时 link/startup 旁路；普通 Rust 内部单元测试保留，不恢复旧 core/source 拼接或第二条生产路径。
 
-完成门：`scoop build/run <file>`对相邻manifest/source/native文件不做隐式发现，只构建一个source + core的synthetic executable graph；`run`只是build + execute，正确处理`--`、stdio/cwd/environment和exit/signal；单文件和多Cone综合fixture、cache失效矩阵、corruption/reproducibility与moving-GC/exception/closure/coroutine/FFI全量回归通过。Python fixture infra 的迁移、仅改数据的扩展性验收和原 Rust infra 清理同时完成，Rust 测试与完整 Python suite 分别通过，不能以 cargo 总数替代 fixture 覆盖。诊断snapshot允许一次受控迁移到semantic source identity与独立display locator模型，不能把host路径重新写进persistent identity。
+完成门：build/run 省略 root 使用当前 `Cone.toml`，default debug、release 选择、`--target-dir` 与 target/triple/profile 输出均通过；显式`scoop build/run <file>`对相邻manifest/source/native文件不做隐式发现，只构建一个source + core的synthetic executable graph。`run`完成同样的稳定产物发布再执行本次结果，正确处理`--`、stdio/cwd/environment和exit/signal；单文件和多Cone综合fixture、cache失效矩阵、corruption/reproducibility与moving-GC/exception/closure/coroutine/FFI全量回归通过。Python fixture infra 的迁移、仅改数据的扩展性验收和原 Rust infra 清理同时完成，Rust 测试与完整 Python suite 分别通过，不能以 cargo 总数替代 fixture 覆盖。诊断snapshot允许一次受控迁移到semantic source identity与独立display locator模型，不能把host路径重新写进persistent identity。
 
 每个子里程碑均先`cargo fmt --all`与`cargo clippy --workspace`，再执行对应unit/golden/fixture；M23-11 的 Python 变更同样先完成统一格式化与 lint，再运行公共规则测试和 fixture suite。早期允许的旧fixture executable driver只是迁移边界，已删除的入口不得恢复；M23-11必须恢复正式CLI覆盖、完成 Python fixture 迁移并清除旧 Rust infra 和剩余临时运行旁路。最终不得保留旧的“`scoopc`直接把裸文件与core source合并并链接”入口、让`scoopc`递归构建或最终链接的旁路、固定`code.o`/`bridge.o`成员判断、两套symbol mangler、raw arena id wire格式、固定`scoop_image_*` weak fallback或“ODR不一致让linker选择”的路径。
 
