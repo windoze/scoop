@@ -1,0 +1,40 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.MutableCell
+  ImportExact Local dependency.classes.ReferenceAggregate
+  ImportExact Local dependency.classes.ReferenceParent
+  public object Singleton
+    public val extra: MutableCell = <expr>
+      Call MutableCell
+        IntLiteral 1
+    public fun transfer
+  public fun primary(): Counter
+    val first
+      Var Singleton
+    val second: ReferenceParent
+      Var Singleton
+    if
+      Binary RefNe
+        Var first
+        Var second
+      return
+        Call Counter
+          IntLiteral 0
+    val result
+      MethodCall transfer
+        Var second
+        FieldAccess data
+          Var second
+    return
+      Call Counter
+        Binary Add
+          Binary Add
+            FieldAccess value
+              FieldAccess first
+                Var result
+            FieldAccess value
+              FieldAccess second
+                Var result
+          FieldAccess tag
+            Var result

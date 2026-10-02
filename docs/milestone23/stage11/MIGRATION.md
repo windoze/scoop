@@ -268,8 +268,9 @@ fixture 的 `truncate(path,size)` 只缩短现有文件；对应归档的初始�
 | `abstract_dependency_conformances_report_unimplemented_source_members` | 0／3 | 12／0 | 3 份诊断相同 |
 | `qualified_interface_super_calls_use_actual_dependency_defaults` | 9／0 | 99／45 | 21 份旧阶段逐字相同；6 份补齐空 struct 默认 equals 及一致的函数序号调整 |
 | `qualified_interface_super_calls_report_source_errors` | 0／8 | 32／0 | 8 份诊断相同 |
+| `inherited_class_abi_and_initialization_run_through_actual_artifacts` | 5／3 | 67／25 | 15 份旧阶段逐字相同；3 份诊断相同 |
 
-本节目前覆盖 192 项；其余类、接口及继承用例继续逐功能迁移。共享的旧 runtime helper 仍被其他待迁测试调用，随那些调用一起退役。
+本节目前覆盖 200 项；其余类、接口及继承用例继续逐功能迁移。共享的旧 runtime helper 仍被其他待迁测试调用，随那些调用一起退役。
 
 ## 12. 后续批次
 
