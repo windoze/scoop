@@ -30,7 +30,12 @@ fn lower_current_cone_inner(
     requested: scoop_identity::RequestedConeKind,
     input: &CurrentConeSources<'_, '_>,
 ) -> Result<hir::DependencyHirOutput, Vec<Diagnostic>> {
-    let (files, sources) = materialize_current_sources(input.sources());
+    let (files, mut sources) = materialize_current_sources(input.sources());
+    for source in &mut sources {
+        if let Some(coordinate) = input.source_names().get(&source.identity.cone()) {
+            source.name = format!("{coordinate}/{}", source.identity.logical_path().as_str());
+        }
+    }
     let world = input.semantic_world();
     let dependency_selection = world.dependency_selection_plan().map_err(|error| {
         vec![Diagnostic::at(
@@ -38,9 +43,10 @@ fn lower_current_cone_inner(
             format!("failed to prepare dependency selection: {error}"),
         )]
     })?;
-    let lowerer = Lowerer::new()
+    let mut lowerer = Lowerer::new()
         .with_intrinsic_sources(sources, IntrinsicDeclarationPolicy::CoreOnly)
         .with_imported_dependencies(dependency_selection);
+    lowerer.source_names = input.source_names().clone();
     let lowerer = match input.core() {
         CoreProtocolInput::CurrentDeclarations => lowerer,
         CoreProtocolInput::Imported(core) => lowerer.with_imported_core(core),

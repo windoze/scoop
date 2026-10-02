@@ -35,6 +35,7 @@ fn current_core_and_ordinary_callables_share_the_complete_machine_pipeline() {
         &parsed,
         scoop_hir_lower::CoreProtocolInput::CurrentDeclarations,
         &world,
+        Default::default(),
     )
     .unwrap();
     let input = hir.machine_input();

@@ -17,9 +17,11 @@ impl CurrentConeHirArtifacts {
         sources: &scoop_ast::CurrentConeParsedSources,
         protocols: scoop_hir_lower::CoreProtocolInput,
         world: &scoop_hir::ImportedSemanticWorld<'_>,
+        source_names: std::collections::BTreeMap<scoop_identity::ConeIdentity, String>,
     ) -> Result<Self, CurrentConeHirStageError> {
         let sources = scoop_hir_lower::CurrentConeSources::try_new(sources, protocols, world)
-            .map_err(CurrentConeHirStageError::Input)?;
+            .map_err(CurrentConeHirStageError::Input)?
+            .with_source_names(source_names);
         let hir = scoop_hir_lower::lower_current_cone(requested, &sources)
             .map_err(CurrentConeHirStageError::Lowering)?;
 

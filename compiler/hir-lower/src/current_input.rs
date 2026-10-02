@@ -3,6 +3,7 @@
 use scoop_ast as ast;
 use scoop_hir as hir;
 use scoop_identity::ConeIdentity;
+use std::collections::BTreeMap;
 
 /// Compiler protocols come from current declarations or one imported library.
 pub enum CoreProtocolInput {
@@ -21,6 +22,7 @@ pub struct CurrentConeSources<'input, 'world> {
     sources: &'input ast::CurrentConeParsedSources,
     core: CoreProtocolInput,
     world: &'world hir::ImportedSemanticWorld<'input>,
+    source_names: BTreeMap<ConeIdentity, String>,
 }
 
 impl<'input, 'world> CurrentConeSources<'input, 'world> {
@@ -51,7 +53,18 @@ impl<'input, 'world> CurrentConeSources<'input, 'world> {
             sources,
             core,
             world,
+            source_names: BTreeMap::new(),
         })
+    }
+
+    /// Cone coordinate labels used to display canonical semantic source paths.
+    pub fn with_source_names(mut self, names: BTreeMap<ConeIdentity, String>) -> Self {
+        self.source_names = names;
+        self
+    }
+
+    pub(crate) fn source_names(&self) -> &BTreeMap<ConeIdentity, String> {
+        &self.source_names
     }
 
     pub const fn current_cone(&self) -> ConeIdentity {

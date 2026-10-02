@@ -395,6 +395,8 @@ struct/enum 的派生 equality 条件签名必须在继承与源码签名检查�
 
 默认template实例化器只在winner与完整type arguments已经确定后执行完整type substitution、前置parameter value绑定与上述通用origin构造，然后把展开结果作为调用处普通concrete expression交给统一lowering；它不得重新做名称/import/extension/overload决议，也不得依赖intrinsic registry、匹配callee identity或按expression kind建立专用分支。需要观察求值位置的语言设施统一读取所在concrete expression的evaluation origin。默认值实际展开时触发的物化能力错误同样使用该evaluation中的文件与span，不能把provider定义处的字节偏移当作consumer中的报错位置。`current_source_location`只是普通HIR intrinsic consumer之一，不是default实例化协议的一部分；definition/evaluation也不能以覆盖节点span、`Option`缺失后回退或consumer反推的方式互相冒充。
 
+本地声明与依赖声明的 `current_source_location` 均按已解析的 intrinsic kind，在 HIR 具体化时折叠为实际返回类型的 `SourceLocation` 值；依赖中的普通、泛型及默认参数调用不要求该 intrinsic 具有外部机器正文。当前源码的位置从源码文本取得，导入正文的位置直接读取同一 evaluation origin 对应的 canonical source record。函数与类型名称从该 context 引用的原声明及词法 owner 取得，随已读取的 context 缓存为普通显示数据；导入后的局部 arena 编号不参与名称恢复，显示数据也不进入持久化身份。driver 从当前请求和已读取依赖的 Cone 坐标提供文件名标签，HIR 将坐标与原 logical path 组合为语言 11.12 的 canonical semantic source path；诊断使用的 host locator 不参与这个值。此标签不参与符号身份或引用合法性，不增加 wire 字段、默认参数特例或源码重解析。
+
 默认值的定义方、发布方、原参数位置、binder mapping、definition/evaluation origin 与完整 typed 正文属于普通参数 metadata。默认值继承保留实际 provider；同一 source closure 的不同展开保持各自 owner arguments 与值作用域，不能按函数类型或名字反推身份。constructor、property、field、singleton、type 与 callable 引用各用自己的 typed id，并由依赖闭包解析实际记录。
 
 前端在定义处检查默认正文的类型、effect、数据流、局部作用域、receiver、访问域和调用合同。产物 reader 在读入时验证编码、typed 引用、owner/binder 范围和跨表关系；不能为同一正文另建 source-authority、逐类域证明、来源凭证、cursor 证明链或第二套操作语义。实例化器只做已解析正文的类型代换、参数绑定与来源映射；不同展开的实际类型关系由各自完整 IR 保证。

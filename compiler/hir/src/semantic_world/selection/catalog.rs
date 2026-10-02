@@ -147,7 +147,7 @@ impl ImportedSemanticWorld<'_> {
                     ));
                 }
             }
-            let definition_sources = Arc::new(imported_definition_sources(provider));
+            let definition_sources = Arc::new(imported_definition_sources(provider, self)?);
             for initialization in provider.interface().generic_initializations().records() {
                 initializations.insert(initialization.owner(), Arc::new(initialization.clone()));
             }
@@ -407,7 +407,8 @@ impl ImportedSemanticWorld<'_> {
 
 fn imported_definition_sources(
     provider: &ImportedProvider<'_>,
-) -> ImportedDependencyDefinitionSources {
+    world: &ImportedSemanticWorld<'_>,
+) -> Result<ImportedDependencyDefinitionSources, ImportedDependencySelectionPlanBuildError> {
     let foundation = provider.foundation().canonical_for_semantic_authority();
     let records = foundation
         .source_records()
@@ -416,9 +417,24 @@ fn imported_definition_sources(
         .collect();
     let contexts = foundation
         .source_context_records()
-        .map(|(id, key)| (id, key.clone()))
-        .collect();
-    ImportedDependencyDefinitionSources { records, contexts }
+        .map(|(id, key)| {
+            let origin = world.positions.get(&key.source().cone()).map(|index| {
+                world.providers[*index]
+                    .foundation()
+                    .canonical_for_semantic_authority()
+            });
+            let names = origin
+                .and_then(|origin| origin.source_context_names(key))
+                .ok_or(
+                    ImportedDependencySelectionPlanBuildError::MissingDefinitionContext {
+                        provider: key.source().cone(),
+                        context: id,
+                    },
+                )?;
+            Ok((id, (key.clone(), names)))
+        })
+        .collect::<Result<_, _>>()?;
+    Ok(ImportedDependencyDefinitionSources { records, contexts })
 }
 
 impl ImportedDependencySelectionPlan {

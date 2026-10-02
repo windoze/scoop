@@ -93,7 +93,10 @@ impl ImportedCallableDeclaration {
         key: &scoop_identity::SourceContextKey,
     ) -> Option<&scoop_identity::SourceContextKey> {
         let id = scoop_identity::PersistentSourceContextId::from_key(key).ok()?;
-        self.definition_sources.contexts.get(&id)
+        self.definition_sources
+            .contexts
+            .get(&id)
+            .map(|(key, _)| key)
     }
 
     pub fn name(&self) -> &str {

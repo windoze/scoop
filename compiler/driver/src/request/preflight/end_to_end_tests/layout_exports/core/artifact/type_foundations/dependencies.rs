@@ -123,6 +123,7 @@ fn lower(
         parsed.sources(),
         inputs.as_ref().clone().into(),
         &world,
+        Default::default(),
     )
     .unwrap();
     let ValidatedCurrentConeInput::Manifest { manifest } = request.current() else {

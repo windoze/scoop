@@ -1,0 +1,684 @@
+Module
+  struct SourceLocation (file: String, line: Long, column: Long, functionName: String, typeName: String)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<SourceLocation>
+    Completed(value: SourceLocation)
+    Suspended()
+  class Reporter vtable=0 itables=0
+  class LocationCompletion vtable=0 itables=1
+  class Throwable vtable=0 itables=0
+  class LocationTask vtable=0 itables=1
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  interface Continuation<SourceLocation>
+  interface SuspendTask<SourceLocation>
+  interface ToString
+  interface Hash
+  interface SuspendRegistration<SourceLocation>
+  generated_exact_type get0 location=enum1 nominal_id=1061f2b6e1689daffc0bc88977453fad6aa157e73ba67771ebaef4f49426e72c exact_id=9ee8e3e9c2738c74c6d6d74011c510f9dc6cfb1ca5707fee17776e41dc5f71fc
+  fun Reporter.bodyLocation @fn0(this: Reporter) -> SourceLocation
+    bb0 entry
+      return
+        Type SourceLocation
+        StructInit SourceLocation
+          Type String
+          StringConst @str0
+          Type Long
+          IntegerLiteral Long value=21 bits=0x0000000000000015
+          Type Long
+          IntegerLiteral Long value=48 bits=0x0000000000000030
+          Type String
+          StringConst @str1
+          Type String
+          StringConst @str2
+  fun Reporter.defaultLocation @fn1(this: Reporter, location: SourceLocation) -> SourceLocation
+    bb0 entry
+      return
+        Type SourceLocation
+        Local location
+  fun LocationCompletion.resume @fn2(this: LocationCompletion, value: SourceLocation) -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str3
+      val $argument.1: SourceLocation
+        Type SourceLocation
+        Local value
+      val $argument.2: String
+        Type String
+        FieldAccess 0
+          Type LocationCompletion
+          Local this
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.location: SourceLocation
+        Type SourceLocation
+        Local $argument.1
+      val $parameter.expectedFile: String
+        Type String
+        Local $argument.2
+      call @fn4 direct
+        Type String
+        Local $parameter.label
+        Type SourceLocation
+        Local $parameter.location
+        Type String
+        Local $parameter.expectedFile
+      return
+  fun LocationCompletion.resumeWithException @fn3(this: LocationCompletion, exception: Throwable) -> Unit
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str4
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun printLocation @fn4(label: String, location: SourceLocation, expectedFile: String) -> Unit
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        Local label
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: String
+        Type String
+        FieldAccess 0
+          Type SourceLocation
+          Local location
+      val $dependency.argument.0: String
+        Type String
+        Local expectedFile
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $dependency.argument.0: Boolean = external0 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 1
+          Type SourceLocation
+          Local location
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn11 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 2
+          Type SourceLocation
+          Local location
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn11 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 3
+          Type SourceLocation
+          Local location
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 4
+          Type SourceLocation
+          Local location
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun trace @fn5(location: SourceLocation) -> SourceLocation
+    bb0 entry
+      return
+        Type SourceLocation
+        Local location
+  fun warn @fn6(location: SourceLocation) -> SourceLocation
+    bb0 entry
+      val $argument.0: SourceLocation
+        Type SourceLocation
+        Local location
+      val $parameter.location: SourceLocation
+        Type SourceLocation
+        Local $argument.0
+      call $call.1: SourceLocation = @fn5 direct
+        Type SourceLocation
+        Local $parameter.location
+      return
+        Type SourceLocation
+        Local $call.1
+  fun relay @fn7(location: SourceLocation) -> SourceLocation
+    bb0 entry
+      val $argument.0: SourceLocation
+        Type SourceLocation
+        Local location
+      val $parameter.location: SourceLocation
+        Type SourceLocation
+        Local $argument.0
+      call $call.1: SourceLocation = @fn6 direct
+        Type SourceLocation
+        Local $parameter.location
+      return
+        Type SourceLocation
+        Local $call.1
+  fun main @fn8() -> Unit
+    bb0 entry
+      val direct: SourceLocation
+        Type SourceLocation
+        StructInit SourceLocation
+          Type String
+          StringConst @str5
+          Type Long
+          IntegerLiteral Long value=43 bits=0x000000000000002b
+          Type Long
+          IntegerLiteral Long value=18 bits=0x0000000000000012
+          Type String
+          StringConst @str6
+          Type String
+          StringConst @str7
+      val $argument.0: String
+        Type String
+        StringConst @str8
+      val $argument.1: SourceLocation
+        Type SourceLocation
+        Local direct
+      val $argument.2: String
+        Type String
+        FieldAccess 0
+          Type SourceLocation
+          Local direct
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.location: SourceLocation
+        Type SourceLocation
+        Local $argument.1
+      val $parameter.expectedFile: String
+        Type String
+        Local $argument.2
+      call @fn4 direct
+        Type String
+        Local $parameter.label
+        Type SourceLocation
+        Local $parameter.location
+        Type String
+        Local $parameter.expectedFile
+      val $argument.0: String
+        Type String
+        StringConst @str9
+      val $parameter.location: SourceLocation
+        Type SourceLocation
+        StructInit SourceLocation
+          Type String
+          StringConst @str10
+          Type Long
+          IntegerLiteral Long value=45 bits=0x000000000000002d
+          Type Long
+          IntegerLiteral Long value=30 bits=0x000000000000001e
+          Type String
+          StringConst @str11
+          Type String
+          StringConst @str12
+      call $argument.1: SourceLocation = @fn5 direct
+        Type SourceLocation
+        Local $parameter.location
+      val $argument.2: String
+        Type String
+        FieldAccess 0
+          Type SourceLocation
+          Local direct
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.location: SourceLocation
+        Type SourceLocation
+        Local $argument.1
+      val $parameter.expectedFile: String
+        Type String
+        Local $argument.2
+      call @fn4 direct
+        Type String
+        Local $parameter.label
+        Type SourceLocation
+        Local $parameter.location
+        Type String
+        Local $parameter.expectedFile
+      val $argument.0: String
+        Type String
+        StringConst @str13
+      val $argument.0: SourceLocation
+        Type SourceLocation
+        Local direct
+      val $parameter.location: SourceLocation
+        Type SourceLocation
+        Local $argument.0
+      call $argument.1: SourceLocation = @fn5 direct
+        Type SourceLocation
+        Local $parameter.location
+      val $argument.2: String
+        Type String
+        FieldAccess 0
+          Type SourceLocation
+          Local direct
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.location: SourceLocation
+        Type SourceLocation
+        Local $argument.1
+      val $parameter.expectedFile: String
+        Type String
+        Local $argument.2
+      call @fn4 direct
+        Type String
+        Local $parameter.label
+        Type SourceLocation
+        Local $parameter.location
+        Type String
+        Local $parameter.expectedFile
+      val $argument.0: String
+        Type String
+        StringConst @str14
+      val $parameter.location: SourceLocation
+        Type SourceLocation
+        StructInit SourceLocation
+          Type String
+          StringConst @str15
+          Type Long
+          IntegerLiteral Long value=47 bits=0x000000000000002f
+          Type Long
+          IntegerLiteral Long value=32 bits=0x0000000000000020
+          Type String
+          StringConst @str16
+          Type String
+          StringConst @str17
+      call $argument.1: SourceLocation = @fn7 direct
+        Type SourceLocation
+        Local $parameter.location
+      val $argument.2: String
+        Type String
+        FieldAccess 0
+          Type SourceLocation
+          Local direct
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.location: SourceLocation
+        Type SourceLocation
+        Local $argument.1
+      val $parameter.expectedFile: String
+        Type String
+        Local $argument.2
+      call @fn4 direct
+        Type String
+        Local $parameter.label
+        Type SourceLocation
+        Local $parameter.location
+        Type String
+        Local $parameter.expectedFile
+      val $argument.0: String
+        Type String
+        StringConst @str18
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $argument.1: SourceLocation = @fn12 direct
+        Type Int
+        Local $parameter.value
+      val $argument.2: String
+        Type String
+        FieldAccess 0
+          Type SourceLocation
+          Local direct
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.location: SourceLocation
+        Type SourceLocation
+        Local $argument.1
+      val $parameter.expectedFile: String
+        Type String
+        Local $argument.2
+      call @fn4 direct
+        Type String
+        Local $parameter.label
+        Type SourceLocation
+        Local $parameter.location
+        Type String
+        Local $parameter.expectedFile
+      assign $new.1
+        Type Reporter
+        ClassAlloc Reporter
+      call @fn18 direct
+        Type Reporter
+        Local $new.1
+      val reporter: Reporter
+        Type Reporter
+        Local $new.1
+      val $argument.0: String
+        Type String
+        StringConst @str19
+      val $receiver: Reporter
+        Type Reporter
+        Local reporter
+      call $argument.1: SourceLocation = @fn0 direct
+        Type Reporter
+        Local $receiver
+      val $argument.2: String
+        Type String
+        FieldAccess 0
+          Type SourceLocation
+          Local direct
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.location: SourceLocation
+        Type SourceLocation
+        Local $argument.1
+      val $parameter.expectedFile: String
+        Type String
+        Local $argument.2
+      call @fn4 direct
+        Type String
+        Local $parameter.label
+        Type SourceLocation
+        Local $parameter.location
+        Type String
+        Local $parameter.expectedFile
+      val $argument.0: String
+        Type String
+        StringConst @str20
+      val $receiver: Reporter
+        Type Reporter
+        Local reporter
+      val $parameter.location: SourceLocation
+        Type SourceLocation
+        StructInit SourceLocation
+          Type String
+          StringConst @str21
+          Type Long
+          IntegerLiteral Long value=52 bits=0x0000000000000034
+          Type Long
+          IntegerLiteral Long value=37 bits=0x0000000000000025
+          Type String
+          StringConst @str22
+          Type String
+          StringConst @str23
+      call $argument.1: SourceLocation = @fn1 direct
+        Type Reporter
+        Local $receiver
+        Type SourceLocation
+        Local $parameter.location
+      val $argument.2: String
+        Type String
+        FieldAccess 0
+          Type SourceLocation
+          Local direct
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.location: SourceLocation
+        Type SourceLocation
+        Local $argument.1
+      val $parameter.expectedFile: String
+        Type String
+        Local $argument.2
+      call @fn4 direct
+        Type String
+        Local $parameter.label
+        Type SourceLocation
+        Local $parameter.location
+        Type String
+        Local $parameter.expectedFile
+      assign $new.2
+        Type LocationTask
+        ClassAlloc LocationTask
+      call @fn20 direct
+        Type LocationTask
+        Local $new.2
+      val $dependency.argument.0: SuspendTask<SourceLocation>
+        Type SuspendTask<SourceLocation>
+        Retype SuspendTask<SourceLocation>
+          Type LocationTask
+          Local $new.2
+      val $argument.0: String
+        Type String
+        FieldAccess 0
+          Type SourceLocation
+          Local direct
+      val $parameter.expectedFile: String
+        Type String
+        Local $argument.0
+      assign $new.3
+        Type LocationCompletion
+        ClassAlloc LocationCompletion
+      call @fn19 direct
+        Type LocationCompletion
+        Local $new.3
+        Type String
+        Local $parameter.expectedFile
+      val $dependency.argument.1: Continuation<SourceLocation>
+        Type Continuation<SourceLocation>
+        Retype Continuation<SourceLocation>
+          Type LocationCompletion
+          Local $new.3
+      val $dependency.parameter.task: SuspendTask<SourceLocation>
+        Type SuspendTask<SourceLocation>
+        Local $dependency.argument.0
+      val $dependency.parameter.completion: Continuation<SourceLocation>
+        Type Continuation<SourceLocation>
+        Local $dependency.argument.1
+      call external5 direct
+        Type SuspendTask<SourceLocation>
+        Local $dependency.parameter.task
+        Type Continuation<SourceLocation>
+        Local $dependency.parameter.completion
+      return
+  fun println @fn9(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external3 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external4 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str24
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external4 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn10(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external4 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str25
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external4 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn11(value: Long) -> Unit
+    bb0 entry
+      val $dependency.local.1: Long
+        Type Long
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external4 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str26
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external4 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun genericBody @fn12(value: Int) -> SourceLocation
+    bb0 entry
+      return
+        Type SourceLocation
+        StructInit SourceLocation
+          Type String
+          StringConst @str27
+          Type Long
+          IntegerLiteral Long value=18 bits=0x0000000000000012
+          Type Long
+          IntegerLiteral Long value=49 bits=0x0000000000000031
+          Type String
+          StringConst @str28
+          Type String
+          StringConst @str29
+  fun LocationTask.run @fn13(this: LocationTask, $completion: Continuation<SourceLocation>) -> CoroutineStep<SourceLocation>
+    bb0 entry
+      return
+        Type CoroutineStep<SourceLocation>
+        VariantConstruct CoroutineStep<SourceLocation> v0
+          Type SourceLocation
+          StructInit SourceLocation
+            Type String
+            StringConst @str30
+            Type Long
+            IntegerLiteral Long value=29 bits=0x000000000000001d
+            Type Long
+            IntegerLiteral Long value=63 bits=0x000000000000003f
+            Type String
+            StringConst @str31
+            Type String
+            StringConst @str32
+  fun Continuation.resume @fn14(this: Continuation<SourceLocation>, value: SourceLocation) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn15(this: Continuation<SourceLocation>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn16(this: SuspendTask<SourceLocation>, $completion: Continuation<SourceLocation>) -> CoroutineStep<SourceLocation>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn17(this: SuspendRegistration<SourceLocation>, continuation: Continuation<SourceLocation>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Reporter.$c0 @fn18(this: Reporter) -> Unit
+    bb0 entry
+      return
+  fun init.LocationCompletion.$c2 @fn19(this: LocationCompletion, expectedFile: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type LocationCompletion
+        Local this
+        Type String
+        Local expectedFile
+      return
+  fun init.LocationTask.$c1 @fn20(this: LocationTask) -> Unit
+    bb0 entry
+      return
+  coroutine_step cs0 CoroutineStep<SourceLocation> result=SourceLocation
+  coroutine_fn cf0 @fn13 source_return=SourceLocation step=cs0 immediate
+  coroutine_fn cf1 @fn16 source_return=SourceLocation step=cs0 immediate
+  instance mi0 function=@fn9 <- println
+  instance mi1 function=@fn10 <- println
+  instance mi2 function=@fn11 <- println
+  instance mi3 function=@fn12 <- genericBody
+  instance mi4 function=@fn14 <- Continuation.resume
+  instance mi5 function=@fn15 <- Continuation.resumeWithException
+  instance mi6 function=@fn16 <- SuspendTask.run
+  instance mi7 function=@fn17 <- SuspendRegistration.register
+  str @str0 "scoop:single-file:0.0.0/main.scoop"
+  str @str1 "bodyLocation"
+  str @str2 "Reporter"
+  str @str3 "suspend-body"
+  str @str4 "failed"
+  str @str5 "scoop:single-file:0.0.0/main.scoop"
+  str @str6 "main"
+  str @str7 ""
+  str @str8 "direct"
+  str @str9 "default"
+  str @str10 "scoop:single-file:0.0.0/main.scoop"
+  str @str11 "main"
+  str @str12 ""
+  str @str13 "explicit"
+  str @str14 "forwarded"
+  str @str15 "scoop:single-file:0.0.0/main.scoop"
+  str @str16 "main"
+  str @str17 ""
+  str @str18 "generic-body"
+  str @str19 "member-body"
+  str @str20 "member-default"
+  str @str21 "scoop:single-file:0.0.0/main.scoop"
+  str @str22 "main"
+  str @str23 ""
+  str @str24 "\n"
+  str @str25 "\n"
+  str @str26 "\n"
+  str @str27 "scoop:single-file:0.0.0/main.scoop"
+  str @str28 "genericBody"
+  str @str29 ""
+  str @str30 "scoop:single-file:0.0.0/main.scoop"
+  str @str31 "run"
+  str @str32 "LocationTask"
+  output executable @fn8

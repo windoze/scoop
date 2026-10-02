@@ -37,15 +37,23 @@ impl SourceContext {
     }
 }
 
+/// Display labels recovered from the original typed source declarations.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub struct SourceContextNames {
+    pub function: String,
+    pub type_name: String,
+}
+
 /// Typed semantic subject used to derive one persistent source context.
-/// Display names are intentionally absent: consumers recover them from the
-/// referenced declaration rather than trusting a second textual identity.
+/// Imported display labels do not participate in persistent identity.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SourceContextSubject {
     File,
-    /// A context whose persistent key was authenticated by a dependency HIR
-    /// foundation. It cannot be reconstructed from current-module arena ids.
-    Imported(scoop_identity::SourceContextKey),
+    /// A dependency context retains its original key and declaration labels.
+    Imported {
+        key: scoop_identity::SourceContextKey,
+        names: SourceContextNames,
+    },
     Nominal(SourceContextNominal),
     Function(FunctionId),
     Constructor(SourceContextConstructor),
@@ -74,11 +82,13 @@ pub enum SourceContextConstructor {
 
 impl Module {
     /// Reconstruct source-facing context labels from typed declarations.
-    /// These labels never participate in context equality or persistence.
+    /// These labels never participate in persistent source-context identity.
     pub fn source_context_names(&self, context: SourceContextId) -> (String, String) {
         match self.source_contexts[context].subject() {
             SourceContextSubject::File => (String::new(), String::new()),
-            SourceContextSubject::Imported(_) => (String::new(), String::new()),
+            SourceContextSubject::Imported { names, .. } => {
+                (names.function.clone(), names.type_name.clone())
+            }
             SourceContextSubject::Nominal(owner) => {
                 (String::new(), self.source_context_nominal_name(*owner))
             }

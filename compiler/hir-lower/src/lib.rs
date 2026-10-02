@@ -826,7 +826,8 @@ pub(crate) struct Lowerer {
     /// Index of the file currently being processed (diagnostics).
     pub(crate) current_file: usize,
     intrinsic_sources: Vec<SourceProvider>,
-    /// Authenticated dependency sources referenced by instantiated defaults.
+    source_names: std::collections::BTreeMap<scoop_identity::ConeIdentity, String>,
+    /// Dependency sources referenced by instantiated defaults and bodies.
     /// They are appended only after a winning candidate is committed and are
     /// never traversed as parser inputs.
     imported_source_files: Vec<hir::SourceFileMetadata>,

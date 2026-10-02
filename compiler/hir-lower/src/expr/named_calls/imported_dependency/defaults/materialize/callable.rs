@@ -117,12 +117,19 @@ impl Lowerer {
             }
             scoop_identity::OptionalSignatureType::Absent => None,
         };
-        let runtime_intrinsic = self.dependencies.as_ref()
+        let intrinsic = self
+            .dependencies
+            .as_ref()
             .and_then(|dependencies| dependencies.callable_declaration(origin).ok())
-            .filter(|declaration| matches!(declaration.interface().effects().implementation(), hir::CallableImplementationV1::Intrinsic(kind) if kind.is_runtime_gc_call()));
+            .filter(|declaration| {
+                matches!(
+                    declaration.interface().effects().implementation(),
+                    hir::CallableImplementationV1::Intrinsic(_)
+                )
+            });
         let template = if let Some(template) = local {
             Some(template)
-        } else if let Some(declaration) = runtime_intrinsic {
+        } else if let Some(declaration) = intrinsic {
             Some(
                 self.request_imported_generic_template(declaration)
                     .map_err(ImportedDefaultMaterializationError::Plan)?,

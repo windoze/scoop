@@ -193,6 +193,7 @@ fn check_core_layout_exports(names: &[&str]) {
             parsed.sources(),
             scoop_hir_lower::CoreProtocolInput::CurrentDeclarations,
             &world,
+            Default::default(),
         )
         .unwrap();
         let mir = hir

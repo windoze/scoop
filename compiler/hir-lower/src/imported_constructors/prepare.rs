@@ -114,7 +114,13 @@ impl Lowerer {
                 .source_context(&key)
                 .ok_or("constructor execution context is missing")?
                 .clone();
-            self.intern_imported_source_context(key)
+            self.intern_imported_source_context(
+                key,
+                hir::SourceContextNames {
+                    function: "<init>".to_owned(),
+                    type_name: source.name().to_owned(),
+                },
+            )
         } else {
             origin.context
         };

@@ -1,0 +1,20 @@
+SourceFile
+  RootPackage
+  fun main()
+    val location
+      Call getCurrentSourceLocation
+    Call println
+      FieldAccess file
+        Var location
+    Call println
+      FieldAccess line
+        Var location
+    Call println
+      FieldAccess column
+        Var location
+    Call println
+      FieldAccess functionName
+        Var location
+    Call println
+      FieldAccess typeName
+        Var location

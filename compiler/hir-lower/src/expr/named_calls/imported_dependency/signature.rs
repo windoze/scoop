@@ -50,6 +50,7 @@ impl Lowerer {
                 hir::CallableImplementationV1::Intrinsic(
                     hir::IntrinsicFunctionKind::CoroutineStart
                         | hir::IntrinsicFunctionKind::CoroutineSuspend
+                        | hir::IntrinsicFunctionKind::CurrentSourceLocation
                 )
             )
             || matches!(interface.effects().implementation(), hir::CallableImplementationV1::Intrinsic(kind) if kind.is_runtime_gc_call())
