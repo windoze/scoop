@@ -1,3 +1,4 @@
+Representation Boolean provider=dependency
 Representation Hash provider=dependency
 Representation Int provider=dependency
 Representation Long provider=dependency
@@ -5,6 +6,7 @@ Representation String provider=dependency
 Representation Throwable provider=dependency
 Representation ToString provider=dependency
 Representation Unit provider=dependency
+Signature Boolean provider=dependency
 Signature Int provider=dependency
 Signature Long provider=dependency
 Signature String provider=dependency

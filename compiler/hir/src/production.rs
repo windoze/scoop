@@ -29,7 +29,7 @@ pub use const_values::*;
 mod cross_cone_section;
 pub use cross_cone_section::*;
 mod shared_source;
-pub(crate) use shared_source::ExportSharedSource;
+pub use shared_source::ExportSharedSource;
 mod callable_interfaces;
 pub use callable_interfaces::*;
 mod callable_source_interfaces;

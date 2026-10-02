@@ -31,50 +31,12 @@ impl LocalConcreteHirOutput {
             })?;
         collector.close()
     }
-
-    /// Shared representations, member ABIs and dependency receiver relations
-    /// need actual declarations; unrelated private declarations remain local.
-    pub(crate) fn shared_declaration_type_closure(
-        &self,
-    ) -> Result<Vec<TypeId>, MaterializedTypeClosureError> {
-        let materialized = self.materialized_types()?;
-        let mut collector = Collector::new(self.module());
-        for ty in materialized.seen {
-            if materialized.shared_types.contains(&ty)
-                || self
-                    .module()
-                    .exact_type_identities
-                    .nominal_specialization(ty)
-                    .is_some()
-            {
-                collector.add(ty)?;
-            }
-        }
-        for (_, function) in self.module().functions.iter() {
-            if matches!(
-                function.materialization.context(),
-                CallableMaterializationContext::Application(_)
-            ) && (function.receiver.method().is_some() || function.is_suspend)
-                && !matches!(function.kind, FunctionKind::Intrinsic(_))
-                && matches!(
-                    function.materialization.template(),
-                    CallableTemplateOwner::Function(_)
-                        | CallableTemplateOwner::GenericFunction(_)
-                        | CallableTemplateOwner::Accessor(_)
-                )
-            {
-                collector.signature(function)?;
-            }
-        }
-        collector.close()?.into_types()
-    }
 }
 
 struct Collector<'a> {
     module: &'a Module,
     seen: BTreeSet<TypeId>,
     pending: Vec<TypeId>,
-    shared_types: BTreeSet<TypeId>,
 }
 
 impl<'a> Collector<'a> {
@@ -83,7 +45,6 @@ impl<'a> Collector<'a> {
             module,
             seen: BTreeSet::new(),
             pending: Vec::new(),
-            shared_types: BTreeSet::new(),
         }
     }
 

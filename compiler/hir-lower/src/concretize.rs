@@ -31,6 +31,8 @@ mod interfaces;
 mod methods;
 mod nominals;
 mod objects;
+mod output;
+mod prepare;
 mod protocols;
 mod requests;
 mod run;
@@ -73,40 +75,7 @@ pub(crate) fn lower(
         .run()
 }
 
-pub(crate) fn lower_output(
-    output: &export::ExportHirOutput,
-    requirements: &export::PublicNominalShapeRequirementsV1,
-) -> Result<export::LocalConcreteHirOutput, Vec<scoop_ast::Diagnostic>> {
-    let module = output.module();
-    let mut concretizer = Concretizer::new(module).map_err(nominal_root_diagnostic)?;
-    concretizer
-        .shape_sources
-        .extend(requirements.roots().iter().map(|root| root.source()));
-    let (module, output_kind) = match output.output_kind() {
-        export::ConeOutputKind::Library => {
-            (concretizer.run()?, export::LocalConeOutputKind::Library)
-        }
-        export::ConeOutputKind::Executable { local_entry } => {
-            let (module, entry) =
-                concretizer.run_with_entry(local_entry.local_function().function())?;
-            let entry = export::ConcreteExecutableEntry::try_new(&module, local_entry, entry)
-                .expect("concretization preserves the validated executable entry");
-            (
-                module,
-                export::LocalConeOutputKind::Executable {
-                    local_entry: Box::new(entry),
-                },
-            )
-        }
-    };
-    runtime_exceptions::check_runtime_layout(&module)?;
-    let materialization = export::LocalShapeSupportPlan::try_new(&module, requirements)
-        .expect("validated public shape roots survive concretization");
-    Ok(
-        export::LocalConcreteHirOutput::try_new(module, output_kind, materialization)
-            .expect("concretization produces a structurally valid closed output"),
-    )
-}
+pub(crate) use output::lower_output;
 
 use requests::{FunctionKey, FunctionSource};
 
@@ -122,7 +91,6 @@ struct Concretizer<'a> {
     core: &'a export::CoreProtocols,
     coroutine_results: std::collections::BTreeSet<concrete::TypeId>,
     shared_types: std::collections::BTreeSet<concrete::TypeId>,
-    shape_sources: std::collections::BTreeSet<scoop_identity::PersistentTypeId>,
     types: Arena<concrete::Type>,
     type_by_kind: HashMap<concrete::TypeKind, concrete::TypeId>,
     function_types: Arena<concrete::FunctionType>,
@@ -315,7 +283,6 @@ impl<'a> Concretizer<'a> {
             core: &source.core_protocols,
             coroutine_results: std::collections::BTreeSet::new(),
             shared_types: std::collections::BTreeSet::new(),
-            shape_sources: std::collections::BTreeSet::new(),
             types: Arena::new(),
             type_by_kind: HashMap::new(),
             function_types: Arena::new(),

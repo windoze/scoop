@@ -1,4 +1,4 @@
-types=60 callables=72 dispatch=37 objects=1 shapes=9 initialization_uses=0 ordinary=1
+types=60 callables=73 dispatch=37 objects=1 shapes=9 initialization_uses=0 ordinary=1
 type Base: Reference/ContainsManagedReferences vslots=3 itables=1
 type Choice: NonZeroValue/GcFree vslots=0 itables=0
 type Contract: Reference/ContainsManagedReferences vslots=0 itables=0
@@ -57,6 +57,7 @@ callable SuspendTask.run: trap receiver=true parameters=1 Managed
 callable SuspendTask.run: trap receiver=true parameters=1 Managed
 callable Token.equals: derived-equality receiver=true parameters=1 Managed
 callable Value.$get$token: accessor receiver=true parameters=0 Managed
+callable Value.equals: derived-equality receiver=true parameters=1 Managed
 callable Value.run: ordinary receiver=true parameters=1 Managed
 callable ctor.Pair.$c1: primary-value-constructor receiver=false parameters=2 NoGc
 callable ctor.Pair.$c2: value-constructor receiver=false parameters=0 NoGc

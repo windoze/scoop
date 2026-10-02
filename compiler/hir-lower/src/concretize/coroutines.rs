@@ -8,7 +8,6 @@ mod roots;
 impl Concretizer<'_> {
     pub(super) fn build_coroutine_protocols(&mut self) -> Vec<concrete::CoroutineProtocol> {
         self.drain_pending_callables();
-        self.seed_shared_coroutine_results();
         let core = self.coroutine_declarations();
         let mut protocols = Vec::new();
         loop {

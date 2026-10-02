@@ -1,3 +1,4 @@
+MemberCall String provider=dependency
 Representation Any provider=dependency
 Representation Boolean provider=dependency
 Representation Hash provider=dependency

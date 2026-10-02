@@ -1,0 +1,104 @@
+SourceFile
+  RootPackage
+  struct Slot<T>
+    field value: T
+  class Container<T>(val value: T)
+    companion object Factory
+      fun makeInt
+    nested class Tag
+  enum Choice<T>
+    Value(T)
+    Empty
+  typealias Whole = Int
+  typealias Count = Whole
+  typealias IntSlot = Slot<Int>
+  typealias TextContainer = Container<String>
+  typealias IntContainer = Container<Int>
+  typealias IntChoice = Choice<Int>
+  typealias TaggedCount = (Count, String)
+  typealias ChoiceRenderer = (IntChoice) -> String
+  fun keep<T>(value: T): T
+    =
+      Var value
+  fun render(choice: IntChoice): String
+    =
+      WhenExpression
+        Var choice
+        arm IntChoice.Value(value)
+          Binary Add
+            StringLiteral "value-"
+            MethodCall toString
+              Var value
+        arm IntChoice.Empty()
+          StringLiteral "empty"
+  fun main()
+    val slot: IntSlot
+      Call IntSlot
+        IntLiteral 40
+    val text: TextContainer
+      Call TextContainer
+        StringLiteral "container"
+    val made: IntContainer
+      MethodCall makeInt
+        Var IntContainer
+        IntLiteral 41
+    val named: IntContainer
+      MethodCall makeInt
+        FieldAccess Factory
+          Var IntContainer
+        IntLiteral 42
+    val tag: TextContainer.Tag
+      MethodCall Tag
+        Var TextContainer
+        StringLiteral "nested"
+    val tagged: TaggedCount
+      TupleLiteral
+        FieldAccess value
+          Var slot
+        FieldAccess text
+          Var tag
+    val choice: IntChoice
+      MethodCall Value
+        Var IntChoice
+        FieldAccess value
+          Var made
+    val empty: IntChoice
+      FieldAccess Empty
+        Var IntChoice
+    val renderer: ChoiceRenderer
+      CallableReference 0 render
+    val kept: IntSlot
+      Call keep
+        Call IntSlot
+          FieldAccess value
+            Var named
+    Call println
+      FieldAccess value
+        Var slot
+    Call println
+      FieldAccess value
+        Var text
+    Call println
+      FieldAccess value
+        Var made
+    Call println
+      FieldAccess value
+        Var named
+    Call println
+      FieldAccess text
+        Var tag
+    Call println
+      FieldAccess _1
+        Var tagged
+    Call println
+      FieldAccess _2
+        Var tagged
+    Call println
+      Call renderer
+        Var choice
+    Call println
+      Call render
+        Var empty
+    Call println
+      FieldAccess value
+        Var kept

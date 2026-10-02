@@ -86,23 +86,22 @@ impl Lowerer {
         if !self.source_is_current_cone(file) {
             return;
         }
-        // Named companions may have more than one static spelling. Each edge
-        // points at the same declaration-side binding and witness.
+        // Alternate static spellings share the original declaration binding.
+        // Its name cannot depend on HashMap traversal order.
         let existing = surface
             .bindings
             .iter()
             .position(|binding| binding.target == target);
         let binding = if let Some(index) = existing {
-            let id = CurrentUnitBindingId(index);
-            surface
-                .namespaces
-                .entry(namespace)
-                .or_default()
-                .entry(name)
-                .or_default()
-                .push(id);
-            id
+            CurrentUnitBindingId(index)
         } else {
+            let declaration_name = match nominal {
+                NominalTarget::Class(id) => &self.classes[id].name,
+                NominalTarget::Interface(id) => &self.interfaces[id].name,
+                NominalTarget::Struct(id) => &self.structs[id].name,
+                NominalTarget::Enum(id) => &self.enums[id].name,
+                NominalTarget::Object(id) => &self.objects[id].name,
+            };
             surface.insert(
                 namespace,
                 CurrentUnitBinding {
@@ -111,10 +110,15 @@ impl Lowerer {
                     file,
                     span,
                     access,
-                    name,
+                    name: declaration_name.clone(),
                 },
             )
         };
+        let names = surface.namespaces.entry(namespace).or_default();
+        let bindings = names.entry(name).or_default();
+        if !bindings.contains(&binding) {
+            bindings.push(binding);
+        }
         let static_namespace = self.static_import_namespace(nominal.owner());
         surface.static_targets.insert(binding, static_namespace);
         surface

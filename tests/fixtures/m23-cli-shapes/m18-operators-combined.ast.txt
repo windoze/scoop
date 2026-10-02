@@ -1,0 +1,84 @@
+SourceFile
+  RootPackage
+  class OperatorFailure() : Exception(<1 args>)
+  class Payload(val text: String)
+  class OperatorGate(var waiter: Continuation<Int>?)
+    fun complete
+  class OperatorRegistration(val gate: OperatorGate), SuspendRegistration<Int>
+    public fun register
+  suspend fun awaitOperator(gate: OperatorGate): Int
+    =
+      Call suspendCoroutine
+        Call OperatorRegistration
+          Var gate
+  fun operatorDefault(): Int
+    Call println
+      StringLiteral "operator-default"
+    return
+      IntLiteral 2
+  class GenericIndex<T>(val value: T)
+    operator fun get
+  class AsyncNumber<T>(val gate: OperatorGate, val payload: T, val label: String, val amount: Int)
+    operator suspend fun plus
+  class OperatorTask(val gate: OperatorGate, val left: AsyncNumber<Payload>, val right: AsyncNumber<Payload>), SuspendTask<String>
+    public suspend fun run
+  class OperatorCompletion(val label: String), Continuation<String>
+    public fun resume
+    public fun resumeWithException
+  fun main()
+    val successGate
+      Call OperatorGate
+        Var None
+    val failureGate
+      Call OperatorGate
+        Var None
+    val payload
+      Call Payload
+        StringLiteral "payload"
+    val successLeft
+      Call AsyncNumber
+        Var successGate
+        Var payload
+        StringLiteral "left"
+        IntLiteral 20
+    val successRight
+      Call AsyncNumber
+        Var successGate
+        Var payload
+        StringLiteral "-right"
+        IntLiteral 21
+    val failureLeft
+      Call AsyncNumber
+        Var failureGate
+        Var payload
+        StringLiteral "bad"
+        IntLiteral 1
+    val failureRight
+      Call AsyncNumber
+        Var failureGate
+        Var payload
+        StringLiteral "-path"
+        IntLiteral 2
+    Call startCoroutine
+      Call OperatorTask
+        Var successGate
+        Var successLeft
+        Var successRight
+      Call OperatorCompletion
+        StringLiteral "operator-success"
+    Call startCoroutine
+      Call OperatorTask
+        Var failureGate
+        Var failureLeft
+        Var failureRight
+      Call OperatorCompletion
+        StringLiteral "operator-failure"
+    Call println
+      StringLiteral "operator-suspended"
+    Call gcCollect
+    MethodCall complete
+      Var successGate
+      IntLiteral 1
+    MethodCall complete
+      Var failureGate
+      IntLiteral 0

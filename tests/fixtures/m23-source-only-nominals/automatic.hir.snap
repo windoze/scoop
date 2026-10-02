@@ -4,6 +4,7 @@ standalone
   function Continuation.resume
   function Continuation.resumeWithException
   function Continuation.resumeWithException
+  function ReadyValue.equals
   function SuspendRegistration.register
   function SuspendRegistration.register
   function SuspendTask.run
@@ -75,6 +76,7 @@ combined
   function DeferredSlot.take
   function DeferredVirtual.take
   function ReadyDirect.take
+  function ReadyEmpty.equals
   function SuspendRegistration.register
   function SuspendRegistration.register
   function SuspendRegistration.register

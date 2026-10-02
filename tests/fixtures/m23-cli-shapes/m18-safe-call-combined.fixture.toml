@@ -1,0 +1,34 @@
+schema = 1
+name = "shared-shapes-m18-safe-call-combined"
+inputs = ["../m18-safe-call/combined.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["shared-shapes", "stage-golden", "moving-gc"]
+
+[[variants]]
+name = "normal"
+[[variants]]
+name = "moving"
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${fixture}/../m18-safe-call/combined.scoop", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump/${build.result.root.identity}/ast.txt", snapshot = "m18-safe-call-combined.ast.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "m18-safe-call-combined.hir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "m18-safe-call-combined.mir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "m18-safe-call-combined.lir.txt"},
+]
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "safe-transform-created\nsafe-combined-default\nsafe-transform-created\nsafe-combined-default\nsafe-absent\nsafe-none\nsafe-suspended\nsafe-success\ncaptured-payload-success!\nsafe-failure\nsafe-caught\n"
+stderr = ""

@@ -99,6 +99,7 @@ fn render(
                 SelectedTypeUseV1::Representation { .. } => "Representation",
                 SelectedTypeUseV1::TypeTest { .. } => "TypeTest",
                 SelectedTypeUseV1::ShapeSupport { .. } => "ShapeSupport",
+                SelectedTypeUseV1::MemberCall { .. } => "MemberCall",
                 other => panic!("unexpected operation use in the fixture: {other:?}"),
             };
             format!(

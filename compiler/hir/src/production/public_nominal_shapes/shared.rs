@@ -11,7 +11,14 @@ impl NominalMaterializationClosure {
     pub fn from_export_hir(
         export: &ExportHirOutput,
     ) -> Result<Self, PublicNominalShapeProjectionError> {
-        let roots = &export.shared_source().roots;
+        Self::from_shared_source(export.module(), export.shared_source())
+    }
+
+    fn from_shared_source(
+        export: &ExportHir,
+        source: &crate::ExportSharedSource,
+    ) -> Result<Self, PublicNominalShapeProjectionError> {
+        let roots = &source.roots;
         let nominals =
             CanonicalNominalInterfacesV1::declarations_for_required(export, &roots.nominals)
                 .map_err(shared_declarations)?;
@@ -78,7 +85,14 @@ impl PublicNominalShapeRequirementsV1 {
     pub fn from_export_hir(
         export: &ExportHirOutput,
     ) -> Result<Self, PublicNominalShapeProjectionError> {
-        let closure = NominalMaterializationClosure::from_export_hir(export)?;
+        Self::from_shared_source(export.module(), export.shared_source())
+    }
+
+    pub fn from_shared_source(
+        export: &ExportHir,
+        source: &crate::ExportSharedSource,
+    ) -> Result<Self, PublicNominalShapeProjectionError> {
+        let closure = NominalMaterializationClosure::from_shared_source(export, source)?;
         Self::from_sources(export.cone, closure.sources().iter().copied().collect())
     }
 

@@ -1,0 +1,660 @@
+Module
+  struct Outer.Pair<String> (first: String, second: String)
+  enum Outer.Flag
+    Ready()
+    Busy()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Outer.Deep>
+    Completed(value: Outer.Deep)
+    Suspended()
+  enum CoroutineSlot<Outer.Deep>
+    Empty()
+    Value(value: Outer.Deep)
+  enum CoroutineStep<Outer.Flag>
+    Completed(value: Outer.Flag)
+    Suspended()
+  enum CoroutineSlot<Outer.Flag>
+    Empty()
+    Value(value: Outer.Flag)
+  enum CoroutineStep<Outer.Deep.Leaf>
+    Completed(value: Outer.Deep.Leaf)
+    Suspended()
+  enum CoroutineSlot<Outer.Deep.Leaf>
+    Empty()
+    Value(value: Outer.Deep.Leaf)
+  enum CoroutineStep<Outer.Marker>
+    Completed(value: Outer.Marker)
+    Suspended()
+  enum CoroutineSlot<Outer.Marker>
+    Empty()
+    Value(value: Outer.Marker)
+  class Marked vtable=0 itables=1
+  class Outer.Deep vtable=0 itables=0
+  class Outer.Deep.Leaf vtable=0 itables=0
+  class Outer.Nested<Int> vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Outer.Flag> vtable=0 itables=0
+  interface Outer.Marker
+  interface ToString
+  interface Hash
+  interface Continuation<Outer.Flag>
+  interface SuspendTask<Outer.Flag>
+  interface SuspendRegistration<Outer.Flag>
+  interface Continuation<Outer.Marker>
+  interface SuspendTask<Outer.Marker>
+  interface SuspendRegistration<Outer.Marker>
+  interface Continuation<Outer.Deep>
+  interface SuspendTask<Outer.Deep>
+  interface SuspendRegistration<Outer.Deep>
+  interface Continuation<Outer.Deep.Leaf>
+  interface SuspendTask<Outer.Deep.Leaf>
+  interface SuspendRegistration<Outer.Deep.Leaf>
+  generated_exact_type get0 location=enum4 nominal_id=c0ca2cae52e4c8929184affa40715e77a78fdeb22782b83650357775a1126da6 exact_id=0824a0f7942eb6e01fb527f4d997656ee7bd901755636b3892c4dddafc92bbe9
+  generated_exact_type get1 location=enum8 nominal_id=b5337ec74125a4b7368345bccdf1f7f6e9da52fcad37050d76a1396f4b02e83d exact_id=2744fb73063cb735ec3b56ebed4914cffb2be02bd98fc6e9a1fdb9184a61e720
+  generated_exact_type get2 location=class7 nominal_id=3084b75ef5c02d1cb7baf4462a4a274922af953691a0a0551de1df55199a1080 exact_id=5453aa4da4cd78f0abe67e90054ce575fb1e51e2885b1a7271f21037f7f8c703
+  generated_exact_type get3 location=enum5 nominal_id=855e021070616428d3b7a25d3a78963b1590ad5c84a11edc79fb18dcaaa5731a exact_id=84a2f5f622acac0b22b5cfb586d698929110da6892ff839f244f3ecd8e966ea1
+  generated_exact_type get4 location=enum7 nominal_id=3bb4a6a99cab165eaf8752ea92ea8636a1f183cb09e901df0af2a36db59c541a exact_id=a675d7bf9304a2ca471803b49f9bf3635c1229a920cf4398ab1cf86a34a615fc
+  generated_exact_type get5 location=enum3 nominal_id=1a6875f1a4673aef4e7df9d74274d529426a741521cbd5830d66eab4102eef1c exact_id=bab1a2416eb309f57ea8ab40f33d515207455c59282bc90a14c7ade95321ee17
+  generated_exact_type get6 location=enum6 nominal_id=f078d8ac25fb1688e826031993194a331a972e90ccc369251c787c70f6567c83 exact_id=eb05f9d8e558b10cb619e24db275b97e3d73b73872bf2e4e1d493045d30513e2
+  generated_exact_type get7 location=enum2 nominal_id=64688bc310d846aed028b92437978b5b1b752de4dc09093ccc46bb344ac66bf0 exact_id=fba83e64f6e14b7b4700a6f6f4d266fef4b46b9c0038ed0dd131acc8a15e618b
+  generated_exact_type get8 location=enum9 nominal_id=983c012249559480afb1a65db7dbe24c3cb487b17ada92c099f903ddc1722789 exact_id=feab889f679e7ff612ed458546ea7dcade71dcc46dc9f8ff55b4e3df2f6f26cf
+  generated_callable gc0 function=@fn32 id=6bdf1d3c208840a75730fd1b201169ab954ec88a8e9ed0926dd6a5b40546ce00
+  generated_callable gc1 function=@fn31 id=bce5137bd200debf667655ad5a0076d1b29cb24c43f55f678d4b8e29f42dcfc4
+  generated_callable gc2 function=@fn30 id=bd52bda69c857a2bd1a0555820eb4ba164eecabb954029fc0394c243bcb30691
+  generated_callable gc3 function=@fn29 id=cbaf9c2b09e8492e199539f8433a5ac7c1bb15cbba74e096d233482fc0ad9d88
+  fun Outer.Flag.equals @fn0(this: Outer.Flag, other: Outer.Flag) -> Boolean
+    bb0 entry
+      val $when.1: Outer.Flag
+        Type Outer.Flag
+        Local this
+      val $pattern.subject.2: Outer.Flag
+        Type Outer.Flag
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Outer.Flag v0
+          Type Outer.Flag
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $when.3: Outer.Flag
+        Type Outer.Flag
+        Local other
+      val $pattern.subject.4: Outer.Flag
+        Type Outer.Flag
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Outer.Flag v0
+          Type Outer.Flag
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Outer.Flag
+        Type Outer.Flag
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Outer.Flag v1
+          Type Outer.Flag
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      return
+        Type Boolean
+        BoolLiteral true
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $when.6: Outer.Flag
+        Type Outer.Flag
+        Local other
+      val $pattern.subject.7: Outer.Flag
+        Type Outer.Flag
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Outer.Flag v1
+          Type Outer.Flag
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      return
+        Type Boolean
+        BoolLiteral true
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+  fun markerId @fn1(value: Outer.Marker) -> Int
+    bb0 entry
+      val $receiver: Outer.Marker
+        Type Outer.Marker
+        Local value
+      call $call.1: Int = @fn23 interface Outer.Marker[0]
+        Type Outer.Marker
+        Local $receiver
+      return
+        Type Int
+        Local $call.1
+  fun main @fn2() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Outer.Nested<Int>
+        ClassAlloc Outer.Nested<Int>
+      call @fn27 direct
+        Type Outer.Nested<Int>
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val nested: Outer.Nested<Int>
+        Type Outer.Nested<Int>
+        Local $new.1
+      val $receiver: Outer.Nested<Int>
+        Type Outer.Nested<Int>
+        Local nested
+      call $dependency.argument.0: Int = @fn3 direct
+        Type Outer.Nested<Int>
+        Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $argument.1: String
+        Type String
+        StringConst @str1
+      val $parameter.first: String
+        Type String
+        Local $argument.0
+      val $parameter.second: String
+        Type String
+        Local $argument.1
+      call pair: Outer.Pair<String> = @fn28 direct
+        Type String
+        Local $parameter.first
+        Type String
+        Local $parameter.second
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type Outer.Pair<String>
+          Local pair
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 1
+          Type Outer.Pair<String>
+          Local pair
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      val flag: Outer.Flag
+        Type Outer.Flag
+        VariantConstruct Outer.Flag v0
+      call $dependency.argument.0: Boolean = @fn0 direct
+        Type Outer.Flag
+        Local flag
+        Type Outer.Flag
+        VariantConstruct Outer.Flag v0
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Outer.Deep.Leaf
+        ClassAlloc Outer.Deep.Leaf
+      call @fn26 direct
+        Type Outer.Deep.Leaf
+        Local $new.2
+        Type Int
+        Local $parameter.value
+      val leaf: Outer.Deep.Leaf
+        Type Outer.Deep.Leaf
+        Local $new.2
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Outer.Deep.Leaf
+          Local leaf
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Int
+        Local $dependency.parameter.value
+      assign $new.3
+        Type Marked
+        ClassAlloc Marked
+      call @fn24 direct
+        Type Marked
+        Local $new.3
+      val $argument.0: Outer.Marker
+        Type Outer.Marker
+        Retype Outer.Marker
+          Type Marked
+          Local $new.3
+      val $parameter.value: Outer.Marker
+        Type Outer.Marker
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn1 direct
+        Type Outer.Marker
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun Outer.Nested.get @fn3(this: Outer.Nested<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Outer.Nested<Int>
+          Local this
+  fun println @fn4(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn5(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn6(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Continuation.resume @fn7(this: Continuation<Outer.Flag>, value: Outer.Flag) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn8(this: Continuation<Outer.Flag>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn9(this: SuspendTask<Outer.Flag>, $completion: Continuation<Outer.Flag>) -> CoroutineStep<Outer.Flag>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn10(this: SuspendRegistration<Outer.Flag>, continuation: Continuation<Outer.Flag>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn11(this: Continuation<Outer.Marker>, value: Outer.Marker) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn12(this: Continuation<Outer.Marker>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn13(this: SuspendTask<Outer.Marker>, $completion: Continuation<Outer.Marker>) -> CoroutineStep<Outer.Marker>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn14(this: SuspendRegistration<Outer.Marker>, continuation: Continuation<Outer.Marker>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn15(this: Continuation<Outer.Deep>, value: Outer.Deep) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn16(this: Continuation<Outer.Deep>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn17(this: SuspendTask<Outer.Deep>, $completion: Continuation<Outer.Deep>) -> CoroutineStep<Outer.Deep>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn18(this: SuspendRegistration<Outer.Deep>, continuation: Continuation<Outer.Deep>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn19(this: Continuation<Outer.Deep.Leaf>, value: Outer.Deep.Leaf) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn20(this: Continuation<Outer.Deep.Leaf>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn21(this: SuspendTask<Outer.Deep.Leaf>, $completion: Continuation<Outer.Deep.Leaf>) -> CoroutineStep<Outer.Deep.Leaf>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn22(this: SuspendRegistration<Outer.Deep.Leaf>, continuation: Continuation<Outer.Deep.Leaf>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Outer.Marker.id @fn23(this: Outer.Marker) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+  fun init.Marked.$c1 @fn24(this: Marked) -> Unit
+    bb0 entry
+      return
+  fun init.Outer.Deep.$c3 @fn25(this: Outer.Deep) -> Unit
+    bb0 entry
+      return
+  fun init.Outer.Deep.Leaf.$c4 @fn26(this: Outer.Deep.Leaf, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Outer.Deep.Leaf
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Outer.Nested.$c2 @fn27(this: Outer.Nested<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Outer.Nested<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun ctor.Outer.Pair.$c0 @fn28(first: String, second: String) -> Outer.Pair<String> <no-gc>
+    bb0 entry
+      return
+        Type Outer.Pair<String>
+        StructInit Outer.Pair<String>
+          Type String
+          Local first
+          Type String
+          Local second
+  fun startCoroutine<Outer.Deep> @fn29(task: SuspendTask<Outer.Deep>, completion: Continuation<Outer.Deep>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn15 interface Continuation<Outer.Deep>[0]
+        Type Continuation<Outer.Deep>
+        Local completion
+        Type Outer.Deep
+        EnumField v0 f0
+          Type CoroutineStep<Outer.Deep>
+          Local $step
+      return
+    bb2 failed
+      call @fn16 interface Continuation<Outer.Deep>[1]
+        Type Continuation<Outer.Deep>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Outer.Deep> = @fn17 interface SuspendTask<Outer.Deep>[0]
+        Type SuspendTask<Outer.Deep>
+        Local task
+        Type Continuation<Outer.Deep>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Outer.Deep>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Outer.Flag> @fn30(task: SuspendTask<Outer.Flag>, completion: Continuation<Outer.Flag>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn7 interface Continuation<Outer.Flag>[0]
+        Type Continuation<Outer.Flag>
+        Local completion
+        Type Outer.Flag
+        EnumField v0 f0
+          Type CoroutineStep<Outer.Flag>
+          Local $step
+      return
+    bb2 failed
+      call @fn8 interface Continuation<Outer.Flag>[1]
+        Type Continuation<Outer.Flag>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Outer.Flag> = @fn9 interface SuspendTask<Outer.Flag>[0]
+        Type SuspendTask<Outer.Flag>
+        Local task
+        Type Continuation<Outer.Flag>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Outer.Flag>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Outer.Deep.Leaf> @fn31(task: SuspendTask<Outer.Deep.Leaf>, completion: Continuation<Outer.Deep.Leaf>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn19 interface Continuation<Outer.Deep.Leaf>[0]
+        Type Continuation<Outer.Deep.Leaf>
+        Local completion
+        Type Outer.Deep.Leaf
+        EnumField v0 f0
+          Type CoroutineStep<Outer.Deep.Leaf>
+          Local $step
+      return
+    bb2 failed
+      call @fn20 interface Continuation<Outer.Deep.Leaf>[1]
+        Type Continuation<Outer.Deep.Leaf>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Outer.Deep.Leaf> = @fn21 interface SuspendTask<Outer.Deep.Leaf>[0]
+        Type SuspendTask<Outer.Deep.Leaf>
+        Local task
+        Type Continuation<Outer.Deep.Leaf>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Outer.Deep.Leaf>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Outer.Marker> @fn32(task: SuspendTask<Outer.Marker>, completion: Continuation<Outer.Marker>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn11 interface Continuation<Outer.Marker>[0]
+        Type Continuation<Outer.Marker>
+        Local completion
+        Type Outer.Marker
+        EnumField v0 f0
+          Type CoroutineStep<Outer.Marker>
+          Local $step
+      return
+    bb2 failed
+      call @fn12 interface Continuation<Outer.Marker>[1]
+        Type Continuation<Outer.Marker>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Outer.Marker> = @fn13 interface SuspendTask<Outer.Marker>[0]
+        Type SuspendTask<Outer.Marker>
+        Local task
+        Type Continuation<Outer.Marker>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Outer.Marker>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Outer.Deep> result=Outer.Deep
+  coroutine_step cs1 CoroutineStep<Outer.Flag> result=Outer.Flag
+  coroutine_step cs2 CoroutineStep<Outer.Deep.Leaf> result=Outer.Deep.Leaf
+  coroutine_step cs3 CoroutineStep<Outer.Marker> result=Outer.Marker
+  coroutine_slot cl0 CoroutineSlot<Outer.Deep> value=Outer.Deep
+  coroutine_slot cl1 CoroutineSlot<Outer.Flag> value=Outer.Flag
+  coroutine_slot cl2 CoroutineSlot<Outer.Deep.Leaf> value=Outer.Deep.Leaf
+  coroutine_slot cl3 CoroutineSlot<Outer.Marker> value=Outer.Marker
+  coroutine_start ct0 result=Outer.Deep function=fn29
+  coroutine_start ct1 result=Outer.Flag function=fn30
+  coroutine_start ct2 result=Outer.Deep.Leaf function=fn31
+  coroutine_start ct3 result=Outer.Marker function=fn32
+  coroutine_fn cf0 @fn9 source_return=Outer.Flag step=cs1 immediate
+  coroutine_fn cf1 @fn13 source_return=Outer.Marker step=cs3 immediate
+  coroutine_fn cf2 @fn17 source_return=Outer.Deep step=cs0 immediate
+  coroutine_fn cf3 @fn21 source_return=Outer.Deep.Leaf step=cs2 immediate
+  instance mi0 function=@fn3 <- Outer.Nested.get
+  instance mi1 function=@fn4 <- println
+  instance mi2 function=@fn5 <- println
+  instance mi3 function=@fn6 <- println
+  instance mi4 function=@fn7 <- Continuation.resume
+  instance mi5 function=@fn8 <- Continuation.resumeWithException
+  instance mi6 function=@fn9 <- SuspendTask.run
+  instance mi7 function=@fn10 <- SuspendRegistration.register
+  instance mi8 function=@fn11 <- Continuation.resume
+  instance mi9 function=@fn12 <- Continuation.resumeWithException
+  instance mi10 function=@fn13 <- SuspendTask.run
+  instance mi11 function=@fn14 <- SuspendRegistration.register
+  instance mi12 function=@fn15 <- Continuation.resume
+  instance mi13 function=@fn16 <- Continuation.resumeWithException
+  instance mi14 function=@fn17 <- SuspendTask.run
+  instance mi15 function=@fn18 <- SuspendRegistration.register
+  instance mi16 function=@fn19 <- Continuation.resume
+  instance mi17 function=@fn20 <- Continuation.resumeWithException
+  instance mi18 function=@fn21 <- SuspendTask.run
+  instance mi19 function=@fn22 <- SuspendRegistration.register
+  str @str0 "left"
+  str @str1 "right"
+  str @str2 "\n"
+  str @str3 "\n"
+  str @str4 "\n"
+  output executable @fn2

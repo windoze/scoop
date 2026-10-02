@@ -80,6 +80,8 @@ primitive 与 String 的接口默认方法使用前端识别的实际声明及�
 
 `hir/cross-cone-interface/30` 补齐 object 的声明种类：source-shape 的旧 Object tag 8 退役，新 tag 9 保留 field 1=value、field 2=声明序字段，新增 field 3=`Standalone(1)` 或 `Companion(2)`；host 沿已有声明 key 的 typed owner 查询。命名 companion 发布名称与 `Companion` 两个普通 type/value binding，object 的公开方法和属性进入自身静态 binding 表。共有命名空间在本 owner 无同名 binding 时，沿已声明的 companion 关系转发其直接 binding；不复制成员声明、不用名称或初始化 metadata 推断 companion。旧 `/28` 产物与缓存重建，退役 tag 不复用，runtime ABI 不变。
 
+当前 Cone 的命名 companion 仍只有一个原声明 binding；其名称固定取源码声明名，`Companion` 是指向同一 binding 的静态名字边。构建本地 binding identity 时不能使用哈希表首先遍历到的别名。两种拼写均可查找，foundation、定义位置和缓存产物不随遍历顺序变化。
+
 产物的 identity graph 从 manifest 的当前 producer、实际直接依赖和已经读取的依赖实体构成；不无条件注册 CORE 身份，也不为 CORE 设置单独的重复过滤规则。CORE 与普通 provider 的声明使用相同的 typed 引用解析，缺失依赖、身份冲突及非法引用由共有格式与引用检查报告。默认 core 依赖仍由正常构建与前端依赖发现加入 manifest；本项不改变 wire 或 runtime ABI。
 
 代码生成在入口对本次完整且不可变的 LIR、目标 profile 和 executable 入口完成一次必要验证，然后按实际定义分成函数与非函数对象。各成员直接消费同一 LIR，不因发射另一个对象再次完整遍历类型、ABI、CFG、GC roots、safepoint 或身份表；LLVM 变换后的 IR 和新生成的对象字节仍在各自边界检查。generated-C 源码入口同样不在内部 helper 重复整模块验证。这一职责调整不改变产物格式、runtime C ABI、String 表示或链接语义。
@@ -1293,7 +1295,7 @@ continuation 的 success/failure 派发复用实际 `Continuation<R>` 成员与�
 
 参数自由 NoGC callback storage bridge 在共有 MIR callable 表中使用 lowering role tag 12（单字段 map，仅 field 0）。语义签名保留源函数的精确参数和结果；物理签名为可选的非 Unit 结果指针、各参数指针，返回 Unit，两者均为 NoGC。generated callable key 继续使用源函数 materialization 与语义签名，foundation callable signature 保存实际 storage ABI。MIR type bridge 升至 `/5`，旧产物与缓存重建；既有 typed identity、mangler、runtime ABI 不变。
 
-SemanticHir 完成后，从公开声明、默认值与泛型正文确定导出支持闭包，并独立收集实际物化需求；二者通过 6a 的共同查询连接，不用导出可见集合替代机器根。完成 LocalConcrete HIR 后，从实际已物化的泛型名义 application、实际导出的泛型成员的 receiver、参数和结果类型，以及普通依赖调用的静态 receiver 出发，沿其表示依赖收集属于当前 Cone 的源码名义声明，补入同一支持集合，并沿已有声明、字段、成员与模板引用闭合；普通函数正文中用于泛型 payload、共有成员 ABI 或依赖成员接收者关系的私有类型因而具有完整的共有声明与继承依赖。实际接收者与其他物化类型在同一次表达式遍历中收集，不从未执行模板或类型 arena 猜测调用需求。只有支持根增加时才扩展源码投影及对应的 shape support plan，已完成的不可变结果供 HIR 类型语义、MIR/LIR 布局及共有 section 复用。新增支持保留原 typed identity 和声明可见性，不产生 public binding，也不把所有本地私有物理声明、未调用模板、未求值默认值或整个类型 arena 当成共有机器根。该数据投影不新增产物字段或来源资格。
+SemanticHir 完成后，从公开声明、默认值与泛型正文确定导出支持闭包，并独立收集实际物化需求；二者通过 6a 的共同查询连接，不用导出可见集合替代机器根。LocalConcrete 的源码工作队列闭合后、生成协程协议之前，从实际已物化的泛型名义 application、实际导出的泛型成员的 receiver、参数和结果类型，以及普通依赖调用的静态 receiver 出发，沿其表示依赖收集属于当前 Cone 的源码名义声明，补入同一支持集合，并沿已有声明、字段、成员与模板引用闭合；普通函数正文中用于泛型 payload、共有成员 ABI 或依赖成员接收者关系的私有类型因而具有完整的共有声明与继承依赖。实际接收者与其他物化类型在同一次表达式遍历中收集，不从未执行模板或类型 arena 猜测调用需求。只有支持根增加时才扩展源码投影；从最终投影取得有限 shape 根，为每个根生成完整协程协议，再封闭 LocalConcrete HIR 和 shape support plan。嵌套声明、companion 与成员签名引入的参数自由支持类型同样遵守该顺序，即使源码没有显式挂起调用。导出、类型语义与 MIR/LIR 复用这份投影，不能在 HIR 输出构造器内再次扩展根或重新遍历正文。新增支持保留原 typed identity 和声明可见性，不产生 public binding，也不把所有本地私有物理声明、未调用模板、未求值默认值或整个类型 arena 当成共有机器根；生成的协议 application 不反过来触发其整套支持族。该数据投影不新增产物字段或来源资格。
 
 共有 HIR 的 generic callable body、constructor/common initialization、默认值、普通函数和 generic delegate initializer 使用 6a 的同一正文结构。声明、binder、字段和定义位置按原身份查询；正文保留已选 typed target、符号化实参、bound、局部值／capture、control flow 和必要条件。Export HIR 只选择必需记录，不保存 AST、未解析名称、上游 LocalConcrete 实例或另一套语义检查结果。默认值和泛型正文根仍遵守各自访问规则；前端完成定义处语言分析，reader 检查新输入的格式、类型连接、binder/owner 和引用。局部值与捕获保持原正文／词法作用域，消费方直接查询共同正文，不重建 imported template。历史 `/31`–`/40` 编码迁移按 Stage 7 第 10 节保留记录；共同模型实际改变 bytes 时由 6a 升级对应格式，不能依赖旧编号强制保留平行实现。
 
