@@ -5,6 +5,7 @@ mod cabi;
 mod callbacks;
 mod direct;
 mod dynamic;
+mod mixed;
 mod runtime;
 mod scoopabi;
 mod source;

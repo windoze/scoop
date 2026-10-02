@@ -1,0 +1,30 @@
+Module
+  fun left(): Int
+    val local0
+      IntegerLiteral 1 : Int
+    val local1
+      Local $dependency.argument.0 : Int
+    val local2
+      IntegerLiteral 10 : Int
+    val local3
+      Call shared<Int> : Int
+        Local $dependency.parameter.marker : Int
+        Local $dependency.parameter.value : Int
+    val local4
+      Call external #0 : Int
+    val local5
+      Local $dependency.argument.0 : Int
+    val local6
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    val local7
+      Call external #1 : Int
+    val local8
+      Local $dependency.argument.0 : Int
+    return
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+  output library
+

@@ -1,0 +1,64 @@
+Module
+  struct Marker
+    field0 text: String
+    property0 val text: String getter0=storage <stored struct0-field0>
+  fun main(): Unit
+    val local0
+      StringLiteral "mixed-" : String
+    val local1
+      StringLiteral "alive" : String
+    val local2
+      Local $dependency.argument.0 : String
+    val local3
+      PrimitiveBinary StringConcat : String
+        Local $dependency.receiver : String
+        Local $dependency.parameter.other : String
+    val local4
+      Local $argument.0 : String
+    val local5
+      StructInit Marker : Marker
+        Local $parameter.text : String
+    val local6
+      IntegerLiteral 0 : Int
+    val local7
+      Local $dependency.argument.0 : Int
+    Call println<Int> : Unit
+      Local $dependency.parameter.value : Int
+    val local8
+      Call external #0 : Int
+    val local9
+      Local $dependency.argument.0 : Int
+    Call println<Int> : Unit
+      Local $dependency.parameter.value : Int
+    val local10
+      Call external #1 : Int
+    val local11
+      Local $dependency.argument.0 : Int
+    Call println<Int> : Unit
+      Local $dependency.parameter.value : Int
+    val local12
+      Local marker : Marker
+    val local13
+      IntegerLiteral 30 : Int
+    val local14
+      Local $dependency.argument.0 : Marker
+    val local15
+      Local $dependency.argument.1 : Int
+    val local16
+      Call shared<Marker> : Int
+        Local $dependency.parameter.marker : Marker
+        Local $dependency.parameter.value : Int
+    val local17
+      Local $dependency.argument.0 : Int
+    Call println<Int> : Unit
+      Local $dependency.parameter.value : Int
+    Call gcCollect<> : Unit
+    val local18
+      FieldAccess field 0 : String
+        Local marker : Marker
+    val local19
+      Local $dependency.argument.0 : String
+    Call println<String> : Unit
+      Local $dependency.parameter.value : String
+  output executable main
+
