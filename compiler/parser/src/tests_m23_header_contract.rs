@@ -285,16 +285,7 @@ fn parse_all_uses_only_explicit_text_and_has_no_display_locator_semantics() {
         .expect("the locator need not exist or agree with the supplied text")
     };
     let first = parse_at();
-    let fixture_directory = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m21-const"
-    );
-    assert!(
-        std::path::Path::new(fixture_directory)
-            .join("invalid.scoop")
-            .exists()
-    );
-    // A neighboring source must never be discovered through the display label.
+    // Parsing depends only on the supplied identity and source text.
     let second = parse_at();
     assert_eq!(first, second);
     assert_eq!(first.sources().len(), 1);

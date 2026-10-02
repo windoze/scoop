@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOP_CLI_CONFIG",
+    "message": "invalid current Cone operand ${work}/parent/child/Cone.toml: cannot inspect: No such file or directory (os error 2)",
+    "notes": [],
+    "origin": {
+      "end": null,
+      "kind": "host",
+      "path": "${work}/parent/child/Cone.toml",
+      "start": null
+    },
+    "phase": "Request",
+    "severity": "error"
+  }
+]

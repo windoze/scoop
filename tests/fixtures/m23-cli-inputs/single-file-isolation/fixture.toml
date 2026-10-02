@@ -1,0 +1,120 @@
+schema = 1
+name = "cli-input-single-file-isolation"
+root = "main.scoop"
+inputs = ["main.scoop", "neighbors"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["cli", "input", "single-file", "moving"]
+
+[vars]
+options = ["--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json", "--runtime-root", "${runtime}"]
+
+[[steps]]
+name = "prepare"
+files = [
+  {"copy" = {"from" = "${fixture}/main.scoop", "to" = "${work}/clean/main.scoop"}},
+  {"copy" = {"from" = "${fixture}/neighbors", "to" = "${work}/noisy"}},
+  {"copy" = {"from" = "${fixture}/main.scoop", "to" = "${work}/noisy/main.scoop"}},
+  {"copy" = {"from" = "${fixture}/main.scoop", "to" = "${work}/中文 空格/源 文件.scoop"}},
+  {"symlink" = {"from" = "${work}/noisy/main.scoop", "to" = "${work}/alias.scoop"}},
+]
+
+[[steps]]
+name = "baseline"
+argv = ["${scoop}", "build", "${work}/clean/main.scoop", "--emit", "all", "--dump-dir", "${work}/dump", {"each" = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"file" = "${work}/dump/${baseline.result.root.identity}/ast.txt", "snapshot" = "ast.txt"},
+  {"file" = "${work}/dump/${baseline.result.root.identity}/hir.txt", "snapshot" = "hir.txt"},
+  {"file" = "${work}/dump/${baseline.result.root.identity}/mir.txt", "snapshot" = "mir.txt"},
+  {"file" = "${work}/dump/${baseline.result.root.identity}/lir.txt", "snapshot" = "lir.txt"},
+  {"actual" = "${baseline.result.kind}", "equals" = "executable"},
+  {"actual" = "${baseline.result.dependencies.length}", "equals" = 1},
+  {"actual" = "${baseline.result.observations.child_invocations.length}", "equals" = 2},
+]
+
+[[steps]]
+name = "neighboring_files"
+argv = ["${scoop}", "build", "main.scoop", {"each" = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+cwd = "${work}/noisy"
+checks = [
+  {"actual" = "${neighboring_files.result.root.artifact_fingerprint}", "equals" = "${baseline.result.root.artifact_fingerprint}"},
+  {"file" = "${neighboring_files.result.root.path}", "same_as" = "${baseline.result.root.path}"},
+  {"actual" = "${neighboring_files.result.observations.child_invocations}", "equals" = []},
+  {"actual" = "${neighboring_files.result.link_plan_fingerprint}", "equals" = "${baseline.result.link_plan_fingerprint}"},
+]
+
+[[steps]]
+name = "absolute_file"
+argv = ["${scoop}", "build", "${work}/noisy/main.scoop", {"each" = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+cwd = "${work}"
+checks = [
+  {"actual" = "${absolute_file.result.root.artifact_fingerprint}", "equals" = "${baseline.result.root.artifact_fingerprint}"},
+  {"file" = "${absolute_file.result.root.path}", "same_as" = "${baseline.result.root.path}"},
+  {"actual" = "${absolute_file.result.observations.child_invocations}", "equals" = []},
+  {"actual" = "${absolute_file.result.link_plan_fingerprint}", "equals" = "${baseline.result.link_plan_fingerprint}"},
+]
+
+[[steps]]
+name = "file_symlink"
+argv = ["${scoop}", "build", "${work}/alias.scoop", {"each" = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+cwd = "${work}/noisy"
+checks = [
+  {"actual" = "${file_symlink.result.root.artifact_fingerprint}", "equals" = "${baseline.result.root.artifact_fingerprint}"},
+  {"file" = "${file_symlink.result.root.path}", "same_as" = "${baseline.result.root.path}"},
+  {"actual" = "${file_symlink.result.observations.child_invocations}", "equals" = []},
+  {"actual" = "${file_symlink.result.link_plan_fingerprint}", "equals" = "${baseline.result.link_plan_fingerprint}"},
+]
+
+[[steps]]
+name = "unicode_file"
+argv = ["${scoop}", "build", "${work}/中文 空格/源 文件.scoop", "-o", "${work}/unicode-program", {"each" = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+cwd = "${work}/noisy"
+checks = [
+  {"actual" = "${unicode_file.result.root.artifact_fingerprint}", "equals" = "${baseline.result.root.artifact_fingerprint}"},
+  {"file" = "${unicode_file.result.root.path}", "same_as" = "${baseline.result.root.path}"},
+  {"actual" = "${unicode_file.result.observations.child_invocations}", "equals" = []},
+  {"actual" = "${unicode_file.result.link_plan_fingerprint}", "equals" = "${baseline.result.link_plan_fingerprint}"},
+]
+
+[[steps]]
+name = "normal"
+argv = ["${unicode_file.result.output}"]
+exit = 0
+stdout = "42\n"
+stderr = ""
+env = {}
+checks = []
+
+[[steps]]
+name = "moving"
+argv = ["${unicode_file.result.output}"]
+exit = 0
+stdout = "42\n"
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}
+checks = []

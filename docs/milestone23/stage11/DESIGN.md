@@ -184,7 +184,7 @@ parser/HIR 的现有诊断已经具有 file/span 和 note；driver 应在丢弃�
 每条 primary／note 独立使用实际来源：
 
 - 当前源码或依赖定义：已有 `SemanticSourceSpan { cone, logical_path, span }`。依赖来源使用已有 definition-source 记录，不冒充调用者；optional 源码文本缺失时仍能展示 coordinate、logical path 和 byte span。
-- manifest／CLI I/O：实际 host path/span；此类 locator 留在当次展示，不写入语义快照／缓存 warning。
+- manifest／CLI I/O：实际 host path；仅在存在对应文本区间时附带真实 span，不为无法读取的文件伪造 `0..0`；此类 locator 留在当次展示，不写入语义快照／缓存 warning。
 - 产物损坏：artifact locator 加原有 semantic field/member 位置，不伪造成 HIR source error。
 - 真正没有源码位置的 tool／internal error 才使用 `None`；无效或悬空 source index 是内部错误，不能悄悄降级为无位置诊断。
 

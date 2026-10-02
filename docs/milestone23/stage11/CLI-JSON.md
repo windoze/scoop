@@ -9,7 +9,7 @@
 
 artifact 清单每项含 `coordinate`（group/name/version）、`identity`、`artifact_fingerprint`、`path`。root 与 dependency 的 path 均指向实际持久文件，`output` 是稳定用户产物的位置。`observations.nodes` 每项含 identity、origin（compiled/cache/prebuilt）、cache_key（prebuilt 为 null）；`child_invocations` 保留实际源码编译顺序。
 
-origin 是封闭集合：`{"kind":"none"}`；`{"kind":"source","cone":...,"path":...,"start":...,"end":...}`；`{"kind":"host","path":...,"start":...,"end":...}`；`{"kind":"artifact","path":...,"member":...}`。source 的 path 是 canonical logical path，span 是 UTF-8 字节偏移。artifact 的 member 是 reader 提供的实际容器／manifest／metadata／member 位置，保留已有 wire field path 或语义字段名；整份产物的 I/O 错误使用 `container:$`。依赖图错误定位到相关产物的 manifest，缺少依赖时定位到记录该边的产物。human 输出也保留该位置。缺少具体来源的工具错误使用 none，不伪造当前源码位置。
+origin 是封闭集合：`{"kind":"none"}`；`{"kind":"source","cone":...,"path":...,"start":...,"end":...}`；`{"kind":"host","path":...,"start":...,"end":...}`；`{"kind":"artifact","path":...,"member":...}`。source 的 path 是 canonical logical path，span 是 UTF-8 字节偏移。 host 的 `start`/`end` 在有文本区间时为字节偏移，只有文件路径的 I/O 错误则两项均为 null；display 不补造行列号或区间。artifact 的 member 是 reader 提供的实际容器／manifest／metadata／member 位置，保留已有 wire field path 或语义字段名；整份产物的 I/O 错误使用 `container:$`。依赖图错误定位到相关产物的 manifest，缺少依赖时定位到记录该边的产物。human 输出也保留该位置。缺少具体来源的工具错误使用 none，不伪造当前源码位置。
 
 `display` 为 null 或当前调用的展示对象：path、可用时的 line/column，以及真实 span 的 start/end。源码文本未保存时不合成行列号。对 JSON 的语义比较应排除 display；完整 CLI presentation 的比较可以单独规范化当前临时目录。
 

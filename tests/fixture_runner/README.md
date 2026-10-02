@@ -12,6 +12,7 @@ Python 3.11+ 只用标准库；格式化／lint 使用 `tests/requirements-dev.t
 每个用例选择一种载体：相邻 `name.fixture.toml`、目录中的 `fixture.toml`，
 或源码开头 `// fixture:begin` 到 `// fixture:end` 之间每行带 `//` 的 TOML。
 源码注释不会被删除，编译器读取原始源码。相对文件名以描述所在目录为基准。
+发现阶段仅解码内联条件注释；源码正文中的非法 UTF-8 留给实际 compiler 诊断。
 
 ```toml
 schema = 1
@@ -52,6 +53,10 @@ native companion 显式作为 input，并用普通 argv 步骤调用 `${cc}`、`
 `${fixture}`、`${root}`、`${repo}`、`${runtime}`、`${target}` 也是内置值；三个 Scoop
 工具默认从 `target/debug` 取得，可用 CLI 参数或 `SCOOP_TEST_PAIRED_*` 指定。
 `${step.result.output}` 等引用前一步实际 JSON；数组使用 `.0`，`.length` 取长度。
+文本或 bytes 的 `.hex` 返回十六进制字节表示；文本使用文件系统编码并保留原始字节，
+可组合 `${work.hex}2fff` 这类期望来比较 JSON 中的非 UTF-8 路径。字典的 `hex` 字段仍按普通字段读取。
+传作 argv 时先在 vars 中声明 `raw_hex = "${work.hex}2fff"`，再写 `{hex = "${raw_hex}"}`；
+静态 hex 或完整引用使用相同的预检和执行规则。
 `${variants.normal.build.result.root.artifact_fingerprint}` 可比较前一变体。
 整个字符串为引用时保留 JSON 类型。argv 可用 `{hex = "ff"}` 传递原始字节，
 或 `{each = "${build.result.dependencies}", field = "path", prefix = "--dependency-slib"}`

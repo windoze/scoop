@@ -29,7 +29,7 @@ pub fn build(request: BuildRequest) -> BuildResult<BuildOutcome> {
     let graph = request
         .graph
         .load_root()
-        .map_err(BuildFailure::classified)?
+        .map_err(BuildFailure::root)?
         .discover()
         .map_err(BuildFailure::classified)?
         .resolve()
@@ -41,7 +41,7 @@ pub fn build(request: BuildRequest) -> BuildResult<BuildOutcome> {
             "run requires an executable Cone; the root is a library",
         ));
     }
-    let mut prepared = graph.prepare().map_err(BuildFailure::classified)?;
+    let mut prepared = graph.prepare().map_err(BuildFailure::preparation)?;
     let cache = std::fs::canonicalize(cache).map_err(output_error)?;
     let (sources, mut inputs) = source_context(&prepared);
     let output = output_path(

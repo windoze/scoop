@@ -16,6 +16,8 @@ def lookup(name, context):
         for part in name.split("."):
             if part == "length":
                 value = len(value)
+            elif part == "hex" and isinstance(value, (str, bytes)):
+                value = os.fsencode(value).hex()
             elif isinstance(value, list):
                 value = value[int(part)]
             else:

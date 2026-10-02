@@ -6,7 +6,7 @@ use scoop::{
     BuildOutcome, BuildProfile, BuildRequest, BuildResult, BuildRootInput, DiagnosticsPolicy,
     PairedScoopcLocator, RuntimeInput, TrustedSysrootRoot,
 };
-use scoop_manifest::{ManifestRootLocator, SingleFileLocator};
+use scoop_manifest::{CurrentConeInput, classify_current_cone_operand};
 
 use super::args::*;
 use super::presentation::Reporter;
@@ -73,23 +73,11 @@ fn build_request(
         args.root_input
             .unwrap_or_else(|| PathBuf::from("Cone.toml")),
     )?;
-    let metadata = std::fs::metadata(&input)
-        .map_err(|error| config(format!("cannot inspect {}: {error}", input.display())))?;
-    let root = if metadata.is_dir()
-        || metadata.is_file() && input.file_name().is_some_and(|name| name == "Cone.toml")
+    let root = match classify_current_cone_operand(input)
+        .map_err(|error| config(&error).at_host(error.path()))?
     {
-        BuildRootInput::manifest(ManifestRootLocator::from_path(input).map_err(config)?)
-            .map_err(config)?
-    } else if metadata.is_file()
-        && input
-            .extension()
-            .is_some_and(|extension| extension == "scoop")
-    {
-        BuildRootInput::single_file(SingleFileLocator::from_path(input).map_err(config)?)
-    } else {
-        return Err(config(
-            "root input must be a Cone directory, exact Cone.toml, or .scoop file",
-        ));
+        CurrentConeInput::Manifest { root } => BuildRootInput::manifest(root).map_err(config)?,
+        CurrentConeInput::SingleFile { source } => BuildRootInput::single_file(source),
     };
     let compiler = match args.scoopc {
         Some(path) => path,

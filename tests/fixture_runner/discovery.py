@@ -21,16 +21,19 @@ def input_files(base, names):
 
 
 def inline(source):
-    lines = source.read_bytes().decode("utf-8").splitlines()
-    if not lines or lines[0] != "// fixture:begin":
+    lines = source.read_bytes().splitlines()
+    if not lines or lines[0] != b"// fixture:begin":
         return None
     result = []
     for line in lines[1:]:
-        if line == "// fixture:end":
+        if line == b"// fixture:end":
             return tomllib.loads("\n".join(result))
-        if not line.startswith("//"):
+        if not line.startswith(b"//"):
             raise ConfigurationError(f"{source}: malformed inline fixture")
-        result.append(line[2:].removeprefix(" "))
+        try:
+            result.append(line[2:].removeprefix(b" ").decode("utf-8"))
+        except UnicodeDecodeError as error:
+            raise ConfigurationError(f"{source}: inline criteria must be UTF-8") from error
     raise ConfigurationError(f"{source}: unterminated inline fixture")
 
 
