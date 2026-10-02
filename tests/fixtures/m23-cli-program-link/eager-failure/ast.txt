@@ -1,0 +1,16 @@
+SourceFile
+  RootPackage
+  private fun trace(value: Long)
+    Call println
+      Var value
+  private fun fail(): Int
+    @Unsafe block
+      Call trace
+        IntLiteral 11
+    throw
+      Call IllegalStateException
+  val first: Int = <expr>
+  fun main()
+    @Unsafe block
+      Call trace
+        IntLiteral 99

@@ -1,0 +1,16 @@
+SourceFile
+  RootPackage
+  ImportStar Local startup.lazy.*
+  private fun trace(value: Long)
+    Call println
+      Var value
+  fun main()
+    if
+      Binary Ne
+        Call count
+        IntLiteral 0
+      throw
+        Call IllegalStateException
+    @Unsafe block
+      Call trace
+        IntLiteral 42L

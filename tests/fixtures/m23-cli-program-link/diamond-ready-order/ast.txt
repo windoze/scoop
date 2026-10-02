@@ -1,0 +1,12 @@
+SourceFile
+  RootPackage
+  ImportStar Local schedule.join.*
+  private fun trace(value: Long)
+    Call println
+      Var value
+  fun main()
+    @Unsafe block
+      Call trace
+        Binary Add
+          Var joined
+          IntLiteral 10L

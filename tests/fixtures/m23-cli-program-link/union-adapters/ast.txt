@@ -1,0 +1,45 @@
+SourceFile
+  QualifiedPackage consumer.union
+  ImportStar Local dependency.union.*
+  ImportExact Local sibling.left.action as leftAction
+  ImportExact Local sibling.right.action as rightAction
+  ImportExact Local sibling.left.sameType as leftType
+  ImportExact Local sibling.right.sameType as rightType
+  public fun check(): Int
+    val left
+      Cast Payload optional=false
+        Invoke
+          Call leftAction
+          Call Payload
+            IntLiteral 0
+    val right
+      Cast Other optional=false
+        Invoke
+          Call rightAction
+          Call Payload
+            IntLiteral 0
+    if
+      Binary Ne
+        MethodCall read
+          Cast Readable optional=false
+            Call leftType
+        IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        MethodCall read
+          Cast Readable optional=false
+            Call rightType
+        IntLiteral 42
+      return
+        IntLiteral 2
+    return
+      Binary Add
+        FieldAccess number
+          Var left
+        FieldAccess number
+          Var right
+  fun main()
+    Call println
+      Call check

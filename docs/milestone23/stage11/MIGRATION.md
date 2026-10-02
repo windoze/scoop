@@ -81,6 +81,29 @@ M0 的源程序使用 `print`，真实 stdout 为 `hello, world`，末尾没有 
 | raw global／TLS | GC-free 存储不进入 managed registration，正确发布 Mach-O TLS descriptor／初值及 bootstrap 引用 |
 | Scoop ABI native roots | C 使用真实源码类型描述符；正常 GC 与强制移动分别验证可观察契约 |
 
-## 2. 后续批次
+## 2. Program-link 值、协程、ODR 和初始化组合
+
+`compiler/scoop/tests/program_link/{combinations,initialization,siblings}.rs` 的 9 个 Rust 测试已迁成 20 个正式 CLI 用例，继续使用原 40 份源码；另加一项 tuple／泛型派生相等的 re-export 组合。当前声明位于 `tests/fixtures/m23-cli-program-link/`，21 项用例的只读验收全部通过，共 42 个变体、172 次进程执行、210 次阶段／link-plan golden 比较。
+
+每项声明保存真实 manifest 与依赖路径，从普通 `scoop build` 取得产物。重新链接前复制 root 和依赖 `.slib`、移走源码，使用独立复制的 `scoop` 和空 sysroot，并令 LLVM 配置路径不可用。所有用例同时检查正常与 moving 运行；link-plan 保存完整文本并与构建时 fingerprint 对照。
+
+| 原 Rust 测试 | 当前用例 | 保留的关键断言 |
+| --- | --- | --- |
+| `cross_cone_value_storage_survives_boxing_arrays_and_moving_gc` | `values` | ZST、大值、含引用 tuple／enum、Option、Array、装箱与转换，原五行输出 |
+| `coroutine_frames_helpers_closures_and_finally_are_consumed_from_artifacts` | `coroutine-closure-finally`、`coroutine-failure-finally`、`coroutine-function-values`、`coroutine-lifecycle`、`coroutine-value-task` | 协程 frame/helper、函数值、closure、成功／异常 finally，每项返回 42 |
+| `odr_member_unions_keep_independently_demanded_function_adapters` | `union-adapters`、`union-adapters-combined` | sibling 独立需求的 callable member 并集，动态函数适配、泛型与接口使用 |
+| `sibling_generic_delegates_share_storage_and_cached_failures` | `delegate-siblings` | delegate 构建／provide 次数、共享可变状态、失败对象的 `===` 身份和各 specialization 的隔离 |
+| `empty_and_nogc_roots_and_early_initialization_chain` | `empty`、`nogc`、`early-root` | 空／NoGC 入口与原初始化序列 6→5→4→3→2→1→7 |
+| `lazy_failure_cycle_and_recovery_preserve_the_original_failure` | `lazy-failure-root`、`unused-lazy-root`、`lazy-cycle-root`、`cycle-recovery-root` | 延迟求值、原失败缓存、未使用时不求值、循环和恢复 |
+| `diamond_uses_the_current_ready_set_and_has_a_locator_independent_plan` | `diamond-ready-order` | 六 image、10→20→30→40→50 当前 ready-set 顺序；移动所有产物、重排并重复依赖后的 plan 与 fingerprint 完全相等 |
+| `uncaught_root_and_eager_failures_stop_at_the_runtime_gateway` | `root-failure`、`eager-failure` | SIGABRT、原 stdout、完整 canonical 异常 stderr 及 eager 单元上下文 |
+| `failed_dependency_prevents_later_eager_initializers_and_main` | `failed-dependency-order` | 仅输出 1，后续 eager 和 main 均未执行，实际失败初始化单元保留 |
+| 新增派生相等组合 | `equality-roots` | tuple、generic application、enum、facade 和 closure 中的比较，移走源码后仍可链接运行 |
+
+值类型用例暴露的 reader 问题在共同 HIR/MIR 调用根关联中修复：包含完整 exact owner 的派生 helper 使用 `NoSubstitution`，同时可以有真实 ODR 定义。调用根按其已发布 generated identity 关联，仍拒绝缺失定义以及错误的词法／初始化 application 上下文；未增加产物字段或新的资格检查。587 项 `scoop-slib` 单元测试通过，其中能力描述符和摘要只同步已登记的 HIR 44、type-semantics 12、link-identity-closure 9。
+
+三个原 Rust 编排模块及其 `mod` 注册已删除。其余 program-link/native 用例仍在后续批次逐项迁移。
+
+## 3. 后续批次
 
 parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end、program-link/native 以及需要外部构建的 runtime 测试仍按原断言逐批迁移。直接构造内存 typed IR 的内部单元测试保留。完成每批后补充对应关系、删除的 helper 与实际验证结果；全部完成前不将 M23-11 标记完成。

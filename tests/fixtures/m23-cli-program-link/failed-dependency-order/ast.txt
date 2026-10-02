@@ -1,0 +1,9 @@
+SourceFile
+  RootPackage
+  private fun trace(value: Long)
+    Call println
+      Var value
+  fun main()
+    @Unsafe block
+      Call trace
+        IntLiteral 100L

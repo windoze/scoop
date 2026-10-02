@@ -6,8 +6,6 @@ use scoop::{RuntimeBuildRequest, RuntimeOptimization, build_runtime};
 use scoop_toolchain::ResolvedTargetProfile;
 
 mod build;
-mod combinations;
-mod initialization;
 mod inputs;
 mod native;
 mod native_inputs;
@@ -15,7 +13,6 @@ mod orchestration;
 mod plans;
 mod publication;
 mod rebuilt_core;
-mod siblings;
 
 pub use plans::assert_plan_snapshot;
 
