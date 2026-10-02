@@ -1,0 +1,16 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  public fun primary(): Counter
+    val source: (Any) -> Long
+      Lambda 0 suspend=false
+        param value: _
+        Cast Long optional=false
+          Var value
+    val adapted: (Long) -> Any
+      Var source
+    return
+      Call Counter
+        Cast Long optional=false
+          Call adapted
+            IntLiteral 21

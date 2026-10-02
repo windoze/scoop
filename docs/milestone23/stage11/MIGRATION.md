@@ -238,8 +238,9 @@ fixture 的 `truncate(path,size)` 只缩短现有文件；对应归档的初始�
 | `dependency_classes_compile_and_run_through_actual_artifacts` | 24／12 | 312／120 | 72 份 HIR Export、MIR、LIR 逐字相同；12 份诊断相同 |
 | `dependency_property_writes_compile_and_run_through_actual_artifacts` | 6／6 | 90／30 | 18 份旧阶段逐字相同；6 份诊断相同 |
 | `dependency_value_interfaces_compile_and_run_through_actual_artifacts` | 8／2 | 96／40 | 24 份旧阶段逐字相同；2 份诊断相同 |
+| `primitive_interfaces_compile_and_run_through_actual_artifacts` | 9／2 | 107／45 | 27 份旧阶段逐字相同；2 份诊断相同 |
 
-本节目前覆盖 58 项；其余类、接口及继承用例继续逐功能迁移。共享的旧 runtime helper 仍被其他待迁测试调用，随那些调用一起退役。
+本节目前覆盖 69 项；其余类、接口及继承用例继续逐功能迁移。共享的旧 runtime helper 仍被其他待迁测试调用，随那些调用一起退役。
 
 ## 12. 后续批次
 

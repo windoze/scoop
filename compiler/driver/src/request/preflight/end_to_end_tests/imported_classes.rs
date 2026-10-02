@@ -5,25 +5,6 @@ mod inheritance;
 pub(super) mod runtime;
 
 #[test]
-fn primitive_interfaces_compile_and_run_through_actual_artifacts() {
-    check_class_cases(
-        "direct",
-        &[
-            "primitive-any",
-            "primitive-boolean",
-            "primitive-integers",
-            "primitive-hash",
-            "primitive-string",
-            "primitive-default",
-            "primitive-core",
-            "primitive-cast-failure",
-            "primitive-variance",
-        ],
-        &["primitive-wrong-interface", "boolean-wrong-interface"],
-    );
-}
-
-#[test]
 fn structural_boxes_compile_and_run_through_actual_artifacts() {
     check_class_cases(
         "direct",

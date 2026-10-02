@@ -1,3 +1,0 @@
-span=55..60
-expression=value
-body of `rejected` must be of type RebuiltReadable, found Boolean

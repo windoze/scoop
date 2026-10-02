@@ -1,0 +1,19 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  public fun primary(): Counter
+    val signed: Int8
+      IntLiteral 21
+    val value: Any
+      Var signed
+    try
+      val invalid
+        Cast UInt8 optional=false
+          Var value
+      return
+        Call Counter
+          IntLiteral 0
+    catch error: ClassCastException
+      return
+        Call Counter
+          IntLiteral 21
