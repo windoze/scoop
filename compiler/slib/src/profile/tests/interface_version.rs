@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v43_retains_nominal_instantiation_conditions() {
+fn source_interface_v44_retains_each_interface_dispatch_selection() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        43,
+        44,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
@@ -14,10 +14,10 @@ fn source_interface_v43_retains_nominal_instantiation_conditions() {
 }
 
 #[test]
-fn type_semantics_v11_uses_complete_slot_receivers() {
+fn type_semantics_v12_retains_slot_table_roles() {
     assert_retired_version(
         hir_cross_cone_type_semantics_capability(),
-        11,
+        12,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
