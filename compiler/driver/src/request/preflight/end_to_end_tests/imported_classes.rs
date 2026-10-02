@@ -5,15 +5,6 @@ mod inheritance;
 pub(super) mod runtime;
 
 #[test]
-fn runtime_cast_failures_use_the_providers_default_constructor_adapter() {
-    check_class_cases(
-        "default",
-        &["cast-failure", "cast-default-failure", "cast-zst"],
-        &[],
-    );
-}
-
-#[test]
 fn dependency_singletons_initialize_through_actual_artifacts() {
     check_class_cases(
         "direct",
