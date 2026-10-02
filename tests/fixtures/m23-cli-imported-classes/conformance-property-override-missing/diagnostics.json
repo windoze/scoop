@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "property `value` overrides an inherited property and must be marked `override`",
+    "notes": [],
+    "origin": {
+      "cone": "7e187d600cdd9b56195162bd1ee3c476d28b5e079314d3e7b7040178b00bfc19",
+      "end": 110,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 69
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`$get$value` overrides `Valued.$get$value` and must be marked `override`",
+    "notes": [],
+    "origin": {
+      "cone": "7e187d600cdd9b56195162bd1ee3c476d28b5e079314d3e7b7040178b00bfc19",
+      "end": 85,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 80
+    },
+    "severity": "error"
+  }
+]

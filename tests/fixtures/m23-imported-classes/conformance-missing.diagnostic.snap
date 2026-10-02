@@ -1,3 +1,0 @@
-span=35..86
-expression=public class Missing public constructor(): Readable
-class `Missing` does not implement interface method `Readable.read`

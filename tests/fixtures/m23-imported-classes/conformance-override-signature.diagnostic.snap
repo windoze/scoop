@@ -1,8 +1,0 @@
-span=111..115
-expression=read
-`read` is marked `override` but does not override any method
-span=35..129
-expression=public class Wrong public constructor(): Readable {
-    public override fun read(): Int = 21
-}
-class `Wrong` does not implement interface method `Readable.read`
