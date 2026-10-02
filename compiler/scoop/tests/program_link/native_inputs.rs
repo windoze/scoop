@@ -3,6 +3,7 @@ use super::*;
 mod archive;
 mod cabi;
 mod callbacks;
+mod contracts;
 mod direct;
 mod dynamic;
 mod formats;
