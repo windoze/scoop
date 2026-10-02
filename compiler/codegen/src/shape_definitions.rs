@@ -205,7 +205,8 @@ fn collect_layouts(module: &Module) -> Result<BTreeSet<PersistentLayoutId>, Code
                     scoop_lir::GlobalInit::Storage { layout, .. } => layout.local(),
                     scoop_lir::GlobalInit::StringConst { .. }
                     | scoop_lir::GlobalInit::ImportedStorage { .. }
-                    | scoop_lir::GlobalInit::CString { .. } => None,
+                    | scoop_lir::GlobalInit::CString { .. }
+                    | scoop_lir::GlobalInit::RawStorage { .. } => None,
                 }),
         )
     {

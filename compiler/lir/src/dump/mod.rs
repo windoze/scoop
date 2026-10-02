@@ -26,15 +26,21 @@ pub fn dump(module: &Module) -> String {
             GlobalInit::CString { value, .. } => {
                 out.push_str(&format!("  global @{} = c{:?}\n", global.symbol(), value));
             }
-            GlobalInit::Storage {
+            GlobalInit::RawStorage {
                 ty, thread_local, ..
             } => out.push_str(&format!(
-                "  {} @{} : {} scan={}\n",
+                "  raw_{} @{} : {}\n",
                 if *thread_local {
                     "thread_local"
                 } else {
                     "global"
                 },
+                global.symbol(),
+                ty.dump()
+            )),
+            GlobalInit::Storage { ty, .. } => out.push_str(&format!(
+                "  {} @{} : {} scan={}\n",
+                "global",
                 global.symbol(),
                 ty.dump(),
                 global.scan.dump()

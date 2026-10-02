@@ -2787,6 +2787,7 @@ fn push_immortal_object(
             scoop_lir::GlobalInit::StringConst { .. }
             | scoop_lir::GlobalInit::Storage { .. }
             | scoop_lir::GlobalInit::CString { .. }
+            | scoop_lir::GlobalInit::RawStorage { .. }
             | scoop_lir::GlobalInit::ImportedStorage { .. } => None,
         })
         .expect("immortal registration must resolve to a StringConst global");

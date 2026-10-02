@@ -1,0 +1,28 @@
+package tls.origin
+
+@ThreadLocal
+private var counter: Int = 7
+
+@ThreadLocal
+private var zeroCounter: Int = 0
+
+private fun announce(): String {
+    println("startup")
+    return "ready"
+}
+
+private val state: String = announce()
+
+public fun step(value: Int = 42): Int {
+    val before = counter
+    counter = value
+    gcCollect()
+    if (state != "ready") { throw IllegalStateException(Some("lost global root")) }
+    return before * 100 + counter
+}
+
+public fun zeroStep(): Int {
+    val before = zeroCounter
+    zeroCounter += 1
+    return before
+}

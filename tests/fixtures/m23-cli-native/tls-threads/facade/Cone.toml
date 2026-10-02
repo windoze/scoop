@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+group = "dev.raw-tls"
+name = "facade"
+version = "0.1.0"
+kind = "library"
+[dependencies]
+"dev.raw-tls:provider" = {version = "0.1.0", path = "../provider"}

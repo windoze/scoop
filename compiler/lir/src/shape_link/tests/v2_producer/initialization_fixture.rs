@@ -112,7 +112,6 @@ fn storage_global(identity: StaticStorageIdentity, exact: PersistentExactTypeId)
                 .into(),
             ty: MANAGED_PTR,
             initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
-            thread_local: false,
         },
     }
 }

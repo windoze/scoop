@@ -49,7 +49,8 @@ impl CanonicalLirFoundation {
                         crate::GlobalInit::Storage { layout, .. } => layout.local(),
                         crate::GlobalInit::StringConst { .. }
                         | crate::GlobalInit::ImportedStorage { .. }
-                        | crate::GlobalInit::CString { .. } => None,
+                        | crate::GlobalInit::CString { .. }
+                        | crate::GlobalInit::RawStorage { .. } => None,
                     }),
             )
             .collect::<Vec<_>>();
@@ -218,7 +219,8 @@ impl CanonicalLirFoundation {
         }
         for global in globals {
             match &global.init {
-                crate::GlobalInit::Storage { identity, .. } => {
+                crate::GlobalInit::Storage { identity, .. }
+                | crate::GlobalInit::RawStorage { identity, .. } => {
                     insert_materialization_records(
                         &mut groups,
                         &mut members,
@@ -249,7 +251,8 @@ impl CanonicalLirFoundation {
             globals
                 .iter()
                 .filter_map(|(_, global)| match &global.init {
-                    crate::GlobalInit::Storage { identity, .. } => {
+                    crate::GlobalInit::Storage { identity, .. }
+                    | crate::GlobalInit::RawStorage { identity, .. } => {
                         Some(identity.identity_record().clone())
                     }
                     crate::GlobalInit::StringConst { .. }
@@ -267,6 +270,7 @@ impl CanonicalLirFoundation {
                     }
                     crate::GlobalInit::CString { .. }
                     | crate::GlobalInit::Storage { .. }
+                    | crate::GlobalInit::RawStorage { .. }
                     | crate::GlobalInit::ImportedStorage { .. } => None,
                 })
                 .collect(),
@@ -758,7 +762,6 @@ mod tests {
                 .into(),
                 ty: MANAGED_PTR,
                 initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
-                thread_local: false,
             },
         });
         globals.alloc(Global {

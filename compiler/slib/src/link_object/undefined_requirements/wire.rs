@@ -356,6 +356,9 @@ fn encode_section_role(
         BuiltinObjectSectionRoleV1::LlvmStackmaps => 7,
         BuiltinObjectSectionRoleV1::CompactUnwind => 8,
         BuiltinObjectSectionRoleV1::EhFrame => 9,
+        BuiltinObjectSectionRoleV1::ThreadLocalData => 10,
+        BuiltinObjectSectionRoleV1::ThreadLocalZeroFill => 11,
+        BuiltinObjectSectionRoleV1::ThreadLocalVariables => 12,
     })
 }
 
@@ -370,6 +373,9 @@ fn decode_section_role(decoder: &mut Decoder<'_>) -> Result<BuiltinObjectSection
         7 => Ok(BuiltinObjectSectionRoleV1::LlvmStackmaps),
         8 => Ok(BuiltinObjectSectionRoleV1::CompactUnwind),
         9 => Ok(BuiltinObjectSectionRoleV1::EhFrame),
+        10 => Ok(BuiltinObjectSectionRoleV1::ThreadLocalData),
+        11 => Ok(BuiltinObjectSectionRoleV1::ThreadLocalZeroFill),
+        12 => Ok(BuiltinObjectSectionRoleV1::ThreadLocalVariables),
         tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
     }
 }

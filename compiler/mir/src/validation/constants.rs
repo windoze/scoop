@@ -31,13 +31,19 @@ type ConstantImageFailure = (Vec<u32>, Type, MirConstantImageError);
 
 pub(super) fn validate_constant_images(module: &Module) -> Result<(), MirValidationError> {
     for (global_id, global) in module.globals.iter() {
-        let initial_state = match &global.storage {
-            GlobalStorage::Managed { initial_state }
-            | GlobalStorage::Local { initial_state, .. } => initial_state,
-            GlobalStorage::Extern { .. } | GlobalStorage::Imported { .. } => continue,
-        };
-        let MirStaticInitialState::EncodedStaticValue { payload } = initial_state else {
-            continue;
+        let payload = match &global.storage {
+            GlobalStorage::Managed {
+                initial_state: MirStaticInitialState::EncodedStaticValue { payload },
+            }
+            | GlobalStorage::Local {
+                initializer: payload,
+                ..
+            } => payload,
+            GlobalStorage::Managed {
+                initial_state: MirStaticInitialState::ZeroedForRuntimeUnit,
+            }
+            | GlobalStorage::Extern { .. }
+            | GlobalStorage::Imported { .. } => continue,
         };
         validate_constant_image(module, payload, &global.ty, &mut Vec::new()).map_err(
             |(path, expected, error)| MirValidationError {

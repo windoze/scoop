@@ -4,15 +4,36 @@ use super::super::*;
 
 pub(super) fn validate_constant_images(module: &Module) -> Result<(), CodegenError> {
     for (_, global) in module.globals.iter() {
-        let GlobalInit::Storage {
+        let (GlobalInit::Storage {
             ty,
             initial_state: LirStaticInitialState::EncodedStaticValue { payload },
             ..
-        } = &global.init
+        }
+        | GlobalInit::RawStorage {
+            ty,
+            initializer: payload,
+            ..
+        }) = &global.init
         else {
             continue;
         };
         validate_constant_image(module, global, ty, payload, "value")?;
+        if matches!(global.init, GlobalInit::RawStorage { .. }) {
+            let scan = super::scoop_abi::canonical_storage_scan(
+                module,
+                ty,
+                &format!("raw storage @{}", global.symbol()),
+            )?;
+            if global.address_kind != PointerKind::Raw
+                || scan != RefScan::None
+                || global.scan != RefScan::None
+            {
+                return Err(CodegenError(format!(
+                    "raw storage must be GC-free: @{}",
+                    global.symbol()
+                )));
+            }
+        }
     }
     Ok(())
 }

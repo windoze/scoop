@@ -139,36 +139,42 @@ fn encoded_integer_templates_preserve_target_bits_and_zero_padding() {
 }
 
 #[test]
-fn semantic_plans_reject_thread_local_and_noncanonical_empty_scans() {
+fn raw_globals_and_tls_do_not_enter_managed_storage_registration() {
     let mut globals = Arena::new();
-    let mut thread_local = storage_global(
-        "tls",
+    for (name, thread_local) in [("rawGlobal", false), ("rawTls", true)] {
+        globals.alloc(Global {
+            address_kind: PointerKind::Raw,
+            scan: RefScan::None,
+            init: GlobalInit::RawStorage {
+                identity: static_storage_identity(name),
+                ty: LirType::I32,
+                initializer: LirConstantImage::Integer(crate::LirIntegerConstant::Signed32(7)),
+                thread_local,
+            },
+        });
+    }
+    let managed = storage_global(
+        "managed",
         LirType::I64,
         RefScan::None,
         LirStaticInitialState::ZeroedForRuntimeUnit,
     );
-    let GlobalInit::Storage {
-        thread_local: flag, ..
-    } = &mut thread_local.init
-    else {
-        unreachable!()
-    };
-    *flag = true;
-    let storage = storage_id(&thread_local);
-    globals.alloc(thread_local);
-    assert_eq!(
-        StrongStaticStorageSemanticPlanSetV1::from_parts(
-            ConeIdentity::SINGLE_FILE,
-            LirTargetProfile::DARWIN_AARCH64,
-            &globals,
-            &crate::StructDefs::default(),
-            &crate::EnumDefs::default(),
-        ),
-        Err(StrongStaticStorageSemanticPlanBuildError::ThreadLocal(
-            storage
-        ))
-    );
+    let managed_id = storage_id(&managed);
+    globals.alloc(managed);
+    let plans = StrongStaticStorageSemanticPlanSetV1::from_parts(
+        ConeIdentity::SINGLE_FILE,
+        LirTargetProfile::DARWIN_AARCH64,
+        &globals,
+        &crate::StructDefs::default(),
+        &crate::EnumDefs::default(),
+    )
+    .unwrap();
+    assert_eq!(plans.storages().len(), 1);
+    assert_eq!(plans.storages()[0].storage(), managed_id);
+}
 
+#[test]
+fn semantic_plans_reject_noncanonical_empty_scans() {
     let mut globals = Arena::new();
     let empty_scan = storage_global(
         "emptyScan",
@@ -282,7 +288,6 @@ fn storage_global(
             .into(),
             ty,
             initial_state,
-            thread_local: false,
         },
     }
 }

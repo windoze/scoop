@@ -81,7 +81,7 @@ pub fn lir_cone_production_capability() -> CapabilityId {
 }
 
 pub fn lir_link_identity_closure_capability() -> CapabilityId {
-    CapabilityId::new("org.scoop-lang.lir", "link-identity-closure", 8)
+    CapabilityId::new("org.scoop-lang.lir", "link-identity-closure", 9)
         .expect("built-in capability id is valid")
 }
 

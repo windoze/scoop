@@ -120,6 +120,7 @@ impl crate::CBridgeTargetSupportV1 {
         use CompilerNativeValueV1::{Integer as I, Pointer as P};
         match self {
             Self::Memcpy => leaf(&[P, P, I(64)], P),
+            Self::TlvBootstrap => leaf(&[P], P),
         }
     }
 }

@@ -1,6 +1,7 @@
 use super::*;
 
 mod objects;
+mod storage;
 pub use objects::*;
 
 fn prepare_non_callable_strong_llvm_module<
@@ -366,63 +367,19 @@ fn emit_llvm_module_with_surface<'ctx, R>(
                 }
                 globals.push(Some(llvm_global));
             }
-            GlobalInit::Storage {
-                identity,
-                layout: _,
-                ty: lir_ty,
-                initial_state,
-                thread_local,
-            } => {
-                let logical_ty = basic_ty(
+            GlobalInit::Storage { .. } | GlobalInit::RawStorage { .. } => {
+                let emitter = storage::StorageEmitter {
                     context,
-                    &module.structs,
-                    &module.enums,
+                    llvm: &llvm,
+                    module,
+                    target_data: &target_data,
                     managed_address_space,
-                    lir_ty,
-                )?;
-                let logical_size = target_data.get_store_size(&logical_ty);
-                let logical_alignment = target_data.get_abi_alignment(&logical_ty);
-                let storage_ty = if logical_size == 0 {
-                    i8_ty.into()
-                } else {
-                    logical_ty
+                    globals: &globals,
+                    surface,
+                    profile,
+                    define: selection.defines_non_callable(),
                 };
-                let llvm_global = llvm.add_global(storage_ty, None, global.symbol());
-                llvm_global.set_alignment(logical_alignment);
-                llvm_global.set_thread_local(*thread_local);
-                apply_persistent_linkage(
-                    &llvm_global,
-                    identity.symbol_request(),
-                    selection.defines_non_callable(),
-                )?;
-                if selection.defines_non_callable() {
-                    let section = if logical_size == 0
-                        || matches!(initial_state, LirStaticInitialState::ZeroedForRuntimeUnit)
-                    {
-                        profile.zero_fill_storage_section()
-                    } else {
-                        profile.writable_storage_section()
-                    };
-                    llvm_global.set_section(Some(section));
-                    let value = if logical_size == 0 {
-                        i8_ty.const_zero().into()
-                    } else {
-                        match initial_state {
-                            LirStaticInitialState::ZeroedForRuntimeUnit => storage_ty.const_zero(),
-                            LirStaticInitialState::EncodedStaticValue { payload } => llvm_constant(
-                                context,
-                                &module.structs,
-                                &module.enums,
-                                &globals,
-                                managed_address_space,
-                                lir_ty,
-                                payload,
-                            )?,
-                        }
-                    };
-                    llvm_global.set_initializer(&value);
-                }
-                globals.push(Some(llvm_global));
+                globals.push(Some(emitter.emit(global)?));
             }
         }
     }

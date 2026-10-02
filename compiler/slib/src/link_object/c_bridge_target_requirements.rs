@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
-use scoop_identity::{ConeIdentity, GeneratedBridgeUnitId};
+use scoop_identity::ConeIdentity;
 use scoop_lir::{
     CBridgeTargetSupportRequirementV1, RuntimeSymbolContractId, TargetEhRequirementId,
     ValidatedLirTargetSelection,
@@ -27,16 +27,11 @@ type UseKey = (
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CBridgeTargetSupportRequirementUseV1 {
-    unit: GeneratedBridgeUnitId,
     use_site: CanonicalUndefinedRelocationUseV1,
     requirement: CBridgeTargetSupportRequirementV1,
 }
 
 impl CBridgeTargetSupportRequirementUseV1 {
-    pub const fn unit(&self) -> GeneratedBridgeUnitId {
-        self.unit
-    }
-
     pub const fn use_site(&self) -> &CanonicalUndefinedRelocationUseV1 {
         &self.use_site
     }
@@ -221,7 +216,6 @@ pub fn verify_c_bridge_target_support_requirements_v1(
                 }
                 target_support_keys.insert(key);
                 target_support_requirements.push(CBridgeTargetSupportRequirementUseV1 {
-                    unit: semantic_use.unit(),
                     use_site: semantic_use.use_site().clone(),
                     requirement: requirement.clone(),
                 });
@@ -246,6 +240,25 @@ pub fn verify_c_bridge_target_support_requirements_v1(
                 target_slot: key.3,
             },
         );
+    }
+
+    for binding in runtime_and_eh.remaining_external_candidates() {
+        if binding.section_role() == super::BuiltinObjectSectionRoleV1::ThreadLocalVariables
+            && binding.containing_atom_role() == scoop_identity::DefinitionAtomRole::Primary
+            && binding.offset_within_atom() == 0
+            && binding.relocation_form() == super::VerifiedDarwinArm64RelocationFormV1::Unsigned64
+            && let Some(requirement) = bridge_semantics
+                .target_support()
+                .requirement_for_object_symbol(binding.symbol())
+            && requirement.support() == scoop_lir::CBridgeTargetSupportV1::TlvBootstrap
+        {
+            let use_site = CanonicalUndefinedRelocationUseV1::from(binding);
+            target_support_keys.insert(use_key(&use_site));
+            target_support_requirements.push(CBridgeTargetSupportRequirementUseV1 {
+                use_site,
+                requirement: requirement.clone(),
+            });
+        }
     }
 
     let source_external_requirements = runtime_and_eh

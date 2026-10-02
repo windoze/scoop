@@ -1035,7 +1035,9 @@ impl Global {
         match &self.init {
             GlobalInit::StringConst { identity, .. } => identity.symbol(),
             GlobalInit::CString { identity, .. } => identity.symbol(),
-            GlobalInit::Storage { identity, .. } => identity.symbol(),
+            GlobalInit::Storage { identity, .. } | GlobalInit::RawStorage { identity, .. } => {
+                identity.symbol()
+            }
             GlobalInit::ImportedStorage { definition, .. } => definition.symbol(),
         }
     }
@@ -1045,7 +1047,9 @@ impl Global {
     ) -> Option<scoop_identity::PersistentSymbolRequest> {
         match &self.init {
             GlobalInit::StringConst { identity, .. } => Some(identity.symbol_request()),
-            GlobalInit::Storage { identity, .. } => Some(identity.symbol_request()),
+            GlobalInit::Storage { identity, .. } | GlobalInit::RawStorage { identity, .. } => {
+                Some(identity.symbol_request())
+            }
             GlobalInit::CString { .. } | GlobalInit::ImportedStorage { .. } => None,
         }
     }
@@ -1405,6 +1409,13 @@ pub enum GlobalInit {
         identity: CallableCStringIdentity,
         value: String,
     },
+    /// Explicit GC-free raw global or TLS, initialized by the object loader.
+    RawStorage {
+        identity: StaticStorageIdentity,
+        ty: LirType,
+        initializer: LirConstantImage,
+        thread_local: bool,
+    },
     Storage {
         /// Persistent semantic identity of this compiler-owned writable
         /// storage. Native extern globals are represented separately and do
@@ -1416,7 +1427,6 @@ pub enum GlobalInit {
         layout: StaticStorageLayout,
         ty: LirType,
         initial_state: LirStaticInitialState,
-        thread_local: bool,
     },
 }
 

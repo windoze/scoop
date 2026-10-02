@@ -525,8 +525,9 @@ fn validate_machine_containers(module: &Module) -> Result<(), CodegenError> {
         }
     }
     for (_, global) in module.globals.iter() {
-        let (GlobalInit::Storage { ty, .. } | GlobalInit::ImportedStorage { ty, .. }) =
-            &global.init
+        let (GlobalInit::Storage { ty, .. }
+        | GlobalInit::RawStorage { ty, .. }
+        | GlobalInit::ImportedStorage { ty, .. }) = &global.init
         else {
             continue;
         };

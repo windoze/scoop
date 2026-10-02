@@ -72,19 +72,18 @@ pub(super) fn lower_globals(
                             enums,
                             string_globals,
                         ),
-                        thread_local: false,
                     },
                 });
                 StorageGlobal::Local(lir_id)
             }
             mir::GlobalStorage::Local {
                 thread_local,
-                initial_state,
+                initializer,
             } => {
                 let lir_id = globals.alloc(lir::Global {
                     address_kind: lir::PointerKind::Raw,
-                    scan: safepoints::root_scan(context, &lir_type(&global.ty), structs, enums, 0)?,
-                    init: lir::GlobalInit::Storage {
+                    scan: lir::RefScan::None,
+                    init: lir::GlobalInit::RawStorage {
                         identity: static_storage_identity(
                             context,
                             identity_roots,
@@ -92,19 +91,8 @@ pub(super) fn lower_globals(
                             enums,
                             global,
                         )?,
-                        layout: static_storage_layout(
-                            context,
-                            identity_roots,
-                            module,
-                            &global.ty,
-                            selected_layout,
-                        )?,
                         ty: lir_type(&global.ty),
-                        initial_state: lower_static_initial_state(
-                            initial_state,
-                            enums,
-                            string_globals,
-                        ),
+                        initializer: lower_constant_image(initializer, enums, string_globals),
                         thread_local: *thread_local,
                     },
                 });

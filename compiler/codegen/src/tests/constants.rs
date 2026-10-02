@@ -11,7 +11,6 @@ fn add_encoded_global(module: &mut Module, symbol: &str, ty: LirType, payload: L
                 .into(),
             ty,
             initial_state: LirStaticInitialState::EncodedStaticValue { payload },
-            thread_local: false,
         },
     });
 }

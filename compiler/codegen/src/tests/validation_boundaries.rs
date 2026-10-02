@@ -831,7 +831,6 @@ fn static_storage_validation_rejects_two_globals_for_one_identity() {
                 initial_state: LirStaticInitialState::EncodedStaticValue {
                     payload: LirConstantImage::Integer(scoop_lir::LirIntegerConstant::Signed64(0)),
                 },
-                thread_local: false,
             },
         });
     }

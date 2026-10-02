@@ -1,0 +1,96 @@
+SourceFile
+  RootPackage
+    @CLayout
+  struct NativePair
+    field left: Int
+    field right: Int
+    @Global
+  var scoopCounter: Int = <expr>
+    @ThreadLocal
+  var scoopTlsCounter: Int = <expr>
+    @Global
+  var pair: NativePair = <expr>
+    @Global
+  var emptyPointer: Ptr<Int>? = <expr>
+    @Global
+  var emptyCallback: FunPtr<(Int) -> Int>? = <expr>
+    @Extern(lib = "fixture_native", name = "native_counter")
+    @Global
+  var nativeCounter: Int
+    @Extern(lib = "fixture_native", name = "native_tls_counter")
+    @ThreadLocal
+  var nativeTlsCounter: Int
+    @Extern(lib = "fixture_native", name = "native_limit")
+  val nativeLimit: Int
+    @Extern(lib = "fixture_native", name = "native_pair")
+    @Global
+  var nativePair: NativePair
+  fun main()
+    Call println
+      Var scoopCounter
+    Call println
+      Var scoopTlsCounter
+    Call println
+      FieldAccess left
+        Var pair
+    Call println
+      FieldAccess right
+        Var pair
+    @Unsafe block
+      Call println
+        Var nativeCounter
+      Call println
+        Var nativeTlsCounter
+      Call println
+        Var nativeLimit
+      Call println
+        FieldAccess left
+          Var nativePair
+      Call println
+        FieldAccess right
+          Var nativePair
+      assign scoopCounter
+        IntLiteral 20
+      assign scoopTlsCounter
+        IntLiteral 21
+      MethodCall store
+        Call addressOf
+          Var scoopCounter
+        IntLiteral 22
+      assign pair
+        Call NativePair
+          IntLiteral 23
+          IntLiteral 24
+      assign nativeCounter
+        IntLiteral 40
+      assign nativeTlsCounter
+        IntLiteral 41
+      MethodCall store
+        Call addressOf
+          Var nativeCounter
+        IntLiteral 42
+      assign nativePair
+        Call NativePair
+          IntLiteral 43
+          IntLiteral 44
+    Call println
+      Var scoopCounter
+    Call println
+      Var scoopTlsCounter
+    Call println
+      FieldAccess left
+        Var pair
+    Call println
+      FieldAccess right
+        Var pair
+    @Unsafe block
+      Call println
+        Var nativeCounter
+      Call println
+        Var nativeTlsCounter
+      Call println
+        FieldAccess left
+          Var nativePair
+      Call println
+        FieldAccess right
+          Var nativePair

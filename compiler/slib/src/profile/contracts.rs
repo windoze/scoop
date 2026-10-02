@@ -206,7 +206,7 @@ impl CapabilityContractRegistry {
                     .union(FingerprintSinkSet::CODE)
                     .union(FingerprintSinkSet::RUNTIME_IMAGE),
             ),
-            ("org.scoop-lang.lir", "link-identity-closure", 8) => (
+            ("org.scoop-lang.lir", "link-identity-closure", 9) => (
                 SectionLocation::Lir,
                 MemberPurposeSet::LINK,
                 FingerprintSinkSet::LINK_VALIDATION_ONLY,

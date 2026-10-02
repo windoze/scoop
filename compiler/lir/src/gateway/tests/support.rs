@@ -34,7 +34,6 @@ fn global(identity: StaticStorageIdentity) -> Global {
             .into(),
             ty: MANAGED_PTR,
             initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
-            thread_local: false,
         },
     }
 }

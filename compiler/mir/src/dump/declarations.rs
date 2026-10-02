@@ -13,18 +13,16 @@ pub fn dump(module: &Module) -> String {
                 static_initial_state_name(module, initial_state)
             ),
             GlobalStorage::Local {
-                thread_local: false,
-                initial_state,
+                thread_local,
+                initializer,
             } => format!(
-                "global initial={}",
-                static_initial_state_name(module, initial_state)
-            ),
-            GlobalStorage::Local {
-                thread_local: true,
-                initial_state,
-            } => format!(
-                "thread_local initial={}",
-                static_initial_state_name(module, initial_state)
+                "{} initial=encoded({})",
+                if *thread_local {
+                    "thread_local"
+                } else {
+                    "global"
+                },
+                constant_image_name(module, initializer)
             ),
             GlobalStorage::Extern {
                 native_symbol,

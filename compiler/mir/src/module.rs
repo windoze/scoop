@@ -606,7 +606,7 @@ pub enum GlobalStorage {
     },
     Local {
         thread_local: bool,
-        initial_state: MirStaticInitialState,
+        initializer: MirConstantImage,
     },
     Extern {
         source_contract: Box<SourceNativeExternalContractRecord>,

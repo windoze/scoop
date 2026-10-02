@@ -420,7 +420,6 @@ fn storage_global(
             .into(),
             ty,
             initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
-            thread_local: false,
         },
     }
 }
