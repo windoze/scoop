@@ -467,9 +467,15 @@ pub enum ExportDefaultTypeTarget {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExportDefaultGlobalRef {
-    pub target: GlobalId,
+    pub target: ExportDefaultGlobalTarget,
     pub target_domain: AccessDomain,
     pub origin: DefinitionOrigin,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExportDefaultGlobalTarget {
+    Local(GlobalId),
+    Dependency(scoop_identity::PersistentPropertyId),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

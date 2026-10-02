@@ -268,6 +268,9 @@ pub(super) fn dump_expr(
             "{pad}AddressOf global {} : {ty}\n",
             module.globals[*global].name
         )),
+        ExprKind::AddressOf(Place::ExternalGlobal { property, .. }) => out.push_str(&format!(
+            "{pad}AddressOf external global {property} : {ty}\n"
+        )),
         ExprKind::SizeOf(value_ty) => out.push_str(&format!(
             "{pad}SizeOf {} : {ty}\n",
             type_name(module, *value_ty)

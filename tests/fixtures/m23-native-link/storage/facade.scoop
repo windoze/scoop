@@ -1,0 +1,19 @@
+package nativelink.storagefacade
+
+public import nativelink.storage.*
+
+public fun <T> update(marker: T, amount: Int = 2): Int {
+    @Unsafe {
+        counter += amount
+        return counter
+    }
+}
+
+@Unsafe
+public fun <T> updateAddress(marker: T, pointer: Ptr<Int> = addressOf(counter)): Int {
+    pointer.store(pointer.load() + 1)
+    return pointer.load()
+}
+
+@Unsafe
+public fun <T> tlsAddress(marker: T): Ptr<Int> = addressOf(tlsInitial)

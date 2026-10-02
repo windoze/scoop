@@ -1,0 +1,24 @@
+import nativelink.storagefacade.*
+
+struct Marker(val text: String)
+
+fun main() {
+    val marker = Marker("caller-" + "alive")
+    @Unsafe {
+        println(update(marker))
+        println(counter++)
+        addressOf(counter).store(40)
+        println(increment(addressOf(counter)))
+        println(limit)
+        pair = Pair(50, 51)
+        addressOf(pair).store(Pair(52, 53))
+        println(pair.left + addressOf(pair).load().right)
+        tlsInitial = 33
+        addressOf(tlsZero).store(34)
+        println(tlsInitial == 33 && tlsZero == 34)
+        println(updateAddress(marker))
+        tlsAddress(marker).store(35)
+        println(tlsInitial)
+        println(marker.text)
+    }
+}

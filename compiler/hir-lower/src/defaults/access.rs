@@ -215,8 +215,20 @@ impl ReferenceCollector<'_> {
         let target_domain = self.lowerer.properties[property].access.lookup.0.clone();
         let target_domain = self.checked_target_domain(target_domain, origin, "a property");
         self.references.globals.push(hir::ExportDefaultGlobalRef {
-            target,
+            target: hir::ExportDefaultGlobalTarget::Local(target),
             target_domain,
+            origin,
+        });
+    }
+
+    pub(super) fn external_global(
+        &mut self,
+        property: scoop_identity::PersistentPropertyId,
+        origin: hir::DefinitionOrigin,
+    ) {
+        self.references.globals.push(hir::ExportDefaultGlobalRef {
+            target: hir::ExportDefaultGlobalTarget::Dependency(property),
+            target_domain: hir::AccessDomain::universal(),
             origin,
         });
     }

@@ -256,13 +256,28 @@ impl Concretizer<'_> {
     }
 
     pub(super) fn lower_place(
-        &self,
-        source: export::Place,
+        &mut self,
+        source: &export::Place,
         locals: &[concrete::LocalId],
+        substitution: &[concrete::TypeId],
+        span: export::Span,
     ) -> concrete::Place {
         match source {
-            export::Place::Local(local) => concrete::Place::Local(self.lower_local(local, locals)),
-            export::Place::Global(global) => concrete::Place::Global(self.global_map[&global]),
+            export::Place::Local(local) => concrete::Place::Local(self.lower_local(*local, locals)),
+            export::Place::Global(global) => concrete::Place::Global(self.global_map[global]),
+            export::Place::ExternalGlobal {
+                property,
+                source_contract,
+                ty,
+            } => {
+                let ty = self.lower_type(*ty, substitution);
+                concrete::Place::Global(self.lower_external_global(
+                    *property,
+                    source_contract,
+                    ty,
+                    span,
+                ))
+            }
         }
     }
 

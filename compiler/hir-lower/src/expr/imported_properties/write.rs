@@ -98,8 +98,12 @@ impl Lowerer {
             return None;
         }
         let value_type = self.imported_property_value_type(&property, name.span)?;
+        let target = match self.imported_property_native_place(&property, name.span)? {
+            Some(place) => ImportedPropertyWriteTarget::Native(place),
+            None => ImportedPropertyWriteTarget::Accessor(Box::new(candidate)),
+        };
         Some(PreparedImportedPropertySetter {
-            candidate,
+            target,
             receiver,
             value_type,
         })
@@ -111,12 +115,29 @@ impl Lowerer {
         value: hir::Expr,
         span: ast::Span,
     ) -> Option<hir::StatementKind> {
+        let candidate = match prepared.target {
+            ImportedPropertyWriteTarget::Native(place) => {
+                self.require_unsafe_operation(span, "writing an extern global");
+                let pointer = self.external_storage_pointer(place, span);
+                return Some(hir::StatementKind::Expr(hir::Expr {
+                    kind: hir::ExprKind::PtrStore {
+                        pointer: Box::new(pointer),
+                        offset: None,
+                        value: Box::new(value),
+                    },
+                    ty: self.unit,
+                    span,
+                    origin: self.expression_origin(span),
+                }));
+            }
+            ImportedPropertyWriteTarget::Accessor(candidate) => *candidate,
+        };
         let mut args = Vec::with_capacity(1 + usize::from(prepared.receiver.is_some()));
         let source_receiver = PropertyCallReceiver::source_type(&prepared.receiver);
         args.extend(prepared.receiver.map(|receiver| receiver.value));
         args.push(value);
         self.emit_imported_property_accessor(
-            prepared.candidate,
+            candidate,
             args,
             source_receiver,
             self.unit,

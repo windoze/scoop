@@ -3,6 +3,17 @@ use scoop_identity::{CallableTemplateOrigin, PropertyOwner};
 use super::*;
 
 impl ImportedDependencySelectionPlan {
+    pub fn property_native_contract(
+        &self,
+        property: scoop_identity::PersistentPropertyId,
+    ) -> Option<std::sync::Arc<scoop_identity::SourceNativeExternalContractRecord>> {
+        self.catalog
+            .properties
+            .get(&PropertyOwner::Property(property))?
+            .native_contract
+            .clone()
+    }
+
     pub fn property_declaration(
         &self,
         declaration: crate::PropertyDeclarationId,

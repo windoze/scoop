@@ -44,6 +44,7 @@ pub(super) struct PropertyCatalogEntry {
     pub(super) provider: ConeIdentity,
     pub(super) name: scoop_identity::CanonicalIdentifier,
     pub(super) interface: PropertyDeclarationRecordV1,
+    pub(super) native_contract: Option<Arc<scoop_identity::SourceNativeExternalContractRecord>>,
 }
 
 #[derive(Clone, Debug)]
@@ -321,6 +322,10 @@ impl ImportedSemanticWorld<'_> {
                     provider: provider.identity(),
                     name: super::intrinsics::property_catalog_name(provider, declaration)?,
                     interface: property.clone(),
+                    native_contract: provider.foundation().canonical_for_semantic_authority().source_native_contracts().iter()
+                        .find(|record| matches!((declaration, record.key().owner()),
+                            (PropertyOwner::Property(property), scoop_identity::SourceNativeExternalOwner::Property(owner)) if property == owner))
+                        .cloned().map(Arc::new),
                 };
                 if properties.insert(declaration, entry).is_some() {
                     return Err(

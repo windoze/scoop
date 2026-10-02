@@ -214,9 +214,12 @@ impl Concretizer<'_> {
                 offset: Box::new(self.lower_expr(offset, substitution, locals)),
                 subtract: *subtract,
             },
-            export::ExprKind::AddressOf(place) => {
-                concrete::ExprKind::AddressOf(self.lower_place(*place, locals))
-            }
+            export::ExprKind::AddressOf(place) => concrete::ExprKind::AddressOf(self.lower_place(
+                place,
+                locals,
+                substitution,
+                source.span,
+            )),
             export::ExprKind::SizeOf(size) => {
                 concrete::ExprKind::SizeOf(self.lower_type(*size, substitution))
             }

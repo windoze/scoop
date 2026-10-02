@@ -32,6 +32,22 @@ impl Lowerer {
         )?;
         let receiver = self.validate_imported_property_receiver(&property, receiver, span)?;
         let result_type = self.imported_property_value_type(&property, span)?;
+        if let Some(place) = self.imported_property_native_place(&property, span)? {
+            self.require_unsafe_operation(span, "reading an extern global");
+            let pointer = self.external_storage_pointer(place, span);
+            return Some(ImportedDependencyPropertyRead {
+                expression: hir::Expr {
+                    kind: hir::ExprKind::PtrLoad {
+                        pointer: Box::new(pointer),
+                        offset: None,
+                    },
+                    ty: result_type,
+                    span,
+                    origin: self.expression_origin(span),
+                },
+                has_setter: property.interface().accessors().setter().is_some(),
+            });
+        }
         let source_receiver = PropertyCallReceiver::source_type(&receiver);
         let expression = self.emit_imported_property_accessor(
             candidate,

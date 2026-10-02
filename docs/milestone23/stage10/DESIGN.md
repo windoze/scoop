@@ -208,6 +208,8 @@ re-export 已在输入图中解析；选给公开 owner A 的 symbol 以 A 的�
 
 全局数据和 TLS 沿原 native symbol contract、typed global identity 与 generated-C read/write/address unit 处理。依赖中的 `@Extern val/var` 必须支持直接读取、写入、复合赋值／更新和合法取址；导入或 re-export 不复制 native storage，也不以手写 getter 包装 fixture 来替代原属性验收。若现有跨 Cone 选择还有缺项，只补共同属性／bridge 路径，禁止另建 imported-native 属性模型。
 
+实际读写／取址缺项由共有 place 表达外部属性引用：从既有 foundation source-native contract 按原 property id 查询，具体化为普通 extern global 并复用 read/write/address bridge。消费方 foundation 保留实际使用的原始合同与必要 ABI 类型；默认值引用表和泛型正文仍分发已有 global place selector，未增加分发字段。相等比较的上下文试探同时保留其新建类型与表达式，运行时求值顺序仍为左侧先于右侧，不能把另一份 arena 的 id 当作本地类型使用。
+
 静态 C TLS 的初始 template、BSS、TLV descriptor 和 bootstrap 是 native 存储机制，不能变成 Scoop initialization unit 或 managed root。多线程 fixture 验证不同线程的 TLS 地址／值独立，普通 global 仍共享。外部 CLayout、指针与函数指针保持 C-safe；managed ref 或 ZST 跨 C ABI 继续在前端失败。
 
 Scoop ABI shim 的 managed ref 借用、包含引用的大值参数／结果、ZST typed elision及需要 runtime 的 native-root 协议沿原实现。static function pointer、带 context 的 closure callback、同线程重入和 foreign-thread attach 必须经真实 provider 回调；异常在原 gateway 内物化，不能穿越 native C/Scoop FFI frame。新增 native 文件不增加 registered Scoop callable、safepoint 或 runtime image。

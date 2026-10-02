@@ -58,7 +58,12 @@ pub(super) fn project(
     let mut globals = Vec::with_capacity(references.globals.len());
     for reference in &references.globals {
         globals.push(ExportDefaultReferenceV1::new(
-            entities.global_property(reference.target)?,
+            match reference.target {
+                crate::ExportDefaultGlobalTarget::Local(global) => {
+                    entities.global_property(global)?
+                }
+                crate::ExportDefaultGlobalTarget::Dependency(property) => property,
+            },
             origin(entities.export(), reference.origin)?,
         ));
     }

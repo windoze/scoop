@@ -1,8 +1,8 @@
 //! Dependency properties use the ordinary accessor and dispatch paths.
 //!
 //! Public property metadata selects an accessor; only the accessor becomes a
-//! machine-level dependency call. Provider storage and initialization details
-//! never enter the consumer HIR.
+//! machine-level dependency call. Taking an extern property's address retains
+//! its original property identity and native storage contract.
 
 use scoop_ast as ast;
 use scoop_hir as hir;
@@ -11,6 +11,7 @@ use crate::Lowerer;
 use crate::imported_capabilities::{ImportedCapabilityRequirement, callable_requirement};
 use crate::properties::PropertyCallReceiver;
 
+mod address;
 mod extension;
 mod members;
 mod read;
@@ -27,9 +28,14 @@ pub(crate) struct ImportedDependencyPropertyRead {
 }
 
 struct PreparedImportedPropertySetter {
-    candidate: hir::ImportedDependencyCallableCandidate,
+    target: ImportedPropertyWriteTarget,
     receiver: Option<PropertyCallReceiver>,
     value_type: hir::TypeId,
+}
+
+enum ImportedPropertyWriteTarget {
+    Accessor(Box<hir::ImportedDependencyCallableCandidate>),
+    Native(hir::Place),
 }
 
 impl Lowerer {

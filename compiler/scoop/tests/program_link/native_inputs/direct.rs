@@ -11,7 +11,14 @@ fn direct_native_object_runs_after_source_removal() {
         &native_fixture("direct/root.scoop"),
         &[],
     );
-    stage_snapshots(environment, directory.path(), "direct", &[], "direct/root");
+    stage_snapshots(
+        environment,
+        directory.path(),
+        "direct",
+        &[],
+        &[],
+        "direct/root",
+    );
     compile_native(
         directory.path(),
         "m23_math",
@@ -42,6 +49,7 @@ fn direct_native_provider_survives_defaults_generics_and_reexport() {
         directory.path(),
         "native-provider",
         &[],
+        &[],
         "direct/provider",
     );
     std::fs::remove_dir_all(directory.path().join("sources/native-provider")).unwrap();
@@ -57,6 +65,7 @@ fn direct_native_provider_survives_defaults_generics_and_reexport() {
         directory.path(),
         "native-facade",
         &[&provider],
+        &[],
         "direct/facade",
     );
     std::fs::remove_dir_all(directory.path().join("sources/native-facade")).unwrap();

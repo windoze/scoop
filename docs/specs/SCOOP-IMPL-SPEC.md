@@ -210,6 +210,8 @@ import selector 从最长可见包前缀进入已选静态 owner 后，exact 与
 
 M23-7 的外来指针与布局 intrinsic 从普通共有声明取得签名、owner binder、方法 binder 和 effects，参与既有候选推断后正规化到 `AddressOf`、`SizeOf`、`AlignOf` 及指针操作节点。它们不需要共有执行正文或机器 callable。`addressOf` 的原始 local/raw-global place 必须在普通实参临时复制之前确定；泛型 GC-free 条件复用 `Ptr<T>` 的现有传播。布局查询只要求值类型，具体化代换被查询类型后交给后续布局阶段求值（语言规范 13.10）。默认值与泛型正文直接消费既有 typed 节点与 selector，不增加格式分支或重复完整语义验证。
 
+M23-10 的跨 Cone extern global 读取、写入与取址沿同一个 `AddressOf`/place 路径：依赖查询按原 `PersistentPropertyId` 取得已经读入的 source-native contract，外部 place 保留该完整合同和实际值类型；具体化后复用普通 `GlobalStorage::Extern` 与 generated-C bridge。消费方 HIR foundation 在既有 source native contract 表中保留实际物化的原始合同及其必要 ABI 类型，引用原 provider 的属性实体，不制造 accessor 定义。可分发正文继续使用既有 `DefaultPlaceV1::Global { property }`，消费时从原 provider 补齐同一合同，因此不增加 section、schema 或 imported-native 属性模型。
+
 显式 `Ptr<T>(raw)` 从已解析的实际 `core_ptr` 名义声明进入特殊构造候选，与同层普通 callable 共用重载选择。当前声明和依赖声明共用 pointee 推断、参数与常量非零检查，并产生已有 `PtrFromNonZeroULong` 节点；固定 application 的 typealias 作为非参数化候选。依赖路径使用原 typed nominal identity 及其 binder，不补造本地 struct、普通 constructor identity、共有正文或机器函数。unsafe 和常量非零错误不改变候选适用性；仅在选中后提交诊断并结束该错误表达式的 lowering，避免回退到其他候选或产生级联的语句形态错误。合法调用保留唯一一次原实参求值。默认值及泛型正文沿现有节点代换和条件约束路径消费。
 
 `Ptr`／`FunPtr` 别名按既有结构化指针签名发布，`AliasTarget` 引用由该签名实际包含的 pointee／函数参数与结果中的名义类型构成；指针类型源码绑定不额外变成签名中不存在的泛型名义目标。直接指向外来 typealias 的别名仍保留原 typed alias 边；名称绑定仅参与普通源码查找，构造时从已解析类型取得实际 core owner。

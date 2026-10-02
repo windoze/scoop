@@ -24,8 +24,24 @@ fn collect_contracts(
     inputs: &HirNativeBoundaryTypeDefinitionInputs<'_>,
     required: &mut BTreeSet<NativeBoundaryNominalOwner>,
 ) {
-    for entry in inputs.source_native_contracts.iter() {
-        match entry.record().contract() {
+    let contracts = inputs
+        .source_native_contracts
+        .iter()
+        .map(|entry| entry.record())
+        .chain(
+            inputs
+                .local
+                .globals
+                .values()
+                .filter_map(|global| match &global.storage {
+                    crate::concrete::GlobalStorage::Extern {
+                        source_contract, ..
+                    } => Some(source_contract.as_ref()),
+                    _ => None,
+                }),
+        );
+    for entry in contracts {
+        match entry.contract() {
             SourceNativeExternalContract::Function { abi, .. } => match abi {
                 SourceExternFunctionAbi::C(signature) => collect_c_signature(signature, required),
                 SourceExternFunctionAbi::Scoop { signature, .. } => {

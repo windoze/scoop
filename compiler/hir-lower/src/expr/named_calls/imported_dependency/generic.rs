@@ -90,10 +90,10 @@ impl Lowerer {
                 None
             };
         let expressions = call.arguments.expressions();
-        let expressions = if let Some((place, ty)) = address_place {
+        let expressions = if let Some((place, ty)) = address_place.as_ref() {
             vec![ArgumentExpression::Addressable {
                 place,
-                ty,
+                ty: *ty,
                 span: call.arguments.span(0),
             }]
         } else {

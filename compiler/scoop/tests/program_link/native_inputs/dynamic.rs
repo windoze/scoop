@@ -1,43 +1,6 @@
 use super::*;
 mod cases;
 
-fn dylib(
-    directory: &Path,
-    name: &str,
-    source: &str,
-    install_name: &str,
-    flags: &[&str],
-) -> PathBuf {
-    let object = compile_native(directory, &format!("build-{name}"), source, &[]);
-    let target = ResolvedTargetProfile::resolve_host().unwrap();
-    let toolchain = target.final_link().startup_toolchain();
-    let path = directory.join("native").join(format!("lib{name}.dylib"));
-    checked(
-        Command::new(toolchain.compiler_driver())
-            .env_clear()
-            .env("PATH", "/usr/bin:/bin")
-            .args(["-target", "arm64-apple-macos", "-dynamiclib", "-isysroot"])
-            .arg(toolchain.sdk_root())
-            .arg(format!(
-                "-mmacosx-version-min={}",
-                toolchain.profile().contract().deployment().minimum_os()
-            ))
-            .arg(&object)
-            .args([
-                "-install_name",
-                install_name,
-                "-current_version",
-                "2.0",
-                "-compatibility_version",
-                "1.0",
-            ])
-            .args(flags)
-            .arg("-o")
-            .arg(&path),
-    );
-    path
-}
-
 #[test]
 fn explicit_dynamic_bindings_choose_different_owners_for_overlapping_exports() {
     let environment = environment();
@@ -53,6 +16,7 @@ fn explicit_dynamic_bindings_choose_different_owners_for_overlapping_exports() {
         environment,
         directory.path(),
         "dynamic",
+        &[],
         &[],
         "dynamic/overlap",
     );

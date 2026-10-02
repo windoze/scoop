@@ -1,0 +1,20 @@
+Module
+  struct Pair <c-layout aligned=0 packed=0>
+    field0 left: Int
+    field1 right: Int
+    property0 val left: Int getter0=storage <stored struct0-field0>
+    property1 val right: Int getter1=storage <stored struct0-field1>
+  property2 var counter: Int getter2=storage setter0=storage <native-storage global0>
+  property3 val limit: Int getter3=storage <native-storage global1>
+  property4 var pair: Pair getter4=storage setter1=storage <native-storage global2>
+  property5 var tlsInitial: Int getter5=storage setter2=storage <native-storage global3>
+  property6 var tlsZero: Int getter6=storage setter3=storage <native-storage global4>
+  var counter: Int <global0 extern symbol=m23_counter lib=m23_storage>
+  val limit: Int <global1 extern symbol=m23_limit lib=m23_storage>
+  var pair: Pair <global2 extern symbol=m23_pair lib=m23_storage>
+  var tlsInitial: Int <global3 extern symbol=m23_tls_initial lib=m23_storage thread_local>
+  var tlsZero: Int <global4 extern symbol=m23_tls_zero lib=m23_storage thread_local>
+  fun increment(arg1: Ptr<Int>): Int <unsafe no-gc cdecl> <extern0 abi=c symbol=m23_increment lib=m23_storage>
+  fun storageThreads(arg1: FunPtr<(Int, Ptr<Unit>) -> Int>, arg2: Ptr<Unit>, arg3: ULong): Int <unsafe no-gc cdecl> <extern1 abi=c symbol=m23_storage_threads lib=m23_storage>
+  output library
+

@@ -3,6 +3,8 @@ use super::*;
 mod archive;
 mod direct;
 mod dynamic;
+mod source;
+mod storage;
 
 fn archive_native(directory: &Path, name: &str, members: &[&Path]) -> PathBuf {
     let archive = directory.join("native").join(format!("lib{name}.a"));
@@ -14,6 +16,43 @@ fn archive_native(directory: &Path, name: &str, members: &[&Path]) -> PathBuf {
             .args(members),
     );
     archive
+}
+
+fn dylib(
+    directory: &Path,
+    name: &str,
+    source: &str,
+    install_name: &str,
+    flags: &[&str],
+) -> PathBuf {
+    let object = compile_native(directory, &format!("build-{name}"), source, &[]);
+    let target = ResolvedTargetProfile::resolve_host().unwrap();
+    let toolchain = target.final_link().startup_toolchain();
+    let path = directory.join("native").join(format!("lib{name}.dylib"));
+    checked(
+        Command::new(toolchain.compiler_driver())
+            .env_clear()
+            .env("PATH", "/usr/bin:/bin")
+            .args(["-target", "arm64-apple-macos", "-dynamiclib", "-isysroot"])
+            .arg(toolchain.sdk_root())
+            .arg(format!(
+                "-mmacosx-version-min={}",
+                toolchain.profile().contract().deployment().minimum_os()
+            ))
+            .arg(&object)
+            .args([
+                "-install_name",
+                install_name,
+                "-current_version",
+                "2.0",
+                "-compatibility_version",
+                "1.0",
+            ])
+            .args(flags)
+            .arg("-o")
+            .arg(&path),
+    );
+    path
 }
 
 fn native_fixture(name: &str) -> String {
@@ -97,6 +136,7 @@ fn stage_snapshots(
     directory: &Path,
     name: &str,
     dependencies: &[&Path],
+    support: &[&Path],
     fixture: &str,
 ) {
     for stage in ["hir", "mir", "lir"] {
@@ -108,6 +148,9 @@ fn stage_snapshots(
             .arg(&environment.core);
         for dep in dependencies {
             command.arg("--direct-slib").arg(dep);
+        }
+        for dep in support {
+            command.arg("--support-slib").arg(dep);
         }
         let output = checked(
             command

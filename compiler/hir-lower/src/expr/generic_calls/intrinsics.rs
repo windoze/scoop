@@ -42,6 +42,19 @@ impl Lowerer {
                 } else {
                     let target = self.resolve_value_name(name).ok()?;
                     target.and_then(|target| {
+                        if let crate::imports::lookup::values::ResolvedValueTarget::Dependency(
+                            binding,
+                        ) = &target
+                        {
+                            let hir::ImportedTarget::Property(property) = binding.target() else {
+                                return None;
+                            };
+                            let place = self.external_global_place(property.persistent()).ok()?;
+                            let hir::Place::ExternalGlobal { ty, .. } = &place else {
+                                unreachable!("external property lookup yields its global place")
+                            };
+                            return Some((place.clone(), *ty));
+                        }
                         let crate::imports::lookup::values::ResolvedValueTarget::Materialized(
                             crate::imports::lookup::values::ValueTarget::Property(property),
                         ) = target
@@ -66,12 +79,18 @@ impl Lowerer {
             self.error(expression.span(), "`addressOf` argument must be an addressable local, parameter, global, or value-type `this`".into());
             return None;
         };
-        if let hir::Place::Global(global) = place
+        if let hir::Place::Global(global) = &place
             && matches!(
-                self.globals[global].storage,
+                self.globals[*global].storage,
                 hir::GlobalStorage::Extern { .. }
             )
         {
+            self.require_unsafe_operation(
+                expression.span(),
+                "taking the address of an extern global",
+            );
+        }
+        if matches!(place, hir::Place::ExternalGlobal { .. }) {
             self.require_unsafe_operation(
                 expression.span(),
                 "taking the address of an extern global",

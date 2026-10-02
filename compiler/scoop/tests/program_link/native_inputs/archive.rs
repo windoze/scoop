@@ -16,6 +16,7 @@ fn archives_resolve_member_chains_and_back_edges_without_unused_effects() {
         directory.path(),
         "archive",
         &[],
+        &[],
         "archive/root",
     );
     let entry = compile_native(

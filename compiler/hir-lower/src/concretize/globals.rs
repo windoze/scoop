@@ -1,6 +1,7 @@
 //! Concrete global storage, constants and native declarations.
 
 use super::*;
+mod external;
 
 impl Concretizer<'_> {
     pub(super) fn lower_extern_functions(&mut self) {

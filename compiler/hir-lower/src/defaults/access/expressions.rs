@@ -241,11 +241,13 @@ impl ReferenceCollector<'_> {
                 self.expression(index);
                 self.expression(value);
             }
-            hir::ExprKind::AddressOf(place) => {
-                if let hir::Place::Global(global) = place {
-                    self.global(*global, origin);
+            hir::ExprKind::AddressOf(place) => match place {
+                hir::Place::Global(global) => self.global(*global, origin),
+                hir::Place::ExternalGlobal { property, .. } => {
+                    self.external_global(*property, origin)
                 }
-            }
+                hir::Place::Local(_) => {}
+            },
             hir::ExprKind::SizeOf(ty) | hir::ExprKind::AlignOf(ty) => {
                 self.type_reference(*ty, origin);
             }

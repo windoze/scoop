@@ -49,13 +49,24 @@ impl CanonicalHirFoundation {
         foundation.set_callback_registrations(
             export.callback_registration_identities.records().to_vec(),
         )?;
-        foundation.set_source_native_contracts(
-            export
-                .source_native_contracts
-                .iter()
-                .map(|contract| contract.record().clone())
-                .collect(),
-        )?;
+        let contracts = export
+            .source_native_contracts
+            .iter()
+            .map(|contract| contract.record().clone())
+            .chain(
+                local
+                    .globals
+                    .values()
+                    .filter_map(|global| match &global.storage {
+                        crate::concrete::GlobalStorage::Extern {
+                            source_contract, ..
+                        } => Some(source_contract.as_ref().clone()),
+                        _ => None,
+                    }),
+            )
+            .map(|contract| (contract.id(), contract))
+            .collect::<BTreeMap<_, _>>();
+        foundation.set_source_native_contracts(contracts.into_values().collect())?;
         foundation.set_odr_groups(odr_group_records(local)?)?;
         foundation.set_odr_members(local.callable_applications.odr_member_records().to_vec())?;
 
