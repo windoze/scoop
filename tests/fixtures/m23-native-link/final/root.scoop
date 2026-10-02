@@ -1,0 +1,4 @@
+@Extern(lib = "m23_final", name = "m23_final")
+fun native(value: Int): Int
+
+fun main() { @Unsafe { println(native(19)) } }

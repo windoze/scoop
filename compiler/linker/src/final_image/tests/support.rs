@@ -12,9 +12,18 @@ pub(super) struct Fixture {
     pub closure: scoop_slib::ProgramLinkClosure,
     pub runtime: RuntimeObjectSet,
     pub output: ProgramLinkOutput,
+    pub library_paths: Vec<PathBuf>,
 }
 
 pub(super) fn fixture() -> Fixture {
+    build_fixture("basic-root.scoop", false)
+}
+
+pub(super) fn native_fixture() -> Fixture {
+    build_fixture("../m23-native-link/final/root.scoop", true)
+}
+
+fn build_fixture(root_fixture: &str, native: bool) -> Fixture {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path();
     let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -61,7 +70,7 @@ pub(super) fn fixture() -> Fixture {
         "executable",
         &core,
         &[&library],
-        "basic-root.scoop",
+        root_fixture,
     );
     let target = ResolvedTargetProfile::resolve("aarch64-apple-darwin").unwrap();
     let runtime_build = build_runtime(RuntimeBuildRequest {
@@ -78,14 +87,50 @@ pub(super) fn fixture() -> Fixture {
         profile.startup_toolchain().profile(),
     )
     .unwrap();
+    let library_paths = if native {
+        let source = path.join("native.c");
+        std::fs::copy(
+            workspace.join("tests/fixtures/m23-native-link/final/native.c"),
+            &source,
+        )
+        .unwrap();
+        let toolchain = profile.startup_toolchain();
+        checked(
+            Command::new(toolchain.compiler_driver())
+                .env_clear()
+                .env("PATH", "/usr/bin:/bin")
+                .args(["-target", "arm64-apple-macos", "-isysroot"])
+                .arg(toolchain.sdk_root())
+                .arg(format!(
+                    "-mmacosx-version-min={}",
+                    toolchain.profile().contract().deployment().minimum_os()
+                ))
+                .args(["-O0", "-Wall", "-Wextra", "-Werror", "-c"])
+                .arg(&source)
+                .arg("-o")
+                .arg(path.join("m23_final.o")),
+        );
+        std::fs::remove_file(source).unwrap();
+        vec![path.to_owned()]
+    } else {
+        Vec::new()
+    };
     let closure = read_program_artifacts(&root, &[library, core], &profile).unwrap();
-    let output = link_program(&closure, &runtime, &profile, &[], &path.join("program")).unwrap();
+    let output = link_program(
+        &closure,
+        &runtime,
+        &profile,
+        &library_paths,
+        &path.join("program"),
+    )
+    .unwrap();
     Fixture {
         directory,
         profile,
         closure,
         runtime,
         output,
+        library_paths,
     }
 }
 

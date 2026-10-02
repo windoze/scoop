@@ -2,14 +2,16 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use object::{
-    Architecture, Object, ObjectKind, ObjectSection, ObjectSymbol, RelocationTarget, SymbolKind,
-    macho, read::macho::MachOFile64,
+    Architecture, Object, ObjectKind, ObjectSection, ObjectSymbol, SymbolKind, macho,
+    read::macho::MachOFile64,
 };
 use scoop_lir::DarwinCBridgeDeploymentContractV1;
 
 use crate::{LinkError, error};
 
+mod references;
 mod selected;
+pub(crate) use references::{NativeReferenceSection, NativeReferences};
 mod wire;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

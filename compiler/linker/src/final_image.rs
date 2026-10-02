@@ -47,6 +47,7 @@ pub(crate) fn verify(
     inputs: &ProgramInputs<'_>,
     startup_object: &StartupObject,
     profile: &ValidatedFinalLinkProfile,
+    map: &crate::link::map::LinkMap,
 ) -> Result<(), LinkError> {
     let file: MachOFile64<'_> = MachOFile64::parse(bytes).map_err(error)?;
     if file.kind() != ObjectKind::Executable
@@ -126,7 +127,7 @@ pub(crate) fn verify(
         }
     }
     startup::check(&image, startup_object, inputs)?;
-    references::check(&image, inputs)?;
+    references::check(&image, inputs, map)?;
     sections::check(&image, inputs)?;
     Ok(())
 }

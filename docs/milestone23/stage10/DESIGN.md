@@ -240,7 +240,9 @@ plan、选择记录和 map/trace 是数据，不创建 `VerifiedNativeObjectSurf
 | 系统 linker 后 | map/trace 实际对象、最终 symbol/address、dynamic ordinal/binding/load/RPATH、TLV 及保留段 |
 | Stage 8 runtime | 实际加载地址／权限、image/registration、初始化初态、精确 root/PC 与线程／GC 契约 |
 
-最终 verifier 扩展原实现，保留 image/root array、String 同址 alias、Strong/ODR 地址、完整 stackmap/EH、签名结构和平台检查。native static 的原 relocation 结合最终符号／fixup 关联目标，动态引用结合真实 ordinal 关联 provider；不能只检查 ld 返回 0、symbol 存在或程序某次能运行。
+最终 verifier 扩展原实现，保留 image/root array、String 同址 alias、Strong/ODR 地址、完整 stackmap/EH、签名结构和平台检查。native static 中参与全局符号解析的原 relocation 结合最终符号／fixup 关联目标，动态引用结合真实 ordinal 关联 provider；不能只检查 ld 返回 0、symbol 存在或程序某次能运行。
+
+原生局部引用在对象读取边界核对格式与目标；最终引用位置由精确私有对象路径、唯一 map 编号和对象内保留符号关联，不创建 Scoop atom。Darwin ld 将 TLV descriptor 记为 linker-synthesized；该位置仍通过原 native TLS symbol 的唯一归属与最终同名 symbol 核对。ld 重建的 unwind 与调试段保留结构检查，不按原 relocation 的字节位置重验。
 
 已验证的源合同、canonical ODR body 和对象内容不重新完整计算；也不把 runtime registry 搬到 final verifier。新对象与新绑定在其边界检查，没有来源凭证、通用资源预算或重复的语义重放。
 

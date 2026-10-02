@@ -1,96 +1,13 @@
-//! Closed ARM64 relocation shapes for built-in Mach-O object capabilities.
+//! Shared ARM64 relocation decoding for built-in and ordinary Mach-O objects.
 
-use std::fmt;
 use std::num::NonZeroU32;
 
 use object::macho;
 
 use super::ObservedMachOSectionV1;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum DarwinArm64RelocationTargetV1 {
-    SymbolTableIndex(u32),
-    SectionOrdinal(NonZeroU32),
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum DarwinArm64RelocationShapeV1 {
-    Unsigned64 {
-        target: DarwinArm64RelocationTargetV1,
-    },
-    Subtractor64 {
-        minuend: DarwinArm64RelocationTargetV1,
-        subtrahend: DarwinArm64RelocationTargetV1,
-    },
-    Branch26 {
-        target: DarwinArm64RelocationTargetV1,
-    },
-    Page21 {
-        target: DarwinArm64RelocationTargetV1,
-        explicit_addend: Option<i32>,
-    },
-    PageOffset12 {
-        target: DarwinArm64RelocationTargetV1,
-        explicit_addend: Option<i32>,
-    },
-    GotLoadPage21 {
-        target: DarwinArm64RelocationTargetV1,
-    },
-    GotLoadPageOffset12 {
-        target: DarwinArm64RelocationTargetV1,
-    },
-    PointerToGot32 {
-        target: DarwinArm64RelocationTargetV1,
-    },
-    TlvpLoadPage21 {
-        target: DarwinArm64RelocationTargetV1,
-    },
-    TlvpLoadPageOffset12 {
-        target: DarwinArm64RelocationTargetV1,
-    },
-}
-
-impl DarwinArm64RelocationShapeV1 {
-    pub const fn width_bytes(self) -> u8 {
-        match self {
-            Self::Unsigned64 { .. } | Self::Subtractor64 { .. } => 8,
-            Self::Branch26 { .. }
-            | Self::Page21 { .. }
-            | Self::PageOffset12 { .. }
-            | Self::GotLoadPage21 { .. }
-            | Self::GotLoadPageOffset12 { .. }
-            | Self::PointerToGot32 { .. }
-            | Self::TlvpLoadPage21 { .. }
-            | Self::TlvpLoadPageOffset12 { .. } => 4,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct ObservedMachORelocationV1 {
-    containing_section_ordinal: NonZeroU32,
-    offset: u32,
-    encoded_value: u64,
-    shape: DarwinArm64RelocationShapeV1,
-}
-
-impl ObservedMachORelocationV1 {
-    pub const fn containing_section_ordinal(&self) -> NonZeroU32 {
-        self.containing_section_ordinal
-    }
-
-    pub const fn offset(&self) -> u32 {
-        self.offset
-    }
-
-    pub const fn encoded_value(&self) -> u64 {
-        self.encoded_value
-    }
-
-    pub const fn shape(&self) -> DarwinArm64RelocationShapeV1 {
-        self.shape
-    }
-}
+mod types;
+pub use types::*;
 
 pub(super) fn validate_darwin_arm64_relocation_inventory_v1(
     bytes: &[u8],
@@ -105,43 +22,51 @@ pub(super) fn validate_darwin_arm64_relocation_inventory_v1(
             .ok()
             .and_then(NonZeroU32::new)
             .ok_or(DarwinArm64RelocationInventoryValidationError::TooManySections)?;
-        normalize_section_relocations(
-            bytes,
+        let table_start = usize::try_from(section.relocation_file_offset()).map_err(|_| {
+            DarwinArm64RelocationInventoryValidationError::RelocationTableOutOfBounds
+        })?;
+        let table_size = usize::try_from(section.relocation_count())
+            .ok()
+            .and_then(|count| count.checked_mul(8))
+            .ok_or(DarwinArm64RelocationInventoryValidationError::RelocationTableOutOfBounds)?;
+        let table = bytes
+            .get(
+                table_start
+                    ..table_start.checked_add(table_size).ok_or(
+                        DarwinArm64RelocationInventoryValidationError::RelocationTableOutOfBounds,
+                    )?,
+            )
+            .ok_or(DarwinArm64RelocationInventoryValidationError::RelocationTableOutOfBounds)?;
+        let data = section
+            .file_offset()
+            .and_then(|start| {
+                let end = start.checked_add(section.byte_size())?;
+                bytes.get(usize::try_from(start).ok()?..usize::try_from(end).ok()?)
+            })
+            .unwrap_or(&[]);
+        inventory.extend(decode_darwin_arm64_section_relocations_v1(
             ordinal,
-            *section,
+            data,
+            table,
             section_count,
             symbol_count,
-            &mut inventory,
-        )?;
-    }
-    inventory.sort_unstable_by_key(|relocation| {
-        (relocation.containing_section_ordinal, relocation.offset)
-    });
-    if inventory.windows(2).any(|pair| {
-        pair[0].containing_section_ordinal == pair[1].containing_section_ordinal
-            && pair[0].offset == pair[1].offset
-    }) {
-        return Err(DarwinArm64RelocationInventoryValidationError::DuplicateRelocationOffset);
+        )?);
     }
     Ok(inventory)
 }
 
-fn normalize_section_relocations(
-    bytes: &[u8],
+/// Decode one raw relocation table, retaining paired addends and checking every entry.
+pub fn decode_darwin_arm64_section_relocations_v1(
     containing_section_ordinal: NonZeroU32,
-    section: ObservedMachOSectionV1,
+    section_data: &[u8],
+    table_bytes: &[u8],
     section_count: u32,
     symbol_count: u32,
-    inventory: &mut Vec<ObservedMachORelocationV1>,
-) -> Result<(), DarwinArm64RelocationInventoryValidationError> {
-    let table_start = usize::try_from(section.relocation_file_offset())
-        .map_err(|_| DarwinArm64RelocationInventoryValidationError::RelocationTableOutOfBounds)?;
-    let count = usize::try_from(section.relocation_count())
-        .map_err(|_| DarwinArm64RelocationInventoryValidationError::RelocationTableOutOfBounds)?;
-    let table_bytes = count
-        .checked_mul(8)
-        .and_then(|size| bytes.get(table_start..table_start.checked_add(size)?))
-        .ok_or(DarwinArm64RelocationInventoryValidationError::RelocationTableOutOfBounds)?;
+) -> Result<Vec<ObservedMachORelocationV1>, DarwinArm64RelocationInventoryValidationError> {
+    if table_bytes.len() % 8 != 0 {
+        return Err(DarwinArm64RelocationInventoryValidationError::RelocationTableOutOfBounds);
+    }
+    let mut inventory = Vec::new();
     let raw = table_bytes
         .chunks_exact(8)
         .map(RawRelocationV1::parse)
@@ -305,7 +230,7 @@ fn normalize_section_relocations(
                 );
             }
         };
-        let encoded_value = read_encoded_value(bytes, section, first.offset, width)?;
+        let encoded_value = read_encoded_value(section_data, first.offset, width)?;
         inventory.push(ObservedMachORelocationV1 {
             containing_section_ordinal,
             offset: first.offset,
@@ -314,7 +239,14 @@ fn normalize_section_relocations(
         });
         index += consumed;
     }
-    Ok(())
+    inventory.sort_unstable_by_key(|relocation| relocation.offset);
+    if inventory.windows(2).any(|pair| {
+        u64::from(pair[0].offset) + u64::from(pair[0].shape.width_bytes())
+            > u64::from(pair[1].offset)
+    }) {
+        return Err(DarwinArm64RelocationInventoryValidationError::DuplicateRelocationOffset);
+    }
+    Ok(inventory)
 }
 
 fn paired_relocation(
@@ -386,25 +318,11 @@ fn validate_target(
 
 fn read_encoded_value(
     bytes: &[u8],
-    section: ObservedMachOSectionV1,
     offset: u32,
     width: usize,
 ) -> Result<u64, DarwinArm64RelocationInventoryValidationError> {
-    let section_offset = section
-        .file_offset()
-        .ok_or(DarwinArm64RelocationInventoryValidationError::RelocationSiteOutOfBounds)?;
-    let relative_end = u64::from(offset)
-        .checked_add(width as u64)
-        .ok_or(DarwinArm64RelocationInventoryValidationError::RelocationSiteOutOfBounds)?;
-    if relative_end > section.byte_size() {
-        return Err(DarwinArm64RelocationInventoryValidationError::RelocationSiteOutOfBounds);
-    }
-    let start = usize::try_from(
-        section_offset
-            .checked_add(u64::from(offset))
-            .ok_or(DarwinArm64RelocationInventoryValidationError::RelocationSiteOutOfBounds)?,
-    )
-    .map_err(|_| DarwinArm64RelocationInventoryValidationError::RelocationSiteOutOfBounds)?;
+    let start = usize::try_from(offset)
+        .map_err(|_| DarwinArm64RelocationInventoryValidationError::RelocationSiteOutOfBounds)?;
     let end = start
         .checked_add(width)
         .ok_or(DarwinArm64RelocationInventoryValidationError::RelocationSiteOutOfBounds)?;
@@ -446,48 +364,6 @@ impl RawRelocationV1 {
         }
     }
 }
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum DarwinArm64RelocationInventoryValidationError {
-    TooManySections,
-    RelocationTableOutOfBounds,
-    ScatteredRelocation,
-    UnsupportedRelocationKind {
-        actual: u8,
-    },
-    InvalidRelocationFields {
-        kind: u8,
-        pcrel: bool,
-        length: u8,
-        external: bool,
-    },
-    MissingRelocationPair {
-        first: u8,
-    },
-    InvalidRelocationPair {
-        first: u8,
-        second: u8,
-    },
-    SymbolTargetOutOfBounds {
-        index: u32,
-    },
-    SectionTargetOutOfBounds {
-        ordinal: u32,
-    },
-    RelocationSiteOutOfBounds,
-    DuplicateRelocationOffset,
-}
-
-impl fmt::Display for DarwinArm64RelocationInventoryValidationError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "invalid Darwin/AArch64 object relocation inventory: {self:?}"
-        )
-    }
-}
-
-impl std::error::Error for DarwinArm64RelocationInventoryValidationError {}
 
 #[cfg(test)]
 mod tests;

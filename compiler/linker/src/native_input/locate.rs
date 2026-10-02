@@ -97,7 +97,6 @@ pub(crate) fn read(
                     .contract()
                     .deployment(),
             )?;
-            index.check_selected(&bytes[slice.clone()])?;
             NativeContent::Object(index)
         }
         NativeFileKind::Dylib | NativeFileKind::TextStub | NativeFileKind::Framework => {

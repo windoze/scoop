@@ -1061,6 +1061,8 @@ dynamic reader 复用已有 SDK stub、Mach-O 和 export 读取，保留 provide
 
 最终检查只处理链接新事实：原生对象在 map/trace 中恰好出现一次，native 定义与真实引用相符，动态 ordinal/symbol/provider、必要 TLV、load commands 与 runpath 符合计划，同时保持原 Strong/ODR 地址、String alias、完整 stackmap 和 startup 检查。不能把未用 export 当作要求全部绑定，也不能让外部 provider 替代 Scoop/runtime/program 定义。对象语义、语言类型与完整 ODR 内容不再重验；runtime 仍负责加载后的 GC 与 initialization 契约。通过后沿原路径原子发布，失败保留旧输出。
 
+原生对象的原始重定位表与 Scoop 对象共用 ARM64 形状／配对／边界解析。普通局部引用在对象边界检查；参与全局符号解析的引用保留实际 symbol、section 和 offset，最终按 map 中精确的私有对象路径及该对象内保留符号定位，再用共有指令／fixup 检查关联已选静态定义或动态 provider。link map 的对象编号必须唯一，不能用 basename 猜测 archive 成员；不为普通 C 函数构造 Scoop atom 或实体。ld 重建的 unwind 与调试段不按原字节位置验证，仍保留相应结构检查。
+
 M23-11 再完成 umbrella build/run/link、single-file 与历史 fixture 的总迁移；本阶段的独立进程和源码产物组合必须先在真实 `scoop-link` 入口完成。
 
 ### 2.9 虚/接口调用分派

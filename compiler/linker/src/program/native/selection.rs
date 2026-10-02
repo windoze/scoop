@@ -65,11 +65,9 @@ pub(super) fn include(
     let (index, range) = inputs.native.object(id)?;
     let origin = format!("native object {id} selected by {reason}");
     let diagnostic = format!("{origin} ({})", file.locator.display());
-    if matches!(id, NativeObjectId::ArchiveMember(_)) {
-        index
-            .check_selected(&file.bytes[range])
-            .map_err(|err| error(format!("{diagnostic}: {err}")))?;
-    }
+    let references = index
+        .check_selected(&file.bytes[range])
+        .map_err(|err| error(format!("{diagnostic}: {err}")))?;
     for symbol in index.info.definitions.keys() {
         if symbol == "_main" || symbol == "_scoop_td_String" || symbol.starts_with("_scoop$") {
             return Err(error(format!(
@@ -94,5 +92,6 @@ pub(super) fn include(
             .push(origin.clone());
     }
     inputs.native.selected.insert(id, reason.into());
+    inputs.native.references.insert(id, references);
     Ok(())
 }

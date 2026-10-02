@@ -1,31 +1,27 @@
 use super::*;
+use ResolvedShape as Shape;
 
 pub(super) fn check(
     image: &FinalImage<'_>,
     inputs: &ProgramInputs<'_>,
-    member: &Member<'_>,
-    use_: &VerifiedRelocationUseV1,
+    shape: &ResolvedShape,
+    encoded: u64,
     place: u64,
-    pages: &mut BTreeMap<(ObjectDefinitionAtomId, u32), u64>,
+    pages: &mut BTreeMap<u32, u64>,
 ) -> Result<(), LinkError> {
-    let encoded = use_.encoded_value();
     let instruction = || -> Result<u32, LinkError> {
         Ok(u32::from_le_bytes(
             image.at(place, 4)?.try_into().map_err(error)?,
         ))
     };
-    match use_.shape() {
-        Shape::Unsigned64 { target } => {
-            member
-                .target(image, target)?
-                .pointer(image, place, encoded as i64)
-        }
+    match shape {
+        Shape::Unsigned64 { target } => target.pointer(image, place, encoded as i64),
         Shape::Subtractor64 {
             minuend,
             subtrahend,
         } => {
-            let lhs = member.target(image, minuend)?.address(image)?;
-            let rhs = member.target(image, subtrahend)?.address(image)?;
+            let lhs = minuend.address(image)?;
+            let rhs = subtrahend.address(image)?;
             let actual = u64::from_le_bytes(image.at(place, 8)?.try_into().map_err(error)?);
             if actual != lhs.wrapping_sub(rhs).wrapping_add(encoded) {
                 return Err(error("subtractor reference resolves to different owners"));
@@ -37,17 +33,16 @@ pub(super) fn check(
             if instruction & 0x7c00_0000 != 0x1400_0000 {
                 return Err(error("branch relocation is not B/BL"));
             }
-            let target = member.target(image, target)?;
             let address = place
                 .checked_add_signed(signed(u64::from(instruction & 0x03ff_ffff), 26) << 2)
                 .ok_or_else(|| error("branch overflow"))?;
             let addend = signed(encoded & 0x03ff_ffff, 26) << 2;
             match &target {
                 Expected::Symbol(name) if inputs.dynamic.contains_key(name) => {
-                    stub(image, &target, address, addend)
+                    stub(image, target, address, addend)
                 }
                 _ if target.address(image)?.checked_add_signed(addend) == Some(address) => Ok(()),
-                _ => stub(image, &target, address, addend).map_err(|err| error(format!(
+                _ => stub(image, target, address, addend).map_err(|err| error(format!(
                     "branch at {place:#x} targets {address:#x}, expected {target:?} at {:#x} + {addend}: {err}", target.address(image).unwrap_or(0)
                 ))),
             }
@@ -57,12 +52,12 @@ pub(super) fn check(
         | Shape::TlvpLoadPage21 { target } => {
             let instruction = instruction()?;
             let page = adrp(instruction, place)?;
-            pages.insert((use_.containing_atom(), instruction & 31), page);
+            pages.insert(instruction & 31, page);
             if let Shape::Page21 {
                 explicit_addend, ..
-            } = use_.shape()
+            } = shape
             {
-                let target = member.target(image, target)?.address(image)?;
+                let target = target.address(image)?;
                 let addend = i64::from(explicit_addend.unwrap_or(0));
                 if target
                     .checked_add_signed(addend)
@@ -79,16 +74,15 @@ pub(super) fn check(
         | Shape::TlvpLoadPageOffset12 { target } => {
             let instruction = instruction()?;
             let page = *pages
-                .get(&(use_.containing_atom(), (instruction >> 5) & 31))
+                .get(&((instruction >> 5) & 31))
                 .ok_or_else(|| error("page-offset use has no matching ADRP"))?;
             let displacement = offset(instruction)?;
             let address = page
                 .checked_add(displacement)
                 .ok_or_else(|| error("page-offset address overflow"))?;
-            let target = member.target(image, target)?;
             if let Shape::PageOffset12 {
                 explicit_addend, ..
-            } = use_.shape()
+            } = shape
             {
                 let addend =
                     i64::from(explicit_addend.unwrap_or(0)) + offset(encoded as u32)? as i64;
@@ -112,7 +106,7 @@ pub(super) fn check(
             let address = place
                 .checked_add_signed(delta)
                 .ok_or_else(|| error("GOT-relative address overflow"))?;
-            member.target(image, target)?.pointer(image, address, 0)
+            target.pointer(image, address, 0)
         }
     }
 }

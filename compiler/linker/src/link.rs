@@ -7,7 +7,7 @@ use scoop_wire::{Digest256, Encoder, WireEncode, domain_separated_cbor_hash, sha
 
 use crate::{LinkError, RuntimeObjectSet, error, program::ProgramInputs, startup::StartupObject};
 
-mod map;
+pub(crate) mod map;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ResolvedLinkPlanFingerprint(Digest256);
@@ -80,10 +80,20 @@ pub fn link_program(
             String::from_utf8_lossy(&result.stderr)
         )));
     }
-    map::check(
+    let native_paths = inputs
+        .objects
+        .iter()
+        .zip(&paths[1..])
+        .filter_map(|(input, path)| match input.origin {
+            crate::program::ObjectOrigin::Native(id) => Some((path.clone(), id)),
+            _ => None,
+        })
+        .collect();
+    let map = map::check(
         &std::fs::read_to_string(link_map).map_err(error)?,
         &paths,
         &stubs,
+        &native_paths,
     )?;
     map::trace(
         std::str::from_utf8(&result.stdout).map_err(error)?,
@@ -91,7 +101,7 @@ pub fn link_program(
         &stubs,
     )?;
     let bytes = std::fs::read(&candidate).map_err(error)?;
-    crate::final_image::verify(&bytes, &inputs, &startup, profile)
+    crate::final_image::verify(&bytes, &inputs, &startup, profile, &map)
         .map_err(|err| error(format!("final Mach-O validation: {err}")))?;
     let profile_fingerprint = profile.fingerprint().map_err(error)?;
     let fingerprint = ResolvedLinkPlanFingerprint(
