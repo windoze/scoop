@@ -1,0 +1,325 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Payload>
+    Completed(value: Payload)
+    Suspended()
+  enum CoroutineSlot<Payload>
+    Empty()
+    Value(value: Payload)
+  class Payload vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<Payload>
+  interface SuspendTask<Payload>
+  interface SuspendRegistration<Payload>
+  generated_exact_type get0 location=enum2 nominal_id=c75c5eba2cdb5cf4445ec7b436614f5bca1d53bcc12bcd689990776a28908b3c exact_id=2600ef442afdc762d06cc35cae4ab00427624ac0ef35c4a7602c690408565c6c
+  generated_exact_type get1 location=enum1 nominal_id=1c11d2be282bda8980b105738b51325adca45d8160dbaf6f80ebcb43269d13e5 exact_id=781dee403c3dc367a3c856c6e0fd793353b7166212f3b342eddd24a2d914e855
+  generated_callable gc0 function=@fn18 id=c17bba92e23e87f862f90325c85daf2511ba6ea0977fc963159e8d2d6957fb88
+  fun Payload.$get$number @fn0(this: Payload) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Payload
+          Local this
+  fun offset @fn1() -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+  fun classify @fn2(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=99 bits=0x00000063
+  fun precompiled @fn3(value: Payload) -> Payload
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call flag: Int = @fn4 direct
+        Type Int
+        Local $parameter.value
+      val $argument.0: Payload
+        Type Payload
+        Local value
+      val $parameter.value: Payload
+        Type Payload
+        Local $argument.0
+      call $argument.0: Payload = @fn5 direct
+        Type Payload
+        Local $parameter.value
+      val $parameter.value: Payload
+        Type Payload
+        Local $argument.0
+      call $receiver: Payload = @fn6 direct
+        Type Payload
+        Local $parameter.value
+      call $argument.0: Payload = @fn7 direct
+        Type Payload
+        Local $receiver
+      val $dependency.receiver: Int
+        Type Int
+        Local flag
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.1: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Payload
+        Type Payload
+        Local $argument.0
+      val $parameter.again: Boolean
+        Type Boolean
+        Local $argument.1
+      call $call.1: Payload = @fn8 direct
+        Type Payload
+        Local $parameter.value
+        Type Boolean
+        Local $parameter.again
+      return
+        Type Payload
+        Local $call.1
+  fun native @fn4(value: Int) -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun captured @fn5(value: Payload) -> Payload
+    bb0 entry
+      call $call.1: Payload = @fn9 direct
+        Type Payload
+        Local value
+      return
+        Type Payload
+        Local $call.1
+  fun nested @fn6(value: Payload) -> Payload
+    bb0 entry
+      call $call.1: Payload = @fn10 direct
+        Type Payload
+        Local value
+      return
+        Type Payload
+        Local $call.1
+  fun $extension.echo @fn7(this: Payload) -> Payload
+    bb0 entry
+      val $argument.0: Payload
+        Type Payload
+        Local this
+      val $parameter.value: Payload
+        Type Payload
+        Local $argument.0
+      call $call.1: Payload = @fn11 direct
+        Type Payload
+        Local $parameter.value
+      return
+        Type Payload
+        Local $call.1
+  fun recursive @fn8(value: Payload, again: Boolean) -> Payload
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        Local again
+    bb1 if.then.1
+      val $argument.0: Payload
+        Type Payload
+        Local value
+      val $argument.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $parameter.value: Payload
+        Type Payload
+        Local $argument.0
+      val $parameter.again: Boolean
+        Type Boolean
+        Local $argument.1
+      call $call.1: Payload = @fn8 direct
+        Type Payload
+        Local $parameter.value
+        Type Boolean
+        Local $parameter.again
+      return
+        Type Payload
+        Local $call.1
+    bb2 if.merge.2
+      return
+        Type Payload
+        Local value
+  fun $local.0.local @fn9($capture.value: Payload) -> Payload
+    bb0 entry
+      val $argument.0: Payload
+        Type Payload
+        Local $capture.value
+      val $parameter.value: Payload
+        Type Payload
+        Local $argument.0
+      call $call.1: Payload = @fn11 direct
+        Type Payload
+        Local $parameter.value
+      return
+        Type Payload
+        Local $call.1
+  fun $local.1.middle @fn10($capture.value: Payload) -> Payload
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.argument: Int
+        Type Int
+        Local $argument.0
+      val $parameter.again: Boolean
+        Type Boolean
+        Local $argument.1
+      call $call.1: Payload = @fn12 direct
+        Type Payload
+        Local $capture.value
+        Type Int
+        Local $parameter.argument
+        Type Boolean
+        Local $parameter.again
+      return
+        Type Payload
+        Local $call.1
+  fun copy @fn11(value: Payload) -> Payload
+    bb0 entry
+      return
+        Type Payload
+        Local value
+  fun $local.2.local @fn12($capture.value: Payload, argument: Int, again: Boolean) -> Payload
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        Local again
+    bb1 if.then.1
+      val $argument.0: Int
+        Type Int
+        Local argument
+      val $argument.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $parameter.argument: Int
+        Type Int
+        Local $argument.0
+      val $parameter.again: Boolean
+        Type Boolean
+        Local $argument.1
+      call $call.1: Payload = @fn12 direct
+        Type Payload
+        Local $capture.value
+        Type Int
+        Local $parameter.argument
+        Type Boolean
+        Local $parameter.again
+      return
+        Type Payload
+        Local $call.1
+    bb2 if.merge.2
+      val $argument.0: Payload
+        Type Payload
+        Local $capture.value
+      val $parameter.value: Payload
+        Type Payload
+        Local $argument.0
+      call $call.2: Payload = @fn11 direct
+        Type Payload
+        Local $parameter.value
+      return
+        Type Payload
+        Local $call.2
+  fun Continuation.resume @fn13(this: Continuation<Payload>, value: Payload) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn14(this: Continuation<Payload>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn15(this: SuspendTask<Payload>, $completion: Continuation<Payload>) -> CoroutineStep<Payload>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn16(this: SuspendRegistration<Payload>, continuation: Continuation<Payload>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Payload.$c0 @fn17(this: Payload, number: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Payload
+        Local this
+        Type Int
+        Local number
+      return
+  fun startCoroutine<Payload> @fn18(task: SuspendTask<Payload>, completion: Continuation<Payload>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn13 interface Continuation<Payload>[0]
+        Type Continuation<Payload>
+        Local completion
+        Type Payload
+        EnumField v0 f0
+          Type CoroutineStep<Payload>
+          Local $step
+      return
+    bb2 failed
+      call @fn14 interface Continuation<Payload>[1]
+        Type Continuation<Payload>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Payload> = @fn15 interface SuspendTask<Payload>[0]
+        Type SuspendTask<Payload>
+        Local task
+        Type Continuation<Payload>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Payload>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Payload> result=Payload
+  coroutine_slot cl0 CoroutineSlot<Payload> value=Payload
+  coroutine_start ct0 result=Payload function=fn18
+  coroutine_fn cf0 @fn15 source_return=Payload step=cs0 immediate
+  instance mi0 function=@fn4 <- native
+  instance mi1 function=@fn5 <- captured
+  instance mi2 function=@fn6 <- nested
+  instance mi3 function=@fn7 <- $extension.echo
+  instance mi4 function=@fn8 <- recursive
+  instance mi5 function=@fn9 <- $local.0.local
+  instance mi6 function=@fn10 <- $local.1.middle
+  instance mi7 function=@fn11 <- copy
+  instance mi8 function=@fn12 <- $local.2.local
+  instance mi9 function=@fn13 <- Continuation.resume
+  instance mi10 function=@fn14 <- Continuation.resumeWithException
+  instance mi11 function=@fn15 <- SuspendTask.run
+  instance mi12 function=@fn16 <- SuspendRegistration.register
+  output library

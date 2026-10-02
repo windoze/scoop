@@ -1,0 +1,27 @@
+SourceFile
+  QualifiedPackage consumer.helpers.peer
+  ImportExact Local dependency.helpers.Payload
+  ImportExact Local dependency.helpers.captured
+  ImportExact Local dependency.helpers.nested
+  ImportExact Local dependency.helpers.echo
+  ImportExact Local dependency.helpers.recursive
+  ImportExact Local dependency.helpers.native
+  public fun retained(): Int
+    val second
+      Call recursive
+        Call Payload
+          Call native
+            IntLiteral 22
+        BoolLiteral true
+    val first
+      MethodCall echo
+        Call captured
+          Call nested
+            Call Payload
+              IntLiteral 20
+    return
+      Binary Add
+        FieldAccess number
+          Var first
+        FieldAccess number
+          Var second

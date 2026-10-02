@@ -1,0 +1,24 @@
+SourceFile
+  QualifiedPackage consumer.helpers
+  ImportExact Local dependency.helpers.retain
+  ImportExact Local dependency.helpers.definitionSite
+  class Result(val number: Int)
+  private fun classify(value: Int): Int
+    =
+      IntLiteral 0
+  public fun retained(): Int
+    val first
+      Call retain
+        Call Result
+          Call definitionSite
+            IntLiteral 1
+    val second
+      Call retain
+        Call Result
+          IntLiteral 0
+    return
+      Binary Add
+        FieldAccess number
+          Var first
+        FieldAccess number
+          Var second

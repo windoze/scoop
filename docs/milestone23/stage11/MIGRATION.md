@@ -334,3 +334,11 @@ parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end，
 六个正例逐项核对实际 MIR 构造函数和对应 LIR：每项有四个 NoGC ZST 构造函数、五个 NoGC 24 字节／8 字节对齐 sret 构造函数，四参数主构造函数的末位 Token 参数消除。原 LLVM 检查体改为普通 native 函数，由 Scoop main 调用，继续检查 primary 的 17/-29/53 和 downstream 的 83；实际 callable 符号显式写在数据中。正式 program-link 负责完整产物闭包与启动，独立链接与构建 fingerprint 一致。
 
 18 份旧阶段输出逐字相同，十个负例的范围、表达式、消息逐项一致且失败无产物。删除原 Rust 编排、对象提取／手工链接 helper、更新变量和 28 份旧快照，保留全部原 Scoop 源码。关闭更新开关的统一入口只读验收 16 项全部通过，共 16 个变体、90 次进程、78 次阶段／plan golden 比较；六个程序均通过普通与 moving GC，格式化与全 workspace lint 通过。
+
+## 18. 泛型 helper 的定义处绑定与捕获
+
+`generic_helpers_keep_definition_bindings_and_captures_through_artifacts` 迁为 `m23-cli-generics/helpers-*` 的两个正例和五个负例。原 provider、consumer、peer 与 downstream 的源码、坐标和 direct/support 可见性保持；每个来源一次编译保存四阶段输出，消费前删除上一层源码。Scoop main 调用原 `check()` 并要求 42，普通 C companion 保留 moving GC epoch 检查。
+
+组合用例的完整 provider／consumer／peer LIR 共同包含九个相同 callable 符号：六个普通泛型正文和三个词法实现。逐项与实际 MIR 名称对应，再核对正式链接后 `nm -j` 的完整符号表，九个符号各仅有一个定义，保留原三个产物共享 helper 的合并断言。最终符号表作为只读期望，没有新增 compiler 专用接口或 fixture callback。
+
+六份旧阶段输出逐字相同，五个负例的范围、表达式和信息一致，失败无产物；完整新诊断保存 canonical 来源。删除原 Rust 模块、注册和 11 份旧快照，原源码全部保留。七项正式只读验收通过，共 7 个变体、37 次进程、30 次阶段／plan golden 比较，两个程序均通过独立产物链接与普通／moving GC；格式化与全 workspace lint 通过。

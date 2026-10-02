@@ -1,0 +1,11 @@
+SourceFile
+  QualifiedPackage application.helpers
+  ImportExact Local consumer.helpers.retained
+  ImportExact Local consumer.helpers.peer.retained as retainedPeer
+  public fun check(): Int
+    =
+      Binary Sub
+        Binary Add
+          Call retained
+          Call retainedPeer
+        IntLiteral 42
