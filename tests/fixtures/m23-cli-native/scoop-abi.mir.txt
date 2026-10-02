@@ -1,0 +1,345 @@
+Module
+  extern ef0 nativeWrite @scoop_rt_write(String) -> Unit <abi=scoop managed>
+  extern ef1 nativeRootRoundTrip @native_root_round_trip(String, NativeNode) -> String <abi=scoop managed lib=fixture_native>
+  extern ef2 nativeAggregateRoundTrip @native_aggregate_round_trip(ManagedAggregate) -> ManagedAggregate <abi=scoop managed lib=fixture_native>
+  struct ManagedAggregate (value: String, left: Long, right: Long)
+  enum Option<NativeNode>
+    Some(_0: NativeNode)
+    None()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<NativeNode>
+    Completed(value: NativeNode)
+    Suspended()
+  enum CoroutineSlot<NativeNode>
+    Empty()
+    Value(value: NativeNode)
+  class NativeNode vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Continuation<NativeNode>
+  interface SuspendTask<NativeNode>
+  interface SuspendRegistration<NativeNode>
+  generated_exact_type get0 location=enum3 nominal_id=da11391678d309cc73eb056619447d51e4190e7fce7d0d58c37e046d09368fd6 exact_id=b6eb2a8ab0d13c9c38d773d2f7a41543f9b43b3112c5fcf8612f470e6d167ffa
+  generated_exact_type get1 location=enum2 nominal_id=049b7f8316e652d26bcbc8bfdc899955fcf617e62440c7e290e4dab89a33b28a exact_id=d2070d97564240f373a84855a5d5f57d7ccfff59df51b4ee28bc1af6d6a7b1bb
+  generated_callable gc0 function=@fn13 id=843049963ff295d2dbb64448fcf7632be87ecd4f2560289f10b9577fa785bb15
+  fun nativeWrite @fn0(arg0: String) -> Unit
+    bb0 entry
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local arg0
+      return
+  fun nativeRootRoundTrip @fn1(arg0: String, arg1: NativeNode) -> String
+    bb0 entry
+      call $call.1: String = extern1 @native_root_round_trip direct
+        Type String
+        Local arg0
+        Type NativeNode
+        Local arg1
+      return
+        Type String
+        Local $call.1
+  fun nativeAggregateRoundTrip @fn2(arg0: ManagedAggregate) -> ManagedAggregate
+    bb0 entry
+      call $call.1: ManagedAggregate = extern2 @native_aggregate_round_trip direct
+        Type ManagedAggregate
+        Local arg0
+      return
+        Type ManagedAggregate
+        Local $call.1
+  fun main @fn3() -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.message
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $argument.0: String = @fn4 direct
+        Type Int
+        Local $parameter.value
+      val $argument.0: Option<NativeNode>
+        Type Option<NativeNode>
+        VariantConstruct Option<NativeNode> v1
+      val $argument.1: Option<NativeNode>
+        Type Option<NativeNode>
+        VariantConstruct Option<NativeNode> v1
+      val $parameter.left: Option<NativeNode>
+        Type Option<NativeNode>
+        Local $argument.0
+      val $parameter.right: Option<NativeNode>
+        Type Option<NativeNode>
+        Local $argument.1
+      assign $new.1
+        Type NativeNode
+        ClassAlloc NativeNode
+      call @fn11 direct
+        Type NativeNode
+        Local $new.1
+        Type Option<NativeNode>
+        Local $parameter.left
+        Type Option<NativeNode>
+        Local $parameter.right
+      val $argument.1: NativeNode
+        Type NativeNode
+        Local $new.1
+      val $parameter.message: String
+        Type String
+        Local $argument.0
+      val $parameter.prototype: NativeNode
+        Type NativeNode
+        Local $argument.1
+      call $dependency.argument.0: String = extern1 @native_root_round_trip direct
+        Type String
+        Local $parameter.message
+        Type NativeNode
+        Local $parameter.prototype
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: String
+        Type String
+        StringConst @str1
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $argument.1: Long
+        Type Long
+        IntegerLiteral Long value=10 bits=0x000000000000000a
+      val $argument.2: Long
+        Type Long
+        IntegerLiteral Long value=20 bits=0x0000000000000014
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      val $parameter.left: Long
+        Type Long
+        Local $argument.1
+      val $parameter.right: Long
+        Type Long
+        Local $argument.2
+      call $argument.0: ManagedAggregate = @fn12 direct
+        Type String
+        Local $parameter.value
+        Type Long
+        Local $parameter.left
+        Type Long
+        Local $parameter.right
+      val $parameter.value: ManagedAggregate
+        Type ManagedAggregate
+        Local $argument.0
+      call aggregate: ManagedAggregate = extern2 @native_aggregate_round_trip direct
+        Type ManagedAggregate
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type ManagedAggregate
+          Local aggregate
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 1
+          Type ManagedAggregate
+          Local aggregate
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 2
+          Type ManagedAggregate
+          Local aggregate
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Long
+        Local $dependency.parameter.value
+      return
+  fun stringify @fn4(value: Int) -> String
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      call $call.1: String = external0 direct
+        Type Int
+        Local $dependency.receiver
+      return
+        Type String
+        Local $call.1
+  fun println @fn5(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn6(value: Long) -> Unit
+    bb0 entry
+      val $dependency.local.1: Long
+        Type Long
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Continuation.resume @fn7(this: Continuation<NativeNode>, value: NativeNode) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn8(this: Continuation<NativeNode>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn9(this: SuspendTask<NativeNode>, $completion: Continuation<NativeNode>) -> CoroutineStep<NativeNode>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn10(this: SuspendRegistration<NativeNode>, continuation: Continuation<NativeNode>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.NativeNode.$c0 @fn11(this: NativeNode, left: Option<NativeNode>, right: Option<NativeNode>) -> Unit
+    bb0 entry
+      field_set 0
+        Type NativeNode
+        Local this
+        Type Option<NativeNode>
+        Local left
+      field_set 1
+        Type NativeNode
+        Local this
+        Type Option<NativeNode>
+        Local right
+      return
+  fun ctor.ManagedAggregate.$c0 @fn12(value: String, left: Long, right: Long) -> ManagedAggregate <no-gc>
+    bb0 entry
+      return
+        Type ManagedAggregate
+        StructInit ManagedAggregate
+          Type String
+          Local value
+          Type Long
+          Local left
+          Type Long
+          Local right
+  fun startCoroutine<NativeNode> @fn13(task: SuspendTask<NativeNode>, completion: Continuation<NativeNode>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn7 interface Continuation<NativeNode>[0]
+        Type Continuation<NativeNode>
+        Local completion
+        Type NativeNode
+        EnumField v0 f0
+          Type CoroutineStep<NativeNode>
+          Local $step
+      return
+    bb2 failed
+      call @fn8 interface Continuation<NativeNode>[1]
+        Type Continuation<NativeNode>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<NativeNode> = @fn9 interface SuspendTask<NativeNode>[0]
+        Type SuspendTask<NativeNode>
+        Local task
+        Type Continuation<NativeNode>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<NativeNode>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<NativeNode> result=NativeNode
+  coroutine_slot cl0 CoroutineSlot<NativeNode> value=NativeNode
+  coroutine_start ct0 result=NativeNode function=fn13
+  coroutine_fn cf0 @fn9 source_return=NativeNode step=cs0 immediate
+  instance mi0 function=@fn4 <- stringify
+  instance mi1 function=@fn5 <- println
+  instance mi2 function=@fn6 <- println
+  instance mi3 function=@fn7 <- Continuation.resume
+  instance mi4 function=@fn8 <- Continuation.resumeWithException
+  instance mi5 function=@fn9 <- SuspendTask.run
+  instance mi6 function=@fn10 <- SuspendRegistration.register
+  str @str0 "direct managed ref"
+  str @str1 "agg"
+  str @str2 "regate"
+  str @str3 "\n"
+  str @str4 "\n"
+  output executable @fn3
