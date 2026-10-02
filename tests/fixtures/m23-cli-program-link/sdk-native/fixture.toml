@@ -1,0 +1,81 @@
+schema = 1
+name = "program-link-sdk-native"
+inputs = ["cone", "../../m23-program-link/native-root.scoop", "native-library", "../../m23-program-link/native-library.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["program-link", "stage-golden", "native-link", "sdk", "multi-cone", "moving-gc"]
+
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${fixture}/cone", "to" = "${work}/sources/native-root"}}, {"copy" = {"from" = "${fixture}/../../m23-program-link/native-root.scoop", "to" = "${work}/sources/native-root/src/main.scoop"}}, {"mkdir" = {"path" = "${work}/native"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "prepare_native-library"
+files = [{"copy" = {"from" = "${fixture}/native-library", "to" = "${work}/sources/native-library"}}, {"copy" = {"from" = "${fixture}/../../m23-program-link/native-library.scoop", "to" = "${work}/sources/native-library/src/main.scoop"}}]
+checks = []
+
+[[steps]]
+name = "declare_dependencies"
+files = [{"copy" = {"from" = "${fixture}/cone/Cone.toml", "to" = "${work}/sources/native-root/Cone.toml"}}]
+checks = []
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${work}/sources/native-root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-build", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-build", "--dump-scope", "sources"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"file" = "${work}/dump-build/${build.result.root.identity}/ast.txt", "snapshot" = "build.ast.txt"}, {"file" = "${work}/dump-build/${build.result.root.identity}/hir.txt", "snapshot" = "build.hir.txt"}, {"file" = "${work}/dump-build/${build.result.root.identity}/mir.txt", "snapshot" = "build.mir.txt"}, {"file" = "${work}/dump-build/${build.result.root.identity}/lir.txt", "snapshot" = "build.lir.txt"}]
+
+[[steps]]
+name = "build_dependencies"
+checks = [{"file" = "${work}/dump-build/${build.result.dependencies.1.identity}/ast.txt", "snapshot" = "native-library.ast.txt"}, {"file" = "${work}/dump-build/${build.result.dependencies.1.identity}/hir.txt", "snapshot" = "native-library.hir.txt"}, {"file" = "${work}/dump-build/${build.result.dependencies.1.identity}/mir.txt", "snapshot" = "native-library.mir.txt"}, {"file" = "${work}/dump-build/${build.result.dependencies.1.identity}/lir.txt", "snapshot" = "native-library.lir.txt"}]
+
+[[steps]]
+name = "run_built"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "42\nlibrary\nroot\n"
+stderr = ""
+
+[[steps]]
+name = "run_built_moving"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "42\nlibrary\nroot\n"
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}
+
+[[steps]]
+name = "isolate"
+files = [{"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}}, {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}}, {"mkdir" = {"path" = "${work}/empty-sysroot"}}, {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}}, {"copy" = {"from" = "${build.result.dependencies.1.path}", "to" = "${work}/artifacts/1.slib"}}, {"remove" = {"path" = "${work}/sources"}}]
+checks = []
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--dump-plan"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}, {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan", "normalize" = ["paths"]}]
+
+[[steps]]
+name = "run_linked"
+argv = ["${work}/program"]
+exit = 0
+stdout = "42\nlibrary\nroot\n"
+stderr = ""
+
+[[steps]]
+name = "run_linked_moving"
+argv = ["${work}/program"]
+exit = 0
+stdout = "42\nlibrary\nroot\n"
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}

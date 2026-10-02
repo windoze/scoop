@@ -441,7 +441,6 @@ version = "0.0.0"
 dependencies = [
  "clap",
  "fs4",
- "object",
  "rustix",
  "scoop-identity",
  "scoop-linker",

@@ -1,0 +1,14 @@
+SourceFile
+  QualifiedPackage programlink.nativeapi
+    @Extern(name = "abs")
+  public fun absolute(value: Int): Int
+    @Extern(name = "scoop_rt_write", abi = "scoop")
+  public fun sameWrite(value: String)
+  public fun report()
+    @Unsafe block
+      Call println
+        Call absolute
+          Unary Neg
+            IntLiteral 42
+    Call sameWrite
+      StringLiteral "library\n"

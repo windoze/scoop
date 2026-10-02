@@ -215,6 +215,16 @@ fixture 的 `truncate(path,size)` 只缩短现有文件；对应归档的初始�
 
 独立 reader 现在保留当前 ConeIdentity 和实际 member/section/语义字段位置，公开入口仅从已读清单附加 locator。stale 指向 dependent，wrong kind/extra/冲突保留实际输入位置；没有重读产物，也不从 Display 消息解析来源。本批两项只读通过，共 2 个变体、24 次进程、31 次 golden 比较。删除原 inputs 编排、重打包 helper，以及不再使用的 scoop `object` dev-dependency。
 
-## 10. 后续批次
+## 10. 完成 program-link 编排迁移
 
-parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end、program-link/native 以及需要外部构建的 runtime 测试仍按原断言逐批迁移。直接构造内存 typed IR 的内部单元测试保留。完成每批后补充对应关系、删除的 helper 与实际验证结果；全部完成前不将 M23-11 标记完成。
+剩余普通 extern 用例迁为 `sdk-native`、`unused-extern-conflict` 和五个 `native-*` 拒绝项。SDK 的实际 `abs`、共享 runtime 合同、原 library/root 输出、普通／moving 运行均保留；未使用 extern 的参数冲突仍列出 left/right/root 全部 Cone，missing library/symbol、GC effect、function/data/TLS/mutability 和 compiler-owned symbol 五种错误均精确比较，并确认旧输出 bytes 不变。
+
+`effective_code_and_runtime_inputs_change_the_link_plan` 迁为 `effective-inputs`。源码 42→43 后完整 plan 文本相同、内容 fingerprint 改变；原 Rust 用内部 `RuntimeOptimization::None` 取得不同 runtime，这里用复制后 `rt.c` 中的普通 Clang pragma 关闭该翻译单元优化，通过公开 runtime builder 得到不同的真实对象。runtime 内容改变时 Scoop 编译仍零 child，最终链接 fingerprint 改变；删除 runtime/Scoop 源码后，独立链接与构建结果 fingerprint 相同，普通／moving 均输出 43。公开 CLI 未增加优化参数。
+
+本批八项只读通过，共 8 个变体、35 次进程、55 次 golden 比较。整个 `m23-cli-program-link` 目录的 37 项全部通过：58 个变体、279 次进程、337 次阶段/plan golden 比较。连同此前 64 项 native-inputs，原 program-link 文件编排的语言、native、产物、并发、生命周期与 core 用例均已迁移。
+
+删除 `compiler/scoop/tests/program_link.rs` 和其剩余目录，包括 Environment、隐藏源码/manifest 写入、runtime/core 编译、fixture 读取、私有运行和 plan 解析 helper。原 Scoop 源码继续由声明使用，未通过删除源码或跳过 target/tool 把用例计作通过。
+
+## 11. 后续批次
+
+parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end，以及需要外部构建的 runtime 测试仍按原断言逐批迁移。直接构造内存 typed IR 的内部单元测试保留。完成每批后补充对应关系、删除的 helper 与实际验证结果；全部完成前不将 M23-11 标记完成。

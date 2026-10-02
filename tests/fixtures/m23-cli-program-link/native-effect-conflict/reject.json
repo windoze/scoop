@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "native contract conflict for _scoop_rt_bool_hash: GC effect differs; origins: scoop:scoop.core:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([93, 69, 79, 46, 138, 108, 68, 207, 66, 114, 193, 47, 225, 117, 105, 81, 150, 121, 158, 217, 115, 36, 15, 11, 7, 64, 89, 254, 52, 91, 208, 206])]), dev.programlink:native-effect-conflict:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([245, 202, 86, 218, 48, 11, 245, 247, 74, 11, 40, 103, 134, 60, 188, 111, 12, 223, 77, 236, 150, 14, 234, 81, 248, 48, 187, 102, 181, 46, 200, 75])])",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]
