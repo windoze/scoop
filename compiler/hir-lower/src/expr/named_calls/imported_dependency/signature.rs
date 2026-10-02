@@ -51,6 +51,7 @@ impl Lowerer {
                         | hir::IntrinsicFunctionKind::CoroutineSuspend
                 )
             )
+            || matches!(interface.effects().implementation(), hir::CallableImplementationV1::Intrinsic(kind) if kind.is_runtime_gc_call())
             || (interface.modality() == hir::CallableModalityV1::Abstract
                 && matches!(
                     interface.owner(),

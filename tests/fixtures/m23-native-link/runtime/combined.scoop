@@ -1,0 +1,12 @@
+import nativelink.gcruntime.*
+
+struct Marker(val text: String)
+
+fun main() {
+    val text = "handles-" + "alive"
+    val marker = Marker("marker-" + "alive")
+    println(preserve(marker, text))
+    gcCollect()
+    println(marker.text)
+    println(text)
+}

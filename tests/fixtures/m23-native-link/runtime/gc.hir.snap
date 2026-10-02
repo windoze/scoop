@@ -1,0 +1,37 @@
+Module
+  fun main(): Unit
+    val local0
+      StringLiteral "runtime-" : String
+    val local1
+      StringLiteral "alive" : String
+    val local2
+      Local $dependency.argument.0 : String
+    val local3
+      PrimitiveBinary StringConcat : String
+        Local $dependency.receiver : String
+        Local $dependency.parameter.other : String
+    Call gcCollect<> : Unit
+    val local4
+      Local text : String
+    val local5
+      Local $dependency.argument.0 : String
+    Call println<String> : Unit
+      Local $dependency.parameter.value : String
+    val local6
+      Call gcStats<> : ULong
+    val local7
+      IntegerLiteral 0uL : ULong
+    val local8
+      Local $dependency.argument.0 : ULong
+    val local9
+      Binary Gt : Boolean
+        IntegerOperation ulong.compare_to <no-gc> : Long
+          Local $dependency.receiver : ULong
+          Local $dependency.parameter.other : ULong
+        IntegerLiteral 0 : Long
+    val local10
+      Local $dependency.argument.0 : Boolean
+    Call println<Boolean> : Unit
+      Local $dependency.parameter.value : Boolean
+  output executable main
+

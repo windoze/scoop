@@ -1,0 +1,6 @@
+fun main() {
+    val text = "runtime-" + "alive"
+    gcCollect()
+    println(text)
+    println(gcStats() > 0uL)
+}

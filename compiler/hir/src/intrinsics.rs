@@ -437,6 +437,18 @@ impl WireDecode for IntrinsicFunctionKind {
 }
 
 impl IntrinsicFunctionKind {
+    pub const fn is_runtime_gc_call(self) -> bool {
+        matches!(
+            self,
+            Self::GcPinRaw
+                | Self::GcUnpinRaw
+                | Self::GcGetHandleRaw
+                | Self::GcReleaseHandleRaw
+                | Self::GcCollect
+                | Self::GcStats
+        )
+    }
+
     pub fn name(self) -> String {
         match self {
             Self::GcPinRaw => "gc_pin_raw".to_string(),
