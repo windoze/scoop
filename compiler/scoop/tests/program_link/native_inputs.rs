@@ -8,6 +8,7 @@ mod direct;
 mod dynamic;
 mod formats;
 mod mixed;
+mod resolution;
 mod runtime;
 mod scoopabi;
 mod source;

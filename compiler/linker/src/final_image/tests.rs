@@ -1,7 +1,7 @@
 use super::*;
 
 mod native;
-mod support;
+use crate::test_support as support;
 
 #[test]
 fn actual_executable_corruption_is_rejected_before_publication() {

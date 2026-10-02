@@ -11,6 +11,9 @@ mod program;
 mod runtime;
 mod startup;
 
+#[cfg(test)]
+mod test_support;
+
 pub use artifacts::{ArtifactLinkRequest, read_program_artifacts};
 pub use link::{ProgramLinkOutput, ResolvedLinkPlanFingerprint, link_program};
 pub use native_object::{NativeObjectInfo, NativeSymbolDefinition, NativeSymbolKind};

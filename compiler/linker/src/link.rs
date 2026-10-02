@@ -9,6 +9,9 @@ use crate::{LinkError, RuntimeObjectSet, error, program::ProgramInputs, startup:
 
 pub(crate) mod map;
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ResolvedLinkPlanFingerprint(Digest256);
 impl std::fmt::Display for ResolvedLinkPlanFingerprint {
@@ -32,6 +35,16 @@ pub fn link_program(
     output: &Path,
 ) -> Result<ProgramLinkOutput, LinkError> {
     let inputs = ProgramInputs::new(closure, runtime, profile, library_paths)?;
+    link_inputs(closure, runtime, profile, &inputs, output)
+}
+
+fn link_inputs(
+    closure: &ProgramLinkClosure,
+    runtime: &RuntimeObjectSet,
+    profile: &ValidatedFinalLinkProfile,
+    inputs: &ProgramInputs<'_>,
+    output: &Path,
+) -> Result<ProgramLinkOutput, LinkError> {
     let output = std::path::absolute(output).map_err(error)?;
     let parent = output
         .parent()
@@ -41,7 +54,7 @@ pub fn link_program(
         .prefix(".scoop-link-")
         .tempdir_in(parent)
         .map_err(error)?;
-    let startup = StartupObject::build(&inputs, profile, directory.path())?;
+    let startup = StartupObject::build(inputs, profile, directory.path())?;
     let mut paths = Vec::new();
     let first = directory.path().join("startup.o");
     write_new(&first, &startup.bytes)?;
@@ -101,7 +114,7 @@ pub fn link_program(
         &stubs,
     )?;
     let bytes = std::fs::read(&candidate).map_err(error)?;
-    crate::final_image::verify(&bytes, &inputs, &startup, profile, &map)
+    crate::final_image::verify(&bytes, inputs, &startup, profile, &map)
         .map_err(|err| error(format!("final Mach-O validation: {err}")))?;
     let profile_fingerprint = profile.fingerprint().map_err(error)?;
     let fingerprint = ResolvedLinkPlanFingerprint(
@@ -110,14 +123,14 @@ pub fn link_program(
             &Plan {
                 closure,
                 runtime,
-                inputs: &inputs,
+                inputs,
                 startup: &startup,
                 profile: profile_fingerprint,
             },
         )
         .map_err(error)?,
     );
-    let plan_dump = dump(closure, runtime, &inputs, &startup);
+    let plan_dump = dump(closure, runtime, inputs, &startup);
     std::fs::File::open(&candidate)
         .and_then(|file| file.sync_all())
         .map_err(error)?;

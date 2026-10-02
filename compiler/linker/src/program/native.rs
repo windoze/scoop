@@ -86,37 +86,7 @@ pub(super) fn resolve(
             ))
         })?;
     }
-    let mut pending = inputs.requirements.clone();
-    while let Some(symbol) = pending.pop_first() {
-        if symbol == "_scoop_td_String" {
-            continue;
-        }
-        let binding = declarations
-            .get(&symbol)
-            .map_or(NativeLibraryBinding::DefaultNativeNamespace, |decl| {
-                decl.contract.library()
-            });
-        let origin = inputs
-            .requirement_origins
-            .get(&symbol)
-            .map(|origins| origins.join(", "))
-            .unwrap_or_else(|| "program startup/linker support".into());
-        let candidate = selection::candidate(&symbol, binding, inputs)
-            .map_err(|err| error(format!("{err}; reference chain: {symbol} <- {origin}")))?;
-        match candidate {
-            selection::Candidate::Object(id) => {
-                if !inputs.native.selected.contains_key(&id) {
-                    selection::include(inputs, id, &format!("{symbol} <- {origin}"))?;
-                    let (index, _) = inputs.native.object(id)?;
-                    pending.extend(index.info.requirements.iter().cloned());
-                }
-            }
-            selection::Candidate::Definition => continue,
-            selection::Candidate::Dynamic(binding) => {
-                inputs.dynamic.insert(symbol, binding);
-            }
-        }
-    }
+    selection::resolve(inputs, &declarations)?;
     inputs
         .providers
         .project(&inputs.dynamic, library_paths, profile)?;

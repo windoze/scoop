@@ -6,7 +6,7 @@ use scoop_toolchain::{ResolvedTargetProfile, ValidatedFinalLinkProfile};
 
 use crate::{ProgramLinkOutput, RuntimeObjectSet, link_program, read_program_artifacts};
 
-pub(super) struct Fixture {
+pub(crate) struct Fixture {
     pub directory: tempfile::TempDir,
     pub profile: ValidatedFinalLinkProfile,
     pub closure: scoop_slib::ProgramLinkClosure,
@@ -15,11 +15,11 @@ pub(super) struct Fixture {
     pub library_paths: Vec<PathBuf>,
 }
 
-pub(super) fn fixture() -> Fixture {
+pub(crate) fn fixture() -> Fixture {
     build_fixture("basic-root.scoop", false)
 }
 
-pub(super) fn native_fixture() -> Fixture {
+pub(crate) fn native_fixture() -> Fixture {
     build_fixture("../m23-native-link/final/root.scoop", true)
 }
 
@@ -94,22 +94,7 @@ fn build_fixture(root_fixture: &str, native: bool) -> Fixture {
             &source,
         )
         .unwrap();
-        let toolchain = profile.startup_toolchain();
-        checked(
-            Command::new(toolchain.compiler_driver())
-                .env_clear()
-                .env("PATH", "/usr/bin:/bin")
-                .args(["-target", "arm64-apple-macos", "-isysroot"])
-                .arg(toolchain.sdk_root())
-                .arg(format!(
-                    "-mmacosx-version-min={}",
-                    toolchain.profile().contract().deployment().minimum_os()
-                ))
-                .args(["-O0", "-Wall", "-Wextra", "-Werror", "-c"])
-                .arg(&source)
-                .arg("-o")
-                .arg(path.join("m23_final.o")),
-        );
+        compile_native(&profile, &source, &path.join("m23_final.o"));
         std::fs::remove_file(source).unwrap();
         vec![path.to_owned()]
     } else {
@@ -180,5 +165,24 @@ fn checked(command: &mut Command) {
         result.status.success(),
         "{command:?}: {}",
         String::from_utf8_lossy(&result.stderr)
+    );
+}
+
+pub(crate) fn compile_native(profile: &ValidatedFinalLinkProfile, source: &Path, output: &Path) {
+    let toolchain = profile.startup_toolchain();
+    checked(
+        Command::new(toolchain.compiler_driver())
+            .env_clear()
+            .env("PATH", "/usr/bin:/bin")
+            .args(["-target", "arm64-apple-macos", "-isysroot"])
+            .arg(toolchain.sdk_root())
+            .arg(format!(
+                "-mmacosx-version-min={}",
+                toolchain.profile().contract().deployment().minimum_os()
+            ))
+            .args(["-O0", "-Wall", "-Wextra", "-Werror", "-c"])
+            .arg(source)
+            .arg("-o")
+            .arg(output),
     );
 }
