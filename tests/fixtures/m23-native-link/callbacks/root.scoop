@@ -1,0 +1,45 @@
+@Extern(lib = "m23_callbacks", name = "m23_callback_invoke")
+fun invokeNative(callback: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, value: Int): Int
+
+@Extern(name = "scoop_rt_thread_debug_count")
+fun threadCount(): ULong
+
+fun main() {
+    val marker = "callback-" + "alive"
+    @Unsafe {
+        val inner = foreignCallback<(Int, Ptr<Unit>) -> Int>(
+            { value: Int -> gcCollect(); value + 1 }, 1L, ForeignCallbackMode.Reusable
+        )
+        val outer = foreignCallback<(Int, Ptr<Unit>) -> Int>(
+            { value: Int ->
+                val live = marker + value.toString()
+                var checked = -1000
+                @Unsafe {
+                    val result = invokeNative(inner.function, inner.context, value)
+                    gcCollect()
+                    checked = if (live == marker + value.toString()) { result + 1 } else { -1000 }
+                }
+                checked
+            }, 1L, ForeignCallbackMode.Reusable
+        )
+        println(invokeNative(outer.function, outer.context, 40))
+        println(when (foreignCallbackState(outer)) {
+            ForeignCallbackState.Registered -> true
+            else -> false
+        })
+        releaseForeignCallback(outer)
+        releaseForeignCallback(inner)
+        val oneShot = foreignCallback<(Int, Ptr<Unit>) -> Int>(
+            { value: Int -> value + 2 }, 1L, ForeignCallbackMode.OneShot
+        )
+        val observer = retainForeignCallback(oneShot)
+        println(invokeNative(oneShot.function, oneShot.context, 40))
+        println(when (foreignCallbackState(observer)) {
+            ForeignCallbackState.Completed -> true
+            else -> false
+        })
+        releaseForeignCallback(observer)
+        println(threadCount())
+        println(marker)
+    }
+}

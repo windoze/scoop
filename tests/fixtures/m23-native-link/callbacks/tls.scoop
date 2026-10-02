@@ -1,0 +1,51 @@
+import nativelink.storagefacade.*
+
+@Extern(name = "scoop_rt_thread_debug_count")
+fun threadCount(): ULong
+
+struct Marker(val text: String)
+
+fun main() {
+    val marker = Marker("caller-" + "alive")
+    @Unsafe {
+        println(update(marker))
+        println(counter++)
+        addressOf(counter).store(40)
+        println(increment(addressOf(counter)))
+        println(limit)
+        pair = Pair(50, 51)
+        addressOf(pair).store(Pair(52, 53))
+        println(pair.left + addressOf(pair).load().right)
+        tlsInitial = 33
+        addressOf(tlsZero).store(34)
+        val callerAddress = addressOf(tlsInitial).toULong()
+        counter = 70
+        val callback = foreignCallback<(Int, Ptr<Unit>) -> Int>(
+            { value: Int ->
+                val live = marker.text + value.toString()
+                var checked = -1000
+                @Unsafe {
+                    val independent = tlsInitial == 31 && tlsZero == 0 &&
+                        addressOf(tlsInitial).toULong() != callerAddress
+                    tlsInitial = value
+                    tlsZero = value + 100
+                    gcCollect()
+                    checked = if (independent && counter == 70 &&
+                        live == marker.text + value.toString()) { value } else { -1000 }
+                }
+                checked
+            },
+            1L,
+            ForeignCallbackMode.Reusable
+        )
+        println(storageThreads(callback.function, callback.context, callerAddress))
+        println(tlsInitial == 33 && tlsZero == 34 && counter == 70)
+        println(when (foreignCallbackState(callback)) {
+            ForeignCallbackState.Registered -> true
+            else -> false
+        })
+        releaseForeignCallback(callback)
+        println(threadCount())
+        println(marker.text)
+    }
+}

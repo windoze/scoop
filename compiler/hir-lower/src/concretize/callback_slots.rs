@@ -9,7 +9,7 @@ pub(super) struct PendingForeignCallbackRegistration {
     pub(super) native_function_type: concrete::FunctionTypeId,
     pub(super) managed_function_type: concrete::FunctionTypeId,
     pub(super) context_index: u32,
-    pub(super) mode: concrete::EnumVariantRef,
+    pub(super) mode: scoop_identity::CallbackMode,
 }
 
 pub(super) fn finish_foreign_callback_slots(

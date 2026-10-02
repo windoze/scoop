@@ -266,7 +266,6 @@ fn rebuild_callback_identities(module: &hir::Module) -> hir::HirCallbackRegistra
             property_accessor_identities: &module.property_accessor_identities,
             constructor_identities: &module.constructor_identities,
             enum_member_identities: &module.enum_member_identities,
-            callback_modes: defined_export_core(module).foreign_callbacks.modes,
             type_inputs: hir::HirTypeIdentityInputs {
                 types: &module.types,
                 function_types: &module.function_types,

@@ -214,6 +214,8 @@ M23-10 的跨 Cone extern global 读取、写入与取址沿同一个 `AddressOf
 
 导入 core 的 GC intrinsic 使用真实声明签名和既有 `FunctionKind::Intrinsic` 消费路径；非泛型 intrinsic 保留原 `PersistentFunctionId`，不能伪装成泛型函数或请求不存在的 provider 机器定义。普通参数检查及 effect 检查完成后，MIR 沿同一 intrinsic 映射调用 runtime。泛型 pin／handle 操作仍按原类型参数实例化，不新增 runtime ABI。
 
+managed callback 的注册与操作在共同 HIR 正规化。导入 core 时按其真实 callback protocol id 解析模式、状态和 `Option<Throwable>`，并在实际使用时物化这些已有类型。`ForeignCallback<F>` 字段中的待实例化 `FunPtr<F>` 与本地声明共用 intrinsic struct application；实际函数类型确定后才生成具体函数指针表示。注册检查后仅保存规范化 `CallbackMode`，不把定义 core 的本地 enum arena id 带入消费方。注册点身份仍由当前源码定义位置、native／managed 签名、context 参数位置和模式组成；MIR 使用相同 family、adapter 与 gateway，注册表、线程 attach／detach、失败物化和 GC roots 契约不变。generated-C unit 的实际入口、签名与 context 描述符都可由本 Cone 的其他对象引用，分类复用已检查的目标 definition 和所属 unit；仅用于 C 静态断言的非物化项没有可引用符号，不以“非 primary”笼统拒绝合法数据引用。
+
 显式 `Ptr<T>(raw)` 从已解析的实际 `core_ptr` 名义声明进入特殊构造候选，与同层普通 callable 共用重载选择。当前声明和依赖声明共用 pointee 推断、参数与常量非零检查，并产生已有 `PtrFromNonZeroULong` 节点；固定 application 的 typealias 作为非参数化候选。依赖路径使用原 typed nominal identity 及其 binder，不补造本地 struct、普通 constructor identity、共有正文或机器函数。unsafe 和常量非零错误不改变候选适用性；仅在选中后提交诊断并结束该错误表达式的 lowering，避免回退到其他候选或产生级联的语句形态错误。合法调用保留唯一一次原实参求值。默认值及泛型正文沿现有节点代换和条件约束路径消费。
 
 `Ptr`／`FunPtr` 别名按既有结构化指针签名发布，`AliasTarget` 引用由该签名实际包含的 pointee／函数参数与结果中的名义类型构成；指针类型源码绑定不额外变成签名中不存在的泛型名义目标。直接指向外来 typealias 的别名仍保留原 typed alias 边；名称绑定仅参与普通源码查找，构造时从已解析类型取得实际 core owner。

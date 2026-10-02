@@ -1,9 +1,9 @@
 use super::*;
 
-fn reject_source(
+pub(super) fn reject_source(
     environment: &Environment,
     directory: &Path,
-    dependency: &Path,
+    dependencies: &[(&str, &Path)],
     fixture: &str,
     token: &str,
     diagnostic: &str,
@@ -11,15 +11,24 @@ fn reject_source(
     let source = native_fixture(fixture);
     let cone = directory.join("source-error");
     std::fs::create_dir_all(cone.join("src")).unwrap();
-    std::fs::write(cone.join("Cone.toml"), "schema = 1\n[cone]\ngroup = \"dev.programlink\"\nname = \"source-error\"\nversion = \"0.1.0\"\nkind = \"executable\"\n[dependencies]\n\"dev.programlink:storage-provider\" = \"0.1.0\"\n").unwrap();
+    let mut manifest = String::from(
+        "schema = 1\n[cone]\ngroup = \"dev.programlink\"\nname = \"source-error\"\nversion = \"0.1.0\"\nkind = \"executable\"\n[dependencies]\n",
+    );
+    for (name, _) in dependencies {
+        manifest.push_str(&format!("\"dev.programlink:{name}\" = \"0.1.0\"\n"));
+    }
+    std::fs::write(cone.join("Cone.toml"), manifest).unwrap();
     std::fs::write(cone.join("src/main.scoop"), &source).unwrap();
-    let output = Command::new(&environment.compiler)
+    let mut command = Command::new(&environment.compiler);
+    command
         .arg("build")
         .arg(&cone)
         .arg("--direct-slib")
-        .arg(&environment.core)
-        .arg("--direct-slib")
-        .arg(dependency)
+        .arg(&environment.core);
+    for (_, dependency) in dependencies {
+        command.arg("--direct-slib").arg(dependency);
+    }
+    let output = command
         .arg("--out-slib")
         .arg(cone.join("rejected.slib"))
         .output()
@@ -67,7 +76,7 @@ fn imported_native_storage_preserves_source_diagnostics() {
         reject_source(
             environment,
             directory.path(),
-            &provider,
+            &[("storage-provider", &provider)],
             &format!("storage/{fixture}.scoop"),
             token,
             diagnostic,

@@ -289,17 +289,13 @@ pub(super) fn dump_expr(
         } => {
             let registration_id = *registration;
             let registration = &module.foreign_callback_registrations[registration_id];
-            let mode_application = &module.enum_applications[registration.mode.application()];
-            let mode_declaration = &module.enums[registration.mode.declaration().enumeration()];
-            let mode = &mode_declaration.variants[registration.mode.local_index() as usize].name;
             out.push_str(&format!(
-                "{pad}ForeignCallbackRegister registration{} native=function_type{} managed=function_type{} context={} mode={}.{} : {ty}\n",
+                "{pad}ForeignCallbackRegister registration{} native=function_type{} managed=function_type{} context={} mode=ForeignCallbackMode.{:?} : {ty}\n",
                 registration_id.into_raw(),
                 registration.native_function_type.into_raw(),
                 registration.managed_function_type.into_raw(),
                 registration.context_index,
-                type_name(module, mode_application.canonical_type),
-                mode,
+                registration.mode,
             ));
             dump_expr(module, locals, closure, indent + 1, out);
         }

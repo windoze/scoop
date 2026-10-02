@@ -67,7 +67,7 @@ fn classifies_only_cross_member_normal_strong_uses() {
 }
 
 #[test]
-fn maps_only_a_planned_primary_bridge_atom_to_its_unit() {
+fn maps_planned_entry_and_materialized_descriptor_to_their_unit() {
     let bridge = bridge_plan(ConeIdentity::CORE);
     let closure =
         synthetic_cross_member_closure(LinkDefinitionOwnerV1::GeneratedBridge(bridge.primary));
@@ -80,14 +80,10 @@ fn maps_only_a_planned_primary_bridge_atom_to_its_unit() {
 
     let closure =
         synthetic_cross_member_closure(LinkDefinitionOwnerV1::GeneratedBridge(bridge.associated));
+    let verified = verify_current_cone_undefined_requirements_v1(closure, bridge.plan).unwrap();
     assert_eq!(
-        verify_current_cone_undefined_requirements_v1(closure, bridge.plan),
-        Err(
-            CurrentConeUndefinedRequirementValidationError::NonPrimaryGeneratedBridgeTarget {
-                atom: bridge.associated,
-                unit: bridge.unit,
-            }
-        )
+        verified.requirements()[0].requirement(),
+        CurrentConeUndefinedRequirementV1::GeneratedBridge { unit: bridge.unit }
     );
 }
 

@@ -191,7 +191,6 @@ fn rebuild_callback_identities(
             property_accessor_identities: &module.property_accessor_identities,
             constructor_identities: &module.constructor_identities,
             enum_member_identities: &module.enum_member_identities,
-            callback_modes: defined_export_core(module).foreign_callbacks.modes,
             type_inputs: hir::HirTypeIdentityInputs {
                 types: &module.types,
                 function_types: &module.function_types,
@@ -243,13 +242,7 @@ fn callback_intrinsic_reads_named_constants_through_materialized_temporaries() {
         )]
     );
     assert_eq!(registration.context_index, 1);
-    assert_eq!(
-        registration.mode,
-        defined_export_core(module.module())
-            .foreign_callbacks
-            .modes
-            .reusable()
-    );
+    assert_eq!(registration.mode, scoop_identity::CallbackMode::Reusable);
     let identity = &module.callback_registration_identities[registration_id];
     let shifted_identity = shifted
         .callback_registration_identities

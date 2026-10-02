@@ -7,7 +7,6 @@ use crate::{Lowerer, persistent_types::identity_inputs};
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn build(
     lowerer: &Lowerer,
-    callback_core: hir::ForeignCallbackCore,
     nominals: &hir::HirNominalIdentities,
     accessors: &hir::HirPropertyAccessorIdentities,
     constructors: &hir::HirConstructorIdentities,
@@ -28,7 +27,6 @@ pub(crate) fn build(
             property_accessor_identities: accessors,
             constructor_identities: constructors,
             enum_member_identities: enum_members,
-            callback_modes: callback_core.modes,
             type_inputs: identity_inputs(lowerer, nominals, core_types),
             unit: lowerer.unit,
         },

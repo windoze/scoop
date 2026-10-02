@@ -98,6 +98,15 @@ impl ImportedCallableCandidate {
         }
     }
 
+    pub(super) fn callback_intrinsic(&self) -> Option<hir::IntrinsicFunctionKind> {
+        match self.interface().effects().implementation() {
+            hir::CallableImplementationV1::Intrinsic(kind) if kind.is_foreign_callback() => {
+                Some(kind)
+            }
+            _ => None,
+        }
+    }
+
     pub(super) fn executable(&self) -> bool {
         self.capability().is_some()
             || self.normalized_intrinsic().is_some()

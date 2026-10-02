@@ -413,7 +413,7 @@ pub struct ForeignCallbackRegistration {
     pub native_function_type: FunctionTypeId,
     pub managed_function_type: FunctionTypeId,
     pub context_index: u32,
-    pub mode: EnumVariantRef,
+    pub mode: scoop_identity::CallbackMode,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

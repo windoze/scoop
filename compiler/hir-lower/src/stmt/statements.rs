@@ -33,10 +33,8 @@ impl Lowerer {
                         | hir::ExprKind::DirectSuperMethodCall { .. }
                         | hir::ExprKind::CallableCall { .. }
                         | hir::ExprKind::PtrStore { .. }
-                        | hir::ExprKind::ForeignCallbackOperation {
-                            operation: hir::ForeignCallbackOperation::Release,
-                            ..
-                        }
+                        | hir::ExprKind::ForeignCallbackRegister { .. }
+                        | hir::ExprKind::ForeignCallbackOperation { .. }
                 ) {
                     out.extend(sink);
                     hir::StatementKind::Expr(lowered)

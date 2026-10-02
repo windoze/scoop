@@ -24,6 +24,7 @@ impl Concretizer<'_> {
             Some(source) => self.source_struct_definition(source, application),
             None => ResolvedStructDefinition::from_dependency(
                 &self.source.loaded_struct_definitions[&origin],
+                application,
             ),
         };
         let id = self.allocate_struct_definition(&definition, arguments.clone());

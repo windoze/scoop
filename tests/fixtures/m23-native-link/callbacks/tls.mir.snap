@@ -1,0 +1,915 @@
+Module
+  global0 m23_counter: Int extern m23_counter
+  global1 m23_limit: Int extern m23_limit
+  global2 m23_pair: Pair extern m23_pair
+  global3 m23_tls_initial: Int extern m23_tls_initial thread_local
+  global4 m23_tls_zero: Int extern m23_tls_zero thread_local
+  extern ef0 threadCount @scoop_rt_thread_debug_count() -> ULong <abi=c no-gc>
+  foreign_callback_family fcf0 callback=ForeignCallback<(Int, Ptr<Unit>) -> Int> state=ForeignCallbackState failure=Option<Throwable>
+  foreign_callback_bridge fcb0 family=fcf0 native=function_type2 managed=function_type0 context=1 mode=ForeignCallbackMode.Reusable adapter=@fn9
+  struct Marker (text: String)
+  struct Pair (left: Int, right: Int) <c-layout aligned=natural packed=natural>
+  struct ForeignCallback<(Int, Ptr<Unit>) -> Int> (function: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>)
+  enum ForeignCallbackMode
+    Reusable()
+    OneShot()
+  enum ForeignCallbackState
+    Registered()
+    Active()
+    Completed()
+    Failed()
+  enum Option<Throwable>
+    Some(_0: Throwable)
+    None()
+  class Throwable vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn4 captures=2
+    bridge function_type1 -> @fn10 id=98f89fb2cc447577502015771a08a4e2d1565034ce88b1a01d012fda0f841825
+  generated_exact_type get0 location=closure0 nominal_id=4faa28e81e4536e0b516866d2e5a89aba12aa1cc26937545652b0bae31a4f456 exact_id=bb3ce1ff92ae1dad87a343eaace013665b694e9cd9cbfda935d6818bf3795056
+  generated_exact_type get1 location=class1 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn9 id=54c762c85d25c198bcb4a4811e5de7c867c4d8a2ac5c4a1c8a473b5be20f57a1
+  generated_callable gc1 function=@fn10 id=98f89fb2cc447577502015771a08a4e2d1565034ce88b1a01d012fda0f841825
+  fun threadCount @fn0() -> ULong
+    bb0 entry
+      call $call.1: ULong = extern0 @scoop_rt_thread_debug_count direct
+      return
+        Type ULong
+        Local $call.1
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $dependency.receiver: String
+        Type String
+        StringConst @str0
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.text: String
+        Type String
+        Local $argument.0
+      call marker: Marker = @fn8 direct
+        Type String
+        Local $parameter.text
+      val $dependency.argument.0: Marker
+        Type Marker
+        Local marker
+      val $dependency.parameter.marker: Marker
+        Type Marker
+        Local $dependency.argument.0
+      val $dependency.parameter.amount: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      call $dependency.argument.0: Int = @fn2 direct
+        Type Marker
+        Local $dependency.parameter.marker
+        Type Int
+        Local $dependency.parameter.amount
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $old.0: Int
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          GlobalAddress m23_counter Int
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.0
+      val $new.1: Int
+        Type Int
+        IntegerUnary increment kind=Int
+          Type Int
+          Local $dependency.receiver
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        GlobalAddress m23_counter Int
+        Type Int
+        Local $new.1
+      val $dependency.argument.0: Int
+        Type Int
+        Local $old.0
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        GlobalAddress m23_counter Int
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Ptr<Int>
+        Type Ptr<Int>
+        GlobalAddress m23_counter Int
+      val $dependency.parameter.pointer: Ptr<Int>
+        Type Ptr<Int>
+        Local $dependency.argument.0
+      call $dependency.argument.0: Int = external0 direct
+        Type Ptr<Int>
+        Local $dependency.parameter.pointer
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          GlobalAddress m23_limit Int
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=50 bits=0x00000032
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=51 bits=0x00000033
+      val $dependency.parameter.left: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Int
+        Type Int
+        Local $dependency.argument.1
+      call $call.1: Pair = external1 direct
+        Type Int
+        Local $dependency.parameter.left
+        Type Int
+        Local $dependency.parameter.right
+      Type Unit
+      PtrStore Pair
+        Type Ptr<Pair>
+        GlobalAddress m23_pair Pair
+        Type Pair
+        Local $call.1
+      val $dependency.receiver: Ptr<Pair>
+        Type Ptr<Pair>
+        GlobalAddress m23_pair Pair
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=52 bits=0x00000034
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=53 bits=0x00000035
+      val $dependency.parameter.left: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Int
+        Type Int
+        Local $dependency.argument.1
+      call $dependency.argument.0: Pair = external1 direct
+        Type Int
+        Local $dependency.parameter.left
+        Type Int
+        Local $dependency.parameter.right
+      val $dependency.parameter.value: Pair
+        Type Pair
+        Local $dependency.argument.0
+      Type Unit
+      PtrStore Pair
+        Type Ptr<Pair>
+        Local $dependency.receiver
+        Type Pair
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Pair
+          PtrLoad Pair
+            Type Ptr<Pair>
+            GlobalAddress m23_pair Pair
+      val $dependency.receiver: Ptr<Pair>
+        Type Ptr<Pair>
+        GlobalAddress m23_pair Pair
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 1
+          Type Pair
+          PtrLoad Pair
+            Type Ptr<Pair>
+            Local $dependency.receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        GlobalAddress m23_tls_initial Int
+        Type Int
+        IntegerLiteral Int value=33 bits=0x00000021
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        GlobalAddress m23_tls_zero Int
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=34 bits=0x00000022
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        GlobalAddress m23_tls_initial Int
+      val callerAddress: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Int>
+          Local $dependency.receiver
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        GlobalAddress m23_counter Int
+        Type Int
+        IntegerLiteral Int value=70 bits=0x00000046
+      val $dependency.argument.0: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=1
+            Type Marker
+            Local marker
+          CaptureInit field=0
+            Type ULong
+            Local callerAddress
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.argument.2: ForeignCallbackMode
+        Type ForeignCallbackMode
+        VariantConstruct ForeignCallbackMode v0
+      val $dependency.parameter.callback: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.argument.0
+      val $dependency.parameter.contextIndex: Long
+        Type Long
+        Local $dependency.argument.1
+      val $dependency.parameter.mode: ForeignCallbackMode
+        Type ForeignCallbackMode
+        Local $dependency.argument.2
+      val callback: ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        ForeignCallbackRegister fcb0 family=fcf0
+          Type (Int) -> Int
+          Local $dependency.parameter.callback
+      val $dependency.argument.0: FunPtr<(Int, Ptr<Unit>) -> Int>
+        Type FunPtr<(Int, Ptr<Unit>) -> Int>
+        FieldAccess 0
+          Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
+          Local callback
+      val $dependency.argument.1: Ptr<Unit>
+        Type Ptr<Unit>
+        FieldAccess 1
+          Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
+          Local callback
+      val $dependency.argument.2: ULong
+        Type ULong
+        Local callerAddress
+      val $dependency.parameter.callback: FunPtr<(Int, Ptr<Unit>) -> Int>
+        Type FunPtr<(Int, Ptr<Unit>) -> Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.context: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $dependency.argument.1
+      val $dependency.parameter.callerAddress: ULong
+        Type ULong
+        Local $dependency.argument.2
+      call $dependency.argument.0: Int = external4 direct
+        Type FunPtr<(Int, Ptr<Unit>) -> Int>
+        Local $dependency.parameter.callback
+        Type Ptr<Unit>
+        Local $dependency.parameter.context
+        Type ULong
+        Local $dependency.parameter.callerAddress
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          GlobalAddress m23_tls_initial Int
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=33 bits=0x00000021
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      val $dependency.receiver: Int
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          GlobalAddress m23_tls_zero Int
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=34 bits=0x00000022
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.7: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.7: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.7
+    bb4 if.then.4
+      val $dependency.receiver: Int
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          GlobalAddress m23_counter Int
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=70 bits=0x00000046
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.8: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb6
+    bb5 if.else.5
+      val $shortCircuit.8: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 if.merge.6
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.8
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Local callback
+      val $dependency.parameter.callback: ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Local $dependency.argument.0
+      val $when.1: ForeignCallbackState
+        Type ForeignCallbackState
+        ForeignCallbackState family0
+          Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
+          Local $dependency.parameter.callback
+      val $pattern.subject.2: ForeignCallbackState
+        Type ForeignCallbackState
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest ForeignCallbackState v0
+          Type ForeignCallbackState
+          Local $pattern.subject.2
+    bb7 pattern.pass.7
+      assign $result.9
+        Type Boolean
+        BoolLiteral true
+      goto bb9
+    bb8 pattern.else.8
+      assign $result.9
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 pattern.merge.9
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Local $result.9
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Local callback
+      val $dependency.parameter.callback: ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Local $dependency.argument.0
+      Type Unit
+      ForeignCallbackRelease family0
+        Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Local $dependency.parameter.callback
+      call $dependency.argument.0: ULong = extern0 @scoop_rt_thread_debug_count direct
+      val $dependency.parameter.value: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type ULong
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type Marker
+          Local marker
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun update @fn2(marker: Marker, amount: Int) -> Int
+    bb0 entry
+      val $dependency.local.2: Int
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          GlobalAddress m23_counter Int
+      val $dependency.local.3: Int
+        Type Int
+        Local $dependency.local.2
+      val $dependency.local.4: Int
+        Type Int
+        Local amount
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.4
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        GlobalAddress m23_counter Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.3
+          Type Int
+          Local $dependency.local.5
+      return
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          GlobalAddress m23_counter Int
+  fun println @fn3(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external8 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external8 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun $lambda.0 @fn4($closure: (Int) -> Int, value: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: String
+        Type String
+        FieldAccess 0
+          Type Marker
+          ClosureCapture cc0 1
+            Type (Int) -> Int
+            Local $closure
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      call $dependency.argument.0: String = external2 direct
+        Type Int
+        Local $dependency.receiver
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call live: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      var checked: Int
+        Type Int
+        IntegerLiteral Int value=-1000 bits=0xfffffc18
+      val $dependency.receiver: Int
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          GlobalAddress m23_tls_initial Int
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=31 bits=0x0000001f
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      val $dependency.receiver: Int
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          GlobalAddress m23_tls_zero Int
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.2
+    bb4 if.then.4
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        GlobalAddress m23_tls_initial Int
+      val $dependency.receiver: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Int>
+          Local $dependency.receiver
+      val $dependency.argument.0: ULong
+        Type ULong
+        ClosureCapture cc0 0
+          Type (Int) -> Int
+          Local $closure
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=ULong result=Boolean
+            Type ULong
+            Local $dependency.receiver
+            Type ULong
+            Local $dependency.parameter.other
+      goto bb6
+    bb5 if.else.5
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 if.merge.6
+      val independent: Boolean
+        Type Boolean
+        Local $shortCircuit.3
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        GlobalAddress m23_tls_initial Int
+        Type Int
+        Local value
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=100 bits=0x00000064
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        GlobalAddress m23_tls_zero Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      call @scoop_rt_gc_collect direct
+      branch bb7 bb8
+        Type Boolean
+        Local independent
+    bb7 if.then.7
+      val $dependency.receiver: Int
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          GlobalAddress m23_counter Int
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=70 bits=0x00000046
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb9
+    bb8 if.else.8
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 if.merge.9
+      branch bb10 bb11
+        Type Boolean
+        Local $shortCircuit.4
+    bb10 if.then.10
+      val $equality.lhs: String
+        Type String
+        Local live
+      val $dependency.receiver: String
+        Type String
+        FieldAccess 0
+          Type Marker
+          ClosureCapture cc0 1
+            Type (Int) -> Int
+            Local $closure
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      call $dependency.argument.0: String = external2 direct
+        Type Int
+        Local $dependency.receiver
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      val $dependency.receiver: String
+        Type String
+        Local $equality.lhs
+      call $dependency.argument.0: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $shortCircuit.5: Boolean = external3 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      goto bb12
+    bb11 if.else.11
+      val $shortCircuit.5: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb12 if.merge.12
+      branch bb13 bb14
+        Type Boolean
+        Local $shortCircuit.5
+    bb13 if.then.13
+      assign $result.6
+        Type Int
+        Local value
+      goto bb15
+    bb14 if.else.14
+      assign $result.6
+        Type Int
+        IntegerLiteral Int value=-1000 bits=0xfffffc18
+      goto bb15
+    bb15 if.merge.15
+      assign checked
+        Type Int
+        Local $result.6
+      return
+        Type Int
+        Local checked
+  fun println @fn5(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external6 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external8 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external8 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn6(value: ULong) -> Unit
+    bb0 entry
+      val $dependency.local.1: ULong
+        Type ULong
+        Local value
+      call $dependency.local.2: String = external5 direct
+        Type ULong
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external8 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external8 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn7(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external7 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external8 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str5
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external8 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun ctor.Marker.$c0 @fn8(text: String) -> Marker <no-gc>
+    bb0 entry
+      return
+        Type Marker
+        StructInit Marker
+          Type String
+          Local text
+  fun foreign callback adapter 0 @fn9($closure: (Int) -> Int, $result: Ptr<Int>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
+    bb0 callback.failure
+      landing_pad cleanup=false
+      begin_catch
+      call $caught: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      Type Unit
+      PtrStore Throwable
+        Type Ptr<Throwable>
+        Local $exception
+        Type Throwable
+        Local $caught
+      return
+        Type machine<foreign-callback-status>
+        MachineScalarLiteral ForeignCallbackStatus(Threw)
+    bb1 entry unwind bb0
+      call $value: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $closure
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          PtrCast Int
+            Type Ptr<Unit>
+            PtrLoad Ptr<Unit>
+              Type Ptr<Ptr<Unit>>
+              Local $arguments
+              Type machine<pointer-element-offset>
+              MachineScalarLiteral PointerElementOffset(0)
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $result
+        Type Int
+        Local $value
+      return
+        Type machine<foreign-callback-status>
+        MachineScalarLiteral ForeignCallbackStatus(Returned)
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn10($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  instance mi0 function=@fn2 <- update
+  instance mi1 function=@fn3 <- println
+  instance mi2 function=@fn5 <- println
+  instance mi3 function=@fn6 <- println
+  instance mi4 function=@fn7 <- println
+  str @str0 "caller-"
+  str @str1 "alive"
+  str @str2 "\n"
+  str @str3 "\n"
+  str @str4 "\n"
+  str @str5 "\n"
+  output executable @fn1
+

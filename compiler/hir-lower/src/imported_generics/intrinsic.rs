@@ -25,6 +25,10 @@ impl ImportedIntrinsicSignature {
         declaration: hir::ImportedCallableDeclaration,
     ) -> Result<Self, String> {
         let interface = declaration.interface();
+        if matches!(interface.effects().implementation(), hir::CallableImplementationV1::Intrinsic(kind) if kind.is_foreign_callback())
+        {
+            state.prepare_imported_foreign_callback_protocol()?;
+        }
         let nominal = match interface.owner() {
             hir::PublicDeclarationOwnerV1::Nominal(owner) => Some(
                 state

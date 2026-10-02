@@ -308,7 +308,7 @@ pub struct ForeignCallbackRegistration {
     pub native_function_type: FunctionTypeId,
     pub managed_function_type: FunctionTypeId,
     pub context_index: u32,
-    pub mode: AppliedEnumVariantRef,
+    pub mode: scoop_identity::CallbackMode,
     pub span: Span,
 }
 

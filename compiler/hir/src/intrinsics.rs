@@ -437,6 +437,17 @@ impl WireDecode for IntrinsicFunctionKind {
 }
 
 impl IntrinsicFunctionKind {
+    pub const fn is_foreign_callback(self) -> bool {
+        matches!(
+            self,
+            Self::ForeignCallbackRegister
+                | Self::ForeignCallbackRetain
+                | Self::ForeignCallbackRelease
+                | Self::ForeignCallbackState
+                | Self::ForeignCallbackFailure
+        )
+    }
+
     pub const fn is_runtime_gc_call(self) -> bool {
         matches!(
             self,

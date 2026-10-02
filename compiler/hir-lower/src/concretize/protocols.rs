@@ -1,6 +1,7 @@
 //! Checked compiler roles are explicit concrete requests.
 
 use super::*;
+mod callbacks;
 
 impl Concretizer<'_> {
     pub(super) fn lower_defined_core_protocols(

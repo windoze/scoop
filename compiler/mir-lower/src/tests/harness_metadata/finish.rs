@@ -538,7 +538,6 @@ impl Harness {
                     property_accessor_identities: &property_accessor_identities,
                     constructor_identities: &constructor_identities,
                     enum_member_identities: &enum_member_identities,
-                    callback_modes,
                     type_inputs: type_identity_inputs,
                     unit: self.unit,
                 },

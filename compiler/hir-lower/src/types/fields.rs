@@ -18,34 +18,11 @@ impl Lowerer {
         &self,
         template: hir::SourceNominalId,
     ) -> Option<hir::HirCLayoutContract> {
-        if let Some(id) = self.source_struct_id(template) {
-            return self.structs[id].attributes.c_layout;
-        }
-        let hir::NominalSourceShapeV1::Struct(shape) = self.loaded_struct_definitions[&template]
-            .declaration
-            .interface
-            .source_shape()
-        else {
-            unreachable!("a struct definition retains its declaration shape")
-        };
-        match shape.c_layout_policy() {
-            hir::NominalCLayoutPolicyV1::Ordinary => None,
-            hir::NominalCLayoutPolicyV1::CLayout { contract } => Some(contract),
-        }
+        self.struct_definition(template).attributes.c_layout
     }
 
     pub(crate) fn struct_interior_mutable(&self, template: hir::SourceNominalId) -> bool {
-        if let Some(id) = self.source_struct_id(template) {
-            return self.structs[id].attributes.interior_mutable;
-        }
-        let hir::NominalSourceShapeV1::Struct(shape) = self.loaded_struct_definitions[&template]
-            .declaration
-            .interface
-            .source_shape()
-        else {
-            unreachable!("a struct definition retains its declaration shape")
-        };
-        shape.interior_mutable()
+        self.struct_definition(template).attributes.interior_mutable
     }
 
     /// Resolve declaration-order fields for the complete application. The

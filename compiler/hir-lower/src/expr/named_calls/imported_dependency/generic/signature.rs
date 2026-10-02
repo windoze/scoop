@@ -23,6 +23,11 @@ impl ImportedGenericTarget {
                 hir::IntrinsicFunctionKind::Pointer(_)
                     | hir::IntrinsicFunctionKind::Array(_)
                     | hir::IntrinsicFunctionKind::ArrayAccess(_)
+                    | hir::IntrinsicFunctionKind::ForeignCallbackRegister
+                    | hir::IntrinsicFunctionKind::ForeignCallbackRetain
+                    | hir::IntrinsicFunctionKind::ForeignCallbackRelease
+                    | hir::IntrinsicFunctionKind::ForeignCallbackState
+                    | hir::IntrinsicFunctionKind::ForeignCallbackFailure
             )
         ) {
             return intrinsic::ImportedIntrinsicSignature::prepare(state, declaration)

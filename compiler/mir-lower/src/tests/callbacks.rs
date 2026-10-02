@@ -252,10 +252,6 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
         origin: definition_origin(),
         span: SPAN,
     });
-    let mode = defined_export_core(&source)
-        .foreign_callbacks
-        .modes
-        .reusable();
     let registration =
         source
             .foreign_callback_registrations
@@ -271,7 +267,7 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
                 native_function_type,
                 managed_function_type: function_type,
                 context_index: 0,
-                mode,
+                mode: scoop_identity::CallbackMode::Reusable,
                 span: SPAN,
             });
     let hir::FunctionKind::User(main_body) = &mut source.functions[main].kind else {

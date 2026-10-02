@@ -20,9 +20,27 @@ impl Lowerer {
         &mut self,
         declaration: Arc<hir::ImportedNominalDeclaration>,
     ) -> Result<(), ImportedSignatureTypeError> {
-        let hir::NominalSourceShapeV1::Struct(shape) = declaration.interface.source_shape() else {
-            return Err(ImportedSignatureTypeError::Structural);
-        };
+        let (c_layout, interior_mutable, representation) =
+            match declaration.interface.source_shape() {
+                hir::NominalSourceShapeV1::Struct(shape) => (
+                    match shape.c_layout_policy() {
+                        hir::NominalCLayoutPolicyV1::Ordinary => None,
+                        hir::NominalCLayoutPolicyV1::CLayout { contract } => Some(contract),
+                    },
+                    shape.interior_mutable(),
+                    hir::StructRepresentation::Declared(Vec::new()),
+                ),
+                hir::NominalSourceShapeV1::Intrinsic(shape)
+                    if shape.family() == hir::IntrinsicTypeKind::FunPtr =>
+                {
+                    (
+                        None,
+                        false,
+                        hir::StructRepresentation::Intrinsic(shape.family()),
+                    )
+                }
+                _ => return Err(ImportedSignatureTypeError::Structural),
+            };
         let owner = declaration.owner();
         let source_span = declaration.origin.origin().span();
         let span = Span {
@@ -72,15 +90,12 @@ impl Lowerer {
                             .declaration_details()
                             .instantiation_conditions()
                             .no_gc(),
-                        c_layout: match shape.c_layout_policy() {
-                            hir::NominalCLayoutPolicyV1::Ordinary => None,
-                            hir::NominalCLayoutPolicyV1::CLayout { contract } => Some(contract),
-                        },
-                        interior_mutable: shape.interior_mutable(),
+                        c_layout,
+                        interior_mutable,
                     },
                     self_application,
                     type_params: type_params.clone(),
-                    representation: hir::StructRepresentation::Declared(Vec::new()),
+                    representation,
                     interfaces: Vec::new(),
                     interface_implementations: Vec::new(),
                 },
@@ -96,23 +111,25 @@ impl Lowerer {
             .expect("the struct builder registered its identity")
             .definition
             .type_params = type_params.clone();
-        let fields = shape
-            .fields()
-            .iter()
-            .zip(&declaration.field_sources)
-            .map(|(field, source)| {
-                Ok(hir::Field {
-                    name: source.name.clone(),
-                    ty: self
-                        .imported_signature_type_with_bindings(field.value_type(), &bindings)?,
+        if let hir::NominalSourceShapeV1::Struct(shape) = declaration.interface.source_shape() {
+            let fields = shape
+                .fields()
+                .iter()
+                .zip(&declaration.field_sources)
+                .map(|(field, source)| {
+                    Ok(hir::Field {
+                        name: source.name.clone(),
+                        ty: self
+                            .imported_signature_type_with_bindings(field.value_type(), &bindings)?,
+                    })
                 })
-            })
-            .collect::<Result<Vec<_>, ImportedSignatureTypeError>>()?;
-        self.loaded_struct_definitions
-            .get_mut(&owner)
-            .expect("the struct builder registered its identity")
-            .definition
-            .representation = hir::StructRepresentation::Declared(fields);
+                .collect::<Result<Vec<_>, ImportedSignatureTypeError>>()?;
+            self.loaded_struct_definitions
+                .get_mut(&owner)
+                .expect("the struct builder registered its identity")
+                .definition
+                .representation = hir::StructRepresentation::Declared(fields);
+        }
         let interfaces = declaration
             .interface
             .exact_supertypes()

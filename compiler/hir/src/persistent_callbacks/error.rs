@@ -61,13 +61,6 @@ impl HirCallbackRegistrationIdentityError {
         )
     }
 
-    pub(super) const fn invalid_mode(registration: ForeignCallbackRegistrationId) -> Self {
-        Self::new(
-            registration,
-            HirCallbackRegistrationIdentityErrorDetail::InvalidMode,
-        )
-    }
-
     pub(super) const fn signature_type(
         registration: ForeignCallbackRegistrationId,
         error: HirSignatureTypeMappingError,
@@ -123,7 +116,6 @@ pub(super) enum HirCallbackRegistrationIdentityErrorDetail {
     InvalidContextIndex,
     InvalidNativeSignature,
     SignatureRelation,
-    InvalidMode,
     InvalidSignatureType(HirSignatureTypeMappingError),
     InvalidIdentity(scoop_wire::HashError),
     ConflictingDefinitionSite,
@@ -172,9 +164,6 @@ impl std::fmt::Display for HirCallbackRegistrationIdentityError {
             Detail::SignatureRelation => formatter.write_str(
                 "callback registration managed signature does not remove exactly its context parameter",
             ),
-            Detail::InvalidMode => {
-                formatter.write_str("callback registration has an invalid callback mode")
-            }
             Detail::InvalidSignatureType(error) => error.fmt(formatter),
             Detail::InvalidIdentity(error) => error.fmt(formatter),
             Detail::ConflictingDefinitionSite => formatter.write_str(
