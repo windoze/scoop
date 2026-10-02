@@ -1,0 +1,65 @@
+SourceFile
+  QualifiedPackage consumer.abstracts
+  ImportExact Local dependency.abstracts.BaseReader
+  ImportExact Local dependency.abstracts.MutableReader
+  ImportExact Local dependency.abstracts.ReaderBox
+  private class LocalReader<T>(var item: T) : BaseReader<T>(<0 args>)
+    protected fun stored
+    public open override var value: T <computed>
+      get()
+        FieldAccess item
+          This
+      set(next)
+        assign .item
+          This
+          Var next
+  private fun consume<T>(box: MutableReader<T>, value: T, read: (T) -> Int): Int
+    val replace: (T) -> Unit
+      CallableReference 0 replace
+        Var box
+    Call replace
+      Var value
+    val fetch: () -> T
+      CallableReference 1 read
+        Var box
+    return
+      IfExpression
+        Binary Eq
+          Call read
+            MethodCall again
+              Var box
+          Call read
+            Call fetch
+        Call read
+          FieldAccess value
+            Var box
+        else
+        IntLiteral 0
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 0 suspend=false
+          param value: _
+          Var value
+  public fun exercise<T>(value: T, read: (T) -> Int): Int
+    val imported
+      Call consume<T>
+        Call ReaderBox<T>
+          Var value
+        Var value
+        Var read
+    val local
+      Call consume<T>
+        Call LocalReader<T>
+          Var value
+        Var value
+        Var read
+    return
+      IfExpression
+        Binary Eq
+          Var imported
+          Var local
+        Var local
+        else
+        IntLiteral 0
