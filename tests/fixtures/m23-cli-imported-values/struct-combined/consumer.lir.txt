@@ -6,6 +6,33 @@ Module
   enum Option niche(kind=managed,payload_variant=0)
   enum CoroutineStep<Container> tagged size=32 align=8 variants=(struct0)@8+24 ()@8+0
   enum CoroutineSlot<Container> tagged size=32 align=8 variants=()@8+0 (struct0)@8+24
+  fun @scoop$1$cb$1015daecd55667cf88075d80f4d00e8bc6e58ce88595aef2b1751c757b26a5ab(indirect<struct0 size=24 align=8 scan=none>, indirect<struct0 size=24 align=8 scan=none>) -> i1
+    local %0 $call.1: i1
+    local %1 $logic.2: i1
+    local %2 $call.3: i1
+    local %3 $sc.1: struct2
+    local %4 $sc.2: struct2
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    t0 = extract param0, 0 : struct1
+    t1 = extract param1, 0 : struct1
+    call managed-direct-target0 sp<managed-call:0> live=[] t2 = sig=direct0 (elided-zst<struct1 size=0 align=1>, elided-zst<struct1 size=0 align=1>) -> i1 external-fn3(elided-zst t0, elided-zst t1)
+    store t2 -> local0
+    cbr local0 then @logic.rhs.1 else @logic.short.2
+  block logic.rhs.1
+    t3 = extract param0, 1 : struct2
+    t4 = extract param1, 1 : struct2
+    store t3 -> local3
+    store t4 -> local4
+    call managed-direct-target1 sp<managed-call:1> live=[] t5 = sig=direct1 (indirect<struct2 size=24 align=8 scan=none>, indirect<struct2 size=24 align=8 scan=none>) -> i1 external-fn4(indirect local3, indirect local4)
+    store t5 -> local2
+    store local2 -> local1
+    br @logic.merge.3
+  block logic.short.2
+    store false -> local1
+    br @logic.merge.3
+  block logic.merge.3
+    ret local1
   fun @scoop$1$cb$c8966c16c96473dfeb79ffe1cfa4f582ea0c68ca82f4c365fd8c5c6a763441c6(elided-zst<struct1 size=0 align=1>) -> elided-zst<struct1 size=0 align=1> <no-gc>
     local %0 $dependency.argument.0: struct1 <logical-zst 5c5388c6f24e9625e4d908148c7fd6cb7b92313e0cc7243150a8dd16c6c841bf>
     local %1 $dependency.parameter.value: struct1 <logical-zst 5c5388c6f24e9625e4d908148c7fd6cb7b92313e0cc7243150a8dd16c6c841bf>

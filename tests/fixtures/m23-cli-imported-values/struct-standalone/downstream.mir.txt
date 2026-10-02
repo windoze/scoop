@@ -1,0 +1,32 @@
+Module
+  struct Token ()
+  struct Wide (first: Long, second: Long, third: Long)
+  fun token @fn0(value: Token) -> Token <no-gc>
+    bb0 entry
+      val $dependency.argument.0: Token
+        Type Token
+        Local value
+      val $dependency.parameter.value: Token
+        Type Token
+        Local $dependency.argument.0
+      call $call.1: Token = external0 direct
+        Type Token
+        Local $dependency.parameter.value
+      return
+        Type Token
+        Local $call.1
+  fun wide @fn1(value: Wide) -> Wide <no-gc>
+    bb0 entry
+      val $dependency.argument.0: Wide
+        Type Wide
+        Local value
+      val $dependency.parameter.value: Wide
+        Type Wide
+        Local $dependency.argument.0
+      call $call.1: Wide = external1 direct
+        Type Wide
+        Local $dependency.parameter.value
+      return
+        Type Wide
+        Local $call.1
+  output library

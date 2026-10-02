@@ -27,7 +27,6 @@ mod imported_classes;
 mod imported_constructors;
 mod imported_enums;
 mod imported_members;
-mod imported_structs;
 mod layout_exports;
 mod nominal_signatures;
 mod program_link;

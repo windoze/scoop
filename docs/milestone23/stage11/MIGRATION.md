@@ -300,3 +300,13 @@ parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end，
 17 个负例均比较完整 canonical JSON、完整 human 信息和低层 compiler stderr，并检查没有覆盖原输出、没有发布失败产物。fixture 发现仅解码内联条件注释，源码正文不预先按 UTF-8 解码；通用 `.hex` 引用用于组合真实字节路径。26 项 infra 测试通过。
 
 删除 parser 纯内存输入测试中对未传入的邻接文件的存在性断言，保留原 AST 与唯一 source 断言；真实文件隔离由上述公开 CLI 用例承担。该 parser 测试和 7 项 driver 请求测试通过，既有 4 项 CLI 回归也只读通过（5 个变体、42 次进程、28 次 golden 比较）。所有 Rust/Python 变更先格式化与 lint；此记录只覆盖本批，不代表 M23-11 全部完成。
+
+## 14. 外来 struct 的三层 ABI 链
+
+`dependency_struct_values_compile_through_real_artifact_consumers` 迁为 `m23-cli-imported-values/struct-{standalone,combined,wrong-identity}`。保留原 provider、consumer、downstream 的五份源码及坐标；先公开构建 core，再逐层从磁盘产物构建，上一层源码在消费前移走。三个源节点分别以一次编译输出完整 AST/HIR/MIR/LIR，根程序通过正式 program-link 运行，独立无 compiler/LLVM 的链接得到相同 plan fingerprint。
+
+原 `runtime.ll` 的检查体保留，只把 `main` 改为普通 native 函数，由 Scoop main 调用。六个 callable 符号从迁移时的实际 dump 取得后明确写入 fixture 数据；运行时没有 symbol reader 或专用编排脚本。原三层 `passToken/keepToken/token` 的 ZST 参数及结果均消除，`passWide/keepWide/wide` 均为 24 字节、8 字节对齐的 indirect 参数与 sret 结果；LLVM 调用继续直接检查 17、-29、53 经三层传递的结果。provider、consumer、downstream 的完整阶段 golden 锁定各自 ABI 和类型身份。
+
+`standalone` 三份旧阶段和 `combined` HIR Export 逐字相同；`combined` 的 MIR/LIR 补齐 `Container.equals`，依次使用原 Token 与 Wide 的相等函数比较两个字段。按函数身份还原序号后，原函数正文逐字相同。负例的原字节范围、表达式与消息一致，新期望保存完整 canonical JSON，失败不发布产物。
+
+删除原 Rust 模块、对象提取／手工链接 helper、更新变量入口和七份旧快照。三项新声明关闭更新开关只读通过，共 3 个变体、23 次进程、26 次阶段／plan golden 比较，两个程序均通过普通与 moving GC 运行；格式化与全 workspace lint 通过。

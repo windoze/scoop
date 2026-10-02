@@ -23,8 +23,45 @@ Module
   generated_exact_type get0 location=class3 nominal_id=7a7fd176bf85e35b8160b64c7c3cbb747a45ee35ec2706e3b6187c9c1537a04b exact_id=2e167dc31de68862d99ebfaf18c793b9f1ca4d237c28e01d50f99ed040dcef49
   generated_exact_type get1 location=enum1 nominal_id=e3a04c9aa894c0d2386aebe839f14cdf94007c8f378c0a42975705e67af4d763 exact_id=4da01d1e7a0ce9acb02c2772deae201c62fddcbae01a9fef83a54168a12a1a8b
   generated_exact_type get2 location=enum2 nominal_id=d146220de627129829237c7f358388fc656817b0e0ccbf072d465a258861f37b exact_id=618c835e59fdcc36551b81ebce9fbff3a251f731fa0e82b493d0e22ae98a5a25
-  generated_callable gc0 function=@fn10 id=06a5ab493efd54d645bbb75d15df33831e8cb55ebfe9ee555912478890da5973
-  fun keepToken @fn0(value: Token) -> Token <no-gc>
+  generated_callable gc0 function=@fn11 id=06a5ab493efd54d645bbb75d15df33831e8cb55ebfe9ee555912478890da5973
+  fun Container.equals @fn0(this: Container, other: Container) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = external3 direct
+        Type Token
+        FieldAccess 0
+          Type Container
+          Local this
+        Type Token
+        FieldAccess 0
+          Type Container
+          Local other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 logic.rhs.1
+      call $call.3: Boolean = external4 direct
+        Type Wide
+        FieldAccess 1
+          Type Container
+          Local this
+        Type Wide
+        FieldAccess 1
+          Type Container
+          Local other
+      assign $logic.2
+        Type Boolean
+        Local $call.3
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.2
+  fun keepToken @fn1(value: Token) -> Token <no-gc>
     bb0 entry
       val $dependency.argument.0: Token
         Type Token
@@ -38,7 +75,7 @@ Module
       return
         Type Token
         Local $call.1
-  fun keepWide @fn1(value: Wide) -> Wide <no-gc>
+  fun keepWide @fn2(value: Wide) -> Wide <no-gc>
     bb0 entry
       val $dependency.argument.0: Wide
         Type Wide
@@ -52,12 +89,12 @@ Module
       return
         Type Wide
         Local $call.1
-  fun keepNested @fn2(value: Nested) -> Nested
+  fun keepNested @fn3(value: Nested) -> Nested
     bb0 entry
       return
         Type Nested
         Local value
-  fun keepManaged @fn3(value: Managed) -> Managed
+  fun keepManaged @fn4(value: Managed) -> Managed
     bb0 entry
       val $dependency.argument.0: Managed
         Type Managed
@@ -71,24 +108,24 @@ Module
       return
         Type Managed
         Local $call.1
-  fun localStorage @fn4(value: Container) -> Container
+  fun localStorage @fn5(value: Container) -> Container
     bb0 entry
       return
         Type Container
         Local value
-  fun Continuation.resume @fn5(this: Continuation<Container>, value: Container) -> Unit
+  fun Continuation.resume @fn6(this: Continuation<Container>, value: Container) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn6(this: Continuation<Container>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn7(this: Continuation<Container>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn7(this: SuspendTask<Container>, $completion: Continuation<Container>) -> CoroutineStep<Container>
+  fun SuspendTask.run @fn8(this: SuspendTask<Container>, $completion: Continuation<Container>) -> CoroutineStep<Container>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn8(this: SuspendRegistration<Container>, continuation: Continuation<Container>) -> Unit
+  fun SuspendRegistration.register @fn9(this: SuspendRegistration<Container>, continuation: Continuation<Container>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun ctor.Container.$c0 @fn9(marker: Token, payload: Wide) -> Container <no-gc>
+  fun ctor.Container.$c0 @fn10(marker: Token, payload: Wide) -> Container <no-gc>
     bb0 entry
       return
         Type Container
@@ -97,11 +134,11 @@ Module
           Local marker
           Type Wide
           Local payload
-  fun startCoroutine<Container> @fn10(task: SuspendTask<Container>, completion: Continuation<Container>) -> Unit
+  fun startCoroutine<Container> @fn11(task: SuspendTask<Container>, completion: Continuation<Container>) -> Unit
     bb0 suspended
       return
     bb1 completed
-      call @fn5 interface Continuation<Container>[0]
+      call @fn6 interface Continuation<Container>[0]
         Type Continuation<Container>
         Local completion
         Type Container
@@ -110,7 +147,7 @@ Module
           Local $step
       return
     bb2 failed
-      call @fn6 interface Continuation<Container>[1]
+      call @fn7 interface Continuation<Container>[1]
         Type Continuation<Container>
         Local completion
         Type Throwable
@@ -125,7 +162,7 @@ Module
       end_catch
       goto bb2
     bb4 entry unwind bb3
-      call $step: CoroutineStep<Container> = @fn7 interface SuspendTask<Container>[0]
+      call $step: CoroutineStep<Container> = @fn8 interface SuspendTask<Container>[0]
         Type SuspendTask<Container>
         Local task
         Type Continuation<Container>
@@ -141,10 +178,10 @@ Module
           MachineScalarLiteral EnumTag(0)
   coroutine_step cs0 CoroutineStep<Container> result=Container
   coroutine_slot cl0 CoroutineSlot<Container> value=Container
-  coroutine_start ct0 result=Container function=fn10
-  coroutine_fn cf0 @fn7 source_return=Container step=cs0 immediate
-  instance mi0 function=@fn5 <- Continuation.resume
-  instance mi1 function=@fn6 <- Continuation.resumeWithException
-  instance mi2 function=@fn7 <- SuspendTask.run
-  instance mi3 function=@fn8 <- SuspendRegistration.register
+  coroutine_start ct0 result=Container function=fn11
+  coroutine_fn cf0 @fn8 source_return=Container step=cs0 immediate
+  instance mi0 function=@fn6 <- Continuation.resume
+  instance mi1 function=@fn7 <- Continuation.resumeWithException
+  instance mi2 function=@fn8 <- SuspendTask.run
+  instance mi3 function=@fn9 <- SuspendRegistration.register
   output library
