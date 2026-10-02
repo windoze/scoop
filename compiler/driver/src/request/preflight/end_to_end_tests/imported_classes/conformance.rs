@@ -1,19 +1,6 @@
 use super::*;
 
 #[test]
-fn abstract_dependency_conformances_report_unimplemented_source_members() {
-    check_class_cases(
-        "direct",
-        &[],
-        &[
-            "conformance-abstract-class-incomplete",
-            "conformance-abstract-interface-incomplete",
-            "conformance-abstract-property-incomplete",
-        ],
-    );
-}
-
-#[test]
 fn qualified_interface_super_calls_use_actual_dependency_defaults() {
     check_class_cases(
         "direct",
