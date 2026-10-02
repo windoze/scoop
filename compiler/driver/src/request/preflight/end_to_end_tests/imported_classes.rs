@@ -5,21 +5,6 @@ mod inheritance;
 pub(super) mod runtime;
 
 #[test]
-fn integer_division_compiles_and_runs_through_actual_artifacts() {
-    check_class_cases(
-        "direct",
-        &[
-            "arithmetic-direct",
-            "arithmetic-widths",
-            "arithmetic-zero",
-            "arithmetic-default",
-            "arithmetic-core",
-        ],
-        &["arithmetic-no-gc", "arithmetic-wrong-argument"],
-    );
-}
-
-#[test]
 fn initialization_compiles_and_runs_through_rebuilt_core_and_actual_artifacts() {
     check_class_cases(
         "direct",

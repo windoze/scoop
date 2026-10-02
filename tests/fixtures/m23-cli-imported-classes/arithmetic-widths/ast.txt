@@ -1,0 +1,90 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  public fun primary(): Counter
+    val a: Int8
+      IntLiteral 43
+    val b: Int16
+      IntLiteral 43
+    val c: Int
+      IntLiteral 43
+    val d: Long
+      IntLiteral 43
+    val e: UInt8
+      IntLiteral 43u
+    val f: UInt16
+      IntLiteral 43u
+    val g: UInt
+      IntLiteral 43u
+    val h: ULong
+      IntLiteral 43u
+    val total
+      Binary Add
+        Binary Add
+          Binary Add
+            Binary Add
+              Binary Add
+                Binary Add
+                  Binary Add
+                    MethodCall toInt64
+                      Binary Div
+                        Var a
+                        IntLiteral 2
+                    MethodCall toInt64
+                      Binary Div
+                        Var b
+                        IntLiteral 2
+                  MethodCall toInt64
+                    Binary Div
+                      Var c
+                      IntLiteral 2
+                Binary Div
+                  Var d
+                  IntLiteral 2
+              MethodCall toInt64
+                Binary Div
+                  Var e
+                  IntLiteral 2u
+            MethodCall toInt64
+              Binary Div
+                Var f
+                IntLiteral 2u
+          MethodCall toInt64
+            Binary Div
+              Var g
+              IntLiteral 2u
+        MethodCall toInt64
+          Binary Div
+            Var h
+            IntLiteral 2u
+    val minimum: Int8
+      Unary Neg
+        IntLiteral 128
+    val minusOne: Int8
+      Unary Neg
+        IntLiteral 1
+    if
+      Binary Or
+        Binary Ne
+          Binary Div
+            Var minimum
+            Var minusOne
+          Var minimum
+        Binary Ne
+          Binary Rem
+            Var minimum
+            Var minusOne
+          IntLiteral 0
+      return
+        Call Counter
+          IntLiteral 0
+    if
+      Binary Ne
+        Var total
+        IntLiteral 168
+      return
+        Call Counter
+          IntLiteral 0
+    return
+      Call Counter
+        IntLiteral 21
