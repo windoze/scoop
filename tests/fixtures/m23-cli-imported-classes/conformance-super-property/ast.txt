@@ -1,0 +1,16 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.DefaultProperty
+  ImportExact Local dependency.classes.superTrace
+  public interface LocalProcedure
+    fun clear
+  public class LocalProperty(), DefaultProperty, LocalProcedure
+    public open override var value: Long = <expr>
+      IntLiteral 1000
+    public fun exercise
+  public fun primary(): Counter
+    =
+      Call Counter
+        MethodCall exercise
+          Call LocalProperty

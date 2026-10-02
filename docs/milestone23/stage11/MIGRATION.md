@@ -241,6 +241,8 @@ fixture 的 `truncate(path,size)` 只缩短现有文件；对应归档的初始�
 
 接口继承的四个用例分别补齐三个空 struct 的默认相等函数及单标签 enum 的标签比较函数。八份 MIR/LIR 在按原函数身份还原序号后，其余正文逐字相同；四份 HIR Export 不变，普通与 moving GC 均通过。
 
+限定接口 super 的 interface、ZST 和 ABI 三个用例分别补齐空 struct LocalChoice／LocalWide 的相等函数，两个同型值返回 true。六份 MIR/LIR 的差异仅限这些函数和一致的 local function 序号调整；其余二十一份阶段输出逐字相同。
+
 | 原 Rust 入口 | 正例／负例 | 进程／golden 比较 | 旧阶段对照 |
 | --- | --- | --- | --- |
 | `dependency_classes_compile_and_run_through_actual_artifacts` | 24／12 | 312／120 | 72 份 HIR Export、MIR、LIR 逐字相同；12 份诊断相同 |
@@ -264,8 +266,9 @@ fixture 的 `truncate(path,size)` 只缩短现有文件；对应归档的初始�
 | `local_interfaces_inherit_dependency_members_report_source_errors` | 0／5 | 20／0 | 5 份诊断相同 |
 | `abstract_dependency_conformances_keep_actual_targets_through_artifacts` | 5／0 | 55／25 | 15 份旧阶段逐字相同 |
 | `abstract_dependency_conformances_report_unimplemented_source_members` | 0／3 | 12／0 | 3 份诊断相同 |
+| `qualified_interface_super_calls_use_actual_dependency_defaults` | 9／0 | 99／45 | 21 份旧阶段逐字相同；6 份补齐空 struct 默认 equals 及一致的函数序号调整 |
 
-本节目前覆盖 175 项；其余类、接口及继承用例继续逐功能迁移。共享的旧 runtime helper 仍被其他待迁测试调用，随那些调用一起退役。
+本节目前覆盖 184 项；其余类、接口及继承用例继续逐功能迁移。共享的旧 runtime helper 仍被其他待迁测试调用，随那些调用一起退役。
 
 ## 12. 后续批次
 

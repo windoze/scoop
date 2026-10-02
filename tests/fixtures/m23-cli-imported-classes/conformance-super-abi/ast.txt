@@ -1,0 +1,19 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.Token
+  ImportExact Local dependency.classes.WideValue
+  ImportExact Local dependency.classes.DefaultWide
+  public struct LocalWide : DefaultWide
+    public fun value
+  public fun primary(): Counter
+    =
+      Call Counter
+        Binary Add
+          FieldAccess first
+            MethodCall value
+              Call LocalWide
+              Call Token
+              Call Counter
+                IntLiteral 10
+          IntLiteral 1
