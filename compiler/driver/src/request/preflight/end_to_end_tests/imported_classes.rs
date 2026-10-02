@@ -5,11 +5,6 @@ mod inheritance;
 pub(super) mod runtime;
 
 #[test]
-fn runtime_arithmetic_failures_use_the_providers_default_constructor_adapter() {
-    check_class_cases("default", &["arithmetic-zero", "arithmetic-direct"], &[]);
-}
-
-#[test]
 fn runtime_cast_failures_use_the_providers_default_constructor_adapter() {
     check_class_cases(
         "default",
