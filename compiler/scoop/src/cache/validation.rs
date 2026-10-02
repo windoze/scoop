@@ -24,6 +24,7 @@ pub(crate) struct ValidatedCacheHitV1 {
     artifact: Rc<BuildArtifact>,
     closures: ValidatedArtifactClosure,
     warnings: Vec<StructuredDiagnosticV1>,
+    artifact_locator: PathBuf,
 }
 
 impl ValidatedCacheHitV1 {
@@ -37,6 +38,7 @@ impl ValidatedCacheHitV1 {
             self.artifact,
             self.closures,
             materialized_path,
+            self.artifact_locator,
             self.warnings,
         )
     }
@@ -113,6 +115,7 @@ pub(crate) fn validate_cache_entry(
         artifact,
         closures,
         warnings: entry.receipt().body().structured_warnings().to_vec(),
+        artifact_locator: entry.artifact().source_locator().to_path_buf(),
     })
 }
 

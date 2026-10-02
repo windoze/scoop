@@ -129,7 +129,6 @@ pub enum ChildSuccessArtifactField {
     LirFingerprint,
     CodeFingerprint,
     RuntimeImageFingerprint,
-    EmittedDumpDescriptors,
 }
 
 impl fmt::Display for ChildSuccessArtifactField {
@@ -142,7 +141,6 @@ impl fmt::Display for ChildSuccessArtifactField {
             Self::LirFingerprint => "LIR fingerprint",
             Self::CodeFingerprint => "Code fingerprint",
             Self::RuntimeImageFingerprint => "runtime-image fingerprint",
-            Self::EmittedDumpDescriptors => "emitted dump descriptors",
         })
     }
 }
@@ -246,10 +244,7 @@ fn validate_child_success_fields(
             == Some(success.runtime_image_fingerprint().as_array()),
         ChildSuccessArtifactField::RuntimeImageFingerprint,
     )?;
-    check_child_field(
-        success.emitted_dump_descriptors().is_empty(),
-        ChildSuccessArtifactField::EmittedDumpDescriptors,
-    )
+    Ok(())
 }
 
 fn check_child_field(

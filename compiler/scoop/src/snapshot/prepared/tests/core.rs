@@ -41,9 +41,10 @@ fn serial_scheduler_stops_before_dependent_after_core_failure() {
         .to_path_buf();
     let mut runner = RecordingFailureRunner::default();
 
+    let error = prepared.execute_with_runner(&mut runner).unwrap_err();
     assert!(matches!(
-        prepared.execute_with_runner(&mut runner),
-        Err(BuildGraphExecutionError::Ordinary(ConeIdentity::CORE, source))
+        error.cause(),
+        BuildGraphExecutionError::Ordinary(ConeIdentity::CORE, source)
             if matches!(source.as_ref(), OrdinarySourceExecutionError::ChildFailure(_))
     ));
     assert_eq!(

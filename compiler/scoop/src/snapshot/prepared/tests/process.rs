@@ -1,3 +1,4 @@
+mod observations;
 use super::*;
 use crate::{BuildGraphOutcome, CompletedNodeOrigin, ProductionSingleConeCompilerRunner};
 
@@ -330,94 +331,6 @@ fn real_process_builds_and_reuses_single_file() {
             .completed(ConeIdentity::SINGLE_FILE)
             .unwrap()
             .origin(),
-        CompletedNodeOrigin::CacheHit
-    );
-}
-
-#[test]
-fn real_process_builds_and_reuses_a_source_dependency() {
-    let Some(compiler) = std::env::var_os("SCOOP_TEST_PAIRED_SCOOPC") else {
-        return;
-    };
-    let compiler = std::path::PathBuf::from(compiler);
-    let temp = tempfile::tempdir().unwrap();
-    let workspace = temp.path();
-    let sysroot = workspace.join("sysroot");
-    let dependency = workspace.join("dependency");
-    let root = workspace.join("root");
-    copy_real_core(&sysroot);
-    write_manifest_source(
-        &dependency,
-        "dependency",
-        "library",
-        "package dependency.api\n\npublic fun value(): Int = 1\n",
-        "",
-    );
-    write_manifest_source(
-        &root,
-        "root",
-        "library",
-        "package consumer\n\nimport dependency.api.value\n\npublic fun run(): Int = value()\n",
-        "[dependencies]\n\"test:dependency\" = { version = \"1.0.0\", path = \"../dependency\" }\n",
-    );
-    let dependency_identity = ConeCoordinate::new("test", "dependency", "1.0.0")
-        .unwrap()
-        .identity()
-        .unwrap();
-    let root_identity = ConeCoordinate::new("test", "root", "1.0.0")
-        .unwrap()
-        .identity()
-        .unwrap();
-    let build_request = || real_manifest_request(&root, workspace, &sysroot, &compiler);
-
-    let mut first_runner = RecordingProductionRunner::default();
-    let first = build_request()
-        .load_root()
-        .unwrap()
-        .discover()
-        .unwrap()
-        .resolve()
-        .unwrap()
-        .prepare()
-        .unwrap()
-        .execute_with_runner(&mut first_runner)
-        .unwrap();
-    assert_eq!(first_runner.current.len(), 3);
-    assert_manifest_current_identity(&first_runner.current[0], ConeIdentity::CORE);
-    assert_manifest_current_identity(&first_runner.current[1], dependency_identity);
-    assert_manifest_current_identity(&first_runner.current[2], root_identity);
-    assert_eq!(
-        first.completed(root_identity).unwrap().origin(),
-        CompletedNodeOrigin::Compiled
-    );
-    let root_node = first.completed(root_identity).unwrap();
-    let artifact = root_node.closure().artifact(root_identity).unwrap();
-    assert_eq!(artifact.summary().cone().identity(), root_identity);
-    assert!(std::ptr::eq(artifact, root_node.artifact()));
-    assert!(matches!(
-        first.into_outcome(),
-        BuildGraphOutcome::Library { .. }
-    ));
-
-    let mut second_runner = RecordingProductionRunner::default();
-    let second = build_request()
-        .load_root()
-        .unwrap()
-        .discover()
-        .unwrap()
-        .resolve()
-        .unwrap()
-        .prepare()
-        .unwrap()
-        .execute_with_runner(&mut second_runner)
-        .unwrap();
-    assert!(second_runner.current.is_empty());
-    assert_eq!(
-        second.completed(dependency_identity).unwrap().origin(),
-        CompletedNodeOrigin::CacheHit
-    );
-    assert_eq!(
-        second.completed(root_identity).unwrap().origin(),
         CompletedNodeOrigin::CacheHit
     );
 }

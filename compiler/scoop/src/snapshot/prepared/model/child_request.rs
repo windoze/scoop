@@ -103,7 +103,13 @@ impl PreparedBuildGraph {
             target,
             path_carrier(&output_path)?,
             DiagnosticOutputPolicyV1::Structured,
-            StageDumpPolicyV1::None,
+            match self.dumps.get(&identity) {
+                Some(dump) => StageDumpPolicyV1::Files {
+                    stages: dump.stages,
+                    directory: path_carrier(&dump.private_directory)?,
+                },
+                None => StageDumpPolicyV1::None,
+            },
         )
         .map_err(ChildRequestPlanError::Protocol)?;
         Ok(ChildInvocationPlanV1 {

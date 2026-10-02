@@ -367,6 +367,11 @@ impl BuildGraphExecutionError {
 impl ClassifyBuildFailure for OrdinarySourceExecutionError {
     fn classification(&self) -> BuildFailureClassification {
         match self {
+            Self::ProducedOutput { source, .. } => source.classification(),
+            Self::Observation(_) => classified(
+                BuildFailurePhase::ChildOutput,
+                BuildDiagnosticCode::CHILD_RESPONSE_MISMATCH,
+            ),
             Self::CacheStore(source) => source.classification(),
 
             Self::CacheCompletion(_) => classified(
