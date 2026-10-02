@@ -1,0 +1,28 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.Valued
+  public struct LocalValue : Valued
+    field input: Long
+    public final override val value: Long <computed>
+      get()
+        Var input
+  public enum Marker : Valued
+    Only
+    public final override val value: Long <computed>
+      get()
+        IntLiteral 1
+  public fun primary(): Counter
+    val value: Valued
+      Call LocalValue
+        IntLiteral 20
+    val marker: Valued
+      FieldAccess Only
+        Var Marker
+    return
+      Call Counter
+        Binary Add
+          FieldAccess value
+            Var value
+          FieldAccess value
+            Var marker

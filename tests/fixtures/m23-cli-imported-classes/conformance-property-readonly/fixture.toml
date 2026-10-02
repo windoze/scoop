@@ -1,0 +1,175 @@
+schema = 1
+name = "imported-class-conformance-property-readonly"
+inputs = ["../support/stage3_test.scoop", "../../m23-imported-classes/core-provider.scoop", "../../m23-imported-classes/core-cast-direct.scoop", "../../m23-imported-classes/core-arithmetic-direct.scoop", "../../m23-imported-classes/provider.scoop", "../../m23-imported-classes/conformance-provider.scoop", "class-provider", "classes-conformance-property-readonly", "../../m23-imported-classes/conformance-property-readonly.scoop", "class-downstream-conformance-property-readonly", "../../m23-imported-classes/downstream.scoop", "../support/main.scoop", "../support/gc.c", "runtime-fixture"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin"]
+tags = ["imported-classes", "core-rebuild", "moving-gc", "stage-golden"]
+
+[[steps]]
+name = "prepare_core"
+files = [{"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}}, {"copy" = {"from" = "${fixture}/../support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}}, {"mkdir" = {"path" = "${work}/empty-sysroot"}}, {"mkdir" = {"path" = "${work}/artifacts"}}]
+
+[[steps]]
+name = "original_core"
+argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-original_core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/original-core.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "read_core-provider"
+await_file = "${fixture}/../../m23-imported-classes/core-provider.scoop"
+
+[[steps]]
+name = "read_cast"
+await_file = "${fixture}/../../m23-imported-classes/core-cast-direct.scoop"
+
+[[steps]]
+name = "read_arithmetic"
+await_file = "${fixture}/../../m23-imported-classes/core-arithmetic-direct.scoop"
+
+[[steps]]
+name = "modify_core"
+files = [{"write" = {"path" = "${work}/core-source/src/user_class.scoop", "data" = "${read_core-provider.bytes}"}}, {"replace" = {"path" = "${work}/core-source/src/types.scoop", "old" = "public struct Long : ToString, Hash {", "new" = "public struct Long : ToString, Hash, RebuiltReadable {\n    public override fun read(): Long = this + stage3CoreAnswer() - 43"}}, {"replace" = {"path" = "${work}/core-source/src/stage3_test.scoop", "old" = "= 42", "new" = "= 43"}}, {"replace" = {"path" = "${work}/core-source/src/throwable.scoop", "old" = "public class ClassCastException public constructor() : Exception(Some(\"invalid cast\"))\n", "new" = "${read_cast.bytes}"}}, {"replace" = {"path" = "${work}/core-source/src/throwable.scoop", "old" = "public class ArithmeticException public constructor() : Exception(Some(\"arithmetic error\"))\n", "new" = "${read_arithmetic.bytes}"}}]
+
+[[steps]]
+name = "rebuilt_core"
+argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-rebuilt_core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${rebuilt_core.result.root.artifact_fingerprint}", "not_equals" = "${original_core.result.root.artifact_fingerprint}"}]
+
+[[steps]]
+name = "remove_core_source"
+files = [{"remove" = {"path" = "${work}/core-source"}}, {"remove" = {"path" = "${work}/original-core.slib"}}]
+
+[[steps]]
+name = "read_provider"
+await_file = "${fixture}/../../m23-imported-classes/provider.scoop"
+
+[[steps]]
+name = "read_conformance-provider"
+await_file = "${fixture}/../../m23-imported-classes/conformance-provider.scoop"
+
+[[steps]]
+name = "prepare_class-provider"
+files = [{"copy" = {"from" = "${fixture}/class-provider", "to" = "${work}/sources/class-provider"}}, {"write" = {"path" = "${work}/sources/class-provider/src/main.scoop", "data" = "${read_provider.bytes}${read_conformance-provider.bytes}"}}]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", "${work}/sources/class-provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/class-provider/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "remove_provider_source"
+files = [{"remove" = {"path" = "${work}/sources/class-provider"}}]
+
+[[steps]]
+name = "prepare_classes-conformance-property-readonly"
+files = [{"copy" = {"from" = "${fixture}/classes-conformance-property-readonly", "to" = "${work}/sources/classes-conformance-property-readonly"}}, {"copy" = {"from" = "${fixture}/../../m23-imported-classes/conformance-property-readonly.scoop", "to" = "${work}/sources/classes-conformance-property-readonly/src/main.scoop"}}]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", "${work}/sources/classes-conformance-property-readonly", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/classes-conformance-property-readonly/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${consumer.result.observations.child_invocations.length}", "equals" = 1}, {"file" = "${work}/dump/${consumer.result.root.identity}/ast.txt", "snapshot" = "ast.txt"}, {"file" = "${work}/dump/${consumer.result.root.identity}/hir.txt", "snapshot" = "hir.txt"}, {"file" = "${work}/dump/${consumer.result.root.identity}/mir.txt", "snapshot" = "mir.txt"}, {"file" = "${work}/dump/${consumer.result.root.identity}/lir.txt", "snapshot" = "lir.txt"}]
+
+[[steps]]
+name = "remove_consumer_source"
+files = [{"remove" = {"path" = "${work}/sources/classes-conformance-property-readonly"}}]
+
+[[steps]]
+name = "prepare_class-downstream-conformance-property-readonly"
+files = [{"copy" = {"from" = "${fixture}/class-downstream-conformance-property-readonly", "to" = "${work}/sources/class-downstream-conformance-property-readonly"}}, {"copy" = {"from" = "${fixture}/../../m23-imported-classes/downstream.scoop", "to" = "${work}/sources/class-downstream-conformance-property-readonly/src/main.scoop"}}]
+
+[[steps]]
+name = "downstream"
+argv = ["${scoop}", "build", "${work}/sources/class-downstream-conformance-property-readonly", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-downstream", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/class-downstream-conformance-property-readonly/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "remove_downstream_source"
+files = [{"remove" = {"path" = "${work}/sources/class-downstream-conformance-property-readonly"}}]
+
+[[steps]]
+name = "read_main"
+await_file = "${fixture}/../support/main.scoop"
+
+[[steps]]
+name = "prepare_runtime-fixture"
+files = [{"copy" = {"from" = "${fixture}/runtime-fixture", "to" = "${work}/sources/runtime-fixture"}}, {"write" = {"path" = "${work}/sources/runtime-fixture/src/main.scoop", "data" = "${read_main.bytes}"}}]
+
+[[steps]]
+name = "prepare_native"
+files = [{"mkdir" = {"path" = "${work}/native"}}, {"copy" = {"from" = "${fixture}/../support/gc.c", "to" = "${work}/sources/gc.c"}}]
+
+[[steps]]
+name = "compile_gc"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-I", "${runtime}/include", "-c", "${work}/sources/gc.c", "-o", "${work}/native/gc.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive_gc"
+argv = ["${ar}", "qcS", "${work}/native/libm23_class_gc.a", "${work}/native/gc.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"ZERO_AR_DATE" = "1"}
+
+[[steps]]
+name = "program"
+argv = ["${scoop}", "build", "${work}/sources/runtime-fixture", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/built-program", "--runtime-root", "${runtime}", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "isolate"
+files = [{"copy" = {"from" = "${program.result.root.path}", "to" = "${work}/artifacts/root.slib"}}, {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}}, {"remove" = {"path" = "${work}/sources"}}]
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--cone-path", "${work}/artifacts", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--library-path", "${work}/native", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"}, {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan", "normalize" = ["paths"]}, {"actual" = "${link.result.link_plan}", "contains" = "images=5 "}]
+
+[[steps]]
+name = "run"
+argv = ["${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "run_moving"
+argv = ["${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}

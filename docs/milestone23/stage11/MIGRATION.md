@@ -235,6 +235,8 @@ fixture 的 `truncate(path,size)` 只缩短现有文件；对应归档的初始�
 
 默认参数的 `conformance-parameter-zst` 和 `conformance-parameter-abi` 使用空 struct `LocalDefaults`。当前管线补齐其默认值相等函数：MIR 为两个同型参数返回 `true`，LIR 为两个 elided-ZST 参数返回 `i1`。逐字对照确认四份差异仅为该函数及后续 local function 引用序号的一致调整；原 ABI、声明身份、其余函数正文和运行结果保持。新 golden 保留新增函数。
 
+本地实现依赖接口的 `conformance-struct`、`conformance-enum`、`conformance-default` 和 `conformance-property-readonly` 同样补齐默认相等函数，分别比较 struct 的 Long 字段、无 payload enum 的标签或两个空 struct。八份 MIR/LIR 的新增内容共五个 `equals`；按函数身份还原序号后，原函数正文逐字相同。另十六份阶段输出保持不变，完整新 golden 保留这些函数，八个用例均通过普通与 moving GC 运行。
+
 以下批次均已关闭更新开关、清除旧快照环境和 `RUST_MIN_STACK`，经统一入口只读通过。每批负例的原字节区间、表达式和信息逐项核对后保存完整 canonical JSON，并确认没有发布 consumer 产物；原测试注册和相应旧期望同步删除。
 
 | 原 Rust 入口 | 正例／负例 | 进程／golden 比较 | 旧阶段对照 |
@@ -254,8 +256,9 @@ fixture 的 `truncate(path,size)` 只缩短现有文件；对应归档的初始�
 | `dependency_companions_compile_through_actual_artifacts` | 15／8 | 197／75 | 45 份旧阶段逐字相同；8 份诊断相同 |
 | `inherited_dependency_parameters_preserve_defaults_through_actual_artifacts` | 8／0 | 88／40 | 20 份旧阶段逐字相同；4 份补齐 ZST 默认 equals 及一致的函数序号调整 |
 | `inherited_dependency_parameters_report_source_errors` | 0／4 | 16／0 | 4 份诊断相同 |
+| `local_types_implement_dependency_interfaces_through_actual_artifacts` | 8／0 | 88／40 | 16 份旧阶段逐字相同；8 份补齐默认 equals 及一致的函数序号调整 |
 
-本节目前覆盖 140 项；其余类、接口及继承用例继续逐功能迁移。共享的旧 runtime helper 仍被其他待迁测试调用，随那些调用一起退役。
+本节目前覆盖 148 项；其余类、接口及继承用例继续逐功能迁移。共享的旧 runtime helper 仍被其他待迁测试调用，随那些调用一起退役。
 
 ## 12. 后续批次
 

@@ -1,24 +1,6 @@
 use super::*;
 
 #[test]
-fn local_types_implement_dependency_interfaces_through_actual_artifacts() {
-    check_class_cases(
-        "direct",
-        &[
-            "conformance-class",
-            "conformance-struct",
-            "conformance-enum",
-            "conformance-default",
-            "conformance-property",
-            "conformance-property-readonly",
-            "conformance-abi",
-            "conformance-conflict-resolved",
-        ],
-        &[],
-    );
-}
-
-#[test]
 fn local_types_implement_dependency_interfaces_report_source_errors() {
     check_class_cases(
         "direct",
