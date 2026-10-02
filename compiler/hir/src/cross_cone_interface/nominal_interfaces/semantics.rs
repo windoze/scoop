@@ -6,6 +6,7 @@ use crate::{
     PublicNominalKindV1, SourceNominalId,
 };
 
+mod dispatch;
 mod errors;
 
 pub use errors::{ExactSupertypeSemanticError, NominalInterfaceSemanticValidationError};
@@ -53,6 +54,7 @@ impl NominalInterfaceRecordV1 {
             .validate_bound_semantics(None, authority)
             .map_err(NominalInterfaceSemanticValidationError::TypeParameters)?;
         self.validate_exact_supertypes(authority)?;
+        self.validate_dispatch_applications(authority)?;
         self.validate_owned_entries(authority)?;
         self.source_shape
             .validate_semantics(

@@ -27,7 +27,7 @@ pub(super) fn check(replay: &Replay<'_>, name: &str) {
                 }
             };
             for (position, slot) in table.slots().iter().enumerate() {
-                let slot = record.slots().get(*slot).unwrap();
+                let slot = record.slots().get(table.role(), *slot).unwrap();
                 let target = match slot.implementation() {
                     hir::InheritanceSlotImplementationV1::Abstract(target) => {
                         format!("abstract {:?}", target.declaration())

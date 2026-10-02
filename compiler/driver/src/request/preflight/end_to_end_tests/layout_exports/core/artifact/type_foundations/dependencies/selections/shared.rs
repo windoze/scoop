@@ -40,7 +40,7 @@ pub(super) fn check(
         })
         .unwrap();
     let mut extended = records.to_vec();
-    extended.push(*extra);
+    extended.push(extra.clone());
     assert!(matches!(
         reject(checked, core, nominal, extended),
         Error::SlotSelectionInventory(_)
@@ -51,6 +51,8 @@ pub(super) fn check(
         .find(|record| !matches!(record.selection(), Selection::Abstract(_)))
         .unwrap();
     *target = NominalDispatchSelectionV1::new(
+        target.role().clone(),
+        target.receiver().clone(),
         target.slot(),
         Selection::Abstract(target.selection().declaration()),
     );

@@ -26,6 +26,8 @@ fn shared_nominals_preserve_actual_dispatch_choices_for_all_concrete_owner_kinds
             }
             let public = public_interface(output);
             let mut identities = super::super::super::source_inventory::identity_closure(output);
+            let foundation =
+                hir::CanonicalHirFoundation::from_type_semantics_output(output).unwrap();
             let mut count = 0;
             for nominal in public.nominal_interfaces().all_records() {
                 let scoop_identity::NominalDeclarationOwner::Concrete(id) = nominal.declaration()
@@ -54,17 +56,37 @@ fn shared_nominals_preserve_actual_dispatch_choices_for_all_concrete_owner_kinds
                                 Selection::InterfaceDefault(target.declaration())
                             }
                         };
-                        (record.slot(), selection)
+                        (record.key(), selection)
                     })
-                    .collect::<Vec<_>>();
-                assert_eq!(
+                    .collect::<BTreeMap<_, _>>();
+                let actual = {
+                    let metadata = hir::SharedTypeMetadataV1 {
+                        provider: output.output().export.cone,
+                        identities: &identities,
+                        foundation: &foundation,
+                        public: &public,
+                    };
                     choices
                         .records()
                         .iter()
-                        .map(|record| (record.slot(), record.selection()))
-                        .collect::<Vec<_>>(),
-                    expected
-                );
+                        .map(|record| {
+                            let role = match record.role() {
+                                hir::NominalDispatchSelectionRoleV1::ClassVtable => {
+                                    hir::InheritanceSlotSchemaRoleV1::ClassVtable
+                                }
+                                hir::NominalDispatchSelectionRoleV1::Interface { interface } => {
+                                    hir::InheritanceSlotSchemaRoleV1::Interface {
+                                        interface_exact: metadata
+                                            .signature_exact_type(interface)
+                                            .unwrap(),
+                                    }
+                                }
+                            };
+                            ((role, record.slot()), record.selection())
+                        })
+                        .collect::<BTreeMap<_, _>>()
+                };
+                assert_eq!(actual, expected);
                 count += expected.len();
                 let decoded: DecodedCanonicalNominalDispatchSelectionsV1 =
                     decode_canonical(&encode(choices).unwrap()).unwrap();

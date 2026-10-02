@@ -11,9 +11,9 @@ impl CanonicalInheritanceSlotContractsV1 {
     pub fn try_new(
         mut records: Vec<InheritanceSlotContractV1>,
     ) -> Result<Self, InheritanceSlotContractBuildError> {
-        records.sort_unstable_by_key(InheritanceSlotContractV1::slot);
+        records.sort_unstable_by_key(InheritanceSlotContractV1::key);
         for (index, pair) in records.windows(2).enumerate() {
-            if pair[0].slot() == pair[1].slot() {
+            if pair[0].key() == pair[1].key() {
                 return Err(InheritanceSlotContractBuildError::SlotOrder { index: index + 1 });
             }
         }
@@ -22,9 +22,13 @@ impl CanonicalInheritanceSlotContractsV1 {
     pub fn records(&self) -> &[InheritanceSlotContractV1] {
         &self.records
     }
-    pub fn get(&self, slot: PersistentDispatchSlotId) -> Option<&InheritanceSlotContractV1> {
+    pub fn get(
+        &self,
+        role: InheritanceSlotSchemaRoleV1,
+        slot: PersistentDispatchSlotId,
+    ) -> Option<&InheritanceSlotContractV1> {
         self.records
-            .binary_search_by_key(&slot, InheritanceSlotContractV1::slot)
+            .binary_search_by_key(&(role, slot), InheritanceSlotContractV1::key)
             .ok()
             .map(|index| &self.records[index])
     }
@@ -51,9 +55,7 @@ impl DecodedCanonicalInheritanceSlotContractsV1 {
             let record = decoded.resolve(resolver)?;
             if records
                 .last()
-                .is_some_and(|previous: &InheritanceSlotContractV1| {
-                    previous.slot() >= record.slot()
-                })
+                .is_some_and(|previous: &InheritanceSlotContractV1| previous.key() >= record.key())
             {
                 return Err(InheritanceSlotResolutionError::Contract(
                     InheritanceSlotContractBuildError::SlotOrder {

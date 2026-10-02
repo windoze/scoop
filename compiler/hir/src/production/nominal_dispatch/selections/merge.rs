@@ -2,17 +2,21 @@ use super::*;
 
 pub(super) fn insert(
     selections: &mut Selections,
+    role: SelectionRole,
+    receiver: scoop_identity::SignatureTypeKey,
     slot: PersistentDispatchSlotId,
     selection: Selection,
 ) -> Result<(), Error> {
-    if let Some(previous) = selections.get(&slot) {
+    let key = (role, slot);
+    let selection = (selection, receiver);
+    if let Some(previous) = selections.get(&key) {
         if *previous != selection {
             return Err(invalid(
                 "one source slot has conflicting implementation selections",
             ));
         }
     } else {
-        selections.insert(slot, selection);
+        selections.insert(key, selection);
     }
     Ok(())
 }
@@ -44,18 +48,31 @@ mod tests {
             .unwrap();
         let callable = InheritanceCallableDeclarationV1::Function(function);
         let mut selections = Selections::new();
+        let receiver = SignatureTypeKey::Nominal(CoreBuiltinNominal::Any.identity_record().id());
 
         for _ in 0..2 {
-            insert(&mut selections, slot, Selection::Concrete(callable)).unwrap();
+            insert(
+                &mut selections,
+                SelectionRole::ClassVtable,
+                receiver.clone(),
+                slot,
+                Selection::Concrete(callable),
+            )
+            .unwrap();
         }
         assert_eq!(selections.len(), 1);
         for conflicting in [
             Selection::Abstract(callable),
             Selection::InterfaceDefault(callable),
         ] {
-            assert!(matches!(insert(&mut selections, slot, conflicting),
-                Err(Error::InvalidSourceDeclaration(reason)) if reason.contains("conflicting implementation selections")));
-            assert_eq!(selections[&slot], Selection::Concrete(callable));
+            assert!(
+                matches!(insert(&mut selections, SelectionRole::ClassVtable, receiver.clone(), slot, conflicting),
+                Err(Error::InvalidSourceDeclaration(reason)) if reason.contains("conflicting implementation selections"))
+            );
+            assert_eq!(
+                selections[&(SelectionRole::ClassVtable, slot)].0,
+                Selection::Concrete(callable)
+            );
         }
     }
 }

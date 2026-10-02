@@ -41,6 +41,10 @@ fn inherited_defaults_close_foreign_targets_without_source_lookup_witnesses() {
 
     let choices =
         CanonicalNominalDispatchSelectionsV1::try_new(vec![NominalDispatchSelectionV1::new(
+            NominalDispatchSelectionRoleV1::Interface {
+                interface: SignatureTypeKey::Nominal(interface),
+            },
+            SignatureTypeKey::Nominal(interface),
             slot,
             InheritanceSourceSlotSelectionV1::InterfaceDefault(
                 InheritanceCallableDeclarationV1::Function(function),

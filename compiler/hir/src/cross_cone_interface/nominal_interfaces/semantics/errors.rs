@@ -19,6 +19,15 @@ pub enum ExactSupertypeSemanticError<E> {
 #[derive(Debug)]
 pub enum NominalInterfaceSemanticValidationError<E> {
     Declaration(E),
+    ClassDispatchRole(PublicNominalKindV1),
+    DispatchReceiver {
+        index: usize,
+        error: NominalSignatureSemanticError<E>,
+    },
+    DispatchApplication {
+        index: usize,
+        error: ExactSupertypeSemanticError<E>,
+    },
     DeclarationKind {
         expected: PublicNominalKindV1,
         actual: SourceDeclarationKind,
@@ -92,6 +101,17 @@ impl<E: fmt::Display> fmt::Display for NominalInterfaceSemanticValidationError<E
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Declaration(error) => write!(formatter, "invalid nominal declaration: {error}"),
+            Self::DispatchReceiver { index, error } => {
+                write!(formatter, "invalid dispatch receiver {index}: {error}")
+            }
+            Self::ClassDispatchRole(kind) => write!(
+                formatter,
+                "{kind:?} cannot declare a class vtable selection"
+            ),
+            Self::DispatchApplication { index, error } => write!(
+                formatter,
+                "invalid dispatch interface application {index}: {error}"
+            ),
             Self::DeclarationKind { expected, actual } => write!(
                 formatter,
                 "nominal declaration kind {actual:?} does not match {expected:?}"

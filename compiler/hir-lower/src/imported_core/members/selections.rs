@@ -59,10 +59,9 @@ impl Lowerer {
             }
             _ => return,
         };
-        let selections = declaration
-            .interface
-            .declaration_details()
-            .dispatch_selections();
+        let selections = self
+            .imported_interface_dispatch_selections(ty, &declaration)
+            .expect("dependency interface selections retain their complete applications");
         let mut seen = BTreeSet::new();
         while let Some(owner) = pending.pop() {
             if !seen.insert(owner) {
@@ -79,9 +78,7 @@ impl Lowerer {
             for method in &interface.methods {
                 let slot = method.slot.id();
                 let target = selections
-                    .records()
-                    .iter()
-                    .find(|selection| selection.slot() == slot)
+                    .get(&(owner, slot))
                     .expect("the declaration retains its selected interface source")
                     .callable_target();
                 selected.entry((owner, slot)).or_insert(target);

@@ -33,18 +33,16 @@ impl InheritanceSlotSourceSemanticAuthority<Error> for Replay<'_, '_, '_> {
     fn inheritance_slot_selection(
         &self,
         owner: PersistentExactTypeId,
+        role: crate::InheritanceSlotSchemaRoleV1,
         slot: PersistentDispatchSlotId,
     ) -> Result<Selection, Error> {
-        let selections = self
-            .schemas
+        self.schemas
             .selections
             .get(&owner)
             .ok_or(Error::SlotSelectionInventory(owner))?
-            .records();
-        let index = selections
-            .binary_search_by_key(&slot, |record| record.slot())
-            .map_err(|_| selection_error(owner, slot))?;
-        Ok(selections[index].selection())
+            .get(&(role, slot))
+            .map(|choice| choice.selection)
+            .ok_or_else(|| selection_error(owner, slot))
     }
 }
 

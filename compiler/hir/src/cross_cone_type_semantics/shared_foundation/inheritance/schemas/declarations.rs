@@ -77,10 +77,33 @@ fn insert<'a>(
 ) -> Result<(), Error> {
     let order = declaration.declaration_details().dispatch_order();
     context.orders.insert(owner, order);
-    context.selections.insert(
-        owner,
-        declaration.declaration_details().dispatch_selections(),
-    );
+    let mut selections = BTreeMap::new();
+    for selection in declaration
+        .declaration_details()
+        .dispatch_selections()
+        .records()
+    {
+        let role = match selection.role() {
+            crate::NominalDispatchSelectionRoleV1::ClassVtable => {
+                crate::InheritanceSlotSchemaRoleV1::ClassVtable
+            }
+            crate::NominalDispatchSelectionRoleV1::Interface { interface } => {
+                crate::InheritanceSlotSchemaRoleV1::Interface {
+                    interface_exact: types.exact_with_bindings(interface, bindings)?,
+                }
+            }
+        };
+        let choice = AppliedDispatchSelection {
+            selection: selection.selection(),
+            receiver: types.exact_with_bindings(selection.receiver(), bindings)?,
+        };
+        if let Some(previous) = selections.insert((role, selection.slot()), choice)
+            && previous != choice
+        {
+            return Err(Error::SlotSelectionInventory(owner));
+        }
+    }
+    context.selections.insert(owner, selections);
     for slot in order.declared_slots() {
         keys::collect(context, types.current, slot)?;
     }

@@ -1,43 +1,49 @@
 Choice
-  Root.$get$value -> default Root.$get$value
-  Root.evaluate -> concrete Choice.evaluate
+  interface Root Root.$get$value -> default Root.$get$value
+  interface Root Root.evaluate -> concrete Choice.evaluate
 Complete
-  Obligation.evaluate -> concrete Complete.evaluate
-  Refined.evaluate -> concrete Complete.evaluate
-  Root.$get$value -> default Root.$get$value
-  Root.evaluate -> concrete Complete.evaluate
+  interface Obligation Obligation.evaluate -> concrete Complete.evaluate
+  interface Obligation Root.$get$value -> default Root.$get$value
+  interface Refined Refined.evaluate -> concrete Complete.evaluate
+  interface Refined Root.$get$value -> default Root.$get$value
+  interface Root Root.$get$value -> default Root.$get$value
+  interface Root Root.evaluate -> concrete Complete.evaluate
 Final
-  Virtual.compute -> concrete Final.compute
+  vtable Virtual.compute -> concrete Final.compute
 Obligation
-  Obligation.evaluate -> abstract Obligation.evaluate
-  Root.$get$value -> default Root.$get$value
+  interface Obligation Obligation.evaluate -> abstract Obligation.evaluate
+  interface Obligation Root.$get$value -> default Root.$get$value
 Pending
-  Obligation.evaluate -> abstract Obligation.evaluate
-  Refined.evaluate -> abstract Obligation.evaluate
-  Root.$get$value -> default Root.$get$value
-  Root.evaluate -> abstract Obligation.evaluate
+  interface Obligation Obligation.evaluate -> abstract Obligation.evaluate
+  interface Obligation Root.$get$value -> default Root.$get$value
+  interface Refined Refined.evaluate -> abstract Obligation.evaluate
+  interface Refined Root.$get$value -> default Root.$get$value
+  interface Root Root.$get$value -> default Root.$get$value
+  interface Root Root.evaluate -> abstract Obligation.evaluate
 Reabstract
-  Virtual.compute -> abstract Reabstract.compute
+  vtable Virtual.compute -> abstract Reabstract.compute
 Refined
-  Refined.evaluate -> default Refined.evaluate
-  Root.$get$value -> default Root.$get$value
+  interface Refined Refined.evaluate -> default Refined.evaluate
+  interface Refined Root.$get$value -> default Root.$get$value
 Root
-  Root.$get$value -> default Root.$get$value
-  Root.evaluate -> default Root.evaluate
+  interface Root Root.$get$value -> default Root.$get$value
+  interface Root Root.evaluate -> default Root.evaluate
 Singleton
-  Refined.evaluate -> concrete Winner.evaluate
-  Root.$get$value -> concrete Winner.$get$value
-  Root.evaluate -> concrete Winner.evaluate
-  Winner.$get$value -> concrete Winner.$get$value
-  Winner.evaluate -> concrete Winner.evaluate
+  interface Refined Refined.evaluate -> concrete Winner.evaluate
+  interface Refined Root.$get$value -> concrete Winner.$get$value
+  interface Root Root.$get$value -> concrete Winner.$get$value
+  interface Root Root.evaluate -> concrete Winner.evaluate
+  vtable Winner.$get$value -> concrete Winner.$get$value
+  vtable Winner.evaluate -> concrete Winner.evaluate
 Value
-  Root.$get$value -> default Root.$get$value
-  Root.evaluate -> concrete Value.evaluate
+  interface Root Root.$get$value -> default Root.$get$value
+  interface Root Root.evaluate -> concrete Value.evaluate
 Virtual
-  Virtual.compute -> concrete Virtual.compute
+  vtable Virtual.compute -> concrete Virtual.compute
 Winner
-  Refined.evaluate -> concrete Winner.evaluate
-  Root.$get$value -> concrete Winner.$get$value
-  Root.evaluate -> concrete Winner.evaluate
-  Winner.$get$value -> concrete Winner.$get$value
-  Winner.evaluate -> concrete Winner.evaluate
+  interface Refined Refined.evaluate -> concrete Winner.evaluate
+  interface Refined Root.$get$value -> concrete Winner.$get$value
+  interface Root Root.$get$value -> concrete Winner.$get$value
+  interface Root Root.evaluate -> concrete Winner.evaluate
+  vtable Winner.$get$value -> concrete Winner.$get$value
+  vtable Winner.evaluate -> concrete Winner.evaluate

@@ -46,6 +46,38 @@ where
                 &path.clone().field(4).index(signature_index),
             )?;
         }
+        for (selection_index, selection) in record
+            .declaration_details()
+            .dispatch_selections()
+            .records()
+            .iter()
+            .enumerate()
+        {
+            observe(
+                accumulator,
+                selection.receiver(),
+                &path
+                    .clone()
+                    .field(9)
+                    .field(7)
+                    .index(selection_index as u64)
+                    .field(3),
+            )?;
+            if let crate::NominalDispatchSelectionRoleV1::Interface { interface } = selection.role()
+            {
+                observe(
+                    accumulator,
+                    interface,
+                    &path
+                        .clone()
+                        .field(9)
+                        .field(7)
+                        .index(selection_index as u64)
+                        .field(0)
+                        .field(1),
+                )?;
+            }
+        }
         for (field_index, field) in (0_u64..).zip(record.source_shape().declared_fields()) {
             observe(
                 accumulator,

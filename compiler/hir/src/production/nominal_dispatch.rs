@@ -13,7 +13,11 @@ mod selections;
 mod targets;
 
 type Selection = InheritanceSourceSlotSelectionV1;
-type Selections = BTreeMap<PersistentDispatchSlotId, Selection>;
+type SelectionRole = NominalDispatchSelectionRoleV1;
+type Selections = BTreeMap<
+    (SelectionRole, PersistentDispatchSlotId),
+    (Selection, scoop_identity::SignatureTypeKey),
+>;
 
 pub(super) fn project(
     export: &ExportHir,
@@ -21,10 +25,10 @@ pub(super) fn project(
 ) -> Result<CanonicalNominalDispatchSelectionsV1, Error> {
     let mut projection = Projection::new(export);
     let mut records = Vec::new();
-    for (slot, selection) in projection.selections(owner)? {
+    for ((role, slot), (selection, receiver)) in projection.selections(owner)? {
         projection.push(
             &mut records,
-            NominalDispatchSelectionV1::new(slot, selection),
+            NominalDispatchSelectionV1::new(role, receiver, slot, selection),
         )?;
     }
     CanonicalNominalDispatchSelectionsV1::try_new(records).map_err(|error| match error {
@@ -35,11 +39,26 @@ pub(super) fn project(
 
 pub(super) struct Projection<'a> {
     export: &'a ExportHir,
+    binders: Vec<HirSignatureBinder>,
 }
 
 impl<'a> Projection<'a> {
     pub(super) fn new(export: &'a ExportHir) -> Self {
-        Self { export }
+        Self {
+            export,
+            binders: Vec::new(),
+        }
+    }
+
+    fn interface_role(&self, ty: TypeId) -> Result<SelectionRole, Error> {
+        let interface = self.type_key(ty)?;
+        Ok(SelectionRole::Interface { interface })
+    }
+
+    fn type_key(&self, ty: TypeId) -> Result<scoop_identity::SignatureTypeKey, Error> {
+        super::signatures::HirInterfaceSignatureProjector::new(self.export)
+            .map_type(ty, &self.binders)
+            .map_err(invalid)
     }
 
     fn push<T>(&mut self, values: &mut Vec<T>, value: T) -> Result<(), Error> {

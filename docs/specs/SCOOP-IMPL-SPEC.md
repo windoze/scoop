@@ -1,6 +1,8 @@
 # Scoop 实现大纲
 
-共有名义声明保存 `@NoGC` 值类型契约及在原形参域内推导的 GC-free 指针条件，当前格式为 `hir/cross-cone-interface/43`。仅在签名、别名、父类型或嵌套 application 中使用依赖类型，也须满足同一契约；泛型替换继续传播尚未闭合的条件。旧 `/42` 及更早产物与缓存重建；完整字面量来源、默认值规则、runtime C ABI、对象布局和 GC 契约保持。详见实现规范 §2.2。
+当前 HIR 格式为 `cross-cone-interface/44` 与 `cross-cone-type-semantics/12`：dispatch selection 和继承合同按完整 table role 与原 slot 区分接口应用，旧产物与缓存需重建。runtime ABI 保持不变，详见 §2.13 中的跨 Cone 派发规则。
+
+共有名义声明保存 `@NoGC` 值类型契约及在原形参域内推导的 GC-free 指针条件，该字段自 `hir/cross-cone-interface/43` 起启用。仅在签名、别名、父类型或嵌套 application 中使用依赖类型，也须满足同一契约；泛型替换继续传播尚未闭合的条件。旧 `/42` 及更早产物与缓存重建；完整字面量来源、默认值规则、runtime C ABI、对象布局和 GC 契约保持。详见实现规范 §2.2。
 
 `for` 在 Export HIR 前展开为普通调用、接口适配、Option 操作和循环，共有 HIR 撤销专用 For 与 portable binding-plan 编码，statement tag 9 退役且不复用，该变更自 `hir/cross-cone-interface/40` 起启用。迭代协议、求值顺序、ABI 与 GC 规则保持，由实际类型与 callable 记录表达。
 
@@ -1349,7 +1351,9 @@ HIR 根据实际调用、构造、成员、类型操作和委托访问建立实�
 
 普通宿主的封闭泛型父类型沿同一声明查询取得父边、槽顺序和已经选定的实现，查询以完整 receiver application 替换原宿主 binder。继承图按完整 exact type 区分节点；同一泛型声明的不同实参不合并，泛型父节点来自已有声明的实际应用，不补造参数自由源码身份。槽根与目标的签名各自保存完整 receiver，直接由该 receiver 取得声明宿主及实参；`InheritanceSlotContractV1` 与 `InheritanceSlotTargetV1` 的重复 owner field 2 退役且不复用，其他字段保持编号。对应 HIR `cross-cone-type-semantics` 升至 `/11`，required inventory、profile 与 fingerprint 同步，旧产物和缓存重建。MIR 的普通宿主与泛型 application 共用实际派发表和 Strong/ODR 目标关联，继承的泛型方法保持原 callable application，不改造成普通 Strong 定义。该调整不改变语言继承规则或 runtime ABI。
 
-成员候选收集复用完整接收者应用已经确定的接口槽实现。当该实现的原 callable 已作为可见成员进入同一候选层时，接口槽的声明入口不再重复成为另一个重载候选；对应关系按完整接口 application 与原 slot 区分，不能通过未替换 binder 的原始参数／返回签名猜测覆盖。接口默认实现仍沿原选择保留，不同 application 和不同声明的真实歧义继续按语言规则诊断。该查询只使用已有声明及派发选择，不增加持久字段或再次执行 override 检查。
+成员候选收集复用完整接收者应用已经确定的接口槽实现。当该实现的原 callable 已作为可见成员进入同一候选层时，接口槽的声明入口不再重复成为另一个重载候选；对应关系按完整接口 application 与原 slot 区分，不能通过未替换 binder 的原始参数／返回签名猜测覆盖。接口默认实现仍沿原选择保留，不同 application 和不同声明的真实歧义继续按语言规则诊断。该查询只使用已有声明及派发选择，不再次执行 override 检查。
+
+共有 nominal 的 dispatch selection 同样按 `(table role, source slot)` 保存：class vtable 使用独立角色，interface table 的角色携带完整 `SignatureTypeKey` application，并使用当前 nominal 的 binder。具体继承合同复用 `InheritanceSlotSchemaRoleV1`，按 `(table role, source slot)` 排序、查询和检查闭包；同一原接口槽在 `I<Int>` 与 `I<String>` 中可以有不同签名与实现。同一 table 内的重复路径仍必须选择相同实现。槽声明的 receiver 从该 table 的精确接口 application 沿继承链取得；dispatch selection 另保存前端已经选定的完整 receiver application，接口默认实现沿实际 method application，普通 class/struct 实现沿当前宿主，再由该 receiver 定位原 callable owner。祖先 table 可以选择后代接口的默认实现；不能从宿主所有接口中任取同模板的第一个 application。producer、reader 与导入调用直接复用这些已确定关系。此字段变更将 HIR `cross-cone-interface` 升至 `/44`、`cross-cone-type-semantics` 升至 `/12`，旧产物需重建；原 dispatch slot identity、MIR/LIR 派发表和 runtime ABI 不变。
 
 `hir/cross-cone-interface/34` 为字段 type site 增加必需的所属类型 exact identity。tag 6=FieldStorage 与 tag 7=EnumVariantFieldStorage 使用四字段 product：field 0 为 tag，field 1 为原 typed field ID，field 2 为实际字段 exact type，field 3 为所属名义类型 exact type。位置键为所属 exact type 与原 field ID，同一模板的不同 application 不再互相冲突；同一位置仍只能有一个字段类型。原字段必须属于该 exact nominal 的原声明；object 使用源对象的 exact type，字段则属于由该对象派生的 `ObjectBackingClass`。泛型 application 可引用可达 provider 的原字段定义位置。消费方物化的外来泛型表示同样记录自己的字段用途，普通外来 Strong 表示仍由 provider 记录。reader 检查这些 typed 引用与 owner 关系，不重跑字段类型推断。旧 `/33` 字段位置缺少实例信息，需要重建产物和缓存。
 

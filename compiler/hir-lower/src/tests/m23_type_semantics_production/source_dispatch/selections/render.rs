@@ -6,10 +6,15 @@ pub(super) fn render(
 ) -> String {
     let (callables, slots) = labels(output);
     let mut result = String::new();
-    for (name, owner) in super::super::support::owners(output) {
+    let owners = super::super::support::owners(output);
+    let owner_names = owners
+        .iter()
+        .map(|(name, owner)| (*owner, name))
+        .collect::<BTreeMap<_, _>>();
+    for (name, owner) in &owners {
         result.push_str(&format!("{name}\n"));
         let mut lines = table
-            .get(owner)
+            .get(*owner)
             .unwrap()
             .slots()
             .records()
@@ -26,7 +31,13 @@ pub(super) fn render(
                         format!("default {}", callables[&callable.declaration()])
                     }
                 };
-                format!("  {} -> {selection}\n", slots[&record.slot()])
+                let role = match record.role() {
+                    hir::InheritanceSlotSchemaRoleV1::ClassVtable => "vtable".to_owned(),
+                    hir::InheritanceSlotSchemaRoleV1::Interface { interface_exact } => {
+                        format!("interface {}", owner_names[&interface_exact])
+                    }
+                };
+                format!("  {role} {} -> {selection}\n", slots[&record.slot()])
             })
             .collect::<Vec<_>>();
         lines.sort();

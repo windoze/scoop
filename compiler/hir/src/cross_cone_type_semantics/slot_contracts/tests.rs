@@ -73,6 +73,7 @@ fn override_preserves_effect_contract_but_can_change_body_implementation_categor
     .unwrap();
     assert!(matches!(
         InheritanceSlotContractV1::try_new(
+            InheritanceSlotSchemaRoleV1::ClassVtable,
             slot,
             fixture.declaration(slot),
             root,

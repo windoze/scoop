@@ -51,7 +51,7 @@ impl CheckedNominalInheritanceGraphV1<'_> {
 
         if actual_selection
             != authority
-                .inheritance_slot_selection(owner, slot.slot())
+                .inheritance_slot_selection(owner, slot.role(), slot.slot())
                 .map_err(Error::Foundation)?
         {
             return Err(Error::SlotSelection);

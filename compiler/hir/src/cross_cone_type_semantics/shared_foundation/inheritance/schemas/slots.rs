@@ -35,21 +35,26 @@ pub(super) fn validate<'a>(
                 .ok_or(Error::SlotSelectionInventory(nominal.owner()))?;
             let slots = nominal.slots().records();
 
-            if choices.records().len() != slots.len()
+            if choices.len() != slots.len()
                 || !choices
-                    .records()
-                    .iter()
-                    .map(|choice| choice.slot())
-                    .eq(slots.iter().map(|slot| slot.slot()))
+                    .keys()
+                    .copied()
+                    .eq(slots.iter().map(|slot| slot.key()))
             {
                 return Err(Error::SlotSelectionInventory(nominal.owner()));
             }
             for slot in slots {
+                let interface_root = match slot.role() {
+                    crate::InheritanceSlotSchemaRoleV1::ClassVtable => nominal.owner(),
+                    crate::InheritanceSlotSchemaRoleV1::Interface { interface_exact } => {
+                        interface_exact
+                    }
+                };
                 signatures::project(
                     &mut data,
                     provider.metadata,
                     &metadata_dependencies,
-                    nominal.owner(),
+                    interface_root,
                     slot.declaration(),
                     slot.signature().receiver(),
                 )?;
@@ -58,7 +63,7 @@ pub(super) fn validate<'a>(
                     &mut data,
                     provider.metadata,
                     &metadata_dependencies,
-                    nominal.owner(),
+                    choices[&slot.key()].receiver,
                     target.declaration(),
                     target.signature().receiver(),
                 )?;

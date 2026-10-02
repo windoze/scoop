@@ -1,0 +1,6 @@
+schema = 1
+[cone]
+group = "dev.dispatch"
+name = "provider"
+version = "0.1.0"
+kind = "library"

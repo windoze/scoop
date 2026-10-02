@@ -18,7 +18,7 @@ pub enum DecodedInheritanceSlotSchemaRoleV1 {
     },
 }
 impl DecodedInheritanceSlotSchemaRoleV1 {
-    fn resolve<R: PersistentIdResolver<PersistentExactTypeId>>(
+    pub fn resolve<R: PersistentIdResolver<PersistentExactTypeId>>(
         self,
         resolver: &mut R,
     ) -> Result<InheritanceSlotSchemaRoleV1, R::Error> {

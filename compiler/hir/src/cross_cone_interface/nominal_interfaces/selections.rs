@@ -6,22 +6,46 @@ use scoop_wire::{Encoder, WireEncode};
 use crate::InheritanceSourceSlotSelectionV1;
 
 mod decode;
+mod role;
 pub use decode::{
     DecodedCanonicalNominalDispatchSelectionsV1, NominalDispatchSelectionResolutionError,
 };
+pub use role::NominalDispatchSelectionRoleV1;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NominalDispatchSelectionV1 {
+    role: NominalDispatchSelectionRoleV1,
+    receiver: scoop_identity::SignatureTypeKey,
     slot: PersistentDispatchSlotId,
     selection: InheritanceSourceSlotSelectionV1,
 }
 
 impl NominalDispatchSelectionV1 {
     pub const fn new(
+        role: NominalDispatchSelectionRoleV1,
+        receiver: scoop_identity::SignatureTypeKey,
         slot: PersistentDispatchSlotId,
         selection: InheritanceSourceSlotSelectionV1,
     ) -> Self {
-        Self { slot, selection }
+        Self {
+            role,
+            receiver,
+            slot,
+            selection,
+        }
+    }
+
+    pub const fn role(&self) -> &NominalDispatchSelectionRoleV1 {
+        &self.role
+    }
+
+    /// The already selected receiver application, in the nominal's binder scope.
+    pub const fn receiver(&self) -> &scoop_identity::SignatureTypeKey {
+        &self.receiver
+    }
+
+    pub fn key(&self) -> (&NominalDispatchSelectionRoleV1, PersistentDispatchSlotId) {
+        (&self.role, self.slot)
     }
 
     pub const fn slot(&self) -> PersistentDispatchSlotId {
@@ -45,11 +69,15 @@ impl NominalDispatchSelectionV1 {
 
 impl WireEncode for NominalDispatchSelectionV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(2)?;
+        encoder.map(4)?;
+        encoder.field(0)?;
+        self.role.encode(encoder)?;
         encoder.field(1)?;
         self.slot.encode(encoder)?;
         encoder.field(2)?;
-        self.selection.encode(encoder)
+        self.selection.encode(encoder)?;
+        encoder.field(3)?;
+        self.receiver.encode(encoder)
     }
 }
 
@@ -68,7 +96,7 @@ impl CanonicalNominalDispatchSelectionsV1 {
     pub fn try_new(
         mut records: Vec<NominalDispatchSelectionV1>,
     ) -> Result<Self, NominalDispatchSelectionError> {
-        records.sort_unstable_by_key(NominalDispatchSelectionV1::slot);
+        records.sort_unstable_by(|a, b| a.key().cmp(&b.key()));
         Self::from_ordered(records)
     }
 
@@ -76,7 +104,7 @@ impl CanonicalNominalDispatchSelectionsV1 {
         records: Vec<NominalDispatchSelectionV1>,
     ) -> Result<Self, NominalDispatchSelectionError> {
         for (index, pair) in records.windows(2).enumerate() {
-            match pair[0].slot.cmp(&pair[1].slot) {
+            match pair[0].key().cmp(&pair[1].key()) {
                 std::cmp::Ordering::Equal => {
                     return Err(NominalDispatchSelectionError::Duplicate(pair[1].slot));
                 }
@@ -93,6 +121,17 @@ impl CanonicalNominalDispatchSelectionsV1 {
 
     pub fn records(&self) -> &[NominalDispatchSelectionV1] {
         &self.records
+    }
+
+    pub fn get(
+        &self,
+        role: &NominalDispatchSelectionRoleV1,
+        slot: PersistentDispatchSlotId,
+    ) -> Option<&NominalDispatchSelectionV1> {
+        self.records
+            .binary_search_by(|record| record.key().cmp(&(role, slot)))
+            .ok()
+            .map(|index| &self.records[index])
     }
 }
 

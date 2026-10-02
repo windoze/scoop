@@ -3,11 +3,13 @@
 use scoop_identity::{PersistentDispatchSlotId, PersistentExactTypeId};
 
 use super::*;
-use crate::InheritanceSourceSlotSelectionV1;
+use crate::{InheritanceSlotSchemaRoleV1, InheritanceSourceSlotSelectionV1};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct InheritanceSourceSlotSelectionRecordV1 {
     owner: PersistentExactTypeId,
+    role: InheritanceSlotSchemaRoleV1,
+    receiver: PersistentExactTypeId,
     slot: PersistentDispatchSlotId,
     selection: InheritanceSourceSlotSelectionV1,
 }
@@ -15,11 +17,15 @@ pub struct InheritanceSourceSlotSelectionRecordV1 {
 impl InheritanceSourceSlotSelectionRecordV1 {
     pub const fn new(
         owner: PersistentExactTypeId,
+        role: InheritanceSlotSchemaRoleV1,
+        receiver: PersistentExactTypeId,
         slot: PersistentDispatchSlotId,
         selection: InheritanceSourceSlotSelectionV1,
     ) -> Self {
         Self {
             owner,
+            role,
+            receiver,
             slot,
             selection,
         }
@@ -31,12 +37,21 @@ impl InheritanceSourceSlotSelectionRecordV1 {
     pub const fn slot(self) -> PersistentDispatchSlotId {
         self.slot
     }
+    pub const fn receiver(self) -> PersistentExactTypeId {
+        self.receiver
+    }
     pub const fn selection(self) -> InheritanceSourceSlotSelectionV1 {
         self.selection
     }
 
-    fn key(&self) -> (PersistentExactTypeId, PersistentDispatchSlotId) {
-        (self.owner, self.slot)
+    fn key(
+        &self,
+    ) -> (
+        PersistentExactTypeId,
+        InheritanceSlotSchemaRoleV1,
+        PersistentDispatchSlotId,
+    ) {
+        (self.owner, self.role, self.slot)
     }
 }
 
@@ -71,11 +86,15 @@ impl CanonicalInheritanceSourceSlotSelectionsV1 {
     pub fn get(
         &self,
         owner: PersistentExactTypeId,
+        role: InheritanceSlotSchemaRoleV1,
         slot: PersistentDispatchSlotId,
-    ) -> Option<InheritanceSourceSlotSelectionV1> {
+    ) -> Option<InheritanceSourceSlotSelectionRecordV1> {
         self.records
-            .binary_search_by_key(&(owner, slot), InheritanceSourceSlotSelectionRecordV1::key)
+            .binary_search_by_key(
+                &(owner, role, slot),
+                InheritanceSourceSlotSelectionRecordV1::key,
+            )
             .ok()
-            .map(|index| self.records[index].selection)
+            .map(|index| self.records[index])
     }
 }

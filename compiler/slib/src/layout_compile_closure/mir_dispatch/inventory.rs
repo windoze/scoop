@@ -128,10 +128,14 @@ impl Replay<'_> {
                     Component::Position,
                     candidate.position().get() as usize == position,
                 )?;
-                let contract = source.slots().get(*slot).ok_or(Error::SourceSlot {
-                    owner: source.owner(),
-                    slot: *slot,
-                })?;
+                let contract =
+                    source
+                        .slots()
+                        .get(schema.role(), *slot)
+                        .ok_or(Error::SourceSlot {
+                            owner: source.owner(),
+                            slot: *slot,
+                        })?;
                 let signature = bindings::signature(contract.signature(), Some(source.owner()))?;
                 Error::entry(
                     source.owner(),
@@ -200,7 +204,7 @@ impl Replay<'_> {
 
             let contract = source
                 .slots()
-                .get(*slot)
+                .get(schema.role(), *slot)
                 .ok_or(Error::SourceSlot { owner, slot: *slot })?;
             self.entry((source.owner(), value), schema.role(), contract, entry)?;
         }

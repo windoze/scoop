@@ -1,5 +1,7 @@
 use std::fmt;
 
+mod nominals;
+
 use scoop_identity::{NominalDeclarationOwner, SignatureTypeKey};
 use scoop_wire::{WireError, WirePath};
 
@@ -35,91 +37,6 @@ impl CrossConeHirInterfaceSectionV1 {
         self.visit_source_call_signatures(&mut validator, path)?;
 
         validator.finish()
-    }
-
-    fn visit_nominal_signatures<A, E>(
-        &self,
-        validator: &mut SignatureReferenceClosureValidator<'_, '_, A>,
-        path: &WirePath,
-    ) -> Result<(), ExternalHirSignatureClosureValidationError<E>>
-    where
-        A: ExternalHirReferenceSemanticAuthority<E>,
-    {
-        let table_path = path.clone().field(2);
-        for (record_index, (partition, wire_index, record)) in
-            self.nominal_interfaces().wire_records().enumerate()
-        {
-            let record_path = table_path.clone().field(partition).index(wire_index as u64);
-            visit_binder_signatures(
-                validator,
-                record.type_parameters(),
-                &record_path.clone().field(3),
-                |binder_index, bound| ExternalHirSignatureUseSiteV1::NominalTypeParameter {
-                    record_index,
-                    binder_index,
-                    bound,
-                },
-            )?;
-
-            for (signature_index, signature) in
-                record.exact_supertypes().values().iter().enumerate()
-            {
-                validator.visit_signature(
-                    signature,
-                    ExternalHirSignatureUseSiteV1::NominalSupertype {
-                        record_index,
-                        signature_index,
-                    },
-                    &record_path.clone().field(4).index(signature_index as u64),
-                )?;
-            }
-
-            for (field_index, field) in record.source_shape().declared_fields().iter().enumerate() {
-                validator.visit_signature(
-                    field.value_type(),
-                    ExternalHirSignatureUseSiteV1::NominalField {
-                        record_index,
-                        field_index,
-                    },
-                    &record_path
-                        .clone()
-                        .field(8)
-                        .field(record.source_shape().declared_fields_wire_field())
-                        .index(field_index as u64)
-                        .field(2),
-                )?;
-            }
-            match record.source_shape() {
-                NominalSourceShapeV1::Enum(shape) => {
-                    for (variant_index, variant) in shape.variants().iter().enumerate() {
-                        for (field_index, field) in variant.fields().iter().enumerate() {
-                            validator.visit_signature(
-                                field.value_type(),
-                                ExternalHirSignatureUseSiteV1::NominalEnumField {
-                                    record_index,
-                                    variant_index,
-                                    field_index,
-                                },
-                                &record_path
-                                    .clone()
-                                    .field(8)
-                                    .field(1)
-                                    .index(variant_index as u64)
-                                    .field(3)
-                                    .index(field_index as u64)
-                                    .field(2),
-                            )?;
-                        }
-                    }
-                }
-                NominalSourceShapeV1::Struct(_)
-                | NominalSourceShapeV1::Class(_)
-                | NominalSourceShapeV1::Interface
-                | NominalSourceShapeV1::Object(_)
-                | NominalSourceShapeV1::Intrinsic(_) => continue,
-            }
-        }
-        Ok(())
     }
 
     fn visit_callable_signatures<A, E>(
@@ -419,6 +336,14 @@ pub enum ExternalHirSignatureUseSiteV1 {
     NominalSupertype {
         record_index: usize,
         signature_index: usize,
+    },
+    NominalDispatchReceiver {
+        record_index: usize,
+        selection_index: usize,
+    },
+    NominalDispatchInterface {
+        record_index: usize,
+        selection_index: usize,
     },
     NominalField {
         record_index: usize,

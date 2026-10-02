@@ -44,6 +44,7 @@ pub trait InheritanceSlotSourceSemanticAuthority<E>:
     fn inheritance_slot_selection(
         &self,
         owner: PersistentExactTypeId,
+        role: crate::InheritanceSlotSchemaRoleV1,
         slot: PersistentDispatchSlotId,
     ) -> Result<InheritanceSourceSlotSelectionV1, E>;
 }

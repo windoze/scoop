@@ -1,0 +1,81 @@
+schema = 1
+name = "dispatch-cross-cone-generic-applications"
+inputs = ["provider", "facade", "consumer", "bad-application.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["dispatch", "generics", "default-method", "default-argument", "reexport", "closure", "stage-golden", "moving-gc"]
+
+[[variants]]
+name = "normal"
+[[variants]]
+name = "moving"
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+
+[[steps]]
+name = "prepare"
+files = [
+  {copy = {from = "${fixture}/provider", to = "${work}/source/provider"}},
+  {copy = {from = "${fixture}/facade", to = "${work}/source/facade"}},
+  {copy = {from = "${fixture}/consumer", to = "${work}/source/consumer"}},
+]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${work}/source/consumer", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump/${build.result.root.identity}/ast.txt", snapshot = "consumer.ast.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "consumer.hir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "consumer.mir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "consumer.lir.txt"},
+]
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = {file = "expected.stdout"}
+stderr = ""
+
+[[steps]]
+name = "replace_consumer"
+files = [{copy = {from = "${fixture}/bad-application.scoop", to = "${work}/source/consumer/src/main.scoop"}}]
+
+[[steps]]
+name = "invalid"
+argv = ["${scoop}", "build", "${work}/source/consumer", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "bad-application.diagnostics.json"}
+
+[[steps]]
+name = "isolate"
+files = [
+  {remove = {path = "${work}/source"}},
+  {copy = {from = "${scoop}", to = "${work}/standalone/scoop"}},
+  {mkdir = {path = "${work}/empty-sysroot"}},
+]
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${build.result.root.path}", {each = "${build.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "-o", "${work}/relinked", "--message-format", "json"]
+env = {LLVM_CONFIG_PATH = "/absent/llvm-config", LLVM_SYS_221_PREFIX = "/absent/llvm"}
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${link.result.link_plan_fingerprint}", equals = "${build.result.link_plan_fingerprint}"}]
+
+[[steps]]
+name = "run_link"
+argv = ["${link.result.output}"]
+exit = 0
+stdout = {file = "expected.stdout"}
+stderr = ""

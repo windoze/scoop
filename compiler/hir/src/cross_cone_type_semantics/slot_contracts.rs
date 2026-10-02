@@ -4,7 +4,7 @@ use scoop_identity::PersistentDispatchSlotId;
 use scoop_wire::{Encoder, WireEncode};
 
 use super::wire;
-use crate::{CallableModalityV1, DeclarationAccessSourceV1};
+use crate::{CallableModalityV1, DeclarationAccessSourceV1, InheritanceSlotSchemaRoleV1};
 
 mod declaration;
 mod decode;
@@ -28,6 +28,7 @@ pub use validation::*;
 /// Construction checks local shape only; source and graph joins are separate.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InheritanceSlotContractV1 {
+    role: InheritanceSlotSchemaRoleV1,
     slot: PersistentDispatchSlotId,
     declaration: InheritanceCallableDeclarationV1,
     signature: InheritanceCallableSignatureV1,
@@ -36,6 +37,7 @@ pub struct InheritanceSlotContractV1 {
 }
 impl InheritanceSlotContractV1 {
     pub fn try_new(
+        role: InheritanceSlotSchemaRoleV1,
         slot: PersistentDispatchSlotId,
         declaration: InheritanceCallableDeclarationV1,
         signature: InheritanceCallableSignatureV1,
@@ -62,12 +64,19 @@ impl InheritanceSlotContractV1 {
             return Err(InheritanceSlotContractBuildError::DeclarationRole);
         }
         Ok(Self {
+            role,
             slot,
             declaration,
             signature,
             implementation,
             declaration_access,
         })
+    }
+    pub const fn role(&self) -> InheritanceSlotSchemaRoleV1 {
+        self.role
+    }
+    pub const fn key(&self) -> (InheritanceSlotSchemaRoleV1, PersistentDispatchSlotId) {
+        (self.role, self.slot)
     }
     pub const fn slot(&self) -> PersistentDispatchSlotId {
         self.slot
@@ -87,7 +96,9 @@ impl InheritanceSlotContractV1 {
 }
 impl WireEncode for InheritanceSlotContractV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(5)?;
+        encoder.map(6)?;
+        encoder.field(0)?;
+        self.role.encode(encoder)?;
         encoder.field(1)?;
         self.slot.encode(encoder)?;
         encoder.field(3)?;

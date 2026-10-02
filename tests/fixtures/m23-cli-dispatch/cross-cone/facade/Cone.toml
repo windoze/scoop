@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.dispatch"
+name = "facade"
+version = "0.1.0"
+kind = "library"
+
+[dependencies]
+"dev.dispatch:provider" = {version = "0.1.0", path = "../provider"}

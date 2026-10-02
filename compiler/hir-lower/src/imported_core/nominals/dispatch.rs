@@ -3,6 +3,8 @@
 use super::*;
 use hir::ImportedCallableSource;
 
+mod selections;
+
 impl Lowerer {
     pub(super) fn resolve_imported_class_dispatch(
         &mut self,
@@ -58,9 +60,7 @@ impl Lowerer {
                     .ok_or(ImportedSignatureTypeError::Structural)?
             };
             let selection = selections
-                .records()
-                .iter()
-                .find(|selection| selection.slot() == *slot)
+                .get(&hir::NominalDispatchSelectionRoleV1::ClassVtable, *slot)
                 .ok_or(ImportedSignatureTypeError::Structural)?;
             let callable = self.select_imported_dispatch_target(selection, ty)?;
             if let hir::ImportedDispatchCallable::External(callee) = callable {
@@ -119,10 +119,7 @@ impl Lowerer {
         declaration: &hir::ImportedNominalDeclaration,
         roots: &[hir::TypeId],
     ) -> Result<Vec<hir::InterfaceImplementation>, ImportedSignatureTypeError> {
-        let selections = declaration
-            .interface
-            .declaration_details()
-            .dispatch_selections();
+        let selections = self.imported_interface_dispatch_selections(ty, declaration)?;
         let mut interfaces = Vec::new();
         for root in roots {
             self.append_interface_closure(*root, &mut interfaces);
@@ -137,9 +134,7 @@ impl Lowerer {
             for method in &interface.methods {
                 let slot = method.slot.id();
                 let selection = selections
-                    .records()
-                    .iter()
-                    .find(|selection| selection.slot() == slot)
+                    .get(&(interface_ty, slot))
                     .ok_or(ImportedSignatureTypeError::Structural)?;
                 let callable = self.select_imported_dispatch_target(selection, ty)?;
                 let hir::PublicDeclarationOwnerV1::Nominal(owner) = method.declaration.owner()
@@ -190,6 +185,7 @@ impl Lowerer {
             .expect("dependency dispatch retains its declaration catalog")
             .callable_declaration(selection.callable_target())
             .map_err(|_| ImportedSignatureTypeError::Structural)?;
+        let receiver = self.imported_dispatch_receiver(selection.receiver(), receiver)?;
         self.resolve_imported_dispatch_callable(candidate, receiver)
     }
 
