@@ -399,9 +399,14 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 ### M23-11 umbrella CLI、single-file mode与总验收
 
-- 只编排同一编译管线；将 6a 的内存／wire 等价、声明位置变化、双向泛型与再次发布矩阵纳入正式 CLI 总验收，历史 fixture 不保留专用本地语义路径。
-- 正式启用`cargo`式`scoop`：`scoop build <root>`按DAG调用配套`scoopc`，`scoop run <root> -- ...`仅在同一build/program-link成功后执行。文件root使用reserved synthetic identity、logical `main.scoop`、唯一source与core-only Cone dependency；不发现相邻manifest、Scoop/C/C++源码或blob。额外 native 输入只通过已有 typed requirement 和显式 library search root 定位；已提供对象／系统 provider 使用同一 extern 解析。
-- M1–M22及M25历史fixture全部迁到正式`scoop build <file>` orchestration并保留stage dump/诊断/运行结果覆盖；完成多Cone、corruption/reproducibility、cache和moving-GC/exception/closure/coroutine/FFI全量回归后，删除core/source拼接、`scoopc`最终链接和固定object名称/数量旁路。final-link cache是可选优化，不是完成门。
+详细设计见 [M23-11](milestone23/stage11/DESIGN.md)，状态：已设计，待实现（2026-10-02）；前置为已验收的 M23-10。
+
+- 新增薄 `scoop` bin，复用实际 DAG／snapshot／cache、配套 `scoopc` child、runtime-build 和 program-link。build/run 共用完整构建，显式 link 只定位已有 `.slib`，消费必需的 runtime 对象索引和 native 输入，不读源码或探测 LLVM／compiler。
+- 文件 root 使用 reserved synthetic identity、logical `main.scoop`、唯一 source 与 core-only Cone dependency；不发现相邻 manifest、Scoop/C/C++ 或 blob。明确 manifest／single-file 默认输出、`-o` 原子物化、run 的私有 binary、argv/cwd/env/stdio 和真实 exit/signal；native requirement 仍由显式 library search roots 解析。
+- 补齐 primary／note 的 canonical source 和缓存 warning；子进程协议升至 2，一次真实编译可输出 AST、Export／LocalConcrete HIR、MIR、LIR 文件。普通缓存命中零 child，显式 dump 对指定源码节点重新编译一次；不增加 dump cache、第二条语义管线或完整 Compile/Link 重放。
+- 旧 driver fixture runner 已在 `c02bd245c` 删除，当前需恢复历史端到端覆盖。盘点 M1–M22/M25 的 534 份源码，480 份原合并式端到端 fixture 全部经 Python runner 接通正式 CLI，其余阶段 fixture 明确归属并补语言规则的 CLI 覆盖；另保留 M0 smoke。FFI companion 由声明式步骤显式构建，再仅通过 `--library-path` 参与链接。
+- 将现有 Rust fixture infra（含阶段 golden、program-link/native 编排）迁到统一 Python infra；源码注释或附加 TOML 用同一 schema 表达执行条件、步骤、断言和变体，新增 fixture 原则上只加数据，不写 case-by-case 分支。覆盖恢复后删除原 Rust runner、专用 helper、入口与不再使用的依赖，保留普通 Rust 内部单元测试；以仅改 fixture 数据的新增用例验证扩展性，完整验收同时运行 Rust 测试与 Python suite。
+- 总验收覆盖 6a 的共同语义／wire／声明位置／双向泛型矩阵及 Stage 7–10 的 ODR、初始化、native、corruption/reproducibility、cache 和 moving-GC/exception/closure/coroutine/FFI 组合；修复实际产物路径暴露的共同实现缺口，删除仅供运行验收的临时 link/startup 旁路。`.slib` 和 runtime metadata ABI 3 保持，不实现 final-link cache。
 
 ### M24 GC-free release hook（设计见 `docs/milestone24/DESIGN.md`）
 

@@ -1481,6 +1481,7 @@ kind = "library" # 或 "executable"
 ### 12.3 静态exact依赖图
 
 - M23固定三层工具边界：umbrella binary `scoop`负责root-input分流、locator、resolved DAG、cache与调度；`scoopc`每次只编译一个当前Cone并产生该Cone的`.slib`；program-link是只消费已验证artifact的独立stage。`scoop build`和`scoop run`共用这条完整pipeline；`run`只在build/program-link成功后执行binary，不是另一种编译或解释模式。三层不能用共享的未持久AST/IR或隐式进程状态绕过`.slib`边界；
+- M23-11 的公开命令、默认输出、诊断与观察输出见实现规范 2.7 及 [阶段设计](../milestone23/stage11/DESIGN.md)。`run` 的 `--` 后参数原样传给进程，不改变源码 `main(): Unit` 的入口合同或编译缓存；cwd、environment、stdio 和 exit/signal 保持普通进程语义。显式 `scoop link` 只消费 root／dependency `.slib`、runtime 对象索引及已有 native 文件，不构建缺失的源码依赖。stage dump 和本次诊断展示路径不是语言 IR 或产物身份；
 - M23只接受最终链接前已经完整解析的静态Cone图。依赖边必须无环；同一resolved graph中同一`group:name`只能出现一个version，同一`ConeIdentity`只能对应一组一致的semantic fingerprints。cycle、多个version、同identity不同artifact或dependency coordinate不匹配都是构建错误；
 - `executable`不能成为另一个Cone的dependency。一次程序构建恰有一个executable root，其余节点都是library；library单独构建时不需要executable root；
 - core可从任意普通manifest目录作为`scoop`构建根；当前根已经定义core时不读取默认sysroot、不加载另一份core，也不注入self edge。graph、源码快照、缓存和产物返回均使用普通Manifest library节点。
