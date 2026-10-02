@@ -1,0 +1,20 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.throwDefault
+  public fun primary(): Counter
+    var code: Long
+      IntLiteral 0
+    try
+      Call throwDefault
+    catch error: Throwable
+      assign code
+        IntLiteral 20
+    finally
+      assign code
+        Binary Add
+          Var code
+          IntLiteral 1
+    return
+      Call Counter
+        Var code

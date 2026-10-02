@@ -1,0 +1,14 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.Token
+  ImportExact Local dependency.classes.valueReader
+  public fun primary(): Counter
+    =
+      Call Counter
+        FieldAccess first
+          MethodCall value
+            Call valueReader
+            Call Token
+            Call Counter
+              IntLiteral 21

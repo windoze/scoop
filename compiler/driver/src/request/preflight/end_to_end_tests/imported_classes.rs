@@ -5,53 +5,6 @@ mod inheritance;
 pub(super) mod runtime;
 
 #[test]
-fn dependency_classes_compile_and_run_through_actual_artifacts() {
-    check_class_cases(
-        "direct",
-        &[
-            "cast-class",
-            "cast-failure",
-            "cast-interface",
-            "cast-zst",
-            "cast-wide",
-            "cast-default",
-            "cast-default-failure",
-            "exception-statement",
-            "exception-expression",
-            "exception-default",
-            "standalone",
-            "combined",
-            "aliases",
-            "secondary",
-            "recursive",
-            "core-extension",
-            "virtual",
-            "interface",
-            "interface-alias",
-            "interface-parent",
-            "reference-identity",
-            "core-interface",
-            "interface-values",
-            "interface-default-constructor",
-        ],
-        &[
-            "cast-impossible",
-            "wrong-identity",
-            "no-gc",
-            "internal-constructor",
-            "abstract-constructor",
-            "interface-wrong-identity",
-            "interface-wrong-argument",
-            "throw-wrong-type",
-            "throw-wrong-identity",
-            "catch-wrong-type",
-            "catch-expression-wrong-type",
-            "catch-unreachable",
-        ],
-    );
-}
-
-#[test]
 fn dependency_property_writes_compile_and_run_through_actual_artifacts() {
     check_class_cases(
         "direct",

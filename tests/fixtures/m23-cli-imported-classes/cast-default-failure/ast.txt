@@ -1,0 +1,15 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.Other
+  ImportExact Local dependency.classes.castDefault
+  public fun primary(): Counter
+    try
+      return
+        Call castDefault
+          Call Other
+            IntLiteral 0
+    catch error: ClassCastException
+      return
+        Call Counter
+          IntLiteral 21

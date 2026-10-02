@@ -1,3 +1,0 @@
-span=99..118
-expression=Other(0) as Counter
-cast from `Other` to `Counter` can never succeed

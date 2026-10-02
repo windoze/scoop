@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "body of `invalid` must be of type Readable, found OtherReadable",
+    "notes": [],
+    "origin": {
+      "cone": "635ffcbf3ca3c21a5acba8f5f7bbaa8d009da08edc20c9d540f6e3fdee988911",
+      "end": 134,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 129
+    },
+    "severity": "error"
+  }
+]

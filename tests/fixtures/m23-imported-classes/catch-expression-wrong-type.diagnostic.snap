@@ -1,3 +1,0 @@
-span=89..96
-expression=Counter
-catch parameter type Counter is not a subtype of Throwable

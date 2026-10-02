@@ -225,6 +225,20 @@ fixture 的 `truncate(path,size)` 只缩短现有文件；对应归档的初始�
 
 删除 `compiler/scoop/tests/program_link.rs` 和其剩余目录，包括 Environment、隐藏源码/manifest 写入、runtime/core 编译、fixture 读取、私有运行和 plan 解析 helper。原 Scoop 源码继续由声明使用，未通过删除源码或跳过 target/tool 把用例计作通过。
 
-## 11. 后续批次
+## 11. 跨产物类与接口的源码验收
+
+`m23-cli-imported-classes/` 保留原 `dev.example` 坐标、源码及 provider→consumer→downstream 依赖。每项先用正式 CLI 构建带 `stage3CoreAnswer` 的 core，再按原声明修改正文和类型成员，确认完整产物 fingerprint 改变；删除 core/provider/consumer/downstream 源码后，后续节点只读已发布的 `.slib`。consumer 的一次 child 同时生成四阶段 dump，HIR 保存完整 Export 与 LocalConcrete。
+
+正例通过普通 `runtime-fixture` executable 调用原 downstream 的 `check()`，断言结果为 42；普通 C 库只检查原有的 moving-GC epoch 条件，没有 `main` 或 image/startup 拼装。移走源码后用无 compiler/LLVM 的公开 `scoop link` 查找完整产物闭包，完整 plan 中的五个 image 和 fingerprint 与构建结果一致，正常及 moving 运行均精确比较退出状态和两路输出。
+
+以下批次均已关闭更新开关、清除旧快照环境和 `RUST_MIN_STACK`，经统一入口只读通过。每批负例的原字节区间、表达式和信息逐项核对后保存完整 canonical JSON，并确认没有发布 consumer 产物；原测试注册和相应旧期望同步删除。
+
+| 原 Rust 入口 | 正例／负例 | 进程／golden 比较 | 旧阶段对照 |
+| --- | --- | --- | --- |
+| `dependency_classes_compile_and_run_through_actual_artifacts` | 24／12 | 312／120 | 72 份 HIR Export、MIR、LIR 逐字相同；12 份诊断相同 |
+
+本节目前覆盖首批 36 项；其余类、接口及继承用例继续逐功能迁移。共享的旧 runtime helper 仍被其他待迁测试调用，随那些调用一起退役。
+
+## 12. 后续批次
 
 parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end，以及需要外部构建的 runtime 测试仍按原断言逐批迁移。直接构造内存 typed IR 的内部单元测试保留。完成每批后补充对应关系、删除的 helper 与实际验证结果；全部完成前不将 M23-11 标记完成。

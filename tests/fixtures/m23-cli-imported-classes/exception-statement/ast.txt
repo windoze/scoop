@@ -1,0 +1,18 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.throwValue
+  public fun primary(): Counter
+    var code: Long
+      IntLiteral 0
+    try
+      Call throwValue
+        Call RebuiltFailure
+          IntLiteral 21
+    catch error: RebuiltFailure
+      assign code
+        FieldAccess code
+          Var error
+    return
+      Call Counter
+        Var code
