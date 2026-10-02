@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`missing` is marked `override` but does not override any method",
+    "notes": [],
+    "origin": {
+      "cone": "68efa2dde8eca59e065464196e7fbe4c1fce8969289057ecb6b4a855523c2d21",
+      "end": 119,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 112
+    },
+    "severity": "error"
+  }
+]

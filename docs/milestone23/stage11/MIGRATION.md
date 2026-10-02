@@ -272,8 +272,9 @@ fixture 的 `truncate(path,size)` 只缩短现有文件；对应归档的初始�
 | `inherited_class_access_uses_actual_dependency_declarations` | 4／0 | 44／20 | 12 份旧阶段逐字相同 |
 | `inherited_class_access_reports_language_errors` | 0／6 | 24／0 | 6 份诊断相同 |
 | `inherited_classes_compile_and_run_through_actual_artifacts` | 10／0 | 110／50 | 30 份旧阶段逐字相同 |
+| `inherited_classes_report_source_errors` | 0／6 | 24／0 | 6 份诊断相同 |
 
-本节目前覆盖 220 项；其余类、接口及继承用例继续逐功能迁移。共享的旧 runtime helper 仍被其他待迁测试调用，随那些调用一起退役。
+本节目前覆盖 226 项；其余类、接口及继承用例继续逐功能迁移。共享的旧 runtime helper 仍被其他待迁测试调用，随那些调用一起退役。
 
 ## 12. 后续批次
 
