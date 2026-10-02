@@ -22,10 +22,12 @@ def prepare(operations, context, base):
         elif kind == "move":
             shutil.move(source, target)
         elif kind == "remove":
-            if target.is_symlink() or target.is_file():
+            if target.is_symlink():
                 target.unlink()
             elif target.is_dir():
                 shutil.rmtree(target)
+            elif target.exists():
+                target.unlink()
             else:
                 raise ConfigurationError(f"cannot remove missing file {target}")
         elif kind == "mkdir":

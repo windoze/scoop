@@ -76,6 +76,7 @@ canonical source、span、code、message 或 notes。stdout/stderr 仍严格比�
 其余动作及必需参数：`move/symlink/hardlink(from,to)`、`remove/mkdir/touch(path)`、
 `write(path,data)`、`replace(path,old,new)`（必须唯一匹配）、`patch(path,offset,hex)`
 （不可越界）、`chmod(path,mode)`（八进制字符串）。修改均应指向本次私有工作区。
+`remove` 删除目录树，或解除普通文件、符号链接和命名管道，不打开文件内容。
 `truncate(path,size)` 将现有文件缩短为指定非负字节数；超过当前文件长度时报配置错误，
 不扩展或修改文件。它与精确 byte patch 共用于 archive／cache corruption 用例。
 

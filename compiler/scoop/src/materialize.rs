@@ -52,8 +52,8 @@ impl OutputLocation {
             self.path.clone()
         };
         if let Some(cache) = cache {
-            let cache = std::fs::canonicalize(cache)?;
-            if self.path.starts_with(&cache) || resolved.starts_with(cache) {
+            // The build captured this canonical root while preparing snapshots.
+            if self.path.starts_with(cache) || resolved.starts_with(cache) {
                 return Err(invalid("output would overwrite a cache file"));
             }
         }
@@ -61,9 +61,7 @@ impl OutputLocation {
             let absolute = std::path::absolute(input)?;
             let canonical = std::fs::canonicalize(input).unwrap_or(absolute);
             let same_inode = output_metadata.as_ref().is_some_and(|output| {
-                File::open(input)
-                    .and_then(|file| file.metadata())
-                    .is_ok_and(|input| same_file(output, &input))
+                std::fs::metadata(input).is_ok_and(|input| same_file(output, &input))
             });
             if self.path == canonical || resolved == canonical || same_inode {
                 return Err(invalid(format!("output aliases input {}", input.display())));

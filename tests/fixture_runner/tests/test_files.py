@@ -1,5 +1,6 @@
 """Corruption operations change only their declared file and byte range."""
 
+import os
 import sys
 import tempfile
 import unittest
@@ -12,6 +13,21 @@ from fixture_runner.model import ConfigurationError
 
 
 class FileTests(unittest.TestCase):
+    def test_remove_unlinks_fifo_and_symlink_without_reading_the_target(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            os.mkfifo(base / "index.fifo")
+            (base / "original").write_bytes(b"preserved")
+            (base / "alias").symlink_to(base / "original")
+            prepare(
+                [{"remove": {"path": "index.fifo"}}, {"remove": {"path": "alias"}}],
+                {},
+                base,
+            )
+            self.assertFalse((base / "index.fifo").exists())
+            self.assertFalse((base / "alias").is_symlink())
+            self.assertEqual((base / "original").read_bytes(), b"preserved")
+
     def test_copy_patch_and_truncate_preserve_the_original(self):
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)

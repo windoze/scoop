@@ -42,6 +42,7 @@ pub fn build(request: BuildRequest) -> BuildResult<BuildOutcome> {
         ));
     }
     let mut prepared = graph.prepare().map_err(BuildFailure::classified)?;
+    let cache = std::fs::canonicalize(cache).map_err(output_error)?;
     let (sources, mut inputs) = source_context(&prepared);
     let output = output_path(
         &prepared,

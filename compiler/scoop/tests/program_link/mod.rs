@@ -8,7 +8,6 @@ use scoop_toolchain::ResolvedTargetProfile;
 mod build;
 mod inputs;
 mod native;
-mod orchestration;
 mod plans;
 mod publication;
 mod rebuilt_core;

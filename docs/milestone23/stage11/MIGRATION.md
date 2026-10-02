@@ -186,6 +186,12 @@ fixture 的 `truncate(path,size)` 只缩短现有文件；对应归档的初始�
 
 本批修复公开 `scoop link` 丢弃 envelope/manifest reader 结构位置的问题，直接把原 typed 诊断的 container、manifest 或 member 与 wire path 附到实际 locator。human 与 JSON 均显示成员，读取失败定位到整份容器，不冒充源码。未新增 reader 或重复校验。相应旧 Rust 进程用例已删除，optional 成员用例仍继续迁移。全仓 lint、原生路径编码的显示回归单元测试通过；program-link 目录只读验收 22 项全部通过，共 43 个变体、185 次进程、215 次 golden 比较。
 
-## 7. 后续批次
+## 7. 快照生命周期与输出发布
+
+`orchestration_links_retained_snapshots_after_source_and_cache_removal` 迁为 `program-link-retained-artifacts`。用显式 core 产物构建 root，检查 cold 构建恰好一次 child；随后在 runtime index 的命名管道读取处阻塞同一个公开 `scoop build`，待完整编译条目发布后删除源码、core locator 和整份私有编译缓存，再提供原 index bytes。最终输出成功，返回的旧 root locator 确认已不存在；独立磁盘产物链接得到相同 fingerprint，两份程序普通／moving GC 均输出 42。没有测试专用 compiler、启动入口或编排脚本。
+
+该用例暴露并修复了发布阶段再次 canonicalize 已移走 cache root 的问题：构建准备完成后保存解析路径，发布复用它；输入别名通过 metadata 比较，不重新打开已消费的输入内容。既有 source symlink、hardlink、cache output 保护继续通过。公共 `remove` 同时支持解除命名管道，22 个 infra 单元测试通过。旧 Rust 生命周期编排已删除。该用例在新目录只读验收通过，共 1 个变体、10 次进程、5 次 golden 比较；发布别名保护用例另执行 6 次进程并通过。
+
+## 8. 后续批次
 
 parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end、program-link/native 以及需要外部构建的 runtime 测试仍按原断言逐批迁移。直接构造内存 typed IR 的内部单元测试保留。完成每批后补充对应关系、删除的 helper 与实际验证结果；全部完成前不将 M23-11 标记完成。

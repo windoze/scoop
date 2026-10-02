@@ -880,6 +880,8 @@ build/run 接受 `--profile <debug|release>`，默认 debug；`--release` 等价
 
 产物读取错误同样保留本次 locator 和 reader 已有的结构位置：容器、manifest、metadata 或实际 member 加其 wire field path。入口不得先将 typed reader error 压成字符串再猜测位置，也不得为补诊断重新读取或校验产物；human 与 JSON 展示同一位置。整份产物的 I/O 失败定位到容器，不能伪造成当前源码 span。
 
+构建准备完成时保存实际 cache root 的解析路径，之后输出发布复用该路径检查目标是否落入缓存。源码和缓存条目在快照完成后移走，不得使已经完成的内存产物链接或发布失败。输出与输入的别名检查只取得路径和文件元信息，不重新打开输入内容；不存在的旧 locator 仍按其路径比较，不要求恢复原文件。
+
 公开构建结果区分 Library／Executable，提供可定位的 root、完整 dependency artifact 清单和所选构建 profile；Executable 另含实际发布的 binary、runtime index 和 link-plan fingerprint，不返回已经销毁的 staging 路径。清单供显式 link 复用，不是另一套图或产物协议。`run` 与 build 共用稳定输出布局，在程序启动前完成工具输出，随后原样继承程序 stderr，不把程序输出包装为 JSON；用于确保本次执行不被并发发布替换的私有副本仅保留到程序退出，稳定输出继续保留。
 
 显式 stage dump 是普通编译的观察输出。`scoop build --emit <ast|hir|mir|lir|all> --dump-dir <dir> [--dump-scope root|sources]` 默认只观察 root；sources 覆盖图中全部源码节点，不从 prebuilt 反造 AST 或 LocalConcrete HIR。一个被观察节点只启动一次 child，在同次实际 pipeline 中取得请求的 dump；HIR dump 同时显示 Export 与 LocalConcrete。普通 cache hit 不启动 child；显式观察的源码节点即使命中仍重新编译一次，使用相同源码／依赖快照和编译键，不增加 dump cache 或第二条语义管线。该请求不省略正常产物生产，失败不得返回成功 artifact。machine transport 仍是单 request／response 的 length-prefixed canonical CBOR；M23-11 将请求／响应协议升至 2，以封闭文件输出请求携带非空、唯一、有序的 stage 集合和目录，返回逐 stage 文件位置与内容摘要。machine stdout 只含协议 frame；旧单 stage 的 machine 形态按版本拒绝。协议 capability 及编译缓存随版本失效，`.slib`、identity、runtime ABI 和 link-plan 格式不因 dump 改变。
