@@ -1,3 +1,0 @@
-span=208..214
-expression=secret
-protected method `secret` cannot be accessed through receiver of static type `Sibling`; receiver must be `Derived` or one of its subclasses
