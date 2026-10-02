@@ -1,0 +1,28 @@
+SourceFile
+  QualifiedPackage consumer.members
+  ImportStar Local templates.members.*
+  public class Derived<T>(value: T) : ProtectedBox<T>(<1 args>)
+    public fun readPeer
+  public fun result(): Int
+    val first
+      Call Derived<Int>
+        IntLiteral 20
+    val second
+      Call Derived<Int>
+        IntLiteral 22
+    return
+      Binary Add
+        MethodCall readPeer
+          Var first
+          Var first
+        MethodCall readPeer
+          Var first
+          Var second
+  public fun make<T>(value: T): T
+    val holder
+      Call Derived<T>
+        Var value
+    return
+      MethodCall readPeer
+        Var holder
+        Var holder

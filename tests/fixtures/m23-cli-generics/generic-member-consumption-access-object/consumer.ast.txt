@@ -1,0 +1,14 @@
+SourceFile
+  QualifiedPackage consumer.members
+  ImportStar Local templates.members.*
+  private object Saved
+    public fun read
+  public fun result(): Int
+    =
+      MethodCall read
+        Var Saved
+  public fun make<T>(value: T): T
+    =
+      MethodCall read
+        Call ProtectedChild<T>
+          Var value

@@ -1,44 +1,6 @@
 use super::super::imported_classes::runtime;
 use super::*;
 
-#[test]
-fn protected_generic_members_republish_and_execute_from_artifacts() {
-    check_member_cases(
-        &[
-            "access-method",
-            "access-super",
-            "access-setter",
-            "access-property-override",
-            "access-secondary",
-            "access-lexical",
-            "access-abi",
-            "access-ordinary",
-            "access-object",
-        ],
-        &[
-            "access-base-receiver",
-            "access-sibling-receiver",
-            "access-constructor-error",
-            "access-setter-error",
-            "access-base-setter",
-            "access-private-setter",
-            "access-narrow-override",
-            "access-public-override",
-            "access-narrow-setter",
-        ],
-        "downstream",
-    );
-}
-
-fn check_member_cases(cases: &[&str], rejected: &[&str], downstream_source: &str) {
-    check_fixture_cases(
-        "m23-generic-member-consumption",
-        cases,
-        rejected,
-        downstream_source,
-    );
-}
-
 pub(super) fn check_fixture_cases(
     fixture: &str,
     cases: &[&str],

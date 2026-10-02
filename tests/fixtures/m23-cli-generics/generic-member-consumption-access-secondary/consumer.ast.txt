@@ -1,0 +1,16 @@
+SourceFile
+  QualifiedPackage consumer.members
+  ImportStar Local templates.members.*
+  public class Derived<T>(), ProtectedMiddle<T>
+    constructor(value: T) : super(<1 args>)
+    public fun read
+  public fun result(): Int
+    =
+      MethodCall read
+        Call Derived<Int>
+          IntLiteral 42
+  public fun make<T>(value: T): T
+    =
+      MethodCall read
+        Call Derived<T>
+          Var value
