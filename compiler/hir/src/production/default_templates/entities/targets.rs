@@ -84,6 +84,11 @@ impl DefaultEntityProjector<'_> {
                     owner_type: entities.type_key(application.owner_ty, binders)?,
                 }
             }
+            ExportDefaultCallableTarget::ImportedDerivedEquality(owner) => {
+                ExportDefaultCallableTargetV1::DerivedEquality {
+                    owner_type: entities.type_key(owner, binders)?,
+                }
+            }
             ExportDefaultCallableTarget::LocalFunction(id) => {
                 ExportDefaultCallableTargetV1::LocalFunction {
                     declaration: entities.local_function_declaration(id)?,

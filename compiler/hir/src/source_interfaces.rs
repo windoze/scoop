@@ -426,6 +426,7 @@ pub enum ExportDefaultCallableTarget {
     ImportedGeneric(ImportedGenericCallableApplicationId),
     Bound(BoundCallableRefId),
     DerivedEquality(DerivedEqualityApplicationId),
+    ImportedDerivedEquality(TypeId),
     LocalFunction(LocalFunctionId),
     Lambda(LambdaId),
     AnonymousFunction(AnonymousFunctionId),

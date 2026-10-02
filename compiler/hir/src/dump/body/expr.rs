@@ -427,7 +427,7 @@ pub(super) fn dump_expr(
                     };
                     format!("bound {receiver} via {} -> {name}", type_name(module, via))
                 }
-                MethodCallee::DerivedEquality(_) => {
+                MethodCallee::DerivedEquality(_) | MethodCallee::ImportedDerivedEquality { .. } => {
                     format!("{name} <derived>")
                 }
             };

@@ -1,5 +1,8 @@
 //! LocalConcrete handles for executable ordinary-dependency callables.
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ImportedDerivedEqualityUse(pub crate::ImportedDerivedEquality);
+
 /// LocalConcrete-HIR use of one ordinary-dependency callable. This wrapper
 /// owns a distinct arena-id domain while preserving the exact HIR selection
 /// reference for MIR projection.

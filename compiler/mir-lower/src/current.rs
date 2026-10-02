@@ -2,6 +2,23 @@
 
 use super::*;
 
+pub(super) fn external_equality(
+    callables: &Arena<mir::ExternalCallableUse>,
+    target: scoop_hir::ImportedDerivedEquality,
+) -> mir::ExternalCallableUseId {
+    callables
+        .iter()
+        .find_map(|(id, callable)| {
+            (callable.reference().provider() == target.provider()
+                && callable.reference().implementation()
+                    == scoop_identity::StrongCallableDefinitionOwner::GeneratedCallable(
+                        target.callable(),
+                    ))
+            .then_some(id)
+        })
+        .expect("a generated equality call retains the selected provider implementation")
+}
+
 /// Lowers one complete HIR product with its unified external callable selection.
 pub fn lower_current_cone(
     output: &scoop_hir::DependencyHirOutput,
@@ -22,7 +39,8 @@ pub fn lower_current_cone(
     for selected in selected_callables.callables() {
         let effect = match selected.lowering_role() {
             mir::MirCallableLoweringRoleV1::StaticCallbackStorage => mir::GcEffect::NoGc,
-            mir::MirCallableLoweringRoleV1::CoroutineStart => mir::GcEffect::Managed,
+            mir::MirCallableLoweringRoleV1::CoroutineStart
+            | mir::MirCallableLoweringRoleV1::DerivedEquality { .. } => mir::GcEffect::Managed,
             _ => continue,
         };
         let reference = selected_callables

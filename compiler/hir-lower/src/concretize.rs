@@ -22,6 +22,7 @@ mod constructor_slots;
 mod constructor_work;
 mod coroutines;
 mod enums;
+mod equality;
 mod functions;
 mod globals;
 mod initialization;
@@ -212,6 +213,7 @@ struct Concretizer<'a> {
     local_functions: Arena<concrete::LocalFunction>,
     local_by_function: HashMap<concrete::FunctionId, concrete::LocalFunctionId>,
     callable_reference_slots: Vec<PendingCallableReference>,
+    imported_derived_equalities: Arena<concrete::ImportedDerivedEqualityUse>,
     imported_dependency_callables: Arena<concrete::ImportedDependencyCallableUse>,
     imported_dependency_callable_map:
         HashMap<export::ImportedDependencyCallableUseId, concrete::ImportedDependencyCallableUseId>,
@@ -385,6 +387,7 @@ impl<'a> Concretizer<'a> {
             local_functions: Arena::new(),
             local_by_function: HashMap::new(),
             callable_reference_slots: Vec::new(),
+            imported_derived_equalities: Arena::new(),
             imported_dependency_callables,
             imported_dependency_callable_map,
             function_coercions: Arena::new(),

@@ -31,9 +31,10 @@ fn actual_derived_equality_bindings_cover_nested_values_enum_and_explicit_overlo
             );
             let dump = assertions::dump(input, &bindings);
             if name == "standalone" {
-                assert_eq!(bindings.entries().len(), 1);
+                assert_eq!(bindings.entries().len(), 2);
                 assert!(dump.contains("Token.equals"));
-                assert!(!dump.contains("Hidden") && !dump.contains("Unrequested"));
+                assert!(dump.contains("Unrequested.equals"));
+                assert!(!dump.contains("Hidden"));
             } else {
                 assert_eq!(bindings.entries().len(), 5);
                 for member in [

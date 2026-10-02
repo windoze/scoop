@@ -43,6 +43,11 @@ impl BodyProjection<'_, '_> {
         callee: crate::MethodCallee,
     ) -> Result<DefaultMethodCalleeV1, super::super::super::DefaultBodyProjectionError> {
         Ok(match callee {
+            crate::MethodCallee::ImportedDerivedEquality { owner, .. } => {
+                DefaultMethodCalleeV1::DerivedEquality {
+                    owner_type: self.type_key(owner)?,
+                }
+            }
             crate::MethodCallee::Callable(callable) => {
                 DefaultMethodCalleeV1::Callable(self.callable_target(callable)?)
             }

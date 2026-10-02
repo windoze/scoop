@@ -70,6 +70,7 @@ impl Lowerer {
         context: &InstantiationContext,
     ) -> hir::MethodCallee {
         match source {
+            hir::MethodCallee::ImportedDerivedEquality { .. } => source,
             hir::MethodCallee::Callable(callable) => hir::MethodCallee::Callable(
                 self.instantiate_default_callable_target(callable, context),
             ),
@@ -123,6 +124,9 @@ impl Lowerer {
                         .expect("a validated default keeps a valid equality derivation")
                         .expect("the original expression has a derived equality target");
                     let application = match candidate {
+                        crate::derived::DerivedEqualityCandidate::Imported(target) => {
+                            return self.imported_equality_callee(target, ty);
+                        }
                         crate::derived::DerivedEqualityCandidate::Nominal {
                             application, ..
                         }

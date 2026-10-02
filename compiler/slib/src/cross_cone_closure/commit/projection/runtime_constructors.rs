@@ -149,6 +149,7 @@ fn requires_coroutine_state(module: &concrete::Module, expression: &concrete::Ex
     let function_type = match expression.kind {
         concrete::ExprKind::Call { callee, .. } => {
             return match callee {
+                concrete::CallableTarget::DerivedEquality(_) => false,
                 concrete::CallableTarget::Local(callable) => {
                     module.functions[module.callable_function(callable)].is_suspend
                 }

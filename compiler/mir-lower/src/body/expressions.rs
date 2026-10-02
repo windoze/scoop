@@ -668,6 +668,9 @@ impl BodyLowerer<'_> {
             }
             hir::ExprKind::Call { callee, args, .. } => {
                 return match callee {
+                    hir::CallableTarget::DerivedEquality(target) => {
+                        self.lower_imported_equality(*target, args, expr.ty)
+                    }
                     hir::CallableTarget::Local(callee) => self.lower_call(*callee, args, expr.ty),
                     hir::CallableTarget::Imported(callee) => {
                         self.lower_imported_call(*callee, args, expr.ty)

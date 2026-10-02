@@ -517,6 +517,9 @@ impl Lowerer {
             self.error(Span::new(0, 0), error);
         }
         self.complete_imported_generic_bodies();
+        if self.diagnostics.is_empty() {
+            self.prepare_public_derived_equalities();
+        }
 
         // Effects consume fully resolved calls and types. Local functions and
         // callable literals lifted while lowering the bodies are visible now.

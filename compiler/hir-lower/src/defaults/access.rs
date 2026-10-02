@@ -105,6 +105,9 @@ impl ReferenceCollector<'_> {
     }
 
     fn method_callee_domain(&self, callee: hir::MethodCallee) -> hir::AccessDomain {
+        if let hir::MethodCallee::ImportedDerivedEquality { owner, .. } = callee {
+            return self.lowerer.type_access_domain(owner);
+        }
         if let Some(target) = callee.declared_callable(&self.lowerer.bound_callable_refs) {
             return self.selected_callable_domain(target);
         }
@@ -127,6 +130,9 @@ impl ReferenceCollector<'_> {
         target: &hir::ExportDefaultCallableTarget,
     ) -> hir::AccessDomain {
         match *target {
+            hir::ExportDefaultCallableTarget::ImportedDerivedEquality(owner) => {
+                self.lowerer.type_access_domain(owner)
+            }
             hir::ExportDefaultCallableTarget::Callable(callable) => self.callable_domain(callable),
             hir::ExportDefaultCallableTarget::ImportedDependency(_)
             | hir::ExportDefaultCallableTarget::ImportedGeneric(_) => {

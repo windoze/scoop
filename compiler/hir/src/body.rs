@@ -500,6 +500,10 @@ pub enum MethodCallee {
     Callable(CallableTarget),
     Bound(BoundCallableRefId),
     DerivedEquality(DerivedEqualityApplicationId),
+    ImportedDerivedEquality {
+        target: ImportedDerivedEqualityUseId,
+        owner: TypeId,
+    },
 }
 
 impl MethodCallee {
@@ -507,7 +511,7 @@ impl MethodCallee {
         match self {
             Self::Callable(callable) => Some(callable),
             Self::Bound(bound) => Some(bounds[bound].declared_callable()),
-            Self::DerivedEquality(_) => None,
+            Self::DerivedEquality(_) | Self::ImportedDerivedEquality { .. } => None,
         }
     }
 }

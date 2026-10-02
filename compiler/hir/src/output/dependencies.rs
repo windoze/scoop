@@ -4,6 +4,7 @@ use std::fmt;
 use crate::concrete;
 
 mod callables;
+mod equality;
 mod occurrences;
 mod witnesses;
 pub use callables::ExecutableDependencyCallableUse;
@@ -60,7 +61,11 @@ impl DependencyHirOutput {
                         concrete::ExprKind::CallableReference(id) => {
                             match local.callable_references[*id].target.callee() {
                                 Some(concrete::CallableTarget::Imported(callable)) => callable,
-                                Some(concrete::CallableTarget::Local(_)) | None => return Ok(()),
+                                Some(
+                                    concrete::CallableTarget::Local(_)
+                                    | concrete::CallableTarget::DerivedEquality(_),
+                                )
+                                | None => return Ok(()),
                             }
                         }
                         _ => return Ok(()),

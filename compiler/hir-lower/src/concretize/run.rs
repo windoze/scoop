@@ -53,6 +53,9 @@ impl Concretizer<'_> {
                 && self.automatic_nominal(&self.source.nominal_identities[id])
             {
                 self.lower_struct_application(declaration.self_application, &[]);
+                self.lower_public_equality(
+                    self.source.struct_applications[declaration.self_application].canonical_type,
+                );
             }
         }
         for (id, declaration) in self.source.enums.iter() {
@@ -60,6 +63,9 @@ impl Concretizer<'_> {
                 && self.automatic_nominal(&self.source.nominal_identities[id])
             {
                 self.ensure_enum(id, Vec::new());
+                self.lower_public_equality(
+                    self.source.enum_applications[declaration.self_application].canonical_type,
+                );
             }
         }
         for (id, declaration) in self.source.interfaces.iter() {
@@ -213,6 +219,7 @@ impl Concretizer<'_> {
             anonymous_functions: self.anonymous_functions,
             local_functions: self.local_functions,
             callable_references,
+            imported_derived_equalities: self.imported_derived_equalities,
             imported_dependency_callables: self.imported_dependency_callables,
             function_coercions: self.function_coercions,
             foreign_callback_registrations,

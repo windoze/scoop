@@ -239,6 +239,7 @@ impl Lowerer {
             local_functions: Arena::new(),
             local_function_by_function: HashMap::new(),
             callable_references: Arena::new(),
+            imported_derived_equalities: Arena::new(),
             imported_dependency_callables: Arena::new(),
             imported_constructor_templates: Default::default(),
             imported_generic_templates: Default::default(),

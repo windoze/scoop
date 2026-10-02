@@ -175,7 +175,8 @@ pub fn lower(
     output: &scoop_hir::LocalConcreteHirOutput,
 ) -> Result<mir::Module, DefinedCoreMirLoweringError> {
     assert!(
-        output.module().imported_dependency_callables.is_empty(),
+        output.module().imported_dependency_callables.is_empty()
+            && output.module().imported_derived_equalities.is_empty(),
         "an imported HIR graph requires lower_current_cone"
     );
     let hir::ConcreteCoreProtocols::Defined(_) = &output.module().core_protocols else {

@@ -9,6 +9,9 @@ impl SourceRoots {
         roots: &mut Roots,
     ) -> Result<(), Error> {
         match target {
+            ExportDefaultCallableTarget::ImportedDerivedEquality(owner) => {
+                roots.require_field_type(export, index, owner)
+            }
             ExportDefaultCallableTarget::Callable(callable) => {
                 self.function(export, callable.function(export), roots)
             }
@@ -28,6 +31,9 @@ impl SourceRoots {
                         callee: callable, ..
                     } => self.callable_target(export, *callable, roots),
                     CallableReferenceTarget::BoundMember { callee, .. } => match *callee {
+                        MethodCallee::ImportedDerivedEquality { owner, .. } => {
+                            roots.require_field_type(export, index, owner)
+                        }
                         MethodCallee::Callable(callable) => {
                             self.callable_target(export, callable, roots)
                         }

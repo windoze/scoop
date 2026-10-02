@@ -6,6 +6,8 @@ mod applications;
 pub use applications::*;
 mod delegates;
 pub use delegates::*;
+mod equality;
+pub use equality::*;
 
 /// A dependency implementation in the consumer's type and value domains.
 /// Its kind and executable nodes are shared with current declarations.

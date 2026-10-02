@@ -383,7 +383,7 @@ M17起，AST保留位置、命名、spread及尾随lambda的源码顺序；HIR�
 
 函数值调用同样先求值被调用的函数值，再按源码顺序求值各实参。实参降低产生的控制流、默认值或其他前置语句不能越过函数值及此前实参的求值：先收集各实参的表达式和语句，仅在后续实参确有前置语句时，将此前值保存为普通临时变量。函数值或实参来自可重绑定局部变量时也必须保存当时的值；异常继续终止后续实参与函数体执行。普通 `f(...)` 与显式 `f.invoke(...)` 共用此处理，已经完成的默认／泛型正文在具体化时保留既定顺序。
 
-struct/enum 的派生 equality 条件签名必须在继承与源码签名检查完成后、默认参数正文和 constructor 表达式 lowering 之前登记。默认参数可按普通规则选择派生 equality；生成完整应用正文仍由实际调用需求触发，不能将其限制为普通函数 body 阶段才能使用，也不能覆盖已有的同型用户 equals。
+struct/enum 的派生 equality 条件签名必须在继承与源码签名检查完成后、默认参数正文和 constructor 表达式 lowering 之前登记。默认参数可按普通规则选择派生 equality；生成完整应用正文由实际调用需求或公开参数自由值类型的导出需求触发，不能将其限制为普通函数 body 阶段才能使用，也不能覆盖已有的同型用户 equals。
 
 默认值lowering先登记全部export源码参数的定义输入，包含function、method、各类constructor与variant，再准备typed正文。候选参数调用形式只持有声明owner与参数位置组成的独立typed引用或已经完成的template引用，不通过尚未登记的正文arena索引推断Default/VarargDefault。winner实际省略参数时按依赖准备目标正文，始终切回目标定义文件、词法路径、receiver、类型参数及capture环境，结束后恢复调用方上下文；local default保存其真实声明点环境。继承default仍沿唯一override来源及真实类型代换取得provider。按照语言8.5.1，对正在准备的同一参数再次发生缺省展开时发出定义处环诊断；参数调用形式的查询和显式传参不触发该诊断。失败的参数不产生残缺source interface或伪造typed body，全部声明准备完成后才输出完备Export HIR。
 
@@ -1317,7 +1317,7 @@ SemanticHir 完成后，从公开声明、默认值与泛型正文确定导出�
 
 bound callable 的 receiver 使用完整 `SignatureTypeKey`，可以是定义处 binder，也可以是默认参数展开后已经替换的 nominal application 或结构类型；bound、原 member/slot 和完整函数签名继续保留。默认值中的 bound 调用按同一目标选择降低，再次发布时不把具体 receiver 伪造成 binder。正文与引用目录使用同一个完整 bound target，并收集 receiver、接口与签名中的实际类型引用。默认值展开生成的临时语句及控制节点使用本次求值位置，内部表达式继续保留提供方定义与实际求值位置；默认值求值的 effect 错误定位到本次调用处，不得把提供方的裸字节偏移绑定到消费方文件。该 payload 的 field 1 从专用 binder 对变更为类型 key，HIR interface 升至 `/37`，reader、required inventory、profile fingerprint 与缓存同步迁移，旧 major 需重建。
 
-派生相等按语言规范 11.11 使用完整静态值类型。外来泛型 struct、enum 与本地 application 共用字段比较和短路正文生成，字段及 variant 使用原 typed identity，字段类型按实际实参替换；显式同类型 `operator equals` 取代派生候选，其他参数类型的重载不屏蔽它。字段比较同时查询本地和依赖的普通成员及已声明 bound，保留选中的 virtual/interface 派发；没有相等成员的引用字段不能退回地址比较。模板中的派生目标与绑定引用保留完整 owner type，消费和再次发布不改成源码函数声明。泛型或结构 owner 的 helper 使用原 `DerivedEquality` generated key 与 exact owner 的 ODR 归属；参数自由外来名义 owner 引用定义 Cone 的实际 helper。派生正文没有源码词法根，其表达式位置记录派生需求或字段诊断位置；reader 从当前物化产物取得 helper 的 generated key，从位置所属产物检查实际文件、context 和 span，不要求提供方模板已经物化消费方的 exact helper，也不把这些位置要求为生成 helper 的源码声明。完整 exact owner 已包含全部实参，其 materialization 使用 `NoSubstitution`。诊断沿字段或 variant 路径指出首个不能比较的位置，不增加相等接口、字典、wire 节点或 runtime 槽。
+派生相等按语言规范 11.11 使用完整静态值类型。外来泛型 struct、enum 与本地 application 共用字段比较和短路正文生成，字段及 variant 使用原 typed identity，字段类型按实际实参替换；显式同类型 `operator equals` 取代派生候选，其他参数类型的重载不屏蔽它。字段比较同时查询本地和依赖的普通成员及已声明 bound，保留选中的 virtual/interface 派发；没有相等成员的引用字段不能退回地址比较。模板中的派生目标与绑定引用保留完整 owner type，消费和再次发布不改成源码函数声明。泛型或结构 owner 的 helper 使用原 `DerivedEquality` generated key 与 exact owner 的 ODR 归属；参数自由外来名义 owner 引用定义 Cone 的实际 helper。为使公开值类型在任意下游保持同一条件派生能力，提供方在导出参数自由 struct／enum 时请求其可用的派生正文；不可比较的类型不产生 helper，私有类型只随实际正文需求递归请求。下游从共有生成 callable 记录取得原 exact owner 与生成身份，HIR 保留独立于源码函数声明的 typed 生成调用；MIR 投影从同一 provider 的实际 callable binding 取得正文与签名，后续链接复用普通外来 callable 路径。公开类型没有本地比较使用点也必须提供该可用能力；不要求下游复制提供方声明或重新生成参数自由 helper。派生正文没有源码词法根，其表达式位置记录派生需求或字段诊断位置；reader 从当前物化产物取得 helper 的 generated key，从位置所属产物检查实际文件、context 和 span，不要求提供方模板已经物化消费方的 exact helper，也不把这些位置要求为生成 helper 的源码声明。完整 exact owner 已包含全部实参，其 materialization 使用 `NoSubstitution`。诊断沿字段或 variant 路径指出首个不能比较的位置，不增加相等接口、字典、wire 节点或 runtime 槽。
 
 共有名义声明中的参数自由构造函数按实际可物化签名导出对应 MIR 构造 binding，包括泛型正文所需的 private/internal 构造函数。源码可见性由 HIR 候选选择和定义处访问检查决定，不能再用 public/protected 过滤已经生成的构造函数 ABI。消费者引用定义 Cone 的实际 Strong 构造实现，不另发同名定义；producer 和 reader 共用同一构造声明选择。
 

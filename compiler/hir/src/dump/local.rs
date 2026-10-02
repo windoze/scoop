@@ -31,6 +31,7 @@ pub fn dump_local(output: &LocalConcreteHirOutput) -> String {
         local_functions,
         callable_references,
         imported_dependency_callables,
+        imported_derived_equalities,
         function_coercions,
         foreign_callback_registrations,
         functions,

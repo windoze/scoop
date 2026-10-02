@@ -9,6 +9,9 @@ impl ReferenceCollector<'_> {
         origin: hir::DefinitionOrigin,
     ) {
         let target = match callee {
+            hir::MethodCallee::ImportedDerivedEquality { owner, .. } => {
+                hir::ExportDefaultCallableTarget::ImportedDerivedEquality(owner)
+            }
             hir::MethodCallee::Callable(callable) => return self.callable_target(callable, origin),
             hir::MethodCallee::Bound(bound) => hir::ExportDefaultCallableTarget::Bound(bound),
             hir::MethodCallee::DerivedEquality(application) => {
@@ -56,6 +59,9 @@ impl ReferenceCollector<'_> {
         origin: hir::DefinitionOrigin,
     ) {
         match callee {
+            hir::MethodCallee::ImportedDerivedEquality { owner, .. } => {
+                self.type_reference(owner, origin)
+            }
             hir::MethodCallee::Callable(callable) => self.callable_target_shape(callable, origin),
             hir::MethodCallee::Bound(bound) => self.bound_callable_shape(bound, origin),
             hir::MethodCallee::DerivedEquality(application) => {

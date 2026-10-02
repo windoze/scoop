@@ -108,6 +108,7 @@ pub enum CallableReferenceTarget {
 pub enum CallableTarget {
     Local(Callable),
     Imported(ImportedDependencyCallableUseId),
+    DerivedEquality(ImportedDerivedEqualityUseId),
 }
 
 #[derive(Debug, Clone, Copy)]

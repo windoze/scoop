@@ -1,0 +1,1407 @@
+Module
+  struct Envelope (packet: Packet, flag: Flag)
+  struct Manual (number: Int)
+  struct Overloaded (number: Int)
+  struct Generic<Flag> (value: Flag)
+  enum Packet
+    Empty()
+    Item(_1: Int)
+    Named(value: String, flag: Flag)
+  enum Flag
+    Off()
+    On()
+  enum Broken
+    Empty()
+    Value(_1: Missing)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Envelope>
+    Completed(value: Envelope)
+    Suspended()
+  enum CoroutineSlot<Envelope>
+    Empty()
+    Value(value: Envelope)
+  enum CoroutineStep<Broken>
+    Completed(value: Broken)
+    Suspended()
+  enum CoroutineSlot<Broken>
+    Empty()
+    Value(value: Broken)
+  enum CoroutineStep<Manual>
+    Completed(value: Manual)
+    Suspended()
+  enum CoroutineSlot<Manual>
+    Empty()
+    Value(value: Manual)
+  enum CoroutineStep<Missing>
+    Completed(value: Missing)
+    Suspended()
+  enum CoroutineSlot<Missing>
+    Empty()
+    Value(value: Missing)
+  enum CoroutineStep<Overloaded>
+    Completed(value: Overloaded)
+    Suspended()
+  enum CoroutineSlot<Overloaded>
+    Empty()
+    Value(value: Overloaded)
+  enum CoroutineStep<Packet>
+    Completed(value: Packet)
+    Suspended()
+  enum CoroutineSlot<Packet>
+    Empty()
+    Value(value: Packet)
+  enum CoroutineStep<Flag>
+    Completed(value: Flag)
+    Suspended()
+  enum CoroutineSlot<Flag>
+    Empty()
+    Value(value: Flag)
+  class Missing vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Envelope> vtable=0 itables=0
+  class box<Broken> vtable=0 itables=0
+  class box<Manual> vtable=0 itables=0
+  class box<Overloaded> vtable=0 itables=0
+  class box<Packet> vtable=0 itables=0
+  class box<Flag> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Continuation<Envelope>
+  interface SuspendTask<Envelope>
+  interface SuspendRegistration<Envelope>
+  interface Continuation<Packet>
+  interface SuspendTask<Packet>
+  interface SuspendRegistration<Packet>
+  interface Continuation<Flag>
+  interface SuspendTask<Flag>
+  interface SuspendRegistration<Flag>
+  interface Continuation<Manual>
+  interface SuspendTask<Manual>
+  interface SuspendRegistration<Manual>
+  interface Continuation<Overloaded>
+  interface SuspendTask<Overloaded>
+  interface SuspendRegistration<Overloaded>
+  interface Continuation<Broken>
+  interface SuspendTask<Broken>
+  interface SuspendRegistration<Broken>
+  interface Continuation<Missing>
+  interface SuspendTask<Missing>
+  interface SuspendRegistration<Missing>
+  generated_exact_type get0 location=enum12 nominal_id=0b7eeb109cee8514ee25e449750ecd09b2a62588a088d7a22669e9a5c67f86d0 exact_id=07c24a09b12279d094fdcb62b83334bae8225dd2da3b310e50318cd1e66a1f53
+  generated_exact_type get1 location=enum8 nominal_id=e54cfb588e97e71212c7675a3c81dfbf5e7c51eb31996682d3917463d4fcf1d7 exact_id=0fc65998829ae908ca8ba850bead07e04c7afa615303e4b1c86bd75c92b883e0
+  generated_exact_type get2 location=class6 nominal_id=285b6c58c84cecdafe4af983a7e1797710e9dbfb8681389f8f268f13b6fc9efd exact_id=27a85665d0c9e7f822753b090a9d512fb796af9b8ee97184f8bb9f18ecdca68f
+  generated_exact_type get3 location=enum11 nominal_id=e6d37a973d7ae10d1be2ead9b058d4d319178f19e32db102f51ca13bdfe6b522 exact_id=46595bc793811112e8be7accd4812cb607c2dfc5f010e5980243b31381de78a9
+  generated_exact_type get4 location=enum16 nominal_id=b2ab667ba412c5c46a50547f8a3e25fa78f986e3df1a760e6202a33d8bb379fd exact_id=513892269b1da4d3d65f5a0db328e8f29d7b625004e905ddf973ec60d57509a7
+  generated_exact_type get5 location=class9 nominal_id=bb91ee34d7d72b986322163f6df3546407ae7b7906b6092a700c794be7cd3eed exact_id=620600dd04fba2f93c54626471e4baacf3a8a4309cdadc50bf9c0fe0b4ecac7a
+  generated_exact_type get6 location=class8 nominal_id=e853f2f42811414eabab525a0c68652f5d79a04b99c0f7a517098aea07f6b940 exact_id=6da18c8fcb2357f3622fe5462d5ff6a7e0fff47c419ed2f56ad5afa6d0032ccd
+  generated_exact_type get7 location=enum17 nominal_id=33c7dbf88ad8c2a2e9e3f9e68dd9a620b852c0905cd2966dd98a5e1e6f5875b0 exact_id=763c048afe6462a319c22670c212f1e3ab5b47d0b6d6c5ea64cc3f9f40ab1394
+  generated_exact_type get8 location=enum9 nominal_id=859d5c00cc5122fbd5ddd65e10ac3ee9c7bac69bd9e7308c452994e8116f79b4 exact_id=8bd71733a9cd2ded3e1ad5efa7fc063f18e450740cb5900de2ce9704bc522c7b
+  generated_exact_type get9 location=enum7 nominal_id=cf06601d883c3d36ebbc3b8698b29c90d7634512cacce45a2403f0a2d9c75580 exact_id=97b18b585901fca9a38c6667b5476692104b67811327b9eb49b53ac2bf7168a0
+  generated_exact_type get10 location=enum4 nominal_id=00a0d94e7b5e8036dcdcff5a74ca67b6886383f61bd8ca3225ed5cbcc72bc54f exact_id=984e32d0bf2ae05c8c359a5681f713ed8817e5fd814a9e8ec70e1f4d07d207de
+  generated_exact_type get11 location=enum6 nominal_id=f215b60ea5c530b3196067b99ab059ca29fa1b23fe9c835561a168bac4651b22 exact_id=a0d4324939e43cc44a269aab298dfe5278fb781a25f7f5c4b9b99684f88d968a
+  generated_exact_type get12 location=enum10 nominal_id=3c377c05a53388d281f0507adfff5432589c24e9653527c151208309e7674565 exact_id=a5057ae1c725cfc0872b04fb5af3ed56ad002f192b79bccd05c29fb6d64faeb8
+  generated_exact_type get13 location=enum15 nominal_id=95d5d42263683ce149d632814d93d11c7e1eabbd5e093f4f5fca3c24483b7808 exact_id=ad8dcd68965038f958673950a1a75211417b40108fb92ab85cb6620c729df252
+  generated_exact_type get14 location=enum14 nominal_id=2d94e438f5898b5690609e79459d2f10c3e3fb82c03406d0852c3c5692ea183e exact_id=b271a2a4d591bdff0501c5d726d0726c695e7bca1770b6573fc725a290620531
+  generated_exact_type get15 location=class4 nominal_id=1f343e0e36aa17385f477b6caa7f57400c4d0671e40254174ac8edbaf17521bd exact_id=bb696b99c5bebb557a062b3823e4fef86c3b5e106951aede149161a9da5b3058
+  generated_exact_type get16 location=enum13 nominal_id=95fd65b6061b75c93c32eb9f43561f0b3ad62787cda8d64d0e6ac41065ebc584 exact_id=cf27919d6ddf661db07f209c155e1033ccf4b943de8d3d9c87be58f2729c4486
+  generated_exact_type get17 location=class7 nominal_id=fb30b8f842f1ff6a017f82194893fbf62419bdf9c6d38ca53cf948c7e7608c36 exact_id=d02dc7b0aba956c6214fc1af4c1c4d9b54abb52a8a791b28712f359b240eaa6a
+  generated_exact_type get18 location=enum5 nominal_id=874a463892b8567145ab675c1959281ad97c3ee70f35f1541cdd3440d663d3c6 exact_id=d5e309ab0d7e5e76d413b877b8a7167596a2eee805c3e13cbe8f74ee013a99ca
+  generated_exact_type get19 location=class5 nominal_id=bf78e48c64705c578709b6237d30ce9e15676b8645dc96ceccafa08aa492a140 exact_id=f5aa0cde6bd8e38c504e8b24145b2c31e26457d8c31341326ba0877cad2b6f2d
+  generated_callable gc0 function=@fn44 id=289ecfdb3d4fadb9e528c5eae4c81f0c4acde2b2f5b0b3f797f54e6a1b28768c
+  generated_callable gc1 function=@fn48 id=461465d6cafd9a0178c5c2ea2dc9565e471b8b4df79b2f8c8b9c5bf1ab12758a
+  generated_callable gc2 function=@fn45 id=5153a2509dc1823b1e2f23257cf8e123b1c273c91cb765e62f8ef81aab3e8f9f
+  generated_callable gc3 function=@fn46 id=660fe4f511e8af6503675e5feb5a39046f62d6d2f80a4f0de2ea3d1b2201a1dc
+  generated_callable gc4 function=@fn49 id=92cb2c6cfd4fb3f33ccb0a4d894ae83923a0d37ee89038101d45afaac79e54b7
+  generated_callable gc5 function=@fn50 id=c93ac828f42221e27906f10fa20b05aca0dbbde9bd06dfef348431adeb8437cb
+  generated_callable gc6 function=@fn47 id=e5e0ba07e4ec7dcfd11fc84fea56dd4f6e402d3d1bf60d2e00e85b0ef1f0a367
+  fun Envelope.equals @fn0(this: Envelope, other: Envelope) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn1 direct
+        Type Packet
+        FieldAccess 0
+          Type Envelope
+          Local this
+        Type Packet
+        FieldAccess 0
+          Type Envelope
+          Local other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 logic.rhs.1
+      call $call.3: Boolean = @fn2 direct
+        Type Flag
+        FieldAccess 1
+          Type Envelope
+          Local this
+        Type Flag
+        FieldAccess 1
+          Type Envelope
+          Local other
+      assign $logic.2
+        Type Boolean
+        Local $call.3
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.2
+  fun Packet.equals @fn1(this: Packet, other: Packet) -> Boolean
+    bb0 entry
+      val $when.1: Packet
+        Type Packet
+        Local this
+      val $pattern.subject.2: Packet
+        Type Packet
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Packet v0
+          Type Packet
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $when.3: Packet
+        Type Packet
+        Local other
+      val $pattern.subject.4: Packet
+        Type Packet
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Packet v0
+          Type Packet
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Packet
+        Type Packet
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Packet v1
+          Type Packet
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      return
+        Type Boolean
+        BoolLiteral true
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $left.1.0: Int
+        Type Int
+        VariantPayloadProject Packet v1 f0
+          Type Packet
+          Local $pattern.subject.5
+      val $when.6: Packet
+        Type Packet
+        Local other
+      val $pattern.subject.7: Packet
+        Type Packet
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Packet v1
+          Type Packet
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      val $pattern.subject.8: Packet
+        Type Packet
+        Local $when.1
+      branch bb13 bb14
+        Type Boolean
+        VariantTest Packet v2
+          Type Packet
+          Local $pattern.subject.8
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      val $right.1.0: Int
+        Type Int
+        VariantPayloadProject Packet v1 f0
+          Type Packet
+          Local $pattern.subject.7
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $left.1.0
+          Type Int
+          Local $right.1.0
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+    bb13 pattern.pass.13
+      val $left.2.0: String
+        Type String
+        VariantPayloadProject Packet v2 f0
+          Type Packet
+          Local $pattern.subject.8
+      val $left.2.1: Flag
+        Type Flag
+        VariantPayloadProject Packet v2 f1
+          Type Packet
+          Local $pattern.subject.8
+      val $when.9: Packet
+        Type Packet
+        Local other
+      val $pattern.subject.10: Packet
+        Type Packet
+        Local $when.9
+      branch bb16 bb17
+        Type Boolean
+        VariantTest Packet v2
+          Type Packet
+          Local $pattern.subject.10
+    bb14 pattern.else.14
+      unreachable
+    bb15 pattern.merge.15
+      unreachable
+    bb16 pattern.pass.16
+      val $right.2.0: String
+        Type String
+        VariantPayloadProject Packet v2 f0
+          Type Packet
+          Local $pattern.subject.10
+      val $right.2.1: Flag
+        Type Flag
+        VariantPayloadProject Packet v2 f1
+          Type Packet
+          Local $pattern.subject.10
+      call $call.1: Boolean = external0 direct
+        Type String
+        Local $left.2.0
+        Type String
+        Local $right.2.0
+      branch bb19 bb20
+        Type Boolean
+        Local $call.1
+    bb17 pattern.else.17
+      return
+        Type Boolean
+        BoolLiteral false
+    bb18 pattern.merge.18
+      unreachable
+    bb19 logic.rhs.19
+      call $call.3: Boolean = @fn2 direct
+        Type Flag
+        Local $left.2.1
+        Type Flag
+        Local $right.2.1
+      assign $logic.2
+        Type Boolean
+        Local $call.3
+      goto bb21
+    bb20 logic.short.20
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb21
+    bb21 logic.merge.21
+      return
+        Type Boolean
+        Local $logic.2
+  fun Flag.equals @fn2(this: Flag, other: Flag) -> Boolean
+    bb0 entry
+      val $when.1: Flag
+        Type Flag
+        Local this
+      val $pattern.subject.2: Flag
+        Type Flag
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Flag v0
+          Type Flag
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $when.3: Flag
+        Type Flag
+        Local other
+      val $pattern.subject.4: Flag
+        Type Flag
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Flag v0
+          Type Flag
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Flag
+        Type Flag
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Flag v1
+          Type Flag
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      return
+        Type Boolean
+        BoolLiteral true
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $when.6: Flag
+        Type Flag
+        Local other
+      val $pattern.subject.7: Flag
+        Type Flag
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Flag v1
+          Type Flag
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      return
+        Type Boolean
+        BoolLiteral true
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+  fun Manual.equals @fn3(this: Manual, other: Manual) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun Overloaded.equals @fn4(this: Overloaded, other: Int) -> Boolean
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Overloaded
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        Local other
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun Overloaded.equals @fn5(this: Overloaded, other: Overloaded) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type Overloaded
+            Local this
+          Type Int
+          FieldAccess 0
+            Type Overloaded
+            Local other
+  fun main @fn6() -> Unit
+    bb0 entry
+      call $dependency.argument.0: Boolean = @fn2 direct
+        Type Flag
+        VariantConstruct Flag v1
+        Type Flag
+        VariantConstruct Flag v1
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      call $call.1: Boolean = @fn2 direct
+        Type Flag
+        VariantConstruct Flag v0
+        Type Flag
+        VariantConstruct Flag v1
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.1
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      call $dependency.argument.0: Boolean = @fn1 direct
+        Type Packet
+        VariantConstruct Packet v0
+        Type Packet
+        VariantConstruct Packet v0
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      val $equality.lhs: Packet
+        Type Packet
+        VariantConstruct Packet v1
+          Type Int
+          Local $parameter._1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Boolean = @fn1 direct
+        Type Packet
+        Local $equality.lhs
+        Type Packet
+        VariantConstruct Packet v1
+          Type Int
+          Local $parameter._1
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      val $equality.lhs: Packet
+        Type Packet
+        VariantConstruct Packet v1
+          Type Int
+          Local $parameter._1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      call $call.2: Boolean = @fn1 direct
+        Type Packet
+        Local $equality.lhs
+        Type Packet
+        VariantConstruct Packet v1
+          Type Int
+          Local $parameter._1
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.2
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      call $call.3: Boolean = @fn1 direct
+        Type Packet
+        VariantConstruct Packet v1
+          Type Int
+          Local $parameter._1
+        Type Packet
+        VariantConstruct Packet v0
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.3
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $argument.1: Flag
+        Type Flag
+        VariantConstruct Flag v1
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      val $parameter.flag: Flag
+        Type Flag
+        Local $argument.1
+      val $equality.lhs: Packet
+        Type Packet
+        VariantConstruct Packet v2
+          Type String
+          Local $parameter.value
+          Type Flag
+          Local $parameter.flag
+      val $argument.0: Flag
+        Type Flag
+        VariantConstruct Flag v1
+      val $argument.1: String
+        Type String
+        StringConst @str1
+      val $parameter.value: String
+        Type String
+        Local $argument.1
+      val $parameter.flag: Flag
+        Type Flag
+        Local $argument.0
+      call $dependency.argument.0: Boolean = @fn1 direct
+        Type Packet
+        Local $equality.lhs
+        Type Packet
+        VariantConstruct Packet v2
+          Type String
+          Local $parameter.value
+          Type Flag
+          Local $parameter.flag
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str2
+      val $argument.1: Flag
+        Type Flag
+        VariantConstruct Flag v1
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      val $parameter.flag: Flag
+        Type Flag
+        Local $argument.1
+      val $equality.lhs: Packet
+        Type Packet
+        VariantConstruct Packet v2
+          Type String
+          Local $parameter.value
+          Type Flag
+          Local $parameter.flag
+      val $argument.0: String
+        Type String
+        StringConst @str3
+      val $argument.1: Flag
+        Type Flag
+        VariantConstruct Flag v0
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      val $parameter.flag: Flag
+        Type Flag
+        Local $argument.1
+      call $call.4: Boolean = @fn1 direct
+        Type Packet
+        Local $equality.lhs
+        Type Packet
+        VariantConstruct Packet v2
+          Type String
+          Local $parameter.value
+          Type Flag
+          Local $parameter.flag
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.4
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      val $argument.0: Packet
+        Type Packet
+        VariantConstruct Packet v1
+          Type Int
+          Local $parameter._1
+      val $argument.1: Flag
+        Type Flag
+        VariantConstruct Flag v1
+      val $parameter.packet: Packet
+        Type Packet
+        Local $argument.0
+      val $parameter.flag: Flag
+        Type Flag
+        Local $argument.1
+      call $equality.lhs: Envelope = @fn40 direct
+        Type Packet
+        Local $parameter.packet
+        Type Flag
+        Local $parameter.flag
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      val $argument.0: Packet
+        Type Packet
+        VariantConstruct Packet v1
+          Type Int
+          Local $parameter._1
+      val $argument.1: Flag
+        Type Flag
+        VariantConstruct Flag v1
+      val $parameter.packet: Packet
+        Type Packet
+        Local $argument.0
+      val $parameter.flag: Flag
+        Type Flag
+        Local $argument.1
+      call $call.5: Envelope = @fn40 direct
+        Type Packet
+        Local $parameter.packet
+        Type Flag
+        Local $parameter.flag
+      call $dependency.argument.0: Boolean = @fn0 direct
+        Type Envelope
+        Local $equality.lhs
+        Type Envelope
+        Local $call.5
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      call $equality.lhs: Manual = @fn41 direct
+        Type Int
+        Local $parameter.number
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      call $call.6: Manual = @fn41 direct
+        Type Int
+        Local $parameter.number
+      call $dependency.argument.0: Boolean = @fn3 direct
+        Type Manual
+        Local $equality.lhs
+        Type Manual
+        Local $call.6
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      call $equality.lhs: Overloaded = @fn42 direct
+        Type Int
+        Local $parameter.number
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      call $call.7: Overloaded = @fn42 direct
+        Type Int
+        Local $parameter.number
+      call $dependency.argument.0: Boolean = @fn5 direct
+        Type Overloaded
+        Local $equality.lhs
+        Type Overloaded
+        Local $call.7
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      call $call.8: Overloaded = @fn42 direct
+        Type Int
+        Local $parameter.number
+      call $dependency.argument.0: Boolean = @fn4 direct
+        Type Overloaded
+        Local $call.8
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: Flag
+        Type Flag
+        VariantConstruct Flag v1
+      val $parameter.value: Flag
+        Type Flag
+        Local $argument.0
+      call $equality.lhs: Generic<Flag> = @fn43 direct
+        Type Flag
+        Local $parameter.value
+      val $argument.0: Flag
+        Type Flag
+        VariantConstruct Flag v1
+      val $parameter.value: Flag
+        Type Flag
+        Local $argument.0
+      call $call.9: Generic<Flag> = @fn43 direct
+        Type Flag
+        Local $parameter.value
+      call $dependency.argument.0: Boolean = @fn8 direct
+        Type Generic<Flag>
+        Local $equality.lhs
+        Type Generic<Flag>
+        Local $call.9
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: Flag
+        Type Flag
+        VariantConstruct Flag v1
+      val $argument.1: Flag
+        Type Flag
+        VariantConstruct Flag v1
+      val $parameter.left: Flag
+        Type Flag
+        Local $argument.0
+      val $parameter.right: Flag
+        Type Flag
+        Local $argument.1
+      call $parameter.same: Boolean = @fn2 direct
+        Type Flag
+        Local $parameter.left
+        Type Flag
+        Local $parameter.right
+      call $dependency.argument.0: Int = @fn9 direct
+        Type Flag
+        Local $parameter.left
+        Type Flag
+        Local $parameter.right
+        Type Boolean
+        Local $parameter.same
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun println @fn7(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Generic.equals @fn8(this: Generic<Flag>, other: Generic<Flag>) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn2 direct
+        Type Flag
+        FieldAccess 0
+          Type Generic<Flag>
+          Local this
+        Type Flag
+        FieldAccess 0
+          Type Generic<Flag>
+          Local other
+      return
+        Type Boolean
+        Local $call.1
+  fun defaultSame @fn9(left: Flag, right: Flag, same: Boolean) -> Int
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        Local same
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+    bb2 if.merge.2
+      return
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+  fun println @fn10(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str5
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Continuation.resume @fn11(this: Continuation<Envelope>, value: Envelope) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn12(this: Continuation<Envelope>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn13(this: SuspendTask<Envelope>, $completion: Continuation<Envelope>) -> CoroutineStep<Envelope>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn14(this: SuspendRegistration<Envelope>, continuation: Continuation<Envelope>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn15(this: Continuation<Packet>, value: Packet) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn16(this: Continuation<Packet>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn17(this: SuspendTask<Packet>, $completion: Continuation<Packet>) -> CoroutineStep<Packet>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn18(this: SuspendRegistration<Packet>, continuation: Continuation<Packet>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn19(this: Continuation<Flag>, value: Flag) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn20(this: Continuation<Flag>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn21(this: SuspendTask<Flag>, $completion: Continuation<Flag>) -> CoroutineStep<Flag>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn22(this: SuspendRegistration<Flag>, continuation: Continuation<Flag>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn23(this: Continuation<Manual>, value: Manual) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn24(this: Continuation<Manual>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn25(this: SuspendTask<Manual>, $completion: Continuation<Manual>) -> CoroutineStep<Manual>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn26(this: SuspendRegistration<Manual>, continuation: Continuation<Manual>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn27(this: Continuation<Overloaded>, value: Overloaded) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn28(this: Continuation<Overloaded>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn29(this: SuspendTask<Overloaded>, $completion: Continuation<Overloaded>) -> CoroutineStep<Overloaded>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn30(this: SuspendRegistration<Overloaded>, continuation: Continuation<Overloaded>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn31(this: Continuation<Broken>, value: Broken) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn32(this: Continuation<Broken>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn33(this: SuspendTask<Broken>, $completion: Continuation<Broken>) -> CoroutineStep<Broken>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn34(this: SuspendRegistration<Broken>, continuation: Continuation<Broken>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn35(this: Continuation<Missing>, value: Missing) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn36(this: Continuation<Missing>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn37(this: SuspendTask<Missing>, $completion: Continuation<Missing>) -> CoroutineStep<Missing>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn38(this: SuspendRegistration<Missing>, continuation: Continuation<Missing>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Missing.$c0 @fn39(this: Missing) -> Unit
+    bb0 entry
+      return
+  fun ctor.Envelope.$c0 @fn40(packet: Packet, flag: Flag) -> Envelope <no-gc>
+    bb0 entry
+      return
+        Type Envelope
+        StructInit Envelope
+          Type Packet
+          Local packet
+          Type Flag
+          Local flag
+  fun ctor.Manual.$c1 @fn41(number: Int) -> Manual <no-gc>
+    bb0 entry
+      return
+        Type Manual
+        StructInit Manual
+          Type Int
+          Local number
+  fun ctor.Overloaded.$c2 @fn42(number: Int) -> Overloaded <no-gc>
+    bb0 entry
+      return
+        Type Overloaded
+        StructInit Overloaded
+          Type Int
+          Local number
+  fun ctor.Generic.$c3 @fn43(value: Flag) -> Generic<Flag> <no-gc>
+    bb0 entry
+      return
+        Type Generic<Flag>
+        StructInit Generic<Flag>
+          Type Flag
+          Local value
+  fun startCoroutine<Envelope> @fn44(task: SuspendTask<Envelope>, completion: Continuation<Envelope>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn11 interface Continuation<Envelope>[0]
+        Type Continuation<Envelope>
+        Local completion
+        Type Envelope
+        EnumField v0 f0
+          Type CoroutineStep<Envelope>
+          Local $step
+      return
+    bb2 failed
+      call @fn12 interface Continuation<Envelope>[1]
+        Type Continuation<Envelope>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Envelope> = @fn13 interface SuspendTask<Envelope>[0]
+        Type SuspendTask<Envelope>
+        Local task
+        Type Continuation<Envelope>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Envelope>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Broken> @fn45(task: SuspendTask<Broken>, completion: Continuation<Broken>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn31 interface Continuation<Broken>[0]
+        Type Continuation<Broken>
+        Local completion
+        Type Broken
+        EnumField v0 f0
+          Type CoroutineStep<Broken>
+          Local $step
+      return
+    bb2 failed
+      call @fn32 interface Continuation<Broken>[1]
+        Type Continuation<Broken>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Broken> = @fn33 interface SuspendTask<Broken>[0]
+        Type SuspendTask<Broken>
+        Local task
+        Type Continuation<Broken>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Broken>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Manual> @fn46(task: SuspendTask<Manual>, completion: Continuation<Manual>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn23 interface Continuation<Manual>[0]
+        Type Continuation<Manual>
+        Local completion
+        Type Manual
+        EnumField v0 f0
+          Type CoroutineStep<Manual>
+          Local $step
+      return
+    bb2 failed
+      call @fn24 interface Continuation<Manual>[1]
+        Type Continuation<Manual>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Manual> = @fn25 interface SuspendTask<Manual>[0]
+        Type SuspendTask<Manual>
+        Local task
+        Type Continuation<Manual>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Manual>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Missing> @fn47(task: SuspendTask<Missing>, completion: Continuation<Missing>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn35 interface Continuation<Missing>[0]
+        Type Continuation<Missing>
+        Local completion
+        Type Missing
+        EnumField v0 f0
+          Type CoroutineStep<Missing>
+          Local $step
+      return
+    bb2 failed
+      call @fn36 interface Continuation<Missing>[1]
+        Type Continuation<Missing>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Missing> = @fn37 interface SuspendTask<Missing>[0]
+        Type SuspendTask<Missing>
+        Local task
+        Type Continuation<Missing>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Missing>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Overloaded> @fn48(task: SuspendTask<Overloaded>, completion: Continuation<Overloaded>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn27 interface Continuation<Overloaded>[0]
+        Type Continuation<Overloaded>
+        Local completion
+        Type Overloaded
+        EnumField v0 f0
+          Type CoroutineStep<Overloaded>
+          Local $step
+      return
+    bb2 failed
+      call @fn28 interface Continuation<Overloaded>[1]
+        Type Continuation<Overloaded>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Overloaded> = @fn29 interface SuspendTask<Overloaded>[0]
+        Type SuspendTask<Overloaded>
+        Local task
+        Type Continuation<Overloaded>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Overloaded>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Packet> @fn49(task: SuspendTask<Packet>, completion: Continuation<Packet>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn15 interface Continuation<Packet>[0]
+        Type Continuation<Packet>
+        Local completion
+        Type Packet
+        EnumField v0 f0
+          Type CoroutineStep<Packet>
+          Local $step
+      return
+    bb2 failed
+      call @fn16 interface Continuation<Packet>[1]
+        Type Continuation<Packet>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Packet> = @fn17 interface SuspendTask<Packet>[0]
+        Type SuspendTask<Packet>
+        Local task
+        Type Continuation<Packet>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Packet>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Flag> @fn50(task: SuspendTask<Flag>, completion: Continuation<Flag>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn19 interface Continuation<Flag>[0]
+        Type Continuation<Flag>
+        Local completion
+        Type Flag
+        EnumField v0 f0
+          Type CoroutineStep<Flag>
+          Local $step
+      return
+    bb2 failed
+      call @fn20 interface Continuation<Flag>[1]
+        Type Continuation<Flag>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Flag> = @fn21 interface SuspendTask<Flag>[0]
+        Type SuspendTask<Flag>
+        Local task
+        Type Continuation<Flag>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Flag>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Envelope> result=Envelope
+  coroutine_step cs1 CoroutineStep<Broken> result=Broken
+  coroutine_step cs2 CoroutineStep<Manual> result=Manual
+  coroutine_step cs3 CoroutineStep<Missing> result=Missing
+  coroutine_step cs4 CoroutineStep<Overloaded> result=Overloaded
+  coroutine_step cs5 CoroutineStep<Packet> result=Packet
+  coroutine_step cs6 CoroutineStep<Flag> result=Flag
+  coroutine_slot cl0 CoroutineSlot<Envelope> value=Envelope
+  coroutine_slot cl1 CoroutineSlot<Broken> value=Broken
+  coroutine_slot cl2 CoroutineSlot<Manual> value=Manual
+  coroutine_slot cl3 CoroutineSlot<Missing> value=Missing
+  coroutine_slot cl4 CoroutineSlot<Overloaded> value=Overloaded
+  coroutine_slot cl5 CoroutineSlot<Packet> value=Packet
+  coroutine_slot cl6 CoroutineSlot<Flag> value=Flag
+  coroutine_start ct0 result=Envelope function=fn44
+  coroutine_start ct1 result=Broken function=fn45
+  coroutine_start ct2 result=Manual function=fn46
+  coroutine_start ct3 result=Missing function=fn47
+  coroutine_start ct4 result=Overloaded function=fn48
+  coroutine_start ct5 result=Packet function=fn49
+  coroutine_start ct6 result=Flag function=fn50
+  coroutine_fn cf0 @fn13 source_return=Envelope step=cs0 immediate
+  coroutine_fn cf1 @fn17 source_return=Packet step=cs5 immediate
+  coroutine_fn cf2 @fn21 source_return=Flag step=cs6 immediate
+  coroutine_fn cf3 @fn25 source_return=Manual step=cs2 immediate
+  coroutine_fn cf4 @fn29 source_return=Overloaded step=cs4 immediate
+  coroutine_fn cf5 @fn33 source_return=Broken step=cs1 immediate
+  coroutine_fn cf6 @fn37 source_return=Missing step=cs3 immediate
+  instance mi0 function=@fn7 <- println
+  instance mi1 function=@fn9 <- defaultSame
+  instance mi2 function=@fn10 <- println
+  instance mi3 function=@fn11 <- Continuation.resume
+  instance mi4 function=@fn12 <- Continuation.resumeWithException
+  instance mi5 function=@fn13 <- SuspendTask.run
+  instance mi6 function=@fn14 <- SuspendRegistration.register
+  instance mi7 function=@fn15 <- Continuation.resume
+  instance mi8 function=@fn16 <- Continuation.resumeWithException
+  instance mi9 function=@fn17 <- SuspendTask.run
+  instance mi10 function=@fn18 <- SuspendRegistration.register
+  instance mi11 function=@fn19 <- Continuation.resume
+  instance mi12 function=@fn20 <- Continuation.resumeWithException
+  instance mi13 function=@fn21 <- SuspendTask.run
+  instance mi14 function=@fn22 <- SuspendRegistration.register
+  instance mi15 function=@fn23 <- Continuation.resume
+  instance mi16 function=@fn24 <- Continuation.resumeWithException
+  instance mi17 function=@fn25 <- SuspendTask.run
+  instance mi18 function=@fn26 <- SuspendRegistration.register
+  instance mi19 function=@fn27 <- Continuation.resume
+  instance mi20 function=@fn28 <- Continuation.resumeWithException
+  instance mi21 function=@fn29 <- SuspendTask.run
+  instance mi22 function=@fn30 <- SuspendRegistration.register
+  instance mi23 function=@fn31 <- Continuation.resume
+  instance mi24 function=@fn32 <- Continuation.resumeWithException
+  instance mi25 function=@fn33 <- SuspendTask.run
+  instance mi26 function=@fn34 <- SuspendRegistration.register
+  instance mi27 function=@fn35 <- Continuation.resume
+  instance mi28 function=@fn36 <- Continuation.resumeWithException
+  instance mi29 function=@fn37 <- SuspendTask.run
+  instance mi30 function=@fn38 <- SuspendRegistration.register
+  str @str0 "x"
+  str @str1 "x"
+  str @str2 "x"
+  str @str3 "x"
+  str @str4 "\n"
+  str @str5 "\n"
+  output executable @fn6

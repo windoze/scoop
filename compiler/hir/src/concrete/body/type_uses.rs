@@ -6,7 +6,7 @@ impl Expr {
     pub fn shared_representation_type(&self, types: &Arena<Type>) -> Option<TypeId> {
         match &self.kind {
             ExprKind::Call {
-                callee: CallableTarget::Imported(_),
+                callee: CallableTarget::Imported(_) | CallableTarget::DerivedEquality(_),
                 receiver: crate::SourceCallReceiver::Receiver { static_type },
                 ..
             } => Some(*static_type),
