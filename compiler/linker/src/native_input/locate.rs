@@ -55,29 +55,37 @@ pub(super) fn library(
 fn read(path: &Path, profile: &ValidatedFinalLinkProfile) -> Result<NativeFile, LinkError> {
     let bytes = std::fs::read(path).map_err(error)?;
     let slice = slice::select(&bytes)?;
-    let info = NativeObjectInfo::read(
-        &bytes[slice.clone()],
-        profile
-            .startup_toolchain()
-            .profile()
-            .contract()
-            .deployment(),
-    )?;
+    let archive = path.extension().is_some_and(|extension| extension == "a");
     let id = NativeInputId(
         domain_separated_cbor_hash(
             "scoop-native-input-v1",
             &FileKey {
                 profile,
                 bytes: &bytes,
+                kind: if archive { 2 } else { 1 },
             },
         )
         .map_err(error)?,
     );
+    let content = if archive {
+        NativeContent::Archive(archive::read(&bytes, id, &slice, profile)?)
+    } else {
+        let index = NativeObjectIndex::read(
+            &bytes[slice.clone()],
+            profile
+                .startup_toolchain()
+                .profile()
+                .contract()
+                .deployment(),
+        )?;
+        index.check_selected(&bytes[slice.clone()])?;
+        NativeContent::Object(index)
+    };
     Ok(NativeFile {
         id,
         bytes: bytes.into(),
         slice,
-        info,
+        content,
         locator: std::fs::canonicalize(path).map_err(error)?,
     })
 }

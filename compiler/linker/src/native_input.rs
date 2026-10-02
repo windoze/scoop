@@ -8,8 +8,12 @@ use scoop_identity::{NativeLibraryGrouping, NativeLinkRequirementId, NativeLinkR
 use scoop_toolchain::ValidatedFinalLinkProfile;
 use scoop_wire::{Digest256, Encoder, WireEncode, domain_separated_cbor_hash, sha256};
 
-use crate::{LinkError, NativeObjectInfo, error};
+use crate::{LinkError, error, native_object::NativeObjectIndex};
 
+mod archive;
+mod objects;
+mod plan;
+pub(crate) use objects::{NativeArchiveMemberId, NativeObjectId};
 mod locate;
 mod slice;
 
@@ -31,7 +35,12 @@ pub(crate) struct NativeFile {
     pub bytes: Arc<[u8]>,
     pub slice: Range<usize>,
     pub locator: PathBuf,
-    pub info: NativeObjectInfo,
+    pub content: NativeContent,
+}
+
+pub(crate) enum NativeContent {
+    Object(NativeObjectIndex),
+    Archive(Vec<archive::Member>),
 }
 
 pub(crate) struct LibraryInput {
@@ -44,6 +53,7 @@ pub(crate) struct LibraryInput {
 pub(crate) struct NativeInputs {
     pub files: BTreeMap<NativeInputId, NativeFile>,
     pub libraries: BTreeMap<NativeLinkRequirementId, LibraryInput>,
+    pub selected: BTreeMap<NativeObjectId, String>,
 }
 
 impl NativeInputs {
@@ -99,12 +109,13 @@ impl NativeInputs {
 struct FileKey<'a> {
     profile: &'a ValidatedFinalLinkProfile,
     bytes: &'a [u8],
+    kind: u64,
 }
 impl WireEncode for FileKey<'_> {
     fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         e.array(4)?;
         self.profile.target().wire_id().encode(e)?;
-        e.unsigned(1)?;
+        e.unsigned(self.kind)?;
         e.unsigned(self.bytes.len() as u64)?;
         sha256(self.bytes).encode(e)
     }

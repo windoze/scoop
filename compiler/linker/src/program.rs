@@ -5,7 +5,7 @@ use scoop_identity::{ConeIdentity, PersistentSymbolRequest};
 use scoop_slib::{LinkDefinitionOwnerV1, ProgramLinkClosure, SlibMemberId};
 use scoop_toolchain::ValidatedFinalLinkProfile;
 
-use crate::native_input::{NativeInputId, NativeInputs};
+use crate::native_input::{NativeInputs, NativeObjectId};
 use crate::{LinkError, RuntimeObjectId, RuntimeObjectSet, error};
 
 pub(crate) mod native;
@@ -16,7 +16,7 @@ pub(crate) use object::{InputObject, ObjectBytes};
 pub(crate) enum DefinitionOwner {
     Scoop(LinkDefinitionOwnerV1),
     Runtime(RuntimeObjectId),
-    Native(NativeInputId),
+    Native(NativeObjectId),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -26,7 +26,7 @@ pub(crate) enum ObjectOrigin {
         member: SlibMemberId,
     },
     Runtime(RuntimeObjectId),
-    Native(NativeInputId),
+    Native(NativeObjectId),
 }
 impl std::fmt::Display for ObjectOrigin {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -42,6 +42,7 @@ pub(crate) struct ProgramInputs<'a> {
     pub objects: Vec<InputObject<'a>>,
     pub definitions: BTreeMap<String, DefinitionOwner>,
     pub requirements: BTreeSet<String>,
+    pub requirement_origins: BTreeMap<String, Vec<String>>,
     pub dynamic: BTreeSet<String>,
     pub images: Vec<String>,
     pub root: String,
@@ -63,6 +64,7 @@ impl<'a> ProgramInputs<'a> {
         let mut objects = Vec::new();
         let mut definitions = BTreeMap::new();
         let mut requirements = BTreeSet::new();
+        let mut requirement_origins: BTreeMap<String, Vec<String>> = BTreeMap::new();
         let mut images = Vec::new();
         let mut root = None;
         let mut string_target = None;
@@ -145,9 +147,17 @@ impl<'a> ProgramInputs<'a> {
                 }
             }
             for requirement in symbols.undefined_partitions().legacy().requirements() {
-                requirements.insert(
-                    String::from_utf8(requirement.use_site().symbol().to_vec()).map_err(error)?,
-                );
+                let symbol =
+                    String::from_utf8(requirement.use_site().symbol().to_vec()).map_err(error)?;
+                requirement_origins
+                    .entry(symbol.clone())
+                    .or_default()
+                    .push(format!(
+                        "Cone {} member {}",
+                        artifact.manifest().cone().coordinate(),
+                        requirement.member()
+                    ));
+                requirements.insert(symbol);
             }
         }
         for object in runtime.objects() {
@@ -162,6 +172,12 @@ impl<'a> ProgramInputs<'a> {
                 }
             }
             requirements.extend(object.info().requirements.iter().cloned());
+            for symbol in &object.info().requirements {
+                requirement_origins
+                    .entry(symbol.clone())
+                    .or_default()
+                    .push(format!("runtime object {}", object.id()));
+            }
             objects.push(InputObject {
                 origin: ObjectOrigin::Runtime(object.id()),
                 bytes: ObjectBytes::Borrowed(object.bytes()),
@@ -182,6 +198,7 @@ impl<'a> ProgramInputs<'a> {
             objects,
             definitions,
             requirements,
+            requirement_origins,
             dynamic: BTreeSet::new(),
             images,
             root,

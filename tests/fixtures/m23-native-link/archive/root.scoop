@@ -1,0 +1,12 @@
+@Extern(lib = "m23_chain", name = "m23_start")
+fun start(): Int
+
+@Extern(lib = "m23_tail", name = "m23_marker")
+fun marker(): Int
+
+fun main() {
+    @Unsafe {
+        println(start())
+        println(marker())
+    }
+}

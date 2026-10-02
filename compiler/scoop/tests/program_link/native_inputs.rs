@@ -1,6 +1,19 @@
 use super::*;
 
+mod archive;
 mod direct;
+
+fn archive_native(directory: &Path, name: &str, members: &[&Path]) -> PathBuf {
+    let archive = directory.join("native").join(format!("lib{name}.a"));
+    std::fs::create_dir_all(archive.parent().unwrap()).unwrap();
+    checked(
+        Command::new("/usr/bin/ar")
+            .arg("qcS")
+            .arg(&archive)
+            .args(members),
+    );
+    archive
+}
 
 fn native_fixture(name: &str) -> String {
     std::fs::read_to_string(

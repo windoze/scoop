@@ -158,13 +158,7 @@ impl WireEncode for Plan<'_> {
         e.text(&self.inputs.string_target)?;
         e.text("_scoop_td_String")?;
         e.field(8)?;
-        e.array(self.inputs.native.libraries.len() as u64)?;
-        for (id, library) in &self.inputs.native.libraries {
-            e.array(3)?;
-            id.encode(e)?;
-            library.key.encode(e)?;
-            library.input.encode(e)?;
-        }
+        self.inputs.native.encode(e)?;
         Ok(())
     }
 }
@@ -193,20 +187,7 @@ fn dump(
         inputs.string_target
     ));
     text.push_str("link inputs: startup, cone/member order, runtime/object order, libSystem\n");
-    for (id, library) in &inputs.native.libraries {
-        text.push_str(&format!(
-            "native library {} requirement={id} input={} origins={}\n",
-            library.key.library().as_str(),
-            library.input,
-            library.origins.join(", ")
-        ));
-    }
-    for file in inputs.native.ordered_files() {
-        text.push_str(&format!(
-            "native object {} slice={}..{}\n",
-            file.id, file.slice.start, file.slice.end
-        ));
-    }
+    text.push_str(&inputs.native.dump());
     text.push_str("startup object references:\n");
     for symbol in &startup.references {
         text.push_str(&format!("  {symbol}\n"));

@@ -9,6 +9,7 @@ use scoop_lir::DarwinCBridgeDeploymentContractV1;
 
 use crate::{LinkError, error};
 
+mod selected;
 mod wire;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -31,7 +32,24 @@ pub struct NativeObjectInfo {
     pub requirements: BTreeSet<String>,
 }
 
+pub(crate) struct NativeObjectIndex {
+    pub info: NativeObjectInfo,
+    common: BTreeSet<String>,
+    implicit_inputs: Vec<u32>,
+}
+
 impl NativeObjectInfo {
+    pub fn read(
+        bytes: &[u8],
+        deployment: &DarwinCBridgeDeploymentContractV1,
+    ) -> Result<Self, LinkError> {
+        let index = NativeObjectIndex::read(bytes, deployment)?;
+        index.check_selected(bytes)?;
+        Ok(index.info)
+    }
+}
+
+impl NativeObjectIndex {
     pub fn read(
         bytes: &[u8],
         deployment: &DarwinCBridgeDeploymentContractV1,
@@ -46,40 +64,8 @@ impl NativeObjectInfo {
                 "native input must be an ordinary little-endian arm64 Mach-O object",
             ));
         }
-        check_commands(&file, deployment)?;
-        for section in file.sections() {
-            let name = section.name().map_err(error)?;
-            if matches!(
-                name,
-                "__mod_init_func" | "__mod_term_func" | "__thread_init" | "__init_offsets"
-            ) || section.segment_name().map_err(error)? == Some("__LLVM")
-                || name.starts_with("__objc_")
-                || name.starts_with("__swift")
-            {
-                return Err(error(format!(
-                    "native object contains forbidden initialization or LTO section {name}"
-                )));
-            }
-            section.data().map_err(error)?;
-            for (offset, relocation) in section.relocations() {
-                if offset
-                    .checked_add(u64::from(relocation.size().div_ceil(8)))
-                    .is_none_or(|end| end > section.size())
-                {
-                    return Err(error(format!("native relocation outside {name}")));
-                }
-                match relocation.target() {
-                    RelocationTarget::Symbol(index) => {
-                        file.symbol_by_index(index).map_err(error)?;
-                    }
-                    RelocationTarget::Section(index) => {
-                        file.section_by_index(index).map_err(error)?;
-                    }
-                    RelocationTarget::Absolute => {}
-                    _ => return Err(error("unknown native relocation target")),
-                }
-            }
-        }
+        let implicit_inputs = check_commands(&file, deployment)?;
+        let mut common = BTreeSet::new();
         let mut definitions = BTreeMap::new();
         let mut requirements = BTreeSet::new();
         for symbol in file.symbols() {
@@ -87,21 +73,18 @@ impl NativeObjectInfo {
                 continue;
             }
             let name = symbol.name().map_err(error)?.to_owned();
-            if name.starts_with("___cxa_")
-                || name.starts_with("___gxx_personality")
-                || name.starts_with("___gcc_personality")
-                || name.starts_with("__ZSt9terminate")
-            {
-                return Err(error(format!(
-                    "native object has forbidden C++ ABI dependency {name}"
-                )));
-            }
-            // In Mach-O, an external N_UNDF with a nonzero value is tentative
-            // storage; object::ObjectSymbol::is_common() does not expose it.
+            // Mach-O tentative storage uses N_UNDF with a nonzero n_value.
             if symbol.is_undefined() && symbol.address() != 0 {
-                return Err(error(format!(
-                    "native common/tentative definition {name} requires actual storage"
-                )));
+                common.insert(name.clone());
+                definitions.insert(
+                    name,
+                    NativeSymbolDefinition {
+                        kind: NativeSymbolKind::Data,
+                        read_only: false,
+                        weak: symbol.is_weak(),
+                    },
+                );
+                continue;
             }
             if symbol.is_undefined() {
                 requirements.insert(name);
@@ -154,8 +137,12 @@ impl NativeObjectInfo {
             }
         }
         Ok(Self {
-            definitions,
-            requirements,
+            info: NativeObjectInfo {
+                definitions,
+                requirements,
+            },
+            common,
+            implicit_inputs,
         })
     }
 }
@@ -163,7 +150,8 @@ impl NativeObjectInfo {
 fn check_commands(
     file: &MachOFile64<'_>,
     deployment: &DarwinCBridgeDeploymentContractV1,
-) -> Result<(), LinkError> {
+) -> Result<Vec<u32>, LinkError> {
+    let mut implicit_inputs = Vec::new();
     let mut commands = file.macho_load_commands().map_err(error)?;
     let mut build_count = 0;
     let endian = file.endian();
@@ -187,7 +175,7 @@ fn check_commands(
             | macho::LC_LOAD_DYLIB
             | macho::LC_LOAD_WEAK_DYLIB
             | macho::LC_REEXPORT_DYLIB => {
-                return Err(error("native object requests an implicit linker input"));
+                implicit_inputs.push(command.cmd());
             }
             _ => {}
         }
@@ -195,5 +183,5 @@ fn check_commands(
     if build_count != 1 {
         return Err(error("native object requires one LC_BUILD_VERSION"));
     }
-    Ok(())
+    Ok(implicit_inputs)
 }
