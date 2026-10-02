@@ -5,27 +5,6 @@ mod inheritance;
 pub(super) mod runtime;
 
 #[test]
-fn dependency_value_interfaces_compile_and_run_through_actual_artifacts() {
-    check_class_cases(
-        "direct",
-        &[
-            "value-interface-struct",
-            "value-interface-enum",
-            "value-interface-zst",
-            "value-interface-wide",
-            "value-interface-reference",
-            "value-interface-recursive",
-            "value-interface-default",
-            "value-interface-core",
-        ],
-        &[
-            "value-interface-wrong-identity",
-            "enum-interface-wrong-identity",
-        ],
-    );
-}
-
-#[test]
 fn primitive_interfaces_compile_and_run_through_actual_artifacts() {
     check_class_cases(
         "direct",

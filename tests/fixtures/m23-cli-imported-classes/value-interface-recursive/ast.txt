@@ -1,0 +1,17 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.ValueEcho
+  ImportExact Local dependency.classes.EchoValue
+  public fun primary(): Counter
+    val input
+      Call EchoValue
+        Call Counter
+          IntLiteral 21
+    val echo: ValueEcho
+      Var input
+    return
+      FieldAccess reference
+        MethodCall echo
+          Var echo
+          Var input
