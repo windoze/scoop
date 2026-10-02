@@ -5,29 +5,6 @@ mod inheritance;
 pub(super) mod runtime;
 
 #[test]
-fn dependency_property_writes_compile_and_run_through_actual_artifacts() {
-    check_class_cases(
-        "direct",
-        &[
-            "property-setter",
-            "property-computed",
-            "property-virtual",
-            "property-interface",
-            "property-updates",
-            "property-abi",
-        ],
-        &[
-            "property-readonly",
-            "property-private-setter",
-            "property-internal-setter",
-            "property-private-update",
-            "property-wrong-value",
-            "property-wrong-reference",
-        ],
-    );
-}
-
-#[test]
 fn dependency_value_interfaces_compile_and_run_through_actual_artifacts() {
     check_class_cases(
         "direct",

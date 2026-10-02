@@ -236,8 +236,9 @@ fixture 的 `truncate(path,size)` 只缩短现有文件；对应归档的初始�
 | 原 Rust 入口 | 正例／负例 | 进程／golden 比较 | 旧阶段对照 |
 | --- | --- | --- | --- |
 | `dependency_classes_compile_and_run_through_actual_artifacts` | 24／12 | 312／120 | 72 份 HIR Export、MIR、LIR 逐字相同；12 份诊断相同 |
+| `dependency_property_writes_compile_and_run_through_actual_artifacts` | 6／6 | 90／30 | 18 份旧阶段逐字相同；6 份诊断相同 |
 
-本节目前覆盖首批 36 项；其余类、接口及继承用例继续逐功能迁移。共享的旧 runtime helper 仍被其他待迁测试调用，随那些调用一起退役。
+本节目前覆盖 48 项；其余类、接口及继承用例继续逐功能迁移。共享的旧 runtime helper 仍被其他待迁测试调用，随那些调用一起退役。
 
 ## 12. 后续批次
 
