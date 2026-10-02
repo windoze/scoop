@@ -12,47 +12,7 @@ impl Concretizer<'_> {
         let mut protocols = Vec::new();
         loop {
             self.drain_pending_callables();
-            let mut results = self.coroutine_results.iter().copied().collect::<Vec<_>>();
-            for (index, function) in self.function_slots.iter().enumerate() {
-                let Some(function) = function else {
-                    continue;
-                };
-                if function.is_suspend
-                    && matches!(
-                        function.kind,
-                        concrete::FunctionKind::User(_) | concrete::FunctionKind::Abstract { .. }
-                    )
-                {
-                    results.push(function.return_ty);
-                }
-                if matches!(
-                    function.kind,
-                    concrete::FunctionKind::Intrinsic(intrinsic)
-                        if matches!(
-                            intrinsic.kind,
-                            concrete::IntrinsicFunctionKind::CoroutineStart
-                                | concrete::IntrinsicFunctionKind::CoroutineSuspend
-                        )
-                ) {
-                    results.extend(self.function_key_arguments(&self.function_keys[index]));
-                }
-            }
-            // Suspend function-value variance bridges are synthesized by MIR
-            // and use the target function type's result. Include those
-            // concrete results in HIR's closed coroutine protocol set too.
-            results.extend(
-                self.function_types.iter().filter_map(|(_, function)| {
-                    function.is_suspend.then_some(function.return_type)
-                }),
-            );
-            results.extend(self.interfaces.iter().flat_map(|(_, interface)| {
-                interface
-                    .methods
-                    .iter()
-                    .filter_map(|method| method.is_suspend.then_some(method.return_ty))
-            }));
-            results.sort_by_key(|id| id.into_raw().into_u32());
-            results.dedup();
+            let mut results = self.coroutine_result_types();
             results.retain(|result| {
                 !protocols
                     .iter()

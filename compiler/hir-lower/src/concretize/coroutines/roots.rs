@@ -6,6 +6,7 @@ use std::collections::BTreeSet;
 impl Concretizer<'_> {
     pub(in crate::concretize) fn shared_result_types(&self) -> BTreeSet<concrete::TypeId> {
         let mut roots = self.shared_types.clone();
+        roots.extend(self.coroutine_result_types());
         for (origin, ty) in self.nominal_results() {
             if matches!(
                 origin,
@@ -56,6 +57,47 @@ impl Concretizer<'_> {
             let Ok(()) = result;
         }
         roots
+    }
+
+    pub(super) fn coroutine_result_types(&self) -> BTreeSet<concrete::TypeId> {
+        let mut results = self.coroutine_results.clone();
+        for (key, function) in self.function_keys.iter().zip(&self.function_slots) {
+            let function = function
+                .as_ref()
+                .expect("the callable work queue was drained");
+            if function.is_suspend
+                && matches!(
+                    function.kind,
+                    concrete::FunctionKind::User(_) | concrete::FunctionKind::Abstract { .. }
+                )
+            {
+                results.insert(function.return_ty);
+            }
+            if matches!(
+                function.kind,
+                concrete::FunctionKind::Intrinsic(intrinsic)
+                    if matches!(
+                        intrinsic.kind,
+                        concrete::IntrinsicFunctionKind::CoroutineStart
+                            | concrete::IntrinsicFunctionKind::CoroutineSuspend
+                    )
+            ) {
+                results.extend(self.function_key_arguments(key));
+            }
+        }
+        // MIR also needs protocols for suspend function-value variance bridges.
+        results.extend(
+            self.function_types
+                .iter()
+                .filter_map(|(_, function)| function.is_suspend.then_some(function.return_type)),
+        );
+        results.extend(self.interfaces.iter().flat_map(|(_, interface)| {
+            interface
+                .methods
+                .iter()
+                .filter_map(|method| method.is_suspend.then_some(method.return_ty))
+        }));
+        results
     }
 
     pub(in crate::concretize) fn shared_nominal_roots(&self) -> Vec<export::SourceNominalId> {

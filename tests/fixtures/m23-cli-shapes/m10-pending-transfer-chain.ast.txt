@@ -1,0 +1,141 @@
+SourceFile
+  RootPackage
+  public class Node(val text: String)
+  class InnerError(val payload: Node) : Exception(<1 args>)
+  class OuterError(val payload: Node) : Exception(<1 args>)
+  class Gate(var waiter: Continuation<Unit>?)
+    fun complete
+    fun fail
+  class Registration(val gate: Gate), SuspendRegistration<Unit>
+    public fun register
+  suspend fun waitFor(gate: Gate)
+    Call suspendCoroutine
+      Call Registration
+        Var gate
+  suspend fun returnThroughNestedCleanup(innerGate: Gate, outerGate: Gate): Node
+    val pending
+      Call Node
+        Binary Add
+          StringLiteral "return-"
+          StringLiteral "node"
+    try
+      try
+        return
+          Var pending
+      finally
+        try
+          Call waitFor
+            Var innerGate
+        catch error: InnerError
+          Call println
+            StringLiteral "return-inner-caught"
+          Call println
+            FieldAccess text
+              FieldAccess payload
+                Var error
+    finally
+      Call waitFor
+        Var outerGate
+  suspend fun throwThroughNestedCleanup(innerGate: Gate, outerGate: Gate): Node
+    val payload
+      Call Node
+        Binary Add
+          StringLiteral "outer-"
+          StringLiteral "payload"
+    try
+      try
+        throw
+          Call OuterError
+            Var payload
+      finally
+        try
+          Call waitFor
+            Var innerGate
+        catch error: InnerError
+          Call println
+            StringLiteral "throw-inner-caught"
+          Call println
+            FieldAccess text
+              FieldAccess payload
+                Var error
+    finally
+      Call waitFor
+        Var outerGate
+  class ReturnTask(val innerGate: Gate, val outerGate: Gate), SuspendTask<Node>
+    public suspend fun run
+  class ThrowTask(val innerGate: Gate, val outerGate: Gate), SuspendTask<Node>
+    public suspend fun run
+  class RecordingCompletion(val label: String), Continuation<Node>
+    public fun resume
+    public fun resumeWithException
+  fun makeGarbage()
+    var index
+      IntLiteral 0
+    while
+      Binary Lt
+        Var index
+        IntLiteral 1000
+      val garbage
+        Call Node
+          Binary Add
+            StringLiteral "garbage-"
+            StringLiteral "node"
+      assign index
+        Binary Add
+          Var index
+          IntLiteral 1
+  fun collectAndMove()
+    Call gcCollect
+    Call makeGarbage
+    Call gcCollect
+  fun main()
+    val returnInner
+      Call Gate
+        Var None
+    val returnOuter
+      Call Gate
+        Var None
+    Call startCoroutine
+      Call ReturnTask
+        Var returnInner
+        Var returnOuter
+      Call RecordingCompletion
+        StringLiteral "return"
+    Call println
+      StringLiteral "return-inner-suspended"
+    Call collectAndMove
+    MethodCall fail
+      Var returnInner
+      Call InnerError
+        Call Node
+          StringLiteral "return-inner-error"
+    Call println
+      StringLiteral "return-outer-suspended"
+    Call collectAndMove
+    MethodCall complete
+      Var returnOuter
+    val throwInner
+      Call Gate
+        Var None
+    val throwOuter
+      Call Gate
+        Var None
+    Call startCoroutine
+      Call ThrowTask
+        Var throwInner
+        Var throwOuter
+      Call RecordingCompletion
+        StringLiteral "throw"
+    Call println
+      StringLiteral "throw-inner-suspended"
+    Call collectAndMove
+    MethodCall fail
+      Var throwInner
+      Call InnerError
+        Call Node
+          StringLiteral "throw-inner-error"
+    Call println
+      StringLiteral "throw-outer-suspended"
+    Call collectAndMove
+    MethodCall complete
+      Var throwOuter
