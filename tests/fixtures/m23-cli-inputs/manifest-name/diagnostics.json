@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOP_CLI_CONFIG",
+    "message": "invalid current Cone operand ${work}/cone.toml: regular file must be named Cone.toml or have exact .scoop extension",
+    "notes": [],
+    "origin": {
+      "end": null,
+      "kind": "host",
+      "path": "${work}/cone.toml",
+      "start": null
+    },
+    "phase": "Request",
+    "severity": "error"
+  }
+]

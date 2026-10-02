@@ -1,0 +1,151 @@
+schema = 1
+name = "cli-input-manifest-roots"
+root = "cone/Cone.toml"
+inputs = ["cone"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["cli", "input", "manifest"]
+
+[vars]
+options = ["--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json", "--runtime-root", "${work}/absent-runtime"]
+
+[[steps]]
+name = "prepare"
+files = [
+  {"copy" = {"from" = "${fixture}/cone", "to" = "${work}/cone"}},
+  {"symlink" = {"from" = "${work}/cone", "to" = "${work}/alias"}},
+  {"mkdir" = {"path" = "${work}/manifest-alias"}},
+  {"symlink" = {"from" = "${work}/cone/Cone.toml", "to" = "${work}/manifest-alias/Cone.toml"}},
+]
+
+[[steps]]
+name = "baseline"
+argv = ["${scoop}", "build", "${work}/cone", "--emit", "all", "--dump-dir", "${work}/dump", {"each" = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"file" = "${work}/dump/${baseline.result.root.identity}/ast.txt", "snapshot" = "ast.txt"},
+  {"file" = "${work}/dump/${baseline.result.root.identity}/hir.txt", "snapshot" = "hir.txt"},
+  {"file" = "${work}/dump/${baseline.result.root.identity}/mir.txt", "snapshot" = "mir.txt"},
+  {"file" = "${work}/dump/${baseline.result.root.identity}/lir.txt", "snapshot" = "lir.txt"},
+  {"actual" = "${baseline.result.kind}", "equals" = "library"},
+  {"actual" = "${baseline.result.observations.child_invocations.length}", "equals" = 2},
+]
+
+[[steps]]
+name = "absolute_manifest"
+argv = ["${scoop}", "build", "${work}/cone/Cone.toml", {"each" = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+cwd = "${work}"
+checks = [
+  {"actual" = "${absolute_manifest.result.root.artifact_fingerprint}", "equals" = "${baseline.result.root.artifact_fingerprint}"},
+  {"file" = "${absolute_manifest.result.root.path}", "same_as" = "${baseline.result.root.path}"},
+  {"actual" = "${absolute_manifest.result.observations.child_invocations}", "equals" = []},
+]
+
+[[steps]]
+name = "relative_directory"
+argv = ["${scoop}", "build", "cone", {"each" = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+cwd = "${work}"
+checks = [
+  {"actual" = "${relative_directory.result.root.artifact_fingerprint}", "equals" = "${baseline.result.root.artifact_fingerprint}"},
+  {"file" = "${relative_directory.result.root.path}", "same_as" = "${baseline.result.root.path}"},
+  {"actual" = "${relative_directory.result.observations.child_invocations}", "equals" = []},
+]
+
+[[steps]]
+name = "directory_symlink"
+argv = ["${scoop}", "build", "alias", {"each" = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+cwd = "${work}"
+checks = [
+  {"actual" = "${directory_symlink.result.root.artifact_fingerprint}", "equals" = "${baseline.result.root.artifact_fingerprint}"},
+  {"file" = "${directory_symlink.result.root.path}", "same_as" = "${baseline.result.root.path}"},
+  {"actual" = "${directory_symlink.result.observations.child_invocations}", "equals" = []},
+]
+
+[[steps]]
+name = "manifest_symlink"
+argv = ["${scoop}", "build", "${work}/manifest-alias/Cone.toml", {"each" = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+cwd = "${work}"
+checks = [
+  {"actual" = "${manifest_symlink.result.root.artifact_fingerprint}", "equals" = "${baseline.result.root.artifact_fingerprint}"},
+  {"file" = "${manifest_symlink.result.root.path}", "same_as" = "${baseline.result.root.path}"},
+  {"actual" = "${manifest_symlink.result.observations.child_invocations}", "equals" = []},
+]
+
+[[steps]]
+name = "default_manifest"
+argv = ["${scoop}", "build", {"each" = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+cwd = "${work}/cone"
+checks = [
+  {"actual" = "${default_manifest.result.root.artifact_fingerprint}", "equals" = "${baseline.result.root.artifact_fingerprint}"},
+  {"file" = "${default_manifest.result.root.path}", "same_as" = "${baseline.result.root.path}"},
+  {"actual" = "${default_manifest.result.observations.child_invocations}", "equals" = []},
+]
+
+[[steps]]
+name = "explicit_dot"
+argv = ["${scoop}", "build", ".", {"each" = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+cwd = "${work}/cone"
+checks = [
+  {"actual" = "${explicit_dot.result.root.artifact_fingerprint}", "equals" = "${baseline.result.root.artifact_fingerprint}"},
+  {"file" = "${explicit_dot.result.root.path}", "same_as" = "${baseline.result.root.path}"},
+  {"actual" = "${explicit_dot.result.observations.child_invocations}", "equals" = []},
+]
+
+[[steps]]
+name = "relative_manifest"
+argv = ["${scoop}", "build", "Cone.toml", {"each" = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+cwd = "${work}/cone"
+checks = [
+  {"actual" = "${relative_manifest.result.root.artifact_fingerprint}", "equals" = "${baseline.result.root.artifact_fingerprint}"},
+  {"file" = "${relative_manifest.result.root.path}", "same_as" = "${baseline.result.root.path}"},
+  {"actual" = "${relative_manifest.result.observations.child_invocations}", "equals" = []},
+]
+
+[[steps]]
+name = "producer"
+argv = ["${scoopc}", "build", "${work}/alias", "--target", "${target}", "--sysroot", "${sysroot}", "--direct-slib", "${baseline.result.dependencies.0.path}", "--out-slib", "${work}/manual.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+checks = [
+  {"file" = "${work}/manual.slib", "same_as" = "${baseline.result.root.path}"},
+]

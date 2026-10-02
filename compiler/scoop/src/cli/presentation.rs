@@ -1,7 +1,7 @@
 use std::io::{self, Write};
 use std::path::Path;
 
-use scoop::{BuildFailure, BuildOutcome, CompletedNodeOrigin, LinkOutcome};
+use scoop::{BuildFailure, BuildFailureLocation, BuildOutcome, CompletedNodeOrigin, LinkOutcome};
 use scoop_slib::ArtifactManifestSummaryV1;
 use serde_json::{Value, json};
 
@@ -17,14 +17,27 @@ impl Reporter {
         if !failure.diagnostics.is_empty() {
             return self.diagnostics(&failure.diagnostics, &failure.sources);
         }
-        let (origin, display, location) = failure.artifact.as_ref().map_or_else(
-            || (json!({"kind": "none"}), Value::Null, String::new()),
-            |artifact| (
-                json!({"kind": "artifact", "path": path_value(&artifact.path), "member": artifact.member}),
-                json!({"path": path_value(&artifact.path), "member": artifact.member}),
-                format!("{}:{}: ", artifact.path.display(), artifact.member),
+        let (origin, display, location) = match &failure.location {
+            BuildFailureLocation::None => (json!({"kind": "none"}), Value::Null, String::new()),
+            BuildFailureLocation::Host { path, span } => {
+                let start = span.as_ref().map(|span| span.start);
+                let end = span.as_ref().map(|span| span.end);
+                let location = match span {
+                    Some(span) => format!("{}:{}..{}: ", path.display(), span.start, span.end),
+                    None => format!("{}: ", path.display()),
+                };
+                (
+                    json!({"kind": "host", "path": path_value(path), "start": start, "end": end}),
+                    json!({"path": path_value(path)}),
+                    location,
+                )
+            }
+            BuildFailureLocation::Artifact { path, member } => (
+                json!({"kind": "artifact", "path": path_value(path), "member": member}),
+                json!({"path": path_value(path), "member": member}),
+                format!("{}:{member}: ", path.display()),
             ),
-        );
+        };
         match self.0 {
             MessageFormat::Json => write_json(&json!({
                 "schema": 1, "kind": "diagnostic", "severity": "error", "code": failure.code,

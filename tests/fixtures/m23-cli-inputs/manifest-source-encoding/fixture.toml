@@ -1,0 +1,62 @@
+schema = 1
+name = "cli-input-manifest-source-encoding"
+inputs = ["main.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["cli", "input", "negative"]
+
+[vars]
+options = ["--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
+human_options = ["--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target"]
+
+[[steps]]
+name = "prepare"
+files = [
+  {"copy" = {"from" = "${fixture}/main.scoop", "to" = "${work}/cone/src/main.scoop"}},
+  {"write" = {"path" = "${work}/cone/Cone.toml", "data" = "schema = 1\n\n[cone]\ngroup = \"dev.cli\"\nname = \"path-library\"\nversion = \"0.1.0\"\nkind = \"library\"\n"}},
+  {"write" = {"path" = "${work}/previous.slib", "data" = "previous output\n"}},
+]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "${sysroot}/lib/scoop.core", "-o", "${work}/producer-sysroot/artifacts/darwin-aarch64/scoop.core.slib", {"each" = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${core.result.kind}", "equals" = "library"},
+]
+
+[[steps]]
+name = "public"
+argv = ["${scoop}", "build", "${work}/cone", "-o", "${work}/previous.slib", {"each" = "${options}"}]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "diagnostics.json"}
+checks = [
+  {"file" = "${work}/previous.slib", "equals" = "previous output\n"},
+]
+
+[[steps]]
+name = "producer"
+argv = ["${scoopc}", "build", "${work}/cone", "--sysroot", "${work}/producer-sysroot", "--target", "${target}", "--out-slib", "${work}/producer.slib"]
+exit = 1
+stdout = ""
+stderr = "error: source discovery failed at ${work}/cone/src/main.scoop: source file is not valid UTF-8\n"
+checks = [
+  {"file" = "${work}/producer.slib", "exists" = false},
+]
+
+[[steps]]
+name = "human"
+argv = ["${scoop}", "build", "${work}/cone", "-o", "${work}/previous.slib", {"each" = "${human_options}"}]
+exit = 1
+stdout = ""
+stderr = "${work}/cone/src/main.scoop: error[SCOOP_BUILD_FAILED]: cannot snapshot manifest sources: source discovery failed at ${work}/cone/src/main.scoop: source file is not valid UTF-8\n"
+checks = [
+  {"file" = "${work}/previous.slib", "equals" = "previous output\n"},
+]

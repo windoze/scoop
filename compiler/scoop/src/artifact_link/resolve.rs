@@ -37,7 +37,7 @@ pub(super) fn artifacts(
         }
         if !artifacts.contains_key(&edge.identity()) {
             let artifact = locate(request, edge.coordinate()).map_err(|error| {
-                if error.artifact.is_some() {
+                if !matches!(error.location, crate::BuildFailureLocation::None) {
                     error
                 } else {
                     error.at_artifact(&dependent, "manifest:direct_dependencies")

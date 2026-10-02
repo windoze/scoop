@@ -279,3 +279,24 @@ fixture 的 `truncate(path,size)` 只缩短现有文件；对应归档的初始�
 ## 12. 后续批次
 
 parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end，以及需要外部构建的 runtime 测试仍按原断言逐批迁移。直接构造内存 typed IR 的内部单元测试保留。完成每批后补充对应关系、删除的 helper 与实际验证结果；全部完成前不将 M23-11 标记完成。
+
+## 13. 共享输入分类与 host 诊断
+
+`CurrentConeInput`、operand 分类及其错误类型从 driver 移到 `scoop-manifest`，公开 `scoop` 与低层 `scoopc` 共用现有分类规则；各自仍负责请求、target、core 与产物配置。公开 CLI 保留分类错误、根 manifest 解析错误和源码读取错误的实际 host path。有文本区间时沿用 parser 的真实字节范围，纯 I/O 错误的 start/end 为 null；human 与 JSON 均保留来源，不把 host locator 写入语言身份。
+
+新增 `m23-cli-inputs/` 的 19 项只读验收全部通过，共 19 个变体、70 次进程、8 次四阶段 golden 比较：
+
+| 用例 | 实际检查 |
+| --- | --- |
+| `manifest-roots` | 无 main 的 library；目录、精确 manifest、相对／绝对路径、目录／manifest symlink、省略 operand 与显式当前目录得到相同 `.slib` bytes，warm 零 child；手工 `scoopc` 产物逐字相同 |
+| `single-file-isolation` | 坏 manifest、额外 main、C/C++、archive 和 blob 均不被读取；相对／绝对／symlink／中文空格路径保持同一 root、唯一 core 依赖和 link fingerprint；普通／moving 运行输出 42 |
+| `missing`、`extension`、`extension-case`、`manifest-name`、`non-regular` | 缺失、错误扩展名／大小写／manifest 名称、命名管道由两个 CLI 按原规则拒绝 |
+| `dangling`、`symlink-cycle`、`source-directory`、`manifest-directory`、`manifest-not-file` | symlink 错误与目录优先分类；缺失或非 regular 的真正 Cone.toml 路径准确呈现 |
+| `manifest-encoding`、`manifest-syntax` | manifest 非 UTF-8 与语法错误，完整信息及实际范围；语法错误在原文本末端 11..11，没有补造源码位置 |
+| `default-no-parent-search`、`default-no-source-guess` | 默认 root 只使用当前 Cone.toml，不向父目录搜索，也不猜测当前唯一源码 |
+| `raw-operand` | 真实进程收到包含 0xff 的 operand；失败 JSON 保留完整 unix-bytes hex，human 明确按显示规则渲染。本机 APFS 不允许创建这种文件名，本项不计为非 UTF-8 文件成功编译 |
+| `single-source-encoding`、`manifest-source-encoding` | 原始非法 UTF-8 `.scoop` 经统一发现进入实际 compiler；低层调用前先构建真正 core，确保两个 CLI 均因源码编码失败 |
+
+17 个负例均比较完整 canonical JSON、完整 human 信息和低层 compiler stderr，并检查没有覆盖原输出、没有发布失败产物。fixture 发现仅解码内联条件注释，源码正文不预先按 UTF-8 解码；通用 `.hex` 引用用于组合真实字节路径。26 项 infra 测试通过。
+
+删除 parser 纯内存输入测试中对未传入的邻接文件的存在性断言，保留原 AST 与唯一 source 断言；真实文件隔离由上述公开 CLI 用例承担。该 parser 测试和 7 项 driver 请求测试通过，既有 4 项 CLI 回归也只读通过（5 个变体、42 次进程、28 次 golden 比较）。所有 Rust/Python 变更先格式化与 lint；此记录只覆盖本批，不代表 M23-11 全部完成。

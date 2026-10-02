@@ -1,0 +1,56 @@
+schema = 1
+name = "cli-input-non-regular"
+inputs = []
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["cli", "input", "negative"]
+
+[vars]
+options = ["--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
+human_options = ["--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target"]
+
+[[steps]]
+name = "prepare"
+files = [
+  {"write" = {"path" = "${work}/previous.slib", "data" = "previous output\n"}},
+]
+
+[[steps]]
+name = "fifo"
+argv = ["/usr/bin/mkfifo", "${work}/pipe.scoop"]
+exit = 0
+stdout = ""
+stderr = ""
+checks = []
+
+[[steps]]
+name = "public"
+argv = ["${scoop}", "build", "${work}/pipe.scoop", "-o", "${work}/previous.slib", {"each" = "${options}"}]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "diagnostics.json"}
+checks = [
+  {"file" = "${work}/previous.slib", "equals" = "previous output\n"},
+]
+
+[[steps]]
+name = "producer"
+argv = ["${scoopc}", "build", "${work}/pipe.scoop", "--sysroot", "${sysroot}", "--target", "${target}", "--out-slib", "${work}/producer.slib"]
+exit = 1
+stdout = ""
+stderr = "error: invalid current Cone operand ${work}/pipe.scoop: operand must resolve to a directory or regular file\n"
+checks = [
+  {"file" = "${work}/producer.slib", "exists" = false},
+]
+
+[[steps]]
+name = "human"
+argv = ["${scoop}", "build", "${work}/pipe.scoop", "-o", "${work}/previous.slib", {"each" = "${human_options}"}]
+exit = 1
+stdout = ""
+stderr = "${work}/pipe.scoop: error[SCOOP_CLI_CONFIG]: invalid current Cone operand ${work}/pipe.scoop: operand must resolve to a directory or regular file\n"
+checks = [
+  {"file" = "${work}/previous.slib", "equals" = "previous output\n"},
+]
