@@ -1,0 +1,32 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.SharedHolder
+  private object Saved
+    val holder: SharedHolder =
+      Var SharedHolder
+  public fun primary(): Counter
+    val first
+      FieldAccess value
+        FieldAccess holder
+          Var Saved
+    val allocated
+      Call Counter
+        IntLiteral 7
+    val second
+      FieldAccess value
+        Var SharedHolder
+    return
+      IfExpression
+        Binary And
+          Binary RefEq
+            Var first
+            Var second
+          Binary Eq
+            MethodCall twice
+              Var allocated
+            IntLiteral 14
+        Var first
+        else
+        Call Counter
+          IntLiteral 0

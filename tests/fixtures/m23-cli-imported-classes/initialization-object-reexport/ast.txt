@@ -1,0 +1,8 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact PublicReexport dependency.classes.SharedHolder as RetainedHolder
+  public fun primary(): Counter
+    =
+      FieldAccess value
+        Var RetainedHolder

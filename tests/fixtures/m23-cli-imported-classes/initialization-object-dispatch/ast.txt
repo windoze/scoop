@@ -1,0 +1,12 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.Readable
+  ImportExact Local dependency.classes.SharedReader
+  public fun primary(): Counter
+    val reader: Readable
+      Var SharedReader
+    return
+      Call Counter
+        MethodCall read
+          Var reader

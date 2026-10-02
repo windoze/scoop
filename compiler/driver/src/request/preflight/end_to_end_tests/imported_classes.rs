@@ -5,27 +5,6 @@ mod inheritance;
 pub(super) mod runtime;
 
 #[test]
-fn dependency_singletons_initialize_through_actual_artifacts() {
-    check_class_cases(
-        "direct",
-        &[
-            "initialization-object-value",
-            "initialization-imported-object",
-            "initialization-object-default",
-            "initialization-object-exported-default",
-            "initialization-object-dispatch",
-            "initialization-object-zst",
-            "initialization-object-reexport",
-        ],
-        &[
-            "initialization-object-no-gc",
-            "initialization-object-wrong-identity",
-            "initialization-object-internal",
-        ],
-    );
-}
-
-#[test]
 fn dependency_companions_compile_through_actual_artifacts() {
     check_class_cases(
         "direct",

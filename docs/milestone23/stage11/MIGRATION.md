@@ -248,8 +248,9 @@ fixture 的 `truncate(path,size)` 只缩短现有文件；对应归档的初始�
 | `caught_references_escape_handlers_through_actual_artifacts` | 2／0 | 22／10 | 6 份旧阶段逐字相同 |
 | `runtime_arithmetic_failures_use_the_providers_default_constructor_adapter` | 2／0 | 22／10 | 6 份旧阶段逐字相同 |
 | `runtime_cast_failures_use_the_providers_default_constructor_adapter` | 3／0 | 33／15 | 9 份旧阶段逐字相同 |
+| `dependency_singletons_initialize_through_actual_artifacts` | 7／3 | 89／35 | 19 份旧阶段逐字相同；2 份仅初始化说明补全来源；3 份诊断相同 |
 
-本节目前覆盖 95 项；其余类、接口及继承用例继续逐功能迁移。共享的旧 runtime helper 仍被其他待迁测试调用，随那些调用一起退役。
+本节目前覆盖 105 项；其余类、接口及继承用例继续逐功能迁移。共享的旧 runtime helper 仍被其他待迁测试调用，随那些调用一起退役。
 
 ## 12. 后续批次
 

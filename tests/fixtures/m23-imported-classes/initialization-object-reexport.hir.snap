@@ -1,6 +1,0 @@
-Module
-  fun primary(): Counter
-    return
-      Call external #0 : Counter
-        SingletonValue external 9535237219aa547bc75b4666fc281f9696da641e4b0d8efc8257387b274c5dff : SharedHolder
-  output library
