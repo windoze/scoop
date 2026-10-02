@@ -10,6 +10,7 @@ use scoop_lir::DarwinCBridgeDeploymentContractV1;
 use crate::{LinkError, error};
 
 mod references;
+mod sections;
 mod selected;
 pub(crate) use references::{NativeReferenceSection, NativeReferences};
 mod wire;
@@ -179,7 +180,15 @@ fn check_commands(
             | macho::LC_REEXPORT_DYLIB => {
                 implicit_inputs.push(command.cmd());
             }
-            _ => {}
+            macho::LC_SEGMENT_64
+            | macho::LC_SYMTAB
+            | macho::LC_DYSYMTAB
+            | macho::LC_DATA_IN_CODE
+            | macho::LC_LINKER_OPTIMIZATION_HINT
+            | macho::LC_FUNCTION_STARTS
+            | macho::LC_SOURCE_VERSION
+            | macho::LC_UUID => {}
+            other => implicit_inputs.push(other),
         }
     }
     if build_count != 1 {

@@ -77,53 +77,54 @@ impl NativeReferences {
                 symbol_count,
             )
             .map_err(|err| error(format!("native section {name}: {err}")))?;
-            if name == "__compact_unwind" && data.len() % 32 != 0 {
-                return Err(error("native compact unwind record is truncated"));
-            }
             let tlv_descriptors = section.macho_section().flags.get(file.endian())
                 & macho::SECTION_TYPE
                 == macho::S_THREAD_LOCAL_VARIABLES;
-            if tlv_descriptors && data.len() % 24 != 0 {
-                return Err(error("native TLV descriptor is truncated"));
-            }
             let mut anchors: Vec<_> = symbols
                 .values()
                 .filter(|symbol| symbol.section == Some(ordinal))
                 .map(|symbol| (symbol.address, symbol.name.clone()))
                 .collect();
             anchors.sort();
-            // Local references do not enter global symbol resolution. Unwind
-            // records are rebuilt by ld; debug sections have no runtime uses.
-            let uses = if matches!(name.as_str(), "__compact_unwind" | "__eh_frame")
-                || section.kind() == object::SectionKind::Debug
-            {
-                Vec::new()
-            } else {
-                relocations
-                    .into_iter()
-                    .filter(|relocation| {
-                        let global = |target| match target {
-                            Target::SymbolTableIndex(index) => symbols[&index].global,
-                            Target::SectionOrdinal(_) => false,
-                        };
-                        match relocation.shape() {
-                            Shape::Subtractor64 {
-                                minuend,
-                                subtrahend,
-                            } => global(minuend) || global(subtrahend),
-                            Shape::Unsigned64 { target }
-                            | Shape::Branch26 { target }
-                            | Shape::Page21 { target, .. }
-                            | Shape::PageOffset12 { target, .. }
-                            | Shape::GotLoadPage21 { target }
-                            | Shape::GotLoadPageOffset12 { target }
-                            | Shape::PointerToGot32 { target }
-                            | Shape::TlvpLoadPage21 { target }
-                            | Shape::TlvpLoadPageOffset12 { target } => global(target),
-                        }
-                    })
-                    .collect()
-            };
+            let retain = !matches!(name.as_str(), "__compact_unwind" | "__eh_frame")
+                && section.kind() != object::SectionKind::Debug;
+            let mut uses = Vec::new();
+            for relocation in &relocations {
+                let global = |target| -> Result<bool, LinkError> {
+                    match target {
+                        Target::SymbolTableIndex(index) => symbols
+                            .get(&index)
+                            .map(|symbol| symbol.global)
+                            .ok_or_else(|| {
+                                error("native relocation references a debug or missing symbol")
+                            }),
+                        Target::SectionOrdinal(_) => Ok(false),
+                    }
+                };
+                let controlled = match relocation.shape() {
+                    Shape::Subtractor64 {
+                        minuend,
+                        subtrahend,
+                    } => {
+                        let left = global(minuend)?;
+                        let right = global(subtrahend)?;
+                        left || right
+                    }
+                    Shape::Unsigned64 { target }
+                    | Shape::Branch26 { target }
+                    | Shape::Page21 { target, .. }
+                    | Shape::PageOffset12 { target, .. }
+                    | Shape::GotLoadPage21 { target }
+                    | Shape::GotLoadPageOffset12 { target }
+                    | Shape::PointerToGot32 { target }
+                    | Shape::TlvpLoadPage21 { target }
+                    | Shape::TlvpLoadPageOffset12 { target } => global(target)?,
+                };
+                if retain && controlled {
+                    uses.push(*relocation);
+                }
+            }
+            super::sections::check(file, &name, tlv_descriptors, data, &relocations)?;
             sections.insert(
                 ordinal,
                 NativeReferenceSection {

@@ -8,7 +8,10 @@ impl NativeObjectIndex {
             )));
         }
         if !self.implicit_inputs.is_empty() {
-            return Err(error("native object requests an implicit linker input"));
+            return Err(error(format!(
+                "native object requests an implicit linker input or unsupported load command: {:?}",
+                self.implicit_inputs
+            )));
         }
         for name in self.info.definitions.keys().chain(&self.info.requirements) {
             if name.starts_with("___cxa_")
