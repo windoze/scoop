@@ -302,7 +302,7 @@ schema 的首版字段围绕当前实际测试需要组织，不把不同里程�
 | 命名步骤 | 有序的进程执行和必要文件操作；命令使用 argv 数组并声明 cwd、env、stdin，路径／参数／输入可表达文本和必要的原始 bytes；后一步可引用前一步已观测的 JSON 结果或产物路径；同一规则覆盖 build、run、link、native compiler 和低层工具 |
 | 变体与状态 | 具名参数／环境变体，例如普通／moving-GC stress；cold→warm→修改输入→重建用有序步骤共享同一私有工作区和 cache，不按 fixture 名实现特殊状态机 |
 | 进程结果 | 明确正常 exit code 或 signal，stdout/stderr 的文本或原始 bytes、结构化诊断的 severity/code/message/source/span/notes；negative 必须声明实际失败条件，不能仅断言非零退出 |
-| 文件与跨步骤断言 | 文件存在／缺失、类型、内容、摘要或字节相等／不等、JSON 字段比较、阶段 dump／link plan golden；可比较不同 checkout、构建和变体的实际结果 |
+| 文件与跨步骤断言 | 文件存在／缺失、类型、内容包含／不包含、摘要或字节相等／不等、JSON 字段比较、阶段 dump／link plan golden；可比较不同 checkout、构建和变体的实际结果 |
 | 期望与归一化 | 短值内联、长值引用文件；只使用具名的公共归一化规则处理已知临时路径等非语义差异，不按 case 删除诊断、改写类型身份或吞掉额外输出 |
 
 进程执行、文件准备和断言分别复用公共实现；native companion 的源码、逻辑库名、编译参数与库形态均为数据，复用同一工具执行机制。复制／移动／删除／精确替换或字节损坏等文件步骤只为现有 cache、corruption、源码移走和可重复构建测试服务；不在 Python 中重写 Scoop 语义、IR reader 或 linker。Rust 内部 typed 数据的精细不变量仍由普通单元测试负责。

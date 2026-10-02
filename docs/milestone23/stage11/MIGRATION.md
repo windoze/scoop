@@ -144,6 +144,42 @@ fixture 的 `truncate(path,size)` 只缩短现有文件；对应归档的初始�
 
 统一预检补齐嵌套进程／文件／断言值类型、每个变体的变量作用域、后台结果必须等 wait 完成，以及独立诊断文件中的前向引用。20 项 infra 测试全部通过。新增归档用例只读运行通过（1 变体、9 次进程、4 个 golden）；已有 CLI 4 项和 native 13 项分别再次只读通过，保留 5／14 个变体、42／24 次进程与 28／26 个 golden。完整发现仍明确报告 1691 份尚未迁移的源码，未将部分验收计为全仓通过。
 
-## 5. 后续批次
+## 5. Native 输入选择、动态库与格式错误
+
+其余 21 个 `native_inputs` Rust 测试迁为 29 份声明，原 `m23-native-link/` 的 54 份 Scoop 源码现已全部有归属。包含前两批在内，64 项 native 用例在新工作目录的只读验收全部通过，共 86 个变体、512 次进程和 601 次阶段／plan golden 比较。本批增加 29 个变体、235 次进程、129 个 golden；需要 moving GC 的组合显式再次执行同一个已链接程序。
+
+| 原 Rust 测试 | 当前用例 | 保留的断言 |
+| --- | --- | --- |
+| `direct_candidates_merge_identical_bytes_and_reject_ambiguous_or_corrupt_inputs` | `direct-candidates` | 相同对象 bytes 去重后的完整 plan／fingerprint 相等，不同内容产生歧义，坏 Mach-O 不能被另一有效候选掩盖 |
+| `direct_object_checks_real_symbol_kind_target_and_effects` | `direct-contracts` | data/function 不匹配、缺失 helper、constructor、common/tentative 和 x86_64 五种独立拒绝 |
+| `archives_resolve_member_chains_and_back_edges_without_unused_effects` | `archive-chain` | 跨 archive 回边闭包、3 个 selected／1 个 unused、原 42/7 输出，完整 nm 符号列表且没有 `m23_unused` |
+| `archive_same_names_and_identical_members_keep_physical_identity` | `archive-members` | 两个同名同 bytes 成员仍有独立 ordinal/header，恰好选择一个 |
+| `archive_selected_member_conflicts_and_missing_helpers_report_chain` | `archive-conflicts` | missing chain、strong／weak 冲突和 constructor，完整消息保留 member 与 `_helper` |
+| `archive_symbol_table_offsets_and_member_definitions_are_checked` | `archive-toc` | long member name、有效 TOC 正常运行、TOC 改为 `_m23_bad` 时准确拒绝 |
+| `native_calls_data_and_code_pointers_run_with_debug_and_optimized_objects` | `formats-pointers` | O0 与 O2+debug 的真实对象均运行得到 42，native 输入改变导致新 link fingerprint |
+| `selected_native_objects_reject_corrupt_relocation_tables_and_unwind_records` | `formats-relocations` | 原 11 种 symbol/load-command/relocation/unwind 错误，分别命中原拒绝原因 |
+| `native_tls_descriptors_are_checked_before_linking` | `formats-tls` | 有效 TLS control、非零 initial key、指向普通 global 的 template relocation |
+| `explicit_dynamic_bindings_choose_different_owners_for_overlapping_exports` | `dynamic-overlap` | 重叠 exports 仍按显式库选择不同 owner，11/22 输出、rpath 和 moving GC |
+| `native_reexport_and_framework_keep_the_declared_library_owner` | `dynamic-reexport`、`dynamic-framework` | facade／framework 保留 owner，同时记录真实 leaf 的 re-export |
+| `ordinary_dynamic_dependency_does_not_become_a_public_export` | `dynamic-ordinary` | 普通 load 不转为 public export，缺少 leaf 时报告 0 candidates |
+| `native_absolute_install_name_and_standalone_text_stub_run` | `dynamic-absolute` | 绝对 install name 与独立 TBD 均运行得到 42，不生成 rpath，同时提供二者时歧义 |
+| `renamed_reexport_retains_the_public_name_and_actual_source` | `dynamic-renamed` | alias 的公开名字与真实 `_m23_add` source 同时保留 |
+| `conflicting_install_names_and_unsupported_load_paths_are_input_errors` | `dynamic-install-errors` | 相同 install name 冲突、拒绝 `@executable_path`；共享绝对名字为固定数据，不在该路径创建文件 |
+| `default_namespace_reports_multiple_visible_dynamic_providers` | `dynamic-default` | default symbol 有两个实际可见 provider 时报告歧义与 Cone origin |
+| `loader_relative_dependency_uses_the_original_provider_directory` | `dynamic-loader` | `@loader_path/private` 相对原 facade 解析，独立源码移走后仍运行 |
+| `unused_extern_contracts_conflict_before_library_lookup_and_report_all_cones` | `contract-*`（8 项） | library／ABI／effect／parameter／result／function-data／TLS／mutability，保留 left、right、also-left 全部 origin，空 library path 下先报 contract conflict |
+| `later_archive_selection_cannot_take_over_an_explicit_dynamic_binding` | `resolution-late-archive` | 后选 archive 不能接管已经显式绑定的 dynamic symbol |
+| `default_namespace_does_not_scan_files_from_library_paths` | `resolution-default` | 原 default namespace 不扫描未声明的 native 对象 |
+| `native_runtime_location_and_install_name_change_the_link_plan` | `resolution-runtime-location` | 移动实际 dylib、改为绝对 install name 都改变 plan／fingerprint，三次运行保持 42 |
+
+所有损坏／冲突步骤比较完整 canonical 诊断，并逐次确认旧输出 bytes 不变。Mach-O 和 archive 字节修改的位置只在迁移时从真实编译结果定位一次，提交的数据包含原始文件 SHA-256 前置条件与明确的 offset/hex；Python 中没有 Mach-O、Slib 或语言 reader。`not_contains` 是公共内容断言，用于 nm 的未选择符号和绝对 install name 的无 rpath 条件，独立 infra 测试随之增至 21 项并通过。
+
+需要先有 runtime index 的失败路径先构建有效 control，再显式修改 native 输入或源码声明。contract/default cases 使用普通 `scoopc build` 重建待拒绝的完整 `.slib`，随后移走源码并调用独立 `scoop link`；没有临时入口、隐藏 manifest 或绕过 producer 的产物。三个 contract provider 的包头明确写在 TOML，正文在运行时从原源码读取，保留原坐标、包和 native declaration 身份。
+
+绝对 install name 会进入真实 dylib 内容及 native input identity；这类 plan 用具体 binding、rpath 缺失和跨步骤完整 plan／fingerprint 比较，保留位置改变应影响链接结果的语义，不删除摘要来制作固定 golden。其余稳定 plan 直接保存完整文本。最后 9 份旧阶段正文逐一核对不变，迁为同次编译的四阶段输出，HIR 另记录 LocalConcrete。
+
+删除整个 `compiler/scoop/tests/program_link/native_inputs.rs` 及其 7 个子模块、7 个专用构建／快照 helper、对应注册和最后 9 份旧 native stage 快照；简化已没有非空 support 调用的 `build_with_support` 包装。该目录不再保留 native 用例注册器或 `SCOOP_UPDATE_NATIVE_LINK_SNAPSHOTS` 入口。其余 program-link 基础与产物测试仍继续迁移。
+
+## 6. 后续批次
 
 parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end、program-link/native 以及需要外部构建的 runtime 测试仍按原断言逐批迁移。直接构造内存 typed IR 的内部单元测试保留。完成每批后补充对应关系、删除的 helper 与实际验证结果；全部完成前不将 M23-11 标记完成。

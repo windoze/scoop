@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "native object eec3cfc407ed7efa55eae62b26fbaf78b98f3108f00269c4d1b75ac1372df7f4 selected by direct input (${work}/native/m23_final.o): native relocation references a debug or missing symbol",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

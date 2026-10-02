@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "native object 302062352feb3b5ef1160ce6627ed1c9f2d2176a95cad2303fb5ab28bd74def8 selected by direct input (${work}/native/m23_math.o): native common/tentative definition _m23_add requires actual storage",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

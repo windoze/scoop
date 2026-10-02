@@ -130,6 +130,6 @@ def check_all(checks, context, base, update):
                 equal(actual, expected, str(subject) if is_file else "JSON value")
             elif comparison == "not_equals":
                 equal(actual == expected, False, "values must differ")
-            elif comparison == "contains":
-                equal(expected in actual, True, f"missing {expected!r}")
+            elif comparison in ("contains", "not_contains"):
+                equal(expected in actual, comparison == "contains", f"{comparison}: {expected!r}")
     return snapshots

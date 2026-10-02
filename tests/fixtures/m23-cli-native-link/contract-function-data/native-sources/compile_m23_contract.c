@@ -1,0 +1,1 @@
+int m23_contract(int value) { return value; }

@@ -9,19 +9,6 @@ impl Environment {
         source: &str,
         dependencies: &[(&str, &Path)],
     ) -> PathBuf {
-        self.build_with_support(directory, name, kind, source, dependencies, &[])
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn build_with_support(
-        &self,
-        directory: &Path,
-        name: &str,
-        kind: &str,
-        source: &str,
-        dependencies: &[(&str, &Path)],
-        support: &[&Path],
-    ) -> PathBuf {
         let cone = directory.join("sources").join(name);
         std::fs::create_dir_all(cone.join("src")).unwrap();
         let mut manifest = format!(
@@ -44,9 +31,6 @@ impl Environment {
             .arg(&self.core);
         for (_, dependency) in dependencies {
             command.arg("--direct-slib").arg(dependency);
-        }
-        for artifact in support {
-            command.arg("--support-slib").arg(artifact);
         }
         checked(command.arg("--out-slib").arg(&artifact));
         artifact

@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "native object f46eaad470492c893c8a9c46bc02055418522e28d074501cf1b3193f31f58eca-member-1-668 selected by _helper <- native object f46eaad470492c893c8a9c46bc02055418522e28d074501cf1b3193f31f58eca-member-0-8 selected by _m23_add <- Cone dev.programlink:archive:0.1.0 member 264b89b1182212490e7ec904e0d4b960f265b87dbfe5e95b11d2f286c1a75464 (${work}/native/libm23_math.a) conflicts with Native(ArchiveMember(NativeArchiveMemberId { input: NativeInputId(Digest256([244, 110, 170, 212, 112, 73, 44, 137, 60, 138, 156, 70, 188, 2, 5, 84, 24, 82, 46, 40, 208, 116, 80, 28, 241, 179, 25, 63, 49, 245, 142, 202])), ordinal: 0, header_offset: 8, payload_offset: 68, payload_length: 600 })) at _m23_add",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

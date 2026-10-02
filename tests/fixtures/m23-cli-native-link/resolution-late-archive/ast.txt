@@ -1,0 +1,12 @@
+SourceFile
+  RootPackage
+    @Extern(lib = "m23_late_dynamic", name = "m23_a")
+  fun dynamic(): Int
+    @Extern(lib = "m23_late_archive", name = "m23_z")
+  fun archived(): Int
+  fun main()
+    @Unsafe block
+      Call println
+        Binary Add
+          Call dynamic
+          Call archived

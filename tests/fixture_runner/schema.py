@@ -52,6 +52,7 @@ COMPARISONS = {
     "equals",
     "not_equals",
     "contains",
+    "not_contains",
     "snapshot",
     "same_as",
     "different_from",

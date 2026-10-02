@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "conflicting native providers for install name /scoop/fixtures/shared.dylib: ${work}/native/libm23_a.dylib and ${work}/native/libm23_b.dylib",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

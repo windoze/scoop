@@ -1,0 +1,68 @@
+Module
+  extern ef0 first @m23_foo() -> Int <abi=c no-gc lib=m23_a>
+  extern ef1 second @m23_bar() -> Int <abi=c no-gc lib=m23_b>
+  extern ef2 shared @m23_shared() -> Int <abi=c no-gc>
+  interface ToString
+  interface Hash
+  fun first @fn0() -> Int
+    bb0 entry
+      call $call.1: Int = extern0 @m23_foo direct
+      return
+        Type Int
+        Local $call.1
+  fun second @fn1() -> Int
+    bb0 entry
+      call $call.1: Int = extern1 @m23_bar direct
+      return
+        Type Int
+        Local $call.1
+  fun shared @fn2() -> Int
+    bb0 entry
+      call $call.1: Int = extern2 @m23_shared direct
+      return
+        Type Int
+        Local $call.1
+  fun main @fn3() -> Unit
+    bb0 entry
+      call $dependency.argument.0: Int = extern0 @m23_foo direct
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Int
+        Local $dependency.parameter.value
+      call $dependency.argument.0: Int = extern1 @m23_bar direct
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun println @fn4(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+  instance mi0 function=@fn4 <- println
+  str @str0 "\n"
+  output executable @fn3

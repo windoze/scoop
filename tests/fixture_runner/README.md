@@ -67,7 +67,7 @@ canonical source、span、code、message 或 notes。stdout/stderr 仍严格比�
 `records`、`diagnostics`、`returncode`、`pid`、`stdout`、`stderr`、`raw_stderr`。
 
 每一步的 `checks` 选择 `actual`（JSON 引用）、`file` 或 `glob`（排序后的路径数组），并选择一个比较：
-`equals`、`not_equals`、`contains`；文件还支持 `exists`、`type`、`sha256`、
+`equals`、`not_equals`、`contains`、`not_contains`；文件还支持 `exists`、`type`、`sha256`、
 `same_as`、`different_from`。`snapshot = "expected.hir.txt"` 比较完整文本或 JSON。
 只有 `normalize = ["paths", "newlines"]` 两种公共非语义规则。显式
 `--update-snapshots` 仅更新选中的 snapshot 文件，不改 exit/signal、诊断和普通输出期望。

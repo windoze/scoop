@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "native contract conflict for _m23_contract: C parameter ABI differs; origins: dev.programlink:also-left:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([227, 129, 116, 128, 46, 183, 74, 44, 203, 35, 46, 166, 81, 157, 197, 245, 125, 208, 78, 66, 40, 125, 163, 95, 105, 100, 76, 201, 77, 159, 166, 79])]), dev.programlink:left:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([250, 105, 42, 220, 160, 254, 20, 214, 129, 85, 150, 137, 253, 29, 97, 233, 222, 210, 53, 170, 129, 252, 37, 237, 146, 200, 59, 98, 64, 110, 169, 80])]), dev.programlink:right:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([36, 88, 23, 81, 130, 124, 115, 67, 174, 215, 236, 13, 43, 243, 253, 248, 60, 159, 30, 138, 36, 9, 119, 12, 46, 78, 66, 7, 93, 37, 170, 110])])",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

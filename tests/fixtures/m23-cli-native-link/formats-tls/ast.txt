@@ -1,0 +1,9 @@
+SourceFile
+  RootPackage
+    @Extern(lib = "m23_final", name = "m23_final")
+  fun native(value: Int): Int
+  fun main()
+    @Unsafe block
+      Call println
+        Call native
+          IntLiteral 19
