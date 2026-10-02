@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "qualified `super` type must be an interface",
+    "notes": [],
+    "origin": {
+      "cone": "56adb50aa3906e7a6c8d3118e4d2e02c8a149e07e3045ae9645a350094a49eb6",
+      "end": 179,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 172
+    },
+    "severity": "error"
+  }
+]

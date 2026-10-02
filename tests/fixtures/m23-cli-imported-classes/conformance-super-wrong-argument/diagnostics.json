@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `choose` expects 0 argument(s), but 1 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "5d66e6c1e7495fa6045d01a93409b6757d6adfe35f0bfe94056a554edecae85a",
+      "end": 169,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 141
+    },
+    "severity": "error"
+  }
+]

@@ -1,3 +1,0 @@
-span=166..191
-expression=super<MutableValue>.value
-abstract interface accessor cannot be called with qualified `super`

@@ -1,3 +1,0 @@
-span=141..160
-expression=super<Valued>.value
-abstract interface accessor cannot be called with qualified `super`

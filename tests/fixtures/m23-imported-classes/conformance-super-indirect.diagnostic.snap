@@ -1,3 +1,0 @@
-span=177..189
-expression=ParentReader
-interface `ParentReader` is not a direct superinterface of class `LocalReader`

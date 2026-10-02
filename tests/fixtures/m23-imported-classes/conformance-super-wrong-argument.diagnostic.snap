@@ -1,3 +1,0 @@
-span=141..169
-expression=super<FirstChoice>.choose(1)
-dependency function `choose` expects 0 argument(s), but 1 were supplied
