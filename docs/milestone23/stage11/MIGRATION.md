@@ -274,7 +274,7 @@ fixture 的 `truncate(path,size)` 只缩短现有文件；对应归档的初始�
 | `inherited_classes_compile_and_run_through_actual_artifacts` | 10／0 | 110／50 | 30 份旧阶段逐字相同 |
 | `inherited_classes_report_source_errors` | 0／6 | 24／0 | 6 份诊断相同 |
 
-本节目前覆盖 226 项；其余类、接口及继承用例继续逐功能迁移。共享的旧 runtime helper 仍被其他待迁测试调用，随那些调用一起退役。
+本节的 226 项已全部迁完（143 个正例、83 个负例），252 份原 Scoop 源码全部有归属；28 个旧 Rust 测试入口及 512 份旧快照已删除。合入共享输入分类后重新构建配套工具，在同一私有缓存中整组只读复验通过，共 226 个变体、1905 次进程、715 次阶段／plan golden 比较，覆盖不同 rebuilt core 的缓存共存。共享的旧 runtime helper 与 C 模板仍被其他待迁测试调用，随那些调用一起退役。
 
 ## 12. 后续批次
 
