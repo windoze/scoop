@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `Factory` is not accessible from this source location",
+    "notes": [],
+    "origin": {
+      "cone": "e1e19ddcc45ca7a0c57f0d7b53c3c7ae6bd33761e92470e6e9672fbedd4c0a3a",
+      "end": 148,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 141
+    },
+    "severity": "error"
+  }
+]

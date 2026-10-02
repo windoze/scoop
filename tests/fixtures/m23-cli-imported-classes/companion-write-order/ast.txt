@@ -1,0 +1,28 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.WriteHost
+  ImportExact Local dependency.classes.CompanionTrace
+  ImportExact Local dependency.classes.companionWriteArgument
+  public fun primary(): Counter
+    assign .count
+      Var WriteHost
+      IfExpression
+        Binary Eq
+          FieldAccess events
+            Var CompanionTrace
+          IntLiteral 1
+        Call companionWriteArgument
+        else
+        IntLiteral 0
+    return
+      Call Counter
+        IfExpression
+          Binary Eq
+            FieldAccess events
+              Var CompanionTrace
+            IntLiteral 123
+          FieldAccess count
+            Var WriteHost
+          else
+          IntLiteral 0

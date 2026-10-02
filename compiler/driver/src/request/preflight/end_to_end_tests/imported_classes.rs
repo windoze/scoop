@@ -4,40 +4,6 @@ mod conformance;
 mod inheritance;
 pub(super) mod runtime;
 
-#[test]
-fn dependency_companions_compile_through_actual_artifacts() {
-    check_class_cases(
-        "direct",
-        &[
-            "companion-imported",
-            "companion-named",
-            "companion-alias",
-            "companion-forwarded",
-            "companion-call-import",
-            "companion-exported-default",
-            "companion-reexport",
-            "companion-nested",
-            "companion-const",
-            "companion-dispatch",
-            "companion-write",
-            "companion-updates",
-            "companion-imported-update",
-            "companion-write-order",
-            "companion-imported-write-order",
-        ],
-        &[
-            "companion-internal",
-            "companion-wrong-identity",
-            "companion-no-gc",
-            "companion-instance",
-            "companion-constructor",
-            "companion-readonly",
-            "companion-const-write",
-            "companion-private-setter",
-        ],
-    );
-}
-
 fn check_class_cases(cast_variant: &str, cases: &[&str], negative_cases: &[&str]) {
     let target =
         resolved_target().expect("the production test requires the configured LLVM target");

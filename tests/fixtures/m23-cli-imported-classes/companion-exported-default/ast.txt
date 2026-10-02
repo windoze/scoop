@@ -1,0 +1,8 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.CompanionHost
+  public fun primary(value: CompanionHost.Companion = <expr>): Counter
+    =
+      FieldAccess value
+        Var value

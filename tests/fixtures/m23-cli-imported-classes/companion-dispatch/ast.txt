@@ -1,0 +1,16 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.CompanionHost
+  ImportExact Local dependency.classes.Readable
+  public fun primary(): Counter
+    val reader: Readable
+      FieldAccess Companion
+        Var CompanionHost
+    return
+      Call Counter
+        Binary Sub
+          MethodCall answer
+            Var reader
+            IntLiteral 1
+          IntLiteral 1

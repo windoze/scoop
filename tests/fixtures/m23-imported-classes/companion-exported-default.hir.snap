@@ -1,6 +1,0 @@
-Module
-  fun primary(value: Factory): Counter
-    return
-      Call external #2 : Counter
-        Local value : Factory
-  output library

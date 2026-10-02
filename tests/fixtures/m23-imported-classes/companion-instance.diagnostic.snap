@@ -1,3 +1,0 @@
-span=123..126
-expression=get
-type `CompanionHost` has no method `get`

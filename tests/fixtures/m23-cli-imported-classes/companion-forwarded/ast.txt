@@ -1,0 +1,22 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.CompanionHost
+  ImportExact Local dependency.classes.Token
+  public fun primary(): Counter
+    val first
+      MethodCall get
+        Var CompanionHost
+        Call Token
+    val second
+      FieldAccess value
+        Var CompanionHost
+    return
+      IfExpression
+        Binary RefEq
+          Var first
+          Var second
+        Var first
+        else
+        Call Counter
+          IntLiteral 0

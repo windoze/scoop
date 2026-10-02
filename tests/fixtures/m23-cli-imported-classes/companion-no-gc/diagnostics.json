@@ -1,0 +1,67 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@NoGC` function `primary` has non-GC-free return type Counter",
+    "notes": [],
+    "origin": {
+      "cone": "84045c7acd252298d99a201f466b237cfb99a1473768b4f36cbe32a28c77c3eb",
+      "end": 140,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 75
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "value of non-GC-free type Counter is not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "84045c7acd252298d99a201f466b237cfb99a1473768b4f36cbe32a28c77c3eb",
+      "end": 140,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 113
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "managed dependency calls are not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "84045c7acd252298d99a201f466b237cfb99a1473768b4f36cbe32a28c77c3eb",
+      "end": 140,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 113
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "value of non-GC-free type Factory is not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "84045c7acd252298d99a201f466b237cfb99a1473768b4f36cbe32a28c77c3eb",
+      "end": 140,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 113
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "singleton access may initialize, allocate, and throw in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "84045c7acd252298d99a201f466b237cfb99a1473768b4f36cbe32a28c77c3eb",
+      "end": 140,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 113
+    },
+    "severity": "error"
+  }
+]

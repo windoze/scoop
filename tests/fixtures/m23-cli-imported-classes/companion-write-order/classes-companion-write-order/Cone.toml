@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.example"
+name = "classes-companion-write-order"
+version = "0.1.0"
+kind = "library"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.example:class-provider" = "0.1.0"
