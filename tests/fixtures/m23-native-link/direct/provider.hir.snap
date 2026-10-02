@@ -1,4 +1,0 @@
-Module
-  fun add(arg1: Int, arg2: Int): Int <unsafe no-gc cdecl> <extern0 abi=c symbol=m23_add lib=m23_math>
-  output library
-

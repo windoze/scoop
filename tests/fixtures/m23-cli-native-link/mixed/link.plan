@@ -1,0 +1,53 @@
+program-link v2
+cone scoop:scoop.core:0.1.0 kind=Library objects=269
+cone dev.programlink:mixed-provider:0.1.0 kind=Library objects=16
+cone dev.programlink:mixed-left:0.1.0 kind=Library objects=3
+cone dev.programlink:mixed-right:0.1.0 kind=Library objects=3
+cone dev.programlink:mixed-root:0.1.0 kind=Executable objects=7
+runtime objects=54
+images=5 root=_scoop$1$re$566833882282e6bbc1fc4fcf146f44f3c390f23a04b56ae0b992adc4ff93a177
+alias _scoop_td_String -> _scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
+link inputs: startup, cone/member order, runtime/object order, libSystem
+native library m23_mix_archive requirement=3ba3325776d1fed50e6250e99119ae8bef3cbc2df04c008c3ff512caeb793c8d input=48306ab3b4693cafd9a1be410c30a42380de49293d8620b5135d5dfcf788c149 origins=dev.programlink:mixed-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([124, 30, 143, 61, 3, 34, 34, 101, 229, 34, 63, 115, 222, 46, 44, 181, 106, 128, 145, 63, 5, 71, 181, 250, 210, 187, 246, 221, 175, 88, 188, 17])])
+native library m23_mix_dynamic requirement=d64e3525a0e5daee36993c4560ce75527b06c5ed2fed6ee920e2c68e868b7e7b input=91b7ba7368265751572e849a77574786796456f8f28a7b629d46c24db923f84e origins=dev.programlink:mixed-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([54, 229, 85, 88, 46, 48, 61, 7, 201, 85, 157, 19, 140, 85, 136, 60, 194, 12, 112, 117, 240, 156, 189, 67, 79, 237, 221, 196, 150, 53, 50, 137])])
+native archive 48306ab3b4693cafd9a1be410c30a42380de49293d8620b5135d5dfcf788c149 members=3
+  member 0 header=8 payload=68..652 name="archive.o" digest=1715d47d944cfa1aef812dc4e3fbfb113a80a568ec0f7aba71dac39d6fee4340 selected=true
+  member 1 header=652 payload=712..1296 name="helper.o" digest=50d0c90a926a938af6dd25ae4394f192de7df374e491446dc76fdb83416bf422 selected=true
+  member 2 header=1296 payload=1356..2124 name="unused.o" digest=01e22947b81dda7f6eb814ceac61501013a134a496fd8ddded43035e0c27917d selected=false
+dynamic provider d58050267b7c402c8e8144353d47e4e50d9ce2beea735275209c5f1a7a5ea2aa install="@rpath/libm23_mix_dynamic.dylib" imports=1
+  load "/usr/lib/libSystem.B.dylib" -> 9ed0130489330cb98e74d182c4332c5ad814ae8f0a032396dbdcdfa7132c0ce4
+dynamic binding _m23_dynamic -> "@rpath/libm23_mix_dynamic.dylib" source="@rpath/libm23_mix_dynamic.dylib":_m23_dynamic kind=Symbol weak=false
+rpath "$WORK/native"
+startup object references:
+  _scoop$1$im$566833882282e6bbc1fc4fcf146f44f3c390f23a04b56ae0b992adc4ff93a177
+  _scoop$1$im$5b610e954cefd46cc54b063a97ce42c30bc7a2095b5eea6809de1766dbcc364d
+  _scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d
+  _scoop$1$im$a8021bef7e792098e8a615bfc80d12436c23859350365947e78ed87a8556c733
+  _scoop$1$im$c6691c4b612c30114f545b1bbb740291fd83f8b273fdd3037cabcfce141c61fb
+  _scoop$1$re$566833882282e6bbc1fc4fcf146f44f3c390f23a04b56ae0b992adc4ff93a177
+  _scoop_rt_run_program
+#include <stdint.h>
+
+typedef struct ScoopImageDescriptorV1 ScoopImageDescriptorV1;
+typedef struct ScoopRootEntryDescriptorV1 ScoopRootEntryDescriptorV1;
+
+extern const ScoopImageDescriptorV1 image_0 __asm__("_scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d");
+extern const ScoopImageDescriptorV1 image_1 __asm__("_scoop$1$im$a8021bef7e792098e8a615bfc80d12436c23859350365947e78ed87a8556c733");
+extern const ScoopImageDescriptorV1 image_2 __asm__("_scoop$1$im$5b610e954cefd46cc54b063a97ce42c30bc7a2095b5eea6809de1766dbcc364d");
+extern const ScoopImageDescriptorV1 image_3 __asm__("_scoop$1$im$c6691c4b612c30114f545b1bbb740291fd83f8b273fdd3037cabcfce141c61fb");
+extern const ScoopImageDescriptorV1 image_4 __asm__("_scoop$1$im$566833882282e6bbc1fc4fcf146f44f3c390f23a04b56ae0b992adc4ff93a177");
+extern const ScoopRootEntryDescriptorV1 root_entry __asm__("_scoop$1$re$566833882282e6bbc1fc4fcf146f44f3c390f23a04b56ae0b992adc4ff93a177");
+extern int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *, uint64_t, const ScoopRootEntryDescriptorV1 *);
+
+__attribute__((used, section("__DATA_CONST,__const")))
+static const ScoopImageDescriptorV1 *const scoop_program_images[] = {
+    &image_0,
+    &image_1,
+    &image_2,
+    &image_3,
+    &image_4,
+};
+
+int main(void) {
+    return scoop_rt_run_program(scoop_program_images, sizeof(scoop_program_images) / sizeof(scoop_program_images[0]), &root_entry);
+}

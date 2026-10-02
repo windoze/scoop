@@ -1,0 +1,27 @@
+SourceFile
+  RootPackage
+  ImportStar Local nativelink.mixed.*
+  ImportStar Local nativelink.mixedleft.*
+  ImportStar Local nativelink.mixedright.*
+  struct Marker
+    field text: String
+  fun main()
+    val marker
+      Call Marker
+        Binary Add
+          StringLiteral "mixed-"
+          StringLiteral "alive"
+    Call println
+      IntLiteral 0
+    Call println
+      Call left
+    Call println
+      Call right
+    Call println
+      Call shared
+        Var marker
+        IntLiteral 30
+    Call gcCollect
+    Call println
+      FieldAccess text
+        Var marker

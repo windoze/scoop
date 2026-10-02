@@ -1,0 +1,56 @@
+schema = 1
+name = "native-link-runtime-gc"
+inputs = ["gc", "../../m23-native-link/runtime/gc.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["native-link", "program-link", "moving-gc", "stage-golden"]
+
+[[variants]]
+name = "normal"
+
+[[variants]]
+name = "moving"
+env = { SCOOP_GC_STRESS_MOVE = "1" }
+
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${fixture}/gc", "to" = "${work}/sources/gc"}}, {"copy" = {"from" = "${fixture}/../../m23-native-link/runtime/gc.scoop", "to" = "${work}/sources/gc/src/main.scoop"}}, {"mkdir" = {"path" = "${work}/native"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${work}/sources/gc", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump", "--dump-scope", "sources", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${build.result.dependencies.length}", "equals" = 1}, {"actual" = "${build.result.dependencies.0.coordinate.name}", "equals" = "scoop.core"}, {"actual" = "${build.result.root.coordinate.name}", "equals" = "gc"}, {"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "../goldens/runtime/gc.ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "../goldens/runtime/gc.hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "../goldens/runtime/gc.mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "../goldens/runtime/gc.lir.txt"}]
+
+[[steps]]
+name = "run_built"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "runtime-alive\ntrue\n"
+stderr = ""
+
+[[steps]]
+name = "isolate"
+files = [{"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}}, {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}}, {"mkdir" = {"path" = "${work}/empty-sysroot"}}, {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}}, {"remove" = {"path" = "${work}/sources"}}]
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "-o", "${work}/artifacts/program", "--message-format", "json", "--dump-plan", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}, {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan", "normalize" = ["paths"]}]
+
+[[steps]]
+name = "run_linked"
+argv = ["${link.result.output}"]
+exit = 0
+stdout = "runtime-alive\ntrue\n"
+stderr = ""

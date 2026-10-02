@@ -1,6 +1,0 @@
-Module
-  fun invokeNative(arg1: FunPtr<(Int, Ptr<Unit>) -> Int>, arg2: Ptr<Unit>, arg3: Int): Int <unsafe no-gc cdecl> <extern0 abi=c symbol=m23_callback_invoke lib=m23_callbacks>
-  fun joinNative(arg1: FunPtr<(Int, Ptr<Unit>) -> Int>, arg2: Ptr<Unit>, arg3: Int): Int <unsafe no-gc cdecl> <extern1 abi=c symbol=m23_callback_join lib=m23_callbacks>
-  fun threadCount(): ULong <unsafe no-gc cdecl> <extern2 abi=c symbol=scoop_rt_thread_debug_count>
-  output library
-

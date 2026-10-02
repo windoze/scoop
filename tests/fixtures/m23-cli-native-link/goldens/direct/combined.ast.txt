@@ -1,0 +1,14 @@
+SourceFile
+  RootPackage
+  ImportStar Local nativelink.facade.*
+  struct Marker
+    field value: Int
+  fun main()
+    @Unsafe block
+      Call println
+        Call add
+          IntLiteral 40
+    Call println
+      Call through
+        Call Marker
+          IntLiteral 7

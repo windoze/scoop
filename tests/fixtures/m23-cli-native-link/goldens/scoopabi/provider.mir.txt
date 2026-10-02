@@ -1,0 +1,288 @@
+Module
+  extern ef0 managedEcho @m23_managed_echo(String) -> String <abi=scoop managed lib=m23_scoopabi>
+  extern ef1 leafEcho @m23_leaf_echo(String) -> String <abi=scoop managed lib=m23_scoop_leaf>
+  extern ef2 aggregate @m23_aggregate(Aggregate) -> Aggregate <abi=scoop managed lib=m23_scoopabi>
+  extern ef3 empty @m23_empty(Empty) -> Empty <abi=scoop managed lib=m23_scoopabi>
+  extern ef4 zstValue @m23_zst_value(Empty, Int) -> Int <abi=scoop no-gc lib=m23_scoopabi>
+  struct Aggregate (text: String, left: Long, right: Long)
+  struct Empty ()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Aggregate>
+    Completed(value: Aggregate)
+    Suspended()
+  enum CoroutineSlot<Aggregate>
+    Empty()
+    Value(value: Aggregate)
+  enum CoroutineStep<Empty>
+    Completed(value: Empty)
+    Suspended()
+  enum CoroutineSlot<Empty>
+    Empty()
+    Value(value: Empty)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Aggregate> vtable=0 itables=0
+  class box<Empty> vtable=0 itables=0
+  interface Continuation<Aggregate>
+  interface SuspendTask<Aggregate>
+  interface SuspendRegistration<Aggregate>
+  interface Continuation<Empty>
+  interface SuspendTask<Empty>
+  interface SuspendRegistration<Empty>
+  generated_exact_type get0 location=enum3 nominal_id=d1f9bec8abf4524efae37861d5552c9534e59b26f2667fde1a6b7d66819ac017 exact_id=04c3fd3ece2edd84f07ab90bc5ca76196308cf3fb9e314b3926bad697804d210
+  generated_exact_type get1 location=enum1 nominal_id=19ae55a4e23487b2073ec5233d8be39610276d71705fa83ce19a14144004cdd0 exact_id=165d49a9d540bc1a01cfba625b0f92be17766941537b0bcc58d1e8c57944c53a
+  generated_exact_type get2 location=class3 nominal_id=cedd2c080266e709995ce7e8e455d8202c585bcfb5ad83293ebd4243a8e4e67b exact_id=8603e1a44ff66d8a3487c7baf1f9689b86d6180ac1643deace39e88cf8c5cd99
+  generated_exact_type get3 location=class4 nominal_id=c01cfb571094f25e4f206f75729ba9cf426ebfca82b59e13ab73b3a6d81ca917 exact_id=a8741cd04df407ec81bea836185bdc3a33a52f1ad17e511a35f6b4c41d554a6f
+  generated_exact_type get4 location=enum4 nominal_id=e7f8ca8310b6c661925924c186450b2cc606274a51b86b3b4c81867db351fefa exact_id=aa5e4db4a4e94044a3dfbeb151e7bda59d707c32a0863f7422aeb0f5ec89529b
+  generated_exact_type get5 location=enum2 nominal_id=f21c002092e739dc195b525027e58001f64e6d74d1950772db839b4413ccf93e exact_id=e3312ea66949d4957043c8d566dc6627879038eec9a4fd77ec1c62395faa02cc
+  generated_callable gc0 function=@fn18 id=41772886779814326df442dd22d6893dd46bd6a696b76499e2396379af581b9a
+  generated_callable gc1 function=@fn17 id=f8ddaa8552325e1ce02f6eada2af0114fb7626aff5a24ec0a6e7b1c10daa2327
+  fun Empty.equals @fn0(this: Empty, other: Empty) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun Aggregate.equals @fn1(this: Aggregate, other: Aggregate) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = external0 direct
+        Type String
+        FieldAccess 0
+          Type Aggregate
+          Local this
+        Type String
+        FieldAccess 0
+          Type Aggregate
+          Local other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 logic.rhs.1
+      assign $logic.2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          FieldAccess 1
+            Type Aggregate
+            Local this
+          Type Long
+          FieldAccess 1
+            Type Aggregate
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.2
+    bb4 logic.rhs.4
+      assign $logic.3
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          FieldAccess 2
+            Type Aggregate
+            Local this
+          Type Long
+          FieldAccess 2
+            Type Aggregate
+            Local other
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.3
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 logic.merge.6
+      return
+        Type Boolean
+        Local $logic.3
+  fun managedEcho @fn2(arg0: String) -> String
+    bb0 entry
+      call $call.1: String = extern0 @m23_managed_echo direct
+        Type String
+        Local arg0
+      return
+        Type String
+        Local $call.1
+  fun leafEcho @fn3(arg0: String) -> String
+    bb0 entry
+      call $call.1: String = extern1 @m23_leaf_echo direct
+        Type String
+        Local arg0
+      return
+        Type String
+        Local $call.1
+  fun aggregate @fn4(arg0: Aggregate) -> Aggregate
+    bb0 entry
+      call $call.1: Aggregate = extern2 @m23_aggregate direct
+        Type Aggregate
+        Local arg0
+      return
+        Type Aggregate
+        Local $call.1
+  fun empty @fn5(arg0: Empty) -> Empty
+    bb0 entry
+      call $call.1: Empty = extern3 @m23_empty direct
+        Type Empty
+        Local arg0
+      return
+        Type Empty
+        Local $call.1
+  fun zstValue @fn6(arg0: Empty, arg1: Int) -> Int
+    bb0 entry
+      call $call.1: Int = extern4 @m23_zst_value direct
+        Type Empty
+        Local arg0
+        Type Int
+        Local arg1
+      return
+        Type Int
+        Local $call.1
+  fun Continuation.resume @fn7(this: Continuation<Aggregate>, value: Aggregate) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn8(this: Continuation<Aggregate>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn9(this: SuspendTask<Aggregate>, $completion: Continuation<Aggregate>) -> CoroutineStep<Aggregate>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn10(this: SuspendRegistration<Aggregate>, continuation: Continuation<Aggregate>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn11(this: Continuation<Empty>, value: Empty) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn12(this: Continuation<Empty>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn13(this: SuspendTask<Empty>, $completion: Continuation<Empty>) -> CoroutineStep<Empty>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn14(this: SuspendRegistration<Empty>, continuation: Continuation<Empty>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.Aggregate.$c1 @fn15(text: String, left: Long, right: Long) -> Aggregate <no-gc>
+    bb0 entry
+      return
+        Type Aggregate
+        StructInit Aggregate
+          Type String
+          Local text
+          Type Long
+          Local left
+          Type Long
+          Local right
+  fun ctor.Empty.$c0 @fn16() -> Empty <no-gc>
+    bb0 entry
+      return
+        Type Empty
+        StructInit Empty
+  fun startCoroutine<Aggregate> @fn17(task: SuspendTask<Aggregate>, completion: Continuation<Aggregate>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn7 interface Continuation<Aggregate>[0]
+        Type Continuation<Aggregate>
+        Local completion
+        Type Aggregate
+        EnumField v0 f0
+          Type CoroutineStep<Aggregate>
+          Local $step
+      return
+    bb2 failed
+      call @fn8 interface Continuation<Aggregate>[1]
+        Type Continuation<Aggregate>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Aggregate> = @fn9 interface SuspendTask<Aggregate>[0]
+        Type SuspendTask<Aggregate>
+        Local task
+        Type Continuation<Aggregate>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Aggregate>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Empty> @fn18(task: SuspendTask<Empty>, completion: Continuation<Empty>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn11 interface Continuation<Empty>[0]
+        Type Continuation<Empty>
+        Local completion
+        Type Empty
+        EnumField v0 f0
+          Type CoroutineStep<Empty>
+          Local $step
+      return
+    bb2 failed
+      call @fn12 interface Continuation<Empty>[1]
+        Type Continuation<Empty>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Empty> = @fn13 interface SuspendTask<Empty>[0]
+        Type SuspendTask<Empty>
+        Local task
+        Type Continuation<Empty>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Empty>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Aggregate> result=Aggregate
+  coroutine_step cs1 CoroutineStep<Empty> result=Empty
+  coroutine_slot cl0 CoroutineSlot<Aggregate> value=Aggregate
+  coroutine_slot cl1 CoroutineSlot<Empty> value=Empty
+  coroutine_start ct0 result=Aggregate function=fn17
+  coroutine_start ct1 result=Empty function=fn18
+  coroutine_fn cf0 @fn9 source_return=Aggregate step=cs0 immediate
+  coroutine_fn cf1 @fn13 source_return=Empty step=cs1 immediate
+  instance mi0 function=@fn7 <- Continuation.resume
+  instance mi1 function=@fn8 <- Continuation.resumeWithException
+  instance mi2 function=@fn9 <- SuspendTask.run
+  instance mi3 function=@fn10 <- SuspendRegistration.register
+  instance mi4 function=@fn11 <- Continuation.resume
+  instance mi5 function=@fn12 <- Continuation.resumeWithException
+  instance mi6 function=@fn13 <- SuspendTask.run
+  instance mi7 function=@fn14 <- SuspendRegistration.register
+  output library

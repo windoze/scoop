@@ -1,0 +1,18 @@
+SourceFile
+  QualifiedPackage nativelink.gcruntime
+  public fun preserve<T>(marker: T, text: String): String
+    @Unsafe block
+      val handle
+        Call getGcHandle
+          Var text
+      Call gcCollect
+      val restored
+        Call releaseGcHandle
+          Var handle
+      val pinned
+        Call pin
+          Var restored
+      Call gcCollect
+      return
+        Call unpin
+          Var pinned

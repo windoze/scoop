@@ -1,0 +1,8 @@
+SourceFile
+  QualifiedPackage nativelink.facade
+  ImportExact PublicReexport nativelink.api.add
+  public fun through<T>(value: T): Int
+    @Unsafe block
+      return
+        Call add
+          IntLiteral 40

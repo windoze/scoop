@@ -1,0 +1,25 @@
+SourceFile
+  QualifiedPackage nativelink.storagefacade
+  ImportStar PublicReexport nativelink.storage.*
+  public fun update<T>(marker: T, amount: Int = <expr>): Int
+    @Unsafe block
+      compound-assign Add
+        Var amount
+      return
+        Var counter
+    @Unsafe
+  public fun updateAddress<T>(marker: T, pointer: Ptr<Int> = <expr>): Int
+    MethodCall store
+      Var pointer
+      Binary Add
+        MethodCall load
+          Var pointer
+        IntLiteral 1
+    return
+      MethodCall load
+        Var pointer
+    @Unsafe
+  public fun tlsAddress<T>(marker: T): Ptr<Int>
+    =
+      Call addressOf
+        Var tlsInitial

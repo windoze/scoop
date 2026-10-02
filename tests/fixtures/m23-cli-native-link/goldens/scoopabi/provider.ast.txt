@@ -1,0 +1,18 @@
+SourceFile
+  QualifiedPackage nativelink.scoopabi
+  public struct Empty
+  public struct Aggregate
+    field text: String
+    field left: Long
+    field right: Long
+    @Extern(lib = "m23_scoopabi", name = "m23_managed_echo", abi = "scoop")
+  public fun managedEcho(text: String): String
+    @Extern(lib = "m23_scoop_leaf", name = "m23_leaf_echo", abi = "scoop")
+  public fun leafEcho(text: String): String
+    @Extern(lib = "m23_scoopabi", name = "m23_aggregate", abi = "scoop")
+  public fun aggregate(value: Aggregate): Aggregate
+    @Extern(lib = "m23_scoopabi", name = "m23_empty", abi = "scoop")
+  public fun empty(value: Empty): Empty
+    @NoGC
+    @Extern(lib = "m23_scoopabi", name = "m23_zst_value", abi = "scoop")
+  public fun zstValue(empty: Empty, value: Int): Int

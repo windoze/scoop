@@ -1,0 +1,156 @@
+Module
+  global0 counter: Int extern m23_counter
+  global1 limit: Int extern m23_limit
+  global2 pair: Pair extern m23_pair
+  global3 tlsInitial: Int extern m23_tls_initial thread_local
+  global4 tlsZero: Int extern m23_tls_zero thread_local
+  extern ef0 increment @m23_increment(Ptr<Int>) -> Int <abi=c no-gc lib=m23_storage>
+  extern ef1 storageThreads @m23_storage_threads(FunPtr<(Int, Ptr<Unit>) -> Int>, Ptr<Unit>, ULong) -> Int <abi=c no-gc lib=m23_storage>
+  struct Pair (left: Int, right: Int) <c-layout aligned=natural packed=natural>
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Pair>
+    Completed(value: Pair)
+    Suspended()
+  enum CoroutineSlot<Pair>
+    Empty()
+    Value(value: Pair)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Pair> vtable=0 itables=0
+  interface Continuation<Pair>
+  interface SuspendTask<Pair>
+  interface SuspendRegistration<Pair>
+  generated_exact_type get0 location=class3 nominal_id=d40071eece91c3df3160148baa31016d3c2097faceec7372f44f8fc54f0bd521 exact_id=24045fa6f9d61e53cfab7af073df3cb8ad3d2c35470d1b592243c86e523f77d7
+  generated_exact_type get1 location=enum1 nominal_id=b8586affef5bc62674e94c7c7d05306e1daf452e3f4a1e67e55dc53627fd065b exact_id=e4aaf400d0e7d7bf96083cb1d49fd37160c7bab81d4e0661d946040d6ab26a2f
+  generated_exact_type get2 location=enum2 nominal_id=681ec1fa4f73564335c0037cd162e8ea2dc802b3abe060e47d8320e4b4b5b993 exact_id=fb8f2fc409bd5e5da77e4d20077ea60a0eb573ccc74218beeeb21c5141927dea
+  generated_callable gc0 function=@fn8 id=68765dfe2baf650fd64a8b3e68b25755beed201fc0e8e442863019eb5ec4cf57
+  fun Pair.equals @fn0(this: Pair, other: Pair) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type Pair
+            Local this
+          Type Int
+          FieldAccess 0
+            Type Pair
+            Local other
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 1
+            Type Pair
+            Local this
+          Type Int
+          FieldAccess 1
+            Type Pair
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.1
+  fun increment @fn1(arg0: Ptr<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = extern0 @m23_increment direct
+        Type Ptr<Int>
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun storageThreads @fn2(arg0: FunPtr<(Int, Ptr<Unit>) -> Int>, arg1: Ptr<Unit>, arg2: ULong) -> Int
+    bb0 entry
+      call $call.1: Int = extern1 @m23_storage_threads direct
+        Type FunPtr<(Int, Ptr<Unit>) -> Int>
+        Local arg0
+        Type Ptr<Unit>
+        Local arg1
+        Type ULong
+        Local arg2
+      return
+        Type Int
+        Local $call.1
+  fun Continuation.resume @fn3(this: Continuation<Pair>, value: Pair) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn4(this: Continuation<Pair>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn5(this: SuspendTask<Pair>, $completion: Continuation<Pair>) -> CoroutineStep<Pair>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn6(this: SuspendRegistration<Pair>, continuation: Continuation<Pair>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.Pair.$c0 @fn7(left: Int, right: Int) -> Pair <no-gc>
+    bb0 entry
+      return
+        Type Pair
+        StructInit Pair
+          Type Int
+          Local left
+          Type Int
+          Local right
+  fun startCoroutine<Pair> @fn8(task: SuspendTask<Pair>, completion: Continuation<Pair>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn3 interface Continuation<Pair>[0]
+        Type Continuation<Pair>
+        Local completion
+        Type Pair
+        EnumField v0 f0
+          Type CoroutineStep<Pair>
+          Local $step
+      return
+    bb2 failed
+      call @fn4 interface Continuation<Pair>[1]
+        Type Continuation<Pair>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Pair> = @fn5 interface SuspendTask<Pair>[0]
+        Type SuspendTask<Pair>
+        Local task
+        Type Continuation<Pair>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Pair>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Pair> result=Pair
+  coroutine_slot cl0 CoroutineSlot<Pair> value=Pair
+  coroutine_start ct0 result=Pair function=fn8
+  coroutine_fn cf0 @fn5 source_return=Pair step=cs0 immediate
+  instance mi0 function=@fn3 <- Continuation.resume
+  instance mi1 function=@fn4 <- Continuation.resumeWithException
+  instance mi2 function=@fn5 <- SuspendTask.run
+  instance mi3 function=@fn6 <- SuspendRegistration.register
+  output library

@@ -1,0 +1,8 @@
+SourceFile
+  QualifiedPackage nativelink.callbacks
+    @Extern(lib = "m23_callbacks", name = "m23_callback_invoke")
+  public fun invokeNative(callback: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, value: Int): Int
+    @Extern(lib = "m23_callbacks", name = "m23_callback_join")
+  public fun joinNative(callback: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, value: Int): Int
+    @Extern(name = "scoop_rt_thread_debug_count")
+  public fun threadCount(): ULong

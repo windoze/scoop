@@ -1,0 +1,41 @@
+program-link v2
+cone scoop:scoop.core:0.1.0 kind=Library objects=269
+cone dev.programlink:native-provider:0.1.0 kind=Library objects=3
+cone dev.programlink:native-facade:0.1.0 kind=Library objects=1
+cone dev.programlink:native-root:0.1.0 kind=Executable objects=6
+runtime objects=54
+images=4 root=_scoop$1$re$4bd4b0e9232bc185d710ac0e4e0b391c01d74a072798b0e7910a5dbf72de871f
+alias _scoop_td_String -> _scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
+link inputs: startup, cone/member order, runtime/object order, libSystem
+native library m23_math requirement=db3dcf42fa4d2363eddc5c56a0df56140b61934085593f5c3bcaf72307e37343 input=596facb21946b4fc967ba436566a4cac31d4bed9050faeb199bf945783ec7d2c origins=dev.programlink:native-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([27, 188, 2, 30, 49, 4, 63, 29, 66, 108, 48, 174, 82, 181, 116, 173, 151, 37, 134, 126, 242, 50, 110, 31, 91, 8, 246, 89, 169, 33, 202, 194])])
+native object 596facb21946b4fc967ba436566a4cac31d4bed9050faeb199bf945783ec7d2c slice=0..536
+startup object references:
+  _scoop$1$im$4bd4b0e9232bc185d710ac0e4e0b391c01d74a072798b0e7910a5dbf72de871f
+  _scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d
+  _scoop$1$im$6216206fd1ca778f147a2e1ed2f9b9d31f8a4250ebde12da528e139e2c57dbd3
+  _scoop$1$im$6aa9e9b2c2b7f62fe20e65a08d7d637c875884add3846aad7f23790854d34f6a
+  _scoop$1$re$4bd4b0e9232bc185d710ac0e4e0b391c01d74a072798b0e7910a5dbf72de871f
+  _scoop_rt_run_program
+#include <stdint.h>
+
+typedef struct ScoopImageDescriptorV1 ScoopImageDescriptorV1;
+typedef struct ScoopRootEntryDescriptorV1 ScoopRootEntryDescriptorV1;
+
+extern const ScoopImageDescriptorV1 image_0 __asm__("_scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d");
+extern const ScoopImageDescriptorV1 image_1 __asm__("_scoop$1$im$6aa9e9b2c2b7f62fe20e65a08d7d637c875884add3846aad7f23790854d34f6a");
+extern const ScoopImageDescriptorV1 image_2 __asm__("_scoop$1$im$6216206fd1ca778f147a2e1ed2f9b9d31f8a4250ebde12da528e139e2c57dbd3");
+extern const ScoopImageDescriptorV1 image_3 __asm__("_scoop$1$im$4bd4b0e9232bc185d710ac0e4e0b391c01d74a072798b0e7910a5dbf72de871f");
+extern const ScoopRootEntryDescriptorV1 root_entry __asm__("_scoop$1$re$4bd4b0e9232bc185d710ac0e4e0b391c01d74a072798b0e7910a5dbf72de871f");
+extern int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *, uint64_t, const ScoopRootEntryDescriptorV1 *);
+
+__attribute__((used, section("__DATA_CONST,__const")))
+static const ScoopImageDescriptorV1 *const scoop_program_images[] = {
+    &image_0,
+    &image_1,
+    &image_2,
+    &image_3,
+};
+
+int main(void) {
+    return scoop_rt_run_program(scoop_program_images, sizeof(scoop_program_images) / sizeof(scoop_program_images[0]), &root_entry);
+}
