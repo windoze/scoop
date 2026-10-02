@@ -1,0 +1,6 @@
+typealias Callback = ForeignCallback<(Int, Ptr<Unit>) -> Int>
+
+fun make(function: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>): Callback =
+    Callback(function, context)
+
+fun main() {}

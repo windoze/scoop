@@ -179,6 +179,21 @@ impl Lowerer {
         if matches!(
             interface.declaration(),
             scoop_identity::CallableTemplateOrigin::Constructor(_)
+        ) && let crate::CoreLoweringAuthority::Imported(core) = &state.core
+            && interface.owner()
+                == hir::PublicDeclarationOwnerV1::Nominal(hir::SourceNominalId::GenericTemplate(
+                    core.foreign_callbacks().callback().persistent(),
+                ))
+        {
+            state.error(
+                call.span,
+                "`ForeignCallback` values can only be produced by `foreignCallback`".into(),
+            );
+            return Err(Box::new(state));
+        }
+        if matches!(
+            interface.declaration(),
+            scoop_identity::CallableTemplateOrigin::Constructor(_)
         ) && !state.imported_callable_is_accessible(interface, None)
         {
             state.error(
