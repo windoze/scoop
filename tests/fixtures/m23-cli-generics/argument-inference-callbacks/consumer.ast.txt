@@ -1,0 +1,112 @@
+SourceFile
+  QualifiedPackage consumer.inference
+  ImportStar Local dependency.inference.*
+  ImportExact Local dependency.inference.exercise as providerExercise
+  ImportExact Local Option.None as EmptyOption
+  private class Reference(val number: Int)
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val selected
+      Call prefer
+        Var EmptyOption
+        Var seed
+    val referenced
+      Call viaReference
+        CallableReference 0 identity
+        Var selected
+    val host
+      Call Host
+        Var seed
+    if
+      Binary Ne
+        Call read
+          MethodCall transform
+            Var host
+            Lambda 0 suspend=false
+              param value: _
+              Var value
+            Var referenced
+        IntLiteral 42
+      return
+        IntLiteral 6
+    return
+      Call providerExercise<T>
+        Var seed
+        Var read
+  public fun result(): Int
+    if
+      Binary Ne
+        Call applyTo
+          Lambda 1 suspend=false
+            param value: _
+            Var value
+          IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call applyTo
+          Lambda 2 suspend=false
+            param value: _
+            FieldAccess number
+              Var value
+          Call Reference
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 2
+    if
+      Binary Ne
+        Call viaReference
+          CallableReference 1 identity
+          IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 3
+    if
+      Binary Or
+        Binary Ne
+          Call prefer
+            Var None
+            IntLiteral 42
+          IntLiteral 42
+        Binary Ne
+          Call prefer
+            Var EmptyOption
+            IntLiteral 42
+          IntLiteral 42
+      return
+        IntLiteral 4
+    val host
+      Call Host
+        Call Reference
+          IntLiteral 42
+    val transformed
+      MethodCall transform
+        Var host
+        Lambda 3 suspend=false
+          param value: _
+          Call Reference
+            Var value
+        IntLiteral 42
+    val seed
+      IntLiteral 42
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess number
+            Var transformed
+          IntLiteral 42
+        Binary Ne
+          MethodCall fromEmpty
+            Var seed
+            ArrayLiteral
+          IntLiteral 42
+      return
+        IntLiteral 5
+    return
+      FieldAccess number
+        Call viaReference
+          CallableReference 2 identity
+          FieldAccess value
+            Var host

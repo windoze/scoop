@@ -1,3 +1,0 @@
-span=74..88
-expression=unused([], 42)
-dependency function `unused`: cannot infer a unique type argument for `U`

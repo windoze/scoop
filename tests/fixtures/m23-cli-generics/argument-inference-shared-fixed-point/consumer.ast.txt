@@ -1,0 +1,247 @@
+SourceFile
+  QualifiedPackage consumer.inference
+  ImportStar Local dependency.inference.*
+  private struct LocalPair<T>
+    field values: Array<T>
+    field seed: T
+  private enum LocalChoice<T>
+    Data <ctor>
+      values: Array<T>
+      seed: T
+  private class LocalHost<A>(val value: A)
+    public fun transform
+  private fun localIdentity<T>(value: T): T
+    =
+      Var value
+  private fun localEmpty<T>(): Array<T>
+    =
+      ArrayLiteral
+  private fun localArrayOrSeed<T>(values: Array<T>, seed: T): T
+    =
+      IfExpression
+        Binary Eq
+          FieldAccess size
+            Var values
+          IntLiteral 0L
+        Var seed
+        else
+        Index
+          Var values
+          IntLiteral 0L
+  private fun localReference<T>(action: (T) -> T, seed: T): T
+    =
+      Call action
+        Var seed
+  private fun readInt(value: Int): Int
+    =
+      Var value
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val local
+      Call localArrayOrSeed
+        Call localEmpty
+        Var seed
+    val external
+      Call arrayOrSeed
+        Call empty
+        Var seed
+    val left
+      Call localReference
+        CallableReference 0 identity
+        Var local
+    val right
+      Call viaReference
+        CallableReference 1 localIdentity
+        Var external
+    val pair
+      Call LocalPair
+        Argument values=
+          ArrayLiteral
+        Argument seed=
+          Var left
+    val importedPair
+      Call Pair
+        Argument seed=
+          Var right
+        Argument values=
+          ArrayLiteral
+    val localHost
+      Call LocalHost
+        Var left
+    val importedHost
+      Call Host
+        Var right
+    val selected
+      MethodCall transform
+        Var localHost
+        Lambda 0 suspend=false
+          param value: _
+          Call localIdentity
+            Var value
+        Var seed
+    val importedSelected
+      MethodCall transform
+        Var importedHost
+        Lambda 1 suspend=false
+          param value: _
+          Call identity
+            Var value
+        Var seed
+    if
+      Binary Or
+        Binary Ne
+          Call read
+            FieldAccess seed
+              Var pair
+          IntLiteral 42
+        Binary Ne
+          Call read
+            FieldAccess seed
+              Var importedPair
+          IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Or
+        Binary Ne
+          Call read
+            Var selected
+          IntLiteral 42
+        Binary Ne
+          Call read
+            Var importedSelected
+          IntLiteral 42
+      return
+        IntLiteral 2
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess size
+            FieldAccess values
+              Var pair
+          IntLiteral 0L
+        Binary Ne
+          FieldAccess size
+            FieldAccess values
+              Var importedPair
+          IntLiteral 0L
+      return
+        IntLiteral 3
+    return
+      Call read
+        Call localReference
+          CallableReference 2 identity
+          Call viaReference
+            CallableReference 3 localIdentity
+            Var seed
+  public fun result(): Int
+    val pair
+      Call LocalPair
+        ArrayLiteral
+        AnonymousFunction 0 suspend=false return=Int
+          param value: Int
+          return
+            Var value
+    val reverse
+      Call LocalPair
+        Argument seed=
+          AnonymousFunction 1 suspend=false return=Int
+            param value: Int
+            return
+              Var value
+        Argument values=
+          ArrayLiteral
+    val importedPair
+      Call Pair
+        ArrayLiteral
+        AnonymousFunction 2 suspend=false return=Int
+          param value: Int
+          return
+            Var value
+    val choice
+      MethodCall Data
+        Var LocalChoice
+        ArrayLiteral
+        AnonymousFunction 3 suspend=false return=Int
+          param value: Int
+          return
+            Var value
+    val importedChoice
+      MethodCall Data
+        Var Choice
+        ArrayLiteral
+        AnonymousFunction 4 suspend=false return=Int
+          param value: Int
+          return
+            Var value
+    val local
+      Call localArrayOrSeed
+        ArrayLiteral
+        AnonymousFunction 5 suspend=false return=Int
+          param value: Int
+          return
+            Var value
+    val external
+      Call arrayOrSeed
+        ArrayLiteral
+        AnonymousFunction 6 suspend=false return=Int
+          param value: Int
+          return
+            Var value
+    val fromChoice
+      WhenExpression
+        Var choice
+        arm Data(values, seed)
+          Call seed
+            IntLiteral 42
+    val fromImported
+      WhenExpression
+        Var importedChoice
+        arm Data(values, seed)
+          Call seed
+            IntLiteral 42
+        arm Empty
+          IntLiteral 0
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            MethodCall seed
+              Var pair
+              IntLiteral 42
+            IntLiteral 42
+          Binary Ne
+            MethodCall seed
+              Var reverse
+              IntLiteral 42
+            IntLiteral 42
+        Binary Ne
+          MethodCall seed
+            Var importedPair
+            IntLiteral 42
+          IntLiteral 42
+      return
+        IntLiteral 4
+    if
+      Binary Or
+        Binary Or
+          Binary Or
+            Binary Ne
+              Var fromChoice
+              IntLiteral 42
+            Binary Ne
+              Var fromImported
+              IntLiteral 42
+          Binary Ne
+            Call local
+              IntLiteral 42
+            IntLiteral 42
+        Binary Ne
+          Call external
+            IntLiteral 42
+          IntLiteral 42
+      return
+        IntLiteral 5
+    return
+      Call exercise<Int>
+        IntLiteral 42
+        CallableReference 4 readInt

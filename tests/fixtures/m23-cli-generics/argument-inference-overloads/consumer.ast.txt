@@ -1,0 +1,50 @@
+SourceFile
+  QualifiedPackage consumer.inference
+  ImportStar Local dependency.inference.*
+  ImportExact Local dependency.inference.exercise as providerExercise
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    =
+      Call providerExercise<T>
+        Var seed
+        Var read
+  public fun result(): Int
+    val selected
+      Call route
+        Lambda 0 suspend=false
+          param value: _
+          Var value
+        ArrayLiteral
+        IntLiteral 42
+    val explicit
+      Call route<Int>
+        Lambda 1 suspend=false
+          param value: _
+          Var value
+        ArrayLiteral
+        IntLiteral 42
+    val named
+      Call route
+        Argument seed=
+          IntLiteral 42
+        Argument values=
+          ArrayLiteral
+        Argument action=
+          Lambda 2 suspend=false
+            param value: _
+            Var value
+    return
+      IfExpression
+        Binary And
+          Binary And
+            Binary Eq
+              Var selected
+              IntLiteral 43
+            Binary Eq
+              Var explicit
+              IntLiteral 42
+          Binary Eq
+            Var named
+            IntLiteral 43
+        IntLiteral 42
+        else
+        IntLiteral 1

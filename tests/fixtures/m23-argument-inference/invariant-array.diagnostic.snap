@@ -1,3 +1,0 @@
-span=272..276
-expression=seed
-dependency function `arrayOrSeed`: Base is not a subtype of Child

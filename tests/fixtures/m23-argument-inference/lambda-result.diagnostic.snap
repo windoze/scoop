@@ -1,3 +1,0 @@
-span=83..100
-expression={ item -> false }
-lambda result must be of type Int, found Boolean
