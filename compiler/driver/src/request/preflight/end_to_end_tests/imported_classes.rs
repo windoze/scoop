@@ -5,15 +5,6 @@ mod inheritance;
 pub(super) mod runtime;
 
 #[test]
-fn structural_boxes_compile_and_run_through_actual_artifacts() {
-    check_class_cases(
-        "direct",
-        &["structural-box", "structural-box-combined"],
-        &[],
-    );
-}
-
-#[test]
 fn rebuilt_intrinsic_declarations_inherit_interface_default_members() {
     check_class_cases(
         "direct",

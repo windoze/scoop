@@ -1,0 +1,44 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.Token
+  public fun primary(): Counter
+    val first
+      Call Counter
+        IntLiteral 20
+    val second
+      Call Counter
+        IntLiteral 21
+    val third
+      Call Counter
+        IntLiteral 22
+    val boxed: Any
+      TupleLiteral
+        Call Token
+        TupleLiteral
+          Var first
+          Var second
+          Var third
+    val pressure
+      Call Counter
+        IntLiteral 0
+    val (marker, references)
+      Cast (Token, (Counter, Counter, Counter)) optional=false
+        Var boxed
+    val (left, middle, right)
+      Var references
+    return
+      Call Counter
+        Binary Add
+          Binary Div
+            Binary Add
+              Binary Add
+                MethodCall twice
+                  Var left
+                MethodCall twice
+                  Var middle
+              MethodCall twice
+                Var right
+            IntLiteral 6
+          MethodCall twice
+            Var pressure
