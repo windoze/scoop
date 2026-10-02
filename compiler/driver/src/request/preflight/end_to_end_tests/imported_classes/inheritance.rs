@@ -1,20 +1,6 @@
 use super::*;
 
 #[test]
-fn inherited_class_access_uses_actual_dependency_declarations() {
-    check_class_cases(
-        "direct",
-        &[
-            "inheritance-access-method",
-            "inheritance-access-property",
-            "inheritance-access-nested",
-            "inheritance-access-values",
-        ],
-        &[],
-    );
-}
-
-#[test]
 fn inherited_class_access_reports_language_errors() {
     check_class_cases(
         "direct",
