@@ -1,24 +1,6 @@
 use super::*;
 
 #[test]
-fn inherited_dependency_parameters_preserve_defaults_through_actual_artifacts() {
-    check_class_cases(
-        "direct",
-        &[
-            "conformance-parameter-simple",
-            "conformance-parameter-dynamic",
-            "conformance-parameter-diamond",
-            "conformance-parameter-interface",
-            "conformance-parameter-zst",
-            "conformance-parameter-abi",
-            "conformance-parameter-named",
-            "conformance-parameter-published",
-        ],
-        &[],
-    );
-}
-
-#[test]
 fn inherited_dependency_parameters_report_source_errors() {
     check_class_cases(
         "direct",

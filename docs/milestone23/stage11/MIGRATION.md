@@ -233,6 +233,8 @@ fixture 的 `truncate(path,size)` 只缩短现有文件；对应归档的初始�
 
 私有初始化单元的说明从旧 helper 的 `object-private:main.scoop:名称` 改为完整的 `object-private:dev.example:classes-用例:0.1.0/src/main.scoop:名称`。对出现该差异的每份旧快照逐字核对，确认只补全这段来源；存储、失败单元和 callable 符号、布局及控制流保持不变。正式 golden 保留完整新说明，不添加删减该内容的运行时归一化规则。
 
+默认参数的 `conformance-parameter-zst` 和 `conformance-parameter-abi` 使用空 struct `LocalDefaults`。当前管线补齐其默认值相等函数：MIR 为两个同型参数返回 `true`，LIR 为两个 elided-ZST 参数返回 `i1`。逐字对照确认四份差异仅为该函数及后续 local function 引用序号的一致调整；原 ABI、声明身份、其余函数正文和运行结果保持。新 golden 保留新增函数。
+
 以下批次均已关闭更新开关、清除旧快照环境和 `RUST_MIN_STACK`，经统一入口只读通过。每批负例的原字节区间、表达式和信息逐项核对后保存完整 canonical JSON，并确认没有发布 consumer 产物；原测试注册和相应旧期望同步删除。
 
 | 原 Rust 入口 | 正例／负例 | 进程／golden 比较 | 旧阶段对照 |
@@ -250,8 +252,9 @@ fixture 的 `truncate(path,size)` 只缩短现有文件；对应归档的初始�
 | `runtime_cast_failures_use_the_providers_default_constructor_adapter` | 3／0 | 33／15 | 9 份旧阶段逐字相同 |
 | `dependency_singletons_initialize_through_actual_artifacts` | 7／3 | 89／35 | 19 份旧阶段逐字相同；2 份仅初始化说明补全来源；3 份诊断相同 |
 | `dependency_companions_compile_through_actual_artifacts` | 15／8 | 197／75 | 45 份旧阶段逐字相同；8 份诊断相同 |
+| `inherited_dependency_parameters_preserve_defaults_through_actual_artifacts` | 8／0 | 88／40 | 20 份旧阶段逐字相同；4 份补齐 ZST 默认 equals 及一致的函数序号调整 |
 
-本节目前覆盖 128 项；其余类、接口及继承用例继续逐功能迁移。共享的旧 runtime helper 仍被其他待迁测试调用，随那些调用一起退役。
+本节目前覆盖 136 项；其余类、接口及继承用例继续逐功能迁移。共享的旧 runtime helper 仍被其他待迁测试调用，随那些调用一起退役。
 
 ## 12. 后续批次
 

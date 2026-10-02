@@ -1,0 +1,22 @@
+SourceFile
+  RootPackage
+  ImportStar Local dependency.classes.*
+  public class LocalDefaults(), ParameterSource
+    public fun base
+    public fun answer
+  public fun primary(): Counter
+    val target
+      Call LocalDefaults
+    val inherited: ParameterSource
+      Var target
+    return
+      Call Counter
+        Binary Add
+          MethodCall answer
+            Var target
+            Argument renamed=
+              IntLiteral 11
+          MethodCall answer
+            Var inherited
+            Argument value=
+              IntLiteral 10
