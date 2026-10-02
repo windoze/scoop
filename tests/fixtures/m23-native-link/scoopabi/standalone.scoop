@@ -1,0 +1,18 @@
+struct Empty()
+
+@Extern(lib = "m23_scoopabi", name = "m23_managed_echo", abi = "scoop")
+fun echo(text: String): String
+
+@Extern(lib = "m23_scoopabi", name = "m23_empty", abi = "scoop")
+fun empty(value: Empty): Empty
+
+@NoGC
+@Extern(lib = "m23_scoopabi", name = "m23_zst_value", abi = "scoop")
+fun value(empty: Empty, number: Int): Int
+
+fun main() {
+    val caller = "caller-" + "alive"
+    println(echo("managed-" + "alive"))
+    println(value(empty(Empty()), 41))
+    println(caller)
+}

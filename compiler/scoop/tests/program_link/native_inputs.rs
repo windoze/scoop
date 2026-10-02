@@ -6,6 +6,7 @@ mod callbacks;
 mod direct;
 mod dynamic;
 mod runtime;
+mod scoopabi;
 mod source;
 mod storage;
 
