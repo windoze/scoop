@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use scoop_identity::{ConeCoordinate, ConeIdentity};
 use scoop_lir::ValidatedLirTargetSelection;
-use scoop_slib::ArtifactSnapshot;
+use scoop_slib::{ArtifactManifestSummaryError, ArtifactSnapshot, SlibDiagnostic};
 
 use super::{LinkRequest, LocatedLinkArtifact, failure};
 use crate::{BuildResult, ImmutableInputSnapshot};
@@ -45,11 +45,19 @@ pub(super) fn artifacts(
 }
 
 fn read(path: &Path) -> BuildResult<LocatedLinkArtifact> {
-    let input = ImmutableInputSnapshot::capture(path).map_err(failure)?;
+    let input = ImmutableInputSnapshot::capture(path)
+        .map_err(|error| failure(error).at_artifact(path, "container:$"))?;
     let snapshot = Arc::new(ArtifactSnapshot::from_shared(input.shared_bytes()));
     let summary = snapshot
         .manifest_summary(ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1)
-        .map_err(failure)?;
+        .map_err(|error| {
+            let member = match &error {
+                ArtifactManifestSummaryError::Envelope(error) => error.diagnostic().semantic_path(),
+                ArtifactManifestSummaryError::Graph(error) => error.diagnostic().semantic_path(),
+                ArtifactManifestSummaryError::LengthOverflow => "container:$".to_owned(),
+            };
+            failure(error).at_artifact(path, member)
+        })?;
     Ok(LocatedLinkArtifact {
         path: input.source_locator().to_owned(),
         snapshot,

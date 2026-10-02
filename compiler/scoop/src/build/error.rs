@@ -1,4 +1,5 @@
 use std::fmt;
+use std::path::{Path, PathBuf};
 
 use scoop_protocol::StructuredDiagnosticV1;
 
@@ -9,9 +10,16 @@ pub struct BuildFailure {
     pub message: String,
     pub code: String,
     pub phase: BuildFailurePhase,
+    pub artifact: Option<ArtifactFailureLocation>,
     pub diagnostics: Vec<StructuredDiagnosticV1>,
     pub warnings: Vec<StructuredDiagnosticV1>,
     pub sources: Vec<SourceSnapshot>,
+}
+
+#[derive(Debug)]
+pub struct ArtifactFailureLocation {
+    pub path: PathBuf,
+    pub member: String,
 }
 
 impl BuildFailure {
@@ -20,10 +28,19 @@ impl BuildFailure {
             message: message.to_string(),
             code: code.to_owned(),
             phase,
+            artifact: None,
             diagnostics: Vec::new(),
             warnings: Vec::new(),
             sources: Vec::new(),
         })
+    }
+
+    pub fn at_artifact(mut self: Box<Self>, path: &Path, member: impl Into<String>) -> Box<Self> {
+        self.artifact = Some(ArtifactFailureLocation {
+            path: path.to_owned(),
+            member: member.into(),
+        });
+        self
     }
 
     pub fn classified(error: impl fmt::Display + ClassifyBuildFailure) -> Box<Self> {

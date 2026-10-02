@@ -181,6 +181,7 @@ pub trait SlibDiagnostic {
 }
 
 mod compile;
+mod location;
 mod record_helpers;
 use record_helpers::{
     cone_record_diagnostic, dependency_record_diagnostic, member_record_diagnostic,

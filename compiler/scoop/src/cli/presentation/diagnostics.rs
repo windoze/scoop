@@ -118,6 +118,9 @@ fn location(origin: &DiagnosticOriginV1, sources: &[SourceSnapshot]) -> String {
         if let (Some(start), Some(end)) = (rendered.get("start"), rendered.get("end")) {
             return format!("{path}:bytes {start}..{end}: ");
         }
+        if let Some(member) = rendered.get("member").and_then(Value::as_str) {
+            return format!("{path}:{member}: ");
+        }
         return format!("{path}: ");
     }
     match origin {
@@ -151,5 +154,29 @@ fn location(origin: &DiagnosticOriginV1, sources: &[SourceSnapshot]) -> String {
             )
         ),
         DiagnosticOriginV1::None => String::new(),
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use std::os::unix::ffi::OsStringExt;
+
+    #[test]
+    fn artifact_location_keeps_the_member_for_native_path_encodings() {
+        for bytes in [b"a.slib".to_vec(), b"a-\xff.slib".to_vec()] {
+            let path = std::path::PathBuf::from(std::ffi::OsString::from_vec(bytes));
+            let diagnostic = DiagnosticOriginV1::artifact_path(
+                scoop_protocol::HostPathCarrier::from_path(&path).unwrap(),
+                "HIR:$.3[2]".to_owned(),
+            )
+            .unwrap();
+            assert_eq!(
+                location(&diagnostic, &[]),
+                format!("{}:HIR:$.3[2]: ", path.display())
+            );
+            assert_eq!(origin(&diagnostic)["path"], path_value(&path));
+            assert_eq!(display(&diagnostic, &[])["member"], "HIR:$.3[2]");
+        }
     }
 }

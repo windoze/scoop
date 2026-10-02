@@ -180,6 +180,12 @@ fixture 的 `truncate(path,size)` 只缩短现有文件；对应归档的初始�
 
 删除整个 `compiler/scoop/tests/program_link/native_inputs.rs` 及其 7 个子模块、7 个专用构建／快照 helper、对应注册和最后 9 份旧 native stage 快照；简化已没有非空 support 调用的 `build_with_support` 包装。该目录不再保留 native 用例注册器或 `SCOOP_UPDATE_NATIVE_LINK_SNAPSHOTS` 入口。其余 program-link 基础与产物测试仍继续迁移。
 
-## 6. 后续批次
+## 6. 产物损坏与诊断来源
+
+`corrupt_archive_bytes_preserve_the_existing_executable` 迁为 `program-link-artifact-corruption`。保留真实 LinkObject 的 payload digest 损坏和归档末字节截断，扩展 root/dependency magic、缺失输入和目录误作产物，共六个负例；每步比较完整 JSON 诊断和此前可执行文件的全部 bytes，最后普通及 moving GC 均运行得到 42。四阶段输出及完整 link plan 同时锁定。
+
+本批修复公开 `scoop link` 丢弃 envelope/manifest reader 结构位置的问题，直接把原 typed 诊断的 container、manifest 或 member 与 wire path 附到实际 locator。human 与 JSON 均显示成员，读取失败定位到整份容器，不冒充源码。未新增 reader 或重复校验。相应旧 Rust 进程用例已删除，optional 成员用例仍继续迁移。全仓 lint、原生路径编码的显示回归单元测试通过；program-link 目录只读验收 22 项全部通过，共 43 个变体、185 次进程、215 次 golden 比较。
+
+## 7. 后续批次
 
 parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end、program-link/native 以及需要外部构建的 runtime 测试仍按原断言逐批迁移。直接构造内存 typed IR 的内部单元测试保留。完成每批后补充对应关系、删除的 helper 与实际验证结果；全部完成前不将 M23-11 标记完成。

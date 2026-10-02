@@ -17,15 +17,24 @@ impl Reporter {
         if !failure.diagnostics.is_empty() {
             return self.diagnostics(&failure.diagnostics, &failure.sources);
         }
+        let (origin, display, location) = failure.artifact.as_ref().map_or_else(
+            || (json!({"kind": "none"}), Value::Null, String::new()),
+            |artifact| (
+                json!({"kind": "artifact", "path": path_value(&artifact.path), "member": artifact.member}),
+                json!({"path": path_value(&artifact.path), "member": artifact.member}),
+                format!("{}:{}: ", artifact.path.display(), artifact.member),
+            ),
+        );
         match self.0 {
             MessageFormat::Json => write_json(&json!({
                 "schema": 1, "kind": "diagnostic", "severity": "error", "code": failure.code,
                 "phase": failure.phase.as_str(), "message": failure.message,
-                "origin": {"kind": "none"}, "notes": [], "display": null,
+                "origin": origin, "notes": [], "display": display,
             })),
             MessageFormat::Human => writeln!(
                 io::stderr().lock(),
-                "error[{}]: {}",
+                "{}error[{}]: {}",
+                location,
                 failure.code,
                 failure.message
             ),
