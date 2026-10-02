@@ -1,0 +1,43 @@
+Module
+  struct Packed <c-layout aligned=8 packed=1>
+    field0 flag: Boolean
+    field1 value: Int
+    property0 val flag: Boolean getter0=storage <stored struct0-field0>
+    property1 val value: Int getter1=storage <stored struct0-field1>
+  struct Envelope <c-layout aligned=16 packed=2>
+    field0 tag: UInt16
+    field1 packed: Packed
+    field2 tail: Long
+    property2 val tag: UInt16 getter2=storage <stored struct1-field0>
+    property3 val packed: Packed getter3=storage <stored struct1-field1>
+    property4 val tail: Long getter4=storage <stored struct1-field2>
+  struct Widths <c-layout aligned=0 packed=0>
+    field0 signed8: Int8
+    field1 signed16: Int16
+    field2 signed32: Int
+    field3 signed64: Long
+    field4 unsigned8: UInt8
+    field5 unsigned16: UInt16
+    field6 unsigned32: UInt
+    field7 unsigned64: ULong
+    property5 val signed8: Int8 getter5=storage <stored struct2-field0>
+    property6 val signed16: Int16 getter6=storage <stored struct2-field1>
+    property7 val signed32: Int getter7=storage <stored struct2-field2>
+    property8 val signed64: Long getter8=storage <stored struct2-field3>
+    property9 val unsigned8: UInt8 getter9=storage <stored struct2-field4>
+    property10 val unsigned16: UInt16 getter10=storage <stored struct2-field5>
+    property11 val unsigned32: UInt getter11=storage <stored struct2-field6>
+    property12 val unsigned64: ULong getter12=storage <stored struct2-field7>
+  fun roundI8(arg1: Int8): Int8 <unsafe no-gc cdecl> <extern0 abi=c symbol=m23_i8 lib=m23_cabi>
+  fun roundI16(arg1: Int16): Int16 <unsafe no-gc cdecl> <extern1 abi=c symbol=m23_i16 lib=m23_cabi>
+  fun roundI32(arg1: Int): Int <unsafe no-gc cdecl> <extern2 abi=c symbol=m23_i32 lib=m23_cabi>
+  fun roundI64(arg1: Long): Long <unsafe no-gc cdecl> <extern3 abi=c symbol=m23_i64 lib=m23_cabi>
+  fun roundU8(arg1: UInt8): UInt8 <unsafe no-gc cdecl> <extern4 abi=c symbol=m23_u8 lib=m23_cabi>
+  fun roundU16(arg1: UInt16): UInt16 <unsafe no-gc cdecl> <extern5 abi=c symbol=m23_u16 lib=m23_cabi>
+  fun roundU32(arg1: UInt): UInt <unsafe no-gc cdecl> <extern6 abi=c symbol=m23_u32 lib=m23_cabi>
+  fun roundU64(arg1: ULong): ULong <unsafe no-gc cdecl> <extern7 abi=c symbol=m23_u64 lib=m23_cabi>
+  fun transformWidths(arg1: Widths): Widths <unsafe no-gc cdecl> <extern8 abi=c symbol=m23_widths lib=m23_cabi>
+  fun transformEnvelope(arg1: Envelope, arg2: FunPtr<(Envelope) -> Envelope>): Envelope <unsafe no-gc cdecl> <extern9 abi=c symbol=m23_envelope lib=m23_cabi>
+  fun transformPointer(arg1: Ptr<Int>, arg2: Option<Ptr<Int>>, arg3: Option<FunPtr<(Int) -> Int>>): Int <unsafe no-gc cdecl> <extern10 abi=c symbol=m23_pointer lib=m23_cabi>
+  output library
+

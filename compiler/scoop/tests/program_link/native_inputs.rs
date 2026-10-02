@@ -1,6 +1,7 @@
 use super::*;
 
 mod archive;
+mod cabi;
 mod callbacks;
 mod direct;
 mod dynamic;

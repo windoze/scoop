@@ -1,0 +1,43 @@
+package nativelink.cabi
+
+@CLayout(aligned = 8, packed = 1)
+public struct Packed(val flag: Boolean, val value: Int)
+
+@CLayout(aligned = 16, packed = 2)
+public struct Envelope(val tag: UInt16, val packed: Packed, val tail: Long)
+
+@CLayout
+public struct Widths(
+    val signed8: Int8, val signed16: Int16, val signed32: Int, val signed64: Long,
+    val unsigned8: UInt8, val unsigned16: UInt16, val unsigned32: UInt, val unsigned64: ULong
+)
+
+@Extern(lib = "m23_cabi", name = "m23_i8")
+public fun roundI8(value: Int8): Int8
+@Extern(lib = "m23_cabi", name = "m23_i16")
+public fun roundI16(value: Int16): Int16
+@Extern(lib = "m23_cabi", name = "m23_i32")
+public fun roundI32(value: Int): Int
+@Extern(lib = "m23_cabi", name = "m23_i64")
+public fun roundI64(value: Long): Long
+@Extern(lib = "m23_cabi", name = "m23_u8")
+public fun roundU8(value: UInt8): UInt8
+@Extern(lib = "m23_cabi", name = "m23_u16")
+public fun roundU16(value: UInt16): UInt16
+@Extern(lib = "m23_cabi", name = "m23_u32")
+public fun roundU32(value: UInt): UInt
+@Extern(lib = "m23_cabi", name = "m23_u64")
+public fun roundU64(value: ULong): ULong
+
+@Extern(lib = "m23_cabi", name = "m23_widths")
+public fun transformWidths(value: Widths): Widths
+
+@Extern(lib = "m23_cabi", name = "m23_envelope")
+public fun transformEnvelope(
+    value: Envelope, callback: FunPtr<(Envelope) -> Envelope>
+): Envelope
+
+@Extern(lib = "m23_cabi", name = "m23_pointer")
+public fun transformPointer(
+    pointer: Ptr<Int>, other: Ptr<Int>?, callback: FunPtr<(Int) -> Int>?
+): Int

@@ -1,0 +1,16 @@
+package nativelink.cabifacade
+
+public import nativelink.cabi.*
+
+public fun <T> envelope(
+    marker: T, value: Envelope, callback: FunPtr<(Envelope) -> Envelope>
+): Envelope {
+    @Unsafe { return transformEnvelope(value, callback) }
+}
+
+public fun <T> pointer(
+    marker: T, value: Ptr<Int>, other: Ptr<Int>? = None,
+    callback: FunPtr<(Int) -> Int>? = None
+): Int {
+    @Unsafe { return transformPointer(value, other, callback) }
+}

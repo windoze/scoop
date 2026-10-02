@@ -1,0 +1,433 @@
+Module
+  struct Marker
+    field0 text: String
+    property0 val text: String getter0=storage <stored struct0-field0>
+  fun shift(value: Int): Int <no-gc cdecl>
+    val local1
+      Local value : Int
+    val local2
+      IntegerLiteral 1 : Int
+    val local3
+      Local $dependency.argument.0 : Int
+    return
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+  fun shiftEnvelope(value: Envelope): Envelope <no-gc cdecl>
+    val local1
+      FieldAccess field 0 : UInt16
+        Local value : Envelope
+    val local2
+      IntegerLiteral 1u : UInt16
+    val local3
+      Local $dependency.argument.0 : UInt16
+    val local15
+      IntegerOperation uint16.add <no-gc> : UInt16
+        Local $dependency.receiver : UInt16
+        Local $dependency.parameter.other : UInt16
+    val local4
+      FieldAccess field 0 : Boolean
+        FieldAccess field 1 : Packed
+          Local value : Envelope
+    val local8
+      PrimitiveUnary BooleanNot : Boolean
+        Local $dependency.receiver : Boolean
+    val local5
+      FieldAccess field 1 : Int
+        FieldAccess field 1 : Packed
+          Local value : Envelope
+    val local6
+      IntegerLiteral 10 : Int
+    val local7
+      Local $dependency.argument.0 : Int
+    val local9
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    val local10
+      Local $dependency.argument.0 : Boolean
+    val local11
+      Local $dependency.argument.1 : Int
+    val local16
+      Call external #0 : Packed
+        Local $dependency.parameter.flag : Boolean
+        Local $dependency.parameter.value : Int
+    val local12
+      FieldAccess field 2 : Long
+        Local value : Envelope
+    val local13
+      IntegerLiteral 2 : Long
+    val local14
+      Local $dependency.argument.0 : Long
+    val local17
+      IntegerOperation long.add <no-gc> : Long
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+    val local18
+      Local $dependency.argument.0 : UInt16
+    val local19
+      Local $dependency.argument.1 : Packed
+    val local20
+      Local $dependency.argument.2 : Long
+    return
+      Call external #1 : Envelope
+        Local $dependency.parameter.tag : UInt16
+        Local $dependency.parameter.packed : Packed
+        Local $dependency.parameter.tail : Long
+  fun main(): Unit
+    val local0
+      StringLiteral "cabi-" : String
+    val local1
+      StringLiteral "alive" : String
+    val local2
+      Local $dependency.argument.0 : String
+    val local3
+      PrimitiveBinary StringConcat : String
+        Local $dependency.receiver : String
+        Local $dependency.parameter.other : String
+    val local4
+      Local $argument.0 : String
+    val local5
+      StructInit Marker : Marker
+        Local $parameter.text : String
+    val local6
+      IntegerLiteral -128 : Int8
+    val local7
+      Local $dependency.argument.0 : Int8
+    val local8
+      Call external #2 : Int8
+        Local $dependency.parameter.value : Int8
+    val local9
+      Local $dependency.argument.0 : Int8
+    Call println<Int8> : Unit
+      Local $dependency.parameter.value : Int8
+    val local10
+      IntegerLiteral -32768 : Int16
+    val local11
+      Local $dependency.argument.0 : Int16
+    val local12
+      Call external #3 : Int16
+        Local $dependency.parameter.value : Int16
+    val local13
+      Local $dependency.argument.0 : Int16
+    Call println<Int16> : Unit
+      Local $dependency.parameter.value : Int16
+    val local14
+      IntegerLiteral -2147483648 : Int
+    val local15
+      Local $dependency.argument.0 : Int
+    val local16
+      Call external #4 : Int
+        Local $dependency.parameter.value : Int
+    val local17
+      Local $dependency.argument.0 : Int
+    Call println<Int> : Unit
+      Local $dependency.parameter.value : Int
+    val local18
+      IntegerLiteral -9223372036854775808 : Long
+    val local19
+      Local $dependency.argument.0 : Long
+    val local20
+      Call external #5 : Long
+        Local $dependency.parameter.value : Long
+    val local21
+      Local $dependency.argument.0 : Long
+    Call println<Long> : Unit
+      Local $dependency.parameter.value : Long
+    val local22
+      IntegerLiteral 255u : UInt8
+    val local23
+      Local $dependency.argument.0 : UInt8
+    val local24
+      Call external #6 : UInt8
+        Local $dependency.parameter.value : UInt8
+    val local25
+      Local $dependency.argument.0 : UInt8
+    Call println<UInt8> : Unit
+      Local $dependency.parameter.value : UInt8
+    val local26
+      IntegerLiteral 65535u : UInt16
+    val local27
+      Local $dependency.argument.0 : UInt16
+    val local28
+      Call external #7 : UInt16
+        Local $dependency.parameter.value : UInt16
+    val local29
+      Local $dependency.argument.0 : UInt16
+    Call println<UInt16> : Unit
+      Local $dependency.parameter.value : UInt16
+    val local30
+      IntegerLiteral 4294967295u : UInt
+    val local31
+      Local $dependency.argument.0 : UInt
+    val local32
+      Call external #8 : UInt
+        Local $dependency.parameter.value : UInt
+    val local33
+      Local $dependency.argument.0 : UInt
+    Call println<UInt> : Unit
+      Local $dependency.parameter.value : UInt
+    val local34
+      IntegerLiteral 18446744073709551615uL : ULong
+    val local35
+      Local $dependency.argument.0 : ULong
+    val local36
+      Call external #9 : ULong
+        Local $dependency.parameter.value : ULong
+    val local37
+      Local $dependency.argument.0 : ULong
+    Call println<ULong> : Unit
+      Local $dependency.parameter.value : ULong
+    val local38
+      IntegerLiteral -1 : Int8
+    val local39
+      IntegerLiteral -2 : Int16
+    val local40
+      IntegerLiteral -3 : Int
+    val local41
+      IntegerLiteral -4 : Long
+    val local42
+      IntegerLiteral 1u : UInt8
+    val local43
+      IntegerLiteral 2u : UInt16
+    val local44
+      IntegerLiteral 3u : UInt
+    val local45
+      IntegerLiteral 4uL : ULong
+    val local46
+      Local $dependency.argument.0 : Int8
+    val local47
+      Local $dependency.argument.1 : Int16
+    val local48
+      Local $dependency.argument.2 : Int
+    val local49
+      Local $dependency.argument.3 : Long
+    val local50
+      Local $dependency.argument.4 : UInt8
+    val local51
+      Local $dependency.argument.5 : UInt16
+    val local52
+      Local $dependency.argument.6 : UInt
+    val local53
+      Local $dependency.argument.7 : ULong
+    val local54
+      Call external #10 : Widths
+        Local $dependency.parameter.signed8 : Int8
+        Local $dependency.parameter.signed16 : Int16
+        Local $dependency.parameter.signed32 : Int
+        Local $dependency.parameter.signed64 : Long
+        Local $dependency.parameter.unsigned8 : UInt8
+        Local $dependency.parameter.unsigned16 : UInt16
+        Local $dependency.parameter.unsigned32 : UInt
+        Local $dependency.parameter.unsigned64 : ULong
+    val local55
+      Local $dependency.argument.0 : Widths
+    val local56
+      Call external #11 : Widths
+        Local $dependency.parameter.value : Widths
+    val local57
+      FieldAccess field 0 : Int8
+        Local widths : Widths
+    val local58
+      Local $dependency.argument.0 : Int8
+    Call println<Int8> : Unit
+      Local $dependency.parameter.value : Int8
+    val local59
+      FieldAccess field 1 : Int16
+        Local widths : Widths
+    val local60
+      Local $dependency.argument.0 : Int16
+    Call println<Int16> : Unit
+      Local $dependency.parameter.value : Int16
+    val local61
+      FieldAccess field 2 : Int
+        Local widths : Widths
+    val local62
+      Local $dependency.argument.0 : Int
+    Call println<Int> : Unit
+      Local $dependency.parameter.value : Int
+    val local63
+      FieldAccess field 3 : Long
+        Local widths : Widths
+    val local64
+      Local $dependency.argument.0 : Long
+    Call println<Long> : Unit
+      Local $dependency.parameter.value : Long
+    val local65
+      FieldAccess field 4 : UInt8
+        Local widths : Widths
+    val local66
+      Local $dependency.argument.0 : UInt8
+    Call println<UInt8> : Unit
+      Local $dependency.parameter.value : UInt8
+    val local67
+      FieldAccess field 5 : UInt16
+        Local widths : Widths
+    val local68
+      Local $dependency.argument.0 : UInt16
+    Call println<UInt16> : Unit
+      Local $dependency.parameter.value : UInt16
+    val local69
+      FieldAccess field 6 : UInt
+        Local widths : Widths
+    val local70
+      Local $dependency.argument.0 : UInt
+    Call println<UInt> : Unit
+      Local $dependency.parameter.value : UInt
+    val local71
+      FieldAccess field 7 : ULong
+        Local widths : Widths
+    val local72
+      Local $dependency.argument.0 : ULong
+    Call println<ULong> : Unit
+      Local $dependency.parameter.value : ULong
+    val local83
+      Local marker : Marker
+    val local77
+      IntegerLiteral 3u : UInt16
+    val local73
+      BoolLiteral true : Boolean
+    val local74
+      IntegerLiteral 7 : Int
+    val local75
+      Local $dependency.argument.0 : Boolean
+    val local76
+      Local $dependency.argument.1 : Int
+    val local78
+      Call external #0 : Packed
+        Local $dependency.parameter.flag : Boolean
+        Local $dependency.parameter.value : Int
+    val local79
+      IntegerLiteral 100 : Long
+    val local80
+      Local $dependency.argument.0 : UInt16
+    val local81
+      Local $dependency.argument.1 : Packed
+    val local82
+      Local $dependency.argument.2 : Long
+    val local84
+      Call external #1 : Envelope
+        Local $dependency.parameter.tag : UInt16
+        Local $dependency.parameter.packed : Packed
+        Local $dependency.parameter.tail : Long
+    val local85
+      FunctionAddress shiftEnvelope : FunPtr<(Envelope) -> Envelope>
+    val local86
+      Local $dependency.argument.0 : Marker
+    val local87
+      Local $dependency.argument.1 : Envelope
+    val local88
+      Local $dependency.argument.2 : FunPtr<(Envelope) -> Envelope>
+    val local89
+      Call envelope<Marker> : Envelope
+        Local $dependency.parameter.marker : Marker
+        Local $dependency.parameter.value : Envelope
+        Local $dependency.parameter.callback : FunPtr<(Envelope) -> Envelope>
+    val local90
+      FieldAccess field 0 : UInt16
+        Local result : Envelope
+    val local91
+      Local $dependency.argument.0 : UInt16
+    Call println<UInt16> : Unit
+      Local $dependency.parameter.value : UInt16
+    val local92
+      FieldAccess field 0 : Boolean
+        FieldAccess field 1 : Packed
+          Local result : Envelope
+    val local93
+      Local $dependency.argument.0 : Boolean
+    Call println<Boolean> : Unit
+      Local $dependency.parameter.value : Boolean
+    val local94
+      FieldAccess field 1 : Int
+        FieldAccess field 1 : Packed
+          Local result : Envelope
+    val local95
+      Local $dependency.argument.0 : Int
+    Call println<Int> : Unit
+      Local $dependency.parameter.value : Int
+    val local96
+      FieldAccess field 2 : Long
+        Local result : Envelope
+    val local97
+      Local $dependency.argument.0 : Long
+    Call println<Long> : Unit
+      Local $dependency.parameter.value : Long
+    val local98
+      IntegerLiteral 40 : Int
+    val local99
+      Local marker : Marker
+    val local100
+      AddressOf value : Ptr<Int>
+    val local101
+      Local $dependency.argument.0 : Marker
+    val local102
+      Local $dependency.argument.1 : Ptr<Int>
+    val local103
+      VariantConstruct Option.None<Ptr<Int>> : Option<Ptr<Int>>
+    val local104
+      VariantConstruct Option.None<FunPtr<(Int) -> Int>> : Option<FunPtr<(Int) -> Int>>
+    val local105
+      Call pointer<Marker> : Int
+        Local $dependency.parameter.marker : Marker
+        Local $dependency.parameter.value : Ptr<Int>
+        Local $dependency.parameter.other : Option<Ptr<Int>>
+        Local $dependency.parameter.callback : Option<FunPtr<(Int) -> Int>>
+    val local106
+      Local $dependency.argument.0 : Int
+    Call println<Int> : Unit
+      Local $dependency.parameter.value : Int
+    val local107
+      FunctionAddress shift : FunPtr<(Int) -> Int>
+    val local108
+      Local $dependency.argument.0 : FunPtr<(Int) -> Int>
+    val local109
+      VariantConstruct Option.Some<FunPtr<(Int) -> Int>> : Option<FunPtr<(Int) -> Int>>
+        Local $dependency.parameter._1 : FunPtr<(Int) -> Int>
+    val local112
+      Local marker : Marker
+    val local113
+      AddressOf value : Ptr<Int>
+    val local110
+      AddressOf value : Ptr<Int>
+    val local111
+      Local $dependency.argument.0 : Ptr<Int>
+    val local114
+      VariantConstruct Option.Some<Ptr<Int>> : Option<Ptr<Int>>
+        Local $dependency.parameter._1 : Ptr<Int>
+    val local115
+      Local callback : Option<FunPtr<(Int) -> Int>>
+    val local116
+      Local $dependency.argument.0 : Marker
+    val local117
+      Local $dependency.argument.1 : Ptr<Int>
+    val local118
+      Local $dependency.argument.2 : Option<Ptr<Int>>
+    val local119
+      Local $dependency.argument.3 : Option<FunPtr<(Int) -> Int>>
+    val local120
+      Call pointer<Marker> : Int
+        Local $dependency.parameter.marker : Marker
+        Local $dependency.parameter.value : Ptr<Int>
+        Local $dependency.parameter.other : Option<Ptr<Int>>
+        Local $dependency.parameter.callback : Option<FunPtr<(Int) -> Int>>
+    val local121
+      Local $dependency.argument.0 : Int
+    Call println<Int> : Unit
+      Local $dependency.parameter.value : Int
+    val local122
+      Local value : Int
+    val local123
+      Local $dependency.argument.0 : Int
+    Call println<Int> : Unit
+      Local $dependency.parameter.value : Int
+    Call gcCollect<> : Unit
+    val local124
+      FieldAccess field 0 : String
+        Local marker : Marker
+    val local125
+      Local $dependency.argument.0 : String
+    Call println<String> : Unit
+      Local $dependency.parameter.value : String
+  output executable main
+
