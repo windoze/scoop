@@ -25,9 +25,9 @@ fn zero_sized_fields_and_captures_publish_without_payload_memory_operations() {
                 vec![],
                 vec![],
             );
-            request.emit = StageDumpPolicy::Stage(kind);
+            request.emit = StageDumpPolicy::Stages(scoop_protocol::StageDumpSet::one(kind));
             let library = request.build_and_publish().unwrap();
-            let dump = library.emitted_dump().unwrap();
+            let dump = library.emitted_dumps().first().unwrap();
             let snapshot = directory.join(format!("{case}.{stage}.snap"));
             if std::env::var_os("SCOOP_UPDATE_HEAP_ZST").is_some() {
                 std::fs::write(&snapshot, dump.text()).unwrap();

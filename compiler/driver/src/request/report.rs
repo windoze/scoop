@@ -146,19 +146,19 @@ impl std::error::Error for CurrentConeDiagnosticSetError {}
 pub struct SingleConeProductionSuccess {
     artifact: PublishedCrossConeArtifact,
     warnings: CurrentConeDiagnosticSet,
-    emitted_dump: Option<EmittedStageDump>,
+    emitted_dumps: Vec<EmittedStageDump>,
 }
 
 impl SingleConeProductionSuccess {
     pub(super) fn new_cross_cone(
         artifact: PublishedCrossConeArtifact,
         warnings: CurrentConeDiagnosticSet,
-        emitted_dump: Option<EmittedStageDump>,
+        emitted_dumps: Vec<EmittedStageDump>,
     ) -> Self {
         Self {
             artifact,
             warnings,
-            emitted_dump,
+            emitted_dumps,
         }
     }
 
@@ -170,7 +170,7 @@ impl SingleConeProductionSuccess {
         &self.warnings
     }
 
-    pub const fn emitted_dump(&self) -> Option<&EmittedStageDump> {
-        self.emitted_dump.as_ref()
+    pub fn emitted_dumps(&self) -> &[EmittedStageDump] {
+        &self.emitted_dumps
     }
 }

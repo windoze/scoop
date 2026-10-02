@@ -88,7 +88,7 @@ fn reexported_static_namespaces_republish_and_execute_from_artifacts() {
                 direct.clone(),
                 support.clone(),
             );
-            request.emit = StageDumpPolicy::Stage(kind);
+            request.emit = StageDumpPolicy::Stages(scoop_protocol::StageDumpSet::one(kind));
             let output = request
                 .build_and_publish()
                 .unwrap_or_else(|error| panic!("{case} {stage}: {error:?}"));
@@ -96,7 +96,7 @@ fn reexported_static_namespaces_republish_and_execute_from_artifacts() {
                 &fixtures,
                 case,
                 stage,
-                output.emitted_dump().unwrap().text(),
+                output.emitted_dumps().first().unwrap().text(),
             );
             outputs.push(output);
         }

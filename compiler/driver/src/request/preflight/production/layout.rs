@@ -17,7 +17,7 @@ pub(super) fn assemble(
     cone: slib::ConeRecord,
     temporary_parent: &Path,
     selected: mir::SelectedExternalMirSet,
-    dump: &mut Option<EmittedStageDump>,
+    dump: &mut Vec<EmittedStageDump>,
 ) -> Result<slib::AssembledCrossConeLayoutArtifactV1, CurrentConeProductionFailure> {
     let closure = request.dependencies().semantic();
     let dependencies = closure.layout_dependencies().collect::<Vec<_>>();
@@ -25,11 +25,11 @@ pub(super) fn assemble(
         .machine_input()
         .lower_selected_mir(selected)
         .map_err(CurrentConeProductionFailure::Mir)?;
-    if dump.is_none() {
-        *dump = capture_stage_dump(request.emit(), StageDumpKind::Mir, || {
-            scoop_mir::dump(mir.strong.module())
-        });
-    }
+    dump.extend(capture_stage_dump(
+        request.emit(),
+        StageDumpKind::Mir,
+        || scoop_mir::dump(mir.strong.module()),
+    ));
     let selected = closure
         .project_dependency_callables_to_lir(mir.strong.selected_callables())
         .map_err(CurrentConeLirStageError::DependencyProjection)
@@ -136,11 +136,11 @@ pub(super) fn assemble(
         &diagnostics,
     )
     .map_err(CurrentConeProductionFailure::Lir)?;
-    if dump.is_none() {
-        *dump = capture_stage_dump(request.emit(), StageDumpKind::Lir, || {
-            scoop_lir::dump(lir.module())
-        });
-    }
+    dump.extend(capture_stage_dump(
+        request.emit(),
+        StageDumpKind::Lir,
+        || scoop_lir::dump(lir.module()),
+    ));
     let mut pending = scoop_identity::PendingIdentityValidation::from_graph(identities);
     lir.foundation()
         .as_canonical()

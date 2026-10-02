@@ -117,9 +117,9 @@ fn source_only_objects_preserve_required_initialization_through_all_emitted_stag
             Vec::new(),
             Vec::new(),
         );
-        request.emit = StageDumpPolicy::Stage(kind);
+        request.emit = StageDumpPolicy::Stages(scoop_protocol::StageDumpSet::one(kind));
         let library = request.build_and_publish().unwrap();
-        let dump = library.emitted_dump().unwrap();
+        let dump = library.emitted_dumps().first().unwrap();
         let snapshot = directory.join(format!("initialization-demand.{stage}.snap"));
         if std::env::var_os("SCOOP_UPDATE_AUTOMATIC_SNAPSHOTS").is_some() {
             std::fs::write(&snapshot, dump.text()).unwrap();

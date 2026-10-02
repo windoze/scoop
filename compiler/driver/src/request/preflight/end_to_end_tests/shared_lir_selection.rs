@@ -72,9 +72,9 @@ fn shared_protocol_and_lir_projection_uses_actual_providers() {
         }
         for (kind, suffix) in [(StageDumpKind::Mir, "mir"), (StageDumpKind::Lir, "lir")] {
             let mut request = request();
-            request.emit = StageDumpPolicy::Stage(kind);
+            request.emit = StageDumpPolicy::Stages(scoop_protocol::StageDumpSet::one(kind));
             let artifact = request.build_and_publish().unwrap();
-            let dump = artifact.emitted_dump().unwrap().text();
+            let dump = artifact.emitted_dumps().first().unwrap().text();
             let snapshot = crate::workspace_root().join(format!(
                 "tests/fixtures/m23-shared-lir-selection/{name}.{suffix}.snap"
             ));

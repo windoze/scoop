@@ -135,9 +135,9 @@ fn qualified_dependency_types_respect_direct_package_visibility() {
                 artifacts.clone(),
                 support.clone(),
             );
-            request.emit = StageDumpPolicy::Stage(kind);
+            request.emit = StageDumpPolicy::Stages(scoop_protocol::StageDumpSet::one(kind));
             let output = request.build_and_publish().unwrap();
-            let actual = output.emitted_dump().unwrap().text();
+            let actual = output.emitted_dumps().first().unwrap().text();
             let snapshot = fixtures.join(format!("{case}.{stage}.snap"));
             if std::env::var_os("SCOOP_UPDATE_GENERIC_BODY_SNAPSHOTS").is_some() {
                 std::fs::write(&snapshot, actual).unwrap();

@@ -51,7 +51,10 @@ fn request_constructor_closes_single_file_protocol_combinations() {
         target(),
         path("main.slib"),
         DiagnosticOutputPolicyV1::Human,
-        StageDumpPolicyV1::Stage(StageDumpKindV1::Hir),
+        StageDumpPolicyV1::Files {
+            stages: crate::StageDumpSet::one(crate::StageDumpKindV1::Hir),
+            directory: path("dump"),
+        },
     )
     .unwrap_err();
     assert_eq!(

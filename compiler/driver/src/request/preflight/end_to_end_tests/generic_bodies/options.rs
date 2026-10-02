@@ -86,9 +86,9 @@ fn imported_option_roles_follow_rebuilt_core_declarations() {
             vec![],
             vec![],
         );
-        request.emit = StageDumpPolicy::Stage(kind);
+        request.emit = StageDumpPolicy::Stages(scoop_protocol::StageDumpSet::one(kind));
         let output = request.build_and_publish().unwrap();
-        let actual = output.emitted_dump().unwrap().text();
+        let actual = output.emitted_dumps().first().unwrap().text();
         let snapshot = fixtures.join(format!("edited-core.{stage}.snap"));
         if std::env::var_os("SCOOP_UPDATE_GENERIC_BODY_SNAPSHOTS").is_some() {
             std::fs::write(&snapshot, actual).unwrap();

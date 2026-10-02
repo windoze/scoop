@@ -151,14 +151,18 @@ fn policy_projection_is_total() {
         DiagnosticOutputPolicy::Structured
     );
     for (wire, expected) in [
-        (StageDumpKindV1::Ast, StageDumpKind::Ast),
-        (StageDumpKindV1::Hir, StageDumpKind::Hir),
-        (StageDumpKindV1::Mir, StageDumpKind::Mir),
-        (StageDumpKindV1::Lir, StageDumpKind::Lir),
+        (StageDumpKind::Ast, StageDumpKind::Ast),
+        (StageDumpKind::Hir, StageDumpKind::Hir),
+        (StageDumpKind::Mir, StageDumpKind::Mir),
+        (StageDumpKind::Lir, StageDumpKind::Lir),
     ] {
         assert_eq!(
-            map_dump_policy(StageDumpPolicyV1::Stage(wire)),
-            StageDumpPolicy::Stage(expected)
+            map_dump_policy(&StageDumpPolicyV1::Files {
+                stages: StageDumpSet::one(wire),
+                directory: scoop_protocol::HostPathCarrier::from_path(std::path::Path::new("dump"))
+                    .unwrap()
+            }),
+            StageDumpPolicy::Stages(scoop_protocol::StageDumpSet::one(expected))
         );
     }
 }

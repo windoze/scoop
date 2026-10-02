@@ -49,12 +49,12 @@ fn generic_delegate_siblings_share_initialization_and_failure_with_moving_gc() {
                 vec![provider.artifact().path().to_path_buf()],
                 Vec::new(),
             );
-            request.emit = StageDumpPolicy::Stage(kind);
+            request.emit = StageDumpPolicy::Stages(scoop_protocol::StageDumpSet::one(kind));
             let output = request
                 .build_and_publish()
                 .unwrap_or_else(|error| panic!("{side} {stage}: {error:?}"));
             let snapshot = fixtures.join(format!("{side}.{stage}.snap"));
-            let actual = output.emitted_dump().unwrap().text();
+            let actual = output.emitted_dumps().first().unwrap().text();
             if std::env::var_os("SCOOP_UPDATE_GENERIC_BODY_SNAPSHOTS").is_some() {
                 std::fs::write(&snapshot, actual).unwrap();
             }

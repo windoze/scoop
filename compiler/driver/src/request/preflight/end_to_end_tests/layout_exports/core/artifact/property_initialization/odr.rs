@@ -27,9 +27,9 @@ pub(super) fn check(
             vec![],
             vec![],
         );
-        request.emit = StageDumpPolicy::Stage(kind);
+        request.emit = StageDumpPolicy::Stages(scoop_protocol::StageDumpSet::one(kind));
         let output = request.build_and_publish().unwrap();
-        let dump = output.emitted_dump().unwrap().text();
+        let dump = output.emitted_dumps().first().unwrap().text();
         let path = fixtures.join(format!("structural-box.{stage}.snap"));
         if std::env::var_os("SCOOP_UPDATE_ANY_CALLS").is_some() {
             std::fs::write(&path, dump).unwrap();

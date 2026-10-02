@@ -54,13 +54,13 @@ fn dependency_struct_values_compile_through_real_artifact_consumers() {
             (StageDumpKind::Lir, "lir"),
         ] {
             let mut request = request();
-            request.emit = StageDumpPolicy::Stage(kind);
+            request.emit = StageDumpPolicy::Stages(scoop_protocol::StageDumpSet::one(kind));
             let output = request
                 .build_and_publish()
                 .unwrap_or_else(|error| panic!("{case} {stage}: {error:?}"));
             snapshot(
                 &fixtures.join(format!("{case}.{stage}.snap")),
-                output.emitted_dump().unwrap().text(),
+                output.emitted_dumps().first().unwrap().text(),
             );
             outputs.push(output);
         }

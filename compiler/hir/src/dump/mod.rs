@@ -5,3 +5,6 @@ mod module;
 
 pub use body::dump_pattern;
 pub use module::{dump, dump_module};
+
+mod local;
+pub use local::dump_local;

@@ -30,9 +30,9 @@ fn ordinary_public_nominals_materialize_and_publish_the_shared_shape_plan() {
                 Vec::new(),
                 Vec::new(),
             );
-            request.emit = StageDumpPolicy::Stage(kind);
+            request.emit = StageDumpPolicy::Stages(scoop_protocol::StageDumpSet::one(kind));
             let library = request.build_and_publish().unwrap();
-            let dump = library.emitted_dump().unwrap();
+            let dump = library.emitted_dumps().first().unwrap();
             assert_eq!(dump.kind(), kind);
             snapshot(fixture, stage, dump.text());
             let identity = ConeCoordinate::new("dev.example", fixture, "0.1.0")

@@ -434,7 +434,7 @@ fn check_class_cases(cast_variant: &str, cases: &[&str], negative_cases: &[&str]
                 vec![provider.artifact().path().to_path_buf()],
                 vec![],
             );
-            request.emit = StageDumpPolicy::Stage(kind);
+            request.emit = StageDumpPolicy::Stages(scoop_protocol::StageDumpSet::one(kind));
             let output = request
                 .build_and_publish()
                 .unwrap_or_else(|error| panic!("{case} {stage}: {error:?}"));
@@ -445,7 +445,7 @@ fn check_class_cases(cast_variant: &str, cases: &[&str], negative_cases: &[&str]
             };
             snapshot(
                 &fixtures.join(format!("{snapshot_case}.{stage}.snap")),
-                output.emitted_dump().unwrap().text(),
+                output.emitted_dumps().first().unwrap().text(),
             );
             outputs.push(output);
         }

@@ -5,6 +5,8 @@
 
 mod capability;
 mod diagnostic;
+mod dump;
+pub use dump::{StageDumpKindV1, StageDumpPolicyV1, StageDumpSet};
 mod framing;
 mod path;
 mod request;
@@ -21,7 +23,7 @@ pub use framing::{
 pub use path::{HostPathCarrier, HostPathEncoding, HostPathError};
 pub use request::{
     CurrentConeRequestV1, DiagnosticOutputPolicyV1, ScoopcBuildRequestV1, ScoopcRequestEnvelopeV1,
-    StageDumpKindV1, StageDumpPolicyV1, TargetSelectionRequestV1, TrustedCoreRequestV1,
+    TargetSelectionRequestV1, TrustedCoreRequestV1,
 };
 pub use response::{
     EmittedDumpDescriptorV1, EmittedDumpDestinationV1, ProtocolArtifactFingerprint,
@@ -32,9 +34,9 @@ pub use response::{
 };
 
 /// Version selected by the unique `scoopc` machine transport entrypoint.
-pub const PROTOCOL_VERSION: u32 = 1;
+pub const PROTOCOL_VERSION: u32 = 2;
 
-pub(crate) const MAX_EMITTED_DUMPS: usize = 1;
+pub(crate) const MAX_EMITTED_DUMPS: usize = 4;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ProtocolValidationError {
@@ -52,6 +54,8 @@ pub enum ProtocolValidationError {
     InvalidTargetTriple,
 
     TooManyEmittedDumps(usize),
+    InvalidDumpStages,
+    InvalidDumpDescriptors,
     FailureRequiresDiagnostic,
     FailureRequiresErrorDiagnostic,
     SuccessContainsErrorDiagnostic,
@@ -97,8 +101,14 @@ impl std::fmt::Display for ProtocolValidationError {
 
             Self::TooManyEmittedDumps(actual) => write!(
                 formatter,
-                "too many emitted dump descriptors: limit 1, found {actual}"
+                "too many emitted dump descriptors: limit 4, found {actual}"
             ),
+            Self::InvalidDumpStages => {
+                formatter.write_str("dump stages must be nonempty, unique, and in stage order")
+            }
+            Self::InvalidDumpDescriptors => {
+                formatter.write_str("dump descriptors must name unique files in stage order")
+            }
             Self::FailureRequiresDiagnostic => {
                 formatter.write_str("a failure response requires at least one diagnostic")
             }

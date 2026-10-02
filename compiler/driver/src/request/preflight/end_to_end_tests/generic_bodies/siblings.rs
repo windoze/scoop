@@ -81,7 +81,7 @@ fn check_siblings(fixture_name: &str, cases: &[&str]) {
             if snapshots {
                 for (kind, stage) in [(StageDumpKind::Hir, "hir"), (StageDumpKind::Mir, "mir")] {
                     let mut request = request();
-                    request.emit = StageDumpPolicy::Stage(kind);
+                    request.emit = StageDumpPolicy::Stages(scoop_protocol::StageDumpSet::one(kind));
                     let output = request
                         .build_and_publish()
                         .unwrap_or_else(|error| panic!("{case} {side} {stage}: {error:?}"));
@@ -90,13 +90,14 @@ fn check_siblings(fixture_name: &str, cases: &[&str]) {
                         case,
                         side,
                         stage,
-                        output.emitted_dump().unwrap().text(),
+                        output.emitted_dumps().first().unwrap().text(),
                     );
                 }
             }
             let mut request = request();
             if snapshots {
-                request.emit = StageDumpPolicy::Stage(StageDumpKind::Lir);
+                request.emit =
+                    StageDumpPolicy::Stages(scoop_protocol::StageDumpSet::one(StageDumpKind::Lir));
             }
             let artifact = request
                 .build_and_publish()
@@ -107,7 +108,7 @@ fn check_siblings(fixture_name: &str, cases: &[&str]) {
                     case,
                     side,
                     "lir",
-                    artifact.emitted_dump().unwrap().text(),
+                    artifact.emitted_dumps().first().unwrap().text(),
                 );
             }
             std::fs::rename(root.join("src"), root.join("unused-source")).unwrap();

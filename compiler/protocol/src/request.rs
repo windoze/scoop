@@ -1,5 +1,7 @@
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
+use crate::StageDumpPolicyV1;
+use crate::dump::DecodedStageDumpPolicyV1;
 use crate::path::DecodedHostPathCarrier;
 use crate::{HostPathCarrier, PROTOCOL_VERSION, ProtocolValidationError, RequestCorrelationId};
 
@@ -115,69 +117,6 @@ impl WireEncode for DiagnosticOutputPolicyV1 {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum StageDumpKindV1 {
-    Ast,
-    Hir,
-    Mir,
-    Lir,
-}
-
-impl StageDumpKindV1 {
-    fn tag(self) -> u64 {
-        match self {
-            Self::Ast => 1,
-            Self::Hir => 2,
-            Self::Mir => 3,
-            Self::Lir => 4,
-        }
-    }
-
-    fn from_tag(tag: u64) -> Result<Self, ProtocolValidationError> {
-        match tag {
-            1 => Ok(Self::Ast),
-            2 => Ok(Self::Hir),
-            3 => Ok(Self::Mir),
-            4 => Ok(Self::Lir),
-            _ => Err(ProtocolValidationError::UnknownEnumTag {
-                kind: "stage dump",
-                tag,
-            }),
-        }
-    }
-}
-
-impl WireEncode for StageDumpKindV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.unsigned(self.tag())
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum StageDumpPolicyV1 {
-    None,
-    Stage(StageDumpKindV1),
-}
-
-impl WireEncode for StageDumpPolicyV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        match self {
-            Self::None => {
-                encoder.map(1)?;
-                encoder.field(0)?;
-                encoder.unsigned(1)
-            }
-            Self::Stage(stage) => {
-                encoder.map(2)?;
-                encoder.field(0)?;
-                encoder.unsigned(2)?;
-                encoder.field(1)?;
-                stage.encode(encoder)
-            }
-        }
-    }
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ScoopcBuildRequestV1 {
     current: CurrentConeRequestV1,
@@ -243,8 +182,8 @@ impl ScoopcBuildRequestV1 {
         self.diagnostics
     }
 
-    pub const fn emit(&self) -> StageDumpPolicyV1 {
-        self.emit
+    pub const fn emit(&self) -> &StageDumpPolicyV1 {
+        &self.emit
     }
 }
 
@@ -529,58 +468,6 @@ impl WireDecode for DecodedScoopcBuildRequestV1 {
             diagnostics,
             emit,
         })
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-enum DecodedStageDumpPolicyV1 {
-    None,
-    Stage(u64),
-}
-
-impl DecodedStageDumpPolicyV1 {
-    fn validate(self) -> Result<StageDumpPolicyV1, ProtocolValidationError> {
-        match self {
-            Self::None => Ok(StageDumpPolicyV1::None),
-            Self::Stage(tag) => Ok(StageDumpPolicyV1::Stage(StageDumpKindV1::from_tag(tag)?)),
-        }
-    }
-}
-
-impl WireEncode for DecodedStageDumpPolicyV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        match self {
-            Self::None => {
-                encoder.map(1)?;
-                encoder.field(0)?;
-                encoder.unsigned(1)
-            }
-            Self::Stage(tag) => {
-                encoder.map(2)?;
-                encoder.field(0)?;
-                encoder.unsigned(2)?;
-                encoder.field(1)?;
-                encoder.unsigned(*tag)
-            }
-        }
-    }
-}
-
-impl WireDecode for DecodedStageDumpPolicyV1 {
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        let fields = decoder.map()?;
-        let tag = decoder.field(0, Decoder::unsigned)?;
-        match tag {
-            1 => {
-                crate::framing::expect_sum_length(decoder, fields, 1)?;
-                Ok(Self::None)
-            }
-            2 => {
-                crate::framing::expect_sum_length(decoder, fields, 2)?;
-                decoder.field(1, Decoder::unsigned).map(Self::Stage)
-            }
-            tag => Err(crate::framing::unknown_tag(decoder, tag)),
-        }
     }
 }
 

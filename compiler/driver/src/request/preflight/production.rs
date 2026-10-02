@@ -51,11 +51,13 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
                         e,
                     ))
                 })?;
-        dump = dump.or_else(|| {
-            capture_stage_dump(emit, StageDumpKind::Hir, || {
-                scoop_hir::dump(&hir.hir.output().export)
-            })
-        });
+        dump.extend(capture_stage_dump(emit, StageDumpKind::Hir, || {
+            format!(
+                "== Export ==\n{}== LocalConcrete ==\n{}",
+                scoop_hir::dump(&hir.hir.output().export),
+                scoop_hir::dump_local(&hir.hir.output().local)
+            )
+        }));
         let artifact = (|| {
             let artifact =
                 protocols::lower_machine(hir, self.request, cone, temporary_parent, &mut dump)?;

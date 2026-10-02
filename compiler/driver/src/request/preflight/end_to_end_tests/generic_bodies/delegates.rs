@@ -65,12 +65,12 @@ fn generic_delegated_properties_republish_and_execute_from_artifacts() {
             vec![provider.artifact().path().to_path_buf()],
             Vec::new(),
         );
-        request.emit = StageDumpPolicy::Stage(kind);
+        request.emit = StageDumpPolicy::Stages(scoop_protocol::StageDumpSet::one(kind));
         let output = request
             .build_and_publish()
             .unwrap_or_else(|error| panic!("generic delegate {stage}: {error:?}"));
         let snapshot = fixtures.join(format!("consumer.{stage}.snap"));
-        let actual = output.emitted_dump().unwrap().text();
+        let actual = output.emitted_dumps().first().unwrap().text();
         if std::env::var_os("SCOOP_UPDATE_GENERIC_BODY_SNAPSHOTS").is_some() {
             std::fs::write(&snapshot, actual).unwrap();
         }

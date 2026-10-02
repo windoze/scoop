@@ -51,13 +51,13 @@ fn dependency_members_compile_and_run_through_actual_artifacts() {
                 vec![provider.artifact().path().to_path_buf()],
                 vec![],
             );
-            request.emit = StageDumpPolicy::Stage(kind);
+            request.emit = StageDumpPolicy::Stages(scoop_protocol::StageDumpSet::one(kind));
             let output = request
                 .build_and_publish()
                 .unwrap_or_else(|error| panic!("{case} {stage}: {error:?}"));
             snapshot(
                 &fixtures.join(format!("{case}.{stage}.snap")),
-                output.emitted_dump().unwrap().text(),
+                output.emitted_dumps().first().unwrap().text(),
             );
             outputs.push(output);
         }

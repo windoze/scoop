@@ -14,7 +14,7 @@ pub(super) fn lower_machine(
     request: &ValidatedSingleConeBuildRequest<'_>,
     cone: scoop_slib::ConeRecord,
     temporary_parent: &Path,
-    dump: &mut Option<EmittedStageDump>,
+    dump: &mut Vec<EmittedStageDump>,
 ) -> Result<scoop_slib::AssembledCrossConeLayoutArtifactV1, CurrentConeProductionFailure> {
     let selected = request
         .dependencies()

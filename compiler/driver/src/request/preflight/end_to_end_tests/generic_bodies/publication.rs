@@ -56,12 +56,12 @@ fn generic_consumers_publish_reusable_artifacts_and_run_with_moving_gc() {
                 vec![provider.artifact().path().to_path_buf()],
                 Vec::new(),
             );
-            request.emit = StageDumpPolicy::Stage(kind);
+            request.emit = StageDumpPolicy::Stages(scoop_protocol::StageDumpSet::one(kind));
             let output = request
                 .build_and_publish()
                 .unwrap_or_else(|error| panic!("{case} {stage}: {error:?}"));
             assert_eq!(
-                output.emitted_dump().unwrap().text(),
+                output.emitted_dumps().first().unwrap().text(),
                 std::fs::read_to_string(fixtures.join(format!("machine-{case}.{stage}.snap")))
                     .unwrap(),
                 "{case} {stage}",

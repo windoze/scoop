@@ -79,12 +79,12 @@ fn check_fixture_cases(fixture: &str, cases: &[&str]) {
                 vec![provider.artifact().path().to_path_buf()],
                 Vec::new(),
             );
-            request.emit = StageDumpPolicy::Stage(kind);
+            request.emit = StageDumpPolicy::Stages(scoop_protocol::StageDumpSet::one(kind));
             let output = request
                 .build_and_publish()
                 .unwrap_or_else(|error| panic!("{case} {stage}: {error:?}"));
             let snapshot = fixtures.join(format!("{case}.{stage}.snap"));
-            let actual = output.emitted_dump().unwrap().text();
+            let actual = output.emitted_dumps().first().unwrap().text();
             if stage == "mir" && case == "read-only-var" {
                 assert!(
                     !actual.contains("  fun setValue "),

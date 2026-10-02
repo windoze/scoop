@@ -23,9 +23,9 @@ pub(super) fn assert_shared_intrinsic_constants(
             &source,
             &workspace.join(format!("{label}.slib")),
             core,
-            StageDumpPolicy::Stage(kind),
+            StageDumpPolicy::Stages(scoop_protocol::StageDumpSet::one(kind)),
         );
-        let dump = output.emitted_dump().unwrap();
+        let dump = output.emitted_dumps().first().unwrap();
         assert_eq!(dump.kind(), kind);
         insta::assert_snapshot!(label, dump.text());
     }
@@ -54,9 +54,9 @@ pub(super) fn assert_normalized_integer_defaults(
             &source,
             &workspace.join(format!("{label}.slib")),
             core,
-            StageDumpPolicy::Stage(kind),
+            StageDumpPolicy::Stages(scoop_protocol::StageDumpSet::one(kind)),
         );
-        let dump = output.emitted_dump().unwrap();
+        let dump = output.emitted_dumps().first().unwrap();
         assert_eq!(dump.kind(), kind);
         insta::assert_snapshot!(label, dump.text());
     }
@@ -74,9 +74,9 @@ pub(super) fn assert_integer_exception_uses_shared_layout(
         &source,
         &workspace.join("integer-exception.slib"),
         core,
-        StageDumpPolicy::Stage(StageDumpKind::Mir),
+        StageDumpPolicy::Stages(scoop_protocol::StageDumpSet::one(StageDumpKind::Mir)),
     );
-    let dump = output.emitted_dump().unwrap();
+    let dump = output.emitted_dumps().first().unwrap();
     assert_eq!(dump.kind(), StageDumpKind::Mir);
     insta::assert_snapshot!("integer_exception_mir", dump.text());
 }

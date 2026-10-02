@@ -23,9 +23,9 @@ pub(super) fn assert_equality(
             &source,
             &workspace.join(format!("{label}.slib")),
             core,
-            StageDumpPolicy::Stage(kind),
+            StageDumpPolicy::Stages(scoop_protocol::StageDumpSet::one(kind)),
         );
-        let dump = output.emitted_dump().unwrap();
+        let dump = output.emitted_dumps().first().unwrap();
         assert_eq!(dump.kind(), kind);
         insta::assert_snapshot!(label, dump.text());
     }

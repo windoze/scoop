@@ -31,9 +31,9 @@ pub(super) fn assert_initialization_and_dependency_calls(
                 &source,
                 &workspace.join(format!("{name}-{label}.slib")),
                 core,
-                StageDumpPolicy::Stage(kind),
+                StageDumpPolicy::Stages(scoop_protocol::StageDumpSet::one(kind)),
             );
-            let dump = output.emitted_dump().unwrap();
+            let dump = output.emitted_dumps().first().unwrap();
             if kind == StageDumpKind::Mir {
                 assert!(dump.text().contains("external0"));
                 assert!(dump.text().contains("external1"));

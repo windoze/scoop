@@ -97,12 +97,14 @@ fn build(
 ) -> ExitCode {
     let emit = match emit {
         None => scoopc::StageDumpPolicy::None,
-        Some(emit) => scoopc::StageDumpPolicy::Stage(match emit {
-            Emit::Ast => scoopc::StageDumpKind::Ast,
-            Emit::Hir => scoopc::StageDumpKind::Hir,
-            Emit::Mir => scoopc::StageDumpKind::Mir,
-            Emit::Lir => scoopc::StageDumpKind::Lir,
-        }),
+        Some(emit) => {
+            scoopc::StageDumpPolicy::Stages(scoop_protocol::StageDumpSet::one(match emit {
+                Emit::Ast => scoopc::StageDumpKind::Ast,
+                Emit::Hir => scoopc::StageDumpKind::Hir,
+                Emit::Mir => scoopc::StageDumpKind::Mir,
+                Emit::Lir => scoopc::StageDumpKind::Lir,
+            }))
+        }
     };
     let request = match scoopc::normalize_direct_build_request(
         input,
@@ -123,7 +125,7 @@ fn build(
             if !success.warnings().is_empty() {
                 eprintln!("{}", success.warnings().render_human());
             }
-            if let Some(dump) = success.emitted_dump() {
+            for dump in success.emitted_dumps() {
                 println!("{}", dump.text());
             }
             ExitCode::SUCCESS

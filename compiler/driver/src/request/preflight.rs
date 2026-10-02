@@ -128,11 +128,11 @@ fn capture_stage_dump(
     policy: StageDumpPolicy,
     kind: StageDumpKind,
     render: impl FnOnce() -> String,
-) -> Option<EmittedStageDump> {
-    if policy == StageDumpPolicy::Stage(kind) {
-        Some(EmittedStageDump::new(kind, render()))
+) -> Vec<EmittedStageDump> {
+    if matches!(policy, StageDumpPolicy::Stages(stages) if stages.contains(kind)) {
+        vec![EmittedStageDump::new(kind, render())]
     } else {
-        None
+        Vec::new()
     }
 }
 

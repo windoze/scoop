@@ -1,3 +1,5 @@
+mod dumps;
+
 use std::fmt;
 use std::io::{self, Read, Write};
 use std::process::ExitCode;
@@ -68,13 +70,11 @@ fn execute_request(
     request: ScoopcRequestEnvelopeV1,
 ) -> Result<ScoopcResponseEnvelopeV1, ChildProtocolError> {
     let request_id = request.request_id();
-    if request.build().diagnostics() != DiagnosticOutputPolicyV1::Structured
-        || request.build().emit() != StageDumpPolicyV1::None
-    {
+    if request.build().diagnostics() != DiagnosticOutputPolicyV1::Structured {
         return failure_response(
             request_id,
             CHILD_REQUEST_ERROR_CODE,
-            "machine builds require structured diagnostics and emit=None".to_owned(),
+            "machine builds require structured diagnostics".to_owned(),
         );
     }
     let build = match scoopc::normalize_protocol_build_request(request.build()) {
@@ -84,7 +84,15 @@ fn execute_request(
         }
     };
     match build.build_and_publish() {
-        Ok(success) => success_response(request_id, &success),
+        Ok(success) => match success_response(request_id, &success, request.build().emit()) {
+            Err(ChildProtocolError::DumpOutput(error)) => failure_response_with_warnings(
+                request_id,
+                CHILD_BUILD_ERROR_CODE,
+                error.to_string(),
+                success.warnings().diagnostics(),
+            ),
+            result => result,
+        },
         Err(error) => production_failure_response(request_id, &error),
     }
 }
@@ -141,10 +149,10 @@ fn failure_response_with_warnings(
 fn success_response(
     request_id: RequestCorrelationId,
     success: &scoopc::SingleConeProductionSuccess,
+    policy: &StageDumpPolicyV1,
 ) -> Result<ScoopcResponseEnvelopeV1, ChildProtocolError> {
-    if success.emitted_dump().is_some() {
-        return Err(ChildProtocolError::UnexpectedDump);
-    }
+    let dumps = dumps::write_dumps(policy, success.emitted_dumps())
+        .map_err(ChildProtocolError::DumpOutput)?;
     let artifact = success.artifact().summary();
     let semantic = artifact.compile_summary().semantic_fingerprints();
     let FingerprintAvailability::Available(code) = semantic.code() else {
@@ -170,7 +178,7 @@ fn success_response(
         ProtocolCodeFingerprint::from_array(*code.as_array()),
         ProtocolRuntimeImageFingerprint::from_array(*runtime_image.as_array()),
         warnings,
-        Vec::new(),
+        dumps,
     )
     .map_err(ChildProtocolError::ConstructResponse)?;
     Ok(ScoopcResponseEnvelopeV1::success(request_id, result))
@@ -213,7 +221,7 @@ enum ChildProtocolError {
     DecodeRequest(scoop_protocol::ProtocolReadError),
     ConstructResponse(ProtocolValidationError),
     MissingStrongFingerprint(&'static str),
-    UnexpectedDump,
+    DumpOutput(io::Error),
     EncodeResponse(scoop_protocol::ProtocolWriteError),
     WriteResponse(io::Error),
 }
@@ -235,9 +243,7 @@ impl fmt::Display for ChildProtocolError {
                     "successful strong artifact has no {kind} fingerprint"
                 )
             }
-            Self::UnexpectedDump => {
-                formatter.write_str("machine build unexpectedly produced a stage dump")
-            }
+            Self::DumpOutput(error) => write!(formatter, "cannot write stage dumps: {error}"),
             Self::EncodeResponse(source) => write!(formatter, "cannot encode response: {source}"),
             Self::WriteResponse(source) => write!(formatter, "cannot write response: {source}"),
         }
@@ -251,9 +257,8 @@ impl std::error::Error for ChildProtocolError {
             Self::DecodeRequest(source) => Some(source),
             Self::ConstructResponse(source) => Some(source),
             Self::EncodeResponse(source) => Some(source),
-            Self::UnsupportedVersion(_)
-            | Self::MissingStrongFingerprint(_)
-            | Self::UnexpectedDump => None,
+            Self::UnsupportedVersion(_) | Self::MissingStrongFingerprint(_) => None,
+            Self::DumpOutput(error) => Some(error),
         }
     }
 }

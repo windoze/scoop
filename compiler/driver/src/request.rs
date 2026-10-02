@@ -17,7 +17,7 @@ use scoop_manifest::{
     ManifestRootError, ManifestRootLocator, SingleFileInputError, SingleFileLocator,
 };
 use scoop_protocol::{
-    CurrentConeRequestV1, HostPathError, ScoopcBuildRequestV1, StageDumpKindV1, StageDumpPolicyV1,
+    CurrentConeRequestV1, HostPathError, ScoopcBuildRequestV1, StageDumpPolicyV1,
     TrustedCoreRequestV1,
 };
 use scoop_toolchain::{ResolvedTargetProfile, ToolchainError};
@@ -82,18 +82,12 @@ pub enum DiagnosticOutputPolicy {
     Structured,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum StageDumpKind {
-    Ast,
-    Hir,
-    Mir,
-    Lir,
-}
+pub use scoop_protocol::{StageDumpKindV1 as StageDumpKind, StageDumpSet};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum StageDumpPolicy {
     None,
-    Stage(StageDumpKind),
+    Stages(StageDumpSet),
 }
 
 #[derive(Debug)]
@@ -529,15 +523,10 @@ fn map_diagnostic_policy(
     }
 }
 
-fn map_dump_policy(policy: StageDumpPolicyV1) -> StageDumpPolicy {
+fn map_dump_policy(policy: &StageDumpPolicyV1) -> StageDumpPolicy {
     match policy {
         StageDumpPolicyV1::None => StageDumpPolicy::None,
-        StageDumpPolicyV1::Stage(stage) => StageDumpPolicy::Stage(match stage {
-            StageDumpKindV1::Ast => StageDumpKind::Ast,
-            StageDumpKindV1::Hir => StageDumpKind::Hir,
-            StageDumpKindV1::Mir => StageDumpKind::Mir,
-            StageDumpKindV1::Lir => StageDumpKind::Lir,
-        }),
+        StageDumpPolicyV1::Files { stages, .. } => StageDumpPolicy::Stages(*stages),
     }
 }
 

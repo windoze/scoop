@@ -29,13 +29,13 @@ fn runtime_exception_storage_is_materialized_before_mir_and_publication() {
             target.clone(),
             SlibOutputDestination::new(destination.clone()).unwrap(),
             DiagnosticOutputPolicy::Human,
-            StageDumpPolicy::Stage(StageDumpKind::Mir),
+            StageDumpPolicy::Stages(scoop_protocol::StageDumpSet::one(StageDumpKind::Mir)),
         )
         .unwrap();
         let artifact = request
             .build_and_publish()
             .unwrap_or_else(|error| panic!("{name}: {error:?}"));
-        let dump = artifact.emitted_dump().unwrap();
+        let dump = artifact.emitted_dumps().first().unwrap();
         assert_eq!(dump.kind(), StageDumpKind::Mir);
         snapshot(&fixtures.join(format!("{name}.mir.snap")), dump.text());
         assert!(destination.is_file());

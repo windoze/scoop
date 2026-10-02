@@ -21,9 +21,10 @@ fn ordinary_reader_preserves_inherited_default_contracts_from_published_bytes() 
             vec![],
             vec![],
         );
-        request.emit = StageDumpPolicy::Stage(StageDumpKind::Hir);
+        request.emit =
+            StageDumpPolicy::Stages(scoop_protocol::StageDumpSet::one(StageDumpKind::Hir));
         let library = request.build_and_publish().unwrap();
-        let dump = library.emitted_dump().unwrap();
+        let dump = library.emitted_dumps().first().unwrap();
         let snapshot = directory.join(format!("{case}.hir.snap"));
         if std::env::var_os("SCOOP_UPDATE_CALL_DOMAINS_SNAPSHOTS").is_some() {
             std::fs::write(&snapshot, dump.text()).unwrap();

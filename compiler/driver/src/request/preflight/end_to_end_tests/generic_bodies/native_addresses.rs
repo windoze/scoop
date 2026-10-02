@@ -54,11 +54,12 @@ fn native_storage_exports_do_not_emit_unused_c_trampolines() {
         vec![],
         vec![],
     );
-    request.emit = StageDumpPolicy::Stage(StageDumpKind::Mir);
+    request.emit = StageDumpPolicy::Stages(scoop_protocol::StageDumpSet::one(StageDumpKind::Mir));
     let provider = request.build_and_publish().unwrap();
     assert_eq!(
         provider
-            .emitted_dump()
+            .emitted_dumps()
+            .first()
             .unwrap()
             .text()
             .lines()
