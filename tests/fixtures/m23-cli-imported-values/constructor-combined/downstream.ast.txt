@@ -1,0 +1,21 @@
+SourceFile
+  QualifiedPackage downstream.constructors
+  ImportExact Local consumer.constructors.token
+  ImportExact Local consumer.constructors.primary
+  ImportExact Local consumer.constructors.secondary
+  ImportExact Local consumer.constructors.defaults
+  ImportExact Local consumer.constructors.republished
+    @NoGC
+  public fun check(): Long
+    val marker
+      Call token
+    return
+      Binary Add
+        Binary Add
+          Binary Add
+            MethodCall sum
+              Call primary
+            MethodCall sum
+              Call secondary
+          Call defaults
+        Call republished

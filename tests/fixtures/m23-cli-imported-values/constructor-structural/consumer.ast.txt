@@ -1,0 +1,84 @@
+SourceFile
+  QualifiedPackage consumer.constructors
+  ImportExact Local dependency.constructors.Token
+  ImportExact Local dependency.constructors.Wide
+  ImportExact Local dependency.constructors.TupleOps
+  ImportExact Local dependency.constructors.TupleBox
+  ImportExact Local dependency.constructors.TupleMarker
+  ImportExact Local dependency.constructors.tupleChoiceSum
+  ImportExact Local dependency.constructors.tupleIdentity
+  ImportExact Local dependency.constructors.tupleDefault
+  ImportExact Local dependency.constructors.tupleProjection
+    @NoGC
+  public fun token(): Token
+    =
+      Call Token
+    @NoGC
+  public fun primary(): Wide
+    val fields
+      Call tupleIdentity
+        TupleLiteral
+          Unary Neg
+            IntLiteral 29
+          Call Token
+          IntLiteral 53
+    return
+      Call Wide
+        FieldAccess elements
+          Call TupleBox
+            TupleLiteral
+              FieldAccess _2
+                Var fields
+              TupleLiteral
+                IntLiteral 17
+                FieldAccess _1
+                  Var fields
+                FieldAccess _3
+                  Var fields
+              Call Token
+    @NoGC
+  public fun secondary(): Wide
+    val marker
+      FieldAccess elements
+        Call TupleMarker
+          TupleLiteral
+            Call Token
+            Call Token
+    val fields
+      MethodCall nested
+        Call TupleOps
+        TupleLiteral
+          FieldAccess _1
+            Var marker
+          TupleLiteral
+            IntLiteral 5
+            IntLiteral 8
+            IntLiteral 11
+          FieldAccess _2
+            Var marker
+    return
+      Call Wide
+        Var fields
+    @NoGC
+  public fun defaults(): Long
+    =
+      Binary Sub
+        Binary Add
+          Binary Add
+            Call tupleChoiceSum
+              Call tupleIdentity
+                TupleLiteral
+                  IntLiteral 3
+                  Call Token
+                  IntLiteral 9
+            Call tupleDefault
+          Call tupleProjection
+            FieldAccess pair
+              Call TupleOps
+        IntLiteral 24
+    @NoGC
+  public fun republished(value: (Long, Token, Long) = <expr>): Long
+    =
+      MethodCall sum
+        Call TupleOps
+        Var value

@@ -326,3 +326,11 @@ parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end，
 原 LLVM 检查体成为普通 native 函数，由正式 Scoop 程序调用。13 个实际 callable 符号显式绑定在数据中，原 17/-29/53、48、17、41 等字段、计算属性、默认值和重发布断言全部保留；此前手工选取对象、补 property/default helper 和直接链接的 Rust 代码删除，改由实际产物闭包供应定义与 runtime 启动。
 
 四份旧阶段逐字相同；组合用例的 MIR/LIR 仅增加按 Token、Wide 字段比较的 `Container.equals` 及一致的函数序号调整。六个负例保留原范围、表达式、消息及无产物断言。删除原 Rust 模块、helper、更新变量和 12 份旧快照。只读验收八项全部通过，共 8 个变体、38 次进程、26 次阶段／plan golden 比较，两个程序通过普通／moving GC；格式化与全 workspace lint 通过。
+
+## 17. 外来主／次构造函数与类型别名
+
+`dependency_constructors_compile_and_run_through_actual_artifacts` 迁为 `constructor-*` 的六个正例和十个负例。保留原 provider、consumer、downstream 及其坐标、别名、默认值和嵌套 tuple；每层从已发布产物编译，前一层源码在消费前删除。三层完整四阶段 golden 同时保存真实构造函数与调用 ABI。
+
+六个正例逐项核对实际 MIR 构造函数和对应 LIR：每项有四个 NoGC ZST 构造函数、五个 NoGC 24 字节／8 字节对齐 sret 构造函数，四参数主构造函数的末位 Token 参数消除。原 LLVM 检查体改为普通 native 函数，由 Scoop main 调用，继续检查 primary 的 17/-29/53 和 downstream 的 83；实际 callable 符号显式写在数据中。正式 program-link 负责完整产物闭包与启动，独立链接与构建 fingerprint 一致。
+
+18 份旧阶段输出逐字相同，十个负例的范围、表达式、消息逐项一致且失败无产物。删除原 Rust 编排、对象提取／手工链接 helper、更新变量和 28 份旧快照，保留全部原 Scoop 源码。关闭更新开关的统一入口只读验收 16 项全部通过，共 16 个变体、90 次进程、78 次阶段／plan golden 比较；六个程序均通过普通与 moving GC，格式化与全 workspace lint 通过。

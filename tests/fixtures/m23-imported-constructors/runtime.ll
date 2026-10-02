@@ -1,7 +1,7 @@
 %Wide = type { i64, i64, i64 }
 declare void @primary(ptr sret(%Wide) align 8)
 declare i64 @check()
-define i32 @main() {
+define i32 @m23_constructor_abi_check() {
 entry:
   %value = alloca %Wide, align 8
   call void @primary(ptr sret(%Wide) align 8 %value)
