@@ -1,0 +1,17 @@
+SourceFile
+  QualifiedPackage consumer.members
+  ImportStar Local templates.members.*
+  public fun result(): Int
+    =
+      MethodCall select
+        Call Overloads<String>
+        StringLiteral "owner"
+        TupleLiteral
+          IntLiteral 20
+          IntLiteral 22
+  public fun make<T>(value: T): T
+    =
+      MethodCall choose<T>
+        Call Box<Int>
+          IntLiteral 1
+        Var value

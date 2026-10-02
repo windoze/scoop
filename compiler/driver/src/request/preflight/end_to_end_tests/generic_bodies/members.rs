@@ -2,34 +2,6 @@ use super::super::imported_classes::runtime;
 use super::*;
 
 #[test]
-fn generic_member_templates_republish_and_execute_from_artifacts() {
-    check_member_cases(
-        &[
-            "standalone",
-            "method-arguments",
-            "signature-support",
-            "value-method",
-            "plain-owner",
-            "inherited",
-            "captured",
-            "virtual",
-            "abi",
-            "overloads",
-            "interface-class",
-            "interface-abstract",
-            "interface-struct",
-            "interface-enum",
-            "interface-local",
-            "interface-abi",
-            "interface-properties",
-            "interface-value-property",
-        ],
-        &[],
-        "downstream",
-    );
-}
-
-#[test]
 fn generic_extension_properties_republish_and_execute_from_artifacts() {
     check_member_cases(
         &[

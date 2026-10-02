@@ -1,0 +1,17 @@
+SourceFile
+  QualifiedPackage consumer.members
+  ImportStar Local templates.members.*
+  public fun result(): Int
+    val reader: Reader<Int>
+      Call InterfaceItem<Int>
+        IntLiteral 42
+    return
+      MethodCall read
+        Var reader
+  public fun make<T>(value: T): T
+    val reader: Reader<T>
+      Call InterfaceItem<T>
+        Var value
+    return
+      MethodCall get
+        Var reader

@@ -1,0 +1,17 @@
+SourceFile
+  QualifiedPackage consumer.members
+  ImportStar Local templates.members.*
+  public fun result(): Int
+    val cell: ReadOnlyProperty<Int>
+      Call PropertyCell<Int>
+        IntLiteral 42
+    return
+      FieldAccess read
+        Var cell
+  public fun make<T>(value: T): T
+    val cell: ReadOnlyProperty<T>
+      Call PropertyCell<T>
+        Var value
+    return
+      FieldAccess read
+        Var cell

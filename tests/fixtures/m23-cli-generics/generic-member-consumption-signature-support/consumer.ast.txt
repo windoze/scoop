@@ -1,0 +1,19 @@
+SourceFile
+  QualifiedPackage consumer.members
+  ImportStar Local templates.members.*
+  private class SignatureValue(val value: Int)
+  private class Unrelated(val value: Int)
+  public fun result(): Int
+    =
+      FieldAccess value
+        MethodCall choose
+          Call Box<Int>
+            IntLiteral 1
+          Call SignatureValue
+            IntLiteral 42
+  public fun make<T>(value: T): T
+    =
+      MethodCall choose<T>
+        Call Box<Int>
+          IntLiteral 1
+        Var value

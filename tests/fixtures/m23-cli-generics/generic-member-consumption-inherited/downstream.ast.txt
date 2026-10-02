@@ -1,0 +1,19 @@
+SourceFile
+  RootPackage
+  ImportExact Local consumer.members.result
+  ImportExact Local consumer.members.make
+  private class Later(val value: Int)
+  public fun check(): Int
+    val value
+      Call make<Later>
+        Call Later
+          Call result
+    val first
+      Call Later
+        IntLiteral 1
+    val second
+      Call Later
+        IntLiteral 2
+    return
+      FieldAccess value
+        Var value

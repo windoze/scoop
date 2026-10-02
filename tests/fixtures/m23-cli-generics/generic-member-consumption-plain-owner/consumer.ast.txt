@@ -1,0 +1,13 @@
+SourceFile
+  QualifiedPackage consumer.members
+  ImportStar Local templates.members.*
+  public fun result(): Int
+    =
+      MethodCall choose<_>
+        Call Plain
+        IntLiteral 42
+  public fun make<T>(value: T): T
+    =
+      MethodCall choose<T>
+        Call Plain
+        Var value

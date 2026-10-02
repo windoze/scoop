@@ -1,0 +1,24 @@
+SourceFile
+  QualifiedPackage consumer.members
+  ImportStar Local templates.members.*
+  public fun result(): Int
+    val child
+      Call VirtualChild<Int>
+        IntLiteral 20
+        IntLiteral 22
+    val base: VirtualBox<Int>
+      Var child
+    return
+      Binary Add
+        MethodCall read
+          Var base
+        MethodCall inheritedRead
+          Var child
+  public fun make<T>(value: T): T
+    val base: VirtualBox<T>
+      Call VirtualChild<T>
+        Var value
+        Var value
+    return
+      MethodCall read
+        Var base

@@ -342,3 +342,15 @@ parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end，
 组合用例的完整 provider／consumer／peer LIR 共同包含九个相同 callable 符号：六个普通泛型正文和三个词法实现。逐项与实际 MIR 名称对应，再核对正式链接后 `nm -j` 的完整符号表，九个符号各仅有一个定义，保留原三个产物共享 helper 的合并断言。最终符号表作为只读期望，没有新增 compiler 专用接口或 fixture callback。
 
 六份旧阶段输出逐字相同，五个负例的范围、表达式和信息一致，失败无产物；完整新诊断保存 canonical 来源。删除原 Rust 模块、注册和 11 份旧快照，原源码全部保留。七项正式只读验收通过，共 7 个变体、37 次进程、30 次阶段／plan golden 比较，两个程序均通过独立产物链接与普通／moving GC；格式化与全 workspace lint 通过。
+
+## 19. 泛型成员与共同语义用例
+
+旧 `generic_bodies/members.rs::check_fixture_cases` 的各项声明逐批迁为 `m23-cli-generics/` 数据，保留原 provider、consumer、downstream 源码、坐标和可见性。三层各自一次正式编译保存完整 AST/HIR/MIR/LIR，消费前删除上一层源码；Scoop main 继续要求原 `check()` 返回 42，并保留普通与 moving GC 的 epoch 检查。独立产物链接与构建的 fingerprint 相同。
+
+原 callable ABI 与导出签名一致性由实际产物消费者的正常检查及完整 MIR/LIR 覆盖。最终程序另通过 `nm --defined-only --extern-only` 的完整符号表和排除 weak 定义后的完整符号表，记录实际 ODR callable 的存在、唯一性与 weak linkage；这些是普通命令与只读期望，不扩展 runner 或另读 `.slib`。接口 struct、enum、ABI 与 value-property 用例分别保留 1/1/2/1 个泛型装箱描述符和 3/1/6/2 个 dispatch adapter 的 weak 定义。ABI 组合中的普通 `Large` 装箱仍为 strong，与原仅检查 NominalApplication 的范围一致。
+
+下表各批均先核对旧输出，再删除对应 Rust 注册和旧快照，保留原源码；格式化和 lint 后关闭全部更新开关，由统一入口只读通过。共用 helper 仍供后续待迁注册调用，随最后的调用一起退役。本表仅记录已完成批次。
+
+| 原 Rust 入口 | 原源码组 | 正例／负例 | 进程／golden 比较 | 旧阶段与诊断对照 |
+| --- | --- | --- | --- | --- |
+| `generic_member_templates_republish_and_execute_from_artifacts` | `m23-generic-member-consumption` | 18／0 | 216／234 | 54 份阶段、0 份诊断逐项相同 |

@@ -1,0 +1,226 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Later>
+    Completed(value: Later)
+    Suspended()
+  enum CoroutineSlot<Later>
+    Empty()
+    Value(value: Later)
+  class Later vtable=0 itables=0
+  class Box<Later> vtable=0 itables=0
+  class Inherited<Later> vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<Later>
+  interface SuspendTask<Later>
+  interface SuspendRegistration<Later>
+  generated_exact_type get0 location=enum1 nominal_id=1f352a21610ef10f696179134e2ff95a82766edd6528bee79656aa125ed3d396 exact_id=726f7ec8e255d21a3a2c6480a64518742cd681294879a4c318d57f22e2bb801b
+  generated_exact_type get1 location=enum2 nominal_id=bcdec84def7530a2a7ebd04642ba6e0107eee9c75cf7c096fcf520de0a5c26ca exact_id=a741701da581cdba89a17bd797740501b20d63990af7b097e617ad80441f808a
+  generated_callable gc0 function=@fn11 id=22102b923960e6d7e595b5e671e61bf2375aa7c77190599b067d77240ac2f2b0
+  fun check @fn0() -> Int
+    bb0 entry
+      call $argument.0: Int = external0 direct
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Later
+        ClassAlloc Later
+      call @fn8 direct
+        Type Later
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.0: Later
+        Type Later
+        Local $new.1
+      val $dependency.parameter.value: Later
+        Type Later
+        Local $dependency.argument.0
+      call value: Later = @fn1 direct
+        Type Later
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Later
+        ClassAlloc Later
+      call @fn8 direct
+        Type Later
+        Local $new.2
+        Type Int
+        Local $parameter.value
+      val first: Later
+        Type Later
+        Local $new.2
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.3
+        Type Later
+        ClassAlloc Later
+      call @fn8 direct
+        Type Later
+        Local $new.3
+        Type Int
+        Local $parameter.value
+      val second: Later
+        Type Later
+        Local $new.3
+      return
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local value
+  fun make @fn1(value: Later) -> Later
+    bb0 entry
+      val $dependency.local.1: Later
+        Type Later
+        Local value
+      val $dependency.local.2: Later
+        Type Later
+        Local $dependency.local.1
+      assign $new.1
+        Type Inherited<Later>
+        ClassAlloc Inherited<Later>
+      call @fn9 direct
+        Type Inherited<Later>
+        Local $new.1
+        Type Later
+        Local $dependency.local.2
+      val $dependency.local.3: Box<Later>
+        Type Box<Later>
+        Retype Box<Later>
+          Type Inherited<Later>
+          Local $new.1
+      call $dependency.local.4: Later = @fn2 direct
+        Type Box<Later>
+        Local $dependency.local.3
+      call $call.2: Later = @fn3 direct
+        Type Box<Later>
+        Local $dependency.local.3
+        Type Later
+        Local $dependency.local.4
+      return
+        Type Later
+        Local $call.2
+  fun value @fn2(this: Box<Later>) -> Later
+    bb0 entry
+      return
+        Type Later
+        FieldAccess 0
+          Type Box<Later>
+          Local this
+  fun echo @fn3(this: Box<Later>, value: Later) -> Later
+    bb0 entry
+      return
+        Type Later
+        Local value
+  fun Continuation.resume @fn4(this: Continuation<Later>, value: Later) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn5(this: Continuation<Later>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn6(this: SuspendTask<Later>, $completion: Continuation<Later>) -> CoroutineStep<Later>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn7(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Later.$c0 @fn8(this: Later, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Later
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Inherited.$c0 @fn9(this: Inherited<Later>, value: Later) -> Unit
+    bb0 entry
+      val $dependency.constructor.local.0: Later
+        Type Later
+        Local value
+      val $dependency.constructor.local.1: Later
+        Type Later
+        Local $dependency.constructor.local.0
+      call @fn10 direct
+        Type Box<Later>
+        Retype Box<Later>
+          Type Inherited<Later>
+          Local this
+        Type Later
+        Local $dependency.constructor.local.1
+      return
+  fun init.Box.$c1 @fn10(this: Box<Later>, value: Later) -> Unit
+    bb0 entry
+      field_set 0
+        Type Box<Later>
+        Local this
+        Type Later
+        Local value
+      return
+  fun startCoroutine<Later> @fn11(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn4 interface Continuation<Later>[0]
+        Type Continuation<Later>
+        Local completion
+        Type Later
+        EnumField v0 f0
+          Type CoroutineStep<Later>
+          Local $step
+      return
+    bb2 failed
+      call @fn5 interface Continuation<Later>[1]
+        Type Continuation<Later>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Later> = @fn6 interface SuspendTask<Later>[0]
+        Type SuspendTask<Later>
+        Local task
+        Type Continuation<Later>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Later>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Later> result=Later
+  coroutine_slot cl0 CoroutineSlot<Later> value=Later
+  coroutine_start ct0 result=Later function=fn11
+  coroutine_fn cf0 @fn6 source_return=Later step=cs0 immediate
+  instance mi0 function=@fn1 <- make
+  instance mi1 function=@fn2 <- value
+  instance mi2 function=@fn3 <- echo
+  instance mi3 function=@fn4 <- Continuation.resume
+  instance mi4 function=@fn5 <- Continuation.resumeWithException
+  instance mi5 function=@fn6 <- SuspendTask.run
+  instance mi6 function=@fn7 <- SuspendRegistration.register
+  output library

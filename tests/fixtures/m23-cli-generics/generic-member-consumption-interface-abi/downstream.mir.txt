@@ -1,0 +1,250 @@
+Module
+  struct InterfaceCell<Later> (value: Later)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Later>
+    Completed(value: Later)
+    Suspended()
+  enum CoroutineSlot<Later>
+    Empty()
+    Value(value: Later)
+  class Later vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<InterfaceCell<Later>> vtable=0 itables=2
+  interface Reader<Later> : Readable<Later>
+  interface Readable<Later>
+  interface Continuation<Later>
+  interface SuspendTask<Later>
+  interface SuspendRegistration<Later>
+  generated_exact_type get0 location=enum2 nominal_id=dffd18fb809160c057be77e3e136b001366cc15608dd3ebdc43b30ea531aa78f exact_id=308846acc1c582d07656a0390b156e9a1531e4432fd3affc288b2ad279af469b
+  generated_exact_type get1 location=enum1 nominal_id=6ca96fee5fea00f0ccbec1eab43044fb008545deca7d7cfa30ce5ab3e5b3a03c exact_id=56df5d951d09c0d29535362851eb424a3004fc7cd4f177257717cfb22dbf4d2c
+  generated_exact_type get2 location=class4 nominal_id=ea46ce05fbf16a780a5c87985571b60bc22ad782101b47b8283f9248ba9e6082 exact_id=ea094ebc14b61ef0c347c9cbaab5891c4d1dc02d52813d6826f844d6fbe77b96
+  generated_callable gc0 function=@fn12 id=64ffd3e61c44ff618d78166da9e7d18adf75d3ef0f56675bf5d8ff95af7b5217
+  generated_callable gc1 function=@fn14 id=666e8f407ece0c3b04a678e41a0985ebc33cf177e65e36917b417d6463d15021
+  generated_callable gc2 function=@fn13 id=f8e78d220198b3b0b55be3df5c2e1dc048fea8804bda2c87fdd171041b6f0913
+  generated_callable gc3 function=@fn11 id=f9868ae092e8a41cb54e8d917cb292dfc2813b0c54f690fa2129785a117aa673
+  fun check @fn0() -> Int
+    bb0 entry
+      call $argument.0: Int = external0 direct
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Later
+        ClassAlloc Later
+      call @fn9 direct
+        Type Later
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.0: Later
+        Type Later
+        Local $new.1
+      val $dependency.parameter.value: Later
+        Type Later
+        Local $dependency.argument.0
+      call value: Later = @fn1 direct
+        Type Later
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Later
+        ClassAlloc Later
+      call @fn9 direct
+        Type Later
+        Local $new.2
+        Type Int
+        Local $parameter.value
+      val first: Later
+        Type Later
+        Local $new.2
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.3
+        Type Later
+        ClassAlloc Later
+      call @fn9 direct
+        Type Later
+        Local $new.3
+        Type Int
+        Local $parameter.value
+      val second: Later
+        Type Later
+        Local $new.3
+      return
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local value
+  fun make @fn1(value: Later) -> Later
+    bb0 entry
+      val $dependency.local.2: Later
+        Type Later
+        Local value
+      val $dependency.local.3: Later
+        Type Later
+        Local $dependency.local.2
+      call $call.1: InterfaceCell<Later> = @fn10 direct
+        Type Later
+        Local $dependency.local.3
+      val $dependency.local.1: Reader<Later>
+        Type Reader<Later>
+        Box
+          Type InterfaceCell<Later>
+          Local $call.1
+      val $dependency.local.4: Reader<Later>
+        Type Reader<Later>
+        Local $dependency.local.1
+      call $call.2: Later = @fn3 interface Reader<Later>[1]
+        Type Reader<Later>
+        Local $dependency.local.4
+      return
+        Type Later
+        Local $call.2
+  fun get @fn2(this: InterfaceCell<Later>) -> Later
+    bb0 entry
+      return
+        Type Later
+        FieldAccess 0
+          Type InterfaceCell<Later>
+          Local this
+  fun read @fn3(this: Reader<Later>) -> Later
+    bb0 entry
+      val $dependency.local.1: Reader<Later>
+        Type Reader<Later>
+        Local this
+      call $call.1: Later = @fn4 interface Readable<Later>[0]
+        Type Readable<Later>
+        Retype Readable<Later>
+          Type Reader<Later>
+          Local $dependency.local.1
+      return
+        Type Later
+        Local $call.1
+  fun Readable.get @fn4(this: Readable<Later>) -> Later
+    bb0 entry
+      trap "call to abstract method `Readable.get`"
+  fun Continuation.resume @fn5(this: Continuation<Later>, value: Later) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn6(this: Continuation<Later>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn7(this: SuspendTask<Later>, $completion: Continuation<Later>) -> CoroutineStep<Later>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn8(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Later.$c0 @fn9(this: Later, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Later
+        Local this
+        Type Int
+        Local value
+      return
+  fun ctor.InterfaceCell.$c0 @fn10(value: Later) -> InterfaceCell<Later> <no-gc>
+    bb0 entry
+      return
+        Type InterfaceCell<Later>
+        StructInit InterfaceCell<Later>
+          Type Later
+          Local value
+  fun startCoroutine<Later> @fn11(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn5 interface Continuation<Later>[0]
+        Type Continuation<Later>
+        Local completion
+        Type Later
+        EnumField v0 f0
+          Type CoroutineStep<Later>
+          Local $step
+      return
+    bb2 failed
+      call @fn6 interface Continuation<Later>[1]
+        Type Continuation<Later>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Later> = @fn7 interface SuspendTask<Later>[0]
+        Type SuspendTask<Later>
+        Local task
+        Type Continuation<Later>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Later>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun thunk<InterfaceCell<Later>> Reader.get() @fn12(this: Reader<Later>) -> Later
+    bb0 entry
+      call $call.1: Later = @fn2 direct
+        Type InterfaceCell<Later>
+        Unbox
+          Type Reader<Later>
+          Local this
+      return
+        Type Later
+        Local $call.1
+  fun thunk<InterfaceCell<Later>> Reader.read() @fn13(this: Reader<Later>) -> Later
+    bb0 entry
+      call $call.1: Later = @fn3 direct
+        Type Reader<Later>
+        Retype Reader<Later>
+          Type Reader<Later>
+          Local this
+      return
+        Type Later
+        Local $call.1
+  fun thunk<InterfaceCell<Later>> Readable.get() @fn14(this: Readable<Later>) -> Later
+    bb0 entry
+      call $call.1: Later = @fn2 direct
+        Type InterfaceCell<Later>
+        Unbox
+          Type Readable<Later>
+          Local this
+      return
+        Type Later
+        Local $call.1
+  coroutine_step cs0 CoroutineStep<Later> result=Later
+  coroutine_slot cl0 CoroutineSlot<Later> value=Later
+  coroutine_start ct0 result=Later function=fn11
+  coroutine_fn cf0 @fn7 source_return=Later step=cs0 immediate
+  instance mi0 function=@fn1 <- make
+  instance mi1 function=@fn2 <- get
+  instance mi2 function=@fn3 <- read
+  instance mi3 function=@fn4 <- Readable.get
+  instance mi4 function=@fn5 <- Continuation.resume
+  instance mi5 function=@fn6 <- Continuation.resumeWithException
+  instance mi6 function=@fn7 <- SuspendTask.run
+  instance mi7 function=@fn8 <- SuspendRegistration.register
+  output library
