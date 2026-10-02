@@ -3,14 +3,13 @@ use super::*;
 pub(super) enum Candidate {
     Definition,
     Object(NativeObjectId),
-    System,
+    Dynamic(crate::dynamic::DynamicBinding),
 }
 
 pub(super) fn candidate(
     symbol: &str,
     binding: NativeLibraryBinding,
     inputs: &ProgramInputs<'_>,
-    profile: &ValidatedFinalLinkProfile,
 ) -> Result<Candidate, LinkError> {
     let explicit = match binding {
         NativeLibraryBinding::DefaultNativeNamespace => None,
@@ -38,9 +37,13 @@ pub(super) fn candidate(
             candidates.push(Candidate::Object(id));
         }
     }
-    if explicit.is_none() && profile.system_provider().exports().contains_key(symbol) {
-        candidates.push(Candidate::System);
-    }
+    candidates.extend(
+        inputs
+            .providers
+            .candidates(&inputs.native, symbol, explicit)?
+            .into_iter()
+            .map(Candidate::Dynamic),
+    );
     if candidates.len() > 1 {
         return Err(error(format!(
             "ambiguous native providers for {symbol}: {} candidates",

@@ -2,6 +2,7 @@ use super::*;
 
 mod archive;
 mod direct;
+mod dynamic;
 
 fn archive_native(directory: &Path, name: &str, members: &[&Path]) -> PathBuf {
     let archive = directory.join("native").join(format!("lib{name}.a"));

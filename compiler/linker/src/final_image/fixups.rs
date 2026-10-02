@@ -1,6 +1,6 @@
 //! The classic dyld opcode streams selected by -no_fixup_chains.
-use super::dyld_cursor::Cursor;
 use super::*;
+use crate::macho_cursor::Cursor;
 
 mod bind;
 pub(super) use bind::{Binding, bindings};

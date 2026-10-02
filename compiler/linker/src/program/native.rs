@@ -24,6 +24,8 @@ pub(super) fn resolve(
 ) -> Result<(), LinkError> {
     let (declarations, libraries) = declarations::read(closure)?;
     inputs.native = NativeInputs::read(libraries, library_paths, profile)?;
+    inputs.providers =
+        crate::dynamic::DynamicInputs::read(&mut inputs.native, library_paths, profile)?;
     let direct: Vec<_> = inputs
         .native
         .ordered_files()
@@ -48,8 +50,7 @@ pub(super) fn resolve(
                     "source extern {symbol} conflicts with a compiler-owned definition"
                 )));
             }
-            let candidate =
-                selection::candidate(symbol, declaration.contract.library(), inputs, profile)?;
+            let candidate = selection::candidate(symbol, declaration.contract.library(), inputs)?;
             match candidate {
                 selection::Candidate::Object(id) => {
                     let (index, _) = inputs.native.object(id)?;
@@ -62,17 +63,17 @@ pub(super) fn resolve(
                         })?;
                     check_kind(symbol, declaration.contract, *definition)?;
                 }
-                selection::Candidate::System => {
+                selection::Candidate::Dynamic(binding) => {
                     let tls = matches!(
                         declaration.contract,
                         NativeExternalContract::ReadOnlyTls { .. }
                             | NativeExternalContract::MutableTls { .. }
                     );
-                    if tls
-                        != (profile.system_provider().exports()[symbol]
-                            == SystemExportKind::ThreadLocal)
-                    {
+                    if tls != (binding.interface.kind == SystemExportKind::ThreadLocal) {
                         return Err(error(format!("native TLS storage mismatch for {symbol}")));
+                    }
+                    if let crate::dynamic::ExportStorage::Definition(definition) = binding.storage {
+                        check_kind(symbol, declaration.contract, definition)?;
                     }
                 }
             }
@@ -100,7 +101,7 @@ pub(super) fn resolve(
             .get(&symbol)
             .map(|origins| origins.join(", "))
             .unwrap_or_else(|| "program startup/linker support".into());
-        let candidate = selection::candidate(&symbol, binding, inputs, profile)
+        let candidate = selection::candidate(&symbol, binding, inputs)
             .map_err(|err| error(format!("{err}; reference chain: {symbol} <- {origin}")))?;
         match candidate {
             selection::Candidate::Object(id) => {
@@ -111,11 +112,14 @@ pub(super) fn resolve(
                 }
             }
             selection::Candidate::Definition => continue,
-            selection::Candidate::System => {
-                inputs.dynamic.insert(symbol);
+            selection::Candidate::Dynamic(binding) => {
+                inputs.dynamic.insert(symbol, binding);
             }
         }
     }
+    inputs
+        .providers
+        .project(&inputs.dynamic, library_paths, profile)?;
     for file in inputs.native.ordered_files() {
         for (id, _, range) in file.objects() {
             if inputs.native.selected.contains_key(&id) {

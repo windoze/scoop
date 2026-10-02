@@ -9,32 +9,50 @@ pub(super) fn library(
     let name = key.library().as_str();
     let suffixes = match key.kind() {
         NativeLibraryKind::TargetDefault => vec![
-            format!("{name}.o"),
-            format!("lib{name}.a"),
-            format!("lib{name}.dylib"),
-            format!("lib{name}.tbd"),
-            format!("{name}.framework/{name}"),
+            (format!("{name}.o"), NativeFileKind::Object),
+            (format!("lib{name}.a"), NativeFileKind::Archive),
+            (format!("lib{name}.dylib"), NativeFileKind::Dylib),
+            (format!("lib{name}.tbd"), NativeFileKind::TextStub),
+            (
+                format!("{name}.framework/{name}"),
+                NativeFileKind::Framework,
+            ),
         ],
-        NativeLibraryKind::StaticArchive => vec![format!("lib{name}.a")],
-        NativeLibraryKind::Dynamic => vec![format!("lib{name}.dylib"), format!("lib{name}.tbd")],
-        NativeLibraryKind::Framework => vec![format!("{name}.framework/{name}")],
+        NativeLibraryKind::StaticArchive => vec![(format!("lib{name}.a"), NativeFileKind::Archive)],
+        NativeLibraryKind::Dynamic => vec![
+            (format!("lib{name}.dylib"), NativeFileKind::Dylib),
+            (format!("lib{name}.tbd"), NativeFileKind::TextStub),
+        ],
+        NativeLibraryKind::Framework => vec![(
+            format!("{name}.framework/{name}"),
+            NativeFileKind::Framework,
+        )],
     };
-    let paths: std::collections::BTreeSet<_> = roots
+    let paths: BTreeMap<_, _> = roots
         .iter()
-        .flat_map(|root| suffixes.iter().map(move |suffix| root.join(suffix)))
+        .flat_map(|root| {
+            suffixes
+                .iter()
+                .map(move |(suffix, kind)| (root.join(suffix), *kind))
+        })
         .collect();
     let mut candidates = BTreeMap::new();
     let mut locators = Vec::new();
-    for path in paths {
+    for (path, kind) in paths {
         match std::fs::symlink_metadata(&path) {
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => continue,
             Err(err) => return Err(error(format!("native candidate {}: {err}", path.display()))),
             Ok(_) => {}
         }
-        let file = read(&path, profile)
+        let file = read(&path, kind, profile, false)
             .map_err(|err| error(format!("native candidate {}: {err}", path.display())))?;
         locators.push(path);
-        candidates.entry(file.id).or_insert(file);
+        if candidates
+            .get(&file.id)
+            .is_none_or(|previous: &NativeFile| file.locator < previous.locator)
+        {
+            candidates.insert(file.id, file);
+        }
     }
     if candidates.is_empty() {
         return Err(error(format!(
@@ -52,40 +70,56 @@ pub(super) fn library(
         .ok_or_else(|| error("native candidate disappeared"))
 }
 
-fn read(path: &Path, profile: &ValidatedFinalLinkProfile) -> Result<NativeFile, LinkError> {
+pub(crate) fn read(
+    path: &Path,
+    kind: NativeFileKind,
+    profile: &ValidatedFinalLinkProfile,
+    system: bool,
+) -> Result<NativeFile, LinkError> {
     let bytes = std::fs::read(path).map_err(error)?;
-    let slice = slice::select(&bytes)?;
-    let archive = path.extension().is_some_and(|extension| extension == "a");
-    let id = NativeInputId(
-        domain_separated_cbor_hash(
-            "scoop-native-input-v1",
-            &FileKey {
-                profile,
-                bytes: &bytes,
-                kind: if archive { 2 } else { 1 },
-            },
-        )
-        .map_err(error)?,
-    );
-    let content = if archive {
-        NativeContent::Archive(archive::read(&bytes, id, &slice, profile)?)
+    let slice = if kind == NativeFileKind::TextStub {
+        0..bytes.len()
     } else {
-        let index = NativeObjectIndex::read(
-            &bytes[slice.clone()],
-            profile
-                .startup_toolchain()
-                .profile()
-                .contract()
-                .deployment(),
-        )?;
-        index.check_selected(&bytes[slice.clone()])?;
-        NativeContent::Object(index)
+        slice::select(&bytes)?
+    };
+    let id = NativeInputId::from_bytes(&bytes, kind, profile)?;
+    let locator = std::fs::canonicalize(path).map_err(error)?;
+    let content = match kind {
+        NativeFileKind::Archive => {
+            NativeContent::Archive(archive::read(&bytes, id, &slice, profile)?)
+        }
+        NativeFileKind::Object => {
+            let index = NativeObjectIndex::read(
+                &bytes[slice.clone()],
+                profile
+                    .startup_toolchain()
+                    .profile()
+                    .contract()
+                    .deployment(),
+            )?;
+            index.check_selected(&bytes[slice.clone()])?;
+            NativeContent::Object(index)
+        }
+        NativeFileKind::Dylib | NativeFileKind::TextStub | NativeFileKind::Framework => {
+            let records = crate::dynamic::read(
+                &bytes[slice.clone()],
+                id,
+                &locator,
+                profile,
+                kind == NativeFileKind::TextStub,
+                system,
+            )?;
+            if records.is_empty() {
+                return Err(error("native dynamic input has no install-name records"));
+            }
+            NativeContent::Dynamic(records)
+        }
     };
     Ok(NativeFile {
         id,
         bytes: bytes.into(),
         slice,
         content,
-        locator: std::fs::canonicalize(path).map_err(error)?,
+        locator,
     })
 }

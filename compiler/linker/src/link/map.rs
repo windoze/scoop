@@ -1,11 +1,10 @@
 use super::*;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 pub(super) fn check(
     text: &str,
     objects: &[PathBuf],
-    stub: &Path,
-    system: &scoop_toolchain::SystemProvider,
+    stubs: &BTreeMap<PathBuf, String>,
 ) -> Result<(), LinkError> {
     let mut expected: BTreeSet<_> = objects
         .iter()
@@ -32,8 +31,8 @@ pub(super) fn check(
             return Err(error(format!("link map repeats input {path}")));
         }
         if path == "linker synthesized"
-            || path == stub.to_string_lossy()
-            || system.reexports().contains(path)
+            || stubs.contains_key(Path::new(path))
+            || stubs.values().any(|name| name == path)
         {
             continue;
         }
@@ -47,6 +46,33 @@ pub(super) fn check(
         return Err(error(format!(
             "link map omitted {} explicit objects",
             expected.len()
+        )));
+    }
+    Ok(())
+}
+
+pub(super) fn trace(
+    text: &str,
+    objects: &[PathBuf],
+    stubs: &BTreeMap<PathBuf, String>,
+) -> Result<(), LinkError> {
+    let expected: BTreeSet<_> = objects
+        .iter()
+        .chain(stubs.keys())
+        .map(|path| path.to_string_lossy().into_owned())
+        .collect();
+    let mut seen = BTreeSet::new();
+    for line in text.lines().map(str::trim).filter(|line| !line.is_empty()) {
+        if !expected.contains(line) || !seen.insert(line.to_owned()) {
+            return Err(error(format!(
+                "link trace contains an unexpected or repeated input {line}"
+            )));
+        }
+    }
+    if seen != expected {
+        return Err(error(format!(
+            "link trace omitted explicit inputs: {:?}",
+            expected.difference(&seen).collect::<Vec<_>>()
         )));
     }
     Ok(())

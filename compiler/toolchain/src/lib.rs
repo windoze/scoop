@@ -16,7 +16,8 @@ mod trusted_core;
 pub use final_link::ValidatedFinalLinkProfile;
 pub use registry::{ResolvedTargetProfile, ValidatedRuntimeBuildProfile};
 pub use system_provider::{
-    LIBSYSTEM_INSTALL_NAME, SystemExportKind, SystemProvider, SystemStubFile,
+    LIBSYSTEM_INSTALL_NAME, NativeExport, SystemExportKind, SystemProvider, SystemStubFile,
+    TextStubInterface, read_text_stubs, write_link_stub,
 };
 pub use trusted_core::TrustedCoreSlotLayoutV1;
 

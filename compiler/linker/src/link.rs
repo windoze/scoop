@@ -52,16 +52,26 @@ pub fn link_program(
         paths.push(path);
     }
     let sdk = directory.path().join("sdk");
-    let stub = profile.system_provider().write_to(&sdk).map_err(error)?;
+    std::fs::create_dir(&sdk).map_err(error)?;
+    let mut stubs = std::collections::BTreeMap::new();
+    for (id, bytes) in &inputs.providers.stubs {
+        let path = directory.path().join(format!("dynamic-{id}.tbd"));
+        write_new(&path, bytes)?;
+        stubs.insert(path, inputs.providers.providers[id].install_name.clone());
+    }
     let candidate = directory.path().join("program");
     let link_map = directory.path().join("program.map");
-    let result = profile
-        .command(&sdk, &candidate, &link_map)
+    let mut command = profile.command(&sdk, &candidate, &link_map);
+    command
         .args(&paths)
         .arg("-alias")
         .arg(&inputs.string_target)
-        .arg("_scoop_td_String")
-        .arg(&stub)
+        .arg("_scoop_td_String");
+    for path in &inputs.providers.rpaths {
+        command.arg("-rpath").arg(path);
+    }
+    command.args(stubs.keys());
+    let result = command
         .output()
         .map_err(|err| error(format!("cannot start system linker: {err}")))?;
     if !result.status.success() {
@@ -73,8 +83,12 @@ pub fn link_program(
     map::check(
         &std::fs::read_to_string(link_map).map_err(error)?,
         &paths,
-        &stub,
-        profile.system_provider(),
+        &stubs,
+    )?;
+    map::trace(
+        std::str::from_utf8(&result.stdout).map_err(error)?,
+        &paths,
+        &stubs,
     )?;
     let bytes = std::fs::read(&candidate).map_err(error)?;
     crate::final_image::verify(&bytes, &inputs, &startup, profile)
@@ -128,7 +142,7 @@ struct Plan<'a> {
 }
 impl WireEncode for Plan<'_> {
     fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        e.map(8)?;
+        e.map(9)?;
         e.field(1)?;
         self.closure.root().encode(e)?;
         e.field(2)?;
@@ -159,6 +173,8 @@ impl WireEncode for Plan<'_> {
         e.text("_scoop_td_String")?;
         e.field(8)?;
         self.inputs.native.encode(e)?;
+        e.field(9)?;
+        self.inputs.providers.encode(&self.inputs.dynamic, e)?;
         Ok(())
     }
 }
@@ -188,6 +204,7 @@ fn dump(
     ));
     text.push_str("link inputs: startup, cone/member order, runtime/object order, libSystem\n");
     text.push_str(&inputs.native.dump());
+    text.push_str(&inputs.providers.dump(&inputs.dynamic));
     text.push_str("startup object references:\n");
     for symbol in &startup.references {
         text.push_str(&format!("  {symbol}\n"));

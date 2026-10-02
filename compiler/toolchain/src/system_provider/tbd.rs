@@ -1,11 +1,15 @@
 use super::*;
 use serde::Deserialize;
+mod interface;
+pub use interface::{TextStubInterface, read_text_stubs, write_link_stub};
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 pub(super) struct Record {
     tbd_version: u32,
     targets: Vec<String>,
+    #[serde(default)]
+    flags: Vec<String>,
     pub install_name: String,
     #[serde(default = "default_version", deserialize_with = "version")]
     pub current_version: u32,
@@ -88,12 +92,16 @@ impl Record {
     pub(super) fn collect(
         &self,
         deployment: DarwinPackedVersionV1,
-        exports: &mut BTreeMap<String, SystemExportKind>,
+        allow_arm64e: bool,
+        exports: &mut BTreeMap<String, NativeExport>,
         pending: &mut Vec<String>,
     ) -> Result<(), ToolchainError> {
         let target = ["arm64-macos", "arm64e-macos"]
             .into_iter()
-            .find(|target| self.targets.iter().any(|value| value == target))
+            .find(|target| {
+                (*target != "arm64e-macos" || allow_arm64e)
+                    && self.targets.iter().any(|value| value == target)
+            })
             .ok_or_else(|| {
                 ToolchainError(format!(
                     "SDK {} has no compatible macOS/arm64 target",
@@ -112,15 +120,31 @@ impl Record {
             .chain(&self.reexports)
             .filter(|section| section.targets.iter().any(|value| value == target))
         {
-            for symbol in section.symbols.iter().chain(&section.weak_symbols) {
-                if symbol.starts_with("$ld$") {
-                    directives.push(symbol);
-                } else {
-                    insert(exports, symbol.clone(), SystemExportKind::Symbol)?;
+            for (symbols, weak) in [(&section.symbols, false), (&section.weak_symbols, true)] {
+                for symbol in symbols {
+                    if symbol.starts_with("$ld$") {
+                        directives.push(symbol);
+                    } else {
+                        insert(
+                            exports,
+                            symbol.clone(),
+                            NativeExport {
+                                kind: SystemExportKind::Symbol,
+                                weak,
+                            },
+                        )?;
+                    }
                 }
             }
             for symbol in &section.thread_local_symbols {
-                insert(exports, symbol.clone(), SystemExportKind::ThreadLocal)?;
+                insert(
+                    exports,
+                    symbol.clone(),
+                    NativeExport {
+                        kind: SystemExportKind::ThreadLocal,
+                        weak: false,
+                    },
+                )?;
             }
             for (names, prefixes) in [
                 (
@@ -132,7 +156,14 @@ impl Record {
             ] {
                 for name in names {
                     for prefix in prefixes {
-                        insert(exports, format!("{prefix}{name}"), SystemExportKind::Symbol)?;
+                        insert(
+                            exports,
+                            format!("{prefix}{name}"),
+                            NativeExport {
+                                kind: SystemExportKind::Symbol,
+                                weak: false,
+                            },
+                        )?;
                     }
                 }
             }
@@ -145,12 +176,12 @@ impl Record {
 }
 
 fn insert(
-    exports: &mut BTreeMap<String, SystemExportKind>,
+    exports: &mut BTreeMap<String, NativeExport>,
     symbol: String,
-    kind: SystemExportKind,
+    kind: NativeExport,
 ) -> Result<(), ToolchainError> {
     if let Some(previous) = exports.insert(symbol.clone(), kind)
-        && previous != kind
+        && previous.kind != kind.kind
     {
         return Err(ToolchainError(format!(
             "SDK export {symbol} has conflicting TLS storage"
@@ -160,7 +191,7 @@ fn insert(
 }
 
 fn apply_directive(
-    exports: &mut BTreeMap<String, SystemExportKind>,
+    exports: &mut BTreeMap<String, NativeExport>,
     directive: &str,
     deployment: DarwinPackedVersionV1,
 ) -> Result<(), ToolchainError> {
@@ -180,7 +211,14 @@ fn apply_directive(
             exports.remove(symbol);
         }
         "add" | "weak" => {
-            insert(exports, symbol.to_owned(), SystemExportKind::Symbol)?;
+            insert(
+                exports,
+                symbol.to_owned(),
+                NativeExport {
+                    kind: SystemExportKind::Symbol,
+                    weak: operation == "weak",
+                },
+            )?;
         }
         _ => {
             return Err(ToolchainError(format!(

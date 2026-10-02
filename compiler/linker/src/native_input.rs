@@ -14,7 +14,7 @@ mod archive;
 mod objects;
 mod plan;
 pub(crate) use objects::{NativeArchiveMemberId, NativeObjectId};
-mod locate;
+pub(crate) mod locate;
 mod slice;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -41,6 +41,36 @@ pub(crate) struct NativeFile {
 pub(crate) enum NativeContent {
     Object(NativeObjectIndex),
     Archive(Vec<archive::Member>),
+    Dynamic(Vec<Arc<crate::dynamic::DynamicProvider>>),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum NativeFileKind {
+    Object = 1,
+    Archive = 2,
+    Dylib = 3,
+    TextStub = 4,
+    Framework = 5,
+}
+
+impl NativeInputId {
+    pub fn from_bytes(
+        bytes: &[u8],
+        kind: NativeFileKind,
+        profile: &ValidatedFinalLinkProfile,
+    ) -> Result<Self, LinkError> {
+        Ok(Self(
+            domain_separated_cbor_hash(
+                "scoop-native-input-v1",
+                &FileKey {
+                    bytes,
+                    kind: kind as u64,
+                    profile,
+                },
+            )
+            .map_err(error)?,
+        ))
+    }
 }
 
 pub(crate) struct LibraryInput {

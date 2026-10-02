@@ -1,14 +1,14 @@
 use crate::{LinkError, error};
 
-pub(super) struct Cursor<'a> {
+pub(crate) struct Cursor<'a> {
     bytes: &'a [u8],
     index: usize,
 }
 impl<'a> Cursor<'a> {
-    pub(super) fn new(bytes: &'a [u8]) -> Self {
+    pub(crate) fn new(bytes: &'a [u8]) -> Self {
         Self { bytes, index: 0 }
     }
-    pub(super) fn take(&mut self, length: usize) -> Result<&'a [u8], LinkError> {
+    pub(crate) fn take(&mut self, length: usize) -> Result<&'a [u8], LinkError> {
         let end = self
             .index
             .checked_add(length)
@@ -20,10 +20,10 @@ impl<'a> Cursor<'a> {
         self.index = end;
         Ok(result)
     }
-    pub(super) fn done(&self) -> bool {
+    pub(crate) fn done(&self) -> bool {
         self.index == self.bytes.len()
     }
-    pub(super) fn byte(&mut self) -> Result<u8, LinkError> {
+    pub(crate) fn byte(&mut self) -> Result<u8, LinkError> {
         let byte = self
             .bytes
             .get(self.index)
@@ -32,7 +32,7 @@ impl<'a> Cursor<'a> {
         self.index += 1;
         Ok(byte)
     }
-    pub(super) fn uleb(&mut self) -> Result<u64, LinkError> {
+    pub(crate) fn uleb(&mut self) -> Result<u64, LinkError> {
         let mut value = 0;
         for shift in (0..=63).step_by(7) {
             let byte = self.byte()?;
@@ -46,7 +46,7 @@ impl<'a> Cursor<'a> {
         }
         Err(error("dyld ULEB128 overflow"))
     }
-    pub(super) fn sleb(&mut self) -> Result<i64, LinkError> {
+    pub(crate) fn sleb(&mut self) -> Result<i64, LinkError> {
         let mut value = 0u64;
         for shift in (0..=63).step_by(7) {
             let byte = self.byte()?;
@@ -63,7 +63,7 @@ impl<'a> Cursor<'a> {
         }
         Err(error("dyld SLEB128 overflow"))
     }
-    pub(super) fn name(&mut self) -> Result<String, LinkError> {
+    pub(crate) fn name(&mut self) -> Result<String, LinkError> {
         let end = self.bytes[self.index..]
             .iter()
             .position(|byte| *byte == 0)
