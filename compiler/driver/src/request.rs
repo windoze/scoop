@@ -8,8 +8,8 @@ use output::validate_output_isolation;
 pub use output::{OutputAliasRole, OutputIsolationErrorKind, SlibOutputDestination};
 pub use preflight::*;
 pub use report::{
-    CurrentConeDiagnosticSet, CurrentConeDiagnosticSetError, EmittedStageDump,
-    SingleConeProductionSuccess,
+    CurrentConeDiagnosticSet, CurrentConeDiagnosticSetError, DiagnosticMappingError,
+    EmittedStageDump, SingleConeProductionSuccess,
 };
 
 use scoop_codegen::CodegenError;

@@ -12,6 +12,7 @@ use scoop_ast as ast;
 use scoop_hir as hir;
 
 pub(crate) mod calls;
+mod diagnostics;
 pub(crate) mod values;
 
 #[derive(Debug, Clone)]
@@ -321,42 +322,6 @@ impl Lowerer {
         }])
     }
 
-    fn type_candidate_location(&self, candidate: &TypeLookupCandidate) -> (usize, ast::Span) {
-        match candidate.origin {
-            TypeLookupOrigin::CurrentUnit(binding) => {
-                let binding = self.imports.binding(binding);
-                (binding.file, binding.span)
-            }
-            TypeLookupOrigin::ExistingM22Core => match &candidate.target {
-                TypeLookupTarget::Dependency(_) => {
-                    unreachable!("the M22 core lookup layer contains only current HIR targets")
-                }
-                TypeLookupTarget::Current(target) => match *target {
-                    TopLevelTypeTarget::Alias(id) => {
-                        let origin = self.source_type_aliases[id].origin;
-                        (origin.file as usize, origin.span)
-                    }
-                    TopLevelTypeTarget::Nominal(NominalTarget::Struct(id)) => {
-                        (self.struct_files[&id], self.structs[id].span)
-                    }
-                    TopLevelTypeTarget::Nominal(NominalTarget::Enum(id)) => {
-                        (self.enum_files[&id], self.enums[id].span)
-                    }
-                    TopLevelTypeTarget::Nominal(NominalTarget::Class(id)) => {
-                        (self.class_files[&id], self.classes[id].span)
-                    }
-                    TopLevelTypeTarget::Nominal(NominalTarget::Interface(id)) => {
-                        (self.interface_files[&id], self.interfaces[id].span)
-                    }
-                    TopLevelTypeTarget::Nominal(NominalTarget::Object(id)) => {
-                        (self.object_files[&id], self.objects[id].span)
-                    }
-                },
-            },
-            TypeLookupOrigin::Dependency => (self.current_file, ast::Span::new(0, 0)),
-        }
-    }
-
     /// Resolve a real source use. Pure classifiers may inspect `lookup_type`,
     /// but cannot choose a declaration from an ambiguous layer.
     pub(crate) fn resolve_type_lookup(
@@ -402,18 +367,16 @@ impl Lowerer {
             }
         };
         let mut diagnostic = ast::Diagnostic::at_file(self.current_file, name.span, message);
-        let mut locations = candidates
+        match candidates
             .iter()
-            .map(|candidate| self.type_candidate_location(candidate))
-            .collect::<Vec<_>>();
-        // This order is diagnostic-only and never chooses a semantic winner.
-        locations.sort_by_key(|(file, span)| (*file, span.start, span.end));
-        for (file, span) in locations {
-            diagnostic.notes.push(ast::DiagnosticNote::at(
-                file,
-                span,
-                "candidate declared here",
-            ));
+            .map(|candidate| self.type_candidate_note(candidate))
+            .collect::<Result<Vec<_>, _>>()
+        {
+            Ok(mut notes) => {
+                diagnostics::sort_candidate_notes(&mut notes);
+                diagnostic.notes = notes;
+            }
+            Err(message) => diagnostic.message = message,
         }
         self.diagnostics.push(diagnostic);
         Err(())

@@ -1,3 +1,5 @@
+use scoop_identity::SourceIdentity;
+
 /// Byte-offset range into a source file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Span {
@@ -35,6 +37,8 @@ pub struct Diagnostic {
     /// Index into the driver's input file list; 0-based. Single-file
     /// compiles (and the parser, which sees one file) always use 0.
     pub file: usize,
+    /// Canonical source, bound before the producing HIR context is discarded.
+    pub source: Option<Box<SourceIdentity>>,
     pub span: Option<Span>,
     pub message: String,
     /// Related source locations which explain the primary diagnostic.
@@ -48,6 +52,8 @@ pub struct Diagnostic {
 pub struct DiagnosticNote {
     /// Index into the same driver input file list as [`Diagnostic::file`].
     pub file: usize,
+    /// Canonical source, bound before the producing HIR context is discarded.
+    pub source: Option<Box<SourceIdentity>>,
     pub span: Span,
     pub message: String,
 }
@@ -61,6 +67,7 @@ impl Diagnostic {
         Diagnostic {
             severity: DiagnosticSeverity::Error,
             file,
+            source: None,
             span: Some(span),
             message: message.into(),
             notes: Vec::new(),
@@ -75,6 +82,7 @@ impl Diagnostic {
         Diagnostic {
             severity: DiagnosticSeverity::Warning,
             file,
+            source: None,
             span: Some(span),
             message: message.into(),
             notes: Vec::new(),
@@ -90,6 +98,7 @@ impl Diagnostic {
         Self {
             severity,
             file,
+            source: None,
             span: None,
             message: message.into(),
             notes: Vec::new(),
@@ -107,8 +116,23 @@ impl Diagnostic {
     /// reattributed together with the primary location.
     pub fn reattribute_single_source(&mut self, file: usize) {
         self.file = file;
+        self.source = None;
         for note in &mut self.notes {
             note.file = file;
+            note.source = None;
+        }
+    }
+
+    /// Resolve only still-local indices; imported origins already bound by an
+    /// earlier stage retain their own source identity.
+    pub fn resolve_sources(&mut self, sources: &[SourceIdentity]) {
+        if self.source.is_none() {
+            self.source = sources.get(self.file).cloned().map(Box::new);
+        }
+        for note in &mut self.notes {
+            if note.source.is_none() {
+                note.source = sources.get(note.file).cloned().map(Box::new);
+            }
         }
     }
 
@@ -132,6 +156,7 @@ impl DiagnosticNote {
     pub fn at(file: usize, span: Span, message: impl Into<String>) -> Self {
         Self {
             file,
+            source: None,
             span,
             message: message.into(),
         }
@@ -182,6 +207,7 @@ mod tests {
         let no_span = Diagnostic {
             severity: DiagnosticSeverity::Warning,
             file: 0,
+            source: None,
             span: None,
             message: "link warning".to_string(),
             notes: Vec::new(),

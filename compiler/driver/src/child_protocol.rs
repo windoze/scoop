@@ -5,7 +5,7 @@ use std::io::{self, Read, Write};
 use std::process::ExitCode;
 
 use scoop_protocol::{
-    DiagnosticNoteV1, DiagnosticOriginV1, DiagnosticOutputPolicyV1, DiagnosticSeverityV1,
+    DiagnosticOriginV1, DiagnosticOutputPolicyV1, DiagnosticSeverityV1,
     ProtocolArtifactFingerprint, ProtocolCodeFingerprint, ProtocolConeIdentity,
     ProtocolHirFingerprint, ProtocolLirFingerprint, ProtocolMirFingerprint,
     ProtocolRuntimeImageFingerprint, ProtocolValidationError, RequestCorrelationId,
@@ -18,7 +18,6 @@ const CHILD_COMPILER_FAILURE_EXIT: u8 = 1;
 const CHILD_TRANSPORT_FAILURE_EXIT: u8 = 2;
 const CHILD_REQUEST_ERROR_CODE: &str = "SCOOPC_CHILD_REQUEST_INVALID";
 const CHILD_BUILD_ERROR_CODE: &str = "SCOOPC_BUILD_FAILED";
-const CHILD_WARNING_CODE: &str = "SCOOPC_COMPILER_WARNING";
 
 pub(crate) fn run(version: u32) -> ExitCode {
     let stdin = io::stdin();
@@ -89,7 +88,10 @@ fn execute_request(
                 request_id,
                 CHILD_BUILD_ERROR_CODE,
                 error.to_string(),
-                success.warnings().diagnostics(),
+                &success
+                    .warnings()
+                    .structured()
+                    .map_err(ChildProtocolError::DiagnosticMapping)?,
             ),
             result => result,
         },
@@ -101,16 +103,11 @@ fn production_failure_response(
     request_id: RequestCorrelationId,
     error: &scoopc::SingleConeProductionError,
 ) -> Result<ScoopcResponseEnvelopeV1, ChildProtocolError> {
-    let warnings = error
-        .warnings()
-        .map(|warnings| warnings.diagnostics())
-        .unwrap_or_default();
-    failure_response_with_warnings(
-        request_id,
-        CHILD_BUILD_ERROR_CODE,
-        error.to_string(),
-        warnings,
-    )
+    let diagnostics = error
+        .structured_diagnostics()
+        .map_err(ChildProtocolError::DiagnosticMapping)?;
+    ScoopcResponseEnvelopeV1::failure(request_id, diagnostics)
+        .map_err(ChildProtocolError::ConstructResponse)
 }
 
 fn failure_response(
@@ -125,7 +122,7 @@ fn failure_response_with_warnings(
     request_id: RequestCorrelationId,
     code: &'static str,
     message: String,
-    warnings: &[scoop_ast::Diagnostic],
+    warnings: &[StructuredDiagnosticV1],
 ) -> Result<ScoopcResponseEnvelopeV1, ChildProtocolError> {
     let diagnostic = StructuredDiagnosticV1::new(
         DiagnosticSeverityV1::Error,
@@ -136,12 +133,7 @@ fn failure_response_with_warnings(
     )
     .map_err(ChildProtocolError::ConstructResponse)?;
     let mut diagnostics = vec![diagnostic];
-    diagnostics.extend(
-        warnings
-            .iter()
-            .map(protocol_warning)
-            .collect::<Result<Vec<_>, _>>()?,
-    );
+    diagnostics.extend_from_slice(warnings);
     ScoopcResponseEnvelopeV1::failure(request_id, diagnostics)
         .map_err(ChildProtocolError::ConstructResponse)
 }
@@ -165,10 +157,8 @@ fn success_response(
     };
     let warnings = success
         .warnings()
-        .diagnostics()
-        .iter()
-        .map(protocol_warning)
-        .collect::<Result<Vec<_>, _>>()?;
+        .structured()
+        .map_err(ChildProtocolError::DiagnosticMapping)?;
     let result = ScoopcSuccessV1::new(
         ProtocolArtifactFingerprint::from_array(*artifact.artifact_fingerprint().as_array()),
         ProtocolConeIdentity::from_array(*artifact.identity().as_array()),
@@ -182,30 +172,6 @@ fn success_response(
     )
     .map_err(ChildProtocolError::ConstructResponse)?;
     Ok(ScoopcResponseEnvelopeV1::success(request_id, result))
-}
-
-fn protocol_warning(
-    warning: &scoop_ast::Diagnostic,
-) -> Result<StructuredDiagnosticV1, ChildProtocolError> {
-    let notes = warning
-        .notes
-        .iter()
-        .map(|note| {
-            DiagnosticNoteV1::new(note.message.clone(), DiagnosticOriginV1::None)
-                .map_err(ChildProtocolError::ConstructResponse)
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    StructuredDiagnosticV1::new(
-        match warning.severity {
-            scoop_ast::DiagnosticSeverity::Warning => DiagnosticSeverityV1::Warning,
-            scoop_ast::DiagnosticSeverity::Error => DiagnosticSeverityV1::Error,
-        },
-        CHILD_WARNING_CODE.to_owned(),
-        warning.message.clone(),
-        DiagnosticOriginV1::None,
-        notes,
-    )
-    .map_err(ChildProtocolError::ConstructResponse)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -222,6 +188,7 @@ enum ChildProtocolError {
     ConstructResponse(ProtocolValidationError),
     MissingStrongFingerprint(&'static str),
     DumpOutput(io::Error),
+    DiagnosticMapping(scoopc::DiagnosticMappingError),
     EncodeResponse(scoop_protocol::ProtocolWriteError),
     WriteResponse(io::Error),
 }
@@ -243,6 +210,7 @@ impl fmt::Display for ChildProtocolError {
                     "successful strong artifact has no {kind} fingerprint"
                 )
             }
+            Self::DiagnosticMapping(error) => error.fmt(formatter),
             Self::DumpOutput(error) => write!(formatter, "cannot write stage dumps: {error}"),
             Self::EncodeResponse(source) => write!(formatter, "cannot encode response: {source}"),
             Self::WriteResponse(source) => write!(formatter, "cannot write response: {source}"),
@@ -259,6 +227,7 @@ impl std::error::Error for ChildProtocolError {
             Self::EncodeResponse(source) => Some(source),
             Self::UnsupportedVersion(_) | Self::MissingStrongFingerprint(_) => None,
             Self::DumpOutput(error) => Some(error),
+            Self::DiagnosticMapping(error) => Some(error),
         }
     }
 }
@@ -303,10 +272,19 @@ mod tests {
     #[test]
     fn failure_response_roundtrips_warnings_as_separate_typed_diagnostics() {
         let request_id = non_machine_request().request_id();
-        let warning = scoop_ast::Diagnostic::warning_at(
-            scoop_ast::Span::new(4, 9),
-            "retained catch-all warning",
-        );
+        let warning = StructuredDiagnosticV1::new(
+            DiagnosticSeverityV1::Warning,
+            "SCOOPC_COMPILER_WARNING".to_owned(),
+            "retained catch-all warning".to_owned(),
+            DiagnosticOriginV1::SemanticSourceSpan {
+                cone: ProtocolConeIdentity::from_array([17; 32]),
+                logical_path: scoop_identity::NormalizedSourcePath::new("src/Warning.scoop")
+                    .unwrap(),
+                span: scoop_protocol::ProtocolByteSpan::new(4, 9).unwrap(),
+            },
+            Vec::new(),
+        )
+        .unwrap();
         let response = failure_response_with_warnings(
             request_id,
             CHILD_BUILD_ERROR_CODE,
@@ -327,7 +305,7 @@ mod tests {
         assert_eq!(diagnostics[0].severity(), DiagnosticSeverityV1::Error);
         assert_eq!(diagnostics[0].message(), "publication failed");
         assert_eq!(diagnostics[1].severity(), DiagnosticSeverityV1::Warning);
-        assert_eq!(diagnostics[1].code(), CHILD_WARNING_CODE);
+        assert_eq!(diagnostics[1].code(), "SCOOPC_COMPILER_WARNING");
         assert_eq!(diagnostics[1].message(), "retained catch-all warning");
     }
 

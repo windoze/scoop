@@ -44,6 +44,7 @@ pub(super) struct PropertyCatalogEntry {
     pub(super) provider: ConeIdentity,
     pub(super) name: scoop_identity::CanonicalIdentifier,
     pub(super) interface: PropertyDeclarationRecordV1,
+    pub(super) definition_origin: crate::ExportDefinitionSourceV1,
     pub(super) native_contract: Option<Arc<scoop_identity::SourceNativeExternalContractRecord>>,
 }
 
@@ -318,10 +319,24 @@ impl ImportedSemanticWorld<'_> {
                 .all_declarations()
             {
                 let declaration = property.declaration();
+                let subject = match declaration {
+                    PropertyOwner::Property(id) => DefinitionOriginSubject::Property(id),
+                    PropertyOwner::ExtensionProperty(id) => {
+                        DefinitionOriginSubject::ExtensionProperty(id)
+                    }
+                };
+                let origin = provider
+                    .foundation()
+                    .canonical_for_semantic_authority()
+                    .definition_origin(subject)
+                    .ok_or(
+                        ImportedDependencySelectionPlanBuildError::MissingDefinitionOrigin(subject),
+                    )?;
                 let entry = PropertyCatalogEntry {
                     provider: provider.identity(),
                     name: super::intrinsics::property_catalog_name(provider, declaration)?,
                     interface: property.clone(),
+                    definition_origin: crate::ExportDefinitionSourceV1::new(origin.origin().clone()),
                     native_contract: provider.foundation().canonical_for_semantic_authority().source_native_contracts().iter()
                         .find(|record| matches!((declaration, record.key().owner()),
                             (PropertyOwner::Property(property), scoop_identity::SourceNativeExternalOwner::Property(owner)) if property == owner))

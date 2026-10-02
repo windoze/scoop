@@ -8,19 +8,20 @@ use scoop_ast as ast;
 use scoop_hir as hir;
 
 impl Lowerer {
-    fn value_origin_location(&self, origin: &ValueOrigin) -> (usize, ast::Span) {
-        match origin {
+    fn value_origin_note(&self, origin: &ValueOrigin) -> Result<ast::DiagnosticNote, String> {
+        let (file, span) = match origin {
             ValueOrigin::CoreNonValue(NonValueTarget::Function(id)) => {
                 (self.function_files[id], self.functions[*id].span)
             }
             ValueOrigin::CoreNonValue(NonValueTarget::ImportedDependency(_)) => {
                 unreachable!("core blockers cannot carry ordinary dependency targets")
             }
-            ValueOrigin::CoreNonValue(NonValueTarget::Type(target)) => self
-                .type_candidate_location(&super::super::TypeLookupCandidate {
+            ValueOrigin::CoreNonValue(NonValueTarget::Type(target)) => {
+                return self.type_candidate_note(&super::super::TypeLookupCandidate {
                     target: super::super::TypeLookupTarget::Current(*target),
                     origin: super::super::TypeLookupOrigin::ExistingM22Core,
-                }),
+                });
+            }
             ValueOrigin::CoreNonValue(NonValueTarget::ExtensionProperty(id)) => {
                 (self.property_files[id], self.properties[*id].span)
             }
@@ -44,8 +45,15 @@ impl Lowerer {
             ValueOrigin::RejectedFunction(id) => {
                 (self.function_files[id], self.functions[*id].span)
             }
-            ValueOrigin::Dependency(_) => (self.current_file, ast::Span::new(0, 0)),
-        }
+            ValueOrigin::Dependency(binding) => {
+                return self.dependency_candidate_note(binding.target());
+            }
+        };
+        Ok(ast::DiagnosticNote::at(
+            file,
+            span,
+            "candidate declared here",
+        ))
     }
 
     pub(crate) fn resolve_value_name(
@@ -188,17 +196,16 @@ impl Lowerer {
         candidates: &[ValueOrigin],
     ) {
         let mut diagnostic = ast::Diagnostic::at_file(self.current_file, name.span, message);
-        let mut locations = candidates
+        match candidates
             .iter()
-            .map(|origin| self.value_origin_location(origin))
-            .collect::<Vec<_>>();
-        locations.sort_by_key(|(file, span)| (*file, span.start, span.end));
-        for (file, span) in locations {
-            diagnostic.notes.push(ast::DiagnosticNote {
-                file,
-                span,
-                message: "candidate declared here".to_string(),
-            });
+            .map(|origin| self.value_origin_note(origin))
+            .collect::<Result<Vec<_>, _>>()
+        {
+            Ok(mut notes) => {
+                super::super::diagnostics::sort_candidate_notes(&mut notes);
+                diagnostic.notes = notes;
+            }
+            Err(message) => diagnostic.message = message,
         }
         self.diagnostics.push(diagnostic);
     }

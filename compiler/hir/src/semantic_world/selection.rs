@@ -11,6 +11,7 @@ use super::{DirectImportedTargetBinding, ImportedTarget};
 
 mod bodies;
 mod catalog;
+mod diagnostics;
 mod error;
 mod intrinsics;
 mod members;
