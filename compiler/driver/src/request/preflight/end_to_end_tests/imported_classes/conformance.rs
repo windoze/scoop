@@ -1,20 +1,6 @@
 use super::*;
 
 #[test]
-fn inherited_dependency_parameters_report_source_errors() {
-    check_class_cases(
-        "direct",
-        &[],
-        &[
-            "conformance-parameter-conflict",
-            "conformance-parameter-redeclared",
-            "conformance-parameter-wrong-name",
-            "conformance-parameter-wrong-type",
-        ],
-    );
-}
-
-#[test]
 fn local_types_implement_dependency_interfaces_through_actual_artifacts() {
     check_class_cases(
         "direct",

@@ -253,8 +253,9 @@ fixture 的 `truncate(path,size)` 只缩短现有文件；对应归档的初始�
 | `dependency_singletons_initialize_through_actual_artifacts` | 7／3 | 89／35 | 19 份旧阶段逐字相同；2 份仅初始化说明补全来源；3 份诊断相同 |
 | `dependency_companions_compile_through_actual_artifacts` | 15／8 | 197／75 | 45 份旧阶段逐字相同；8 份诊断相同 |
 | `inherited_dependency_parameters_preserve_defaults_through_actual_artifacts` | 8／0 | 88／40 | 20 份旧阶段逐字相同；4 份补齐 ZST 默认 equals 及一致的函数序号调整 |
+| `inherited_dependency_parameters_report_source_errors` | 0／4 | 16／0 | 4 份诊断相同 |
 
-本节目前覆盖 136 项；其余类、接口及继承用例继续逐功能迁移。共享的旧 runtime helper 仍被其他待迁测试调用，随那些调用一起退役。
+本节目前覆盖 140 项；其余类、接口及继承用例继续逐功能迁移。共享的旧 runtime helper 仍被其他待迁测试调用，随那些调用一起退役。
 
 ## 12. 后续批次
 
