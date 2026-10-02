@@ -1,6 +1,8 @@
 //! Checked external signatures use the ordinary candidate argument engine.
 
+use hir::ImportedCallableSource;
 use scoop_ast as ast;
+use scoop_hir as hir;
 
 use super::super::{
     ImportedArgumentMap, ImportedCallImplementation, ImportedCallReceiver,
@@ -9,7 +11,7 @@ use super::super::{
 use crate::Lowerer;
 use crate::call_resolution::applicability::DeclarationTypeArguments;
 use crate::call_resolution::constraints::ConstraintOrigin;
-use crate::call_resolution::contextual::ArgumentInferenceFailureKind;
+use crate::call_resolution::contextual::{ArgumentExpression, ArgumentInferenceFailureKind};
 use crate::call_resolution::probe::{CallInferenceInput, InferredCall};
 impl Lowerer {
     pub(super) fn probe_imported_native(
@@ -21,6 +23,12 @@ impl Lowerer {
         receiver: ImportedCallReceiver,
         argument_map: ImportedArgumentMap,
     ) -> Result<ImportedDependencyCallProbe, Box<Lowerer>> {
+        let expressions = call.arguments.expressions();
+        let diagnostics_before = self.diagnostics.len();
+        let integer_intrinsic = matches!(
+            candidate.interface().effects().implementation(),
+            hir::CallableImplementationV1::Intrinsic(hir::IntrinsicFunctionKind::Integer(_))
+        );
         let InferredCall {
             values: source_args,
             sinks: argument_sinks,
@@ -36,13 +44,13 @@ impl Lowerer {
             },
             explicit_arguments: &[],
             bound_receiver: None,
-            expressions: &call.arguments.expressions(),
+            expressions: &expressions,
             expected_result: None,
             forced_hint: None,
         }) {
             Ok(arguments) => arguments,
             Err(failure) => {
-                if let ArgumentInferenceFailureKind::Constraint(constraint) = failure.kind {
+                if let ArgumentInferenceFailureKind::Constraint(constraint) = &failure.kind {
                     let ConstraintOrigin::Argument(input) = constraint.origin else {
                         unreachable!(
                             "closed call inference only adds explicit argument constraints"
@@ -52,19 +60,41 @@ impl Lowerer {
                     let value = failure.arguments[index]
                         .as_ref()
                         .expect("argument constraints refer to typed source inputs");
-                    self.error(
-                        call.arguments.span(index),
-                        format!(
-                            "dependency {} argument must be of type {}, found {}",
-                            candidate.description(),
-                            self.type_name(
-                                argument_map
-                                    .mapping()
-                                    .forwarding_parameter_types(&signature.value_parameters)[index]
-                            ),
-                            self.type_name(value.ty),
-                        ),
+                    let expected = argument_map
+                        .mapping()
+                        .forwarding_parameter_types(&signature.value_parameters)[index];
+                    let mut message = format!(
+                        "dependency {} argument must be of type {}, found {}",
+                        candidate.description(),
+                        self.type_name(expected),
+                        self.type_name(value.ty),
                     );
+                    if integer_intrinsic
+                        && let (hir::Type::Integer(expected), hir::Type::Integer(found)) =
+                            (&self.types[expected], &self.types[value.ty])
+                        && let Some(hint) =
+                            Self::primitive_integer_conversion_hint(*expected, *found)
+                    {
+                        message.push_str(&hint);
+                    }
+                    self.error(call.arguments.span(index), message);
+                } else if integer_intrinsic
+                    && let ArgumentInferenceFailureKind::Expression(expression) = &failure.kind
+                    && let ArgumentExpression::Source(source) = expressions[expression.source_index]
+                    && let Some(found) = crate::expr::integer_literal_default_kind(source)
+                {
+                    let expected = argument_map
+                        .mapping()
+                        .forwarding_parameter_types(&signature.value_parameters)
+                        [expression.source_index];
+                    if let hir::Type::Integer(expected) = self.types[expected]
+                        && let Some(hint) = Self::primitive_integer_conversion_hint(expected, found)
+                        && let Some(diagnostic) = self.diagnostics[diagnostics_before..]
+                            .iter_mut()
+                            .find(|diagnostic| diagnostic.span == Some(expression.span))
+                    {
+                        diagnostic.message.push_str(&hint);
+                    }
                 }
                 return Err(self);
             }

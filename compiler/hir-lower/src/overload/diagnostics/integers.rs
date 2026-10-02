@@ -238,12 +238,19 @@ pub(super) fn primitive_integer_conversion_suggestion(
             _ => None,
         })
         .or_else(|| argument_integer_kind(failure, arguments, source_index))?;
-    (found_kind != expected_kind).then(|| {
-        format!(
+    Lowerer::primitive_integer_conversion_hint(expected_kind, found_kind)
+}
+
+impl Lowerer {
+    pub(crate) fn primitive_integer_conversion_hint(
+        expected: hir::IntegerKind,
+        found: hir::IntegerKind,
+    ) -> Option<String> {
+        (found != expected).then(|| format!(
             "; primitive integer operands require one exact type; convert this operand explicitly with `{}()`",
-            integer_conversion_name(expected_kind)
-        )
-    })
+            integer_conversion_name(expected)
+        ))
+    }
 }
 
 fn argument_integer_kind(
@@ -260,20 +267,7 @@ fn argument_integer_kind(
         }
         OverloadArguments::Source(arguments) => {
             let expression = &arguments.get(source_index)?.expression;
-            if let Some(kind) = crate::expr::integer_literal_default_kind(expression) {
-                return Some(kind);
-            }
-            let mut state = (*failure.state).clone();
-            let diagnostics_before = state.diagnostics.len();
-            let mut sink = Vec::new();
-            let argument = state.lower_expr(expression, &mut sink, None)?;
-            if state.diagnostics.len() != diagnostics_before {
-                return None;
-            }
-            match state.types[argument.ty] {
-                hir::Type::Integer(kind) => Some(kind),
-                _ => None,
-            }
+            crate::expr::integer_literal_default_kind(expression)
         }
     }
 }
