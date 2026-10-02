@@ -1,0 +1,17 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.FirstChoice
+  public interface LocalChoice : FirstChoice
+    fun choose
+  public abstract class LocalBase(), LocalChoice
+  public class LocalReader() : LocalBase(<0 args>)
+    public fun choose
+  public fun localReader(): LocalBase
+    =
+      Call LocalReader
+  public fun primary(): Counter
+    =
+      Call Counter
+        MethodCall choose
+          Call localReader
