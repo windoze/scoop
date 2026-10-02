@@ -1,0 +1,13 @@
+SourceFile
+  RootPackage
+  fun main()
+    val a
+      ArrayLiteral
+        IntLiteral 1
+        IntLiteral 2
+        IntLiteral 3
+    Call println
+      Index
+        Var a
+        Unary Neg
+          IntLiteral 1

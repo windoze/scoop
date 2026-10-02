@@ -1,0 +1,179 @@
+SourceFile
+  RootPackage
+    @CLayout
+  struct NativePair
+    field left: Int
+    field right: Int
+    @CLayout(aligned = 8, packed = 1)
+  struct NativePacked
+    field flag: Boolean
+    field value: Int
+    @CLayout(aligned = 16)
+  struct NativeEnvelope
+    field tag: Boolean
+    field packed: NativePacked
+    field tail: ULong
+    @Extern(lib = "fixture_native", name = "native_add")
+  fun nativeAdd(left: Int, right: Int): Int
+    @Extern(lib = "fixture_native", name = "native_add_unsigned")
+  fun nativeAddUnsigned(left: ULong, right: ULong): ULong
+    @Extern(lib = "fixture_native")
+  fun nativeDefault(value: ULong): ULong
+    @Extern(lib = "fixture_extra", name = "extra_delta")
+  fun extraDelta(value: Int): Int
+    @Extern(lib = "fixture_native", name = "native_not")
+  fun nativeNot(value: Boolean): Boolean
+    @Extern(lib = "fixture_native", name = "native_swap")
+  fun nativeSwap(value: NativePair): NativePair
+    @Extern(lib = "fixture_native", name = "native_sink")
+  fun nativeSink(value: Int)
+    @Extern(lib = "fixture_native", name = "native_apply")
+  fun nativeApply(value: Int, callback: FunPtr<(Int) -> Int>): Int
+    @Extern(lib = "fixture_native", name = "native_apply_pair")
+  fun nativeApplyPair(value: NativePair, callback: FunPtr<(NativePair) -> NativePair>): NativePair
+    @Extern(lib = "fixture_native", name = "native_apply_optional")
+  fun nativeApplyOptional(value: Int, callback: FunPtr<(Int) -> Int>?): Int
+    @Extern(lib = "fixture_native", name = "native_round_trip_envelope")
+  fun nativeRoundTripEnvelope(value: NativeEnvelope, callback: FunPtr<(NativeEnvelope) -> NativeEnvelope>): NativeEnvelope
+    @NoGC
+  fun transform(value: Int): Int
+    =
+      Binary Add
+        Var value
+        IntLiteral 1
+    @NoGC
+  fun transform(value: NativePair): NativePair
+    =
+      Call NativePair
+        Binary Add
+          FieldAccess left
+            Var value
+          IntLiteral 10
+        Binary Add
+          FieldAccess right
+            Var value
+          IntLiteral 20
+    @NoGC
+  fun transform(value: NativeEnvelope): NativeEnvelope
+    =
+      Call NativeEnvelope
+        Unary Not
+          FieldAccess tag
+            Var value
+        Call NativePacked
+          Unary Not
+            FieldAccess flag
+              FieldAccess packed
+                Var value
+          Binary Add
+            FieldAccess value
+              FieldAccess packed
+                Var value
+            IntLiteral 10
+        Binary Add
+          FieldAccess tail
+            Var value
+          Call sizeOf<Int>
+  suspend fun nativeInsideSuspend(): Int
+    @Unsafe block
+      return
+        Call nativeAdd
+          IntLiteral 20
+          IntLiteral 22
+  fun main()
+    val managed: (Int) -> Int
+      CallableReference 0 transform
+    val noCallback: FunPtr<(Int) -> Int>?
+      Var None
+    val someCallback: FunPtr<(Int) -> Int>?
+      Call Some
+        CallableReference 1 transform
+    Call println
+      Call managed
+        IntLiteral 40
+    @Unsafe block
+      Call println
+        Call nativeAdd
+          IntLiteral 19
+          IntLiteral 23
+      Call println
+        Binary Eq
+          Call nativeAddUnsigned
+            Call sizeOf<Int>
+            Call alignOf<Int>
+          Call sizeOf<NativePair>
+      Call println
+        Binary Eq
+          Call nativeDefault
+            Call sizeOf<Int>
+          Call sizeOf<NativePair>
+      Call println
+        Call extraDelta
+          IntLiteral 47
+      Call println
+        Call nativeNot
+          BoolLiteral false
+      val swapped
+        Call nativeSwap
+          Call NativePair
+            IntLiteral 7
+            IntLiteral 11
+      Call println
+        FieldAccess left
+          Var swapped
+      Call println
+        FieldAccess right
+          Var swapped
+      Call nativeSink
+        IntLiteral 1
+      Call println
+        Call nativeApply
+          IntLiteral 41
+          CallableReference 2 transform
+      Call println
+        Call nativeApplyOptional
+          IntLiteral 7
+          Var noCallback
+      Call println
+        Call nativeApplyOptional
+          IntLiteral 8
+          Var someCallback
+      val shifted
+        Call nativeApplyPair
+          Call NativePair
+            IntLiteral 3
+            IntLiteral 4
+          CallableReference 3 transform
+      Call println
+        FieldAccess left
+          Var shifted
+      Call println
+        FieldAccess right
+          Var shifted
+      val envelope
+        Call nativeRoundTripEnvelope
+          Call NativeEnvelope
+            BoolLiteral true
+            Call NativePacked
+              BoolLiteral false
+              IntLiteral 7
+            Call sizeOf<NativeEnvelope>
+          CallableReference 4 transform
+      Call println
+        FieldAccess tag
+          Var envelope
+      Call println
+        FieldAccess flag
+          FieldAccess packed
+            Var envelope
+      Call println
+        FieldAccess value
+          FieldAccess packed
+            Var envelope
+      Call println
+        Binary Eq
+          FieldAccess tail
+            Var envelope
+          Binary Add
+            Call sizeOf<NativeEnvelope>
+            Call sizeOf<Int>

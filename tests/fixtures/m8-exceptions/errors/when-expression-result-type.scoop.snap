@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m8-exceptions/errors/when-expression-result-type.scoop:6:18: error: when branch result must be of type Int, found String

@@ -1,0 +1,30 @@
+SourceFile
+  RootPackage
+    @Extern(lib = "fixture_native", name = "m17_native_sum", abi = "scoop")
+  fun nativeSum(vararg values: Int): Int
+    @Extern(lib = "fixture_native", name = "m17_native_add", abi = "scoop")
+  fun nativeAdd(value: Int, delta: Int = <expr>): Int
+  fun main()
+    Call println
+      Call nativeSum
+        IntLiteral 1
+        Argument *
+          ArrayLiteral
+            IntLiteral 2
+            IntLiteral 3
+        IntLiteral 4
+    val values
+      ArrayLiteral
+        IntLiteral 5
+        IntLiteral 6
+    Call println
+      Call nativeSum
+        Argument values=
+          Var values
+    Call println
+      Call nativeAdd
+        IntLiteral 40
+    Call println
+      Call nativeAdd
+        IntLiteral 40
+        IntLiteral 3

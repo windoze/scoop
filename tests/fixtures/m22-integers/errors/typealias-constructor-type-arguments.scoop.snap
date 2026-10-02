@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m22-integers/errors/typealias-constructor-type-arguments.scoop:6:5: error: typealias `IntBox` is not generic

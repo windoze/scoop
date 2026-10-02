@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m6-classes/errors/assign-val-property.scoop:5:7: error: cannot assign to immutable property `x`

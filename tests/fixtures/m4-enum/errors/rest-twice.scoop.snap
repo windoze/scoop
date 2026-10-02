@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m4-enum/errors/rest-twice.scoop:3:20: error: `..` may appear at most once in a pattern

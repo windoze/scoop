@@ -1,7 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m11-functions/errors/generic-reference-needs-expected.scoop:4:21: error: no applicable candidate for callable reference `::identity` in current-unit top-level candidate layer:
-  - fun identity<T>(value: T): T — generic callable references require an expected function type

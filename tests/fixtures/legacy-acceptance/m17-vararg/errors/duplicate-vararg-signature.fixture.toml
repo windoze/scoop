@@ -1,0 +1,16 @@
+schema = 1
+name = "legacy-m17-vararg-errors-duplicate-vararg-signature"
+root = "../../../m17-vararg/errors/duplicate-vararg-signature.scoop"
+inputs = ["../../../m17-vararg/errors/duplicate-vararg-signature.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["legacy", "m17-vararg", "single-file", "negative"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "duplicate-vararg-signature.diagnostics.json"}

@@ -1,0 +1,106 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "refutable patterns are only allowed in `when`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 138,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 134
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "refutable patterns are only allowed in `when`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 183,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 181
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "refutable patterns are only allowed in `when`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 253,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 249
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "refutable patterns are only allowed in `when`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 334,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 322
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "refutable patterns are only allowed in `when`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 420,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 406
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "variant `Payload` of `Signal` has 1 field(s); use `Payload(...)` to match it",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 513,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 506
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`escaped` is already declared in this scope",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 648,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 641
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown variable `escaped`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 676,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 669
+    },
+    "severity": "error"
+  }
+]

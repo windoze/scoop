@@ -1,0 +1,74 @@
+SourceFile
+  RootPackage
+  interface BaseDefault
+    fun number
+    open val delta: Int <computed>
+      get()
+        IntLiteral 1
+  interface MoreSpecific : BaseDefault
+    fun number
+  interface MutableDefault
+    open var value: Int <computed>
+      get()
+        IntLiteral 5
+      set(value)
+        Call println
+          Var value
+  interface Helper
+    fun seed
+    fun result
+  interface Echo<T>
+    fun echo
+  class Chosen(), MoreSpecific
+  open class ClassWinner(), BaseDefault
+    fun number
+  class DerivedWinner() : ClassWinner(<0 args>)
+  class Combined(), BaseDefault
+    fun number
+    fun total
+  class MutableUser(), MutableDefault
+    fun readDirect
+    fun writeDirect
+  class HelperClass(), Helper
+  struct HelperValue : Helper
+  class IntEcho(), Echo<Int>
+  fun readBase(value: BaseDefault): Int
+    =
+      MethodCall number
+        Var value
+  fun readHelper(value: Helper): Int
+    =
+      MethodCall result
+        Var value
+  fun useEcho(value: Echo<Int>): Int
+    =
+      MethodCall echo
+        Var value
+        IntLiteral 8
+  fun main()
+    Call println
+      Call readBase
+        Call Chosen
+    Call println
+      Call readBase
+        Call DerivedWinner
+    Call println
+      MethodCall total
+        Call Combined
+    val mutable
+      Call MutableUser
+    Call println
+      MethodCall readDirect
+        Var mutable
+    MethodCall writeDirect
+      Var mutable
+      IntLiteral 9
+    Call println
+      Call readHelper
+        Call HelperClass
+    Call println
+      Call readHelper
+        Call HelperValue
+    Call println
+      Call useEcho
+        Call IntEcho

@@ -1,0 +1,67 @@
+SourceFile
+  RootPackage
+  struct FunctionBox<T>
+    field operation: (T) -> T
+  fun increment(value: Int): Int
+    =
+      Binary Add
+        Var value
+        IntLiteral 1
+  fun main()
+    val offset
+      IntLiteral 2
+    val operation: (Int) -> Int
+      Lambda 0 suspend=false
+        param value: _
+        Binary Add
+          Var value
+          Var offset
+    val optional: Option<(Int) -> Int>
+      Call Some
+        Var operation
+    val operations: Array<(Int) -> Int>
+      ArrayLiteral
+        Var operation
+        CallableReference 0 increment
+    val box
+      Call FunctionBox
+        Var operation
+    val sum: ((Int, Int)) -> Int
+      Lambda 1 suspend=false
+        param (left, right): _
+        Binary Add
+          Var left
+          Var right
+    Call gcCollect
+    when
+      Var optional
+      arm Some(selected)
+        Call println
+          MethodCall invoke
+            Var selected
+            IntLiteral 40
+      arm None
+        Call println
+          IntLiteral 0
+    Call println
+      MethodCall invoke
+        Index
+          Var operations
+          IntLiteral 0
+        IntLiteral 40
+    Call println
+      MethodCall invoke
+        Index
+          Var operations
+          IntLiteral 1
+        IntLiteral 40
+    Call println
+      MethodCall invoke
+        FieldAccess operation
+          Var box
+        IntLiteral 40
+    Call println
+      Call sum
+        TupleLiteral
+          IntLiteral 20
+          IntLiteral 22

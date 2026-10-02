@@ -1,0 +1,36 @@
+SourceFile
+  RootPackage
+  interface Show
+    fun show
+  struct Shown : Show
+    field value: Int
+    fun show
+  open class Box<T>(val value: T)
+    fun combine
+    fun choose
+  class Derived() : Box<Int>(<1 args>)
+  fun main()
+    val box
+      Call Box
+        StringLiteral "owner"
+    Call println
+      MethodCall combine
+        Var box
+        Call Shown
+          IntLiteral 40
+    Call println
+      MethodCall choose<String>
+        Var box
+        StringLiteral "explicit"
+    Call println
+      MethodCall combine
+        Call Derived
+        Call Shown
+          IntLiteral 41
+    val bound: (Shown) -> Int
+      CallableReference 0 combine
+        Var box
+    Call println
+      Call bound
+        Call Shown
+          IntLiteral 42

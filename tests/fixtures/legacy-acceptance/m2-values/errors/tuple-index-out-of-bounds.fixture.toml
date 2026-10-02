@@ -1,0 +1,16 @@
+schema = 1
+name = "legacy-m2-values-errors-tuple-index-out-of-bounds"
+root = "../../../m2-values/errors/tuple-index-out-of-bounds.scoop"
+inputs = ["../../../m2-values/errors/tuple-index-out-of-bounds.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["legacy", "m2-values", "single-file", "negative"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "tuple-index-out-of-bounds.diagnostics.json"}

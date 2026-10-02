@@ -1,0 +1,773 @@
+Module
+  global @scoop$1$io$a5a3680d0fdcbed6faeae366b53ae2edd939e0286dc97c1590d970b83354fa3b = "\n"
+  global @scoop$1$io$1f1af02e8f6c46cc53aa2ee09fd62fb343b5e74dfacf04a5be11581ea8e7b363 = "\n"
+  global @scoop$1$io$5b150b9a087b1c8a15caa55cfa092ea3d8ea7a2adeaff2ea753d789ac919417a = "\n"
+  global @scoop$1$io$c3559d122df9d4496f5ad898e0dfdef297034b68f0defd79b7ffaeaf05946fcc = "\n"
+  global @scoop$1$io$c47511d4c99020ef89439b70bd36c3af0d1196472925970153b12236be2bb658 = "\n"
+  global @scoop$1$io$b1dbe584e13084c9dd78d8bf922817919dd730689503ea15c1b8469bcb29ac31 = "\n"
+  global @scoop$1$io$4e9b376a2e20777495793404e9f8f141dfdc6de7fdb1daa3e743daf73fe8c420 = "\n"
+  global @scoop$1$io$9bf5b69b14734a2c5b24769df51a4a3ffd956fee793eb4f669316e8b7f27a70b = "\n"
+  global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
+  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
+    local %0 i8: i8
+    local %1 $dependency.receiver: i8
+    local %2 $dependency.argument.0: i8
+    local %3 $dependency.parameter.value: i8
+    local %4 $dependency.receiver: i8
+    local %5 $dependency.argument.0: i16
+    local %6 $dependency.parameter.value: i16
+    local %7 $dependency.receiver: i8
+    local %8 $dependency.argument.0: i32
+    local %9 $dependency.parameter.value: i32
+    local %10 $dependency.receiver: i8
+    local %11 $dependency.argument.0: i64
+    local %12 $dependency.parameter.value: i64
+    local %13 $dependency.receiver: i8
+    local %14 $dependency.argument.0: i8
+    local %15 $dependency.parameter.value: i8
+    local %16 $dependency.receiver: i8
+    local %17 $dependency.argument.0: i16
+    local %18 $dependency.parameter.value: i16
+    local %19 $dependency.receiver: i8
+    local %20 $dependency.argument.0: i32
+    local %21 $dependency.parameter.value: i32
+    local %22 $dependency.receiver: i8
+    local %23 $dependency.argument.0: i64
+    local %24 $dependency.parameter.value: i64
+    local %25 i16: i16
+    local %26 $dependency.receiver: i16
+    local %27 $dependency.argument.0: i8
+    local %28 $dependency.parameter.value: i8
+    local %29 $dependency.receiver: i16
+    local %30 $dependency.argument.0: i16
+    local %31 $dependency.parameter.value: i16
+    local %32 $dependency.receiver: i16
+    local %33 $dependency.argument.0: i32
+    local %34 $dependency.parameter.value: i32
+    local %35 $dependency.receiver: i16
+    local %36 $dependency.argument.0: i64
+    local %37 $dependency.parameter.value: i64
+    local %38 $dependency.receiver: i16
+    local %39 $dependency.argument.0: i8
+    local %40 $dependency.parameter.value: i8
+    local %41 $dependency.receiver: i16
+    local %42 $dependency.argument.0: i16
+    local %43 $dependency.parameter.value: i16
+    local %44 $dependency.receiver: i16
+    local %45 $dependency.argument.0: i32
+    local %46 $dependency.parameter.value: i32
+    local %47 $dependency.receiver: i16
+    local %48 $dependency.argument.0: i64
+    local %49 $dependency.parameter.value: i64
+    local %50 i32: i32
+    local %51 $dependency.receiver: i32
+    local %52 $dependency.argument.0: i8
+    local %53 $dependency.parameter.value: i8
+    local %54 $dependency.receiver: i32
+    local %55 $dependency.argument.0: i16
+    local %56 $dependency.parameter.value: i16
+    local %57 $dependency.receiver: i32
+    local %58 $dependency.argument.0: i32
+    local %59 $dependency.parameter.value: i32
+    local %60 $dependency.receiver: i32
+    local %61 $dependency.argument.0: i64
+    local %62 $dependency.parameter.value: i64
+    local %63 $dependency.receiver: i32
+    local %64 $dependency.argument.0: i8
+    local %65 $dependency.parameter.value: i8
+    local %66 $dependency.receiver: i32
+    local %67 $dependency.argument.0: i16
+    local %68 $dependency.parameter.value: i16
+    local %69 $dependency.receiver: i32
+    local %70 $dependency.argument.0: i32
+    local %71 $dependency.parameter.value: i32
+    local %72 $dependency.receiver: i32
+    local %73 $dependency.argument.0: i64
+    local %74 $dependency.parameter.value: i64
+    local %75 i64: i64
+    local %76 $dependency.receiver: i64
+    local %77 $dependency.argument.0: i8
+    local %78 $dependency.parameter.value: i8
+    local %79 $dependency.receiver: i64
+    local %80 $dependency.argument.0: i16
+    local %81 $dependency.parameter.value: i16
+    local %82 $dependency.receiver: i64
+    local %83 $dependency.argument.0: i32
+    local %84 $dependency.parameter.value: i32
+    local %85 $dependency.receiver: i64
+    local %86 $dependency.argument.0: i64
+    local %87 $dependency.parameter.value: i64
+    local %88 $dependency.receiver: i64
+    local %89 $dependency.argument.0: i8
+    local %90 $dependency.parameter.value: i8
+    local %91 $dependency.receiver: i64
+    local %92 $dependency.argument.0: i16
+    local %93 $dependency.parameter.value: i16
+    local %94 $dependency.receiver: i64
+    local %95 $dependency.argument.0: i32
+    local %96 $dependency.parameter.value: i32
+    local %97 $dependency.receiver: i64
+    local %98 $dependency.argument.0: i64
+    local %99 $dependency.parameter.value: i64
+    local %100 u8: i8
+    local %101 $dependency.receiver: i8
+    local %102 $dependency.argument.0: i8
+    local %103 $dependency.parameter.value: i8
+    local %104 $dependency.receiver: i8
+    local %105 $dependency.argument.0: i16
+    local %106 $dependency.parameter.value: i16
+    local %107 $dependency.receiver: i8
+    local %108 $dependency.argument.0: i32
+    local %109 $dependency.parameter.value: i32
+    local %110 $dependency.receiver: i8
+    local %111 $dependency.argument.0: i64
+    local %112 $dependency.parameter.value: i64
+    local %113 $dependency.receiver: i8
+    local %114 $dependency.argument.0: i8
+    local %115 $dependency.parameter.value: i8
+    local %116 $dependency.receiver: i8
+    local %117 $dependency.argument.0: i16
+    local %118 $dependency.parameter.value: i16
+    local %119 $dependency.receiver: i8
+    local %120 $dependency.argument.0: i32
+    local %121 $dependency.parameter.value: i32
+    local %122 $dependency.receiver: i8
+    local %123 $dependency.argument.0: i64
+    local %124 $dependency.parameter.value: i64
+    local %125 u16: i16
+    local %126 $dependency.receiver: i16
+    local %127 $dependency.argument.0: i8
+    local %128 $dependency.parameter.value: i8
+    local %129 $dependency.receiver: i16
+    local %130 $dependency.argument.0: i16
+    local %131 $dependency.parameter.value: i16
+    local %132 $dependency.receiver: i16
+    local %133 $dependency.argument.0: i32
+    local %134 $dependency.parameter.value: i32
+    local %135 $dependency.receiver: i16
+    local %136 $dependency.argument.0: i64
+    local %137 $dependency.parameter.value: i64
+    local %138 $dependency.receiver: i16
+    local %139 $dependency.argument.0: i8
+    local %140 $dependency.parameter.value: i8
+    local %141 $dependency.receiver: i16
+    local %142 $dependency.argument.0: i16
+    local %143 $dependency.parameter.value: i16
+    local %144 $dependency.receiver: i16
+    local %145 $dependency.argument.0: i32
+    local %146 $dependency.parameter.value: i32
+    local %147 $dependency.receiver: i16
+    local %148 $dependency.argument.0: i64
+    local %149 $dependency.parameter.value: i64
+    local %150 u32: i32
+    local %151 $dependency.receiver: i32
+    local %152 $dependency.argument.0: i8
+    local %153 $dependency.parameter.value: i8
+    local %154 $dependency.receiver: i32
+    local %155 $dependency.argument.0: i16
+    local %156 $dependency.parameter.value: i16
+    local %157 $dependency.receiver: i32
+    local %158 $dependency.argument.0: i32
+    local %159 $dependency.parameter.value: i32
+    local %160 $dependency.receiver: i32
+    local %161 $dependency.argument.0: i64
+    local %162 $dependency.parameter.value: i64
+    local %163 $dependency.receiver: i32
+    local %164 $dependency.argument.0: i8
+    local %165 $dependency.parameter.value: i8
+    local %166 $dependency.receiver: i32
+    local %167 $dependency.argument.0: i16
+    local %168 $dependency.parameter.value: i16
+    local %169 $dependency.receiver: i32
+    local %170 $dependency.argument.0: i32
+    local %171 $dependency.parameter.value: i32
+    local %172 $dependency.receiver: i32
+    local %173 $dependency.argument.0: i64
+    local %174 $dependency.parameter.value: i64
+    local %175 u64: i64
+    local %176 $dependency.receiver: i64
+    local %177 $dependency.argument.0: i8
+    local %178 $dependency.parameter.value: i8
+    local %179 $dependency.receiver: i64
+    local %180 $dependency.argument.0: i16
+    local %181 $dependency.parameter.value: i16
+    local %182 $dependency.receiver: i64
+    local %183 $dependency.argument.0: i32
+    local %184 $dependency.parameter.value: i32
+    local %185 $dependency.receiver: i64
+    local %186 $dependency.argument.0: i64
+    local %187 $dependency.parameter.value: i64
+    local %188 $dependency.receiver: i64
+    local %189 $dependency.argument.0: i8
+    local %190 $dependency.parameter.value: i8
+    local %191 $dependency.receiver: i64
+    local %192 $dependency.argument.0: i16
+    local %193 $dependency.parameter.value: i16
+    local %194 $dependency.receiver: i64
+    local %195 $dependency.argument.0: i32
+    local %196 $dependency.parameter.value: i32
+    local %197 $dependency.receiver: i64
+    local %198 $dependency.argument.0: i64
+    local %199 $dependency.parameter.value: i64
+  block entry
+    poll managed-void-target64 sp<managed-poll:0> live=[]
+    store integer<Int8>(0xff) -> local0
+    store local0 -> local1
+    t0 = integer_convert<Int8->Int8> local1 : i8
+    store t0 -> local2
+    store local2 -> local3
+    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 (i8) local-fn1(local3)
+    t1 = aggregate () : {}
+    store local0 -> local4
+    t2 = integer_convert<Int8->Int16> local4 : i16
+    store t2 -> local5
+    store local5 -> local6
+    call managed-void-target1 sp<managed-call:1> live=[] sig=void1 (i16) local-fn2(local6)
+    t3 = aggregate () : {}
+    store local0 -> local7
+    t4 = integer_convert<Int8->Int> local7 : i32
+    store t4 -> local8
+    store local8 -> local9
+    call managed-void-target2 sp<managed-call:2> live=[] sig=void2 (i32) local-fn3(local9)
+    t5 = aggregate () : {}
+    store local0 -> local10
+    t6 = integer_convert<Int8->Long> local10 : i64
+    store t6 -> local11
+    store local11 -> local12
+    call managed-void-target3 sp<managed-call:3> live=[] sig=void3 (i64) local-fn4(local12)
+    t7 = aggregate () : {}
+    store local0 -> local13
+    t8 = integer_convert<Int8->UInt8> local13 : i8
+    store t8 -> local14
+    store local14 -> local15
+    call managed-void-target4 sp<managed-call:4> live=[] sig=void4 (i8) local-fn5(local15)
+    t9 = aggregate () : {}
+    store local0 -> local16
+    t10 = integer_convert<Int8->UInt16> local16 : i16
+    store t10 -> local17
+    store local17 -> local18
+    call managed-void-target5 sp<managed-call:5> live=[] sig=void5 (i16) local-fn6(local18)
+    t11 = aggregate () : {}
+    store local0 -> local19
+    t12 = integer_convert<Int8->UInt> local19 : i32
+    store t12 -> local20
+    store local20 -> local21
+    call managed-void-target6 sp<managed-call:6> live=[] sig=void6 (i32) local-fn7(local21)
+    t13 = aggregate () : {}
+    store local0 -> local22
+    t14 = integer_convert<Int8->ULong> local22 : i64
+    store t14 -> local23
+    store local23 -> local24
+    call managed-void-target7 sp<managed-call:7> live=[] sig=void7 (i64) local-fn8(local24)
+    t15 = aggregate () : {}
+    store integer<Int16>(0xfeff) -> local25
+    store local25 -> local26
+    t16 = integer_convert<Int16->Int8> local26 : i8
+    store t16 -> local27
+    store local27 -> local28
+    call managed-void-target8 sp<managed-call:8> live=[] sig=void8 (i8) local-fn1(local28)
+    t17 = aggregate () : {}
+    store local25 -> local29
+    t18 = integer_convert<Int16->Int16> local29 : i16
+    store t18 -> local30
+    store local30 -> local31
+    call managed-void-target9 sp<managed-call:9> live=[] sig=void9 (i16) local-fn2(local31)
+    t19 = aggregate () : {}
+    store local25 -> local32
+    t20 = integer_convert<Int16->Int> local32 : i32
+    store t20 -> local33
+    store local33 -> local34
+    call managed-void-target10 sp<managed-call:10> live=[] sig=void10 (i32) local-fn3(local34)
+    t21 = aggregate () : {}
+    store local25 -> local35
+    t22 = integer_convert<Int16->Long> local35 : i64
+    store t22 -> local36
+    store local36 -> local37
+    call managed-void-target11 sp<managed-call:11> live=[] sig=void11 (i64) local-fn4(local37)
+    t23 = aggregate () : {}
+    store local25 -> local38
+    t24 = integer_convert<Int16->UInt8> local38 : i8
+    store t24 -> local39
+    store local39 -> local40
+    call managed-void-target12 sp<managed-call:12> live=[] sig=void12 (i8) local-fn5(local40)
+    t25 = aggregate () : {}
+    store local25 -> local41
+    t26 = integer_convert<Int16->UInt16> local41 : i16
+    store t26 -> local42
+    store local42 -> local43
+    call managed-void-target13 sp<managed-call:13> live=[] sig=void13 (i16) local-fn6(local43)
+    t27 = aggregate () : {}
+    store local25 -> local44
+    t28 = integer_convert<Int16->UInt> local44 : i32
+    store t28 -> local45
+    store local45 -> local46
+    call managed-void-target14 sp<managed-call:14> live=[] sig=void14 (i32) local-fn7(local46)
+    t29 = aggregate () : {}
+    store local25 -> local47
+    t30 = integer_convert<Int16->ULong> local47 : i64
+    store t30 -> local48
+    store local48 -> local49
+    call managed-void-target15 sp<managed-call:15> live=[] sig=void15 (i64) local-fn8(local49)
+    t31 = aggregate () : {}
+    store integer<Int>(0xfffeffff) -> local50
+    store local50 -> local51
+    t32 = integer_convert<Int->Int8> local51 : i8
+    store t32 -> local52
+    store local52 -> local53
+    call managed-void-target16 sp<managed-call:16> live=[] sig=void16 (i8) local-fn1(local53)
+    t33 = aggregate () : {}
+    store local50 -> local54
+    t34 = integer_convert<Int->Int16> local54 : i16
+    store t34 -> local55
+    store local55 -> local56
+    call managed-void-target17 sp<managed-call:17> live=[] sig=void17 (i16) local-fn2(local56)
+    t35 = aggregate () : {}
+    store local50 -> local57
+    t36 = integer_convert<Int->Int> local57 : i32
+    store t36 -> local58
+    store local58 -> local59
+    call managed-void-target18 sp<managed-call:18> live=[] sig=void18 (i32) local-fn3(local59)
+    t37 = aggregate () : {}
+    store local50 -> local60
+    t38 = integer_convert<Int->Long> local60 : i64
+    store t38 -> local61
+    store local61 -> local62
+    call managed-void-target19 sp<managed-call:19> live=[] sig=void19 (i64) local-fn4(local62)
+    t39 = aggregate () : {}
+    store local50 -> local63
+    t40 = integer_convert<Int->UInt8> local63 : i8
+    store t40 -> local64
+    store local64 -> local65
+    call managed-void-target20 sp<managed-call:20> live=[] sig=void20 (i8) local-fn5(local65)
+    t41 = aggregate () : {}
+    store local50 -> local66
+    t42 = integer_convert<Int->UInt16> local66 : i16
+    store t42 -> local67
+    store local67 -> local68
+    call managed-void-target21 sp<managed-call:21> live=[] sig=void21 (i16) local-fn6(local68)
+    t43 = aggregate () : {}
+    store local50 -> local69
+    t44 = integer_convert<Int->UInt> local69 : i32
+    store t44 -> local70
+    store local70 -> local71
+    call managed-void-target22 sp<managed-call:22> live=[] sig=void22 (i32) local-fn7(local71)
+    t45 = aggregate () : {}
+    store local50 -> local72
+    t46 = integer_convert<Int->ULong> local72 : i64
+    store t46 -> local73
+    store local73 -> local74
+    call managed-void-target23 sp<managed-call:23> live=[] sig=void23 (i64) local-fn8(local74)
+    t47 = aggregate () : {}
+    store integer<Long>(0xfffffffeffffffff) -> local75
+    store local75 -> local76
+    t48 = integer_convert<Long->Int8> local76 : i8
+    store t48 -> local77
+    store local77 -> local78
+    call managed-void-target24 sp<managed-call:24> live=[] sig=void24 (i8) local-fn1(local78)
+    t49 = aggregate () : {}
+    store local75 -> local79
+    t50 = integer_convert<Long->Int16> local79 : i16
+    store t50 -> local80
+    store local80 -> local81
+    call managed-void-target25 sp<managed-call:25> live=[] sig=void25 (i16) local-fn2(local81)
+    t51 = aggregate () : {}
+    store local75 -> local82
+    t52 = integer_convert<Long->Int> local82 : i32
+    store t52 -> local83
+    store local83 -> local84
+    call managed-void-target26 sp<managed-call:26> live=[] sig=void26 (i32) local-fn3(local84)
+    t53 = aggregate () : {}
+    store local75 -> local85
+    t54 = integer_convert<Long->Long> local85 : i64
+    store t54 -> local86
+    store local86 -> local87
+    call managed-void-target27 sp<managed-call:27> live=[] sig=void27 (i64) local-fn4(local87)
+    t55 = aggregate () : {}
+    store local75 -> local88
+    t56 = integer_convert<Long->UInt8> local88 : i8
+    store t56 -> local89
+    store local89 -> local90
+    call managed-void-target28 sp<managed-call:28> live=[] sig=void28 (i8) local-fn5(local90)
+    t57 = aggregate () : {}
+    store local75 -> local91
+    t58 = integer_convert<Long->UInt16> local91 : i16
+    store t58 -> local92
+    store local92 -> local93
+    call managed-void-target29 sp<managed-call:29> live=[] sig=void29 (i16) local-fn6(local93)
+    t59 = aggregate () : {}
+    store local75 -> local94
+    t60 = integer_convert<Long->UInt> local94 : i32
+    store t60 -> local95
+    store local95 -> local96
+    call managed-void-target30 sp<managed-call:30> live=[] sig=void30 (i32) local-fn7(local96)
+    t61 = aggregate () : {}
+    store local75 -> local97
+    t62 = integer_convert<Long->ULong> local97 : i64
+    store t62 -> local98
+    store local98 -> local99
+    call managed-void-target31 sp<managed-call:31> live=[] sig=void31 (i64) local-fn8(local99)
+    t63 = aggregate () : {}
+    store integer<UInt8>(0xff) -> local100
+    store local100 -> local101
+    t64 = integer_convert<UInt8->Int8> local101 : i8
+    store t64 -> local102
+    store local102 -> local103
+    call managed-void-target32 sp<managed-call:32> live=[] sig=void32 (i8) local-fn1(local103)
+    t65 = aggregate () : {}
+    store local100 -> local104
+    t66 = integer_convert<UInt8->Int16> local104 : i16
+    store t66 -> local105
+    store local105 -> local106
+    call managed-void-target33 sp<managed-call:33> live=[] sig=void33 (i16) local-fn2(local106)
+    t67 = aggregate () : {}
+    store local100 -> local107
+    t68 = integer_convert<UInt8->Int> local107 : i32
+    store t68 -> local108
+    store local108 -> local109
+    call managed-void-target34 sp<managed-call:34> live=[] sig=void34 (i32) local-fn3(local109)
+    t69 = aggregate () : {}
+    store local100 -> local110
+    t70 = integer_convert<UInt8->Long> local110 : i64
+    store t70 -> local111
+    store local111 -> local112
+    call managed-void-target35 sp<managed-call:35> live=[] sig=void35 (i64) local-fn4(local112)
+    t71 = aggregate () : {}
+    store local100 -> local113
+    t72 = integer_convert<UInt8->UInt8> local113 : i8
+    store t72 -> local114
+    store local114 -> local115
+    call managed-void-target36 sp<managed-call:36> live=[] sig=void36 (i8) local-fn5(local115)
+    t73 = aggregate () : {}
+    store local100 -> local116
+    t74 = integer_convert<UInt8->UInt16> local116 : i16
+    store t74 -> local117
+    store local117 -> local118
+    call managed-void-target37 sp<managed-call:37> live=[] sig=void37 (i16) local-fn6(local118)
+    t75 = aggregate () : {}
+    store local100 -> local119
+    t76 = integer_convert<UInt8->UInt> local119 : i32
+    store t76 -> local120
+    store local120 -> local121
+    call managed-void-target38 sp<managed-call:38> live=[] sig=void38 (i32) local-fn7(local121)
+    t77 = aggregate () : {}
+    store local100 -> local122
+    t78 = integer_convert<UInt8->ULong> local122 : i64
+    store t78 -> local123
+    store local123 -> local124
+    call managed-void-target39 sp<managed-call:39> live=[] sig=void39 (i64) local-fn8(local124)
+    t79 = aggregate () : {}
+    store integer<UInt16>(0xffff) -> local125
+    store local125 -> local126
+    t80 = integer_convert<UInt16->Int8> local126 : i8
+    store t80 -> local127
+    store local127 -> local128
+    call managed-void-target40 sp<managed-call:40> live=[] sig=void40 (i8) local-fn1(local128)
+    t81 = aggregate () : {}
+    store local125 -> local129
+    t82 = integer_convert<UInt16->Int16> local129 : i16
+    store t82 -> local130
+    store local130 -> local131
+    call managed-void-target41 sp<managed-call:41> live=[] sig=void41 (i16) local-fn2(local131)
+    t83 = aggregate () : {}
+    store local125 -> local132
+    t84 = integer_convert<UInt16->Int> local132 : i32
+    store t84 -> local133
+    store local133 -> local134
+    call managed-void-target42 sp<managed-call:42> live=[] sig=void42 (i32) local-fn3(local134)
+    t85 = aggregate () : {}
+    store local125 -> local135
+    t86 = integer_convert<UInt16->Long> local135 : i64
+    store t86 -> local136
+    store local136 -> local137
+    call managed-void-target43 sp<managed-call:43> live=[] sig=void43 (i64) local-fn4(local137)
+    t87 = aggregate () : {}
+    store local125 -> local138
+    t88 = integer_convert<UInt16->UInt8> local138 : i8
+    store t88 -> local139
+    store local139 -> local140
+    call managed-void-target44 sp<managed-call:44> live=[] sig=void44 (i8) local-fn5(local140)
+    t89 = aggregate () : {}
+    store local125 -> local141
+    t90 = integer_convert<UInt16->UInt16> local141 : i16
+    store t90 -> local142
+    store local142 -> local143
+    call managed-void-target45 sp<managed-call:45> live=[] sig=void45 (i16) local-fn6(local143)
+    t91 = aggregate () : {}
+    store local125 -> local144
+    t92 = integer_convert<UInt16->UInt> local144 : i32
+    store t92 -> local145
+    store local145 -> local146
+    call managed-void-target46 sp<managed-call:46> live=[] sig=void46 (i32) local-fn7(local146)
+    t93 = aggregate () : {}
+    store local125 -> local147
+    t94 = integer_convert<UInt16->ULong> local147 : i64
+    store t94 -> local148
+    store local148 -> local149
+    call managed-void-target47 sp<managed-call:47> live=[] sig=void47 (i64) local-fn8(local149)
+    t95 = aggregate () : {}
+    store integer<UInt>(0xffffffff) -> local150
+    store local150 -> local151
+    t96 = integer_convert<UInt->Int8> local151 : i8
+    store t96 -> local152
+    store local152 -> local153
+    call managed-void-target48 sp<managed-call:48> live=[] sig=void48 (i8) local-fn1(local153)
+    t97 = aggregate () : {}
+    store local150 -> local154
+    t98 = integer_convert<UInt->Int16> local154 : i16
+    store t98 -> local155
+    store local155 -> local156
+    call managed-void-target49 sp<managed-call:49> live=[] sig=void49 (i16) local-fn2(local156)
+    t99 = aggregate () : {}
+    store local150 -> local157
+    t100 = integer_convert<UInt->Int> local157 : i32
+    store t100 -> local158
+    store local158 -> local159
+    call managed-void-target50 sp<managed-call:50> live=[] sig=void50 (i32) local-fn3(local159)
+    t101 = aggregate () : {}
+    store local150 -> local160
+    t102 = integer_convert<UInt->Long> local160 : i64
+    store t102 -> local161
+    store local161 -> local162
+    call managed-void-target51 sp<managed-call:51> live=[] sig=void51 (i64) local-fn4(local162)
+    t103 = aggregate () : {}
+    store local150 -> local163
+    t104 = integer_convert<UInt->UInt8> local163 : i8
+    store t104 -> local164
+    store local164 -> local165
+    call managed-void-target52 sp<managed-call:52> live=[] sig=void52 (i8) local-fn5(local165)
+    t105 = aggregate () : {}
+    store local150 -> local166
+    t106 = integer_convert<UInt->UInt16> local166 : i16
+    store t106 -> local167
+    store local167 -> local168
+    call managed-void-target53 sp<managed-call:53> live=[] sig=void53 (i16) local-fn6(local168)
+    t107 = aggregate () : {}
+    store local150 -> local169
+    t108 = integer_convert<UInt->UInt> local169 : i32
+    store t108 -> local170
+    store local170 -> local171
+    call managed-void-target54 sp<managed-call:54> live=[] sig=void54 (i32) local-fn7(local171)
+    t109 = aggregate () : {}
+    store local150 -> local172
+    t110 = integer_convert<UInt->ULong> local172 : i64
+    store t110 -> local173
+    store local173 -> local174
+    call managed-void-target55 sp<managed-call:55> live=[] sig=void55 (i64) local-fn8(local174)
+    t111 = aggregate () : {}
+    store integer<ULong>(0xffffffffffffffff) -> local175
+    store local175 -> local176
+    t112 = integer_convert<ULong->Int8> local176 : i8
+    store t112 -> local177
+    store local177 -> local178
+    call managed-void-target56 sp<managed-call:56> live=[] sig=void56 (i8) local-fn1(local178)
+    t113 = aggregate () : {}
+    store local175 -> local179
+    t114 = integer_convert<ULong->Int16> local179 : i16
+    store t114 -> local180
+    store local180 -> local181
+    call managed-void-target57 sp<managed-call:57> live=[] sig=void57 (i16) local-fn2(local181)
+    t115 = aggregate () : {}
+    store local175 -> local182
+    t116 = integer_convert<ULong->Int> local182 : i32
+    store t116 -> local183
+    store local183 -> local184
+    call managed-void-target58 sp<managed-call:58> live=[] sig=void58 (i32) local-fn3(local184)
+    t117 = aggregate () : {}
+    store local175 -> local185
+    t118 = integer_convert<ULong->Long> local185 : i64
+    store t118 -> local186
+    store local186 -> local187
+    call managed-void-target59 sp<managed-call:59> live=[] sig=void59 (i64) local-fn4(local187)
+    t119 = aggregate () : {}
+    store local175 -> local188
+    t120 = integer_convert<ULong->UInt8> local188 : i8
+    store t120 -> local189
+    store local189 -> local190
+    call managed-void-target60 sp<managed-call:60> live=[] sig=void60 (i8) local-fn5(local190)
+    t121 = aggregate () : {}
+    store local175 -> local191
+    t122 = integer_convert<ULong->UInt16> local191 : i16
+    store t122 -> local192
+    store local192 -> local193
+    call managed-void-target61 sp<managed-call:61> live=[] sig=void61 (i16) local-fn6(local193)
+    t123 = aggregate () : {}
+    store local175 -> local194
+    t124 = integer_convert<ULong->UInt> local194 : i32
+    store t124 -> local195
+    store local195 -> local196
+    call managed-void-target62 sp<managed-call:62> live=[] sig=void62 (i32) local-fn7(local196)
+    t125 = aggregate () : {}
+    store local175 -> local197
+    t126 = integer_convert<ULong->ULong> local197 : i64
+    store t126 -> local198
+    store local198 -> local199
+    call managed-void-target63 sp<managed-call:63> live=[] sig=void63 (i64) local-fn8(local199)
+    t127 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$1350f8a2bd4480945e120fb345b2f194f838ea7e4c00877ebee8ff0f6ad937d8(i8) -> void
+    local %0 $dependency.local.1: i8
+    local %1 $dependency.local.2: ptr<managed>
+    local %2 $dependency.local.3: ptr<managed>
+    local %3 $dependency.local.4: ptr<managed>
+    local %4 $dependency.local.5: ptr<managed>
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i8) -> ptr<managed> external-fn0(local0)
+    store t0 -> local1
+    store local1 -> local2
+    call managed-void-target0 sp<managed-call:1> live=[local2:ptr<managed>@0] sig=void0 (ptr<managed>) external-fn8(local2)
+    t1 = aggregate () : {}
+    store global0 -> local3
+    store local3 -> local4
+    call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn8(local4)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$072d3709a6b564bf439508b8d4a3db6bfee00aa9ef5c49751b3be39da6ca8cc4(i16) -> void
+    local %0 $dependency.local.1: i16
+    local %1 $dependency.local.2: ptr<managed>
+    local %2 $dependency.local.3: ptr<managed>
+    local %3 $dependency.local.4: ptr<managed>
+    local %4 $dependency.local.5: ptr<managed>
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i16) -> ptr<managed> external-fn1(local0)
+    store t0 -> local1
+    store local1 -> local2
+    call managed-void-target0 sp<managed-call:1> live=[local2:ptr<managed>@0] sig=void0 (ptr<managed>) external-fn8(local2)
+    t1 = aggregate () : {}
+    store global1 -> local3
+    store local3 -> local4
+    call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn8(local4)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$05ffc32f631b2fcd15ae6cb61f370b61c17fa98cb6f1492449586fa0abce58a1(i32) -> void
+    local %0 $dependency.local.1: i32
+    local %1 $dependency.local.2: ptr<managed>
+    local %2 $dependency.local.3: ptr<managed>
+    local %3 $dependency.local.4: ptr<managed>
+    local %4 $dependency.local.5: ptr<managed>
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> ptr<managed> external-fn2(local0)
+    store t0 -> local1
+    store local1 -> local2
+    call managed-void-target0 sp<managed-call:1> live=[local2:ptr<managed>@0] sig=void0 (ptr<managed>) external-fn8(local2)
+    t1 = aggregate () : {}
+    store global2 -> local3
+    store local3 -> local4
+    call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn8(local4)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$e3dee8692dba99840c387a9f0b05d270224e011fb3f459ec95efc104332ad383(i64) -> void
+    local %0 $dependency.local.1: i64
+    local %1 $dependency.local.2: ptr<managed>
+    local %2 $dependency.local.3: ptr<managed>
+    local %3 $dependency.local.4: ptr<managed>
+    local %4 $dependency.local.5: ptr<managed>
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i64) -> ptr<managed> external-fn3(local0)
+    store t0 -> local1
+    store local1 -> local2
+    call managed-void-target0 sp<managed-call:1> live=[local2:ptr<managed>@0] sig=void0 (ptr<managed>) external-fn8(local2)
+    t1 = aggregate () : {}
+    store global3 -> local3
+    store local3 -> local4
+    call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn8(local4)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$e0838fef624afc704d1f209bda3454f47384b61b254c8e4c411f75c7aa749806(i8) -> void
+    local %0 $dependency.local.1: i8
+    local %1 $dependency.local.2: ptr<managed>
+    local %2 $dependency.local.3: ptr<managed>
+    local %3 $dependency.local.4: ptr<managed>
+    local %4 $dependency.local.5: ptr<managed>
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i8) -> ptr<managed> external-fn4(local0)
+    store t0 -> local1
+    store local1 -> local2
+    call managed-void-target0 sp<managed-call:1> live=[local2:ptr<managed>@0] sig=void0 (ptr<managed>) external-fn8(local2)
+    t1 = aggregate () : {}
+    store global4 -> local3
+    store local3 -> local4
+    call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn8(local4)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$aa8e73a487d3a7eca43bee2fc3ba4ef9de7b3246edb75ba715190ad0d665a0fa(i16) -> void
+    local %0 $dependency.local.1: i16
+    local %1 $dependency.local.2: ptr<managed>
+    local %2 $dependency.local.3: ptr<managed>
+    local %3 $dependency.local.4: ptr<managed>
+    local %4 $dependency.local.5: ptr<managed>
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i16) -> ptr<managed> external-fn5(local0)
+    store t0 -> local1
+    store local1 -> local2
+    call managed-void-target0 sp<managed-call:1> live=[local2:ptr<managed>@0] sig=void0 (ptr<managed>) external-fn8(local2)
+    t1 = aggregate () : {}
+    store global5 -> local3
+    store local3 -> local4
+    call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn8(local4)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$31713fdab8c2852a16a76e4926de383d5f7c1e02fb8e6c54aaf49db5f517b0df(i32) -> void
+    local %0 $dependency.local.1: i32
+    local %1 $dependency.local.2: ptr<managed>
+    local %2 $dependency.local.3: ptr<managed>
+    local %3 $dependency.local.4: ptr<managed>
+    local %4 $dependency.local.5: ptr<managed>
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> ptr<managed> external-fn6(local0)
+    store t0 -> local1
+    store local1 -> local2
+    call managed-void-target0 sp<managed-call:1> live=[local2:ptr<managed>@0] sig=void0 (ptr<managed>) external-fn8(local2)
+    t1 = aggregate () : {}
+    store global6 -> local3
+    store local3 -> local4
+    call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn8(local4)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$ba8041378f7283fa6512236a8f8f9ee677a4770b6728619f2b8f7280ee036070(i64) -> void
+    local %0 $dependency.local.1: i64
+    local %1 $dependency.local.2: ptr<managed>
+    local %2 $dependency.local.3: ptr<managed>
+    local %3 $dependency.local.4: ptr<managed>
+    local %4 $dependency.local.5: ptr<managed>
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i64) -> ptr<managed> external-fn7(local0)
+    store t0 -> local1
+    store local1 -> local2
+    call managed-void-target0 sp<managed-call:1> live=[local2:ptr<managed>@0] sig=void0 (ptr<managed>) external-fn8(local2)
+    t1 = aggregate () : {}
+    store global7 -> local3
+    store local3 -> local4
+    call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn8(local4)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
+    br @success
+  block success
+    ret integer<UInt>(0x00000000)
+  block failure
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
+    t2 = begin_catch t1 : ptr<managed>
+    call managed-direct-target0 sp<managed-call:0> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
+    global_store global8, t3
+    end_catch
+    ret integer<UInt>(0x00000001)
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde

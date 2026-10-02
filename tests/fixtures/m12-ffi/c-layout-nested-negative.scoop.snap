@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m12-ffi/c-layout-nested-negative.scoop:4:1: error: `@CLayout` field is not C-FFI-safe: Bad.nested: ordinary struct `Ordinary` has no stable C layout

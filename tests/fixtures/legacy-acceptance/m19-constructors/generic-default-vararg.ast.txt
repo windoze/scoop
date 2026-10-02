@@ -1,0 +1,39 @@
+SourceFile
+  RootPackage
+  fun constructorDefault(): Int
+    Call println
+      StringLiteral "constructor-default"
+    return
+      IntLiteral 1
+  class GenericBox<T>(seed: T, val values: Array<T>)
+    val first: T =
+      Var seed
+    constructor(seed: T, marker: Int = <expr>, vararg rest: T) : this(<2 args>)
+      Call println
+        Var marker
+      Call println
+        StringLiteral "generic-secondary"
+  fun main()
+    val inferred
+      Call GenericBox
+        StringLiteral "first"
+    Call println
+      FieldAccess first
+        Var inferred
+    Call println
+      FieldAccess size
+        FieldAccess values
+          Var inferred
+    val explicit
+      Call GenericBox<String>
+        StringLiteral "head"
+        IntLiteral 2
+        StringLiteral "tail-one"
+        StringLiteral "tail-two"
+    Call println
+      FieldAccess first
+        Var explicit
+    Call println
+      FieldAccess size
+        FieldAccess values
+          Var explicit

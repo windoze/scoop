@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m21-companions/errors/initialization-cycle.scoop:3:26: error: initialization cycle: companion:Host.Companion -> companion:Host.Companion

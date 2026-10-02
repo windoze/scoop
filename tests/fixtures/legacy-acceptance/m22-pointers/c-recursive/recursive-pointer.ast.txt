@@ -1,0 +1,28 @@
+SourceFile
+  RootPackage
+    @CLayout
+  struct Node
+    field next: Ptr<Node>?
+    field value: Int
+    @Extern(lib = "fixture_native", name = "bump_node")
+  fun bumpNode(node: Node): Node
+  fun main()
+    @Unsafe block
+      val result
+        Call bumpNode
+          Call Node
+            Var None
+            IntLiteral 41
+      Call println
+        FieldAccess value
+          Var result
+      when
+        FieldAccess next
+          Var result
+        arm Some(pointer)
+          Call println
+            MethodCall toULong
+              Var pointer
+        arm None
+          Call println
+            IntLiteral 0

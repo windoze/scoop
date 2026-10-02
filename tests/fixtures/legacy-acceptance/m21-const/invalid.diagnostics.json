@@ -1,0 +1,119 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "const property must be a `val`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 17,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 10
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "const property `unsupported` has unsupported type Unit",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 54,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 50
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "const dependency cycle: first -> second -> first",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 250,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 245
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "const initializer may only reference const properties; `ordinary` is not const",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 131,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 123
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "const initializer must contain only literals, const references, built-in primitive operators, and exact core integer intrinsic calls",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 164,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 156
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "const operator operands must have the same type, found Boolean and Int",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 304,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 295
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "const initializer must contain only literals, const references, built-in primitive operators, and exact core integer intrinsic calls",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 367,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 352
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "division by zero in const initializer",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 427,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 422
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "division by zero in const initializer",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 495,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 487
+    },
+    "severity": "error"
+  }
+]

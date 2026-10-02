@@ -1,0 +1,252 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Int>
+    Some(_0: Int)
+    None()
+  enum Option<Ptr<Int>>
+    Some(_0: Ptr<Int>)
+    None()
+  enum Option<FunPtr<(Int) -> Int>>
+    Some(_0: FunPtr<(Int) -> Int>)
+    None()
+  class UnwrapException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface ToString
+  interface Hash
+  fun taggedOr @fn0(value: Option<Int>, fallback: Int) -> Int
+    bb0 entry
+      val $opt.0: Option<Int>
+        Type Option<Int>
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $opt.0
+    bb1 if.then.1
+      val $res.1: Int
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local $opt.0
+      goto bb3
+    bb2 if.else.2
+      val $res.1: Int
+        Type Int
+        Local fallback
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Int
+        Local $res.1
+  fun managedOr @fn1(value: Option<String>, fallback: String) -> String
+    bb0 entry
+      val $opt.2: Option<String>
+        Type Option<String>
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<String> v0
+          Type Option<String>
+          Local $opt.2
+    bb1 if.then.1
+      val $res.3: String
+        Type String
+        VariantPayloadProject Option<String> v0 f0
+          Type Option<String>
+          Local $opt.2
+      goto bb3
+    bb2 if.else.2
+      val $res.3: String
+        Type String
+        Local fallback
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type String
+        Local $res.3
+  fun requireRaw @fn2(value: Option<Ptr<Int>>) -> Ptr<Int>
+    bb0 entry
+      val $opt.1: Option<Ptr<Int>>
+        Type Option<Ptr<Int>>
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Ptr<Int>> v0
+          Type Option<Ptr<Int>>
+          Local $opt.1
+    bb1 if.then.1
+      val $uw.2: Ptr<Int>
+        Type Ptr<Int>
+        VariantPayloadProject Option<Ptr<Int>> v0 f0
+          Type Option<Ptr<Int>>
+          Local $opt.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.1
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external3 direct
+        Type UnwrapException
+        Local $new.1
+      throw
+        Type UnwrapException
+        Local $new.1
+    bb3 if.merge.3
+      return
+        Type Ptr<Int>
+        Local $uw.2
+  fun requireCode @fn3(value: Option<FunPtr<(Int) -> Int>>) -> FunPtr<(Int) -> Int>
+    bb0 entry
+      val $opt.1: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<FunPtr<(Int) -> Int>> v0
+          Type Option<FunPtr<(Int) -> Int>>
+          Local $opt.1
+    bb1 if.then.1
+      val $uw.2: FunPtr<(Int) -> Int>
+        Type FunPtr<(Int) -> Int>
+        VariantPayloadProject Option<FunPtr<(Int) -> Int>> v0 f0
+          Type Option<FunPtr<(Int) -> Int>>
+          Local $opt.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.1
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external3 direct
+        Type UnwrapException
+        Local $new.1
+      throw
+        Type UnwrapException
+        Local $new.1
+    bb3 if.merge.3
+      return
+        Type FunPtr<(Int) -> Int>
+        Local $uw.2
+  fun main @fn4() -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+          Type Int
+          Local $dependency.parameter._1
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Option<Int>
+        Type Option<Int>
+        Local $argument.0
+      val $parameter.fallback: Int
+        Type Int
+        Local $argument.1
+      call $dependency.argument.0: Int = @fn0 direct
+        Type Option<Int>
+        Local $parameter.value
+        Type Int
+        Local $parameter.fallback
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter._1: String
+        Type String
+        Local $dependency.argument.0
+      val $argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $dependency.parameter._1
+      val $argument.1: String
+        Type String
+        StringConst @str1
+      val $parameter.value: Option<String>
+        Type Option<String>
+        Local $argument.0
+      val $parameter.fallback: String
+        Type String
+        Local $argument.1
+      call $dependency.argument.0: String = @fn1 direct
+        Type Option<String>
+        Local $parameter.value
+        Type String
+        Local $parameter.fallback
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun println @fn5(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn6(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  instance mi0 function=@fn5 <- println
+  instance mi1 function=@fn6 <- println
+  str @str0 "managed"
+  str @str1 "fallback"
+  str @str2 "\n"
+  str @str3 "\n"
+  output executable @fn4

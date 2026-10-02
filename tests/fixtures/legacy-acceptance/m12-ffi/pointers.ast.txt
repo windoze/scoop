@@ -1,0 +1,117 @@
+SourceFile
+  RootPackage
+    @NoGC
+  fun increment(value: Int): Int
+    =
+      Binary Add
+        Var value
+        IntLiteral 1
+    @Extern(name = "malloc")
+  fun malloc(size: ULong): Ptr<Unit>
+    @Extern(name = "free")
+  fun free(pointer: Ptr<Unit>)
+    @NoGC
+    @Unsafe
+  fun rewriteParameter(value: Int): Int
+    val pointer
+      Call addressOf
+        Var value
+    MethodCall store
+      Var pointer
+      IntLiteral 12
+    return
+      Var value
+  struct Slot
+    field value: Int
+    fun rewriteThis
+  fun main()
+    val intSize
+      Call sizeOf<Int>
+    val intAlignment
+      Call alignOf<Int>
+    val empty: FunPtr<(Int) -> Int>?
+      Var None
+    val callback: FunPtr<(Int) -> Int>
+      CallableReference 0 increment
+    val noCallback: FunPtr<(Int) -> Int>?
+      Var None
+    var value
+      IntLiteral 7
+    @Unsafe block
+      val pointer
+        Call addressOf
+          Var value
+      MethodCall store
+        Var pointer
+        IntLiteral 9
+      Call println
+        MethodCall load
+          Var pointer
+      val shifted
+        Binary Add
+          Var pointer
+          IntLiteral 0
+      val raw
+        MethodCall toULong
+          Var shifted
+      val reconstructed
+        Call Ptr<Int>
+          Var raw
+      Call println
+        MethodCall load
+          Var reconstructed
+          IntLiteral 0
+      val retyped
+        MethodCall cast<Int>
+          MethodCall cast<Boolean>
+            Var reconstructed
+      MethodCall store
+        Var retyped
+        IntLiteral 10
+      Call println
+        Var value
+      MethodCall store
+        Var pointer
+        IntLiteral 0
+        IntLiteral 11
+      val previous
+        Binary Sub
+          Var pointer
+          IntLiteral 0
+      Call println
+        MethodCall load
+          Var previous
+      Call println
+        Var value
+      Call println
+        Call rewriteParameter
+          IntLiteral 0
+      Call println
+        MethodCall rewriteThis
+          Call Slot
+            IntLiteral 0
+      val allocated
+        MethodCall cast<Int>
+          Call malloc
+            Call sizeOf<Int>
+      MethodCall store
+        Var allocated
+        IntLiteral 14
+      Call println
+        MethodCall load
+          Var allocated
+      Call free
+        MethodCall cast<Unit>
+          Var allocated
+      val optional: Ptr<Int>?
+        Call Some
+          Var pointer
+      when
+        Var optional
+        arm Some(present)
+          Call println
+            MethodCall load
+              Var present
+        arm None
+          Call println
+            IntLiteral 0

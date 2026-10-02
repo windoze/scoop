@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m23-source-headers/errors/external-import.scoop:5:8: error: import target is not available in the current compilation unit

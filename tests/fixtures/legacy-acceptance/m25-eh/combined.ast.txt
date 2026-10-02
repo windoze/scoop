@@ -1,0 +1,103 @@
+SourceFile
+  RootPackage
+  struct NestedPayload
+    field label: String
+    field pair: (String, String)
+  enum TaggedPayload
+    Present(String, String)
+    Empty
+  class CombinedMovingError(val direct: String, val nested: NestedPayload, val tagged: TaggedPayload, val values: Array<String>) : Exception(<1 args>)
+  fun throwThroughFinally()
+    val direct
+      Binary Add
+        StringLiteral "direct-"
+        StringLiteral "alive"
+    val nested
+      Call NestedPayload
+        Binary Add
+          StringLiteral "struct-"
+          StringLiteral "alive"
+        TupleLiteral
+          Binary Add
+            StringLiteral "tuple-first-"
+            StringLiteral "alive"
+          Binary Add
+            StringLiteral "tuple-second-"
+            StringLiteral "alive"
+    val tagged
+      MethodCall Present
+        Var TaggedPayload
+        Binary Add
+          StringLiteral "enum-first-"
+          StringLiteral "alive"
+        Binary Add
+          StringLiteral "enum-second-"
+          StringLiteral "alive"
+    val values
+      ArrayLiteral
+        Binary Add
+          StringLiteral "array-first-"
+          StringLiteral "alive"
+        Binary Add
+          StringLiteral "array-second-"
+          StringLiteral "alive"
+    try
+      throw
+        Call CombinedMovingError
+          Var direct
+          Var nested
+          Var tagged
+          Var values
+    finally
+      Call gcCollect
+      Call println
+        StringLiteral "in-flight-collected"
+  fun passThroughUnmatchedCatch()
+    try
+      Call throwThroughFinally
+    catch error: ArithmeticException
+      Call println
+        StringLiteral "wrong-handler"
+  fun main()
+    try
+      Call passThroughUnmatchedCatch
+    catch error: CombinedMovingError
+      Call gcCollect
+      Call println
+        FieldAccess direct
+          Var error
+      Call println
+        FieldAccess label
+          FieldAccess nested
+            Var error
+      Call println
+        FieldAccess _1
+          FieldAccess pair
+            FieldAccess nested
+              Var error
+      Call println
+        FieldAccess _2
+          FieldAccess pair
+            FieldAccess nested
+              Var error
+      when
+        FieldAccess tagged
+          Var error
+        arm Present(first, second)
+          Call println
+            Var first
+          Call println
+            Var second
+        arm Empty
+          Call println
+            StringLiteral "empty"
+      Call println
+        Index
+          FieldAccess values
+            Var error
+          IntLiteral 0
+      Call println
+        Index
+          FieldAccess values
+            Var error
+          IntLiteral 1

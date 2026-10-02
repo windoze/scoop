@@ -1,0 +1,28 @@
+SourceFile
+  RootPackage
+  open class Base<T>(val value: T)
+    fun get
+    fun choose
+  class Derived<T>(val childValue: T) : Base<T>(<1 args>)
+    fun get
+  fun read<T>(base: Base<T>): T
+    =
+      MethodCall get
+        Var base
+  fun main()
+    val intBase: Base<Int>
+      Call Derived
+        IntLiteral 42
+    val stringBase: Base<String>
+      Call Derived
+        StringLiteral "text"
+    Call println
+      Call read
+        Var intBase
+    Call println
+      Call read
+        Var stringBase
+    Call println
+      MethodCall choose
+        Var intBase
+        StringLiteral "direct"

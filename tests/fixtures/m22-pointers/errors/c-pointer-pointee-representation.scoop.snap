@@ -1,7 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m22-pointers/errors/c-pointer-pointee-representation.scoop:7:1: error: extern parameter is not ABI-safe: consumeScoopOnly.parameter1: ordinary struct `ScoopOnly` has no stable C layout
-m22-pointers/errors/c-pointer-pointee-representation.scoop:10:1: error: extern parameter is not ABI-safe: consumeEmpty.parameter1: pointer pointee `Empty` is zero-sized; only `Ptr<Unit>` maps to `void *`

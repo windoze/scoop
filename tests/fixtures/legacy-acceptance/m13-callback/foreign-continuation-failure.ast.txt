@@ -1,0 +1,56 @@
+SourceFile
+  RootPackage
+    @Extern(lib = "fixture_native", name = "m13_start_one")
+  fun startOne(callback: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, value: Int): Ptr<Unit>
+    @Extern(lib = "fixture_native", name = "m13_join_one")
+  fun joinOne(job: Ptr<Unit>): Int
+  class ForeignResumeError(val payload: String) : Exception(<1 args>)
+  class FailureGate(var job: Ptr<Unit>?, var observer: ForeignCallback<(Int, Ptr<Unit>) -> Int>?)
+  class FailureRegistration(val gate: FailureGate), SuspendRegistration<Int>
+    public fun register
+  class FailureTask(val gate: FailureGate), SuspendTask<Int>
+    public suspend fun run
+  class FailureCompletion(), Continuation<Int>
+    public fun resume
+    public fun resumeWithException
+  fun isNone<T>(value: T?): Boolean
+    =
+      WhenExpression
+        Var value
+        arm Some(_)
+          BoolLiteral false
+        arm None
+          BoolLiteral true
+  fun main()
+    @Unsafe block
+      val gate
+        Call FailureGate
+          Var None
+          Var None
+      Call startCoroutine
+        Call FailureTask
+          Var gate
+        Call FailureCompletion
+      Call println
+        StringLiteral "suspended"
+      Call println
+        Call joinOne
+          NullAssert
+            FieldAccess job
+              Var gate
+      val observer
+        NullAssert
+          FieldAccess observer
+            Var gate
+      Call println
+        Binary Eq
+          Call foreignCallbackState
+            Var observer
+          FieldAccess Completed
+            Var ForeignCallbackState
+      Call println
+        Call isNone
+          Call foreignCallbackFailure
+            Var observer
+      Call releaseForeignCallback
+        Var observer

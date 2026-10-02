@@ -1,7 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m5-arrays/errors/conversion-method-arity.scoop:3:13: error: no applicable candidate for `toMutableArray` in member candidate layer:
-  - fun Array<T>.toMutableArray(): MutableArray<T> — expects 0 argument(s), but 1 were supplied

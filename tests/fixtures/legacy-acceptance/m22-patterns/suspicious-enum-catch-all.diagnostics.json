@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_COMPILER_WARNING",
+    "message": "`Raedy` is a catch-all binding because `Signal` has no variant named `Raedy`; qualify an intended variant as `E.V`, or use `_` or an intentional binding name for a catch-all",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 169,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 164
+    },
+    "severity": "warning"
+  }
+]

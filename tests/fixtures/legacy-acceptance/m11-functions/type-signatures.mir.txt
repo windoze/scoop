@@ -1,0 +1,115 @@
+Module
+  struct Callbacks (transform: (Int) -> Int, task: suspend () -> String)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<(Int) -> Int>
+    Some(_0: (Int) -> Int)
+    None()
+  enum CoroutineStep<String>
+    Completed(value: String)
+    Suspended()
+  enum CoroutineStep<Any>
+    Completed(value: Any)
+    Suspended()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Continuation<String>
+  interface SuspendTask<String>
+  interface SuspendRegistration<String>
+  interface Continuation<Any>
+  interface SuspendTask<Any>
+  interface SuspendRegistration<Any>
+  generated_exact_type get0 location=enum2 nominal_id=11095ad3fdb8a19e049d7d29a62d75e350d5ee778b3cd195021b9129aab33c6e exact_id=0e5d4d97d7f257c285a63651f7e787975762977458c4e8c056b56ddcec76465f
+  generated_exact_type get1 location=enum3 nominal_id=1d90b9517ad16680767e5f5f346641f7fdb2b440fcc3407d6f34ee2acd38fd08 exact_id=a7b5de752f5b16397ac2dd0845c02cd2b3b0cbb363c4286d084a2bf5e77678a2
+  fun register @fn0(transform: (Int) -> Int, optional: Option<(Int) -> Int>) -> Unit
+    bb0 entry
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun println @fn2(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str1
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Continuation.resume @fn3(this: Continuation<String>, value: String) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn4(this: Continuation<String>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn5(this: SuspendTask<String>, $completion: Continuation<String>) -> CoroutineStep<String>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn6(this: SuspendRegistration<String>, continuation: Continuation<String>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn7(this: Continuation<Any>, value: Any) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn8(this: Continuation<Any>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn9(this: SuspendTask<Any>, $completion: Continuation<Any>) -> CoroutineStep<Any>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn10(this: SuspendRegistration<Any>, continuation: Continuation<Any>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.Callbacks.$c0 @fn11(transform: (Int) -> Int, task: suspend () -> String) -> Callbacks <no-gc>
+    bb0 entry
+      return
+        Type Callbacks
+        StructInit Callbacks
+          Type (Int) -> Int
+          Local transform
+          Type suspend () -> String
+          Local task
+  coroutine_step cs0 CoroutineStep<String> result=String
+  coroutine_step cs1 CoroutineStep<Any> result=Any
+  coroutine_fn cf0 @fn5 source_return=String step=cs0 immediate
+  coroutine_fn cf1 @fn9 source_return=Any step=cs1 immediate
+  instance mi0 function=@fn2 <- println
+  instance mi1 function=@fn3 <- Continuation.resume
+  instance mi2 function=@fn4 <- Continuation.resumeWithException
+  instance mi3 function=@fn5 <- SuspendTask.run
+  instance mi4 function=@fn6 <- SuspendRegistration.register
+  instance mi5 function=@fn7 <- Continuation.resume
+  instance mi6 function=@fn8 <- Continuation.resumeWithException
+  instance mi7 function=@fn9 <- SuspendTask.run
+  instance mi8 function=@fn10 <- SuspendRegistration.register
+  str @str0 "function types"
+  str @str1 "\n"
+  output executable @fn1

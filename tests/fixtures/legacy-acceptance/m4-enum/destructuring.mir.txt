@@ -1,0 +1,233 @@
+Module
+  struct S (f1: Int, f2: Int, f3: Int)
+  interface ToString
+  interface Hash
+  fun main @fn0() -> Unit
+    bb0 entry
+      val t: (Int, Int, Int, Int)
+        Type (Int, Int, Int, Int)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+          Type Int
+          IntegerLiteral Int value=4 bits=0x00000004
+      val $binding.subject.0: (Int, Int, Int, Int)
+        Type (Int, Int, Int, Int)
+        Local t
+      val $binding.projection.1: Int
+        Type Int
+        FieldAccess 0
+          Type (Int, Int, Int, Int)
+          Local $binding.subject.0
+      val x: Int
+        Type Int
+        Local $binding.projection.1
+      val $binding.projection.2: Int
+        Type Int
+        FieldAccess 3
+          Type (Int, Int, Int, Int)
+          Local $binding.subject.0
+      val y: Int
+        Type Int
+        Local $binding.projection.2
+      val $dependency.receiver: Int
+        Type Int
+        Local x
+      val $dependency.argument.0: Int
+        Type Int
+        Local y
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $argument.2: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.f1: Int
+        Type Int
+        Local $argument.0
+      val $parameter.f2: Int
+        Type Int
+        Local $argument.1
+      val $parameter.f3: Int
+        Type Int
+        Local $argument.2
+      call s: S = @fn2 direct
+        Type Int
+        Local $parameter.f1
+        Type Int
+        Local $parameter.f2
+        Type Int
+        Local $parameter.f3
+      val $binding.subject.3: S
+        Type S
+        Local s
+      val $binding.projection.4: Int
+        Type Int
+        FieldAccess 0
+          Type S
+          Local $binding.subject.3
+      val f1: Int
+        Type Int
+        Local $binding.projection.4
+      val $dependency.argument.0: Int
+        Type Int
+        Local f1
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $binding.subject.5: (Int, S)
+        Type (Int, S)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=9 bits=0x00000009
+          Type S
+          Local s
+      val $binding.projection.6: Int
+        Type Int
+        FieldAccess 0
+          Type (Int, S)
+          Local $binding.subject.5
+      val n: Int
+        Type Int
+        Local $binding.projection.6
+      val $binding.projection.7: S
+        Type S
+        FieldAccess 1
+          Type (Int, S)
+          Local $binding.subject.5
+      val $binding.projection.8: Int
+        Type Int
+        FieldAccess 1
+          Type S
+          Local $binding.projection.7
+      val f2: Int
+        Type Int
+        Local $binding.projection.8
+      val $dependency.receiver: Int
+        Type Int
+        Local n
+      val $dependency.argument.0: Int
+        Type Int
+        Local f2
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $binding.subject.9: S
+        Type S
+        Local s
+      val $binding.projection.10: Int
+        Type Int
+        FieldAccess 0
+          Type S
+          Local $binding.subject.9
+      val a: Int
+        Type Int
+        Local $binding.projection.10
+      val $binding.projection.11: Int
+        Type Int
+        FieldAccess 2
+          Type S
+          Local $binding.subject.9
+      val c: Int
+        Type Int
+        Local $binding.projection.11
+      val $dependency.receiver: Int
+        Type Int
+        Local a
+      val $dependency.argument.0: Int
+        Type Int
+        Local c
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun println @fn1(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun ctor.S.$c0 @fn2(f1: Int, f2: Int, f3: Int) -> S <no-gc>
+    bb0 entry
+      return
+        Type S
+        StructInit S
+          Type Int
+          Local f1
+          Type Int
+          Local f2
+          Type Int
+          Local f3
+  instance mi0 function=@fn1 <- println
+  str @str0 "\n"
+  output executable @fn0

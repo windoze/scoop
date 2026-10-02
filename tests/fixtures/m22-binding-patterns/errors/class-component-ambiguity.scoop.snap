@@ -1,8 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m22-binding-patterns/errors/class-component-ambiguity.scoop:11:10: error: call to `component1` is ambiguous in extension candidate layer:
-  - fun Left.component1(): Int — tied after pairwise declaration forwarding
-  - fun Right.component1(): Int — tied after pairwise declaration forwarding

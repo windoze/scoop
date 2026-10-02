@@ -1,0 +1,31 @@
+SourceFile
+  RootPackage
+  fun taggedOr(value: Int?, fallback: Int): Int
+    =
+      Elvis
+        Var value
+        Var fallback
+  fun managedOr(value: String?, fallback: String): String
+    =
+      Elvis
+        Var value
+        Var fallback
+  fun requireRaw(value: Ptr<Int>?): Ptr<Int>
+    =
+      NullAssert
+        Var value
+  fun requireCode(value: FunPtr<(Int) -> Int>?): FunPtr<(Int) -> Int>
+    =
+      NullAssert
+        Var value
+  fun main()
+    Call println
+      Call taggedOr
+        Call Some
+          IntLiteral 41
+        IntLiteral 0
+    Call println
+      Call managedOr
+        Call Some
+          StringLiteral "managed"
+        StringLiteral "fallback"

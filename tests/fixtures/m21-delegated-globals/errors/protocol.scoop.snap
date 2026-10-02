@@ -1,9 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m21-delegated-globals/errors/protocol.scoop:11:22: error: delegated properties cannot use raw or extern storage annotations
-m21-delegated-globals/errors/protocol.scoop:14:1: error: Option shorthand cannot use raw or extern storage annotations
-m21-delegated-globals/errors/protocol.scoop:8:1: error: type `WrongExtension` has no applicable property delegate operator `getValue`
-m21-delegated-globals/errors/protocol.scoop:7:1: error: type `NoGet` has no applicable property delegate operator `getValue`

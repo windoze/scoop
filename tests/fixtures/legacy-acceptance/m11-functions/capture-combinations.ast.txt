@@ -1,0 +1,101 @@
+SourceFile
+  RootPackage
+  enum CapturedChoice
+    Text(String)
+    Empty
+  class SharedState(var value: Int)
+  fun operation(value: Int): Int
+    =
+      IntLiteral 0
+  fun makeComposite(): () -> String
+    val tuple
+      TupleLiteral
+        IntLiteral 42
+        StringLiteral "tuple"
+    val choice
+      MethodCall Text
+        Var CapturedChoice
+        StringLiteral "enum"
+    return
+      Lambda 0 suspend=false
+        parameters omitted
+        val prefix
+          WhenExpression
+            Var choice
+            arm Text(value)
+              Var value
+            arm Empty
+              StringLiteral "empty"
+        Binary Add
+          Binary Add
+            Var prefix
+            StringLiteral "-"
+          FieldAccess _2
+            Var tuple
+  fun makeIncrement(state: SharedState, amount: Int): () -> Int
+    =
+      Lambda 1 suspend=false
+        parameters omitted
+        assign .value
+          Var state
+          Binary Add
+            FieldAccess value
+              Var state
+            Var amount
+        FieldAccess value
+          Var state
+  fun main()
+    val operation: (Int) -> Int
+      Lambda 2 suspend=false
+        param value: _
+        Binary Add
+          Var value
+          IntLiteral 2
+    val composite
+      Call makeComposite
+    val state
+      Call SharedState
+        IntLiteral 39
+    val first
+      Call makeIncrement
+        Var state
+        IntLiteral 1
+    val second
+      Call makeIncrement
+        Var state
+        IntLiteral 2
+    var latest: () -> Int
+      Lambda 3 suspend=false
+        parameters omitted
+        IntLiteral 0
+    var index
+      IntLiteral 0
+    while
+      Binary Lt
+        Var index
+        IntLiteral 3
+      val snapshot
+        Var index
+      assign latest
+        Lambda 4 suspend=false
+          parameters omitted
+          Var snapshot
+      assign index
+        Binary Add
+          Var index
+          IntLiteral 1
+    Call gcCollect
+    Call println
+      Call operation
+        IntLiteral 40
+    Call println
+      Call composite
+    Call println
+      Call first
+    Call println
+      Call second
+    Call println
+      FieldAccess value
+        Var state
+    Call println
+      Call latest

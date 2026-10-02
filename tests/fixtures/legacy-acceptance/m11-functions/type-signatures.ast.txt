@@ -1,0 +1,9 @@
+SourceFile
+  RootPackage
+  struct Callbacks
+    field transform: (Int) -> Int
+    field task: suspend () -> String
+  fun register(transform: (Int) -> Int, optional: Option<(Int) -> Int>)
+  fun main()
+    Call println
+      StringLiteral "function types"

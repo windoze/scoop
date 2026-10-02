@@ -1,7 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m17-arguments/errors/positional-after-named-tail.scoop:4:5: error: no applicable candidate for `combine` in current-unit top-level candidate layer:
-  - fun combine(left: Int, middle: Int, right: Int): Int — an unnamed argument cannot follow an out-of-order named argument

@@ -1,0 +1,46 @@
+SourceFile
+  RootPackage
+  interface Describable
+    fun describe
+  class Doc(val title: String), Describable
+    fun describe
+  struct Tag : Describable
+    field v: Int
+    fun describe
+  fun isPresent<T>(value: T?): Boolean
+    =
+      WhenExpression
+        Var value
+        arm Some(_)
+          BoolLiteral true
+        arm None
+          BoolLiteral false
+  fun main()
+    val d
+      Call Doc
+        StringLiteral "report"
+    Call println
+      MethodCall describe
+        Var d
+    val i: Describable
+      Var d
+    Call println
+      MethodCall describe
+        Var i
+    val t
+      Call Tag
+        IntLiteral 1
+    val ti: Describable
+      Var t
+    Call println
+      MethodCall describe
+        Var ti
+    val a: Any
+      Var t
+    Call println
+      Is Tag false
+        Var a
+    Call println
+      Call isPresent
+        Cast Describable optional=true
+          Var a

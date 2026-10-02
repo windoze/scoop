@@ -1,0 +1,249 @@
+Module
+  class box<Int> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn6 captures=0
+    bridge function_type1 -> @fn11 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  closure cc1 $Closure$anonymous0 type=function_type3 invoke=@fn7 captures=0
+    bridge function_type1 -> @fn12 id=22143b3489e3f13726196be9a539474efb0c679dcb6163e3dbd26fff257e04f7
+  closure cc2 $Closure$reference0 type=function_type0 invoke=@fn10 captures=0
+    bridge function_type1 -> @fn13 id=5d9693508114314a5656a3b547c746f60ea163556fe8d923cbbdd2d8603a0ca0
+  generated_exact_type get0 location=closure0 nominal_id=2fcc5dceba1f09c36d231287088079138d2c04817531ae31cc6d2cc1c02b5c0b exact_id=2302a5386d95a61953db931e029826819dc2e78ed627925872f2aaa8f36b4d72
+  generated_exact_type get1 location=closure1 nominal_id=8ebe266a51e63e10ea36b0eec8b0793ce8ee272d5e0c42bd9b9531fa8d8cc2d9 exact_id=3271958d7fda800fdb84afc14e3b15bd28f62f2bd1bb902e9ebbad5b6973b6f7
+  generated_exact_type get2 location=closure2 nominal_id=f874136277b146368b5105d72074178ee40ec33e01f9439c28a2d7e1505cba93 exact_id=cb83ad14693bb4e9877fdfa2a03447b6878c94ccdd03acaa290b56769c654eba
+  generated_exact_type get3 location=class0 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn11 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  generated_callable gc1 function=@fn12 id=22143b3489e3f13726196be9a539474efb0c679dcb6163e3dbd26fff257e04f7
+  generated_callable gc2 function=@fn13 id=5d9693508114314a5656a3b547c746f60ea163556fe8d923cbbdd2d8603a0ca0
+  fun select @fn0(operation: (Int) -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local operation
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      return
+        Type Int
+        Local $call.1
+  fun select @fn1(operation: (Int) -> String) -> String
+    bb0 entry
+      call $call.1: String = <closure:function_type2> closure[function_type2]
+        Type (Int) -> String
+        Local operation
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      return
+        Type String
+        Local $call.1
+  fun apply @fn2(operation: (Int) -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local operation
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      return
+        Type Int
+        Local $call.1
+  fun apply @fn3(operation: (String) -> String) -> String
+    bb0 entry
+      call $call.1: String = <closure:function_type3> closure[function_type3]
+        Type (String) -> String
+        Local operation
+        Type String
+        StringConst @str0
+      return
+        Type String
+        Local $call.1
+  fun intIdentity @fn4(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun main @fn5() -> Unit
+    bb0 entry
+      val $argument.0: (Int) -> String
+        Type (Int) -> String
+        ClosureAlloc cc0 $Closure$lambda0
+      val $parameter.operation: (Int) -> String
+        Type (Int) -> String
+        Local $argument.0
+      call selected: String = @fn1 direct
+        Type (Int) -> String
+        Local $parameter.operation
+      val $argument.0: (String) -> String
+        Type (String) -> String
+        ClosureAlloc cc1 $Closure$anonymous0
+      val $parameter.operation: (String) -> String
+        Type (String) -> String
+        Local $argument.0
+      call anonymous: String = @fn3 direct
+        Type (String) -> String
+        Local $parameter.operation
+      val $argument.0: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc2 $Closure$reference0
+      val $parameter.operation: (Int) -> Int
+        Type (Int) -> Int
+        Local $argument.0
+      call referenced: Int = @fn2 direct
+        Type (Int) -> Int
+        Local $parameter.operation
+      val $dependency.argument.0: String
+        Type String
+        Local selected
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        Local anonymous
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        Local referenced
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun $lambda.0 @fn6($closure: (Int) -> String, value: Int) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str1
+  fun $anonymous.0 @fn7($closure: (String) -> String, value: String) -> String
+    bb0 entry
+      val $dependency.receiver: String
+        Type String
+        Local value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      return
+        Type String
+        Local $call.1
+  fun println @fn8(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn9(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun $reference.0 @fn10($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn4 direct
+        Type Int
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn11($source: (Int) -> String, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type2> closure[function_type2]
+        Type (Int) -> String
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$anonymous0.(Any) -> Any @fn12($source: (String) -> String, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type3> closure[function_type3]
+        Type (String) -> String
+        Local $source
+        Type String
+        Retype String
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn13($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  instance mi0 function=@fn8 <- println
+  instance mi1 function=@fn9 <- println
+  str @str0 "kept"
+  str @str1 "lambda"
+  str @str2 "-anonymous"
+  str @str3 "\n"
+  str @str4 "\n"
+  output executable @fn5

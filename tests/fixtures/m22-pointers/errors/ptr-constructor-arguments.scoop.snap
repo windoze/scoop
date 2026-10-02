@@ -1,9 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m22-pointers/errors/ptr-constructor-arguments.scoop:5:9: error: required `Ptr` value parameter `raw` has no argument
-m22-pointers/errors/ptr-constructor-arguments.scoop:6:18: error: `Ptr` has no value parameter named `address`
-m22-pointers/errors/ptr-constructor-arguments.scoop:7:23: error: `Ptr` value parameter `raw` is supplied more than once
-m22-pointers/errors/ptr-constructor-arguments.scoop:9:18: error: spread is not allowed for `Ptr` value parameter `raw`

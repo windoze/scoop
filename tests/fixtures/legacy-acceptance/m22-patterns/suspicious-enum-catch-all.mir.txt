@@ -1,0 +1,110 @@
+Module
+  enum Signal
+    Ready()
+    Failed()
+  interface ToString
+  interface Hash
+  fun consume @fn0(value: Signal) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+  fun describe @fn1(value: Signal) -> Int
+    bb0 entry
+      val $when.1: Signal
+        Type Signal
+        Local value
+      val $pattern.subject.2: Signal
+        Type Signal
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Signal v0
+          Type Signal
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $result.0
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb3
+    bb2 pattern.else.2
+      val Raedy: Signal
+        Type Signal
+        Local $when.1
+      val $argument.0: Signal
+        Type Signal
+        Local Raedy
+      val $parameter.value: Signal
+        Type Signal
+        Local $argument.0
+      call $call.1: Int = @fn0 direct
+        Type Signal
+        Local $parameter.value
+      assign $result.0
+        Type Int
+        Local $call.1
+      goto bb3
+    bb3 pattern.merge.3
+      return
+        Type Int
+        Local $result.0
+  fun main @fn2() -> Unit
+    bb0 entry
+      val $argument.0: Signal
+        Type Signal
+        VariantConstruct Signal v0
+      val $parameter.value: Signal
+        Type Signal
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn1 direct
+        Type Signal
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Signal
+        Type Signal
+        VariantConstruct Signal v1
+      val $parameter.value: Signal
+        Type Signal
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn1 direct
+        Type Signal
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun println @fn3(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+  instance mi0 function=@fn3 <- println
+  str @str0 "\n"
+  output executable @fn2

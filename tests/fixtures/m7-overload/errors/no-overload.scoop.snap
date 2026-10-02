@@ -1,7 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m7-overload/errors/no-overload.scoop:4:15: error: no applicable candidate for `f` in current-unit top-level candidate layer:
-  - fun f(v: String): String — argument for `v` has type Int, which is not a subtype of String

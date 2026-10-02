@@ -1,0 +1,154 @@
+SourceFile
+  RootPackage
+  enum Input
+    Number(Int)
+    Empty
+  open class Animal(val name: String)
+  class Dog() : Animal(<1 args>)
+  fun branchReturn(flag: Boolean): Int
+    =
+      IfExpression
+        Var flag
+        return
+          IntLiteral 11
+        else
+        IntLiteral 12
+  fun finallyReturn(): Int
+    =
+      TryExpression
+        IntLiteral 1
+        finally
+          return
+            IntLiteral 13
+  fun main()
+    val branch
+      IfExpression
+        BoolLiteral true
+        val base
+          IntLiteral 40
+        Binary Add
+          Var base
+          IntLiteral 2
+        else
+        IntLiteral 0
+    Call println
+      Var branch
+    val nested
+      IfExpression
+        BoolLiteral true
+        if
+          BoolLiteral false
+          IntLiteral 1
+        else
+          IntLiteral 2
+        else
+        IntLiteral 3
+    Call println
+      Var nested
+    val mixed
+      IfExpression
+        BoolLiteral true
+        IntLiteral 5
+        else
+        StringLiteral "mixed"
+    Call println
+      Is Int false
+        Var mixed
+    val inferred
+      IfExpression
+        BoolLiteral false
+        Var None
+        else
+        Call Some
+          IntLiteral 4
+    Call println
+      NullAssert
+        Var inferred
+    val animal
+      IfExpression
+        BoolLiteral true
+        Call Dog
+        else
+        Call Animal
+          StringLiteral "animal"
+    Call println
+      FieldAccess name
+        Var animal
+    val erased: Any
+      Var animal
+    val smartName
+      IfExpression
+        Is Dog false
+          Var erased
+        FieldAccess name
+          Var erased
+        else
+        StringLiteral "unknown"
+    Call println
+      Var smartName
+    val input
+      MethodCall Number
+        Var Input
+        IntLiteral 7
+    val text
+      WhenExpression
+        Var input
+        arm Number(value)
+          if
+            Binary Gt
+              Var value
+              IntLiteral 0
+            StringLiteral "positive"
+          else
+            StringLiteral "negative"
+        arm Empty
+          StringLiteral "empty"
+    Call println
+      Var text
+    val maybeWhen
+      WhenExpression
+        Var input
+        arm Empty
+          Var None
+        arm Number(value)
+          Call Some
+            Var value
+    Call println
+      NullAssert
+        Var maybeWhen
+    val normal
+      TryExpression
+        StringLiteral "normal"
+        finally
+          Call println
+            StringLiteral "normal-finally"
+    Call println
+      Var normal
+    val recovered
+      TryExpression
+        throw
+          Call UnwrapException
+        catch e: UnwrapException
+          StringLiteral "caught"
+        finally
+          Call println
+            StringLiteral "caught-finally"
+    Call println
+      Var recovered
+    val maybeTry
+      TryExpression
+        Call Some
+          IntLiteral 9
+        catch e: UnwrapException
+          Var None
+    Call println
+      NullAssert
+        Var maybeTry
+    Call println
+      Call branchReturn
+        BoolLiteral true
+    Call println
+      Call branchReturn
+        BoolLiteral false
+    Call println
+      Call finallyReturn

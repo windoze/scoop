@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m22-integers/errors/literal-missing-radix-digits.scoop:4:17: error: binary integer prefix must be followed by a valid digit

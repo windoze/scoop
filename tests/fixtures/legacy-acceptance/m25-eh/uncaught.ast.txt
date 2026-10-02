@@ -1,0 +1,6 @@
+SourceFile
+  RootPackage
+  class M25UncaughtError() : Exception(<1 args>)
+  fun main()
+    throw
+      Call M25UncaughtError

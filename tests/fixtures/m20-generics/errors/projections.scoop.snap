@@ -1,9 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m20-generics/errors/projections.scoop:3:27: error: `out` projections are not supported; nominal generic applications are invariant
-m20-generics/errors/projections.scoop:4:26: error: `in` projections are not supported; nominal generic applications are invariant
-m20-generics/errors/projections.scoop:5:28: error: star projections are not supported; use a bounded generic callable, an exact interface, or an explicit wrapper
-m20-generics/errors/projections.scoop:6:38: error: star projections are not supported; use a bounded generic callable, an exact interface, or an explicit wrapper

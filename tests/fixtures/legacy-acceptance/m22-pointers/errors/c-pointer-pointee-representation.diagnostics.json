@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "extern parameter is not ABI-safe: consumeScoopOnly.parameter1: ordinary struct `ScoopOnly` has no stable C layout",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 155,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 73
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "extern parameter is not ABI-safe: consumeEmpty.parameter1: pointer pointee `Empty` is zero-sized; only `Ptr<Unit>` maps to `void *`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 226,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 157
+    },
+    "severity": "error"
+  }
+]

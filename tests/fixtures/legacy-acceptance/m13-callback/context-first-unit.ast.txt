@@ -1,0 +1,33 @@
+SourceFile
+  RootPackage
+    @Extern(lib = "fixture_native", name = "m13_call_context_first")
+  fun callContextFirst(callback: FunPtr<(Ptr<Unit>, Int) -> Unit>, context: Ptr<Unit>, value: Int)
+  fun main()
+    val captured
+      StringLiteral "context-first"
+    @Unsafe block
+      val callback
+        Call foreignCallback<(Ptr<Unit>, Int) -> Unit>
+          Lambda 0 suspend=false
+            param value: Int
+            Call println
+              Var captured
+            Call println
+              Var value
+          IntLiteral 0
+          FieldAccess Reusable
+            Var ForeignCallbackMode
+      Call callContextFirst
+        FieldAccess function
+          Var callback
+        FieldAccess context
+          Var callback
+        IntLiteral 42
+      Call println
+        Binary Eq
+          Call foreignCallbackState
+            Var callback
+          FieldAccess Registered
+            Var ForeignCallbackState
+      Call releaseForeignCallback
+        Var callback

@@ -1,0 +1,371 @@
+Module
+  struct GcHandle<MovingResource> (raw: ULong)
+  struct PinnedPtr<MovingResource> (raw: ULong)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<MovingResource>
+    Completed(value: MovingResource)
+    Suspended()
+  enum CoroutineSlot<MovingResource>
+    Empty()
+    Value(value: MovingResource)
+  class MovingResource vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Continuation<MovingResource>
+  interface SuspendTask<MovingResource>
+  interface SuspendRegistration<MovingResource>
+  generated_exact_type get0 location=enum1 nominal_id=8f8003a17ab4228ecf5b1ee695385ad3bbd3702d1ae64c117e3027f1cd74e686 exact_id=21a98c1e39297c9f86b536c7e0bdfd50c333547fcc821b22b5361934b35e0b9d
+  generated_exact_type get1 location=enum2 nominal_id=ef2dd334ba201e5a6f22b025785f42dcbd23ab15c4b9e98e22b6916a72de3b61 exact_id=bac2a2aab181538c61f2c44464eb11ecba6ded10b210819ef39f41d877de0be3
+  generated_callable gc0 function=@fn14 id=36a9052876983aa4f7e26913b19de769225925ea8316eda5c13a7172eec2ba21
+  fun main @fn0() -> Unit
+    bb0 entry
+      val $dependency.receiver: String
+        Type String
+        StringConst @str0
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.text: String
+        Type String
+        Local $argument.0
+      assign $new.1
+        Type MovingResource
+        ClassAlloc MovingResource
+      call @fn11 direct
+        Type MovingResource
+        Local $new.1
+        Type String
+        Local $parameter.text
+      val $dependency.argument.0: MovingResource
+        Type MovingResource
+        Local $new.1
+      val $dependency.parameter.v: MovingResource
+        Type MovingResource
+        Local $dependency.argument.0
+      call handle: GcHandle<MovingResource> = @fn1 direct
+        Type MovingResource
+        Local $dependency.parameter.v
+      call @scoop_rt_gc_collect direct
+      val $dependency.argument.0: GcHandle<MovingResource>
+        Type GcHandle<MovingResource>
+        Local handle
+      val $dependency.parameter.h: GcHandle<MovingResource>
+        Type GcHandle<MovingResource>
+        Local $dependency.argument.0
+      call fromHandle: MovingResource = @fn2 direct
+        Type GcHandle<MovingResource>
+        Local $dependency.parameter.h
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type MovingResource
+          Local fromHandle
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: String
+        Type String
+        StringConst @str2
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.text: String
+        Type String
+        Local $argument.0
+      assign $new.2
+        Type MovingResource
+        ClassAlloc MovingResource
+      call @fn11 direct
+        Type MovingResource
+        Local $new.2
+        Type String
+        Local $parameter.text
+      val pinned: MovingResource
+        Type MovingResource
+        Local $new.2
+      val $dependency.argument.0: MovingResource
+        Type MovingResource
+        Local pinned
+      val $dependency.parameter.v: MovingResource
+        Type MovingResource
+        Local $dependency.argument.0
+      call pinnedPointer: PinnedPtr<MovingResource> = @fn4 direct
+        Type MovingResource
+        Local $dependency.parameter.v
+      call @scoop_rt_gc_collect direct
+      val $dependency.argument.0: PinnedPtr<MovingResource>
+        Type PinnedPtr<MovingResource>
+        Local pinnedPointer
+      val $dependency.parameter.p: PinnedPtr<MovingResource>
+        Type PinnedPtr<MovingResource>
+        Local $dependency.argument.0
+      call unpinned: MovingResource = @fn5 direct
+        Type PinnedPtr<MovingResource>
+        Local $dependency.parameter.p
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type MovingResource
+          Local unpinned
+          Type MovingResource
+          Local pinned
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      call @scoop_rt_gc_collect direct
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type MovingResource
+          Local unpinned
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun getGcHandle @fn1(v: MovingResource) -> GcHandle<MovingResource>
+    bb0 entry
+      val $dependency.local.1: MovingResource
+        Type MovingResource
+        Local v
+      val $dependency.local.2: MovingResource
+        Type MovingResource
+        Local $dependency.local.1
+      call $dependency.local.3: ULong = @scoop_rt_get_handle direct
+        Type MovingResource
+        Local $dependency.local.2
+      val $dependency.local.4: ULong
+        Type ULong
+        Local $dependency.local.3
+      call $call.1: GcHandle<MovingResource> = @fn12 direct
+        Type ULong
+        Local $dependency.local.4
+      return
+        Type GcHandle<MovingResource>
+        Local $call.1
+  fun releaseGcHandle @fn2(h: GcHandle<MovingResource>) -> MovingResource
+    bb0 entry
+      val $dependency.local.1: ULong
+        Type ULong
+        FieldAccess 0
+          Type GcHandle<MovingResource>
+          Local h
+      val $dependency.local.2: ULong
+        Type ULong
+        Local $dependency.local.1
+      call $call.1: MovingResource = @scoop_rt_release_handle direct
+        Type ULong
+        Local $dependency.local.2
+      return
+        Type MovingResource
+        Local $call.1
+  fun println @fn3(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun pin @fn4(v: MovingResource) -> PinnedPtr<MovingResource>
+    bb0 entry
+      val $dependency.local.1: MovingResource
+        Type MovingResource
+        Local v
+      val $dependency.local.2: MovingResource
+        Type MovingResource
+        Local $dependency.local.1
+      call $dependency.local.3: ULong = @scoop_rt_pin direct
+        Type MovingResource
+        Local $dependency.local.2
+      val $dependency.local.4: ULong
+        Type ULong
+        Local $dependency.local.3
+      call $call.1: PinnedPtr<MovingResource> = @fn13 direct
+        Type ULong
+        Local $dependency.local.4
+      return
+        Type PinnedPtr<MovingResource>
+        Local $call.1
+  fun unpin @fn5(p: PinnedPtr<MovingResource>) -> MovingResource
+    bb0 entry
+      val $dependency.local.1: ULong
+        Type ULong
+        FieldAccess 0
+          Type PinnedPtr<MovingResource>
+          Local p
+      val $dependency.local.2: ULong
+        Type ULong
+        Local $dependency.local.1
+      call $call.1: MovingResource = @scoop_rt_unpin direct
+        Type ULong
+        Local $dependency.local.2
+      return
+        Type MovingResource
+        Local $call.1
+  fun println @fn6(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str5
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Continuation.resume @fn7(this: Continuation<MovingResource>, value: MovingResource) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn8(this: Continuation<MovingResource>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn9(this: SuspendTask<MovingResource>, $completion: Continuation<MovingResource>) -> CoroutineStep<MovingResource>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn10(this: SuspendRegistration<MovingResource>, continuation: Continuation<MovingResource>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.MovingResource.$c0 @fn11(this: MovingResource, text: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type MovingResource
+        Local this
+        Type String
+        Local text
+      return
+  fun ctor.GcHandle.$c0 @fn12(raw: ULong) -> GcHandle<MovingResource> <no-gc>
+    bb0 entry
+      return
+        Type GcHandle<MovingResource>
+        StructInit GcHandle<MovingResource>
+          Type ULong
+          Local raw
+  fun ctor.PinnedPtr.$c1 @fn13(raw: ULong) -> PinnedPtr<MovingResource> <no-gc>
+    bb0 entry
+      return
+        Type PinnedPtr<MovingResource>
+        StructInit PinnedPtr<MovingResource>
+          Type ULong
+          Local raw
+  fun startCoroutine<MovingResource> @fn14(task: SuspendTask<MovingResource>, completion: Continuation<MovingResource>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn7 interface Continuation<MovingResource>[0]
+        Type Continuation<MovingResource>
+        Local completion
+        Type MovingResource
+        EnumField v0 f0
+          Type CoroutineStep<MovingResource>
+          Local $step
+      return
+    bb2 failed
+      call @fn8 interface Continuation<MovingResource>[1]
+        Type Continuation<MovingResource>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<MovingResource> = @fn9 interface SuspendTask<MovingResource>[0]
+        Type SuspendTask<MovingResource>
+        Local task
+        Type Continuation<MovingResource>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<MovingResource>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<MovingResource> result=MovingResource
+  coroutine_slot cl0 CoroutineSlot<MovingResource> value=MovingResource
+  coroutine_start ct0 result=MovingResource function=fn14
+  coroutine_fn cf0 @fn9 source_return=MovingResource step=cs0 immediate
+  instance mi0 function=@fn1 <- getGcHandle
+  instance mi1 function=@fn2 <- releaseGcHandle
+  instance mi2 function=@fn3 <- println
+  instance mi3 function=@fn4 <- pin
+  instance mi4 function=@fn5 <- unpin
+  instance mi5 function=@fn6 <- println
+  instance mi6 function=@fn7 <- Continuation.resume
+  instance mi7 function=@fn8 <- Continuation.resumeWithException
+  instance mi8 function=@fn9 <- SuspendTask.run
+  instance mi9 function=@fn10 <- SuspendRegistration.register
+  str @str0 "handle-"
+  str @str1 "alive"
+  str @str2 "pinned-"
+  str @str3 "alive"
+  str @str4 "\n"
+  str @str5 "\n"
+  output executable @fn0

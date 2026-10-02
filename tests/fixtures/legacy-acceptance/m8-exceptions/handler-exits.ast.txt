@@ -1,0 +1,67 @@
+SourceFile
+  RootPackage
+  fun returnFromCatch(): Int
+    try
+      throw
+        Call UnwrapException
+    catch e: UnwrapException
+      return
+        IntLiteral 7
+    finally
+      Call println
+        StringLiteral "return-finally"
+  fun replaceInCatch()
+    try
+      try
+        throw
+          Call UnwrapException
+      catch e: UnwrapException
+        throw
+          Call ArithmeticException
+      finally
+        Call println
+          StringLiteral "replace-finally"
+    catch e: ArithmeticException
+      Call println
+        StringLiteral "replacement"
+  fun noMatchRethrow()
+    try
+      try
+        throw
+          Call ClassCastException
+      catch e: ArithmeticException
+        Call println
+          StringLiteral "wrong"
+      finally
+        Call println
+          StringLiteral "rethrow-finally"
+    catch e: ClassCastException
+      Call println
+        StringLiteral "rethrown"
+  fun nestedTryInHandler()
+    try
+      throw
+        Call UnwrapException
+    catch e: UnwrapException
+      try
+        throw
+          Call ClassCastException
+      catch e: ClassCastException
+        throw
+          Call ArithmeticException
+      finally
+        Call println
+          StringLiteral "nested-finally"
+    finally
+      Call println
+        StringLiteral "handler-finally"
+  fun main()
+    Call println
+      Call returnFromCatch
+    Call replaceInCatch
+    Call noMatchRethrow
+    try
+      Call nestedTryInHandler
+    catch e: ArithmeticException
+      Call println
+        StringLiteral "nested-out"

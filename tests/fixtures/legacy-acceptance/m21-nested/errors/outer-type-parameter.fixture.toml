@@ -1,0 +1,16 @@
+schema = 1
+name = "legacy-m21-nested-errors-outer-type-parameter"
+root = "../../../m21-nested/errors/outer-type-parameter.scoop"
+inputs = ["../../../m21-nested/errors/outer-type-parameter.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["legacy", "m21-nested", "single-file", "negative"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "outer-type-parameter.diagnostics.json"}

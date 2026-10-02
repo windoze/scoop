@@ -1,0 +1,155 @@
+SourceFile
+  RootPackage
+  struct Pair<A, B>
+    field first: A
+    field second: B
+  class Box<A, B>(val first: A, val second: B)
+  enum Choice<A, B>
+    Both(A, B)
+  class Factory()
+    fun create
+  fun pair<A, B>(first: A, second: B): Pair<A, B>
+    =
+      Call Pair
+        Var first
+        Var second
+  fun A.attach<A, B>(second: B): Pair<A, B>
+    =
+      Call Pair
+        This
+        Var second
+  fun apply<A, B>(value: A, operation: (A) -> B): B
+    =
+      Call operation
+        Var value
+  fun describe(value: Int): String
+    =
+      MethodCall toString
+        Var value
+  fun nested<A, B>(value: Pair<A, B>): B
+    =
+      FieldAccess second
+        Var value
+  fun gather<A, B>(value: A, fallback: B, label: B = <expr>, vararg rest: B): B
+    =
+      Var label
+  fun bounded<A, B>(first: A, second: B): String where B : ToString
+    =
+      MethodCall toString
+        Var second
+  fun overload<A, B>(first: A, second: B): String
+    =
+      StringLiteral "generic"
+  fun overload<A, B>(first: Int, second: B): String
+    =
+      StringLiteral "int"
+  fun localCalls(): String
+    fun localPair<A, B>(first: A, second: B): Pair<A, B>
+      Call Pair
+        Var first
+        Var second
+    val result
+      Call localPair<Int, _>
+        IntLiteral 1
+        StringLiteral "local"
+    return
+      FieldAccess second
+        Var result
+  fun main()
+    val function
+      Call pair<Int, _>
+        IntLiteral 1
+        StringLiteral "function"
+    val structure
+      Call Pair<_, String>
+        IntLiteral 2
+        StringLiteral "struct"
+    val box
+      Call Box<Int, _>
+        IntLiteral 3
+        StringLiteral "class"
+    val variant
+      MethodCall Both<_, String>
+        Var Choice
+        IntLiteral 4
+        StringLiteral "variant"
+    val method
+      MethodCall create<_, String>
+        Call Factory
+        IntLiteral 5
+        StringLiteral "method"
+    val extension
+      MethodCall attach<_, String>
+        IntLiteral 6
+        StringLiteral "extension"
+    val lambda: String
+      Call apply<Int, _>
+        IntLiteral 7
+        Lambda 0 suspend=false
+          param value: _
+          MethodCall toString
+            Var value
+    val reference
+      Call apply<Int, _>
+        IntLiteral 8
+        CallableReference 0 describe
+    val postponed
+      Call nested<Int, _>
+        Call Pair
+          IntLiteral 9
+          StringLiteral "nested"
+    val namedDefault
+      Call gather<Int, _>
+        IntLiteral 10
+        Argument fallback=
+          StringLiteral "named"
+    val gathered
+      Call gather<Int, _>
+        IntLiteral 11
+        StringLiteral "fallback"
+        StringLiteral "label"
+        StringLiteral "vararg"
+    val constrained
+      Call bounded<Int, _>
+        IntLiteral 12
+        StringLiteral "bounded"
+    val selected
+      Call overload<Int, _>
+        IntLiteral 13
+        StringLiteral "selected"
+    Call println
+      FieldAccess second
+        Var function
+    Call println
+      FieldAccess second
+        Var structure
+    Call println
+      FieldAccess second
+        Var box
+    when
+      Var variant
+      arm Choice.Both(_, value)
+        Call println
+          Var value
+    Call println
+      FieldAccess second
+        Var method
+    Call println
+      FieldAccess second
+        Var extension
+    Call println
+      Var lambda
+    Call println
+      Var reference
+    Call println
+      Var postponed
+    Call println
+      Var namedDefault
+    Call println
+      Var gathered
+    Call println
+      Var constrained
+    Call println
+      Var selected
+    Call println
+      Call localCalls

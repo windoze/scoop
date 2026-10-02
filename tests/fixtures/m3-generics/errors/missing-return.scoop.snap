@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m3-generics/errors/missing-return.scoop:1:27: error: non-Unit function `f` may complete without returning a value

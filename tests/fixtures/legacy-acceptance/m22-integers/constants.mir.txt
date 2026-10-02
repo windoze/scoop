@@ -1,0 +1,204 @@
+Module
+  global0 STATIC_MAX_UNSIGNED: ULong managed initial=encoded(ULong:0xffffffffffffffff)
+  interface ToString
+  interface Hash
+  fun withDefault @fn0(value: ULong) -> ULong
+    bb0 entry
+      return
+        Type ULong
+        Local value
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=18446744073709551615 bits=0xffffffffffffffff
+      val $dependency.parameter.value: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type ULong
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=-128 bits=0x80
+      val $dependency.parameter.value: Int8
+        Type Int8
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Int8
+        Local $dependency.parameter.value
+      val $dependency.argument.0: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=0 bits=0x00
+      val $dependency.parameter.value: UInt8
+        Type UInt8
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type UInt8
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=-2147483648 bits=0x80000000
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2147483647 bits=0x7fffffff
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=1 bits=0x01
+      val $dependency.parameter.value: UInt8
+        Type UInt8
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type UInt8
+        Local $dependency.parameter.value
+      val $dependency.argument.0: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=255 bits=0xff
+      val $dependency.parameter.value: UInt8
+        Type UInt8
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type UInt8
+        Local $dependency.parameter.value
+      call $dependency.argument.0: ULong = @fn2 direct
+      val $dependency.parameter.value: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type ULong
+        Local $dependency.parameter.value
+      val $parameter.value: ULong
+        Type ULong
+        IntegerLiteral ULong value=18446744073709551615 bits=0xffffffffffffffff
+      call $dependency.argument.0: ULong = @fn0 direct
+        Type ULong
+        Local $parameter.value
+      val $dependency.parameter.value: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type ULong
+        Local $dependency.parameter.value
+      return
+  fun $get$STATIC_MAX_UNSIGNED @fn2() -> ULong <no-gc>
+    bb0 entry
+      return
+        Type ULong
+        GlobalRead STATIC_MAX_UNSIGNED
+  fun println @fn3(value: ULong) -> Unit
+    bb0 entry
+      val $dependency.local.1: ULong
+        Type ULong
+        Local value
+      call $dependency.local.2: String = external3 direct
+        Type ULong
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external4 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external4 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn4(value: Int8) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int8
+        Type Int8
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int8
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external4 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str1
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external4 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn5(value: UInt8) -> Unit
+    bb0 entry
+      val $dependency.local.1: UInt8
+        Type UInt8
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type UInt8
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external4 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external4 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn6(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external4 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external4 direct
+        Type String
+        Local $dependency.local.5
+      return
+  instance mi0 function=@fn3 <- println
+  instance mi1 function=@fn4 <- println
+  instance mi2 function=@fn5 <- println
+  instance mi3 function=@fn6 <- println
+  str @str0 "\n"
+  str @str1 "\n"
+  str @str2 "\n"
+  str @str3 "\n"
+  output executable @fn1

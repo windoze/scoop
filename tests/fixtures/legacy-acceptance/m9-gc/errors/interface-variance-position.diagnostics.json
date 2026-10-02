@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_PARSE_ERROR",
+    "message": "nominal type parameters are invariant; declaration-site `in`/`out` is not supported",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 21,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 18
+    },
+    "severity": "error"
+  }
+]

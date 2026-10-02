@@ -1,8 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m22-integers/errors/literal-overload-ambiguity.scoop:7:13: error: call to `choose` is ambiguous in current-unit top-level candidate layer:
-  - fun choose(value: Int8): String — tied after pairwise declaration forwarding; requires integer literal exact commit: argument for `value` = Int8
-  - fun choose(value: Int16): String — tied after pairwise declaration forwarding; requires integer literal exact commit: argument for `value` = Int16

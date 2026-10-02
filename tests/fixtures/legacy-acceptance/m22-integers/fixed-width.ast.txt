@@ -1,0 +1,304 @@
+SourceFile
+  RootPackage
+  fun defaultKind(value: Int): String
+    =
+      StringLiteral "Int"
+  fun defaultKind(value: Long): String
+    =
+      StringLiteral "Long"
+  fun unsignedDefaultKind(value: UInt): String
+    =
+      StringLiteral "UInt"
+  fun unsignedDefaultKind(value: ULong): String
+    =
+      StringLiteral "ULong"
+  fun second<T>(first: T, second: T): T
+    =
+      Var second
+  fun main()
+    val signed8: Int8
+      IntLiteral 127
+    val signed16: Int16
+      IntLiteral 32767
+    val signed32: Int
+      IntLiteral 2147483647
+    val signed64: Long
+      IntLiteral 9223372036854775807L
+    val unsigned8: UInt8
+      IntLiteral 255u
+    val unsigned16: UInt16
+      IntLiteral 65535u
+    val unsigned32: UInt
+      IntLiteral 4294967295u
+    val unsigned64: ULong
+      IntLiteral 18446744073709551615uL
+    val binary: UInt8
+      IntLiteral 0b11110000u
+    val hexadecimal: Int16
+      IntLiteral 0x7fff
+    val minimum8: Int8
+      Unary Neg
+        IntLiteral 128
+    val minimum16: Int16
+      Unary Neg
+        IntLiteral 32768
+    val minimum32: Int
+      Unary Neg
+        IntLiteral 2147483648
+    val minimum64: Long
+      Unary Neg
+        IntLiteral 9223372036854775808L
+    Call println
+      Binary Add
+        Var signed8
+        IntLiteral 1
+    Call println
+      Binary Add
+        Var signed16
+        IntLiteral 1
+    Call println
+      Binary Add
+        Var signed32
+        IntLiteral 1
+    Call println
+      Binary Add
+        Var signed64
+        IntLiteral 1L
+    Call println
+      Binary Add
+        Var unsigned8
+        IntLiteral 1u
+    Call println
+      Binary Add
+        Var unsigned16
+        IntLiteral 1u
+    Call println
+      Binary Add
+        Var unsigned32
+        IntLiteral 1u
+    Call println
+      Binary Add
+        Var unsigned64
+        IntLiteral 1uL
+    Call println
+      Var binary
+    Call println
+      Var hexadecimal
+    Call println
+      Unary Neg
+        Var unsigned8
+    Call println
+      Unary Neg
+        IntLiteral 1u
+    Call println
+      Binary Sub
+        Var minimum8
+        IntLiteral 1
+    Call println
+      Binary Mul
+        Var signed8
+        IntLiteral 2
+    var incremented: Int8
+      IntLiteral 127
+    val beforeIncrement
+      Update Postfix Increment
+        Place incremented
+    Call println
+      Var incremented
+    val beforeDecrement
+      Update Postfix Decrement
+        Place incremented
+    Call println
+      Var incremented
+    Call println
+      Var beforeIncrement
+    Call println
+      Var beforeDecrement
+    Call println
+      Binary Div
+        Var minimum8
+        Unary Neg
+          IntLiteral 1
+    Call println
+      Binary Rem
+        Var minimum16
+        Unary Neg
+          IntLiteral 1
+    Call println
+      Binary Div
+        Var minimum32
+        Unary Neg
+          IntLiteral 1
+    Call println
+      Binary Rem
+        Var minimum64
+        Unary Neg
+          IntLiteral 1L
+    try
+      Call println
+        Binary Div
+          Var signed8
+          IntLiteral 0
+    catch error: ArithmeticException
+      Call println
+        StringLiteral "division-by-zero"
+    Call println
+      Binary Add
+        IntLiteral 1
+        Var minimum8
+    Call println
+      Binary Eq
+        IntLiteral 1
+        Var minimum8
+    Call println
+      Binary Eq
+        Var minimum8
+        Unary Neg
+          IntLiteral 128
+    Call println
+      InfixCall and
+        IntLiteral 1
+        Var signed8
+    Call println
+      Binary Lt
+        Var minimum8
+        IntLiteral 0
+    Call println
+      Binary Gt
+        Var unsigned8
+        IntLiteral 0u
+    val unsignedMinusPattern: UInt8
+      Unary Neg
+        IntLiteral 1u
+    when
+      Var unsignedMinusPattern
+      arm -1u
+        Call println
+          StringLiteral "unsigned-minus-pattern"
+      else
+        Call println
+          StringLiteral "unreachable"
+    Call println
+      InfixCall shl
+        IntLiteral 1
+        Unary Neg
+          IntLiteral 1L
+    Call println
+      InfixCall ushr
+        Unary Neg
+          IntLiteral 1
+        IntLiteral 1L
+    Call println
+      InfixCall shr
+        Var unsigned8
+        IntLiteral 7L
+    Call println
+      InfixCall shr
+        Var minimum8
+        IntLiteral 7L
+    Call println
+      MethodCall toUInt64
+        Var minimum8
+    Call println
+      MethodCall toUInt8
+        IntLiteral 257
+    Call println
+      MethodCall toInt8
+        Var unsigned64
+    Call println
+      MethodCall toInt64
+        Var unsigned32
+    Call println
+      Call defaultKind
+        IntLiteral 1
+    Call println
+      Call defaultKind
+        IntLiteral 2147483648
+    Call println
+      Call unsignedDefaultKind
+        IntLiteral 1u
+    Call println
+      Call unsignedDefaultKind
+        IntLiteral 4294967296u
+    Call println
+      Call second
+        IntLiteral 1
+        IntLiteral 2147483648
+    Call println
+      Call second
+        IntLiteral 2147483648
+        IntLiteral 1
+    val jointlyInferredArray
+      ArrayLiteral
+        IntLiteral 1
+        IntLiteral 2147483648
+    Call println
+      Binary Add
+        Index
+          Var jointlyInferredArray
+          IntLiteral 0L
+        Index
+          Var jointlyInferredArray
+          IntLiteral 1L
+    val jointlyInferredIf
+      IfExpression
+        BoolLiteral false
+        IntLiteral 1
+        else
+        IntLiteral 2147483648
+    Call println
+      Var jointlyInferredIf
+    val jointlyInferredWhen
+      WhenExpression
+        Var signed8
+        arm 127
+          IntLiteral 1
+        else
+          IntLiteral 2147483648
+    Call println
+      Var jointlyInferredWhen
+    val jointlyInferredTry
+      TryExpression
+        IntLiteral 1
+        catch error: ArithmeticException
+          IntLiteral 2147483648
+    Call println
+      Var jointlyInferredTry
+    val byte: Byte
+      IntLiteral 42
+    val short: Short
+      IntLiteral 42
+    val int32: Int32
+      IntLiteral 42
+    val int64: Int64
+      IntLiteral 42L
+    val ubyte: UByte
+      IntLiteral 42u
+    val ushort: UShort
+      IntLiteral 42u
+    val uint32: UInt32
+      IntLiteral 42u
+    val uint64: UInt64
+      IntLiteral 42uL
+    Call println
+      Binary Add
+        Binary Add
+          Binary Add
+            MethodCall toInt64
+              Var byte
+            MethodCall toInt64
+              Var short
+          MethodCall toInt64
+            Var int32
+        Var int64
+    Call println
+      Binary Add
+        Binary Add
+          Binary Add
+            MethodCall toUInt64
+              Var ubyte
+            MethodCall toUInt64
+              Var ushort
+          MethodCall toUInt64
+            Var uint32
+        Var uint64

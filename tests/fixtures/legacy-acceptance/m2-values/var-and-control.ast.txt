@@ -1,0 +1,34 @@
+SourceFile
+  RootPackage
+  fun main()
+    var n
+      IntLiteral 0
+    var sum
+      IntLiteral 0
+    while
+      Binary Lt
+        Var n
+        IntLiteral 5
+      assign n
+        Binary Add
+          Var n
+          IntLiteral 1
+      if
+        Binary Eq
+          Binary Mul
+            Binary Div
+              Var n
+              IntLiteral 2
+            IntLiteral 2
+          Var n
+        assign sum
+          Binary Add
+            Var sum
+            Var n
+      else
+        assign sum
+          Binary Sub
+            Var sum
+            IntLiteral 1
+    Call println
+      Var sum

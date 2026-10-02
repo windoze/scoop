@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m22-copy-update/errors/nested-path.scoop:8:32: error: copy update fields must be direct names, not nested paths

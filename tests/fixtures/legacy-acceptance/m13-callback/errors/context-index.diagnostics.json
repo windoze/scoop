@@ -1,0 +1,41 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "foreign callback `contextIndex` must be a compile-time integer literal",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 150,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 145
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "foreign callback `contextIndex` is outside the native signature",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 345,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 344
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "foreign callback context parameter must be exactly `Ptr<Unit>`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 540,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 539
+    },
+    "severity": "error"
+  }
+]

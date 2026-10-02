@@ -1,0 +1,9 @@
+SourceFile
+  RootPackage
+  class ExplodingDelegate()
+    operator fun provideDelegate
+    operator fun getValue
+  val failed: Int by <expr>
+  fun main()
+    Call println
+      StringLiteral "main must not run"

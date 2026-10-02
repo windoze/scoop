@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m11-functions/errors/bound-reference-unknown-member.scoop:4:33: error: type `Selector` has no method `missing`

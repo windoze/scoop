@@ -1,0 +1,18 @@
+SourceFile
+  RootPackage
+  fun main()
+    try
+      throw
+        Call ArithmeticException
+    catch e: UnwrapException
+      Call println
+        StringLiteral "unwrap"
+    catch e: ArithmeticException
+      Call println
+        StringLiteral "arith"
+    catch e: Exception
+      Call println
+        StringLiteral "generic"
+    finally
+      Call println
+        StringLiteral "done"

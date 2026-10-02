@@ -1,0 +1,470 @@
+Module
+  struct Pair<Int> (maybe: Option<Int>, value: Int)
+  enum Option<Int>
+    Some(_0: Int)
+    None()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Duo<Int>
+    Both(_1: Option<Int>, _2: Int)
+  enum Option<Option<Int>>
+    Some(_0: Option<Int>)
+    None()
+  class ArrayIterator<Int> vtable=0 itables=1
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Iterable<Int>
+  interface Iterator<Int>
+  interface ToString
+  interface Hash
+  fun pick @fn0(maybe: Option<Int>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun pick @fn1(maybe: Option<String>, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun main @fn2() -> Unit
+    bb0 entry
+      val $argument.0: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.maybe: Option<Int>
+        Type Option<Int>
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $dependency.argument.0: Int = @fn4 direct
+        Type Option<Int>
+        Local $parameter.maybe
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $parameter.maybe: Option<Int>
+        Type Option<Int>
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call pair: Pair<Int> = @fn11 direct
+        Type Option<Int>
+        Local $parameter.maybe
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 1
+          Type Pair<Int>
+          Local pair
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $parameter._1: Option<Int>
+        Type Option<Int>
+        Local $argument.0
+      val $parameter._2: Int
+        Type Int
+        Local $argument.1
+      val duo: Duo<Int>
+        Type Duo<Int>
+        VariantConstruct Duo<Int> v0
+          Type Option<Int>
+          Local $parameter._1
+          Type Int
+          Local $parameter._2
+      val $when.1: Duo<Int>
+        Type Duo<Int>
+        Local duo
+      val $pattern.subject.2: Duo<Int>
+        Type Duo<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Duo<Int> v0
+          Type Duo<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val value: Int
+        Type Int
+        VariantPayloadProject Duo<Int> v0 f1
+          Type Duo<Int>
+          Local $pattern.subject.2
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb3
+    bb2 pattern.else.2
+      unreachable
+    bb3 pattern.merge.3
+      val $argument.0: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $parameter.maybe: Option<Int>
+        Type Option<Int>
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $dependency.argument.0: Int = @fn0 direct
+        Type Option<Int>
+        Local $parameter.maybe
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+      val $dependency.parameter._1: Option<Int>
+        Type Option<Int>
+        Local $dependency.argument.0
+      val $argument.0: Option<Option<Int>>
+        Type Option<Option<Int>>
+        VariantConstruct Option<Option<Int>> v0
+          Type Option<Int>
+          Local $dependency.parameter._1
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $parameter.maybe: Option<Option<Int>>
+        Type Option<Option<Int>>
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $dependency.argument.0: Int = @fn6 direct
+        Type Option<Option<Int>>
+        Local $parameter.maybe
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Array<Int>
+        Type Array<Int>
+        ArrayLiteral Array<Int>
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $parameter.values: Array<Int>
+        Type Array<Int>
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $dependency.argument.0: Int = @fn7 direct
+        Type Array<Int>
+        Local $parameter.values
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: (Option<Int>, Int)
+        Type (Option<Int>, Int)
+        TupleLiteral
+          Type Option<Int>
+          VariantConstruct Option<Int> v1
+          Type Int
+          IntegerLiteral Int value=13 bits=0x0000000d
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=14 bits=0x0000000e
+      val $parameter.pair: (Option<Int>, Int)
+        Type (Option<Int>, Int)
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $dependency.argument.0: Int = @fn8 direct
+        Type (Option<Int>, Int)
+        Local $parameter.pair
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun iterator @fn3(this: Array<Int>) -> Iterator<Int>
+    bb0 entry
+      val $dependency.local.1: Array<Int>
+        Type Array<Int>
+        Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Array<Int>
+        Type Array<Int>
+        Local $dependency.local.1
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.2
+      assign $new.1
+        Type ArrayIterator<Int>
+        ClassAlloc ArrayIterator<Int>
+      call @fn10 direct
+        Type ArrayIterator<Int>
+        Local $new.1
+        Type Array<Int>
+        Local $dependency.local.3
+        Type Long
+        Local $dependency.local.4
+      return
+        Type Iterator<Int>
+        Retype Iterator<Int>
+          Type ArrayIterator<Int>
+          Local $new.1
+  fun choose @fn4(maybe: Option<Int>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun println @fn5(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun nested @fn6(maybe: Option<Option<Int>>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun arrayValue @fn7(values: Array<Int>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun tupleValue @fn8(pair: (Option<Int>, Int), value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun next @fn9(this: ArrayIterator<Int>) -> Option<Int>
+    bb0 entry
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayIterator<Int>
+          Local this
+      val $dependency.local.3: Long
+        Type Long
+        ArrayLen Array<Int>
+          Type Array<Int>
+          FieldAccess 0
+            Type ArrayIterator<Int>
+            Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      val $dependency.local.5: Array<Int>
+        Type Array<Int>
+        FieldAccess 0
+          Type ArrayIterator<Int>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayIterator<Int>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      val $arr.1: Array<Int>
+        Type Array<Int>
+        Local $dependency.local.5
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.7
+      branch bb4 bb3
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb2 if.merge.2
+      return
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+    bb3 logic.rhs.3
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen Array<Int>
+            Type Array<Int>
+            Local $arr.1
+      goto bb5
+    bb4 logic.short.4
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb5
+    bb5 logic.merge.5
+      branch bb6 bb7
+        Type Boolean
+        Local $logic.1
+    bb6 if.then.6
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external2 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb7 if.merge.7
+      val $dependency.local.1: Int
+        Type Int
+        ArrayGet Array<Int>
+          Type Array<Int>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayIterator<Int>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.9
+      field_set 1
+        Type ArrayIterator<Int>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.8
+          Type Long
+          Local $dependency.local.10
+      val $dependency.local.11: Int
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.12: Int
+        Type Int
+        Local $dependency.local.11
+      return
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+          Type Int
+          Local $dependency.local.12
+  fun init.ArrayIterator.$c0 @fn10(this: ArrayIterator<Int>, source: Array<Int>, index: Long) -> Unit
+    bb0 entry
+      field_set 0
+        Type ArrayIterator<Int>
+        Local this
+        Type Array<Int>
+        Local source
+      field_set 1
+        Type ArrayIterator<Int>
+        Local this
+        Type Long
+        Local index
+      return
+  fun ctor.Pair.$c0 @fn11(maybe: Option<Int>, value: Int) -> Pair<Int> <no-gc>
+    bb0 entry
+      return
+        Type Pair<Int>
+        StructInit Pair<Int>
+          Type Option<Int>
+          Local maybe
+          Type Int
+          Local value
+  instance mi0 function=@fn3 <- iterator
+  instance mi1 function=@fn4 <- choose
+  instance mi2 function=@fn5 <- println
+  instance mi3 function=@fn6 <- nested
+  instance mi4 function=@fn7 <- arrayValue
+  instance mi5 function=@fn8 <- tupleValue
+  instance mi6 function=@fn9 <- next
+  str @str0 "\n"
+  output executable @fn2

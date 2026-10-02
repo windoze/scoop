@@ -1,0 +1,48 @@
+SourceFile
+  RootPackage
+    @Extern(lib = "fixture_native", name = "m13_start_many")
+  fun startMany(callback: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, base: Int, count: Int): Ptr<Unit>
+    @Extern(lib = "fixture_native", name = "m13_join_many")
+  fun joinMany(group: Ptr<Unit>): Int
+  class RaceGate(var group: Ptr<Unit>?, var callback: ForeignCallback<(Int, Ptr<Unit>) -> Int>?)
+  class RaceRegistration(val gate: RaceGate), SuspendRegistration<Int>
+    public fun register
+  class RaceTask(val gate: RaceGate), SuspendTask<Int>
+    public suspend fun run
+  class RaceCompletion(), Continuation<Int>
+    public fun resume
+    public fun resumeWithException
+  fun main()
+    @Unsafe block
+      val gate
+        Call RaceGate
+          Var None
+          Var None
+      Call startCoroutine
+        Call RaceTask
+          Var gate
+        Call RaceCompletion
+      Call println
+        StringLiteral "suspended"
+      Call println
+        Call joinMany
+          NullAssert
+            FieldAccess group
+              Var gate
+      val callback
+        NullAssert
+          FieldAccess callback
+            Var gate
+      Call println
+        Binary Eq
+          Call foreignCallbackState
+            Var callback
+          FieldAccess Failed
+            Var ForeignCallbackState
+      Call println
+        Is IllegalStateException false
+          NullAssert
+            Call foreignCallbackFailure
+              Var callback
+      Call releaseForeignCallback
+        Var callback

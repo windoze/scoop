@@ -1,0 +1,24 @@
+SourceFile
+  RootPackage
+  public interface VisibleValue
+    fun value
+  internal class VisibleValueImpl(), VisibleValue
+    public fun value
+  public open class VisibleBase()
+    protected fun inheritedValue
+  internal class VisibleDerived() : VisibleBase(<0 args>)
+    fun readInherited
+  private fun localValue(): Int
+    =
+      IntLiteral 11
+  fun main()
+    val value: VisibleValue
+      Call VisibleValueImpl
+    Call println
+      MethodCall value
+        Var value
+    Call println
+      MethodCall readInherited
+        Call VisibleDerived
+    Call println
+      Call localValue

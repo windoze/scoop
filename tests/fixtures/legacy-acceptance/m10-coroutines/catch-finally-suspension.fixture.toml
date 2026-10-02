@@ -1,0 +1,31 @@
+schema = 1
+name = "legacy-m10-coroutines-catch-finally-suspension"
+root = "../../m10-coroutines/catch-finally-suspension.scoop"
+inputs = ["../../m10-coroutines/catch-finally-suspension.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["legacy", "m10-coroutines", "single-file", "run", "moving-gc"]
+
+[[variants]]
+name = "normal"
+
+[[variants]]
+name = "moving"
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "catch-finally-suspension.ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "catch-finally-suspension.hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "catch-finally-suspension.mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "catch-finally-suspension.lir.txt"}]
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "catch-returned\n42\nreturn-returned\n2\n40\nthrow-returned\n3\n42\noverride-return-returned\n4\n45\noverride-throw-returned\n5\n46\n"
+stderr = ""

@@ -1,0 +1,22 @@
+SourceFile
+  RootPackage
+  fun readLeft(): Int
+    =
+      FieldAccess value
+        Var Left
+  fun readRight(): Int
+    =
+      FieldAccess value
+        Var Right
+  class Left()
+    companion object
+      val value: Int =
+        Call readRight
+  class Right()
+    companion object
+      val value: Int =
+        Call readLeft
+  fun main()
+    Call println
+      FieldAccess value
+        Var Left

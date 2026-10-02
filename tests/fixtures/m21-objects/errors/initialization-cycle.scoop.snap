@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m21-objects/errors/initialization-cycle.scoop:6:22: error: initialization cycle: object:Left -> object:Right -> object:Left

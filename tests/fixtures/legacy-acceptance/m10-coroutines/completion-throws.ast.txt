@@ -1,0 +1,62 @@
+SourceFile
+  RootPackage
+  class Gate(var waiter: Continuation<Int>?)
+    fun complete
+    fun fail
+  class Registration(val gate: Gate), SuspendRegistration<Int>
+    public fun register
+  class ImmediateTask(), SuspendTask<Int>
+    public suspend fun run
+  class ImmediateFailureTask(), SuspendTask<Int>
+    public suspend fun run
+  class WaitingTask(val gate: Gate), SuspendTask<Int>
+    public suspend fun run
+  class ThrowingCompletion(), Continuation<Int>
+    public fun resume
+    public fun resumeWithException
+  fun launch(task: SuspendTask<Int>, completion: Continuation<Int>)
+    Call startCoroutine
+      Var task
+      Var completion
+  fun main()
+    try
+      Call launch
+        Call ImmediateTask
+        Call ThrowingCompletion
+    catch exception: IllegalStateException
+      Call println
+        StringLiteral "immediate-success"
+    try
+      Call launch
+        Call ImmediateFailureTask
+        Call ThrowingCompletion
+    catch exception: IllegalStateException
+      Call println
+        StringLiteral "immediate-failure"
+    val success
+      Call Gate
+        Var None
+    Call launch
+      Call WaitingTask
+        Var success
+      Call ThrowingCompletion
+    try
+      MethodCall complete
+        Var success
+        IntLiteral 1
+    catch exception: IllegalStateException
+      Call println
+        StringLiteral "resumed-success"
+    val failure
+      Call Gate
+        Var None
+    Call launch
+      Call WaitingTask
+        Var failure
+      Call ThrowingCompletion
+    try
+      MethodCall fail
+        Var failure
+    catch exception: IllegalStateException
+      Call println
+        StringLiteral "resumed-failure"

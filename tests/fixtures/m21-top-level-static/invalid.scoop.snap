@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m21-top-level-static/invalid.scoop:5:19: error: `addressOf` argument must be an addressable local, parameter, global, or value-type `this`

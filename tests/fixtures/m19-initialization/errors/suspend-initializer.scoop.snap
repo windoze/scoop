@@ -1,7 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m19-initialization/errors/suspend-initializer.scoop:4:22: error: suspend function `suspendedValue` cannot be called from constructor initialization
-m19-initialization/errors/suspend-initializer.scoop:9:9: error: suspend function `suspendedValue` cannot be called from constructor initialization

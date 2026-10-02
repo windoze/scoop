@@ -1,0 +1,34 @@
+SourceFile
+  RootPackage
+  struct Box<T>
+    field value: T
+    fun get
+  struct Pair<A, B>
+    field first: A
+    field second: B
+  interface Readable
+    fun read
+  struct Holder<T> : Readable
+    field value: T
+    fun read
+  fun main()
+    val pair
+      Call Pair
+        Call Box
+          IntLiteral 7
+        Call Box
+          StringLiteral "seven"
+    Call println
+      MethodCall get
+        FieldAccess first
+          Var pair
+    Call println
+      MethodCall get
+        FieldAccess second
+          Var pair
+    val readable: Readable
+      Call Holder
+        IntLiteral 9
+    Call println
+      MethodCall read
+        Var readable

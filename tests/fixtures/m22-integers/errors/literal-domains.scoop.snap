@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m22-integers/errors/literal-domains.scoop:4:40: error: integer literal `9223372036854775808` is not representable as Long

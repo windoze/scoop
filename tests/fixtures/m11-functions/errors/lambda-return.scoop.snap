@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m11-functions/errors/lambda-return.scoop:2:32: error: a lambda cannot use `return`; use an anonymous function for local returns

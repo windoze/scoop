@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m2-values/errors/unknown-field.scoop:5:15: error: struct `Point` has no field `z`

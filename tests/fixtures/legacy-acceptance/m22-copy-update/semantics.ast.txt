@@ -1,0 +1,147 @@
+SourceFile
+  RootPackage
+  fun traceInt(label: String, value: Int): Int
+    Call println
+      Var label
+    return
+      Var value
+  fun traceText(label: String, value: String): String
+    Call println
+      Var label
+    return
+      Var value
+  struct Point
+    field x: Int
+    field y: Int
+  fun tracePoint(value: Point): Point
+    Call println
+      StringLiteral "base"
+    return
+      Var value
+  fun defaultMarker(): String
+    Call println
+      StringLiteral "default-marker"
+    return
+      StringLiteral "marker"
+  struct Stamped
+    field value: Int
+    field marker: String = <expr>
+  struct NamedEvent
+    field code: Int
+    field text: String
+  struct ConstructorEvent
+    field count: Int
+    field label: String
+  class Token(val text: String)
+  struct ManagedValue
+    field token: Token
+  fun printNamed(value: NamedEvent)
+    Call println
+      FieldAccess code
+        Var value
+    Call println
+      FieldAccess text
+        Var value
+  fun printConstructor(value: ConstructorEvent)
+    Call println
+      FieldAccess count
+        Var value
+    Call println
+      FieldAccess label
+        Var value
+  fun main()
+    val original
+      Call Point
+        IntLiteral 1
+        IntLiteral 2
+    val changed
+      CopyUpdate
+        base
+          Call tracePoint
+            Var original
+        field y
+          Call traceInt
+            StringLiteral "rhs-y"
+            IntLiteral 20
+        field x
+          Call traceInt
+            StringLiteral "rhs-x"
+            IntLiteral 10
+    Call println
+      FieldAccess x
+        Var original
+    Call println
+      FieldAccess y
+        Var original
+    Call println
+      FieldAccess x
+        Var changed
+    Call println
+      FieldAccess y
+        Var changed
+    val stamped
+      Call Stamped
+        IntLiteral 3
+    val restamped
+      CopyUpdate
+        base
+          Var stamped
+        field value
+          IntLiteral 4
+    Call println
+      FieldAccess marker
+        Var stamped
+    Call println
+      FieldAccess marker
+        Var restamped
+    val named
+      Call NamedEvent
+        IntLiteral 5
+        StringLiteral "old"
+    val namedChanged
+      CopyUpdate
+        base
+          Var named
+        field text
+          Call traceText
+            StringLiteral "named-rhs"
+            StringLiteral "new"
+    Call printNamed
+      Var named
+    Call printNamed
+      Var namedChanged
+    val constructor
+      Call ConstructorEvent
+        IntLiteral 6
+        StringLiteral "before"
+    val constructorChanged
+      CopyUpdate
+        base
+          Var constructor
+        field label
+          Call traceText
+            StringLiteral "constructor-rhs"
+            StringLiteral "after"
+    Call printConstructor
+      Var constructor
+    Call printConstructor
+      Var constructorChanged
+    val managed
+      Call ManagedValue
+        Call Token
+          StringLiteral "managed-before"
+    val managedChanged
+      CopyUpdate
+        base
+          Var managed
+        field token
+          Call Token
+            StringLiteral "managed-after"
+    Call println
+      FieldAccess text
+        FieldAccess token
+          Var managed
+    Call println
+      FieldAccess text
+        FieldAccess token
+          Var managedChanged

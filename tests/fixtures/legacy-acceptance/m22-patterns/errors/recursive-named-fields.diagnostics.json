@@ -1,0 +1,80 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "refutable patterns are only allowed in `when`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 308,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 303
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "refutable patterns are only allowed in `when`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 409,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 390
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "literal pattern of type String cannot match Int",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 520,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 513
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`repeated` is already declared in this scope",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 717,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 709
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "pattern does not list all fields of struct `Leaf`; add `..` to ignore the rest",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 831,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 822
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "struct `Leaf` has no field `absent`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 923,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 917
+    },
+    "severity": "error"
+  }
+]

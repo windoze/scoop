@@ -1,0 +1,109 @@
+SourceFile
+  RootPackage
+  class Gate(var waiter: Continuation<Int>?)
+    fun complete
+  class Registration(val gate: Gate), SuspendRegistration<Int>
+    public fun register
+  suspend fun waitFor(gate: Gate): Int
+    val registration: SuspendRegistration<Int>
+      Call Registration
+        Var gate
+    return
+      Call suspendCoroutine
+        Var registration
+  class CatchTask(val gate: Gate), SuspendTask<Int>
+    public suspend fun run
+  class ReturnFinallyTask(val gate: Gate), SuspendTask<Int>
+    public suspend fun run
+  suspend fun failAfterCleanup(gate: Gate): Int
+    try
+      throw
+        Call UnwrapException
+    finally
+      Call println
+        Call waitFor
+          Var gate
+  class ThrowFinallyTask(val gate: Gate), SuspendTask<Int>
+    public suspend fun run
+  class OverrideReturnFinallyTask(val gate: Gate), SuspendTask<Int>
+    public suspend fun run
+  suspend fun returnThenThrow(gate: Gate): Int
+    try
+      return
+        IntLiteral 1
+    finally
+      Call println
+        Call waitFor
+          Var gate
+      throw
+        Call UnwrapException
+  class OverrideThrowFinallyTask(val gate: Gate), SuspendTask<Int>
+    public suspend fun run
+  class RecordingCompletion(), Continuation<Int>
+    public fun resume
+    public fun resumeWithException
+  fun launch(task: SuspendTask<Int>, completion: Continuation<Int>)
+    Call startCoroutine
+      Var task
+      Var completion
+  fun main()
+    val catchGate
+      Call Gate
+        Var None
+    Call launch
+      Call CatchTask
+        Var catchGate
+      Call RecordingCompletion
+    Call println
+      StringLiteral "catch-returned"
+    MethodCall complete
+      Var catchGate
+      IntLiteral 41
+    val returnGate
+      Call Gate
+        Var None
+    Call launch
+      Call ReturnFinallyTask
+        Var returnGate
+      Call RecordingCompletion
+    Call println
+      StringLiteral "return-returned"
+    MethodCall complete
+      Var returnGate
+      IntLiteral 2
+    val throwGate
+      Call Gate
+        Var None
+    Call launch
+      Call ThrowFinallyTask
+        Var throwGate
+      Call RecordingCompletion
+    Call println
+      StringLiteral "throw-returned"
+    MethodCall complete
+      Var throwGate
+      IntLiteral 3
+    val overrideReturnGate
+      Call Gate
+        Var None
+    Call launch
+      Call OverrideReturnFinallyTask
+        Var overrideReturnGate
+      Call RecordingCompletion
+    Call println
+      StringLiteral "override-return-returned"
+    MethodCall complete
+      Var overrideReturnGate
+      IntLiteral 4
+    val overrideThrowGate
+      Call Gate
+        Var None
+    Call launch
+      Call OverrideThrowFinallyTask
+        Var overrideThrowGate
+      Call RecordingCompletion
+    Call println
+      StringLiteral "override-throw-returned"
+    MethodCall complete
+      Var overrideThrowGate
+      IntLiteral 5

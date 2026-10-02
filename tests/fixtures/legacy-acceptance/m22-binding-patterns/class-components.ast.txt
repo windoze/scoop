@@ -1,0 +1,29 @@
+SourceFile
+  RootPackage
+  class Inner()
+    operator fun component1
+    operator fun component2
+  class Outer()
+    operator fun component1
+    operator fun component2
+    operator fun component99
+  fun makeOuter(): Outer
+    Call println
+      StringLiteral "subject"
+    return
+      Call Outer
+  class Explosive()
+    operator fun component1
+    operator fun component2
+    operator fun component3
+  fun main()
+    val ((kept, _), _)
+      Call makeOuter
+    Call println
+      Var kept
+    try
+      val (first, second, never)
+        Call Explosive
+    catch exception: UnwrapException
+      Call println
+        StringLiteral "caught"

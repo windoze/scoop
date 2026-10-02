@@ -1,0 +1,23 @@
+SourceFile
+  RootPackage
+  class UnitGate(var waiter: Continuation<Unit>?)
+    fun complete
+  class UnitRegistration(val gate: UnitGate), SuspendRegistration<Unit>
+    public fun register
+  class UnitTask(val gate: UnitGate), SuspendTask<Unit>
+    public suspend fun run
+  class UnitCompletion(), Continuation<Unit>
+    public fun resume
+    public fun resumeWithException
+  fun main()
+    val gate
+      Call UnitGate
+        Var None
+    Call startCoroutine
+      Call UnitTask
+        Var gate
+      Call UnitCompletion
+    Call println
+      StringLiteral "returned"
+    MethodCall complete
+      Var gate

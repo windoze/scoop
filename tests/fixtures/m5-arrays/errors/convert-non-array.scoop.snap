@@ -1,8 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m5-arrays/errors/convert-non-array.scoop:2:19: error: no applicable candidate for constructor `Array` in nominal constructor candidate layer:
-  - class Array<T>(source: MutableArray<T>) — argument for `source` has type Int, which is not a subtype of MutableArray<T>
-m5-arrays/errors/convert-non-array.scoop:3:13: error: unknown variable `a`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation

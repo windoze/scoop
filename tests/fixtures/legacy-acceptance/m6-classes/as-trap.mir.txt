@@ -1,0 +1,103 @@
+Module
+  struct S (v: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class ClassCastException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<S> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  generated_exact_type get0 location=class3 nominal_id=f43c7c5d9f4153728b36a9086ef2884a6374395f5c568b71ed35578c42571ba6 exact_id=9d50e433dbe8bb745ff3db8d7f7f2b38e16509d73219567a1896134c800ac607
+  generated_exact_type get1 location=class4 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  fun main @fn0() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.v: Int
+        Type Int
+        Local $argument.0
+      call $call.1: S = @fn2 direct
+        Type Int
+        Local $parameter.v
+      val a: Any
+        Type Any
+        Box
+          Type S
+          Local $call.1
+      val $cast.1: Any
+        Type Any
+        Local a
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Int
+            Type Any
+            Local $cast.1
+    bb1 if.then.1
+      assign $new.2
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external2 direct
+        Type ClassCastException
+        Local $new.2
+      throw
+        Type ClassCastException
+        Local $new.2
+    bb2 if.merge.2
+      val $ub.2: Int
+        Type Int
+        Unbox
+          Type Any
+          Local $cast.1
+      val i: Int
+        Type Int
+        Local $ub.2
+      val $dependency.argument.0: Int
+        Type Int
+        Local i
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun println @fn1(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun ctor.S.$c0 @fn2(v: Int) -> S <no-gc>
+    bb0 entry
+      return
+        Type S
+        StructInit S
+          Type Int
+          Local v
+  instance mi0 function=@fn1 <- println
+  str @str0 "\n"
+  output executable @fn0

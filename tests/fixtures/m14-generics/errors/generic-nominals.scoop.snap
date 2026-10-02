@@ -1,8 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m14-generics/errors/generic-nominals.scoop:14:20: error: nominal type parameters are invariant; declaration-site `in`/`out` is not supported
-m14-generics/errors/generic-nominals.scoop:16:22: error: nominal type parameters are invariant; declaration-site `in`/`out` is not supported
-m14-generics/errors/generic-nominals.scoop:18:18: error: nominal type parameters are invariant; declaration-site `in`/`out` is not supported

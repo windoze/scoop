@@ -1,0 +1,16 @@
+schema = 1
+name = "legacy-m18-safe-call-errors-receiver-and-chain"
+root = "../../../m18-safe-call/errors/receiver-and-chain.scoop"
+inputs = ["../../../m18-safe-call/errors/receiver-and-chain.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["legacy", "m18-safe-call", "single-file", "negative"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "receiver-and-chain.diagnostics.json"}

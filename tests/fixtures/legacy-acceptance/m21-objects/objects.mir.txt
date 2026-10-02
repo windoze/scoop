@@ -1,0 +1,1253 @@
+Module
+  global0 $singleton$Registry: Registry managed initial=zeroed-for-runtime-unit
+  global1 $singleton$Nested: Registry.Nested managed initial=zeroed-for-runtime-unit
+  global2 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  global3 $init$failure$1: Any managed initial=zeroed-for-runtime-unit
+  init0 object:Registry singleton lazy global0 initializer=@fn11 ensure=@fn12 failure=2 deps=[]
+  init1 object:Registry.Nested singleton lazy global1 initializer=@fn16 ensure=@fn17 failure=3 deps=[]
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Registry.Token>
+    Completed(value: Registry.Token)
+    Suspended()
+  enum CoroutineSlot<Registry.Token>
+    Empty()
+    Value(value: Registry.Token)
+  enum CoroutineStep<Base>
+    Completed(value: Base)
+    Suspended()
+  enum CoroutineSlot<Base>
+    Empty()
+    Value(value: Base)
+  enum CoroutineStep<Registry.Nested>
+    Completed(value: Registry.Nested)
+    Suspended()
+  enum CoroutineSlot<Registry.Nested>
+    Empty()
+    Value(value: Registry.Nested)
+  enum CoroutineStep<ObjectDelegate>
+    Completed(value: ObjectDelegate)
+    Suspended()
+  enum CoroutineSlot<ObjectDelegate>
+    Empty()
+    Value(value: ObjectDelegate)
+  enum CoroutineStep<Registry>
+    Completed(value: Registry)
+    Suspended()
+  enum CoroutineSlot<Registry>
+    Empty()
+    Value(value: Registry)
+  enum CoroutineStep<Named>
+    Completed(value: Named)
+    Suspended()
+  enum CoroutineSlot<Named>
+    Empty()
+    Value(value: Named)
+  class Base vtable=0 itables=0
+  class ObjectDelegate vtable=0 itables=0
+  class Registry vtable=0 itables=1
+  class Registry.Nested vtable=0 itables=0
+  class Registry.Token vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Named
+  interface ToString
+  interface Hash
+  interface Continuation<Named>
+  interface SuspendTask<Named>
+  interface SuspendRegistration<Named>
+  interface Continuation<Base>
+  interface SuspendTask<Base>
+  interface SuspendRegistration<Base>
+  interface Continuation<ObjectDelegate>
+  interface SuspendTask<ObjectDelegate>
+  interface SuspendRegistration<ObjectDelegate>
+  interface Continuation<Registry>
+  interface SuspendTask<Registry>
+  interface SuspendRegistration<Registry>
+  interface Continuation<Registry.Nested>
+  interface SuspendTask<Registry.Nested>
+  interface SuspendRegistration<Registry.Nested>
+  interface Continuation<Registry.Token>
+  interface SuspendTask<Registry.Token>
+  interface SuspendRegistration<Registry.Token>
+  generated_exact_type get0 location=enum2 nominal_id=ecb3cc55b536090b090e7c41caa20fb6d172eb5206872870da07eddbba39f6d7 exact_id=110a4e6b3f86e2285fe3c58f0c870908ae6c4aaf4cf074448ac1faf49d5c46d5
+  generated_exact_type get1 location=enum3 nominal_id=c9c7dbad7d7747877a8554d7ede10018519263b4deb0c62c87b004fabb388dfc exact_id=30c3d47b616de282df650ecba12903184d6225bb5fbbbccb9d295004b3e8c3cd
+  generated_exact_type get2 location=enum8 nominal_id=a6b906966e5206265544e6fb80d5573783aa705dd5538c798e20024fcd928d51 exact_id=40af1bdcac10ed11183598156edf5f35e3717b79765a4e927bb60fd0bbe6d331
+  generated_exact_type get3 location=enum6 nominal_id=85d5effee1fdfea807c04bfa2ff9a8748e46273557023968468748b5b9d1b6a8 exact_id=458265e07cfb9c5c2e052fd4bd4ae3307ab65213110eb739df80beb55708e256
+  generated_exact_type get4 location=enum11 nominal_id=126e880653f3f9865ef0c3b8122aaeabbf6fa15cd0730a0ed881c8871c2a3b90 exact_id=4f352bbe28f103cf1923f0210f0ed6c9d4dc67390679e96e6108be0a864bb3bb
+  generated_exact_type get5 location=enum7 nominal_id=4cd67e9bd23fbc6caa725bafd1081b01e1a46db1a7e3870f2cc551ed848b14ec exact_id=7054fb2e96fcec1e5bcd818c01c4cc084835185bf849f4a6414a4eed121f8ad0
+  generated_exact_type get6 location=enum12 nominal_id=93666cc01a1a2b21c3cb7c332d15e38c21bf1e950644dd354b82eb87266268bd exact_id=7577af9bc6a8af6971ad0008e0d6a4f1a3a59febd93ad3f53e2c6f1bcba81d8b
+  generated_exact_type get7 location=enum4 nominal_id=ba805e188ccfedc6d5b380c7fe7053669a82b2dd08cdc02c396618d3ff59b1fe exact_id=7f532af6fcab75a03f96398dc4021b51437cec08029044f5a950968a2cff1dcf
+  generated_exact_type get8 location=enum5 nominal_id=1d86c8752dd4ecf957d17071709c2b98f155b761612163788fb2b19fd02a27ff exact_id=86f73bbed6d9f19f3497530a388cdd4f33293adbd2eb846be4849a87013fd396
+  generated_exact_type get9 location=enum9 nominal_id=2b5b18f4b91cb2a234ae16b2d6a69a700d0ba71b384b2e5e199b7d2f339785db exact_id=98ebbfd8e108ac1b1ab3a1e98026a3e652e061961b60f8f4dd4a539a9416b313
+  generated_exact_type get10 location=enum1 nominal_id=74e65f7849af761c3b33644779a9dec7fd4eeb57553224668dbc10dc892078e3 exact_id=b6889f34f487a28b87f9b4a4a13e784adc21f525393b8d29a77f896e846a6291
+  generated_exact_type get11 location=enum10 nominal_id=71fa71b145836752cf638f5869b83a9e33f10294e828d5116c88840886cb7e03 exact_id=b9e6401cab1864abe5ac50ff011c90e3db77d5fafeb0c8c1a025c9ee6d67cb7a
+  generated_callable gc0 function=@fn53 id=2a1cfd66b48567ba49f14edb0b4e1c872aed0600379efd54c59115d893b57975
+  generated_callable gc1 function=@fn55 id=7c5ee058157b8a55daaf603665ffa54f83483f908840c00f8242426ebb4aaf10
+  generated_callable gc2 function=@fn51 id=7f465904802770da431f604543cb2bb4d0f8d4fae016903d647a848012f20494
+  generated_callable gc3 function=@fn54 id=c1e1298a7e70c70710fcbb95b6a547ea91eee163ae2d4b6536a3f08826e05ccf
+  generated_callable gc4 function=@fn52 id=e009b5f433d4749d5ce8c5f4891f4d06f1de56418be9484607411a432d413ce5
+  generated_callable gc5 function=@fn56 id=fdb3100ea6a3b250e8d8800f3e73c1da941bbad9453c857d072e7b5781eefd45
+  fun Base.$get$seed @fn0(this: Base) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Base
+          Local this
+  fun ObjectDelegate.provideDelegate @fn1(this: ObjectDelegate) -> ObjectDelegate
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn18 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type ObjectDelegate
+        Local this
+  fun ObjectDelegate.getValue @fn2(this: ObjectDelegate, thisRef: Registry) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type ObjectDelegate
+          Local this
+  fun ObjectDelegate.setValue @fn3(this: ObjectDelegate, thisRef: Registry, next: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type ObjectDelegate
+        Local this
+        Type Int
+        Local next
+      return
+  fun Registry.total @fn4(this: Registry) -> Int
+    bb0 entry
+      call $dependency.receiver: Int = @fn0 direct
+        Type Base
+        Retype Base
+          Type Registry
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 2
+          Type Registry
+          Local this
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      call $dependency.argument.0: Int = @fn5 direct
+        Type Registry
+        Local this
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun Registry.$get$delegated @fn5(this: Registry) -> Int
+    bb0 entry
+      call $call.1: Int = @fn2 direct
+        Type ObjectDelegate
+        FieldAccess 3
+          Type Registry
+          Local this
+        Type Registry
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun Registry.$set$delegated @fn6(this: Registry, value: Int) -> Unit
+    bb0 entry
+      call @fn3 direct
+        Type ObjectDelegate
+        FieldAccess 3
+          Type Registry
+          Local this
+        Type Registry
+        Local this
+        Type Int
+        Local value
+      return
+  fun Registry.Nested.answer @fn7(this: Registry.Nested) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun mark @fn8(label: String, value: Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        Local label
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn18 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type Int
+        Local value
+  fun baseSeed @fn9() -> Int
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str1
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $call.1: Int = @fn8 direct
+        Type String
+        Local $parameter.label
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun makeText @fn10() -> String
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn18 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type String
+        StringConst @str3
+  fun $init$body$0 @fn11() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Registry
+        ClassAlloc Registry
+      call @fn48 direct
+        Type Registry
+        Local $new.1
+      global_assign $singleton$Registry
+        Type Registry
+        Local $new.1
+      return
+  fun $init$ensure$0 @fn12() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Registry
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn11 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Registry
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Registry
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Registry
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Registry
+      call external4 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun choose @fn13(value: Registry) -> Registry
+    bb0 entry
+      return
+        Type Registry
+        Local value
+  fun readName @fn14(value: Named) -> String
+    bb0 entry
+      val $receiver: Named
+        Type Named
+        Local value
+      call $call.1: String = @fn45 interface Named[0]
+        Type Named
+        Local $receiver
+      return
+        Type String
+        Local $call.1
+  fun main @fn15() -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn19 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Registry.Token
+        ClassAlloc Registry.Token
+      call @fn50 direct
+        Type Registry.Token
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val token: Registry.Token
+        Type Registry.Token
+        Local $new.1
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Registry.Token
+          Local token
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn19 direct
+        Type Int
+        Local $dependency.parameter.value
+      call @fn17 direct
+      val $receiver: Registry.Nested
+        Type Registry.Nested
+        GlobalRead $singleton$Nested
+      call $dependency.argument.0: Int = @fn7 direct
+        Type Registry.Nested
+        Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn19 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str4
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn18 direct
+        Type String
+        Local $dependency.parameter.value
+      call @fn12 direct
+      val $receiver: Registry
+        Type Registry
+        GlobalRead $singleton$Registry
+      call $dependency.argument.0: Int = @fn4 direct
+        Type Registry
+        Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn19 direct
+        Type Int
+        Local $dependency.parameter.value
+      call @fn12 direct
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 1
+          Type Registry
+          GlobalRead $singleton$Registry
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn18 direct
+        Type String
+        Local $dependency.parameter.value
+      call @fn12 direct
+      call @fn6 direct
+        Type Registry
+        GlobalRead $singleton$Registry
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      call @fn12 direct
+      val $receiver: Registry
+        Type Registry
+        GlobalRead $singleton$Registry
+      call $dependency.argument.0: Int = @fn4 direct
+        Type Registry
+        Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn19 direct
+        Type Int
+        Local $dependency.parameter.value
+      call @fn12 direct
+      val $argument.0: Named
+        Type Named
+        Retype Named
+          Type Registry
+          GlobalRead $singleton$Registry
+      val $parameter.value: Named
+        Type Named
+        Local $argument.0
+      call $dependency.argument.0: String = @fn14 direct
+        Type Named
+        Local $parameter.value
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn18 direct
+        Type String
+        Local $dependency.parameter.value
+      call @fn12 direct
+      val $parameter.value: Registry
+        Type Registry
+        GlobalRead $singleton$Registry
+      call @fn12 direct
+      call $call.2: Registry = @fn13 direct
+        Type Registry
+        Local $parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Registry
+          Local $call.2
+          Type Registry
+          GlobalRead $singleton$Registry
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn20 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      call @scoop_rt_gc_collect direct
+      call @fn12 direct
+      call @fn12 direct
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Registry
+          GlobalRead $singleton$Registry
+          Type Registry
+          GlobalRead $singleton$Registry
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn20 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      return
+  fun $init$body$1 @fn16() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Registry.Nested
+        ClassAlloc Registry.Nested
+      call @fn49 direct
+        Type Registry.Nested
+        Local $new.1
+      global_assign $singleton$Nested
+        Type Registry.Nested
+        Local $new.1
+      return
+  fun $init$ensure$1 @fn17() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:Registry.Nested
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn16 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:Registry.Nested
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:Registry.Nested
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:Registry.Nested
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:Registry.Nested
+      call external4 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun println @fn18(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str5
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn19(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str6
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn20(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str7
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Continuation.resume @fn21(this: Continuation<Named>, value: Named) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn22(this: Continuation<Named>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn23(this: SuspendTask<Named>, $completion: Continuation<Named>) -> CoroutineStep<Named>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn24(this: SuspendRegistration<Named>, continuation: Continuation<Named>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn25(this: Continuation<Base>, value: Base) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn26(this: Continuation<Base>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn27(this: SuspendTask<Base>, $completion: Continuation<Base>) -> CoroutineStep<Base>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn28(this: SuspendRegistration<Base>, continuation: Continuation<Base>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn29(this: Continuation<ObjectDelegate>, value: ObjectDelegate) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn30(this: Continuation<ObjectDelegate>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn31(this: SuspendTask<ObjectDelegate>, $completion: Continuation<ObjectDelegate>) -> CoroutineStep<ObjectDelegate>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn32(this: SuspendRegistration<ObjectDelegate>, continuation: Continuation<ObjectDelegate>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn33(this: Continuation<Registry>, value: Registry) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn34(this: Continuation<Registry>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn35(this: SuspendTask<Registry>, $completion: Continuation<Registry>) -> CoroutineStep<Registry>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn36(this: SuspendRegistration<Registry>, continuation: Continuation<Registry>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn37(this: Continuation<Registry.Nested>, value: Registry.Nested) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn38(this: Continuation<Registry.Nested>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn39(this: SuspendTask<Registry.Nested>, $completion: Continuation<Registry.Nested>) -> CoroutineStep<Registry.Nested>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn40(this: SuspendRegistration<Registry.Nested>, continuation: Continuation<Registry.Nested>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn41(this: Continuation<Registry.Token>, value: Registry.Token) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn42(this: Continuation<Registry.Token>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn43(this: SuspendTask<Registry.Token>, $completion: Continuation<Registry.Token>) -> CoroutineStep<Registry.Token>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn44(this: SuspendRegistration<Registry.Token>, continuation: Continuation<Registry.Token>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Named.name @fn45(this: Named) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str8
+  fun init.Base.$c0 @fn46(this: Base, seed: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Base
+        Local this
+        Type Int
+        Local seed
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str9
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn18 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun init.ObjectDelegate.$c1 @fn47(this: ObjectDelegate, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type ObjectDelegate
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Registry.$c3 @fn48(this: Registry) -> Unit
+    bb0 entry
+      call $argument.0: Int = @fn9 direct
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      call @fn46 direct
+        Type Base
+        Retype Base
+          Type Registry
+          Local this
+        Type Int
+        Local $parameter.seed
+      call $call.1: String = @fn10 direct
+      field_set 1
+        Type Registry
+        Local this
+        Type String
+        Local $call.1
+      field_set 2
+        Type Registry
+        Local this
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type ObjectDelegate
+        ClassAlloc ObjectDelegate
+      call @fn47 direct
+        Type ObjectDelegate
+        Local $new.2
+        Type Int
+        Local $parameter.value
+      call $call.3: ObjectDelegate = @fn1 direct
+        Type ObjectDelegate
+        Local $new.2
+      field_set 3
+        Type Registry
+        Local this
+        Type ObjectDelegate
+        Local $call.3
+      call @scoop_rt_gc_collect direct
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 2
+          Type Registry
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      field_set 2
+        Type Registry
+        Local this
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str10
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn18 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun init.Registry.Nested.$c4 @fn49(this: Registry.Nested) -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str11
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $call.1: Int = @fn8 direct
+        Type String
+        Local $parameter.label
+        Type Int
+        Local $parameter.value
+      field_set 0
+        Type Registry.Nested
+        Local this
+        Type Int
+        Local $call.1
+      return
+  fun init.Registry.Token.$c2 @fn50(this: Registry.Token, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Registry.Token
+        Local this
+        Type Int
+        Local value
+      return
+  fun startCoroutine<Registry.Token> @fn51(task: SuspendTask<Registry.Token>, completion: Continuation<Registry.Token>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn41 interface Continuation<Registry.Token>[0]
+        Type Continuation<Registry.Token>
+        Local completion
+        Type Registry.Token
+        EnumField v0 f0
+          Type CoroutineStep<Registry.Token>
+          Local $step
+      return
+    bb2 failed
+      call @fn42 interface Continuation<Registry.Token>[1]
+        Type Continuation<Registry.Token>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Registry.Token> = @fn43 interface SuspendTask<Registry.Token>[0]
+        Type SuspendTask<Registry.Token>
+        Local task
+        Type Continuation<Registry.Token>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Registry.Token>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Base> @fn52(task: SuspendTask<Base>, completion: Continuation<Base>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn25 interface Continuation<Base>[0]
+        Type Continuation<Base>
+        Local completion
+        Type Base
+        EnumField v0 f0
+          Type CoroutineStep<Base>
+          Local $step
+      return
+    bb2 failed
+      call @fn26 interface Continuation<Base>[1]
+        Type Continuation<Base>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Base> = @fn27 interface SuspendTask<Base>[0]
+        Type SuspendTask<Base>
+        Local task
+        Type Continuation<Base>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Base>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Registry.Nested> @fn53(task: SuspendTask<Registry.Nested>, completion: Continuation<Registry.Nested>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn37 interface Continuation<Registry.Nested>[0]
+        Type Continuation<Registry.Nested>
+        Local completion
+        Type Registry.Nested
+        EnumField v0 f0
+          Type CoroutineStep<Registry.Nested>
+          Local $step
+      return
+    bb2 failed
+      call @fn38 interface Continuation<Registry.Nested>[1]
+        Type Continuation<Registry.Nested>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Registry.Nested> = @fn39 interface SuspendTask<Registry.Nested>[0]
+        Type SuspendTask<Registry.Nested>
+        Local task
+        Type Continuation<Registry.Nested>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Registry.Nested>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<ObjectDelegate> @fn54(task: SuspendTask<ObjectDelegate>, completion: Continuation<ObjectDelegate>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn29 interface Continuation<ObjectDelegate>[0]
+        Type Continuation<ObjectDelegate>
+        Local completion
+        Type ObjectDelegate
+        EnumField v0 f0
+          Type CoroutineStep<ObjectDelegate>
+          Local $step
+      return
+    bb2 failed
+      call @fn30 interface Continuation<ObjectDelegate>[1]
+        Type Continuation<ObjectDelegate>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<ObjectDelegate> = @fn31 interface SuspendTask<ObjectDelegate>[0]
+        Type SuspendTask<ObjectDelegate>
+        Local task
+        Type Continuation<ObjectDelegate>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<ObjectDelegate>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Registry> @fn55(task: SuspendTask<Registry>, completion: Continuation<Registry>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn33 interface Continuation<Registry>[0]
+        Type Continuation<Registry>
+        Local completion
+        Type Registry
+        EnumField v0 f0
+          Type CoroutineStep<Registry>
+          Local $step
+      return
+    bb2 failed
+      call @fn34 interface Continuation<Registry>[1]
+        Type Continuation<Registry>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Registry> = @fn35 interface SuspendTask<Registry>[0]
+        Type SuspendTask<Registry>
+        Local task
+        Type Continuation<Registry>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Registry>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Named> @fn56(task: SuspendTask<Named>, completion: Continuation<Named>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn21 interface Continuation<Named>[0]
+        Type Continuation<Named>
+        Local completion
+        Type Named
+        EnumField v0 f0
+          Type CoroutineStep<Named>
+          Local $step
+      return
+    bb2 failed
+      call @fn22 interface Continuation<Named>[1]
+        Type Continuation<Named>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Named> = @fn23 interface SuspendTask<Named>[0]
+        Type SuspendTask<Named>
+        Local task
+        Type Continuation<Named>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Named>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Registry.Token> result=Registry.Token
+  coroutine_step cs1 CoroutineStep<Base> result=Base
+  coroutine_step cs2 CoroutineStep<Registry.Nested> result=Registry.Nested
+  coroutine_step cs3 CoroutineStep<ObjectDelegate> result=ObjectDelegate
+  coroutine_step cs4 CoroutineStep<Registry> result=Registry
+  coroutine_step cs5 CoroutineStep<Named> result=Named
+  coroutine_slot cl0 CoroutineSlot<Registry.Token> value=Registry.Token
+  coroutine_slot cl1 CoroutineSlot<Base> value=Base
+  coroutine_slot cl2 CoroutineSlot<Registry.Nested> value=Registry.Nested
+  coroutine_slot cl3 CoroutineSlot<ObjectDelegate> value=ObjectDelegate
+  coroutine_slot cl4 CoroutineSlot<Registry> value=Registry
+  coroutine_slot cl5 CoroutineSlot<Named> value=Named
+  coroutine_start ct0 result=Registry.Token function=fn51
+  coroutine_start ct1 result=Base function=fn52
+  coroutine_start ct2 result=Registry.Nested function=fn53
+  coroutine_start ct3 result=ObjectDelegate function=fn54
+  coroutine_start ct4 result=Registry function=fn55
+  coroutine_start ct5 result=Named function=fn56
+  coroutine_fn cf0 @fn23 source_return=Named step=cs5 immediate
+  coroutine_fn cf1 @fn27 source_return=Base step=cs1 immediate
+  coroutine_fn cf2 @fn31 source_return=ObjectDelegate step=cs3 immediate
+  coroutine_fn cf3 @fn35 source_return=Registry step=cs4 immediate
+  coroutine_fn cf4 @fn39 source_return=Registry.Nested step=cs2 immediate
+  coroutine_fn cf5 @fn43 source_return=Registry.Token step=cs0 immediate
+  instance mi0 function=@fn18 <- println
+  instance mi1 function=@fn19 <- println
+  instance mi2 function=@fn20 <- println
+  instance mi3 function=@fn21 <- Continuation.resume
+  instance mi4 function=@fn22 <- Continuation.resumeWithException
+  instance mi5 function=@fn23 <- SuspendTask.run
+  instance mi6 function=@fn24 <- SuspendRegistration.register
+  instance mi7 function=@fn25 <- Continuation.resume
+  instance mi8 function=@fn26 <- Continuation.resumeWithException
+  instance mi9 function=@fn27 <- SuspendTask.run
+  instance mi10 function=@fn28 <- SuspendRegistration.register
+  instance mi11 function=@fn29 <- Continuation.resume
+  instance mi12 function=@fn30 <- Continuation.resumeWithException
+  instance mi13 function=@fn31 <- SuspendTask.run
+  instance mi14 function=@fn32 <- SuspendRegistration.register
+  instance mi15 function=@fn33 <- Continuation.resume
+  instance mi16 function=@fn34 <- Continuation.resumeWithException
+  instance mi17 function=@fn35 <- SuspendTask.run
+  instance mi18 function=@fn36 <- SuspendRegistration.register
+  instance mi19 function=@fn37 <- Continuation.resume
+  instance mi20 function=@fn38 <- Continuation.resumeWithException
+  instance mi21 function=@fn39 <- SuspendTask.run
+  instance mi22 function=@fn40 <- SuspendRegistration.register
+  instance mi23 function=@fn41 <- Continuation.resume
+  instance mi24 function=@fn42 <- Continuation.resumeWithException
+  instance mi25 function=@fn43 <- SuspendTask.run
+  instance mi26 function=@fn44 <- SuspendRegistration.register
+  str @str0 "provide-delegate"
+  str @str1 "base-argument"
+  str @str2 "property-initializer"
+  str @str3 "ready"
+  str @str4 "before-outer"
+  str @str5 "\n"
+  str @str6 "\n"
+  str @str7 "\n"
+  str @str8 "registry"
+  str @str9 "base-initializer"
+  str @str10 "object-initializer"
+  str @str11 "nested-initializer"
+  output executable @fn15

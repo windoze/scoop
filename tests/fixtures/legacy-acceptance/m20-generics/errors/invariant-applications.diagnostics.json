@@ -1,0 +1,158 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "body of `invalidReturn` must be of type Option<Animal>, found Option<Cat>; nominal application `Option` is invariant: first differing type argument 1 (`T`) is `Cat` in `Option<Cat>`, but `Animal` in `Option<Animal>`; construct the target application directly or convert explicitly",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 499,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 488
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "initializer of `option` must be of type Option<Animal>, found Option<Cat>; nominal application `Option` is invariant: first differing type argument 1 (`T`) is `Cat` in `Option<Cat>`, but `Animal` in `Option<Animal>`; construct the target application directly or convert explicitly",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 558,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 547
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "initializer of `animalBox` must be of type RefBox<Animal>, found RefBox<Cat>; nominal application `RefBox` is invariant: first differing type argument 1 (`T`) is `Cat` in `RefBox<Cat>`, but `Animal` in `RefBox<Animal>`; construct the target application directly or convert explicitly",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 633,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 627
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "initializer of `widerPair` must be of type Pair<Animal, Int>, found Pair<Cat, String>; nominal application `Pair` is invariant: first differing type argument 1 (`A`) is `Cat` in `Pair<Cat, String>`, but `Animal` in `Pair<Animal, Int>`; construct the target application directly or convert explicitly",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 714,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 710
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "initializer of `widerProducer` must be of type Producer<Animal>, found Producer<Cat>; nominal application `Producer` is invariant: first differing type argument 1 (`T`) is `Cat` in `Producer<Cat>`, but `Animal` in `Producer<Animal>`; construct the target application directly or convert explicitly",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 814,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 806
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "initializer of `widerIterator` must be of type Cursor<Animal>, found Cursor<Cat>; nominal application `Cursor` is invariant: first differing type argument 1 (`T`) is `Cat` in `Cursor<Cat>`, but `Animal` in `Cursor<Animal>`; construct the target application directly or convert explicitly",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 910,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 902
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "initializer of `animals` must be of type Array<Animal>, found Array<Cat>; nominal application `Array` is invariant: first differing type argument 1 (`T`) is `Cat` in `Array<Cat>`, but `Animal` in `Array<Animal>`; construct the target application directly or convert explicitly",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 987,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 983
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "initializer of `anyBox` must be of type RefBox<Any>, found RefBox<Int>; nominal application `RefBox` is invariant: first differing type argument 1 (`T`) is `Int` in `RefBox<Int>`, but `Any` in `RefBox<Any>`; construct the target application directly or convert explicitly",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1058,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1049
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "initializer of `markerBox` must be of type RefBox<Marker>, found RefBox<Marked>; nominal application `RefBox` is invariant: first differing type argument 1 (`T`) is `Marked` in `RefBox<Marked>`, but `Marker` in `RefBox<Marker>`; construct the target application directly or convert explicitly",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1150,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1141
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "initializer of `base` must be of type Base<Animal>, found Derived; nominal application `Base` is invariant: first differing type argument 1 (`T`) is `Cat` in `Base<Cat>`, but `Animal` in `Base<Animal>`; construct the target application directly or convert explicitly",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1190,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1181
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "cannot assign value of type Option<Cat> to `assigned` of type Option<Animal>; nominal application `Option` is invariant: first differing type argument 1 (`T`) is `Cat` in `Option<Cat>`, but `Animal` in `Option<Animal>`; construct the target application directly or convert explicitly",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1258,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1247
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "if branch result must be of type Option<Animal>, found Option<Cat>; nominal application `Option` is invariant: first differing type argument 1 (`T`) is `Cat` in `Option<Cat>`, but `Animal` in `Option<Animal>`; construct the target application directly or convert explicitly",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1324,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1313
+    },
+    "severity": "error"
+  }
+]

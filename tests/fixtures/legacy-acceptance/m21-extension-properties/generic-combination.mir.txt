@@ -1,0 +1,264 @@
+Module
+  class Cell<Int> vtable=0 itables=0
+  class Cell<String> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  fun main @fn0() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Cell<Int>
+        ClassAlloc Cell<Int>
+      call @fn11 direct
+        Type Cell<Int>
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val number: Cell<Int>
+        Type Cell<Int>
+        Local $new.1
+      val $receiver: Cell<Int>
+        Type Cell<Int>
+        Local number
+      call $dependency.argument.0: Int = @fn2 direct
+        Type Cell<Int>
+        Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $receiver: Cell<Int>
+        Type Cell<Int>
+        Local number
+      call @fn4 direct
+        Type Cell<Int>
+        Local $receiver
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $receiver: Cell<Int>
+        Type Cell<Int>
+        Local number
+      call $dependency.argument.0: Int = @fn5 direct
+        Type Cell<Int>
+        Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $receiver: Cell<Int>
+        Type Cell<Int>
+        Local number
+      call $dependency.argument.0: String = @fn1 direct
+        Type Cell<Int>
+        Local $receiver
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      assign $new.2
+        Type Cell<String>
+        ClassAlloc Cell<String>
+      call @fn12 direct
+        Type Cell<String>
+        Local $new.2
+        Type String
+        Local $parameter.value
+      val text: Cell<String>
+        Type Cell<String>
+        Local $new.2
+      val $receiver: Cell<String>
+        Type Cell<String>
+        Local text
+      call $dependency.argument.0: String = @fn7 direct
+        Type Cell<String>
+        Local $receiver
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      val $receiver: Cell<String>
+        Type Cell<String>
+        Local text
+      call @fn8 direct
+        Type Cell<String>
+        Local $receiver
+        Type String
+        StringConst @str1
+      val $receiver: Cell<String>
+        Type Cell<String>
+        Local text
+      call $dependency.argument.0: String = @fn9 direct
+        Type Cell<String>
+        Local $receiver
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      val $receiver: Cell<String>
+        Type Cell<String>
+        Local text
+      call $dependency.argument.0: String = @fn10 direct
+        Type Cell<String>
+        Local $receiver
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun $extension.$get$kind @fn1(this: Cell<Int>) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str2
+  fun $extension.$get$item @fn2(this: Cell<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Cell<Int>
+          Local this
+  fun println @fn3(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun $extension.$set$content @fn4(this: Cell<Int>, next: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Cell<Int>
+        Local this
+        Type Int
+        Local next
+      return
+  fun $extension.$get$content @fn5(this: Cell<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Cell<Int>
+          Local this
+  fun println @fn6(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun $extension.$get$item @fn7(this: Cell<String>) -> String
+    bb0 entry
+      return
+        Type String
+        FieldAccess 0
+          Type Cell<String>
+          Local this
+  fun $extension.$set$content @fn8(this: Cell<String>, next: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type Cell<String>
+        Local this
+        Type String
+        Local next
+      return
+  fun $extension.$get$content @fn9(this: Cell<String>) -> String
+    bb0 entry
+      return
+        Type String
+        FieldAccess 0
+          Type Cell<String>
+          Local this
+  fun $extension.$get$kind @fn10(this: Cell<String>) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str5
+  fun init.Cell.$c0 @fn11(this: Cell<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Cell<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Cell.$c0 @fn12(this: Cell<String>, value: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type Cell<String>
+        Local this
+        Type String
+        Local value
+      return
+  instance mi0 function=@fn2 <- $extension.$get$item
+  instance mi1 function=@fn3 <- println
+  instance mi2 function=@fn4 <- $extension.$set$content
+  instance mi3 function=@fn5 <- $extension.$get$content
+  instance mi4 function=@fn6 <- println
+  instance mi5 function=@fn7 <- $extension.$get$item
+  instance mi6 function=@fn8 <- $extension.$set$content
+  instance mi7 function=@fn9 <- $extension.$get$content
+  instance mi8 function=@fn10 <- $extension.$get$kind
+  str @str0 "before"
+  str @str1 "after"
+  str @str2 "int"
+  str @str3 "\n"
+  str @str4 "\n"
+  str @str5 "generic"
+  output executable @fn0

@@ -1,0 +1,24 @@
+schema = 1
+name = "legacy-m22-integers-representation-matrix"
+root = "../../m22-integers/representation-matrix.scoop"
+inputs = ["../../m22-integers/representation-matrix.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["legacy", "m22-integers", "single-file", "run"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "representation-matrix.ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "representation-matrix.hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "representation-matrix.mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "representation-matrix.lir.txt"}]
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "1\n1\n2\n2\n4\n4\n8\n8\n1\n1\n2\n2\n4\n4\n8\n8\n-1\n-257\n-65537\n-4294967297\n255\n65535\n4294967295\n18446744073709551615\n32\n8\n-1\n-257\n-65537\n-4294967297\n255\n65535\n4294967295\n18446744073709551615\n-1\n-257\n-65537\n-4294967297\n255\n65535\n4294967295\n18446744073709551615\n-1\n-257\n-65537\n-4294967297\n255\n65535\n4294967295\n18446744073709551615\n-1\n-257\n-65537\n-4294967297\n255\n65535\n4294967295\n18446744073709551615\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\n-1\n-257\n-65537\n-4294967297\n255\n65535\n4294967295\n18446744073709551615\n-1\n-257\n-65537\n-4294967297\n255\n65535\n4294967295\n18446744073709551615\n"
+stderr = ""

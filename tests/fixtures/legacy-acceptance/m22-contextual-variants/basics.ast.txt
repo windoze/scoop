@@ -1,0 +1,47 @@
+SourceFile
+  RootPackage
+  enum Signal
+    Ready
+    Value(Int)
+    Named <ctor>
+      code: Int
+      label: String = <expr>
+  fun returned(): Signal
+    =
+      Var Ready
+  fun pass(value: Signal): Signal
+    =
+      Var value
+  fun score(value: Signal): Int
+    =
+      WhenExpression
+        Var value
+        arm Ready
+          IntLiteral 0
+        arm Value(number)
+          Var number
+        arm Named(code, _)
+          Var code
+  fun main()
+    val ready: Signal
+      Var Ready
+    val named: Signal
+      Call Named
+        Argument label=
+          StringLiteral "named"
+        Argument code=
+          IntLiteral 2
+    Call println
+      Call score
+        Var ready
+    Call println
+      Call score
+        Call returned
+    Call println
+      Call score
+        Call pass
+          Call Value
+            IntLiteral 41
+    Call println
+      Call score
+        Var named

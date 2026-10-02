@@ -1,8 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m11-functions/errors/lambda-overload-ambiguous.scoop:5:13: error: call to `select` is ambiguous in current-unit top-level candidate layer:
-  - fun select(operation: (Int) -> String): String — tied after pairwise declaration forwarding
-  - fun select(operation: (String) -> String): String — tied after pairwise declaration forwarding

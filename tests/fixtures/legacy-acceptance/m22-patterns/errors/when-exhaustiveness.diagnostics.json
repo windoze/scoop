@@ -1,0 +1,93 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "non-exhaustive when: missing pattern Some(-2147483648)",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 191,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 104
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "non-exhaustive when: missing pattern Value(false)",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 291,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 232
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "non-exhaustive when: missing pattern Some((-2147483648, false)); guarded arms do not contribute to exhaustiveness",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 500,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 343
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "non-exhaustive when: missing pattern (true, true)",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 655,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 553
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "non-exhaustive when: missing pattern Value(\"a\")",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 752,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 694
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "non-exhaustive when: missing pattern Some(-2147483648)",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 840,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 793
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "non-exhaustive when: missing pattern Value((false,))",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1005,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 943
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,155 @@
+SourceFile
+  RootPackage
+  enum Nested
+    Item((Int, Boolean))
+    Empty
+  enum BooleanBox
+    Value(Boolean)
+  struct Flags
+    field first: Boolean
+    field second: Boolean
+  enum Structured
+    Value(Flags, Unit)
+  enum Never
+  fun impossible(value: Never): Int
+    =
+      WhenExpression
+        Var value
+  fun optionValue(value: Int?): Int
+    =
+      WhenExpression
+        Var value
+        arm Some(number)
+          Var number
+        arm None
+          Unary Neg
+            IntLiteral 1
+  fun nestedValue(value: Nested): Int
+    =
+      WhenExpression
+        Var value
+        arm Item((number, flag)) if <guard>
+          Var number
+        arm Item((number, _))
+          Binary Add
+            Var number
+            IntLiteral 100
+        arm Empty
+          Unary Neg
+            IntLiteral 1
+  fun booleanValue(value: BooleanBox): Int
+    =
+      WhenExpression
+        Var value
+        arm Value(false)
+          IntLiteral 0
+        arm Value(true)
+          IntLiteral 1
+  fun pairValue(value: (Boolean, Boolean)): Int
+    =
+      WhenExpression
+        Var value
+        arm (false, _)
+          IntLiteral 10
+        arm (true, false)
+          IntLiteral 20
+        arm (true, true)
+          IntLiteral 30
+  fun structuredValue(value: Structured): Int
+    =
+      WhenExpression
+        Var value
+        arm Value(Flags(false, _), ())
+          IntLiteral 40
+        arm Value(Flags(true, _), ())
+          IntLiteral 50
+  fun explicitEmpty(value: BooleanBox)
+    when
+      Var value
+      arm Value(_)
+      else
+  fun explicitFallback(value: Int?): Int
+    =
+      WhenExpression
+        Var value
+        arm Some(0)
+          IntLiteral 0
+        arm None
+          IntLiteral 1
+        else
+          IntLiteral 2
+  fun main()
+    Call println
+      Call optionValue
+        Call Some
+          IntLiteral 7
+    Call println
+      Call optionValue
+        Var None
+    Call println
+      Call nestedValue
+        MethodCall Item
+          Var Nested
+          TupleLiteral
+            IntLiteral 7
+            BoolLiteral true
+    Call println
+      Call nestedValue
+        MethodCall Item
+          Var Nested
+          TupleLiteral
+            IntLiteral 7
+            BoolLiteral false
+    Call println
+      Call nestedValue
+        FieldAccess Empty
+          Var Nested
+    Call println
+      Call booleanValue
+        MethodCall Value
+          Var BooleanBox
+          BoolLiteral false
+    Call println
+      Call booleanValue
+        MethodCall Value
+          Var BooleanBox
+          BoolLiteral true
+    Call println
+      Call pairValue
+        TupleLiteral
+          BoolLiteral false
+          BoolLiteral true
+    Call println
+      Call pairValue
+        TupleLiteral
+          BoolLiteral true
+          BoolLiteral false
+    Call println
+      Call pairValue
+        TupleLiteral
+          BoolLiteral true
+          BoolLiteral true
+    Call println
+      Call structuredValue
+        MethodCall Value
+          Var Structured
+          Call Flags
+            BoolLiteral false
+            BoolLiteral true
+          UnitLiteral
+    Call println
+      Call structuredValue
+        MethodCall Value
+          Var Structured
+          Call Flags
+            BoolLiteral true
+            BoolLiteral false
+          UnitLiteral
+    Call explicitEmpty
+      MethodCall Value
+        Var BooleanBox
+        BoolLiteral false
+    Call println
+      Call explicitFallback
+        Call Some
+          IntLiteral 1

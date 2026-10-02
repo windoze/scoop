@@ -1,0 +1,470 @@
+Module
+  struct Shown (value: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Show>
+    Completed(value: Show)
+    Suspended()
+  enum CoroutineSlot<Show>
+    Empty()
+    Value(value: Show)
+  enum CoroutineStep<Shown>
+    Completed(value: Shown)
+    Suspended()
+  enum CoroutineSlot<Shown>
+    Empty()
+    Value(value: Shown)
+  class Derived vtable=0 itables=0
+  class Box<Int> vtable=0 itables=0
+  class Box<String> vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Shown> vtable=0 itables=1
+  class box<Int> vtable=0 itables=0
+  interface Show
+  interface ToString
+  interface Hash
+  interface Continuation<Shown>
+  interface SuspendTask<Shown>
+  interface SuspendRegistration<Shown>
+  interface Continuation<Show>
+  interface SuspendTask<Show>
+  interface SuspendRegistration<Show>
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn16 captures=1
+    bridge function_type1 -> @fn24 id=5d9693508114314a5656a3b547c746f60ea163556fe8d923cbbdd2d8603a0ca0
+  generated_exact_type get0 location=enum4 nominal_id=7ae229868c15d5da6424ac0b579492db55814394c85f3aac4f17f5c3130fd516 exact_id=083260dab036773b989e6143ccac4f48766c0df4b555b0c2b0abf0f45c090bd7
+  generated_exact_type get1 location=enum3 nominal_id=a9af568515b997c1703f8657cb2f0e70b172f728b24bac885c630f012ead0447 exact_id=5f6c9182cf1472a4eb42826b721096adcd2c97a2173bd2fb3bb3a38397305769
+  generated_exact_type get2 location=enum2 nominal_id=5da7ffe8112b0594bc79dfabea2f13e5797ec9d35cbb05d69e014eae1b513363 exact_id=a689cc00bd943a4a2fce353a95ea5eb57961a344c4a05070f9b2f5ff0207b127
+  generated_exact_type get3 location=closure0 nominal_id=f874136277b146368b5105d72074178ee40ec33e01f9439c28a2d7e1505cba93 exact_id=cb83ad14693bb4e9877fdfa2a03447b6878c94ccdd03acaa290b56769c654eba
+  generated_exact_type get4 location=enum1 nominal_id=87615e8f3121a7a3969e2d33558187aaa88e2525824006eb1240177cea9d1a5d exact_id=dea86fb45a3f81830066e26898012e75b754ab003d1e92dd9ad9e25da33dbe7f
+  generated_exact_type get5 location=class7 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get6 location=class6 nominal_id=cc2ccdb393707b05550302f76a00a8d553556cd0bcfdac667cdf9c3d308bc97c exact_id=ff9b77883f54df29a8c6eab78207ec71501409b8bc048c93e00f6b6df0149655
+  generated_callable gc0 function=@fn21 id=2ca99b1e0b3c49159db795a15ad941e5729e7e3879c4ec62cd65eacc49661488
+  generated_callable gc1 function=@fn24 id=5d9693508114314a5656a3b547c746f60ea163556fe8d923cbbdd2d8603a0ca0
+  generated_callable gc2 function=@fn22 id=adf1679349897ad8a26406c48d89d1a7c909e403d4c7ad978ff62584d1af1c1f
+  generated_callable gc3 function=@fn23 id=f99deef0d50de090683dc1509c20c3db36917129ab89d117ef9a91d6bac3398b
+  fun Shown.show @fn0(this: Shown) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Shown
+          Local this
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      assign $new.1
+        Type Box<String>
+        ClassAlloc Box<String>
+      call @fn18 direct
+        Type Box<String>
+        Local $new.1
+        Type String
+        Local $parameter.value
+      val box: Box<String>
+        Type Box<String>
+        Local $new.1
+      val $receiver: Box<String>
+        Type Box<String>
+        Local box
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $argument.0: Shown = @fn20 direct
+        Type Int
+        Local $parameter.value
+      val $parameter.other: Shown
+        Type Shown
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn2 direct
+        Type Box<String>
+        Local $receiver
+        Type Shown
+        Local $parameter.other
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $receiver: Box<String>
+        Type Box<String>
+        Local box
+      val $argument.0: String
+        Type String
+        StringConst @str1
+      val $parameter.other: String
+        Type String
+        Local $argument.0
+      call $dependency.argument.0: String = @fn4 direct
+        Type Box<String>
+        Local $receiver
+        Type String
+        Local $parameter.other
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      assign $new.2
+        Type Derived
+        ClassAlloc Derived
+      call @fn17 direct
+        Type Derived
+        Local $new.2
+      val $receiver: Derived
+        Type Derived
+        Local $new.2
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $argument.0: Shown = @fn20 direct
+        Type Int
+        Local $parameter.value
+      val $parameter.other: Shown
+        Type Shown
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn6 direct
+        Type Box<Int>
+        Retype Box<Int>
+          Type Derived
+          Local $receiver
+        Type Shown
+        Local $parameter.other
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val bound: (Shown) -> Int
+        Type (Shown) -> Int
+        ClosureAlloc cc0 $Closure$reference0
+          CaptureInit field=0
+            Type Box<String>
+            Local box
+      val $callable.receiver: (Shown) -> Int
+        Type (Shown) -> Int
+        Local bound
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.3: Shown = @fn20 direct
+        Type Int
+        Local $parameter.value
+      call $dependency.argument.0: Int = <closure:function_type0> closure[function_type0]
+        Type (Shown) -> Int
+        Local $callable.receiver
+        Type Shown
+        Local $call.3
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun Box.combine @fn2(this: Box<String>, other: Shown) -> Int
+    bb0 entry
+      val $receiver: Shown
+        Type Shown
+        Local other
+      call $call.1: Int = @fn0 direct
+        Type Shown
+        Local $receiver
+      return
+        Type Int
+        Local $call.1
+  fun println @fn3(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Box.choose @fn4(this: Box<String>, other: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local other
+  fun println @fn5(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Box.combine @fn6(this: Box<Int>, other: Shown) -> Int
+    bb0 entry
+      val $receiver: Shown
+        Type Shown
+        Local other
+      call $call.1: Int = @fn0 direct
+        Type Shown
+        Local $receiver
+      return
+        Type Int
+        Local $call.1
+  fun Continuation.resume @fn7(this: Continuation<Shown>, value: Shown) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn8(this: Continuation<Shown>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn9(this: SuspendTask<Shown>, $completion: Continuation<Shown>) -> CoroutineStep<Shown>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn10(this: SuspendRegistration<Shown>, continuation: Continuation<Shown>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn11(this: Continuation<Show>, value: Show) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn12(this: Continuation<Show>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn13(this: SuspendTask<Show>, $completion: Continuation<Show>) -> CoroutineStep<Show>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn14(this: SuspendRegistration<Show>, continuation: Continuation<Show>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Show.show @fn15(this: Show) -> Int
+    bb0 entry
+      trap "call to abstract method `Show.show`"
+  fun $reference.0 @fn16($closure: (Shown) -> Int, arg0: Shown) -> Int
+    bb0 entry
+      call $call.1: Int = @fn2 direct
+        Type Box<String>
+        ClosureCapture cc0 0
+          Type (Shown) -> Int
+          Local $closure
+        Type Shown
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun init.Derived.$c1 @fn17(this: Derived) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @fn19 direct
+        Type Box<Int>
+        Retype Box<Int>
+          Type Derived
+          Local this
+        Type Int
+        Local $parameter.value
+      return
+  fun init.Box.$c0 @fn18(this: Box<String>, value: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type Box<String>
+        Local this
+        Type String
+        Local value
+      return
+  fun init.Box.$c0 @fn19(this: Box<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Box<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun ctor.Shown.$c0 @fn20(value: Int) -> Shown <no-gc>
+    bb0 entry
+      return
+        Type Shown
+        StructInit Shown
+          Type Int
+          Local value
+  fun startCoroutine<Show> @fn21(task: SuspendTask<Show>, completion: Continuation<Show>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn11 interface Continuation<Show>[0]
+        Type Continuation<Show>
+        Local completion
+        Type Show
+        EnumField v0 f0
+          Type CoroutineStep<Show>
+          Local $step
+      return
+    bb2 failed
+      call @fn12 interface Continuation<Show>[1]
+        Type Continuation<Show>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Show> = @fn13 interface SuspendTask<Show>[0]
+        Type SuspendTask<Show>
+        Local task
+        Type Continuation<Show>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Show>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Shown> @fn22(task: SuspendTask<Shown>, completion: Continuation<Shown>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn7 interface Continuation<Shown>[0]
+        Type Continuation<Shown>
+        Local completion
+        Type Shown
+        EnumField v0 f0
+          Type CoroutineStep<Shown>
+          Local $step
+      return
+    bb2 failed
+      call @fn8 interface Continuation<Shown>[1]
+        Type Continuation<Shown>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Shown> = @fn9 interface SuspendTask<Shown>[0]
+        Type SuspendTask<Shown>
+        Local task
+        Type Continuation<Shown>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Shown>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun thunk<Shown> Show.show() @fn23(this: Show) -> Int
+    bb0 entry
+      call $call.1: Int = @fn0 direct
+        Type Shown
+        Unbox
+          Type Show
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn24($source: (Shown) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Shown) -> Int
+        Local $source
+        Type Shown
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<Show> result=Show
+  coroutine_step cs1 CoroutineStep<Shown> result=Shown
+  coroutine_slot cl0 CoroutineSlot<Show> value=Show
+  coroutine_slot cl1 CoroutineSlot<Shown> value=Shown
+  coroutine_start ct0 result=Show function=fn21
+  coroutine_start ct1 result=Shown function=fn22
+  coroutine_fn cf0 @fn9 source_return=Shown step=cs1 immediate
+  coroutine_fn cf1 @fn13 source_return=Show step=cs0 immediate
+  instance mi0 function=@fn2 <- Box.combine
+  instance mi1 function=@fn3 <- println
+  instance mi2 function=@fn4 <- Box.choose
+  instance mi3 function=@fn5 <- println
+  instance mi4 function=@fn6 <- Box.combine
+  instance mi5 function=@fn7 <- Continuation.resume
+  instance mi6 function=@fn8 <- Continuation.resumeWithException
+  instance mi7 function=@fn9 <- SuspendTask.run
+  instance mi8 function=@fn10 <- SuspendRegistration.register
+  instance mi9 function=@fn11 <- Continuation.resume
+  instance mi10 function=@fn12 <- Continuation.resumeWithException
+  instance mi11 function=@fn13 <- SuspendTask.run
+  instance mi12 function=@fn14 <- SuspendRegistration.register
+  str @str0 "owner"
+  str @str1 "explicit"
+  str @str2 "\n"
+  str @str3 "\n"
+  output executable @fn1

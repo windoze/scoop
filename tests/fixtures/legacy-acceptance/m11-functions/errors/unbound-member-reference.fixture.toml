@@ -1,0 +1,16 @@
+schema = 1
+name = "legacy-m11-functions-errors-unbound-member-reference"
+root = "../../../m11-functions/errors/unbound-member-reference.scoop"
+inputs = ["../../../m11-functions/errors/unbound-member-reference.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["legacy", "m11-functions", "single-file", "negative"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "unbound-member-reference.diagnostics.json"}

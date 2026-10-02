@@ -1,0 +1,1177 @@
+Module
+  struct ValueBox<Animal> (value: Animal)
+  struct ValueBox<Cat> (value: Cat)
+  struct ValueBox<Dog> (value: Dog)
+  enum Switch
+    On()
+    Off()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Animal>
+    Some(_0: Animal)
+    None()
+  enum Choice<Animal>
+    Item(_1: Animal)
+    Empty()
+  enum CoroutineStep<Cat>
+    Completed(value: Cat)
+    Suspended()
+  enum CoroutineSlot<Cat>
+    Empty()
+    Value(value: Cat)
+  enum CoroutineStep<Dog>
+    Completed(value: Dog)
+    Suspended()
+  enum CoroutineSlot<Dog>
+    Empty()
+    Value(value: Dog)
+  enum CoroutineStep<Animal>
+    Completed(value: Animal)
+    Suspended()
+  enum CoroutineSlot<Animal>
+    Empty()
+    Value(value: Animal)
+  class Animal vtable=0 itables=0
+  class Cat vtable=0 itables=0
+  class Dog vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class RefBox<Animal> vtable=0 itables=0
+  class RefBox<Cat> vtable=0 itables=0
+  class RefBox<Dog> vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class box<ValueBox<Cat>> vtable=0 itables=0
+  class box<ValueBox<Dog>> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Continuation<Animal>
+  interface SuspendTask<Animal>
+  interface SuspendRegistration<Animal>
+  interface Continuation<Cat>
+  interface SuspendTask<Cat>
+  interface SuspendRegistration<Cat>
+  interface Continuation<Dog>
+  interface SuspendTask<Dog>
+  interface SuspendRegistration<Dog>
+  generated_exact_type get0 location=enum8 nominal_id=a0617b52d2852ba2f295724357fd4279f548d8ea17a66f5acb74578c6eb52c83 exact_id=994324a3af3dd1eb2827ac5270427dc6d0092f01371275eb426e4b986945490e
+  generated_exact_type get1 location=enum9 nominal_id=3c5fc615e9afe98c26e672980c09587595896ca40c6b6b302c7ef3764ed973e6 exact_id=bbba5fee62c81a564808eb6bf47f2c321f2a565c24c974110ae399547a9a41e2
+  generated_exact_type get2 location=class11 nominal_id=7e6d9f595df7c9393824e363730c422fbc4ee90362597d930e8af10db1f2efc7 exact_id=be44b699c02e3b2b99d97bb14a3b674d974f1c0cedda429cddfc5b6377655e70
+  generated_exact_type get3 location=enum4 nominal_id=a6a252854f60a1f631b87d2f6267bc8024ccc8eee760efe68db2a2f9f41267d7 exact_id=c3c75b9a3b202b257ff37fef5bad2988227cbb22a3814a6ef38a9ee5af8d1a7c
+  generated_exact_type get4 location=enum6 nominal_id=e6efcbebd72bcf5768b428c9dfaf2bf5c16b6e60bf5959c2c3d24c35b3152d7f exact_id=d1d4bf1f0b4750ae544f4b969f6b113b463a9d6712de433519eeb932e6afcddb
+  generated_exact_type get5 location=enum7 nominal_id=f3016ea7b6af5e1012933d9ac9fc7bf526eacb65c9244f6759ef098c402e1a1d exact_id=e4dba843fffd4e2da8647a80e7b26bde3f6a904022fcf56e6503a1d96b3e657d
+  generated_exact_type get6 location=enum5 nominal_id=74feefb5e657116b8b1e66d0b9e87385e8300f31ebddfd0257c5ceaf22ea28dd exact_id=e5724e82f470617b1918206b8148b1adfdd9dac467a2866e81bcb31ac387ad1a
+  generated_exact_type get7 location=class10 nominal_id=6e5d20a3e33ed9361f23921a6d9feab8a2f3dfc7399f9999f1a98d32d37e1cd5 exact_id=eb48977ac2efae01306278a9bf5ac466be7d276b817b01ca6c8fad32ef38bfa0
+  generated_callable gc0 function=@fn30 id=41088f0afe72af8eb0ab6f26d17a2d2daf3d13918896d8694ce1c581b22c1866
+  generated_callable gc1 function=@fn31 id=c43a69aa98b1e019a45b1e8005e4c4eab04db42edc73266c13361966b9d3c69e
+  generated_callable gc2 function=@fn29 id=e3c0592ae57ced96143ad44d779d449dd282f4cbd4b1954ac5c57d6ca3eec553
+  fun returned @fn0() -> Option<Animal>
+    bb0 entry
+      assign $new.1
+        Type Cat
+        ClassAlloc Cat
+      call @fn21 direct
+        Type Cat
+        Local $new.1
+      val $dependency.argument.0: Animal
+        Type Animal
+        Retype Animal
+          Type Cat
+          Local $new.1
+      val $dependency.parameter._1: Animal
+        Type Animal
+        Local $dependency.argument.0
+      return
+        Type Option<Animal>
+        VariantConstruct Option<Animal> v0
+          Type Animal
+          Local $dependency.parameter._1
+  fun branched @fn1(flag: Boolean) -> Option<Animal>
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        Local flag
+    bb1 if.then.1
+      assign $new.1
+        Type Cat
+        ClassAlloc Cat
+      call @fn21 direct
+        Type Cat
+        Local $new.1
+      val $dependency.argument.0: Animal
+        Type Animal
+        Retype Animal
+          Type Cat
+          Local $new.1
+      val $dependency.parameter._1: Animal
+        Type Animal
+        Local $dependency.argument.0
+      assign $result.0
+        Type Option<Animal>
+        VariantConstruct Option<Animal> v0
+          Type Animal
+          Local $dependency.parameter._1
+      goto bb3
+    bb2 if.else.2
+      assign $result.0
+        Type Option<Animal>
+        VariantConstruct Option<Animal> v1
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Option<Animal>
+        Local $result.0
+  fun selected @fn2(switch: Switch) -> Choice<Animal>
+    bb0 entry
+      val $when.1: Switch
+        Type Switch
+        Local switch
+      val $pattern.subject.2: Switch
+        Type Switch
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Switch v0
+          Type Switch
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $new.1
+        Type Cat
+        ClassAlloc Cat
+      call @fn21 direct
+        Type Cat
+        Local $new.1
+      val $argument.0: Animal
+        Type Animal
+        Retype Animal
+          Type Cat
+          Local $new.1
+      val $parameter._1: Animal
+        Type Animal
+        Local $argument.0
+      assign $result.1
+        Type Choice<Animal>
+        VariantConstruct Choice<Animal> v0
+          Type Animal
+          Local $parameter._1
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Switch
+        Type Switch
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Switch v1
+          Type Switch
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Choice<Animal>
+        Local $result.1
+    bb4 pattern.pass.4
+      assign $result.1
+        Type Choice<Animal>
+        VariantConstruct Choice<Animal> v1
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun recovered @fn3() -> Option<Animal>
+    bb0 entry
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb9 bb10
+        Type Boolean
+        IsInstance UnwrapException
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      return
+        Type Option<Animal>
+        Local $result.2
+    bb8 try.body.8 unwind bb1
+      assign $new.1
+        Type Cat
+        ClassAlloc Cat
+      call @fn21 direct
+        Type Cat
+        Local $new.1
+      val $dependency.argument.0: Animal
+        Type Animal
+        Retype Animal
+          Type Cat
+          Local $new.1
+      val $dependency.parameter._1: Animal
+        Type Animal
+        Local $dependency.argument.0
+      assign $result.2
+        Type Option<Animal>
+        VariantConstruct Option<Animal> v0
+          Type Animal
+          Local $dependency.parameter._1
+      goto bb7
+    bb9 try.catch.9
+      call $catch.2: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val e: UnwrapException
+        Type UnwrapException
+        Retype UnwrapException
+          Type Any
+          Local $catch.2
+      goto bb11
+    bb10 try.next.10
+      rethrow unwind bb5
+    bb11 scope.11 unwind bb3
+      assign $result.2
+        Type Option<Animal>
+        VariantConstruct Option<Animal> v1
+      end_catch
+      goto bb12
+    bb12 scope.12
+      goto bb7
+  fun main @fn4() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Cat
+        ClassAlloc Cat
+      call @fn21 direct
+        Type Cat
+        Local $new.1
+      val $dependency.argument.0: Animal
+        Type Animal
+        Retype Animal
+          Type Cat
+          Local $new.1
+      val $dependency.parameter._1: Animal
+        Type Animal
+        Local $dependency.argument.0
+      val option: Option<Animal>
+        Type Option<Animal>
+        VariantConstruct Option<Animal> v0
+          Type Animal
+          Local $dependency.parameter._1
+      assign $new.2
+        Type Cat
+        ClassAlloc Cat
+      call @fn21 direct
+        Type Cat
+        Local $new.2
+      val $argument.0: Animal
+        Type Animal
+        Retype Animal
+          Type Cat
+          Local $new.2
+      val $parameter.value: Animal
+        Type Animal
+        Local $argument.0
+      assign $new.3
+        Type RefBox<Animal>
+        ClassAlloc RefBox<Animal>
+      call @fn23 direct
+        Type RefBox<Animal>
+        Local $new.3
+        Type Animal
+        Local $parameter.value
+      val reference: RefBox<Animal>
+        Type RefBox<Animal>
+        Local $new.3
+      assign $new.4
+        Type Cat
+        ClassAlloc Cat
+      call @fn21 direct
+        Type Cat
+        Local $new.4
+      val $argument.0: Animal
+        Type Animal
+        Retype Animal
+          Type Cat
+          Local $new.4
+      val $parameter.value: Animal
+        Type Animal
+        Local $argument.0
+      call value: ValueBox<Animal> = @fn26 direct
+        Type Animal
+        Local $parameter.value
+      assign $new.5
+        Type Cat
+        ClassAlloc Cat
+      call @fn21 direct
+        Type Cat
+        Local $new.5
+      val $argument.0: Animal
+        Type Animal
+        Retype Animal
+          Type Cat
+          Local $new.5
+      val $parameter._1: Animal
+        Type Animal
+        Local $argument.0
+      val choice: Choice<Animal>
+        Type Choice<Animal>
+        VariantConstruct Choice<Animal> v0
+          Type Animal
+          Local $parameter._1
+      branch bb1 bb2
+        Type Boolean
+        BoolLiteral true
+    bb1 if.then.1
+      assign $new.6
+        Type Cat
+        ClassAlloc Cat
+      call @fn21 direct
+        Type Cat
+        Local $new.6
+      val $argument.0: Cat
+        Type Cat
+        Local $new.6
+      val $parameter.value: Cat
+        Type Cat
+        Local $argument.0
+      assign $new.7
+        Type RefBox<Cat>
+        ClassAlloc RefBox<Cat>
+      call @fn24 direct
+        Type RefBox<Cat>
+        Local $new.7
+        Type Cat
+        Local $parameter.value
+      assign $result.4
+        Type Any
+        Retype Any
+          Type RefBox<Cat>
+          Local $new.7
+      goto bb3
+    bb2 if.else.2
+      assign $new.8
+        Type Dog
+        ClassAlloc Dog
+      call @fn22 direct
+        Type Dog
+        Local $new.8
+      val $argument.0: Dog
+        Type Dog
+        Local $new.8
+      val $parameter.value: Dog
+        Type Dog
+        Local $argument.0
+      assign $new.9
+        Type RefBox<Dog>
+        ClassAlloc RefBox<Dog>
+      call @fn25 direct
+        Type RefBox<Dog>
+        Local $new.9
+        Type Dog
+        Local $parameter.value
+      assign $result.4
+        Type Any
+        Retype Any
+          Type RefBox<Dog>
+          Local $new.9
+      goto bb3
+    bb3 if.merge.3
+      val referenceLUB: Any
+        Type Any
+        Local $result.4
+      branch bb4 bb5
+        Type Boolean
+        BoolLiteral false
+    bb4 if.then.4
+      assign $new.10
+        Type Cat
+        ClassAlloc Cat
+      call @fn21 direct
+        Type Cat
+        Local $new.10
+      val $argument.0: Cat
+        Type Cat
+        Local $new.10
+      val $parameter.value: Cat
+        Type Cat
+        Local $argument.0
+      call $call.11: ValueBox<Cat> = @fn27 direct
+        Type Cat
+        Local $parameter.value
+      assign $result.5
+        Type Any
+        Box
+          Type ValueBox<Cat>
+          Local $call.11
+      goto bb6
+    bb5 if.else.5
+      assign $new.12
+        Type Dog
+        ClassAlloc Dog
+      call @fn22 direct
+        Type Dog
+        Local $new.12
+      val $argument.0: Dog
+        Type Dog
+        Local $new.12
+      val $parameter.value: Dog
+        Type Dog
+        Local $argument.0
+      call $call.13: ValueBox<Dog> = @fn28 direct
+        Type Dog
+        Local $parameter.value
+      assign $result.5
+        Type Any
+        Box
+          Type ValueBox<Dog>
+          Local $call.13
+      goto bb6
+    bb6 if.merge.6
+      val valueLUB: Any
+        Type Any
+        Local $result.5
+      assign $new.14
+        Type Cat
+        ClassAlloc Cat
+      call @fn21 direct
+        Type Cat
+        Local $new.14
+      val $argument.0: Cat
+        Type Cat
+        Local $new.14
+      val $parameter.value: Cat
+        Type Cat
+        Local $argument.0
+      assign $new.15
+        Type RefBox<Cat>
+        ClassAlloc RefBox<Cat>
+      call @fn24 direct
+        Type RefBox<Cat>
+        Local $new.15
+        Type Cat
+        Local $parameter.value
+      val $argument.0: Any
+        Type Any
+        Retype Any
+          Type RefBox<Cat>
+          Local $new.15
+      assign $new.16
+        Type Dog
+        ClassAlloc Dog
+      call @fn22 direct
+        Type Dog
+        Local $new.16
+      val $argument.0: Dog
+        Type Dog
+        Local $new.16
+      val $parameter.value: Dog
+        Type Dog
+        Local $argument.0
+      assign $new.17
+        Type RefBox<Dog>
+        ClassAlloc RefBox<Dog>
+      call @fn25 direct
+        Type RefBox<Dog>
+        Local $new.17
+        Type Dog
+        Local $parameter.value
+      val $argument.1: Any
+        Type Any
+        Retype Any
+          Type RefBox<Dog>
+          Local $new.17
+      val $parameter.first: Any
+        Type Any
+        Local $argument.0
+      val $parameter.second: Any
+        Type Any
+        Local $argument.1
+      call solverLUB: Any = @fn5 direct
+        Type Any
+        Local $parameter.first
+        Type Any
+        Local $parameter.second
+      val $opt.1: Option<Animal>
+        Type Option<Animal>
+        Local option
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Option<Animal> v0
+          Type Option<Animal>
+          Local $opt.1
+    bb7 if.then.7
+      val $uw.2: Animal
+        Type Animal
+        VariantPayloadProject Option<Animal> v0 f0
+          Type Option<Animal>
+          Local $opt.1
+      goto bb9
+    bb8 if.else.8
+      assign $new.18
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external3 direct
+        Type UnwrapException
+        Local $new.18
+      throw
+        Type UnwrapException
+        Local $new.18
+    bb9 if.merge.9
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type Animal
+          Local $uw.2
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type Animal
+          FieldAccess 0
+            Type RefBox<Animal>
+            Local reference
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type Animal
+          FieldAccess 0
+            Type ValueBox<Animal>
+            Local value
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      val $when.3: Choice<Animal>
+        Type Choice<Animal>
+        Local choice
+      val $pattern.subject.4: Choice<Animal>
+        Type Choice<Animal>
+        Local $when.3
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Choice<Animal> v0
+          Type Choice<Animal>
+          Local $pattern.subject.4
+    bb10 pattern.pass.10
+      val animal: Animal
+        Type Animal
+        VariantPayloadProject Choice<Animal> v0 f0
+          Type Choice<Animal>
+          Local $pattern.subject.4
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type Animal
+          Local animal
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb12
+    bb11 pattern.else.11
+      val $pattern.subject.5: Choice<Animal>
+        Type Choice<Animal>
+        Local $when.3
+      branch bb13 bb14
+        Type Boolean
+        VariantTest Choice<Animal> v1
+          Type Choice<Animal>
+          Local $pattern.subject.5
+    bb12 pattern.merge.12
+      call $opt.6: Option<Animal> = @fn0 direct
+      branch bb16 bb17
+        Type Boolean
+        VariantTest Option<Animal> v0
+          Type Option<Animal>
+          Local $opt.6
+    bb13 pattern.pass.13
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb15
+    bb14 pattern.else.14
+      unreachable
+    bb15 pattern.merge.15
+      goto bb12
+    bb16 if.then.16
+      val $uw.7: Animal
+        Type Animal
+        VariantPayloadProject Option<Animal> v0 f0
+          Type Option<Animal>
+          Local $opt.6
+      goto bb18
+    bb17 if.else.17
+      assign $new.19
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external3 direct
+        Type UnwrapException
+        Local $new.19
+      throw
+        Type UnwrapException
+        Local $new.19
+    bb18 if.merge.18
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type Animal
+          Local $uw.7
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.flag: Boolean
+        Type Boolean
+        Local $argument.0
+      call $opt.8: Option<Animal> = @fn1 direct
+        Type Boolean
+        Local $parameter.flag
+      branch bb19 bb20
+        Type Boolean
+        VariantTest Option<Animal> v0
+          Type Option<Animal>
+          Local $opt.8
+    bb19 if.then.19
+      val $uw.9: Animal
+        Type Animal
+        VariantPayloadProject Option<Animal> v0 f0
+          Type Option<Animal>
+          Local $opt.8
+      goto bb21
+    bb20 if.else.20
+      assign $new.20
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external3 direct
+        Type UnwrapException
+        Local $new.20
+      throw
+        Type UnwrapException
+        Local $new.20
+    bb21 if.merge.21
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type Animal
+          Local $uw.9
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: Switch
+        Type Switch
+        VariantConstruct Switch v0
+      val $parameter.switch: Switch
+        Type Switch
+        Local $argument.0
+      call $when.10: Choice<Animal> = @fn2 direct
+        Type Switch
+        Local $parameter.switch
+      val $pattern.subject.11: Choice<Animal>
+        Type Choice<Animal>
+        Local $when.10
+      branch bb22 bb23
+        Type Boolean
+        VariantTest Choice<Animal> v0
+          Type Choice<Animal>
+          Local $pattern.subject.11
+    bb22 pattern.pass.22
+      val animal: Animal
+        Type Animal
+        VariantPayloadProject Choice<Animal> v0 f0
+          Type Choice<Animal>
+          Local $pattern.subject.11
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type Animal
+          Local animal
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb24
+    bb23 pattern.else.23
+      val $pattern.subject.12: Choice<Animal>
+        Type Choice<Animal>
+        Local $when.10
+      branch bb25 bb26
+        Type Boolean
+        VariantTest Choice<Animal> v1
+          Type Choice<Animal>
+          Local $pattern.subject.12
+    bb24 pattern.merge.24
+      call $opt.13: Option<Animal> = @fn3 direct
+      branch bb28 bb29
+        Type Boolean
+        VariantTest Option<Animal> v0
+          Type Option<Animal>
+          Local $opt.13
+    bb25 pattern.pass.25
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb27
+    bb26 pattern.else.26
+      unreachable
+    bb27 pattern.merge.27
+      goto bb24
+    bb28 if.then.28
+      val $uw.14: Animal
+        Type Animal
+        VariantPayloadProject Option<Animal> v0 f0
+          Type Option<Animal>
+          Local $opt.13
+      goto bb30
+    bb29 if.else.29
+      assign $new.21
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external3 direct
+        Type UnwrapException
+        Local $new.21
+      throw
+        Type UnwrapException
+        Local $new.21
+    bb30 if.merge.30
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type Animal
+          Local $uw.14
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IsInstance RefBox<Cat>
+          Type Any
+          Local referenceLUB
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IsInstance ValueBox<Dog>
+          Type Any
+          Local valueLUB
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IsInstance RefBox<Cat>
+          Type Any
+          Local solverLUB
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      return
+  fun choose @fn5(first: Any, second: Any) -> Any
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        BoolLiteral true
+    bb1 if.then.1
+      assign $result.3
+        Type Any
+        Local first
+      goto bb3
+    bb2 if.else.2
+      assign $result.3
+        Type Any
+        Local second
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Any
+        Local $result.3
+  fun println @fn6(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn7(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Continuation.resume @fn8(this: Continuation<Animal>, value: Animal) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn9(this: Continuation<Animal>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn10(this: SuspendTask<Animal>, $completion: Continuation<Animal>) -> CoroutineStep<Animal>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn11(this: SuspendRegistration<Animal>, continuation: Continuation<Animal>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn12(this: Continuation<Cat>, value: Cat) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn13(this: Continuation<Cat>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn14(this: SuspendTask<Cat>, $completion: Continuation<Cat>) -> CoroutineStep<Cat>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn15(this: SuspendRegistration<Cat>, continuation: Continuation<Cat>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn16(this: Continuation<Dog>, value: Dog) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn17(this: Continuation<Dog>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn18(this: SuspendTask<Dog>, $completion: Continuation<Dog>) -> CoroutineStep<Dog>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn19(this: SuspendRegistration<Dog>, continuation: Continuation<Dog>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Animal.$c0 @fn20(this: Animal, name: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type Animal
+        Local this
+        Type String
+        Local name
+      return
+  fun init.Cat.$c1 @fn21(this: Cat) -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str4
+      val $parameter.name: String
+        Type String
+        Local $argument.0
+      call @fn20 direct
+        Type Animal
+        Retype Animal
+          Type Cat
+          Local this
+        Type String
+        Local $parameter.name
+      return
+  fun init.Dog.$c2 @fn22(this: Dog) -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str5
+      val $parameter.name: String
+        Type String
+        Local $argument.0
+      call @fn20 direct
+        Type Animal
+        Retype Animal
+          Type Dog
+          Local this
+        Type String
+        Local $parameter.name
+      return
+  fun init.RefBox.$c3 @fn23(this: RefBox<Animal>, value: Animal) -> Unit
+    bb0 entry
+      field_set 0
+        Type RefBox<Animal>
+        Local this
+        Type Animal
+        Local value
+      return
+  fun init.RefBox.$c3 @fn24(this: RefBox<Cat>, value: Cat) -> Unit
+    bb0 entry
+      field_set 0
+        Type RefBox<Cat>
+        Local this
+        Type Cat
+        Local value
+      return
+  fun init.RefBox.$c3 @fn25(this: RefBox<Dog>, value: Dog) -> Unit
+    bb0 entry
+      field_set 0
+        Type RefBox<Dog>
+        Local this
+        Type Dog
+        Local value
+      return
+  fun ctor.ValueBox.$c0 @fn26(value: Animal) -> ValueBox<Animal> <no-gc>
+    bb0 entry
+      return
+        Type ValueBox<Animal>
+        StructInit ValueBox<Animal>
+          Type Animal
+          Local value
+  fun ctor.ValueBox.$c0 @fn27(value: Cat) -> ValueBox<Cat> <no-gc>
+    bb0 entry
+      return
+        Type ValueBox<Cat>
+        StructInit ValueBox<Cat>
+          Type Cat
+          Local value
+  fun ctor.ValueBox.$c0 @fn28(value: Dog) -> ValueBox<Dog> <no-gc>
+    bb0 entry
+      return
+        Type ValueBox<Dog>
+        StructInit ValueBox<Dog>
+          Type Dog
+          Local value
+  fun startCoroutine<Cat> @fn29(task: SuspendTask<Cat>, completion: Continuation<Cat>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn12 interface Continuation<Cat>[0]
+        Type Continuation<Cat>
+        Local completion
+        Type Cat
+        EnumField v0 f0
+          Type CoroutineStep<Cat>
+          Local $step
+      return
+    bb2 failed
+      call @fn13 interface Continuation<Cat>[1]
+        Type Continuation<Cat>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Cat> = @fn14 interface SuspendTask<Cat>[0]
+        Type SuspendTask<Cat>
+        Local task
+        Type Continuation<Cat>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Cat>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Dog> @fn30(task: SuspendTask<Dog>, completion: Continuation<Dog>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn16 interface Continuation<Dog>[0]
+        Type Continuation<Dog>
+        Local completion
+        Type Dog
+        EnumField v0 f0
+          Type CoroutineStep<Dog>
+          Local $step
+      return
+    bb2 failed
+      call @fn17 interface Continuation<Dog>[1]
+        Type Continuation<Dog>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Dog> = @fn18 interface SuspendTask<Dog>[0]
+        Type SuspendTask<Dog>
+        Local task
+        Type Continuation<Dog>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Dog>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Animal> @fn31(task: SuspendTask<Animal>, completion: Continuation<Animal>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn8 interface Continuation<Animal>[0]
+        Type Continuation<Animal>
+        Local completion
+        Type Animal
+        EnumField v0 f0
+          Type CoroutineStep<Animal>
+          Local $step
+      return
+    bb2 failed
+      call @fn9 interface Continuation<Animal>[1]
+        Type Continuation<Animal>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Animal> = @fn10 interface SuspendTask<Animal>[0]
+        Type SuspendTask<Animal>
+        Local task
+        Type Continuation<Animal>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Animal>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Cat> result=Cat
+  coroutine_step cs1 CoroutineStep<Dog> result=Dog
+  coroutine_step cs2 CoroutineStep<Animal> result=Animal
+  coroutine_slot cl0 CoroutineSlot<Cat> value=Cat
+  coroutine_slot cl1 CoroutineSlot<Dog> value=Dog
+  coroutine_slot cl2 CoroutineSlot<Animal> value=Animal
+  coroutine_start ct0 result=Cat function=fn29
+  coroutine_start ct1 result=Dog function=fn30
+  coroutine_start ct2 result=Animal function=fn31
+  coroutine_fn cf0 @fn10 source_return=Animal step=cs2 immediate
+  coroutine_fn cf1 @fn14 source_return=Cat step=cs0 immediate
+  coroutine_fn cf2 @fn18 source_return=Dog step=cs1 immediate
+  instance mi0 function=@fn5 <- choose
+  instance mi1 function=@fn6 <- println
+  instance mi2 function=@fn7 <- println
+  instance mi3 function=@fn8 <- Continuation.resume
+  instance mi4 function=@fn9 <- Continuation.resumeWithException
+  instance mi5 function=@fn10 <- SuspendTask.run
+  instance mi6 function=@fn11 <- SuspendRegistration.register
+  instance mi7 function=@fn12 <- Continuation.resume
+  instance mi8 function=@fn13 <- Continuation.resumeWithException
+  instance mi9 function=@fn14 <- SuspendTask.run
+  instance mi10 function=@fn15 <- SuspendRegistration.register
+  instance mi11 function=@fn16 <- Continuation.resume
+  instance mi12 function=@fn17 <- Continuation.resumeWithException
+  instance mi13 function=@fn18 <- SuspendTask.run
+  instance mi14 function=@fn19 <- SuspendRegistration.register
+  str @str0 "empty"
+  str @str1 "empty"
+  str @str2 "\n"
+  str @str3 "\n"
+  str @str4 "cat"
+  str @str5 "dog"
+  output executable @fn4

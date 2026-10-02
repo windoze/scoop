@@ -1,0 +1,173 @@
+SourceFile
+  RootPackage
+  fun marked(label: String, value: Int): Int
+    Call println
+      Var label
+    return
+      Var value
+  class Box<T>(val value: T)
+    companion object Factory
+      const val version: Int <const> = <expr>
+        IntLiteral 21
+      val seed: Int =
+        Call marked
+          StringLiteral "box-companion"
+          IntLiteral 40
+      var count: Int =
+        IntLiteral 1
+      fun emptyInt
+      fun answer
+      fun identity
+  class DefaultHost()
+    companion object
+      fun value
+  struct StructHost
+    companion object Maker
+      fun value
+  enum EnumHost
+    Entry
+    companion object Values
+      fun value
+  interface InterfaceHost
+    companion object Provider
+      fun value
+  object ObjectHost
+    const val token: Int <const> = <expr>
+      IntLiteral 11
+    fun direct
+    companion object NestedCompanion
+      const val token: Int <const> = <expr>
+        IntLiteral 12
+      fun forwarded
+  class Independent()
+    companion object
+      val seed: Int =
+        Call marked
+          StringLiteral "independent-companion"
+          IntLiteral 13
+  open class FactoryBase()
+    val inheritedProperty: Int =
+      IntLiteral 14
+    fun inheritedMethod
+  class InheritedHost()
+    companion object
+  val combinedVersion: Int <const> = <expr>
+  fun chooseFactory(value: Box.Factory): Box.Companion
+    =
+      Var value
+  fun main()
+    Call println
+      Var combinedVersion
+    Call println
+      FieldAccess version
+        Var Box
+    Call println
+      Binary Add
+        FieldAccess version
+          FieldAccess Factory
+            Var Box
+        FieldAccess version
+          FieldAccess Companion
+            Var Box
+    Call println
+      StringLiteral "before-box"
+    Call println
+      MethodCall answer
+        Var Box
+    assign .count
+      Var Box
+      IntLiteral 3
+    Call println
+      FieldAccess count
+        Var Box
+    assign .count
+      FieldAccess Factory
+        Var Box
+      Binary Add
+        FieldAccess count
+          FieldAccess Factory
+            Var Box
+        IntLiteral 1
+    Call println
+      FieldAccess count
+        FieldAccess Companion
+          Var Box
+    Call println
+      Binary RefEq
+        FieldAccess Factory
+          Var Box
+        FieldAccess Companion
+          Var Box
+    Call println
+      Binary RefEq
+        Call chooseFactory
+          FieldAccess Factory
+            Var Box
+        FieldAccess Companion
+          Var Box
+    Call println
+      MethodCall answer
+        FieldAccess Factory
+          Var Box
+    Call println
+      MethodCall identity<Int>
+        Var Box
+        IntLiteral 5
+    Call println
+      MethodCall value
+        Var DefaultHost
+    Call println
+      MethodCall value
+        FieldAccess Companion
+          Var DefaultHost
+    Call println
+      MethodCall value
+        Var StructHost
+    Call println
+      MethodCall value
+        FieldAccess Maker
+          Var StructHost
+    Call println
+      MethodCall value
+        Var EnumHost
+    Call println
+      MethodCall value
+        FieldAccess Values
+          Var EnumHost
+    Call println
+      MethodCall value
+        Var InterfaceHost
+    Call println
+      MethodCall value
+        FieldAccess Provider
+          Var InterfaceHost
+    Call println
+      FieldAccess token
+        Var ObjectHost
+    Call println
+      FieldAccess token
+        FieldAccess Companion
+          Var ObjectHost
+    Call println
+      MethodCall direct
+        Var ObjectHost
+    Call println
+      MethodCall forwarded
+        Var ObjectHost
+    Call println
+      MethodCall forwarded
+        FieldAccess NestedCompanion
+          Var ObjectHost
+    val independent: Independent
+      Call Independent
+    Call println
+      StringLiteral "after-independent-construction"
+    Call println
+      FieldAccess seed
+        Var Independent
+    Call println
+      FieldAccess inheritedProperty
+        Var InheritedHost
+    Call println
+      MethodCall inheritedMethod
+        Var InheritedHost

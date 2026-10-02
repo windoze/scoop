@@ -1,0 +1,56 @@
+SourceFile
+  RootPackage
+  class IntGate(var waiter: Continuation<Int>?)
+    fun complete
+  class BooleanGate(var waiter: Continuation<Boolean>?)
+    fun complete
+  class IntRegistration(val gate: IntGate), SuspendRegistration<Int>
+    public fun register
+  class BooleanRegistration(val gate: BooleanGate), SuspendRegistration<Boolean>
+    public fun register
+  suspend fun waitForInt(gate: IntGate): Int
+    =
+      Call suspendCoroutine
+        Call IntRegistration
+          Var gate
+  suspend fun waitForBoolean(gate: BooleanGate): Boolean
+    =
+      Call suspendCoroutine
+        Call BooleanRegistration
+          Var gate
+  class MultipleTask(val firstGate: IntGate, val secondGate: IntGate, val booleanGate: BooleanGate), SuspendTask<Int>
+    public suspend fun run
+  class RecordingCompletion(), Continuation<Int>
+    public fun resume
+    public fun resumeWithException
+  fun main()
+    val first
+      Call IntGate
+        Var None
+    val second
+      Call IntGate
+        Var None
+    val accepted
+      Call BooleanGate
+        Var None
+    Call startCoroutine
+      Call MultipleTask
+        Var first
+        Var second
+        Var accepted
+      Call RecordingCompletion
+    Call println
+      StringLiteral "started"
+    MethodCall complete
+      Var first
+      IntLiteral 20
+    Call println
+      StringLiteral "first"
+    MethodCall complete
+      Var second
+      IntLiteral 21
+    Call println
+      StringLiteral "second"
+    MethodCall complete
+      Var accepted
+      BoolLiteral true

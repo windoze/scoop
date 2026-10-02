@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m17-defaults/errors/suspend-in-extern-default.scoop:4:26: error: suspend function `awaitValue` cannot be called from non-suspend default expression `value` of `invalid`

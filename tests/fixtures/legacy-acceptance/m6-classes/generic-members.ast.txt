@@ -1,0 +1,44 @@
+SourceFile
+  RootPackage
+  interface Exchange<T>
+    fun current
+  struct Box<T> : Exchange<T>
+    field value: T
+    fun exchange
+    fun current
+  open class Tool()
+    fun id
+  class Overloads()
+    fun id
+    fun id
+  fun read(value: Exchange<Int>): Int
+    =
+      MethodCall current
+        Var value
+  fun main()
+    val box
+      Call Box
+        IntLiteral 7
+    Call println
+      MethodCall exchange
+        Var box
+        IntLiteral 7
+        Var None
+        StringLiteral "struct"
+    Call println
+      Call read
+        Var box
+    Call println
+      MethodCall id
+        Call Tool
+        StringLiteral "class"
+    val overloads
+      Call Overloads
+    Call println
+      MethodCall id
+        Var overloads
+        IntLiteral 1
+    Call println
+      MethodCall id
+        Var overloads
+        StringLiteral "generic overload"

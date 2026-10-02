@@ -1,0 +1,4476 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Int>
+    Some(_0: Int)
+    None()
+  enum Option<Long>
+    Some(_0: Long)
+    None()
+  enum Option<UInt>
+    Some(_0: UInt)
+    None()
+  enum Option<ULong>
+    Some(_0: ULong)
+    None()
+  class IntRange vtable=0 itables=1
+  class LongRange vtable=0 itables=1
+  class UIntRange vtable=0 itables=1
+  class ULongRange vtable=0 itables=1
+  class IllegalArgumentException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Iterable<Int>
+  interface Iterator<Int>
+  interface Iterable<Long>
+  interface Iterator<Long>
+  interface Iterable<UInt>
+  interface Iterator<UInt>
+  interface Iterable<ULong>
+  interface Iterator<ULong>
+  interface ToString
+  interface Hash
+  fun showIntRange @fn0(label: String, range: IntRange) -> Unit
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        Local label
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      val $for.source.0: IntRange
+        Type IntRange
+        Local range
+      val $dependency.receiver: IntRange
+        Type IntRange
+        Local $for.source.0
+      call $for.iterator.result.1: Iterator<Int> = external0 direct
+        Type IntRange
+        Local $dependency.receiver
+      val $for.iterator.2: Iterator<Int>
+        Type Iterator<Int>
+        Local $for.iterator.result.1
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      call $for.next.3: Option<Int> = @fn22 interface Iterator<Int>[0]
+        Type Iterator<Int>
+        Local $for.iterator.2
+      branch bb3 bb2
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $for.next.3
+    bb2 while.exit.2
+      return
+    bb3 while.body.3
+      val $for.element.4: Int
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local $for.next.3
+      val value: Int
+        Type Int
+        Local $for.element.4
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn23 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb1
+  fun showLongRange @fn1(label: String, range: LongRange) -> Unit
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        Local label
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      val $for.source.5: LongRange
+        Type LongRange
+        Local range
+      val $dependency.receiver: LongRange
+        Type LongRange
+        Local $for.source.5
+      call $for.iterator.result.6: Iterator<Long> = external1 direct
+        Type LongRange
+        Local $dependency.receiver
+      val $for.iterator.7: Iterator<Long>
+        Type Iterator<Long>
+        Local $for.iterator.result.6
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      call $for.next.8: Option<Long> = @fn24 interface Iterator<Long>[0]
+        Type Iterator<Long>
+        Local $for.iterator.7
+      branch bb3 bb2
+        Type Boolean
+        VariantTest Option<Long> v0
+          Type Option<Long>
+          Local $for.next.8
+    bb2 while.exit.2
+      return
+    bb3 while.body.3
+      val $for.element.9: Long
+        Type Long
+        VariantPayloadProject Option<Long> v0 f0
+          Type Option<Long>
+          Local $for.next.8
+      val value: Long
+        Type Long
+        Local $for.element.9
+      val $dependency.argument.0: Long
+        Type Long
+        Local value
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn25 direct
+        Type Long
+        Local $dependency.parameter.value
+      goto bb1
+  fun showUIntRange @fn2(label: String, range: UIntRange) -> Unit
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        Local label
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      val $for.source.10: UIntRange
+        Type UIntRange
+        Local range
+      val $dependency.receiver: UIntRange
+        Type UIntRange
+        Local $for.source.10
+      call $for.iterator.result.11: Iterator<UInt> = external2 direct
+        Type UIntRange
+        Local $dependency.receiver
+      val $for.iterator.12: Iterator<UInt>
+        Type Iterator<UInt>
+        Local $for.iterator.result.11
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      call $for.next.13: Option<UInt> = @fn26 interface Iterator<UInt>[0]
+        Type Iterator<UInt>
+        Local $for.iterator.12
+      branch bb3 bb2
+        Type Boolean
+        VariantTest Option<UInt> v0
+          Type Option<UInt>
+          Local $for.next.13
+    bb2 while.exit.2
+      return
+    bb3 while.body.3
+      val $for.element.14: UInt
+        Type UInt
+        VariantPayloadProject Option<UInt> v0 f0
+          Type Option<UInt>
+          Local $for.next.13
+      val value: UInt
+        Type UInt
+        Local $for.element.14
+      val $dependency.argument.0: UInt
+        Type UInt
+        Local value
+      val $dependency.parameter.value: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call @fn27 direct
+        Type UInt
+        Local $dependency.parameter.value
+      goto bb1
+  fun showULongRange @fn3(label: String, range: ULongRange) -> Unit
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        Local label
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      val $for.source.15: ULongRange
+        Type ULongRange
+        Local range
+      val $dependency.receiver: ULongRange
+        Type ULongRange
+        Local $for.source.15
+      call $for.iterator.result.16: Iterator<ULong> = external3 direct
+        Type ULongRange
+        Local $dependency.receiver
+      val $for.iterator.17: Iterator<ULong>
+        Type Iterator<ULong>
+        Local $for.iterator.result.16
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      call $for.next.18: Option<ULong> = @fn28 interface Iterator<ULong>[0]
+        Type Iterator<ULong>
+        Local $for.iterator.17
+      branch bb3 bb2
+        Type Boolean
+        VariantTest Option<ULong> v0
+          Type Option<ULong>
+          Local $for.next.18
+    bb2 while.exit.2
+      return
+    bb3 while.body.3
+      val $for.element.19: ULong
+        Type ULong
+        VariantPayloadProject Option<ULong> v0 f0
+          Type Option<ULong>
+          Local $for.next.18
+      val value: ULong
+        Type ULong
+        Local $for.element.19
+      val $dependency.argument.0: ULong
+        Type ULong
+        Local value
+      val $dependency.parameter.value: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call @fn29 direct
+        Type ULong
+        Local $dependency.parameter.value
+      goto bb1
+  fun showNext @fn4(iterator: Iterator<Int>) -> Unit
+    bb0 entry
+      val $dependency.receiver: Iterator<Int>
+        Type Iterator<Int>
+        Local iterator
+      call next: Option<Int> = @fn22 interface Iterator<Int>[0]
+        Type Iterator<Int>
+        Local $dependency.receiver
+      val $when.1: Option<Int>
+        Type Option<Int>
+        Local next
+      val $pattern.subject.2: Option<Int>
+        Type Option<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val value: Int
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local $pattern.subject.2
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn23 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Int>
+        Type Option<Int>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Int> v1
+          Type Option<Int>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+    bb4 pattern.pass.4
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun showLongNext @fn5(iterator: Iterator<Long>) -> Unit
+    bb0 entry
+      val $dependency.receiver: Iterator<Long>
+        Type Iterator<Long>
+        Local iterator
+      call next: Option<Long> = @fn24 interface Iterator<Long>[0]
+        Type Iterator<Long>
+        Local $dependency.receiver
+      val $when.1: Option<Long>
+        Type Option<Long>
+        Local next
+      val $pattern.subject.2: Option<Long>
+        Type Option<Long>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Long> v0
+          Type Option<Long>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val value: Long
+        Type Long
+        VariantPayloadProject Option<Long> v0 f0
+          Type Option<Long>
+          Local $pattern.subject.2
+      val $dependency.argument.0: Long
+        Type Long
+        Local value
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn25 direct
+        Type Long
+        Local $dependency.parameter.value
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Long>
+        Type Option<Long>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Long> v1
+          Type Option<Long>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+    bb4 pattern.pass.4
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun showUIntNext @fn6(iterator: Iterator<UInt>) -> Unit
+    bb0 entry
+      val $dependency.receiver: Iterator<UInt>
+        Type Iterator<UInt>
+        Local iterator
+      call next: Option<UInt> = @fn26 interface Iterator<UInt>[0]
+        Type Iterator<UInt>
+        Local $dependency.receiver
+      val $when.1: Option<UInt>
+        Type Option<UInt>
+        Local next
+      val $pattern.subject.2: Option<UInt>
+        Type Option<UInt>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<UInt> v0
+          Type Option<UInt>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val value: UInt
+        Type UInt
+        VariantPayloadProject Option<UInt> v0 f0
+          Type Option<UInt>
+          Local $pattern.subject.2
+      val $dependency.argument.0: UInt
+        Type UInt
+        Local value
+      val $dependency.parameter.value: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call @fn27 direct
+        Type UInt
+        Local $dependency.parameter.value
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<UInt>
+        Type Option<UInt>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<UInt> v1
+          Type Option<UInt>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+    bb4 pattern.pass.4
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun showULongNext @fn7(iterator: Iterator<ULong>) -> Unit
+    bb0 entry
+      val $dependency.receiver: Iterator<ULong>
+        Type Iterator<ULong>
+        Local iterator
+      call next: Option<ULong> = @fn28 interface Iterator<ULong>[0]
+        Type Iterator<ULong>
+        Local $dependency.receiver
+      val $when.1: Option<ULong>
+        Type Option<ULong>
+        Local next
+      val $pattern.subject.2: Option<ULong>
+        Type Option<ULong>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<ULong> v0
+          Type Option<ULong>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val value: ULong
+        Type ULong
+        VariantPayloadProject Option<ULong> v0 f0
+          Type Option<ULong>
+          Local $pattern.subject.2
+      val $dependency.argument.0: ULong
+        Type ULong
+        Local value
+      val $dependency.parameter.value: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call @fn29 direct
+        Type ULong
+        Local $dependency.parameter.value
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<ULong>
+        Type Option<ULong>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<ULong> v1
+          Type Option<ULong>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+    bb4 pattern.pass.4
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun rejectIntStep @fn8(label: String, range: IntRange, amount: Int) -> Unit
+    bb0 entry
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb9 bb10
+        Type Boolean
+        IsInstance IllegalArgumentException
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      return
+    bb8 try.body.8 unwind bb1
+      val $dependency.receiver: IntRange
+        Type IntRange
+        Local range
+      val $dependency.argument.0: Int
+        Type Int
+        Local amount
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call invalid: IntRange = external4 direct
+        Type IntRange
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: String
+        Type String
+        StringConst @str4
+      val $dependency.argument.0: String
+        Type String
+        Local label
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $dependency.argument.0: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb7
+    bb9 try.catch.9
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: IllegalArgumentException
+        Type IllegalArgumentException
+        Retype IllegalArgumentException
+          Type Any
+          Local $catch.1
+      goto bb11
+    bb10 try.next.10
+      rethrow unwind bb5
+    bb11 scope.11 unwind bb3
+      val $dependency.receiver: String
+        Type String
+        StringConst @str5
+      val $dependency.argument.0: String
+        Type String
+        Local label
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $dependency.argument.0: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb12
+    bb12 scope.12
+      goto bb7
+  fun rejectLongStep @fn9(label: String, range: LongRange, amount: Long) -> Unit
+    bb0 entry
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb9 bb10
+        Type Boolean
+        IsInstance IllegalArgumentException
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      return
+    bb8 try.body.8 unwind bb1
+      val $dependency.receiver: LongRange
+        Type LongRange
+        Local range
+      val $dependency.argument.0: Long
+        Type Long
+        Local amount
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call invalid: LongRange = external5 direct
+        Type LongRange
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.receiver: String
+        Type String
+        StringConst @str6
+      val $dependency.argument.0: String
+        Type String
+        Local label
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $dependency.argument.0: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb7
+    bb9 try.catch.9
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: IllegalArgumentException
+        Type IllegalArgumentException
+        Retype IllegalArgumentException
+          Type Any
+          Local $catch.1
+      goto bb11
+    bb10 try.next.10
+      rethrow unwind bb5
+    bb11 scope.11 unwind bb3
+      val $dependency.receiver: String
+        Type String
+        StringConst @str7
+      val $dependency.argument.0: String
+        Type String
+        Local label
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $dependency.argument.0: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb12
+    bb12 scope.12
+      goto bb7
+  fun rejectUIntStep @fn10(label: String, range: UIntRange, amount: UInt) -> Unit
+    bb0 entry
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb9 bb10
+        Type Boolean
+        IsInstance IllegalArgumentException
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      return
+    bb8 try.body.8 unwind bb1
+      val $dependency.receiver: UIntRange
+        Type UIntRange
+        Local range
+      val $dependency.argument.0: UInt
+        Type UInt
+        Local amount
+      val $dependency.parameter.value: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call invalid: UIntRange = external6 direct
+        Type UIntRange
+        Local $dependency.receiver
+        Type UInt
+        Local $dependency.parameter.value
+      val $dependency.receiver: String
+        Type String
+        StringConst @str8
+      val $dependency.argument.0: String
+        Type String
+        Local label
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $dependency.argument.0: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb7
+    bb9 try.catch.9
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: IllegalArgumentException
+        Type IllegalArgumentException
+        Retype IllegalArgumentException
+          Type Any
+          Local $catch.1
+      goto bb11
+    bb10 try.next.10
+      rethrow unwind bb5
+    bb11 scope.11 unwind bb3
+      val $dependency.receiver: String
+        Type String
+        StringConst @str9
+      val $dependency.argument.0: String
+        Type String
+        Local label
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $dependency.argument.0: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb12
+    bb12 scope.12
+      goto bb7
+  fun rejectULongStep @fn11(label: String, range: ULongRange, amount: ULong) -> Unit
+    bb0 entry
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb9 bb10
+        Type Boolean
+        IsInstance IllegalArgumentException
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      return
+    bb8 try.body.8 unwind bb1
+      val $dependency.receiver: ULongRange
+        Type ULongRange
+        Local range
+      val $dependency.argument.0: ULong
+        Type ULong
+        Local amount
+      val $dependency.parameter.value: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call invalid: ULongRange = external7 direct
+        Type ULongRange
+        Local $dependency.receiver
+        Type ULong
+        Local $dependency.parameter.value
+      val $dependency.receiver: String
+        Type String
+        StringConst @str10
+      val $dependency.argument.0: String
+        Type String
+        Local label
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $dependency.argument.0: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb7
+    bb9 try.catch.9
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: IllegalArgumentException
+        Type IllegalArgumentException
+        Retype IllegalArgumentException
+          Type Any
+          Local $catch.1
+      goto bb11
+    bb10 try.next.10
+      rethrow unwind bb5
+    bb11 scope.11 unwind bb3
+      val $dependency.receiver: String
+        Type String
+        StringConst @str11
+      val $dependency.argument.0: String
+        Type String
+        Local label
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $dependency.argument.0: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb12
+    bb12 scope.12
+      goto bb7
+  fun ownerMappings @fn12() -> Unit
+    bb0 entry
+      val int8First: Int8
+        Type Int8
+        IntegerLiteral Int8 value=-2 bits=0xfe
+      val int8Last: Int8
+        Type Int8
+        IntegerLiteral Int8 value=2 bits=0x02
+      val int16First: Int16
+        Type Int16
+        IntegerLiteral Int16 value=-1 bits=0xffff
+      val int16End: Int16
+        Type Int16
+        IntegerLiteral Int16 value=2 bits=0x0002
+      val intFirst: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val intEnd: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val longFirst: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      val longLast: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val uint8First: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=1 bits=0x01
+      val uint8Last: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=3 bits=0x03
+      val uint16First: UInt16
+        Type UInt16
+        IntegerLiteral UInt16 value=1 bits=0x0001
+      val uint16End: UInt16
+        Type UInt16
+        IntegerLiteral UInt16 value=4 bits=0x0004
+      val uintFirst: UInt
+        Type UInt
+        IntegerLiteral UInt value=1 bits=0x00000001
+      val uintEnd: UInt
+        Type UInt
+        IntegerLiteral UInt value=4 bits=0x00000004
+      val ulongFirst: ULong
+        Type ULong
+        IntegerLiteral ULong value=3 bits=0x0000000000000003
+      val ulongLast: ULong
+        Type ULong
+        IntegerLiteral ULong value=1 bits=0x0000000000000001
+      val $dependency.receiver: Int8
+        Type Int8
+        Local int8First
+      val $dependency.argument.0: Int8
+        Type Int8
+        Local int8Last
+      val $dependency.parameter.endpoint: Int8
+        Type Int8
+        Local $dependency.argument.0
+      call fromInt8: IntRange = external8 direct
+        Type Int8
+        Local $dependency.receiver
+        Type Int8
+        Local $dependency.parameter.endpoint
+      val $dependency.receiver: Int16
+        Type Int16
+        Local int16First
+      val $dependency.argument.0: Int16
+        Type Int16
+        Local int16End
+      val $dependency.parameter.endpoint: Int16
+        Type Int16
+        Local $dependency.argument.0
+      call fromInt16: IntRange = external9 direct
+        Type Int16
+        Local $dependency.receiver
+        Type Int16
+        Local $dependency.parameter.endpoint
+      val $dependency.receiver: Int
+        Type Int
+        Local intFirst
+      val $dependency.argument.0: Int
+        Type Int
+        Local intEnd
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call fromInt: IntRange = external10 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      val $dependency.receiver: Long
+        Type Long
+        Local longFirst
+      val $dependency.argument.0: Long
+        Type Long
+        Local longLast
+      val $dependency.parameter.endpoint: Long
+        Type Long
+        Local $dependency.argument.0
+      call fromLong: LongRange = external11 direct
+        Type Long
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.endpoint
+      val $dependency.receiver: UInt8
+        Type UInt8
+        Local uint8First
+      val $dependency.argument.0: UInt8
+        Type UInt8
+        Local uint8Last
+      val $dependency.parameter.endpoint: UInt8
+        Type UInt8
+        Local $dependency.argument.0
+      call fromUInt8: UIntRange = external12 direct
+        Type UInt8
+        Local $dependency.receiver
+        Type UInt8
+        Local $dependency.parameter.endpoint
+      val $dependency.receiver: UInt16
+        Type UInt16
+        Local uint16First
+      val $dependency.argument.0: UInt16
+        Type UInt16
+        Local uint16End
+      val $dependency.parameter.endpoint: UInt16
+        Type UInt16
+        Local $dependency.argument.0
+      call fromUInt16: UIntRange = external13 direct
+        Type UInt16
+        Local $dependency.receiver
+        Type UInt16
+        Local $dependency.parameter.endpoint
+      val $dependency.receiver: UInt
+        Type UInt
+        Local uintFirst
+      val $dependency.argument.0: UInt
+        Type UInt
+        Local uintEnd
+      val $dependency.parameter.endpoint: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call fromUInt: UIntRange = external14 direct
+        Type UInt
+        Local $dependency.receiver
+        Type UInt
+        Local $dependency.parameter.endpoint
+      val $dependency.receiver: ULong
+        Type ULong
+        Local ulongFirst
+      val $dependency.argument.0: ULong
+        Type ULong
+        Local ulongLast
+      val $dependency.parameter.endpoint: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call fromULong: ULongRange = external15 direct
+        Type ULong
+        Local $dependency.receiver
+        Type ULong
+        Local $dependency.parameter.endpoint
+      val $argument.0: String
+        Type String
+        StringConst @str12
+      val $argument.1: IntRange
+        Type IntRange
+        Local fromInt8
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.range: IntRange
+        Type IntRange
+        Local $argument.1
+      call @fn0 direct
+        Type String
+        Local $parameter.label
+        Type IntRange
+        Local $parameter.range
+      val $argument.0: String
+        Type String
+        StringConst @str13
+      val $argument.1: IntRange
+        Type IntRange
+        Local fromInt16
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.range: IntRange
+        Type IntRange
+        Local $argument.1
+      call @fn0 direct
+        Type String
+        Local $parameter.label
+        Type IntRange
+        Local $parameter.range
+      val $argument.0: String
+        Type String
+        StringConst @str14
+      val $argument.1: IntRange
+        Type IntRange
+        Local fromInt
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.range: IntRange
+        Type IntRange
+        Local $argument.1
+      call @fn0 direct
+        Type String
+        Local $parameter.label
+        Type IntRange
+        Local $parameter.range
+      val $argument.0: String
+        Type String
+        StringConst @str15
+      val $argument.1: LongRange
+        Type LongRange
+        Local fromLong
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.range: LongRange
+        Type LongRange
+        Local $argument.1
+      call @fn1 direct
+        Type String
+        Local $parameter.label
+        Type LongRange
+        Local $parameter.range
+      val $argument.0: String
+        Type String
+        StringConst @str16
+      val $argument.1: UIntRange
+        Type UIntRange
+        Local fromUInt8
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.range: UIntRange
+        Type UIntRange
+        Local $argument.1
+      call @fn2 direct
+        Type String
+        Local $parameter.label
+        Type UIntRange
+        Local $parameter.range
+      val $argument.0: String
+        Type String
+        StringConst @str17
+      val $argument.1: UIntRange
+        Type UIntRange
+        Local fromUInt16
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.range: UIntRange
+        Type UIntRange
+        Local $argument.1
+      call @fn2 direct
+        Type String
+        Local $parameter.label
+        Type UIntRange
+        Local $parameter.range
+      val $argument.0: String
+        Type String
+        StringConst @str18
+      val $argument.1: UIntRange
+        Type UIntRange
+        Local fromUInt
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.range: UIntRange
+        Type UIntRange
+        Local $argument.1
+      call @fn2 direct
+        Type String
+        Local $parameter.label
+        Type UIntRange
+        Local $parameter.range
+      val $argument.0: String
+        Type String
+        StringConst @str19
+      val $argument.1: ULongRange
+        Type ULongRange
+        Local fromULong
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.range: ULongRange
+        Type ULongRange
+        Local $argument.1
+      call @fn3 direct
+        Type String
+        Local $parameter.label
+        Type ULongRange
+        Local $parameter.range
+      val aliasFirst: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val aliasLast: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.receiver: Long
+        Type Long
+        Local aliasFirst
+      val $dependency.argument.0: Long
+        Type Long
+        Local aliasLast
+      val $dependency.parameter.endpoint: Long
+        Type Long
+        Local $dependency.argument.0
+      call aliasRange: LongRange = external16 direct
+        Type Long
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.endpoint
+      val $argument.0: String
+        Type String
+        StringConst @str20
+      val $argument.1: LongRange
+        Type LongRange
+        Local aliasRange
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.range: LongRange
+        Type LongRange
+        Local $argument.1
+      call @fn1 direct
+        Type String
+        Local $parameter.label
+        Type LongRange
+        Local $parameter.range
+      return
+  fun namedConstruction @fn13() -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str21
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call $argument.1: IntRange = external17 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.range: IntRange
+        Type IntRange
+        Local $argument.1
+      call @fn0 direct
+        Type String
+        Local $parameter.label
+        Type IntRange
+        Local $parameter.range
+      val $argument.0: String
+        Type String
+        StringConst @str22
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call $argument.1: IntRange = external18 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.range: IntRange
+        Type IntRange
+        Local $argument.1
+      call @fn0 direct
+        Type String
+        Local $parameter.label
+        Type IntRange
+        Local $parameter.range
+      val $argument.0: String
+        Type String
+        StringConst @str23
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call $argument.1: IntRange = external10 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.range: IntRange
+        Type IntRange
+        Local $argument.1
+      call @fn0 direct
+        Type String
+        Local $parameter.label
+        Type IntRange
+        Local $parameter.range
+      val $argument.0: String
+        Type String
+        StringConst @str24
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call $argument.1: IntRange = external19 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.range: IntRange
+        Type IntRange
+        Local $argument.1
+      call @fn0 direct
+        Type String
+        Local $parameter.label
+        Type IntRange
+        Local $parameter.range
+      return
+  fun emptySingletonAndDirection @fn14() -> Unit
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str25
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: IntRange = external17 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      call $argument.0: Iterator<Int> = external0 direct
+        Type IntRange
+        Local $dependency.receiver
+      val $parameter.iterator: Iterator<Int>
+        Type Iterator<Int>
+        Local $argument.0
+      call @fn4 direct
+        Type Iterator<Int>
+        Local $parameter.iterator
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str26
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: IntRange = external18 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      call $argument.0: Iterator<Int> = external0 direct
+        Type IntRange
+        Local $dependency.receiver
+      val $parameter.iterator: Iterator<Int>
+        Type Iterator<Int>
+        Local $argument.0
+      call @fn4 direct
+        Type Iterator<Int>
+        Local $parameter.iterator
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str27
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=-2147483648 bits=0x80000000
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=-2147483648 bits=0x80000000
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: IntRange = external18 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      call $argument.0: Iterator<Int> = external0 direct
+        Type IntRange
+        Local $dependency.receiver
+      val $parameter.iterator: Iterator<Int>
+        Type Iterator<Int>
+        Local $argument.0
+      call @fn4 direct
+        Type Iterator<Int>
+        Local $parameter.iterator
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str28
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: Long
+        Type Long
+        IntegerLiteral Long value=-9223372036854775808 bits=0x8000000000000000
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=-9223372036854775808 bits=0x8000000000000000
+      val $dependency.parameter.endpoint: Long
+        Type Long
+        Local $dependency.argument.0
+      call $dependency.receiver: LongRange = external20 direct
+        Type Long
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.endpoint
+      call $argument.0: Iterator<Long> = external1 direct
+        Type LongRange
+        Local $dependency.receiver
+      val $parameter.iterator: Iterator<Long>
+        Type Iterator<Long>
+        Local $argument.0
+      call @fn5 direct
+        Type Iterator<Long>
+        Local $parameter.iterator
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str29
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: UInt
+        Type UInt
+        IntegerLiteral UInt value=0 bits=0x00000000
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=0 bits=0x00000000
+      val $dependency.parameter.endpoint: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call $dependency.receiver: UIntRange = external21 direct
+        Type UInt
+        Local $dependency.receiver
+        Type UInt
+        Local $dependency.parameter.endpoint
+      call $argument.0: Iterator<UInt> = external2 direct
+        Type UIntRange
+        Local $dependency.receiver
+      val $parameter.iterator: Iterator<UInt>
+        Type Iterator<UInt>
+        Local $argument.0
+      call @fn6 direct
+        Type Iterator<UInt>
+        Local $parameter.iterator
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str30
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: ULong
+        Type ULong
+        IntegerLiteral ULong value=0 bits=0x0000000000000000
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=0 bits=0x0000000000000000
+      val $dependency.parameter.endpoint: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call $dependency.receiver: ULongRange = external22 direct
+        Type ULong
+        Local $dependency.receiver
+        Type ULong
+        Local $dependency.parameter.endpoint
+      call $argument.0: Iterator<ULong> = external3 direct
+        Type ULongRange
+        Local $dependency.receiver
+      val $parameter.iterator: Iterator<ULong>
+        Type Iterator<ULong>
+        Local $argument.0
+      call @fn7 direct
+        Type Iterator<ULong>
+        Local $parameter.iterator
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str31
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: IntRange = external10 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      call $argument.0: Iterator<Int> = external0 direct
+        Type IntRange
+        Local $dependency.receiver
+      val $parameter.iterator: Iterator<Int>
+        Type Iterator<Int>
+        Local $argument.0
+      call @fn4 direct
+        Type Iterator<Int>
+        Local $parameter.iterator
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str32
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: IntRange = external19 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      call $argument.0: Iterator<Int> = external0 direct
+        Type IntRange
+        Local $dependency.receiver
+      val $parameter.iterator: Iterator<Int>
+        Type Iterator<Int>
+        Local $argument.0
+      call @fn4 direct
+        Type Iterator<Int>
+        Local $parameter.iterator
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str33
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: IntRange = external17 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      call closedSingleton: Iterator<Int> = external0 direct
+        Type IntRange
+        Local $dependency.receiver
+      val $argument.0: Iterator<Int>
+        Type Iterator<Int>
+        Local closedSingleton
+      val $parameter.iterator: Iterator<Int>
+        Type Iterator<Int>
+        Local $argument.0
+      call @fn4 direct
+        Type Iterator<Int>
+        Local $parameter.iterator
+      val $argument.0: Iterator<Int>
+        Type Iterator<Int>
+        Local closedSingleton
+      val $parameter.iterator: Iterator<Int>
+        Type Iterator<Int>
+        Local $argument.0
+      call @fn4 direct
+        Type Iterator<Int>
+        Local $parameter.iterator
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str34
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: IntRange = external19 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      call descendingSingleton: Iterator<Int> = external0 direct
+        Type IntRange
+        Local $dependency.receiver
+      val $argument.0: Iterator<Int>
+        Type Iterator<Int>
+        Local descendingSingleton
+      val $parameter.iterator: Iterator<Int>
+        Type Iterator<Int>
+        Local $argument.0
+      call @fn4 direct
+        Type Iterator<Int>
+        Local $parameter.iterator
+      val $argument.0: Iterator<Int>
+        Type Iterator<Int>
+        Local descendingSingleton
+      val $parameter.iterator: Iterator<Int>
+        Type Iterator<Int>
+        Local $argument.0
+      call @fn4 direct
+        Type Iterator<Int>
+        Local $parameter.iterator
+      val $argument.0: String
+        Type String
+        StringConst @str35
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: IntRange = external17 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $argument.1: IntRange = external4 direct
+        Type IntRange
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.range: IntRange
+        Type IntRange
+        Local $argument.1
+      call @fn0 direct
+        Type String
+        Local $parameter.label
+        Type IntRange
+        Local $parameter.range
+      val $argument.0: String
+        Type String
+        StringConst @str36
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: IntRange = external18 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $argument.1: IntRange = external4 direct
+        Type IntRange
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.range: IntRange
+        Type IntRange
+        Local $argument.1
+      call @fn0 direct
+        Type String
+        Local $parameter.label
+        Type IntRange
+        Local $parameter.range
+      val $argument.0: String
+        Type String
+        StringConst @str37
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: IntRange = external19 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $argument.1: IntRange = external4 direct
+        Type IntRange
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.range: IntRange
+        Type IntRange
+        Local $argument.1
+      call @fn0 direct
+        Type String
+        Local $parameter.label
+        Type IntRange
+        Local $parameter.range
+      val $argument.0: String
+        Type String
+        StringConst @str38
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: IntRange = external17 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: IntRange = external4 direct
+        Type IntRange
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $argument.1: IntRange = external4 direct
+        Type IntRange
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.range: IntRange
+        Type IntRange
+        Local $argument.1
+      call @fn0 direct
+        Type String
+        Local $parameter.label
+        Type IntRange
+        Local $parameter.range
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call original: IntRange = external17 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call sameBounds: IntRange = external17 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call firstOpen: IntRange = external18 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call secondOpen: IntRange = external18 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call firstUntil: IntRange = external10 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call secondUntil: IntRange = external10 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call firstDescending: IntRange = external19 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call secondDescending: IntRange = external19 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      val $dependency.receiver: IntRange
+        Type IntRange
+        Local original
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call stepped: IntRange = external4 direct
+        Type IntRange
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call empty: IntRange = external17 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call sameEmpty: IntRange = external17 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      val $dependency.receiver: IntRange
+        Type IntRange
+        Local empty
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call steppedEmpty: IntRange = external4 direct
+        Type IntRange
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Binary RefNe
+          Type IntRange
+          Local original
+          Type IntRange
+          Local sameBounds
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn30 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Binary RefNe
+          Type IntRange
+          Local firstOpen
+          Type IntRange
+          Local secondOpen
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn30 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Binary RefNe
+          Type IntRange
+          Local firstUntil
+          Type IntRange
+          Local secondUntil
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn30 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Binary RefNe
+          Type IntRange
+          Local firstDescending
+          Type IntRange
+          Local secondDescending
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn30 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Binary RefNe
+          Type IntRange
+          Local stepped
+          Type IntRange
+          Local original
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn30 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Binary RefNe
+          Type IntRange
+          Local empty
+          Type IntRange
+          Local sameEmpty
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn30 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Binary RefNe
+          Type IntRange
+          Local steppedEmpty
+          Type IntRange
+          Local empty
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn30 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str39
+      val $argument.1: IntRange
+        Type IntRange
+        Local original
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.range: IntRange
+        Type IntRange
+        Local $argument.1
+      call @fn0 direct
+        Type String
+        Local $parameter.label
+        Type IntRange
+        Local $parameter.range
+      val $argument.0: String
+        Type String
+        StringConst @str40
+      val $argument.1: IntRange
+        Type IntRange
+        Local stepped
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.range: IntRange
+        Type IntRange
+        Local $argument.1
+      call @fn0 direct
+        Type String
+        Local $parameter.label
+        Type IntRange
+        Local $parameter.range
+      return
+  fun containsAndAlignment @fn15() -> Unit
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: IntRange = external17 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call ascending: IntRange = external4 direct
+        Type IntRange
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: IntRange = external18 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call open: IntRange = external4 direct
+        Type IntRange
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: IntRange = external19 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call descending: IntRange = external4 direct
+        Type IntRange
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: IntRange
+        Type IntRange
+        Local ascending
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.0: Boolean = external23 direct
+        Type IntRange
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn30 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.receiver: IntRange
+        Type IntRange
+        Local ascending
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.0: Boolean = external23 direct
+        Type IntRange
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn30 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.receiver: IntRange
+        Type IntRange
+        Local ascending
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.0: Boolean = external23 direct
+        Type IntRange
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn30 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.receiver: IntRange
+        Type IntRange
+        Local ascending
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: Boolean = external23 direct
+        Type IntRange
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.1
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn30 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.receiver: IntRange
+        Type IntRange
+        Local open
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.2: Boolean = external23 direct
+        Type IntRange
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.2
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn30 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.receiver: IntRange
+        Type IntRange
+        Local descending
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.0: Boolean = external23 direct
+        Type IntRange
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn30 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.receiver: IntRange
+        Type IntRange
+        Local descending
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.3: Boolean = external23 direct
+        Type IntRange
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.3
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn30 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: IntRange = external18 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.4: Boolean = external23 direct
+        Type IntRange
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.4
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn30 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=-2147483648 bits=0x80000000
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2147483647 bits=0x7fffffff
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: IntRange = external17 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call fullInt: IntRange = external4 direct
+        Type IntRange
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Long
+        Type Long
+        IntegerLiteral Long value=-9223372036854775808 bits=0x8000000000000000
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=9223372036854775807 bits=0x7fffffffffffffff
+      val $dependency.parameter.endpoint: Long
+        Type Long
+        Local $dependency.argument.0
+      call $dependency.receiver: LongRange = external16 direct
+        Type Long
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.endpoint
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call fullLong: LongRange = external5 direct
+        Type LongRange
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=2147483647 bits=0x7fffffff
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=-2147483648 bits=0x80000000
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: IntRange = external19 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call descendingInt: IntRange = external4 direct
+        Type IntRange
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Long
+        Type Long
+        IntegerLiteral Long value=9223372036854775807 bits=0x7fffffffffffffff
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=-9223372036854775808 bits=0x8000000000000000
+      val $dependency.parameter.endpoint: Long
+        Type Long
+        Local $dependency.argument.0
+      call $dependency.receiver: LongRange = external11 direct
+        Type Long
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.endpoint
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call descendingLong: LongRange = external5 direct
+        Type LongRange
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.receiver: IntRange
+        Type IntRange
+        Local fullInt
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.0: Boolean = external23 direct
+        Type IntRange
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn30 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.receiver: IntRange
+        Type IntRange
+        Local fullInt
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.5: Boolean = external23 direct
+        Type IntRange
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.5
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn30 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.receiver: LongRange
+        Type LongRange
+        Local fullLong
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call $dependency.argument.0: Boolean = external24 direct
+        Type LongRange
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn30 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.receiver: LongRange
+        Type LongRange
+        Local fullLong
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call $call.6: Boolean = external24 direct
+        Type LongRange
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.6
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn30 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.receiver: IntRange
+        Type IntRange
+        Local descendingInt
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=-2 bits=0xfffffffe
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.0: Boolean = external23 direct
+        Type IntRange
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn30 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.receiver: IntRange
+        Type IntRange
+        Local descendingInt
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=-1 bits=0xffffffff
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.7: Boolean = external23 direct
+        Type IntRange
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.7
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn30 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.receiver: LongRange
+        Type LongRange
+        Local descendingLong
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=-2 bits=0xfffffffffffffffe
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call $dependency.argument.0: Boolean = external24 direct
+        Type LongRange
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn30 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.receiver: LongRange
+        Type LongRange
+        Local descendingLong
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=-1 bits=0xffffffffffffffff
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call $call.8: Boolean = external24 direct
+        Type LongRange
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.8
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn30 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.receiver: UInt
+        Type UInt
+        IntegerLiteral UInt value=0 bits=0x00000000
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=4294967295 bits=0xffffffff
+      val $dependency.parameter.endpoint: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call $dependency.receiver: UIntRange = external25 direct
+        Type UInt
+        Local $dependency.receiver
+        Type UInt
+        Local $dependency.parameter.endpoint
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=4294967295 bits=0xffffffff
+      val $dependency.parameter.value: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call fullUInt: UIntRange = external6 direct
+        Type UIntRange
+        Local $dependency.receiver
+        Type UInt
+        Local $dependency.parameter.value
+      val $dependency.receiver: ULong
+        Type ULong
+        IntegerLiteral ULong value=0 bits=0x0000000000000000
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=18446744073709551615 bits=0xffffffffffffffff
+      val $dependency.parameter.endpoint: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call $dependency.receiver: ULongRange = external26 direct
+        Type ULong
+        Local $dependency.receiver
+        Type ULong
+        Local $dependency.parameter.endpoint
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=18446744073709551615 bits=0xffffffffffffffff
+      val $dependency.parameter.value: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call fullULong: ULongRange = external7 direct
+        Type ULongRange
+        Local $dependency.receiver
+        Type ULong
+        Local $dependency.parameter.value
+      val $dependency.receiver: UIntRange
+        Type UIntRange
+        Local fullUInt
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=4294967295 bits=0xffffffff
+      val $dependency.parameter.value: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call $dependency.argument.0: Boolean = external27 direct
+        Type UIntRange
+        Local $dependency.receiver
+        Type UInt
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn30 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.receiver: UIntRange
+        Type UIntRange
+        Local fullUInt
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=1 bits=0x00000001
+      val $dependency.parameter.value: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call $call.9: Boolean = external27 direct
+        Type UIntRange
+        Local $dependency.receiver
+        Type UInt
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.9
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn30 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.receiver: ULongRange
+        Type ULongRange
+        Local fullULong
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=18446744073709551615 bits=0xffffffffffffffff
+      val $dependency.parameter.value: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call $dependency.argument.0: Boolean = external28 direct
+        Type ULongRange
+        Local $dependency.receiver
+        Type ULong
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn30 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.receiver: ULongRange
+        Type ULongRange
+        Local fullULong
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=1 bits=0x0000000000000001
+      val $dependency.parameter.value: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call $call.10: Boolean = external28 direct
+        Type ULongRange
+        Local $dependency.receiver
+        Type ULong
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.10
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn30 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=-2147483648 bits=0x80000000
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2147483647 bits=0x7fffffff
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: IntRange = external17 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call intStepTwo: IntRange = external4 direct
+        Type IntRange
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Long
+        Type Long
+        IntegerLiteral Long value=-9223372036854775808 bits=0x8000000000000000
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=9223372036854775807 bits=0x7fffffffffffffff
+      val $dependency.parameter.endpoint: Long
+        Type Long
+        Local $dependency.argument.0
+      call $dependency.receiver: LongRange = external16 direct
+        Type Long
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.endpoint
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call longStepTwo: LongRange = external5 direct
+        Type LongRange
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.receiver: IntRange
+        Type IntRange
+        Local intStepTwo
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2147483646 bits=0x7ffffffe
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.0: Boolean = external23 direct
+        Type IntRange
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn30 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.receiver: IntRange
+        Type IntRange
+        Local intStepTwo
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2147483647 bits=0x7fffffff
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.11: Boolean = external23 direct
+        Type IntRange
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.11
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn30 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.receiver: LongRange
+        Type LongRange
+        Local longStepTwo
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=9223372036854775806 bits=0x7ffffffffffffffe
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call $dependency.argument.0: Boolean = external24 direct
+        Type LongRange
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn30 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.receiver: LongRange
+        Type LongRange
+        Local longStepTwo
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=9223372036854775807 bits=0x7fffffffffffffff
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call $call.12: Boolean = external24 direct
+        Type LongRange
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.12
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn30 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      return
+  fun fullDomainsHaveFiniteIterators @fn16() -> Unit
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str41
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=-2147483648 bits=0x80000000
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2147483647 bits=0x7fffffff
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: IntRange = external17 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1431655765 bits=0x55555555
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call intRange: IntRange = external4 direct
+        Type IntRange
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: IntRange
+        Type IntRange
+        Local intRange
+      call ints: Iterator<Int> = external0 direct
+        Type IntRange
+        Local $dependency.receiver
+      val $argument.0: Iterator<Int>
+        Type Iterator<Int>
+        Local ints
+      val $parameter.iterator: Iterator<Int>
+        Type Iterator<Int>
+        Local $argument.0
+      call @fn4 direct
+        Type Iterator<Int>
+        Local $parameter.iterator
+      val $argument.0: Iterator<Int>
+        Type Iterator<Int>
+        Local ints
+      val $parameter.iterator: Iterator<Int>
+        Type Iterator<Int>
+        Local $argument.0
+      call @fn4 direct
+        Type Iterator<Int>
+        Local $parameter.iterator
+      val $argument.0: Iterator<Int>
+        Type Iterator<Int>
+        Local ints
+      val $parameter.iterator: Iterator<Int>
+        Type Iterator<Int>
+        Local $argument.0
+      call @fn4 direct
+        Type Iterator<Int>
+        Local $parameter.iterator
+      val $argument.0: Iterator<Int>
+        Type Iterator<Int>
+        Local ints
+      val $parameter.iterator: Iterator<Int>
+        Type Iterator<Int>
+        Local $argument.0
+      call @fn4 direct
+        Type Iterator<Int>
+        Local $parameter.iterator
+      val $argument.0: Iterator<Int>
+        Type Iterator<Int>
+        Local ints
+      val $parameter.iterator: Iterator<Int>
+        Type Iterator<Int>
+        Local $argument.0
+      call @fn4 direct
+        Type Iterator<Int>
+        Local $parameter.iterator
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str42
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: Long
+        Type Long
+        IntegerLiteral Long value=-9223372036854775808 bits=0x8000000000000000
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=9223372036854775807 bits=0x7fffffffffffffff
+      val $dependency.parameter.endpoint: Long
+        Type Long
+        Local $dependency.argument.0
+      call $dependency.receiver: LongRange = external16 direct
+        Type Long
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.endpoint
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=6148914691236517205 bits=0x5555555555555555
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call longRange: LongRange = external5 direct
+        Type LongRange
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.receiver: LongRange
+        Type LongRange
+        Local longRange
+      call longs: Iterator<Long> = external1 direct
+        Type LongRange
+        Local $dependency.receiver
+      val $argument.0: Iterator<Long>
+        Type Iterator<Long>
+        Local longs
+      val $parameter.iterator: Iterator<Long>
+        Type Iterator<Long>
+        Local $argument.0
+      call @fn5 direct
+        Type Iterator<Long>
+        Local $parameter.iterator
+      val $argument.0: Iterator<Long>
+        Type Iterator<Long>
+        Local longs
+      val $parameter.iterator: Iterator<Long>
+        Type Iterator<Long>
+        Local $argument.0
+      call @fn5 direct
+        Type Iterator<Long>
+        Local $parameter.iterator
+      val $argument.0: Iterator<Long>
+        Type Iterator<Long>
+        Local longs
+      val $parameter.iterator: Iterator<Long>
+        Type Iterator<Long>
+        Local $argument.0
+      call @fn5 direct
+        Type Iterator<Long>
+        Local $parameter.iterator
+      val $argument.0: Iterator<Long>
+        Type Iterator<Long>
+        Local longs
+      val $parameter.iterator: Iterator<Long>
+        Type Iterator<Long>
+        Local $argument.0
+      call @fn5 direct
+        Type Iterator<Long>
+        Local $parameter.iterator
+      val $argument.0: Iterator<Long>
+        Type Iterator<Long>
+        Local longs
+      val $parameter.iterator: Iterator<Long>
+        Type Iterator<Long>
+        Local $argument.0
+      call @fn5 direct
+        Type Iterator<Long>
+        Local $parameter.iterator
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str43
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: UInt
+        Type UInt
+        IntegerLiteral UInt value=0 bits=0x00000000
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=4294967295 bits=0xffffffff
+      val $dependency.parameter.endpoint: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call $dependency.receiver: UIntRange = external25 direct
+        Type UInt
+        Local $dependency.receiver
+        Type UInt
+        Local $dependency.parameter.endpoint
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=4294967295 bits=0xffffffff
+      val $dependency.parameter.value: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call uintRange: UIntRange = external6 direct
+        Type UIntRange
+        Local $dependency.receiver
+        Type UInt
+        Local $dependency.parameter.value
+      val $dependency.receiver: UIntRange
+        Type UIntRange
+        Local uintRange
+      call uints: Iterator<UInt> = external2 direct
+        Type UIntRange
+        Local $dependency.receiver
+      val $argument.0: Iterator<UInt>
+        Type Iterator<UInt>
+        Local uints
+      val $parameter.iterator: Iterator<UInt>
+        Type Iterator<UInt>
+        Local $argument.0
+      call @fn6 direct
+        Type Iterator<UInt>
+        Local $parameter.iterator
+      val $argument.0: Iterator<UInt>
+        Type Iterator<UInt>
+        Local uints
+      val $parameter.iterator: Iterator<UInt>
+        Type Iterator<UInt>
+        Local $argument.0
+      call @fn6 direct
+        Type Iterator<UInt>
+        Local $parameter.iterator
+      val $argument.0: Iterator<UInt>
+        Type Iterator<UInt>
+        Local uints
+      val $parameter.iterator: Iterator<UInt>
+        Type Iterator<UInt>
+        Local $argument.0
+      call @fn6 direct
+        Type Iterator<UInt>
+        Local $parameter.iterator
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str44
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: ULong
+        Type ULong
+        IntegerLiteral ULong value=0 bits=0x0000000000000000
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=18446744073709551615 bits=0xffffffffffffffff
+      val $dependency.parameter.endpoint: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call $dependency.receiver: ULongRange = external26 direct
+        Type ULong
+        Local $dependency.receiver
+        Type ULong
+        Local $dependency.parameter.endpoint
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=18446744073709551615 bits=0xffffffffffffffff
+      val $dependency.parameter.value: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call ulongRange: ULongRange = external7 direct
+        Type ULongRange
+        Local $dependency.receiver
+        Type ULong
+        Local $dependency.parameter.value
+      val $dependency.receiver: ULongRange
+        Type ULongRange
+        Local ulongRange
+      call ulongs: Iterator<ULong> = external3 direct
+        Type ULongRange
+        Local $dependency.receiver
+      val $argument.0: Iterator<ULong>
+        Type Iterator<ULong>
+        Local ulongs
+      val $parameter.iterator: Iterator<ULong>
+        Type Iterator<ULong>
+        Local $argument.0
+      call @fn7 direct
+        Type Iterator<ULong>
+        Local $parameter.iterator
+      val $argument.0: Iterator<ULong>
+        Type Iterator<ULong>
+        Local ulongs
+      val $parameter.iterator: Iterator<ULong>
+        Type Iterator<ULong>
+        Local $argument.0
+      call @fn7 direct
+        Type Iterator<ULong>
+        Local $parameter.iterator
+      val $argument.0: Iterator<ULong>
+        Type Iterator<ULong>
+        Local ulongs
+      val $parameter.iterator: Iterator<ULong>
+        Type Iterator<ULong>
+        Local $argument.0
+      call @fn7 direct
+        Type Iterator<ULong>
+        Local $parameter.iterator
+      return
+  fun endpointsDoNotWrap @fn17() -> Unit
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str45
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=2147483646 bits=0x7ffffffe
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2147483647 bits=0x7fffffff
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: IntRange = external17 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      call intMaximum: Iterator<Int> = external0 direct
+        Type IntRange
+        Local $dependency.receiver
+      val $argument.0: Iterator<Int>
+        Type Iterator<Int>
+        Local intMaximum
+      val $parameter.iterator: Iterator<Int>
+        Type Iterator<Int>
+        Local $argument.0
+      call @fn4 direct
+        Type Iterator<Int>
+        Local $parameter.iterator
+      val $argument.0: Iterator<Int>
+        Type Iterator<Int>
+        Local intMaximum
+      val $parameter.iterator: Iterator<Int>
+        Type Iterator<Int>
+        Local $argument.0
+      call @fn4 direct
+        Type Iterator<Int>
+        Local $parameter.iterator
+      val $argument.0: Iterator<Int>
+        Type Iterator<Int>
+        Local intMaximum
+      val $parameter.iterator: Iterator<Int>
+        Type Iterator<Int>
+        Local $argument.0
+      call @fn4 direct
+        Type Iterator<Int>
+        Local $parameter.iterator
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str46
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=-2147483647 bits=0x80000001
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=-2147483648 bits=0x80000000
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: IntRange = external19 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      call intMinimum: Iterator<Int> = external0 direct
+        Type IntRange
+        Local $dependency.receiver
+      val $argument.0: Iterator<Int>
+        Type Iterator<Int>
+        Local intMinimum
+      val $parameter.iterator: Iterator<Int>
+        Type Iterator<Int>
+        Local $argument.0
+      call @fn4 direct
+        Type Iterator<Int>
+        Local $parameter.iterator
+      val $argument.0: Iterator<Int>
+        Type Iterator<Int>
+        Local intMinimum
+      val $parameter.iterator: Iterator<Int>
+        Type Iterator<Int>
+        Local $argument.0
+      call @fn4 direct
+        Type Iterator<Int>
+        Local $parameter.iterator
+      val $argument.0: Iterator<Int>
+        Type Iterator<Int>
+        Local intMinimum
+      val $parameter.iterator: Iterator<Int>
+        Type Iterator<Int>
+        Local $argument.0
+      call @fn4 direct
+        Type Iterator<Int>
+        Local $parameter.iterator
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str47
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: Long
+        Type Long
+        IntegerLiteral Long value=9223372036854775806 bits=0x7ffffffffffffffe
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=9223372036854775807 bits=0x7fffffffffffffff
+      val $dependency.parameter.endpoint: Long
+        Type Long
+        Local $dependency.argument.0
+      call $dependency.receiver: LongRange = external16 direct
+        Type Long
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.endpoint
+      call longMaximum: Iterator<Long> = external1 direct
+        Type LongRange
+        Local $dependency.receiver
+      val $argument.0: Iterator<Long>
+        Type Iterator<Long>
+        Local longMaximum
+      val $parameter.iterator: Iterator<Long>
+        Type Iterator<Long>
+        Local $argument.0
+      call @fn5 direct
+        Type Iterator<Long>
+        Local $parameter.iterator
+      val $argument.0: Iterator<Long>
+        Type Iterator<Long>
+        Local longMaximum
+      val $parameter.iterator: Iterator<Long>
+        Type Iterator<Long>
+        Local $argument.0
+      call @fn5 direct
+        Type Iterator<Long>
+        Local $parameter.iterator
+      val $argument.0: Iterator<Long>
+        Type Iterator<Long>
+        Local longMaximum
+      val $parameter.iterator: Iterator<Long>
+        Type Iterator<Long>
+        Local $argument.0
+      call @fn5 direct
+        Type Iterator<Long>
+        Local $parameter.iterator
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str48
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: Long
+        Type Long
+        IntegerLiteral Long value=-9223372036854775807 bits=0x8000000000000001
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=-9223372036854775808 bits=0x8000000000000000
+      val $dependency.parameter.endpoint: Long
+        Type Long
+        Local $dependency.argument.0
+      call $dependency.receiver: LongRange = external11 direct
+        Type Long
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.endpoint
+      call longMinimum: Iterator<Long> = external1 direct
+        Type LongRange
+        Local $dependency.receiver
+      val $argument.0: Iterator<Long>
+        Type Iterator<Long>
+        Local longMinimum
+      val $parameter.iterator: Iterator<Long>
+        Type Iterator<Long>
+        Local $argument.0
+      call @fn5 direct
+        Type Iterator<Long>
+        Local $parameter.iterator
+      val $argument.0: Iterator<Long>
+        Type Iterator<Long>
+        Local longMinimum
+      val $parameter.iterator: Iterator<Long>
+        Type Iterator<Long>
+        Local $argument.0
+      call @fn5 direct
+        Type Iterator<Long>
+        Local $parameter.iterator
+      val $argument.0: Iterator<Long>
+        Type Iterator<Long>
+        Local longMinimum
+      val $parameter.iterator: Iterator<Long>
+        Type Iterator<Long>
+        Local $argument.0
+      call @fn5 direct
+        Type Iterator<Long>
+        Local $parameter.iterator
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str49
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: UInt
+        Type UInt
+        IntegerLiteral UInt value=4294967294 bits=0xfffffffe
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=4294967295 bits=0xffffffff
+      val $dependency.parameter.endpoint: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call $dependency.receiver: UIntRange = external25 direct
+        Type UInt
+        Local $dependency.receiver
+        Type UInt
+        Local $dependency.parameter.endpoint
+      call uintMaximum: Iterator<UInt> = external2 direct
+        Type UIntRange
+        Local $dependency.receiver
+      val $argument.0: Iterator<UInt>
+        Type Iterator<UInt>
+        Local uintMaximum
+      val $parameter.iterator: Iterator<UInt>
+        Type Iterator<UInt>
+        Local $argument.0
+      call @fn6 direct
+        Type Iterator<UInt>
+        Local $parameter.iterator
+      val $argument.0: Iterator<UInt>
+        Type Iterator<UInt>
+        Local uintMaximum
+      val $parameter.iterator: Iterator<UInt>
+        Type Iterator<UInt>
+        Local $argument.0
+      call @fn6 direct
+        Type Iterator<UInt>
+        Local $parameter.iterator
+      val $argument.0: Iterator<UInt>
+        Type Iterator<UInt>
+        Local uintMaximum
+      val $parameter.iterator: Iterator<UInt>
+        Type Iterator<UInt>
+        Local $argument.0
+      call @fn6 direct
+        Type Iterator<UInt>
+        Local $parameter.iterator
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str50
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: UInt
+        Type UInt
+        IntegerLiteral UInt value=1 bits=0x00000001
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=0 bits=0x00000000
+      val $dependency.parameter.endpoint: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call $dependency.receiver: UIntRange = external29 direct
+        Type UInt
+        Local $dependency.receiver
+        Type UInt
+        Local $dependency.parameter.endpoint
+      call uintMinimum: Iterator<UInt> = external2 direct
+        Type UIntRange
+        Local $dependency.receiver
+      val $argument.0: Iterator<UInt>
+        Type Iterator<UInt>
+        Local uintMinimum
+      val $parameter.iterator: Iterator<UInt>
+        Type Iterator<UInt>
+        Local $argument.0
+      call @fn6 direct
+        Type Iterator<UInt>
+        Local $parameter.iterator
+      val $argument.0: Iterator<UInt>
+        Type Iterator<UInt>
+        Local uintMinimum
+      val $parameter.iterator: Iterator<UInt>
+        Type Iterator<UInt>
+        Local $argument.0
+      call @fn6 direct
+        Type Iterator<UInt>
+        Local $parameter.iterator
+      val $argument.0: Iterator<UInt>
+        Type Iterator<UInt>
+        Local uintMinimum
+      val $parameter.iterator: Iterator<UInt>
+        Type Iterator<UInt>
+        Local $argument.0
+      call @fn6 direct
+        Type Iterator<UInt>
+        Local $parameter.iterator
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str51
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: ULong
+        Type ULong
+        IntegerLiteral ULong value=18446744073709551615 bits=0xffffffffffffffff
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=18446744073709551615 bits=0xffffffffffffffff
+      val $dependency.parameter.endpoint: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call $dependency.receiver: ULongRange = external26 direct
+        Type ULong
+        Local $dependency.receiver
+        Type ULong
+        Local $dependency.parameter.endpoint
+      call ulongSingleton: Iterator<ULong> = external3 direct
+        Type ULongRange
+        Local $dependency.receiver
+      val $argument.0: Iterator<ULong>
+        Type Iterator<ULong>
+        Local ulongSingleton
+      val $parameter.iterator: Iterator<ULong>
+        Type Iterator<ULong>
+        Local $argument.0
+      call @fn7 direct
+        Type Iterator<ULong>
+        Local $parameter.iterator
+      val $argument.0: Iterator<ULong>
+        Type Iterator<ULong>
+        Local ulongSingleton
+      val $parameter.iterator: Iterator<ULong>
+        Type Iterator<ULong>
+        Local $argument.0
+      call @fn7 direct
+        Type Iterator<ULong>
+        Local $parameter.iterator
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str52
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: ULong
+        Type ULong
+        IntegerLiteral ULong value=18446744073709551615 bits=0xffffffffffffffff
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=18446744073709551614 bits=0xfffffffffffffffe
+      val $dependency.parameter.endpoint: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call $dependency.receiver: ULongRange = external15 direct
+        Type ULong
+        Local $dependency.receiver
+        Type ULong
+        Local $dependency.parameter.endpoint
+      call ulongDescending: Iterator<ULong> = external3 direct
+        Type ULongRange
+        Local $dependency.receiver
+      val $argument.0: Iterator<ULong>
+        Type Iterator<ULong>
+        Local ulongDescending
+      val $parameter.iterator: Iterator<ULong>
+        Type Iterator<ULong>
+        Local $argument.0
+      call @fn7 direct
+        Type Iterator<ULong>
+        Local $parameter.iterator
+      val $argument.0: Iterator<ULong>
+        Type Iterator<ULong>
+        Local ulongDescending
+      val $parameter.iterator: Iterator<ULong>
+        Type Iterator<ULong>
+        Local $argument.0
+      call @fn7 direct
+        Type Iterator<ULong>
+        Local $parameter.iterator
+      val $argument.0: Iterator<ULong>
+        Type Iterator<ULong>
+        Local ulongDescending
+      val $parameter.iterator: Iterator<ULong>
+        Type Iterator<ULong>
+        Local $argument.0
+      call @fn7 direct
+        Type Iterator<ULong>
+        Local $parameter.iterator
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str53
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: UInt
+        Type UInt
+        IntegerLiteral UInt value=0 bits=0x00000000
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=4294967295 bits=0xffffffff
+      val $dependency.parameter.endpoint: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call $dependency.receiver: UIntRange = external25 direct
+        Type UInt
+        Local $dependency.receiver
+        Type UInt
+        Local $dependency.parameter.endpoint
+      val $dependency.receiver: UInt
+        Type UInt
+        IntegerLiteral UInt value=1 bits=0x00000001
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerUnary negate kind=UInt
+          Type UInt
+          Local $dependency.receiver
+      val $dependency.parameter.value: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call $dependency.receiver: UIntRange = external6 direct
+        Type UIntRange
+        Local $dependency.receiver
+        Type UInt
+        Local $dependency.parameter.value
+      call wrappedUInt: Iterator<UInt> = external2 direct
+        Type UIntRange
+        Local $dependency.receiver
+      val $argument.0: Iterator<UInt>
+        Type Iterator<UInt>
+        Local wrappedUInt
+      val $parameter.iterator: Iterator<UInt>
+        Type Iterator<UInt>
+        Local $argument.0
+      call @fn6 direct
+        Type Iterator<UInt>
+        Local $parameter.iterator
+      val $argument.0: Iterator<UInt>
+        Type Iterator<UInt>
+        Local wrappedUInt
+      val $parameter.iterator: Iterator<UInt>
+        Type Iterator<UInt>
+        Local $argument.0
+      call @fn6 direct
+        Type Iterator<UInt>
+        Local $parameter.iterator
+      val $argument.0: Iterator<UInt>
+        Type Iterator<UInt>
+        Local wrappedUInt
+      val $parameter.iterator: Iterator<UInt>
+        Type Iterator<UInt>
+        Local $argument.0
+      call @fn6 direct
+        Type Iterator<UInt>
+        Local $parameter.iterator
+      return
+  fun cursorsAreFreshAndStayExhausted @fn18() -> Unit
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call range: IntRange = external17 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      val $dependency.receiver: IntRange
+        Type IntRange
+        Local range
+      call first: Iterator<Int> = external0 direct
+        Type IntRange
+        Local $dependency.receiver
+      val $dependency.receiver: IntRange
+        Type IntRange
+        Local range
+      call second: Iterator<Int> = external0 direct
+        Type IntRange
+        Local $dependency.receiver
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Binary RefNe
+          Type Iterator<Int>
+          Local first
+          Type Iterator<Int>
+          Local second
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn30 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: Iterator<Int>
+        Type Iterator<Int>
+        Local first
+      val $parameter.iterator: Iterator<Int>
+        Type Iterator<Int>
+        Local $argument.0
+      call @fn4 direct
+        Type Iterator<Int>
+        Local $parameter.iterator
+      val $argument.0: Iterator<Int>
+        Type Iterator<Int>
+        Local first
+      val $parameter.iterator: Iterator<Int>
+        Type Iterator<Int>
+        Local $argument.0
+      call @fn4 direct
+        Type Iterator<Int>
+        Local $parameter.iterator
+      val $argument.0: Iterator<Int>
+        Type Iterator<Int>
+        Local first
+      val $parameter.iterator: Iterator<Int>
+        Type Iterator<Int>
+        Local $argument.0
+      call @fn4 direct
+        Type Iterator<Int>
+        Local $parameter.iterator
+      val $argument.0: Iterator<Int>
+        Type Iterator<Int>
+        Local first
+      val $parameter.iterator: Iterator<Int>
+        Type Iterator<Int>
+        Local $argument.0
+      call @fn4 direct
+        Type Iterator<Int>
+        Local $parameter.iterator
+      val $argument.0: Iterator<Int>
+        Type Iterator<Int>
+        Local second
+      val $parameter.iterator: Iterator<Int>
+        Type Iterator<Int>
+        Local $argument.0
+      call @fn4 direct
+        Type Iterator<Int>
+        Local $parameter.iterator
+      val $dependency.receiver: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.endpoint: Long
+        Type Long
+        Local $dependency.argument.0
+      call $dependency.receiver: LongRange = external16 direct
+        Type Long
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.endpoint
+      call longIterator: Iterator<Long> = external1 direct
+        Type LongRange
+        Local $dependency.receiver
+      val $dependency.receiver: UInt
+        Type UInt
+        IntegerLiteral UInt value=1 bits=0x00000001
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=1 bits=0x00000001
+      val $dependency.parameter.endpoint: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call $dependency.receiver: UIntRange = external25 direct
+        Type UInt
+        Local $dependency.receiver
+        Type UInt
+        Local $dependency.parameter.endpoint
+      call uintIterator: Iterator<UInt> = external2 direct
+        Type UIntRange
+        Local $dependency.receiver
+      val $dependency.receiver: ULong
+        Type ULong
+        IntegerLiteral ULong value=1 bits=0x0000000000000001
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=1 bits=0x0000000000000001
+      val $dependency.parameter.endpoint: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call $dependency.receiver: ULongRange = external26 direct
+        Type ULong
+        Local $dependency.receiver
+        Type ULong
+        Local $dependency.parameter.endpoint
+      call ulongIterator: Iterator<ULong> = external3 direct
+        Type ULongRange
+        Local $dependency.receiver
+      val $argument.0: Iterator<Long>
+        Type Iterator<Long>
+        Local longIterator
+      val $parameter.iterator: Iterator<Long>
+        Type Iterator<Long>
+        Local $argument.0
+      call @fn5 direct
+        Type Iterator<Long>
+        Local $parameter.iterator
+      val $argument.0: Iterator<UInt>
+        Type Iterator<UInt>
+        Local uintIterator
+      val $parameter.iterator: Iterator<UInt>
+        Type Iterator<UInt>
+        Local $argument.0
+      call @fn6 direct
+        Type Iterator<UInt>
+        Local $parameter.iterator
+      val $argument.0: Iterator<ULong>
+        Type Iterator<ULong>
+        Local ulongIterator
+      val $parameter.iterator: Iterator<ULong>
+        Type Iterator<ULong>
+        Local $argument.0
+      call @fn7 direct
+        Type Iterator<ULong>
+        Local $parameter.iterator
+      return
+  fun invalidStepsThrow @fn19() -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str54
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call $argument.1: IntRange = external17 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      val $argument.2: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.range: IntRange
+        Type IntRange
+        Local $argument.1
+      val $parameter.amount: Int
+        Type Int
+        Local $argument.2
+      call @fn8 direct
+        Type String
+        Local $parameter.label
+        Type IntRange
+        Local $parameter.range
+        Type Int
+        Local $parameter.amount
+      val $argument.0: String
+        Type String
+        StringConst @str55
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.endpoint: Int
+        Type Int
+        Local $dependency.argument.0
+      call $argument.1: IntRange = external18 direct
+        Type Int
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.endpoint
+      val $argument.2: Int
+        Type Int
+        IntegerLiteral Int value=-1 bits=0xffffffff
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.range: IntRange
+        Type IntRange
+        Local $argument.1
+      val $parameter.amount: Int
+        Type Int
+        Local $argument.2
+      call @fn8 direct
+        Type String
+        Local $parameter.label
+        Type IntRange
+        Local $parameter.range
+        Type Int
+        Local $parameter.amount
+      val $argument.0: String
+        Type String
+        StringConst @str56
+      val $dependency.receiver: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.parameter.endpoint: Long
+        Type Long
+        Local $dependency.argument.0
+      call $argument.1: LongRange = external16 direct
+        Type Long
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.endpoint
+      val $argument.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.range: LongRange
+        Type LongRange
+        Local $argument.1
+      val $parameter.amount: Long
+        Type Long
+        Local $argument.2
+      call @fn9 direct
+        Type String
+        Local $parameter.label
+        Type LongRange
+        Local $parameter.range
+        Type Long
+        Local $parameter.amount
+      val $argument.0: String
+        Type String
+        StringConst @str57
+      val $dependency.receiver: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.parameter.endpoint: Long
+        Type Long
+        Local $dependency.argument.0
+      call $argument.1: LongRange = external20 direct
+        Type Long
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.endpoint
+      val $argument.2: Long
+        Type Long
+        IntegerLiteral Long value=-1 bits=0xffffffffffffffff
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.range: LongRange
+        Type LongRange
+        Local $argument.1
+      val $parameter.amount: Long
+        Type Long
+        Local $argument.2
+      call @fn9 direct
+        Type String
+        Local $parameter.label
+        Type LongRange
+        Local $parameter.range
+        Type Long
+        Local $parameter.amount
+      val $argument.0: String
+        Type String
+        StringConst @str58
+      val $dependency.receiver: UInt
+        Type UInt
+        IntegerLiteral UInt value=1 bits=0x00000001
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=2 bits=0x00000002
+      val $dependency.parameter.endpoint: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call $argument.1: UIntRange = external25 direct
+        Type UInt
+        Local $dependency.receiver
+        Type UInt
+        Local $dependency.parameter.endpoint
+      val $argument.2: UInt
+        Type UInt
+        IntegerLiteral UInt value=0 bits=0x00000000
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.range: UIntRange
+        Type UIntRange
+        Local $argument.1
+      val $parameter.amount: UInt
+        Type UInt
+        Local $argument.2
+      call @fn10 direct
+        Type String
+        Local $parameter.label
+        Type UIntRange
+        Local $parameter.range
+        Type UInt
+        Local $parameter.amount
+      val $argument.0: String
+        Type String
+        StringConst @str59
+      val $dependency.receiver: UInt
+        Type UInt
+        IntegerLiteral UInt value=2 bits=0x00000002
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=2 bits=0x00000002
+      val $dependency.parameter.endpoint: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call $argument.1: UIntRange = external21 direct
+        Type UInt
+        Local $dependency.receiver
+        Type UInt
+        Local $dependency.parameter.endpoint
+      val $argument.2: UInt
+        Type UInt
+        IntegerLiteral UInt value=0 bits=0x00000000
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.range: UIntRange
+        Type UIntRange
+        Local $argument.1
+      val $parameter.amount: UInt
+        Type UInt
+        Local $argument.2
+      call @fn10 direct
+        Type String
+        Local $parameter.label
+        Type UIntRange
+        Local $parameter.range
+        Type UInt
+        Local $parameter.amount
+      val $argument.0: String
+        Type String
+        StringConst @str60
+      val $dependency.receiver: ULong
+        Type ULong
+        IntegerLiteral ULong value=1 bits=0x0000000000000001
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=2 bits=0x0000000000000002
+      val $dependency.parameter.endpoint: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call $argument.1: ULongRange = external26 direct
+        Type ULong
+        Local $dependency.receiver
+        Type ULong
+        Local $dependency.parameter.endpoint
+      val $argument.2: ULong
+        Type ULong
+        IntegerLiteral ULong value=0 bits=0x0000000000000000
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.range: ULongRange
+        Type ULongRange
+        Local $argument.1
+      val $parameter.amount: ULong
+        Type ULong
+        Local $argument.2
+      call @fn11 direct
+        Type String
+        Local $parameter.label
+        Type ULongRange
+        Local $parameter.range
+        Type ULong
+        Local $parameter.amount
+      val $argument.0: String
+        Type String
+        StringConst @str61
+      val $dependency.receiver: ULong
+        Type ULong
+        IntegerLiteral ULong value=2 bits=0x0000000000000002
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=2 bits=0x0000000000000002
+      val $dependency.parameter.endpoint: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call $argument.1: ULongRange = external22 direct
+        Type ULong
+        Local $dependency.receiver
+        Type ULong
+        Local $dependency.parameter.endpoint
+      val $argument.2: ULong
+        Type ULong
+        IntegerLiteral ULong value=0 bits=0x0000000000000000
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.range: ULongRange
+        Type ULongRange
+        Local $argument.1
+      val $parameter.amount: ULong
+        Type ULong
+        Local $argument.2
+      call @fn11 direct
+        Type String
+        Local $parameter.label
+        Type ULongRange
+        Local $parameter.range
+        Type ULong
+        Local $parameter.amount
+      return
+  fun main @fn20() -> Unit
+    bb0 entry
+      call @fn12 direct
+      call @fn13 direct
+      call @fn14 direct
+      call @fn15 direct
+      call @fn16 direct
+      call @fn17 direct
+      call @fn18 direct
+      call @fn19 direct
+      return
+  fun println @fn21(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external35 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external36 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str62
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external36 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Iterator.next @fn22(this: Iterator<Int>) -> Option<Int>
+    bb0 entry
+      trap "call to abstract method `Iterator.next`"
+  fun println @fn23(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external30 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external36 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str63
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external36 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Iterator.next @fn24(this: Iterator<Long>) -> Option<Long>
+    bb0 entry
+      trap "call to abstract method `Iterator.next`"
+  fun println @fn25(value: Long) -> Unit
+    bb0 entry
+      val $dependency.local.1: Long
+        Type Long
+        Local value
+      call $dependency.local.2: String = external31 direct
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external36 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str64
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external36 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Iterator.next @fn26(this: Iterator<UInt>) -> Option<UInt>
+    bb0 entry
+      trap "call to abstract method `Iterator.next`"
+  fun println @fn27(value: UInt) -> Unit
+    bb0 entry
+      val $dependency.local.1: UInt
+        Type UInt
+        Local value
+      call $dependency.local.2: String = external32 direct
+        Type UInt
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external36 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str65
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external36 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Iterator.next @fn28(this: Iterator<ULong>) -> Option<ULong>
+    bb0 entry
+      trap "call to abstract method `Iterator.next`"
+  fun println @fn29(value: ULong) -> Unit
+    bb0 entry
+      val $dependency.local.1: ULong
+        Type ULong
+        Local value
+      call $dependency.local.2: String = external33 direct
+        Type ULong
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external36 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str66
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external36 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn30(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external34 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external36 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str67
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external36 direct
+        Type String
+        Local $dependency.local.5
+      return
+  instance mi0 function=@fn21 <- println
+  instance mi1 function=@fn22 <- Iterator.next
+  instance mi2 function=@fn23 <- println
+  instance mi3 function=@fn24 <- Iterator.next
+  instance mi4 function=@fn25 <- println
+  instance mi5 function=@fn26 <- Iterator.next
+  instance mi6 function=@fn27 <- println
+  instance mi7 function=@fn28 <- Iterator.next
+  instance mi8 function=@fn29 <- println
+  instance mi9 function=@fn30 <- println
+  str @str0 "none"
+  str @str1 "none-long"
+  str @str2 "none-uint"
+  str @str3 "none-ulong"
+  str @str4 "unexpected-"
+  str @str5 "invalid-"
+  str @str6 "unexpected-"
+  str @str7 "invalid-"
+  str @str8 "unexpected-"
+  str @str9 "invalid-"
+  str @str10 "unexpected-"
+  str @str11 "invalid-"
+  str @str12 "owner-int8"
+  str @str13 "owner-int16"
+  str @str14 "owner-int"
+  str @str15 "owner-long"
+  str @str16 "owner-uint8"
+  str @str17 "owner-uint16"
+  str @str18 "owner-uint"
+  str @str19 "owner-ulong"
+  str @str20 "owner-alias"
+  str @str21 "named-rangeTo"
+  str @str22 "named-rangeUntil"
+  str @str23 "named-until"
+  str @str24 "named-downTo"
+  str @str25 "empty-closed"
+  str @str26 "empty-open"
+  str @str27 "empty-open-int-min"
+  str @str28 "empty-open-long-min"
+  str @str29 "empty-open-uint-zero"
+  str @str30 "empty-open-ulong-zero"
+  str @str31 "empty-until"
+  str @str32 "empty-downTo"
+  str @str33 "single-closed"
+  str @str34 "single-downTo"
+  str @str35 "ascending-aligned"
+  str @str36 "open-aligned"
+  str @str37 "descending-aligned"
+  str @str38 "step-replaces"
+  str @str39 "step-original"
+  str @str40 "step-result"
+  str @str41 "int-full-four"
+  str @str42 "long-full-four"
+  str @str43 "uint-full-two"
+  str @str44 "ulong-full-two"
+  str @str45 "int-max"
+  str @str46 "int-min"
+  str @str47 "long-max"
+  str @str48 "long-min"
+  str @str49 "uint-max"
+  str @str50 "uint-min"
+  str @str51 "ulong-single-max"
+  str @str52 "ulong-max-downTo"
+  str @str53 "uint-wrapped-positive-step"
+  str @str54 "int-zero"
+  str @str55 "int-negative-empty"
+  str @str56 "long-zero"
+  str @str57 "long-negative-empty"
+  str @str58 "uint-zero"
+  str @str59 "uint-zero-empty"
+  str @str60 "ulong-zero"
+  str @str61 "ulong-zero-empty"
+  str @str62 "\n"
+  str @str63 "\n"
+  str @str64 "\n"
+  str @str65 "\n"
+  str @str66 "\n"
+  str @str67 "\n"
+  output executable @fn20

@@ -1,0 +1,16 @@
+schema = 1
+name = "legacy-m22-integers-errors-literal-signed-to-unsigned"
+root = "../../../m22-integers/errors/literal-signed-to-unsigned.scoop"
+inputs = ["../../../m22-integers/errors/literal-signed-to-unsigned.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["legacy", "m22-integers", "single-file", "negative"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "literal-signed-to-unsigned.diagnostics.json"}

@@ -1,0 +1,437 @@
+Module
+  struct HelperValue ()
+  class Chosen vtable=0 itables=2
+  class ClassWinner vtable=1 itables=1
+  class DerivedWinner vtable=1 itables=1
+  class Combined vtable=0 itables=1
+  class MutableUser vtable=0 itables=1
+  class HelperClass vtable=0 itables=1
+  class IntEcho vtable=0 itables=1
+  class box<HelperValue> vtable=0 itables=1
+  interface Helper
+  interface BaseDefault
+  interface MoreSpecific : BaseDefault
+  interface MutableDefault
+  interface Echo<Int>
+  interface ToString
+  interface Hash
+  generated_exact_type get0 location=class7 nominal_id=1391907dca71bc5733a9ed41e551a88d377d1e88e5d73c148f89010778867903 exact_id=2ea652e994029be75eb380ed2c66150d7e77e297a7a9a3c420911f1e0318bf8d
+  generated_callable gc0 function=@fn26 id=eee592a4c353a85c7fcc9ae53568294eb25bd1db74371c6391993a176f85b7c1
+  fun ClassWinner.number @fn0(this: ClassWinner) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+  fun Combined.number @fn1(this: Combined) -> Int
+    bb0 entry
+      val $receiver: BaseDefault
+        Type BaseDefault
+        Retype BaseDefault
+          Type Combined
+          Local this
+      call $dependency.receiver: Int = @fn12 direct
+        Type BaseDefault
+        Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun Combined.total @fn2(this: Combined) -> Int
+    bb0 entry
+      val $receiver: Combined
+        Type Combined
+        Local this
+      call $dependency.receiver: Int = @fn1 direct
+        Type Combined
+        Local $receiver
+      call $dependency.argument.0: Int = @fn13 direct
+        Type BaseDefault
+        Retype BaseDefault
+          Type Combined
+          Local this
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun MutableUser.readDirect @fn3(this: MutableUser) -> Int
+    bb0 entry
+      call $call.1: Int = @fn15 direct
+        Type MutableDefault
+        Retype MutableDefault
+          Type MutableUser
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun MutableUser.writeDirect @fn4(this: MutableUser, next: Int) -> Unit
+    bb0 entry
+      call @fn16 direct
+        Type MutableDefault
+        Retype MutableDefault
+          Type MutableUser
+          Local this
+        Type Int
+        Local next
+      return
+  fun readBase @fn5(value: BaseDefault) -> Int
+    bb0 entry
+      val $receiver: BaseDefault
+        Type BaseDefault
+        Local value
+      call $call.1: Int = @fn12 interface BaseDefault[0]
+        Type BaseDefault
+        Local $receiver
+      return
+        Type Int
+        Local $call.1
+  fun readHelper @fn6(value: Helper) -> Int
+    bb0 entry
+      val $receiver: Helper
+        Type Helper
+        Local value
+      call $call.1: Int = @fn11 interface Helper[0]
+        Type Helper
+        Local $receiver
+      return
+        Type Int
+        Local $call.1
+  fun useEcho @fn7(value: Echo<Int>) -> Int
+    bb0 entry
+      val $receiver: Echo<Int>
+        Type Echo<Int>
+        Local value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn17 interface Echo<Int>[0]
+        Type Echo<Int>
+        Local $receiver
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun main @fn8() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Chosen
+        ClassAlloc Chosen
+      call @fn18 direct
+        Type Chosen
+        Local $new.1
+      val $argument.0: BaseDefault
+        Type BaseDefault
+        Retype BaseDefault
+          Type Chosen
+          Local $new.1
+      val $parameter.value: BaseDefault
+        Type BaseDefault
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn5 direct
+        Type BaseDefault
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      assign $new.2
+        Type DerivedWinner
+        ClassAlloc DerivedWinner
+      call @fn20 direct
+        Type DerivedWinner
+        Local $new.2
+      val $argument.0: BaseDefault
+        Type BaseDefault
+        Retype BaseDefault
+          Type DerivedWinner
+          Local $new.2
+      val $parameter.value: BaseDefault
+        Type BaseDefault
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn5 direct
+        Type BaseDefault
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      assign $new.3
+        Type Combined
+        ClassAlloc Combined
+      call @fn21 direct
+        Type Combined
+        Local $new.3
+      val $receiver: Combined
+        Type Combined
+        Local $new.3
+      call $dependency.argument.0: Int = @fn2 direct
+        Type Combined
+        Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      assign $new.4
+        Type MutableUser
+        ClassAlloc MutableUser
+      call @fn22 direct
+        Type MutableUser
+        Local $new.4
+      val mutable: MutableUser
+        Type MutableUser
+        Local $new.4
+      val $receiver: MutableUser
+        Type MutableUser
+        Local mutable
+      call $dependency.argument.0: Int = @fn3 direct
+        Type MutableUser
+        Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $receiver: MutableUser
+        Type MutableUser
+        Local mutable
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $parameter.next: Int
+        Type Int
+        Local $argument.0
+      call @fn4 direct
+        Type MutableUser
+        Local $receiver
+        Type Int
+        Local $parameter.next
+      assign $new.5
+        Type HelperClass
+        ClassAlloc HelperClass
+      call @fn23 direct
+        Type HelperClass
+        Local $new.5
+      val $argument.0: Helper
+        Type Helper
+        Retype Helper
+          Type HelperClass
+          Local $new.5
+      val $parameter.value: Helper
+        Type Helper
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn6 direct
+        Type Helper
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      call $call.6: HelperValue = @fn25 direct
+      val $argument.0: Helper
+        Type Helper
+        Box
+          Type HelperValue
+          Local $call.6
+      val $parameter.value: Helper
+        Type Helper
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn6 direct
+        Type Helper
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      assign $new.7
+        Type IntEcho
+        ClassAlloc IntEcho
+      call @fn24 direct
+        Type IntEcho
+        Local $new.7
+      val $argument.0: Echo<Int>
+        Type Echo<Int>
+        Retype Echo<Int>
+          Type IntEcho
+          Local $new.7
+      val $parameter.value: Echo<Int>
+        Type Echo<Int>
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn7 direct
+        Type Echo<Int>
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun println @fn9(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Helper.seed @fn10(this: Helper) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+  fun Helper.result @fn11(this: Helper) -> Int
+    bb0 entry
+      val $receiver: Helper
+        Type Helper
+        Local this
+      call $call.1: Int = @fn10 direct
+        Type Helper
+        Local $receiver
+      return
+        Type Int
+        Local $call.1
+  fun BaseDefault.number @fn12(this: BaseDefault) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+  fun BaseDefault.$get$delta @fn13(this: BaseDefault) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+  fun MoreSpecific.number @fn14(this: MoreSpecific) -> Int
+    bb0 entry
+      val $receiver: BaseDefault
+        Type BaseDefault
+        Retype BaseDefault
+          Type MoreSpecific
+          Local this
+      call $dependency.receiver: Int = @fn12 direct
+        Type BaseDefault
+        Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun MutableDefault.$get$value @fn15(this: MutableDefault) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+  fun MutableDefault.$set$value @fn16(this: MutableDefault, value: Int) -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun Echo.echo @fn17(this: Echo<Int>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun init.Chosen.$c0 @fn18(this: Chosen) -> Unit
+    bb0 entry
+      return
+  fun init.ClassWinner.$c1 @fn19(this: ClassWinner) -> Unit
+    bb0 entry
+      return
+  fun init.DerivedWinner.$c2 @fn20(this: DerivedWinner) -> Unit
+    bb0 entry
+      call @fn19 direct
+        Type ClassWinner
+        Retype ClassWinner
+          Type DerivedWinner
+          Local this
+      return
+  fun init.Combined.$c3 @fn21(this: Combined) -> Unit
+    bb0 entry
+      return
+  fun init.MutableUser.$c4 @fn22(this: MutableUser) -> Unit
+    bb0 entry
+      return
+  fun init.HelperClass.$c5 @fn23(this: HelperClass) -> Unit
+    bb0 entry
+      return
+  fun init.IntEcho.$c6 @fn24(this: IntEcho) -> Unit
+    bb0 entry
+      return
+  fun ctor.HelperValue.$c0 @fn25() -> HelperValue <no-gc>
+    bb0 entry
+      return
+        Type HelperValue
+        StructInit HelperValue
+  fun thunk<HelperValue> Helper.result() @fn26(this: Helper) -> Int
+    bb0 entry
+      call $call.1: Int = @fn11 direct
+        Type Helper
+        Retype Helper
+          Type Helper
+          Local this
+      return
+        Type Int
+        Local $call.1
+  instance mi0 function=@fn9 <- println
+  instance mi1 function=@fn17 <- Echo.echo
+  str @str0 "\n"
+  output executable @fn8

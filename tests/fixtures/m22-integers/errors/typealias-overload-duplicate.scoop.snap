@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m22-integers/errors/typealias-overload-duplicate.scoop:4:5: error: function `select` is already declared with the same signature

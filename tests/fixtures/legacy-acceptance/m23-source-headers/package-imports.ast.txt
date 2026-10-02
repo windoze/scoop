@@ -1,0 +1,20 @@
+SourceFile
+  QualifiedPackage demo.app
+  ImportExact Local demo.app.Box as ImportedBox
+  ImportExact Local demo.app.make as create
+  ImportStar Local demo.app.Tools.*
+  struct Box
+    field value: Int
+  fun make(value: Int): Box
+    =
+      Call Box
+        Var value
+  object Tools
+    fun answer
+  fun main()
+    val box: ImportedBox
+      Call create
+        Call answer
+    Call println
+      FieldAccess value
+        Var box

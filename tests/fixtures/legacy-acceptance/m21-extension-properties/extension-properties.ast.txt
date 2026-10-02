@@ -1,0 +1,38 @@
+SourceFile
+  RootPackage
+  class Counter(var value: Int)
+  class Action()
+    operator fun invoke
+  var Counter.current: Int <computed>
+  val Counter.action: Action <computed>
+  fun main()
+    val counter
+      Call Counter
+        IntLiteral 3
+    Call println
+      FieldAccess current
+        Var counter
+    assign .current
+      Var counter
+      IntLiteral 6
+    compound-assign Add
+      Var counter
+      IntLiteral 2
+    Call println
+      Update Postfix Increment
+        Place .current
+          Var counter
+    Call println
+      FieldAccess current
+        Var counter
+    Call println
+      MethodCall action
+        Var counter
+        IntLiteral 4
+    val optional: Counter?
+      Call Some
+        Var counter
+    Call println
+      NullAssert
+        FieldAccess ?current
+          Var optional

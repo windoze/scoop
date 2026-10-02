@@ -1,7 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m21-companions/errors/construction-and-write.scoop:8:10: error: companion object `Companion` cannot be constructed
-m21-companions/errors/construction-and-write.scoop:9:10: error: cannot assign to immutable property `version`

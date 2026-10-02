@@ -1,0 +1,19 @@
+SourceFile
+  RootPackage
+  fun inner()
+    throw
+      Call UnwrapException
+  fun outer(): Int
+    try
+      Call inner
+      return
+        IntLiteral 0
+    finally
+      Call println
+        StringLiteral "outer-finally"
+  fun main()
+    try
+      Call outer
+    catch e: UnwrapException
+      Call println
+        StringLiteral "caught in main"

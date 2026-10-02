@@ -1,7 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m2-values/errors/struct-arity.scoop:4:13: error: no applicable candidate for constructor `Point` in nominal constructor candidate layer:
-  - struct Point(x: Int, y: Int) — expects 2 argument(s), but 1 were supplied

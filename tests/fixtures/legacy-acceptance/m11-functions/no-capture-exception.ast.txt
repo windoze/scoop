@@ -1,0 +1,21 @@
+SourceFile
+  RootPackage
+  fun fail(value: Int): Int
+    if
+      Binary Eq
+        Var value
+        IntLiteral 0
+      throw
+        Call ArithmeticException
+    return
+      Var value
+  fun main()
+    val operation: (Int) -> Int
+      CallableReference 0 fail
+    try
+      Call println
+        Call operation
+          IntLiteral 0
+    catch exception: ArithmeticException
+      Call println
+        StringLiteral "caught"

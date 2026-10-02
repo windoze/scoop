@@ -1,8 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m11-functions/errors/bound-reference-ambiguous.scoop:7:21: error: bound callable reference `receiver::choose` is ambiguous in member candidate layer:
-  - fun Selector.choose(value: Int): Int — forms a complete non-generic function type
-  - fun Selector.choose(value: String): String — forms a complete non-generic function type

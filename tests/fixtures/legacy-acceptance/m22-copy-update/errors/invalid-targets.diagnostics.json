@@ -1,0 +1,106 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "copy update requires an exact declared struct value, found ReferenceValue",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 175,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 157
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "copy update requires an exact declared struct value, found (Int, Int)",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 255,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 240
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "copy update requires an exact declared struct value, found Int",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 311,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 297
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "copy update requires an exact declared struct value, found Array<Int>",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 393,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 376
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "copy update requires an exact declared struct value, found () -> Int",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 493,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 474
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "copy update requires an exact declared struct value, found Option<Int>",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 584,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 566
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "copy update requires an exact declared struct value, found Ptr<Int>",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 661,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 643
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "copy update requires an exact declared struct value, found FunPtr<() -> Int>",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 755,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 737
+    },
+    "severity": "error"
+  }
+]

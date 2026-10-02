@@ -1,9 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m14-generics/errors/intrinsic-types.scoop:1:1: error: `@Intrinsic` is only allowed in the core library
-m14-generics/errors/intrinsic-types.scoop:2:8: error: an omitted struct representation requires a validated intrinsic type declaration
-m14-generics/errors/intrinsic-types.scoop:5:5: error: intrinsic struct `Int` has no source constructor
-m14-generics/errors/intrinsic-types.scoop:6:5: error: intrinsic class `String` has no source constructor

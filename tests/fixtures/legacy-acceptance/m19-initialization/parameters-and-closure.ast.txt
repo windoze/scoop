@@ -1,0 +1,46 @@
+SourceFile
+  RootPackage
+  class Captured(seed: String)
+    val value: String =
+      Var seed
+    val thunk: () -> String =
+      Lambda 0 suspend=false
+        parameters omitted
+        Var seed
+    init
+      Call println
+        Var value
+      Call println
+        Call thunk
+    fun read
+  class MutableBody(seed: Int)
+    var value: Int =
+      Var seed
+    init
+      assign value
+        Binary Add
+          Var value
+          IntLiteral 1
+  class Shadow(name: String)
+    val name: String =
+      Var name
+    init
+      Call println
+        FieldAccess name
+          This
+    fun read
+  fun main()
+    val captured
+      Call Captured
+        StringLiteral "captured"
+    Call println
+      MethodCall read
+        Var captured
+    Call println
+      MethodCall read
+        Call Shadow
+          StringLiteral "shadowed"
+    Call println
+      FieldAccess value
+        Call MutableBody
+          IntLiteral 9

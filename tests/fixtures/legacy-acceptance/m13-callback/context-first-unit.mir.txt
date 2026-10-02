@@ -1,0 +1,279 @@
+Module
+  extern ef0 callContextFirst @m13_call_context_first(FunPtr<(Ptr<Unit>, Int) -> Unit>, Ptr<Unit>, Int) -> Unit <abi=c no-gc lib=fixture_native>
+  foreign_callback_family fcf0 callback=ForeignCallback<(Ptr<Unit>, Int) -> Unit> state=ForeignCallbackState failure=Option<Throwable>
+  foreign_callback_bridge fcb0 family=fcf0 native=function_type0 managed=function_type2 context=0 mode=ForeignCallbackMode.Reusable adapter=@fn6
+  struct ForeignCallback<(Ptr<Unit>, Int) -> Unit> (function: FunPtr<(Ptr<Unit>, Int) -> Unit>, context: Ptr<Unit>)
+  enum ForeignCallbackState
+    Registered()
+    Active()
+    Completed()
+    Failed()
+  enum ForeignCallbackMode
+    Reusable()
+    OneShot()
+  enum Option<Throwable>
+    Some(_0: Throwable)
+    None()
+  class Throwable vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  class box<Unit> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn2 captures=1
+    bridge function_type3 -> @fn7 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  generated_exact_type get0 location=closure0 nominal_id=2fcc5dceba1f09c36d231287088079138d2c04817531ae31cc6d2cc1c02b5c0b exact_id=2302a5386d95a61953db931e029826819dc2e78ed627925872f2aaa8f36b4d72
+  generated_exact_type get1 location=class2 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get2 location=class1 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn7 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  generated_callable gc1 function=@fn6 id=32aa66d9f97f160a0378a9f8f62e9d56d527c8853acb84132a6f8e13d9c684ad
+  fun callContextFirst @fn0(arg0: FunPtr<(Ptr<Unit>, Int) -> Unit>, arg1: Ptr<Unit>, arg2: Int) -> Unit
+    bb0 entry
+      call extern0 @m13_call_context_first direct
+        Type FunPtr<(Ptr<Unit>, Int) -> Unit>
+        Local arg0
+        Type Ptr<Unit>
+        Local arg1
+        Type Int
+        Local arg2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      val captured: String
+        Type String
+        StringConst @str0
+      val $dependency.argument.0: (Int) -> Unit
+        Type (Int) -> Unit
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type String
+            Local captured
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.argument.2: ForeignCallbackMode
+        Type ForeignCallbackMode
+        VariantConstruct ForeignCallbackMode v0
+      val $dependency.parameter.callback: (Int) -> Unit
+        Type (Int) -> Unit
+        Local $dependency.argument.0
+      val $dependency.parameter.contextIndex: Long
+        Type Long
+        Local $dependency.argument.1
+      val $dependency.parameter.mode: ForeignCallbackMode
+        Type ForeignCallbackMode
+        Local $dependency.argument.2
+      val callback: ForeignCallback<(Ptr<Unit>, Int) -> Unit>
+        Type ForeignCallback<(Ptr<Unit>, Int) -> Unit>
+        ForeignCallbackRegister fcb0 family=fcf0
+          Type (Int) -> Unit
+          Local $dependency.parameter.callback
+      val $argument.0: FunPtr<(Ptr<Unit>, Int) -> Unit>
+        Type FunPtr<(Ptr<Unit>, Int) -> Unit>
+        FieldAccess 0
+          Type ForeignCallback<(Ptr<Unit>, Int) -> Unit>
+          Local callback
+      val $argument.1: Ptr<Unit>
+        Type Ptr<Unit>
+        FieldAccess 1
+          Type ForeignCallback<(Ptr<Unit>, Int) -> Unit>
+          Local callback
+      val $argument.2: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.callback: FunPtr<(Ptr<Unit>, Int) -> Unit>
+        Type FunPtr<(Ptr<Unit>, Int) -> Unit>
+        Local $argument.0
+      val $parameter.context: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $argument.1
+      val $parameter.value: Int
+        Type Int
+        Local $argument.2
+      call extern0 @m13_call_context_first direct
+        Type FunPtr<(Ptr<Unit>, Int) -> Unit>
+        Local $parameter.callback
+        Type Ptr<Unit>
+        Local $parameter.context
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.0: ForeignCallback<(Ptr<Unit>, Int) -> Unit>
+        Type ForeignCallback<(Ptr<Unit>, Int) -> Unit>
+        Local callback
+      val $dependency.parameter.callback: ForeignCallback<(Ptr<Unit>, Int) -> Unit>
+        Type ForeignCallback<(Ptr<Unit>, Int) -> Unit>
+        Local $dependency.argument.0
+      call $dependency.argument.0: Boolean = external4 direct
+        Type ForeignCallbackState
+        ForeignCallbackState family0
+          Type ForeignCallback<(Ptr<Unit>, Int) -> Unit>
+          Local $dependency.parameter.callback
+        Type ForeignCallbackState
+        VariantConstruct ForeignCallbackState v0
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: ForeignCallback<(Ptr<Unit>, Int) -> Unit>
+        Type ForeignCallback<(Ptr<Unit>, Int) -> Unit>
+        Local callback
+      val $dependency.parameter.callback: ForeignCallback<(Ptr<Unit>, Int) -> Unit>
+        Type ForeignCallback<(Ptr<Unit>, Int) -> Unit>
+        Local $dependency.argument.0
+      Type Unit
+      ForeignCallbackRelease family0
+        Type ForeignCallback<(Ptr<Unit>, Int) -> Unit>
+        Local $dependency.parameter.callback
+      return
+  fun $lambda.0 @fn2($closure: (Int) -> Unit, value: Int) -> Unit
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        ClosureCapture cc0 0
+          Type (Int) -> Unit
+          Local $closure
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun println @fn3(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str1
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn4(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn5(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun foreign callback adapter 0 @fn6($closure: (Int) -> Unit, $result: Ptr<Unit>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
+    bb0 callback.failure
+      landing_pad cleanup=false
+      begin_catch
+      call $caught: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      Type Unit
+      PtrStore Throwable
+        Type Ptr<Throwable>
+        Local $exception
+        Type Throwable
+        Local $caught
+      return
+        Type machine<foreign-callback-status>
+        MachineScalarLiteral ForeignCallbackStatus(Threw)
+    bb1 entry unwind bb0
+      call <closure:function_type2> closure[function_type2]
+        Type (Int) -> Unit
+        Local $closure
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          PtrCast Int
+            Type Ptr<Unit>
+            PtrLoad Ptr<Unit>
+              Type Ptr<Ptr<Unit>>
+              Local $arguments
+              Type machine<pointer-element-offset>
+              MachineScalarLiteral PointerElementOffset(0)
+      return
+        Type machine<foreign-callback-status>
+        MachineScalarLiteral ForeignCallbackStatus(Returned)
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn7($source: (Int) -> Unit, arg0: Any) -> Any
+    bb0 entry
+      call <closure:function_type2> closure[function_type2]
+        Type (Int) -> Unit
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Unit
+          UnitLiteral
+  instance mi0 function=@fn3 <- println
+  instance mi1 function=@fn4 <- println
+  instance mi2 function=@fn5 <- println
+  str @str0 "context-first"
+  str @str1 "\n"
+  str @str2 "\n"
+  str @str3 "\n"
+  output executable @fn1

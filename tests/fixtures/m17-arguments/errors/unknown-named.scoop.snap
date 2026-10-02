@@ -1,7 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m17-arguments/errors/unknown-named.scoop:4:5: error: no applicable candidate for `combine` in current-unit top-level candidate layer:
-  - fun combine(left: Int, right: Int): Int — has no parameter named `missing`

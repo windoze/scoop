@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m22-integers/errors/literal-unsigned-to-signed.scoop:4:34: error: integer literal `1u` is not representable as Int8

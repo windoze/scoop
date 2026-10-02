@@ -1,0 +1,555 @@
+Module
+  struct IntValue (value: Int)
+  struct Value<Int> (value: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Dog>
+    Completed(value: Dog)
+    Suspended()
+  enum CoroutineSlot<Dog>
+    Empty()
+    Value(value: Dog)
+  enum CoroutineStep<Animal>
+    Completed(value: Animal)
+    Suspended()
+  enum CoroutineSlot<Animal>
+    Empty()
+    Value(value: Animal)
+  class Animal vtable=0 itables=0
+  class Dog vtable=0 itables=0
+  class DogProducer vtable=0 itables=1
+  class IntProducer vtable=0 itables=1
+  class AnimalConsumer vtable=0 itables=1
+  class AnyConsumer vtable=0 itables=1
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface Producer<Int>
+  interface Producer<Dog>
+  interface Consumer<Animal>
+  interface Consumer<Any>
+  interface ToString
+  interface Hash
+  interface Continuation<Animal>
+  interface SuspendTask<Animal>
+  interface SuspendRegistration<Animal>
+  interface Continuation<Dog>
+  interface SuspendTask<Dog>
+  interface SuspendRegistration<Dog>
+  generated_exact_type get0 location=enum3 nominal_id=a0617b52d2852ba2f295724357fd4279f548d8ea17a66f5acb74578c6eb52c83 exact_id=994324a3af3dd1eb2827ac5270427dc6d0092f01371275eb426e4b986945490e
+  generated_exact_type get1 location=enum4 nominal_id=3c5fc615e9afe98c26e672980c09587595896ca40c6b6b302c7ef3764ed973e6 exact_id=bbba5fee62c81a564808eb6bf47f2c321f2a565c24c974110ae399547a9a41e2
+  generated_exact_type get2 location=enum1 nominal_id=e6efcbebd72bcf5768b428c9dfaf2bf5c16b6e60bf5959c2c3d24c35b3152d7f exact_id=d1d4bf1f0b4750ae544f4b969f6b113b463a9d6712de433519eeb932e6afcddb
+  generated_exact_type get3 location=enum2 nominal_id=f3016ea7b6af5e1012933d9ac9fc7bf526eacb65c9244f6759ef098c402e1a1d exact_id=e4dba843fffd4e2da8647a80e7b26bde3f6a904022fcf56e6503a1d96b3e657d
+  generated_exact_type get4 location=class9 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn30 id=41088f0afe72af8eb0ab6f26d17a2d2daf3d13918896d8694ce1c581b22c1866
+  generated_callable gc1 function=@fn31 id=c43a69aa98b1e019a45b1e8005e4c4eab04db42edc73266c13361966b9d3c69e
+  fun IntValue.get @fn0(this: IntValue) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type IntValue
+          Local this
+  fun DogProducer.get @fn1(this: DogProducer) -> Dog
+    bb0 entry
+      assign $new.1
+        Type Dog
+        ClassAlloc Dog
+      call @fn23 direct
+        Type Dog
+        Local $new.1
+      return
+        Type Dog
+        Local $new.1
+  fun IntProducer.get @fn2(this: IntProducer) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+  fun AnimalConsumer.put @fn3(this: AnimalConsumer, value: Animal) -> Unit
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type Animal
+          Local value
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun AnyConsumer.put @fn4(this: AnyConsumer, value: Any) -> Unit
+    bb0 entry
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IsInstance Int
+          Type Any
+          Local value
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      return
+  fun main @fn5() -> Unit
+    bb0 entry
+      assign $new.1
+        Type DogProducer
+        ClassAlloc DogProducer
+      call @fn24 direct
+        Type DogProducer
+        Local $new.1
+      val producer: Producer<Dog>
+        Type Producer<Dog>
+        Retype Producer<Dog>
+          Type DogProducer
+          Local $new.1
+      val $receiver: Producer<Dog>
+        Type Producer<Dog>
+        Local producer
+      call $call.2: Dog = @fn19 interface Producer<Dog>[0]
+        Type Producer<Dog>
+        Local $receiver
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type Dog
+          Local $call.2
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      assign $new.3
+        Type AnimalConsumer
+        ClassAlloc AnimalConsumer
+      call @fn26 direct
+        Type AnimalConsumer
+        Local $new.3
+      val consumer: Consumer<Animal>
+        Type Consumer<Animal>
+        Retype Consumer<Animal>
+          Type AnimalConsumer
+          Local $new.3
+      val $receiver: Consumer<Animal>
+        Type Consumer<Animal>
+        Local consumer
+      assign $new.4
+        Type Dog
+        ClassAlloc Dog
+      call @fn23 direct
+        Type Dog
+        Local $new.4
+      val $argument.0: Animal
+        Type Animal
+        Retype Animal
+          Type Dog
+          Local $new.4
+      val $parameter.value: Animal
+        Type Animal
+        Local $argument.0
+      call @fn20 interface Consumer<Animal>[0]
+        Type Consumer<Animal>
+        Local $receiver
+        Type Animal
+        Local $parameter.value
+      assign $new.5
+        Type IntProducer
+        ClassAlloc IntProducer
+      call @fn25 direct
+        Type IntProducer
+        Local $new.5
+      val $receiver: IntProducer
+        Type IntProducer
+        Local $new.5
+      call $dependency.argument.0: Int = @fn2 direct
+        Type IntProducer
+        Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $receiver: IntValue = @fn28 direct
+        Type Int
+        Local $parameter.value
+      call $dependency.argument.0: Int = @fn0 direct
+        Type IntValue
+        Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $receiver: Value<Int> = @fn29 direct
+        Type Int
+        Local $parameter.value
+      call $dependency.argument.0: Int = @fn8 direct
+        Type Value<Int>
+        Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      assign $new.6
+        Type AnyConsumer
+        ClassAlloc AnyConsumer
+      call @fn27 direct
+        Type AnyConsumer
+        Local $new.6
+      val $receiver: AnyConsumer
+        Type AnyConsumer
+        Local $new.6
+      val $argument.0: Any
+        Type Any
+        Box
+          Type Int
+          IntegerLiteral Int value=9 bits=0x00000009
+      val $parameter.value: Any
+        Type Any
+        Local $argument.0
+      call @fn4 direct
+        Type AnyConsumer
+        Local $receiver
+        Type Any
+        Local $parameter.value
+      assign $new.7
+        Type IntProducer
+        ClassAlloc IntProducer
+      call @fn25 direct
+        Type IntProducer
+        Local $new.7
+      val $argument.0: Producer<Int>
+        Type Producer<Int>
+        Retype Producer<Int>
+          Type IntProducer
+          Local $new.7
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $parameter.producer: Producer<Int>
+        Type Producer<Int>
+        Local $argument.0
+      val $parameter.fallback: Int
+        Type Int
+        Local $argument.1
+      call $dependency.argument.0: Int = @fn10 direct
+        Type Producer<Int>
+        Local $parameter.producer
+        Type Int
+        Local $parameter.fallback
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun println @fn6(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn7(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str1
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Value.get @fn8(this: Value<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Value<Int>
+          Local this
+  fun println @fn9(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun readOr @fn10(producer: Producer<Int>, fallback: Int) -> Int
+    bb0 entry
+      val $receiver: Producer<Int>
+        Type Producer<Int>
+        Local producer
+      call $call.1: Int = @fn21 interface Producer<Int>[0]
+        Type Producer<Int>
+        Local $receiver
+      return
+        Type Int
+        Local $call.1
+  fun Continuation.resume @fn11(this: Continuation<Animal>, value: Animal) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn12(this: Continuation<Animal>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn13(this: SuspendTask<Animal>, $completion: Continuation<Animal>) -> CoroutineStep<Animal>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn14(this: SuspendRegistration<Animal>, continuation: Continuation<Animal>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn15(this: Continuation<Dog>, value: Dog) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn16(this: Continuation<Dog>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn17(this: SuspendTask<Dog>, $completion: Continuation<Dog>) -> CoroutineStep<Dog>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn18(this: SuspendRegistration<Dog>, continuation: Continuation<Dog>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Producer.get @fn19(this: Producer<Dog>) -> Dog
+    bb0 entry
+      trap "call to abstract method `Producer.get`"
+  fun Consumer.put @fn20(this: Consumer<Animal>, value: Animal) -> Unit
+    bb0 entry
+      trap "call to abstract method `Consumer.put`"
+  fun Producer.get @fn21(this: Producer<Int>) -> Int
+    bb0 entry
+      trap "call to abstract method `Producer.get`"
+  fun init.Animal.$c0 @fn22(this: Animal, name: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type Animal
+        Local this
+        Type String
+        Local name
+      return
+  fun init.Dog.$c1 @fn23(this: Dog) -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str3
+      val $parameter.name: String
+        Type String
+        Local $argument.0
+      call @fn22 direct
+        Type Animal
+        Retype Animal
+          Type Dog
+          Local this
+        Type String
+        Local $parameter.name
+      return
+  fun init.DogProducer.$c2 @fn24(this: DogProducer) -> Unit
+    bb0 entry
+      return
+  fun init.IntProducer.$c3 @fn25(this: IntProducer) -> Unit
+    bb0 entry
+      return
+  fun init.AnimalConsumer.$c4 @fn26(this: AnimalConsumer) -> Unit
+    bb0 entry
+      return
+  fun init.AnyConsumer.$c5 @fn27(this: AnyConsumer) -> Unit
+    bb0 entry
+      return
+  fun ctor.IntValue.$c0 @fn28(value: Int) -> IntValue <no-gc>
+    bb0 entry
+      return
+        Type IntValue
+        StructInit IntValue
+          Type Int
+          Local value
+  fun ctor.Value.$c1 @fn29(value: Int) -> Value<Int> <no-gc>
+    bb0 entry
+      return
+        Type Value<Int>
+        StructInit Value<Int>
+          Type Int
+          Local value
+  fun startCoroutine<Dog> @fn30(task: SuspendTask<Dog>, completion: Continuation<Dog>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn15 interface Continuation<Dog>[0]
+        Type Continuation<Dog>
+        Local completion
+        Type Dog
+        EnumField v0 f0
+          Type CoroutineStep<Dog>
+          Local $step
+      return
+    bb2 failed
+      call @fn16 interface Continuation<Dog>[1]
+        Type Continuation<Dog>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Dog> = @fn17 interface SuspendTask<Dog>[0]
+        Type SuspendTask<Dog>
+        Local task
+        Type Continuation<Dog>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Dog>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Animal> @fn31(task: SuspendTask<Animal>, completion: Continuation<Animal>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn11 interface Continuation<Animal>[0]
+        Type Continuation<Animal>
+        Local completion
+        Type Animal
+        EnumField v0 f0
+          Type CoroutineStep<Animal>
+          Local $step
+      return
+    bb2 failed
+      call @fn12 interface Continuation<Animal>[1]
+        Type Continuation<Animal>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Animal> = @fn13 interface SuspendTask<Animal>[0]
+        Type SuspendTask<Animal>
+        Local task
+        Type Continuation<Animal>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Animal>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Dog> result=Dog
+  coroutine_step cs1 CoroutineStep<Animal> result=Animal
+  coroutine_slot cl0 CoroutineSlot<Dog> value=Dog
+  coroutine_slot cl1 CoroutineSlot<Animal> value=Animal
+  coroutine_start ct0 result=Dog function=fn30
+  coroutine_start ct1 result=Animal function=fn31
+  coroutine_fn cf0 @fn13 source_return=Animal step=cs1 immediate
+  coroutine_fn cf1 @fn17 source_return=Dog step=cs0 immediate
+  instance mi0 function=@fn6 <- println
+  instance mi1 function=@fn7 <- println
+  instance mi2 function=@fn8 <- Value.get
+  instance mi3 function=@fn9 <- println
+  instance mi4 function=@fn10 <- readOr
+  instance mi5 function=@fn11 <- Continuation.resume
+  instance mi6 function=@fn12 <- Continuation.resumeWithException
+  instance mi7 function=@fn13 <- SuspendTask.run
+  instance mi8 function=@fn14 <- SuspendRegistration.register
+  instance mi9 function=@fn15 <- Continuation.resume
+  instance mi10 function=@fn16 <- Continuation.resumeWithException
+  instance mi11 function=@fn17 <- SuspendTask.run
+  instance mi12 function=@fn18 <- SuspendRegistration.register
+  instance mi13 function=@fn19 <- Producer.get
+  instance mi14 function=@fn20 <- Consumer.put
+  instance mi15 function=@fn21 <- Producer.get
+  str @str0 "\n"
+  str @str1 "\n"
+  str @str2 "\n"
+  str @str3 "dog"
+  output executable @fn5

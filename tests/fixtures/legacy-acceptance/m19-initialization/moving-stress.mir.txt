@@ -1,0 +1,298 @@
+Module
+  class MovingBase vtable=0 itables=0
+  class MovingDerived vtable=0 itables=0
+  interface ToString
+  interface Hash
+  fun MovingDerived.verify @fn0(this: MovingDerived) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        IsInstance MovingDerived
+          Type MovingDerived
+          Local this
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $argument.1: String
+        Type String
+        StringConst @str1
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      val $parameter.secondary: String
+        Type String
+        Local $argument.1
+      assign $new.1
+        Type MovingDerived
+        ClassAlloc MovingDerived
+      call @fn6 direct
+        Type MovingDerived
+        Local $new.1
+        Type String
+        Local $parameter.seed
+        Type String
+        Local $parameter.secondary
+      val moving: MovingDerived
+        Type MovingDerived
+        Local $new.1
+      call @scoop_rt_gc_collect direct
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type MovingDerived
+          Local moving
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 1
+          Type MovingDerived
+          Local moving
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 2
+          Type MovingDerived
+          Local moving
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type String
+        Local $dependency.parameter.value
+      val $receiver: MovingDerived
+        Type MovingDerived
+        Local moving
+      call $dependency.argument.0: Boolean = @fn0 direct
+        Type MovingDerived
+        Local $receiver
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      return
+  fun println @fn2(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn3(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun init.MovingBase.$c0 @fn4(this: MovingBase, base: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type MovingBase
+        Local this
+        Type String
+        Local base
+      val $dependency.receiver: String
+        Type String
+        StringConst @str4
+      val $dependency.argument.0: String
+        Type String
+        Local base
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      field_set 1
+        Type MovingBase
+        Local this
+        Type String
+        Local $call.1
+      call @scoop_rt_gc_collect direct
+      val $dependency.argument.0: String
+        Type String
+        Local base
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 1
+          Type MovingBase
+          Local this
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun init.MovingDerived.$c1 @fn5(this: MovingDerived, seed: String) -> Unit
+    bb0 entry
+      val $dependency.receiver: String
+        Type String
+        StringConst @str5
+      val $dependency.argument.0: String
+        Type String
+        Local seed
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.base: String
+        Type String
+        Local $argument.0
+      call @fn4 direct
+        Type MovingBase
+        Retype MovingBase
+          Type MovingDerived
+          Local this
+        Type String
+        Local $parameter.base
+      val $dependency.receiver: String
+        Type String
+        StringConst @str6
+      val $dependency.argument.0: String
+        Type String
+        Local seed
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      field_set 2
+        Type MovingDerived
+        Local this
+        Type String
+        Local $call.1
+      call @scoop_rt_gc_collect direct
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 2
+          Type MovingDerived
+          Local this
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun init.MovingDerived.$c2 @fn6(this: MovingDerived, seed: String, secondary: String) -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        Local seed
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      call @fn5 direct
+        Type MovingDerived
+        Local this
+        Type String
+        Local $parameter.seed
+      call @scoop_rt_gc_collect direct
+      val $dependency.argument.0: String
+        Type String
+        Local secondary
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type MovingBase
+          Retype MovingBase
+            Type MovingDerived
+            Local this
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 2
+          Type MovingDerived
+          Local this
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  instance mi0 function=@fn2 <- println
+  instance mi1 function=@fn3 <- println
+  str @str0 "seed"
+  str @str1 "secondary-alive"
+  str @str2 "\n"
+  str @str3 "\n"
+  str @str4 "base-copy-"
+  str @str5 "base-"
+  str @str6 "derived-"
+  output executable @fn1

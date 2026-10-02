@@ -1,0 +1,155 @@
+SourceFile
+  RootPackage
+  interface Named
+    fun name
+  open class Record<T>(val value: T)
+    fun read
+  class Message(value: String) : Record<String>(<1 args>), Named
+    fun read
+    fun name
+  struct NameToken : Named
+    field text: String
+    fun name
+  class GenericBox<A, B>(val source: A, val label: B, val rest: Array<B>)
+    constructor(source: A, fallback: B, label: B = <expr>, vararg rest: B) : this(<3 args>)
+      Call gcCollect
+  fun combine<T, U>(value: T, suffix: U, transform: (T, U) -> String): String where T : Record<String>, T : Named
+    =
+      Binary Add
+        Binary Add
+          MethodCall read
+            Var value
+          MethodCall name
+            Var value
+        Call transform
+          Var value
+          Var suffix
+  fun countRecords<T>(values: Array<T>): Long where T : Record<String>
+    =
+      FieldAccess size
+        Var values
+  fun firstName<T>(values: Array<T>): String where T : Named
+    =
+      MethodCall name
+        Index
+          Var values
+          IntLiteral 0
+  fun rebuild(source: GenericBox<Message, String>): GenericBox<Record<String>, String>
+    =
+      Call GenericBox<Record<String>, String>
+        FieldAccess source
+          Var source
+        FieldAccess label
+          Var source
+  class CombinedFailure() : Exception(<1 args>)
+  class Gate(var waiter: Continuation<Int>?)
+    fun complete
+  class Registration(val gate: Gate), SuspendRegistration<Int>
+    public fun register
+  suspend fun awaitSignal(gate: Gate): Int
+    =
+      Call suspendCoroutine
+        Call Registration
+          Var gate
+  class CombinedTask(val gate: Gate, val box: GenericBox<Message, String>), SuspendTask<String>
+    public suspend fun run
+  class RecordingCompletion(val label: String), Continuation<String>
+    public fun resume
+    public fun resumeWithException
+  fun makeGarbage()
+    var index
+      IntLiteral 0
+    while
+      Binary Lt
+        Var index
+        IntLiteral 1000
+      val garbage
+        Call Message
+          StringLiteral "garbage"
+      assign index
+        Binary Add
+          Var index
+          IntLiteral 1
+  fun main()
+    val message
+      Call Message
+        StringLiteral "payload-"
+    val defaulted
+      Call GenericBox<Message, _>
+        Var message
+        StringLiteral "default-"
+    val varied
+      Call GenericBox<Message, _>
+        Var message
+        StringLiteral "fallback-"
+        StringLiteral "label-"
+        StringLiteral "tail-one"
+        StringLiteral "tail-two"
+    val named: Named
+      Call NameToken
+        StringLiteral "boxed-name"
+    val namedBox
+      Call GenericBox<Message, Named>
+        Var message
+        Var named
+    Call println
+      FieldAccess label
+        Var defaulted
+    Call println
+      FieldAccess size
+        FieldAccess rest
+          Var defaulted
+    Call println
+      FieldAccess label
+        Var varied
+    Call println
+      FieldAccess size
+        FieldAccess rest
+          Var varied
+    Call println
+      Call countRecords
+        ArrayLiteral
+          Var message
+    Call println
+      Call firstName
+        ArrayLiteral
+          Call NameToken
+            StringLiteral "value-name"
+    Call println
+      MethodCall read
+        FieldAccess source
+          Call rebuild
+            Var defaulted
+    Call println
+      MethodCall name
+        FieldAccess label
+          Var namedBox
+    val successGate
+      Call Gate
+        Var None
+    val failureGate
+      Call Gate
+        Var None
+    Call startCoroutine
+      Call CombinedTask
+        Var successGate
+        Var defaulted
+      Call RecordingCompletion
+        StringLiteral "success"
+    Call startCoroutine
+      Call CombinedTask
+        Var failureGate
+        Var defaulted
+      Call RecordingCompletion
+        StringLiteral "failure"
+    Call println
+      StringLiteral "suspended"
+    Call gcCollect
+    Call makeGarbage
+    Call gcCollect
+    MethodCall complete
+      Var successGate
+      IntLiteral 1
+    MethodCall complete
+      Var failureGate
+      IntLiteral 0

@@ -1,0 +1,54 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `iterator` in extension candidate layer:\n  - fun BadLayeredSource.iterator(): GoodIterator — MissingSource is not a subtype of BadLayeredSource",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 643,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 637
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "call to `iterator` is ambiguous in extension candidate layer:\n  - fun LeftSource.iterator(): GoodIterator — applicable; tied by MSC\n  - fun RightSource.iterator(): GoodIterator — applicable; tied by MSC",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 724,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 718
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "iterator operator result type `Int` does not implement `Iterator<T>`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 808,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 802
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "iterator operator result type `I` implements multiple distinct `Iterator<T>` applications",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 951,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 945
+    },
+    "severity": "error"
+  }
+]

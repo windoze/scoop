@@ -1,0 +1,44 @@
+SourceFile
+  RootPackage
+  fun select(operation: (Int) -> Int): Int
+    =
+      Call operation
+        IntLiteral 41
+  fun select(operation: (Int) -> String): String
+    =
+      Call operation
+        IntLiteral 41
+  fun apply(operation: (Int) -> Int): Int
+    =
+      Call operation
+        IntLiteral 41
+  fun apply(operation: (String) -> String): String
+    =
+      Call operation
+        StringLiteral "kept"
+  fun intIdentity(value: Int): Int
+    =
+      Var value
+  fun main()
+    val selected
+      Call select
+        Lambda 0 suspend=false
+          param value: _
+          StringLiteral "lambda"
+    val anonymous
+      Call apply
+        AnonymousFunction 0 suspend=false return=String
+          param value: String
+          return
+            Binary Add
+              Var value
+              StringLiteral "-anonymous"
+    val referenced
+      Call apply
+        CallableReference 0 intIdentity
+    Call println
+      Var selected
+    Call println
+      Var anonymous
+    Call println
+      Var referenced

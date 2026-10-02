@@ -1,0 +1,730 @@
+Module
+  struct Coordinate (x: Int, y: Int)
+  enum Payload
+    Record(left: Int, right: Int)
+    Pair(_1: Int, _2: Int)
+  class Receiver vtable=0 itables=0
+  class Box vtable=0 itables=0
+  interface ToString
+  interface Hash
+  fun Receiver.combine @fn0(this: Receiver, first: Int, second: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Receiver
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        Local first
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        Local second
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun mark @fn1(label: String, value: Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        Local label
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type Int
+        Local value
+  fun arrange @fn2(first: Int, second: Int, third: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local first
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=100 bits=0x00000064
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.receiver: Int
+        Type Int
+        Local second
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        Local third
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun makeReceiver @fn3() -> Receiver
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=100 bits=0x00000064
+      val $parameter.base: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Receiver
+        ClassAlloc Receiver
+      call @fn8 direct
+        Type Receiver
+        Local $new.1
+        Type Int
+        Local $parameter.base
+      return
+        Type Receiver
+        Local $new.1
+  fun main @fn4() -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str1
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $argument.0: Int = @fn1 direct
+        Type String
+        Local $parameter.label
+        Type Int
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str2
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $argument.1: Int = @fn1 direct
+        Type String
+        Local $parameter.label
+        Type Int
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str3
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $parameter.first: Int = @fn1 direct
+        Type String
+        Local $parameter.label
+        Type Int
+        Local $parameter.value
+      val $parameter.second: Int
+        Type Int
+        Local $argument.1
+      val $parameter.third: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn2 direct
+        Type Int
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+        Type Int
+        Local $parameter.third
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str4
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $argument.0: Int = @fn1 direct
+        Type String
+        Local $parameter.label
+        Type Int
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str5
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $argument.1: Int = @fn1 direct
+        Type String
+        Local $parameter.label
+        Type Int
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str6
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $argument.2: Int = @fn1 direct
+        Type String
+        Local $parameter.label
+        Type Int
+        Local $parameter.value
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: Int
+        Type Int
+        Local $argument.1
+      val $parameter.third: Int
+        Type Int
+        Local $argument.2
+      call $dependency.argument.0: Int = @fn2 direct
+        Type Int
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+        Type Int
+        Local $parameter.third
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Int
+        Local $dependency.parameter.value
+      call $receiver: Receiver = @fn3 direct
+      val $argument.0: String
+        Type String
+        StringConst @str7
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $argument.0: Int = @fn1 direct
+        Type String
+        Local $parameter.label
+        Type Int
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str8
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $argument.1: Int = @fn1 direct
+        Type String
+        Local $parameter.label
+        Type Int
+        Local $parameter.value
+      val $parameter.first: Int
+        Type Int
+        Local $argument.1
+      val $parameter.second: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn0 direct
+        Type Receiver
+        Local $receiver
+        Type Int
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str9
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $argument.0: Int = @fn1 direct
+        Type String
+        Local $parameter.label
+        Type Int
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str10
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $argument.1: Int = @fn1 direct
+        Type String
+        Local $parameter.label
+        Type Int
+        Local $parameter.value
+      val $parameter.x: Int
+        Type Int
+        Local $argument.1
+      val $parameter.y: Int
+        Type Int
+        Local $argument.0
+      call coordinate: Coordinate = @fn10 direct
+        Type Int
+        Local $parameter.x
+        Type Int
+        Local $parameter.y
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Coordinate
+          Local coordinate
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 1
+          Type Coordinate
+          Local coordinate
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str11
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $argument.0: Int = @fn1 direct
+        Type String
+        Local $parameter.label
+        Type Int
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str12
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $argument.1: Int = @fn1 direct
+        Type String
+        Local $parameter.label
+        Type Int
+        Local $parameter.value
+      val $parameter.left: Int
+        Type Int
+        Local $argument.1
+      val $parameter.right: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Box
+        ClassAlloc Box
+      call @fn9 direct
+        Type Box
+        Local $new.1
+        Type Int
+        Local $parameter.left
+        Type Int
+        Local $parameter.right
+      val box: Box
+        Type Box
+        Local $new.1
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Box
+          Local box
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 1
+          Type Box
+          Local box
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str13
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $argument.0: Int = @fn1 direct
+        Type String
+        Local $parameter.label
+        Type Int
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str14
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $argument.1: Int = @fn1 direct
+        Type String
+        Local $parameter.label
+        Type Int
+        Local $parameter.value
+      val $parameter.left: Int
+        Type Int
+        Local $argument.1
+      val $parameter.right: Int
+        Type Int
+        Local $argument.0
+      val payload: Payload
+        Type Payload
+        VariantConstruct Payload v0
+          Type Int
+          Local $parameter.left
+          Type Int
+          Local $parameter.right
+      val $when.1: Payload
+        Type Payload
+        Local payload
+      val $pattern.subject.2: Payload
+        Type Payload
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Payload v0
+          Type Payload
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val left: Int
+        Type Int
+        VariantPayloadProject Payload v0 f0
+          Type Payload
+          Local $pattern.subject.2
+      val right: Int
+        Type Int
+        VariantPayloadProject Payload v0 f1
+          Type Payload
+          Local $pattern.subject.2
+      val $dependency.receiver: Int
+        Type Int
+        Local left
+      val $dependency.argument.0: Int
+        Type Int
+        Local right
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb3
+    bb2 pattern.else.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb3
+    bb3 pattern.merge.3
+      val $receiver: String
+        Type String
+        StringConst @str15
+      val $argument.0: String
+        Type String
+        StringConst @str16
+      val $argument.1: String
+        Type String
+        StringConst @str17
+      val $parameter.original: String
+        Type String
+        Local $argument.1
+      val $parameter.replacement: String
+        Type String
+        Local $argument.0
+      call $dependency.argument.0: String = @fn7 direct
+        Type String
+        Local $receiver
+        Type String
+        Local $parameter.original
+        Type String
+        Local $parameter.replacement
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun println @fn5(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str18
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn6(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str19
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun $extension.replace @fn7(this: String, original: String, replacement: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local replacement
+  fun init.Receiver.$c0 @fn8(this: Receiver, base: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Receiver
+        Local this
+        Type Int
+        Local base
+      return
+  fun init.Box.$c1 @fn9(this: Box, left: Int, right: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Box
+        Local this
+        Type Int
+        Local left
+      field_set 1
+        Type Box
+        Local this
+        Type Int
+        Local right
+      return
+  fun ctor.Coordinate.$c0 @fn10(x: Int, y: Int) -> Coordinate <no-gc>
+    bb0 entry
+      return
+        Type Coordinate
+        StructInit Coordinate
+          Type Int
+          Local x
+          Type Int
+          Local y
+  instance mi0 function=@fn5 <- println
+  instance mi1 function=@fn6 <- println
+  instance mi2 function=@fn7 <- $extension.replace
+  str @str0 "receiver"
+  str @str1 "explicit-third"
+  str @str2 "explicit-second"
+  str @str3 "default-first"
+  str @str4 "mixed-first"
+  str @str5 "mixed-second"
+  str @str6 "mixed-third"
+  str @str7 "member-second"
+  str @str8 "member-first"
+  str @str9 "struct-y"
+  str @str10 "struct-x"
+  str @str11 "class-right"
+  str @str12 "class-left"
+  str @str13 "variant-right"
+  str @str14 "variant-left"
+  str @str15 "receiver"
+  str @str16 "result"
+  str @str17 "ignored"
+  str @str18 "\n"
+  str @str19 "\n"
+  output executable @fn4

@@ -1,0 +1,121 @@
+SourceFile
+  RootPackage
+  interface MovingTextSource
+    fun text
+  class MovingTextNode(val value: String), MovingTextSource
+    fun text
+  enum MovingChoice
+    Selected(MovingTextNode, String)
+    Empty
+  struct MovingBundle
+    field head: String
+    field pair: (String, MovingTextNode)
+    field choice: MovingChoice
+    field values: Array<String>
+  fun preserveThroughCalls(initial: String, bundle: MovingBundle, source: MovingTextSource): String
+    var current
+      Var initial
+    var index: Long
+      IntLiteral 0
+    while
+      Binary Lt
+        Var index
+        IntLiteral 2
+      Call gcCollect
+      Call println
+        Var current
+      Call println
+        FieldAccess head
+          Var bundle
+      Call println
+        FieldAccess _1
+          FieldAccess pair
+            Var bundle
+      Call println
+        FieldAccess value
+          FieldAccess _2
+            FieldAccess pair
+              Var bundle
+      when
+        FieldAccess choice
+          Var bundle
+        arm Selected(node, label)
+          Call println
+            FieldAccess value
+              Var node
+          Call println
+            Var label
+        arm Empty
+          Call println
+            StringLiteral "empty"
+      Call println
+        Index
+          FieldAccess values
+            Var bundle
+          Var index
+      Call println
+        MethodCall text
+          Var source
+      assign current
+        Index
+          FieldAccess values
+            Var bundle
+          Var index
+      assign index
+        Binary Add
+          Var index
+          IntLiteral 1
+    return
+      Var current
+  fun passThroughMiddle(bundle: MovingBundle, source: MovingTextSource): String
+    =
+      Call preserveThroughCalls
+        FieldAccess head
+          Var bundle
+        Var bundle
+        Var source
+  fun main()
+    val head
+      Binary Add
+        StringLiteral "head-"
+        StringLiteral "alive"
+    val pairText
+      Binary Add
+        StringLiteral "pair-"
+        StringLiteral "alive"
+    val node
+      Call MovingTextNode
+        Binary Add
+          StringLiteral "node-"
+          StringLiteral "alive"
+    val choiceText
+      Binary Add
+        StringLiteral "choice-"
+        StringLiteral "alive"
+    val first
+      Binary Add
+        StringLiteral "first-"
+        StringLiteral "alive"
+    val second
+      Binary Add
+        StringLiteral "second-"
+        StringLiteral "alive"
+    val bundle
+      Call MovingBundle
+        Var head
+        TupleLiteral
+          Var pairText
+          Var node
+        MethodCall Selected
+          Var MovingChoice
+          Var node
+          Var choiceText
+        ArrayLiteral
+          Var first
+          Var second
+    val source: MovingTextSource
+      Var node
+    Call println
+      Call passThroughMiddle
+        Var bundle
+        Var source

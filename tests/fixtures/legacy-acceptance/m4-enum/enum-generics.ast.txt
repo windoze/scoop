@@ -1,0 +1,41 @@
+SourceFile
+  RootPackage
+  enum Box<T>
+    Full(T)
+    Empty
+  fun main()
+    val a
+      MethodCall Full
+        Var Box
+        IntLiteral 1
+    val b
+      MethodCall Full
+        Var Box
+        StringLiteral "s"
+    when
+      Var a
+      arm Full(v)
+        Call println
+          Var v
+      arm Empty
+        Call println
+          StringLiteral "empty"
+    when
+      Var b
+      arm Full(v)
+        Call println
+          Var v
+      arm Empty
+        Call println
+          StringLiteral "empty"
+    val c: Box<Int>
+      FieldAccess Empty
+        Var Box
+    when
+      Var c
+      arm Full(v)
+        Call println
+          Var v
+      arm Empty
+        Call println
+          StringLiteral "empty"

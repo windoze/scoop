@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`run` must have the same `suspend` modifier as `Task.run`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 98,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 95
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `TaskImpl` does not implement interface method `Task.run`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 111,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 47
+    },
+    "severity": "error"
+  }
+]

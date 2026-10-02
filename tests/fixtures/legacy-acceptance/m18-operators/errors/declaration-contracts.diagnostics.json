@@ -1,0 +1,93 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`operator` requires a member or extension receiver",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 480,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 472
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown operator role `combine`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 35,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 27
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "operator `get` must have at least one parameter",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 131,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 128
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "operator `set` must have at least two parameters, found 1",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 186,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 183
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "operator `contains` must return Boolean, found Int",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 255,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 247
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "operator `compareTo` must return Long, found Boolean",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 334,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 325
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "infix function `join` requires one required, non-vararg parameter",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 448,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 416
+    },
+    "severity": "error"
+  }
+]

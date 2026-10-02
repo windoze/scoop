@@ -1,7 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m17-vararg/errors/uninferrable-empty.scoop:4:5: error: no applicable candidate for `collect` in current-unit top-level candidate layer:
-  - fun collect<T>(values: Array<T>): Array<T> — cannot infer a unique type argument for `T`

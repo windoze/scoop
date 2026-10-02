@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m11-functions/errors/member-falls-through-to-extension.scoop:8:25: error: initializer of `selected` must be of type Int, found String

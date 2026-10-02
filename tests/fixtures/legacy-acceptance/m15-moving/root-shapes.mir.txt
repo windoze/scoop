@@ -1,0 +1,792 @@
+Module
+  struct MovingBundle (head: String, pair: (String, MovingTextNode), choice: MovingChoice, values: Array<String>)
+  enum MovingChoice
+    Selected(_1: MovingTextNode, _2: String)
+    Empty()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class MovingTextNode vtable=0 itables=1
+  class ArrayIterator<String> vtable=0 itables=1
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface MovingTextSource
+  interface Iterable<String>
+  interface Iterator<String>
+  interface ToString
+  interface Hash
+  fun MovingTextNode.text @fn0(this: MovingTextNode) -> String
+    bb0 entry
+      return
+        Type String
+        FieldAccess 0
+          Type MovingTextNode
+          Local this
+  fun iterator @fn1(this: Array<String>) -> Iterator<String>
+    bb0 entry
+      val $dependency.local.1: Array<String>
+        Type Array<String>
+        Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Array<String>
+        Type Array<String>
+        Local $dependency.local.1
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.2
+      assign $new.1
+        Type ArrayIterator<String>
+        ClassAlloc ArrayIterator<String>
+      call @fn9 direct
+        Type ArrayIterator<String>
+        Local $new.1
+        Type Array<String>
+        Local $dependency.local.3
+        Type Long
+        Local $dependency.local.4
+      return
+        Type Iterator<String>
+        Retype Iterator<String>
+          Type ArrayIterator<String>
+          Local $new.1
+  fun preserveThroughCalls @fn2(initial: String, bundle: MovingBundle, source: MovingTextSource) -> String
+    bb0 entry
+      var current: String
+        Type String
+        Local initial
+      var index: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      val $dependency.receiver: Long
+        Type Long
+        Local index
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb3 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            Local $dependency.parameter.other
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb2 while.exit.2
+      return
+        Type String
+        Local current
+    bb3 while.body.3
+      call @scoop_rt_gc_collect direct
+      val $dependency.argument.0: String
+        Type String
+        Local current
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type MovingBundle
+          Local bundle
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type (String, MovingTextNode)
+          FieldAccess 1
+            Type MovingBundle
+            Local bundle
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type MovingTextNode
+          FieldAccess 1
+            Type (String, MovingTextNode)
+            FieldAccess 1
+              Type MovingBundle
+              Local bundle
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      val $when.1: MovingChoice
+        Type MovingChoice
+        FieldAccess 2
+          Type MovingBundle
+          Local bundle
+      val $pattern.subject.2: MovingChoice
+        Type MovingChoice
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest MovingChoice v0
+          Type MovingChoice
+          Local $pattern.subject.2
+    bb4 pattern.pass.4
+      val node: MovingTextNode
+        Type MovingTextNode
+        VariantPayloadProject MovingChoice v0 f0
+          Type MovingChoice
+          Local $pattern.subject.2
+      val label: String
+        Type String
+        VariantPayloadProject MovingChoice v0 f1
+          Type MovingChoice
+          Local $pattern.subject.2
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type MovingTextNode
+          Local node
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        Local label
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb6
+    bb5 pattern.else.5
+      val $pattern.subject.3: MovingChoice
+        Type MovingChoice
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest MovingChoice v1
+          Type MovingChoice
+          Local $pattern.subject.3
+    bb6 pattern.merge.6
+      val $dependency.receiver: Array<String>
+        Type Array<String>
+        FieldAccess 3
+          Type MovingBundle
+          Local bundle
+      val $dependency.argument.0: Long
+        Type Long
+        Local index
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      val $arr.4: Array<String>
+        Type Array<String>
+        Local $dependency.receiver
+      val $idx.5: Long
+        Type Long
+        Local $dependency.parameter.index
+      branch bb11 bb10
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.5
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb7 pattern.pass.7
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb9
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      goto bb6
+    bb10 logic.rhs.10
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.5
+          Type Long
+          ArrayLen Array<String>
+            Type Array<String>
+            Local $arr.4
+      goto bb12
+    bb11 logic.short.11
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb12
+    bb12 logic.merge.12
+      branch bb13 bb14
+        Type Boolean
+        Local $logic.1
+    bb13 if.then.13
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external2 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb14 if.merge.14
+      val $dependency.argument.0: String
+        Type String
+        ArrayGet Array<String>
+          Type Array<String>
+          Local $arr.4
+          Type Long
+          Local $idx.5
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      val $receiver: MovingTextSource
+        Type MovingTextSource
+        Local source
+      call $dependency.argument.0: String = @fn7 interface MovingTextSource[0]
+        Type MovingTextSource
+        Local $receiver
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: Array<String>
+        Type Array<String>
+        FieldAccess 3
+          Type MovingBundle
+          Local bundle
+      val $dependency.argument.0: Long
+        Type Long
+        Local index
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      val $arr.6: Array<String>
+        Type Array<String>
+        Local $dependency.receiver
+      val $idx.7: Long
+        Type Long
+        Local $dependency.parameter.index
+      branch bb16 bb15
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.7
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb15 logic.rhs.15
+      assign $logic.3
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.7
+          Type Long
+          ArrayLen Array<String>
+            Type Array<String>
+            Local $arr.6
+      goto bb17
+    bb16 logic.short.16
+      assign $logic.3
+        Type Boolean
+        BoolLiteral true
+      goto bb17
+    bb17 logic.merge.17
+      branch bb18 bb19
+        Type Boolean
+        Local $logic.3
+    bb18 if.then.18
+      assign $new.4
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external2 direct
+        Type IndexOutOfBoundsException
+        Local $new.4
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.4
+    bb19 if.merge.19
+      assign current
+        Type String
+        ArrayGet Array<String>
+          Type Array<String>
+          Local $arr.6
+          Type Long
+          Local $idx.7
+      val $dependency.receiver: Long
+        Type Long
+        Local index
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      assign index
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      goto bb1
+  fun passThroughMiddle @fn3(bundle: MovingBundle, source: MovingTextSource) -> String
+    bb0 entry
+      val $argument.0: String
+        Type String
+        FieldAccess 0
+          Type MovingBundle
+          Local bundle
+      val $argument.1: MovingBundle
+        Type MovingBundle
+        Local bundle
+      val $argument.2: MovingTextSource
+        Type MovingTextSource
+        Local source
+      val $parameter.initial: String
+        Type String
+        Local $argument.0
+      val $parameter.bundle: MovingBundle
+        Type MovingBundle
+        Local $argument.1
+      val $parameter.source: MovingTextSource
+        Type MovingTextSource
+        Local $argument.2
+      call $call.1: String = @fn2 direct
+        Type String
+        Local $parameter.initial
+        Type MovingBundle
+        Local $parameter.bundle
+        Type MovingTextSource
+        Local $parameter.source
+      return
+        Type String
+        Local $call.1
+  fun main @fn4() -> Unit
+    bb0 entry
+      val $dependency.receiver: String
+        Type String
+        StringConst @str1
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call head: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $dependency.receiver: String
+        Type String
+        StringConst @str3
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str4
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call pairText: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $dependency.receiver: String
+        Type String
+        StringConst @str5
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str6
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      assign $new.1
+        Type MovingTextNode
+        ClassAlloc MovingTextNode
+      call @fn8 direct
+        Type MovingTextNode
+        Local $new.1
+        Type String
+        Local $parameter.value
+      val node: MovingTextNode
+        Type MovingTextNode
+        Local $new.1
+      val $dependency.receiver: String
+        Type String
+        StringConst @str7
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str8
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call choiceText: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $dependency.receiver: String
+        Type String
+        StringConst @str9
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str10
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call first: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $dependency.receiver: String
+        Type String
+        StringConst @str11
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str12
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call second: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $argument.0: String
+        Type String
+        Local head
+      val $argument.1: (String, MovingTextNode)
+        Type (String, MovingTextNode)
+        TupleLiteral
+          Type String
+          Local pairText
+          Type MovingTextNode
+          Local node
+      val $argument.0: MovingTextNode
+        Type MovingTextNode
+        Local node
+      val $argument.1: String
+        Type String
+        Local choiceText
+      val $parameter._1: MovingTextNode
+        Type MovingTextNode
+        Local $argument.0
+      val $parameter._2: String
+        Type String
+        Local $argument.1
+      val $argument.2: MovingChoice
+        Type MovingChoice
+        VariantConstruct MovingChoice v0
+          Type MovingTextNode
+          Local $parameter._1
+          Type String
+          Local $parameter._2
+      val $argument.3: Array<String>
+        Type Array<String>
+        ArrayLiteral Array<String>
+          Type String
+          Local first
+          Type String
+          Local second
+      val $parameter.head: String
+        Type String
+        Local $argument.0
+      val $parameter.pair: (String, MovingTextNode)
+        Type (String, MovingTextNode)
+        Local $argument.1
+      val $parameter.choice: MovingChoice
+        Type MovingChoice
+        Local $argument.2
+      val $parameter.values: Array<String>
+        Type Array<String>
+        Local $argument.3
+      call bundle: MovingBundle = @fn10 direct
+        Type String
+        Local $parameter.head
+        Type (String, MovingTextNode)
+        Local $parameter.pair
+        Type MovingChoice
+        Local $parameter.choice
+        Type Array<String>
+        Local $parameter.values
+      val source: MovingTextSource
+        Type MovingTextSource
+        Retype MovingTextSource
+          Type MovingTextNode
+          Local node
+      val $argument.0: MovingBundle
+        Type MovingBundle
+        Local bundle
+      val $argument.1: MovingTextSource
+        Type MovingTextSource
+        Local source
+      val $parameter.bundle: MovingBundle
+        Type MovingBundle
+        Local $argument.0
+      val $parameter.source: MovingTextSource
+        Type MovingTextSource
+        Local $argument.1
+      call $dependency.argument.0: String = @fn3 direct
+        Type MovingBundle
+        Local $parameter.bundle
+        Type MovingTextSource
+        Local $parameter.source
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun next @fn5(this: ArrayIterator<String>) -> Option<String>
+    bb0 entry
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayIterator<String>
+          Local this
+      val $dependency.local.3: Long
+        Type Long
+        ArrayLen Array<String>
+          Type Array<String>
+          FieldAccess 0
+            Type ArrayIterator<String>
+            Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      val $dependency.local.5: Array<String>
+        Type Array<String>
+        FieldAccess 0
+          Type ArrayIterator<String>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayIterator<String>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      val $arr.1: Array<String>
+        Type Array<String>
+        Local $dependency.local.5
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.7
+      branch bb4 bb3
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb2 if.merge.2
+      return
+        Type Option<String>
+        VariantConstruct Option<String> v1
+    bb3 logic.rhs.3
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen Array<String>
+            Type Array<String>
+            Local $arr.1
+      goto bb5
+    bb4 logic.short.4
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb5
+    bb5 logic.merge.5
+      branch bb6 bb7
+        Type Boolean
+        Local $logic.1
+    bb6 if.then.6
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external2 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb7 if.merge.7
+      val $dependency.local.1: String
+        Type String
+        ArrayGet Array<String>
+          Type Array<String>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayIterator<String>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.9
+      field_set 1
+        Type ArrayIterator<String>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.8
+          Type Long
+          Local $dependency.local.10
+      val $dependency.local.11: String
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.12: String
+        Type String
+        Local $dependency.local.11
+      return
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $dependency.local.12
+  fun println @fn6(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str13
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun MovingTextSource.text @fn7(this: MovingTextSource) -> String
+    bb0 entry
+      trap "call to abstract method `MovingTextSource.text`"
+  fun init.MovingTextNode.$c0 @fn8(this: MovingTextNode, value: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type MovingTextNode
+        Local this
+        Type String
+        Local value
+      return
+  fun init.ArrayIterator.$c0 @fn9(this: ArrayIterator<String>, source: Array<String>, index: Long) -> Unit
+    bb0 entry
+      field_set 0
+        Type ArrayIterator<String>
+        Local this
+        Type Array<String>
+        Local source
+      field_set 1
+        Type ArrayIterator<String>
+        Local this
+        Type Long
+        Local index
+      return
+  fun ctor.MovingBundle.$c0 @fn10(head: String, pair: (String, MovingTextNode), choice: MovingChoice, values: Array<String>) -> MovingBundle <no-gc>
+    bb0 entry
+      return
+        Type MovingBundle
+        StructInit MovingBundle
+          Type String
+          Local head
+          Type (String, MovingTextNode)
+          Local pair
+          Type MovingChoice
+          Local choice
+          Type Array<String>
+          Local values
+  instance mi0 function=@fn1 <- iterator
+  instance mi1 function=@fn5 <- next
+  instance mi2 function=@fn6 <- println
+  str @str0 "empty"
+  str @str1 "head-"
+  str @str2 "alive"
+  str @str3 "pair-"
+  str @str4 "alive"
+  str @str5 "node-"
+  str @str6 "alive"
+  str @str7 "choice-"
+  str @str8 "alive"
+  str @str9 "first-"
+  str @str10 "alive"
+  str @str11 "second-"
+  str @str12 "alive"
+  str @str13 "\n"
+  output executable @fn4

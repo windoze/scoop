@@ -1,0 +1,13 @@
+SourceFile
+  RootPackage
+  fun readLeft(): Int
+    =
+      Var left
+  fun readRight(): Int
+    =
+      Var right
+  val left: Int = <expr>
+  val right: Int = <expr>
+  fun main()
+    Call println
+      StringLiteral "main-must-not-run"

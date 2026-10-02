@@ -1,0 +1,797 @@
+Module
+  enum Token
+    Number(_1: Int)
+    Text(_1: Int)
+    Empty()
+  enum LocalOption
+    Some(_1: Int, _2: Int)
+    None()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Int>
+    Some(_0: Int)
+    None()
+  class UnwrapException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface ToString
+  interface Hash
+  fun Token.equals @fn0(this: Token, other: Token) -> Boolean
+    bb0 entry
+      val $when.1: Token
+        Type Token
+        Local this
+      val $pattern.subject.2: Token
+        Type Token
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Token v0
+          Type Token
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $left.0.0: Int
+        Type Int
+        VariantPayloadProject Token v0 f0
+          Type Token
+          Local $pattern.subject.2
+      val $when.3: Token
+        Type Token
+        Local other
+      val $pattern.subject.4: Token
+        Type Token
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Token v0
+          Type Token
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Token
+        Type Token
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Token v1
+          Type Token
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      val $right.0.0: Int
+        Type Int
+        VariantPayloadProject Token v0 f0
+          Type Token
+          Local $pattern.subject.4
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $left.0.0
+          Type Int
+          Local $right.0.0
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $left.1.0: Int
+        Type Int
+        VariantPayloadProject Token v1 f0
+          Type Token
+          Local $pattern.subject.5
+      val $when.6: Token
+        Type Token
+        Local other
+      val $pattern.subject.7: Token
+        Type Token
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Token v1
+          Type Token
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      val $pattern.subject.8: Token
+        Type Token
+        Local $when.1
+      branch bb13 bb14
+        Type Boolean
+        VariantTest Token v2
+          Type Token
+          Local $pattern.subject.8
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      val $right.1.0: Int
+        Type Int
+        VariantPayloadProject Token v1 f0
+          Type Token
+          Local $pattern.subject.7
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $left.1.0
+          Type Int
+          Local $right.1.0
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+    bb13 pattern.pass.13
+      val $when.9: Token
+        Type Token
+        Local other
+      val $pattern.subject.10: Token
+        Type Token
+        Local $when.9
+      branch bb16 bb17
+        Type Boolean
+        VariantTest Token v2
+          Type Token
+          Local $pattern.subject.10
+    bb14 pattern.else.14
+      unreachable
+    bb15 pattern.merge.15
+      unreachable
+    bb16 pattern.pass.16
+      return
+        Type Boolean
+        BoolLiteral true
+    bb17 pattern.else.17
+      return
+        Type Boolean
+        BoolLiteral false
+    bb18 pattern.merge.18
+      unreachable
+  fun mark @fn1(label: String, value: Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        Local label
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type Int
+        Local value
+  fun Text @fn2(value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun tokenValue @fn3(value: Token) -> Int
+    bb0 entry
+      val $when.1: Token
+        Type Token
+        Local value
+      val $pattern.subject.2: Token
+        Type Token
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Token v0
+          Type Token
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val number: Int
+        Type Int
+        VariantPayloadProject Token v0 f0
+          Type Token
+          Local $pattern.subject.2
+      assign $result.0
+        Type Int
+        Local number
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Token
+        Type Token
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Token v1
+          Type Token
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Int
+        Local $result.0
+    bb4 pattern.pass.4
+      val number: Int
+        Type Int
+        VariantPayloadProject Token v1 f0
+          Type Token
+          Local $pattern.subject.3
+      assign $result.0
+        Type Int
+        Local number
+      goto bb6
+    bb5 pattern.else.5
+      val $pattern.subject.4: Token
+        Type Token
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Token v2
+          Type Token
+          Local $pattern.subject.4
+    bb6 pattern.merge.6
+      goto bb3
+    bb7 pattern.pass.7
+      assign $result.0
+        Type Int
+        IntegerLiteral Int value=-1 bits=0xffffffff
+      goto bb9
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      goto bb6
+  fun localValue @fn4(value: LocalOption) -> Int
+    bb0 entry
+      val $when.1: LocalOption
+        Type LocalOption
+        Local value
+      val $pattern.subject.2: LocalOption
+        Type LocalOption
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest LocalOption v0
+          Type LocalOption
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val left: Int
+        Type Int
+        VariantPayloadProject LocalOption v0 f0
+          Type LocalOption
+          Local $pattern.subject.2
+      val right: Int
+        Type Int
+        VariantPayloadProject LocalOption v0 f1
+          Type LocalOption
+          Local $pattern.subject.2
+      val $dependency.receiver: Int
+        Type Int
+        Local left
+      val $dependency.argument.0: Int
+        Type Int
+        Local right
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $result.1
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: LocalOption
+        Type LocalOption
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest LocalOption v1
+          Type LocalOption
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Int
+        Local $result.1
+    bb4 pattern.pass.4
+      assign $result.1
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun localNonCallableDoesNotShadowCall @fn5() -> Token
+    bb0 entry
+      val Number: Int
+        Type Int
+        IntegerLiteral Int value=99 bits=0x00000063
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      return
+        Type Token
+        VariantConstruct Token v0
+          Type Int
+          Local $parameter._1
+  fun ordinaryMissFallsThrough @fn6() -> Token
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      return
+        Type Token
+        VariantConstruct Token v1
+          Type Int
+          Local $parameter._1
+  fun main @fn7() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      val $argument.0: Token
+        Type Token
+        VariantConstruct Token v0
+          Type Int
+          Local $parameter._1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      val $argument.1: Token
+        Type Token
+        VariantConstruct Token v0
+          Type Int
+          Local $parameter._1
+      val $parameter.first: Token
+        Type Token
+        Local $argument.0
+      val $parameter.second: Token
+        Type Token
+        Local $argument.1
+      call fixedForward: Token = @fn9 direct
+        Type Token
+        Local $parameter.first
+        Type Token
+        Local $parameter.second
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      val $argument.0: Token
+        Type Token
+        VariantConstruct Token v0
+          Type Int
+          Local $parameter._1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      val $argument.1: Token
+        Type Token
+        VariantConstruct Token v0
+          Type Int
+          Local $parameter._1
+      val $parameter.first: Token
+        Type Token
+        Local $argument.0
+      val $parameter.second: Token
+        Type Token
+        Local $argument.1
+      call fixedReverse: Token = @fn9 direct
+        Type Token
+        Local $parameter.first
+        Type Token
+        Local $parameter.second
+      val $argument.0: Token
+        Type Token
+        Local fixedForward
+      val $parameter.value: Token
+        Type Token
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn3 direct
+        Type Token
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Token
+        Type Token
+        Local fixedReverse
+      val $parameter.value: Token
+        Type Token
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn3 direct
+        Type Token
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $argument.0: Int = @fn1 direct
+        Type String
+        Local $parameter.label
+        Type Int
+        Local $parameter.value
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      val $equality.lhs: Token
+        Type Token
+        VariantConstruct Token v0
+          Type Int
+          Local $parameter._1
+      val $argument.0: String
+        Type String
+        StringConst @str1
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $argument.0: Int = @fn1 direct
+        Type String
+        Local $parameter.label
+        Type Int
+        Local $parameter.value
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Boolean = @fn0 direct
+        Type Token
+        Local $equality.lhs
+        Type Token
+        VariantConstruct Token v0
+          Type Int
+          Local $parameter._1
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn11 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      call $argument.0: Token = @fn5 direct
+      val $parameter.value: Token
+        Type Token
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn3 direct
+        Type Token
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      call $argument.0: Token = @fn6 direct
+      val $parameter.value: Token
+        Type Token
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn3 direct
+        Type Token
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      val $parameter._2: Int
+        Type Int
+        Local $argument.1
+      val localSome: LocalOption
+        Type LocalOption
+        VariantConstruct LocalOption v0
+          Type Int
+          Local $parameter._1
+          Type Int
+          Local $parameter._2
+      val localNone: LocalOption
+        Type LocalOption
+        VariantConstruct LocalOption v1
+      val $argument.0: LocalOption
+        Type LocalOption
+        Local localSome
+      val $parameter.value: LocalOption
+        Type LocalOption
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn4 direct
+        Type LocalOption
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: LocalOption
+        Type LocalOption
+        Local localNone
+      val $parameter.value: LocalOption
+        Type LocalOption
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn4 direct
+        Type LocalOption
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      val coreSome: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+          Type Int
+          Local $dependency.parameter._1
+      val coreNone: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+      val $opt.1: Option<Int>
+        Type Option<Int>
+        Local coreSome
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $opt.1
+    bb1 if.then.1
+      val $uw.2: Int
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local $opt.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.1
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external4 direct
+        Type UnwrapException
+        Local $new.1
+      throw
+        Type UnwrapException
+        Local $new.1
+    bb3 if.merge.3
+      val $dependency.argument.0: Int
+        Type Int
+        Local $uw.2
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      call $dependency.argument.0: Boolean = @fn12 direct
+        Type Option<Int>
+        Local coreNone
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn11 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      return
+  fun println @fn8(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun choose @fn9(first: Token, second: Token) -> Token
+    bb0 entry
+      return
+        Type Token
+        Local first
+  fun println @fn10(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn11(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun $derived.equals.1 @fn12(this: Option<Int>, other: Option<Int>) -> Boolean
+    bb0 entry
+      val $when.1: Option<Int>
+        Type Option<Int>
+        Local this
+      val $pattern.subject.2: Option<Int>
+        Type Option<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $left.0.0: Int
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local $pattern.subject.2
+      val $when.3: Option<Int>
+        Type Option<Int>
+        Local other
+      val $pattern.subject.4: Option<Int>
+        Type Option<Int>
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Option<Int>
+        Type Option<Int>
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Option<Int> v1
+          Type Option<Int>
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      val $right.0.0: Int
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local $pattern.subject.4
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $left.0.0
+          Type Int
+          Local $right.0.0
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $when.6: Option<Int>
+        Type Option<Int>
+        Local other
+      val $pattern.subject.7: Option<Int>
+        Type Option<Int>
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Option<Int> v1
+          Type Option<Int>
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      return
+        Type Boolean
+        BoolLiteral true
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+  instance mi0 function=@fn8 <- println
+  instance mi1 function=@fn9 <- choose
+  instance mi2 function=@fn10 <- println
+  instance mi3 function=@fn11 <- println
+  str @str0 "left"
+  str @str1 "right"
+  str @str2 "\n"
+  str @str3 "\n"
+  str @str4 "\n"
+  output executable @fn7

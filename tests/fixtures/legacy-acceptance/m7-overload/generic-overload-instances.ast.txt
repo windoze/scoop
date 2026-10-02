@@ -1,0 +1,17 @@
+SourceFile
+  RootPackage
+  fun choose<T>(value: T, marker: Int): T
+    =
+      Var value
+  fun choose<T>(value: T, marker: String): T
+    =
+      Var value
+  fun main()
+    Call println
+      Call choose
+        IntLiteral 11
+        IntLiteral 0
+    Call println
+      Call choose
+        IntLiteral 22
+        StringLiteral "string marker"

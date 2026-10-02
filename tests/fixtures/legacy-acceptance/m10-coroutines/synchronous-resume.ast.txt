@@ -1,0 +1,19 @@
+SourceFile
+  RootPackage
+  class ImmediateRegistration(val value: Int), SuspendRegistration<Int>
+    public fun register
+  class SynchronousTask(), SuspendTask<Int>
+    public suspend fun run
+  class RecordingCompletion(), Continuation<Int>
+    public fun resume
+    public fun resumeWithException
+  fun launch(task: SuspendTask<Int>, completion: Continuation<Int>)
+    Call startCoroutine
+      Var task
+      Var completion
+  fun main()
+    Call launch
+      Call SynchronousTask
+      Call RecordingCompletion
+    Call println
+      StringLiteral "returned"

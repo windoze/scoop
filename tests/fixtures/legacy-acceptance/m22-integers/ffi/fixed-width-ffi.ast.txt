@@ -1,0 +1,272 @@
+SourceFile
+  RootPackage
+    @CLayout
+  struct FixedWidths
+    field signed8: Int8
+    field signed16: Int16
+    field signed32: Int
+    field signed64: Long
+    field unsigned8: UInt8
+    field unsigned16: UInt16
+    field unsigned32: UInt
+    field unsigned64: ULong
+    @Extern(lib = "fixture_native", name = "round_i8")
+  fun roundI8(value: Int8): Int8
+    @Extern(lib = "fixture_native", name = "round_i16")
+  fun roundI16(value: Int16): Int16
+    @Extern(lib = "fixture_native", name = "round_i32")
+  fun roundI32(value: Int): Int
+    @Extern(lib = "fixture_native", name = "round_i64")
+  fun roundI64(value: Long): Long
+    @Extern(lib = "fixture_native", name = "round_u8")
+  fun roundU8(value: UInt8): UInt8
+    @Extern(lib = "fixture_native", name = "round_u16")
+  fun roundU16(value: UInt16): UInt16
+    @Extern(lib = "fixture_native", name = "round_u32")
+  fun roundU32(value: UInt): UInt
+    @Extern(lib = "fixture_native", name = "round_u64")
+  fun roundU64(value: ULong): ULong
+    @Extern(lib = "fixture_native", name = "transform_widths")
+  fun transformWidths(value: FixedWidths): FixedWidths
+    @Extern(lib = "fixture_native", name = "native_signed8")
+    @Global
+  var nativeSigned8: Int8
+    @Extern(lib = "fixture_native", name = "native_signed16")
+    @Global
+  var nativeSigned16: Int16
+    @Extern(lib = "fixture_native", name = "native_signed32")
+    @Global
+  var nativeSigned32: Int
+    @Extern(lib = "fixture_native", name = "native_signed64")
+    @Global
+  var nativeSigned64: Long
+    @Extern(lib = "fixture_native", name = "native_unsigned8")
+    @Global
+  var nativeUnsigned8: UInt8
+    @Extern(lib = "fixture_native", name = "native_unsigned16")
+    @Global
+  var nativeUnsigned16: UInt16
+    @Extern(lib = "fixture_native", name = "native_unsigned32")
+    @Global
+  var nativeUnsigned32: UInt
+    @Extern(lib = "fixture_native", name = "native_unsigned64")
+    @Global
+  var nativeUnsigned64: ULong
+    @Extern(lib = "fixture_native", name = "native_tls_signed8")
+    @ThreadLocal
+  var nativeTlsSigned8: Int8
+    @Extern(lib = "fixture_native", name = "native_tls_signed16")
+    @ThreadLocal
+  var nativeTlsSigned16: Int16
+    @Extern(lib = "fixture_native", name = "native_tls_signed32")
+    @ThreadLocal
+  var nativeTlsSigned32: Int
+    @Extern(lib = "fixture_native", name = "native_tls_signed64")
+    @ThreadLocal
+  var nativeTlsSigned64: Long
+    @Extern(lib = "fixture_native", name = "native_tls_unsigned8")
+    @ThreadLocal
+  var nativeTlsUnsigned8: UInt8
+    @Extern(lib = "fixture_native", name = "native_tls_unsigned16")
+    @ThreadLocal
+  var nativeTlsUnsigned16: UInt16
+    @Extern(lib = "fixture_native", name = "native_tls_unsigned32")
+    @ThreadLocal
+  var nativeTlsUnsigned32: UInt
+    @Extern(lib = "fixture_native", name = "native_tls_unsigned64")
+    @ThreadLocal
+  var nativeTlsUnsigned64: ULong
+    @Extern(lib = "fixture_native", name = "verify_written_globals")
+  fun verifyWrittenGlobals(): UInt8
+    @Extern(lib = "fixture_native", name = "verify_written_tls")
+  fun verifyWrittenTls(): UInt8
+    @Extern(lib = "fixture_native", name = "apply_u16")
+  fun applyU16(value: UInt16, callback: FunPtr<(UInt16) -> UInt16>): UInt16
+    @Extern(lib = "fixture_native", name = "verify_widths_callback")
+  fun verifyWidthsCallback(callback: FunPtr<(FixedWidths) -> FixedWidths>): UInt8
+    @NoGC
+  fun incrementU16(value: UInt16): UInt16
+    =
+      Binary Add
+        Var value
+        IntLiteral 1u
+    @NoGC
+  fun roundTripWidths(value: FixedWidths): FixedWidths
+    =
+      Var value
+  fun main()
+    @Unsafe block
+      Call println
+        Call roundI8
+          Unary Neg
+            IntLiteral 128
+      Call println
+        Call roundI16
+          Unary Neg
+            IntLiteral 32768
+      Call println
+        Call roundI32
+          Unary Neg
+            IntLiteral 2147483648
+      Call println
+        Call roundI64
+          Unary Neg
+            IntLiteral 9223372036854775808L
+      Call println
+        Call roundU8
+          IntLiteral 255u
+      Call println
+        Call roundU16
+          IntLiteral 65535u
+      Call println
+        Call roundU32
+          IntLiteral 4294967295u
+      Call println
+        Call roundU64
+          IntLiteral 18446744073709551615uL
+      Call println
+        Var nativeSigned8
+      Call println
+        Var nativeSigned16
+      Call println
+        Var nativeSigned32
+      Call println
+        Var nativeSigned64
+      Call println
+        Var nativeUnsigned8
+      Call println
+        Var nativeUnsigned16
+      Call println
+        Var nativeUnsigned32
+      Call println
+        Var nativeUnsigned64
+      Call println
+        Var nativeTlsSigned8
+      Call println
+        Var nativeTlsSigned16
+      Call println
+        Var nativeTlsSigned32
+      Call println
+        Var nativeTlsSigned64
+      Call println
+        Var nativeTlsUnsigned8
+      Call println
+        Var nativeTlsUnsigned16
+      Call println
+        Var nativeTlsUnsigned32
+      Call println
+        Var nativeTlsUnsigned64
+      assign nativeSigned8
+        IntLiteral 127
+      assign nativeSigned16
+        IntLiteral 32767
+      assign nativeSigned32
+        IntLiteral 2147483647
+      assign nativeSigned64
+        IntLiteral 9223372036854775807L
+      assign nativeUnsigned8
+        IntLiteral 254u
+      assign nativeUnsigned16
+        IntLiteral 65534u
+      assign nativeUnsigned32
+        IntLiteral 4294967294u
+      assign nativeUnsigned64
+        IntLiteral 18446744073709551614uL
+      assign nativeTlsSigned8
+        IntLiteral 126
+      assign nativeTlsSigned16
+        IntLiteral 32766
+      assign nativeTlsSigned32
+        IntLiteral 2147483646
+      assign nativeTlsSigned64
+        IntLiteral 9223372036854775806L
+      assign nativeTlsUnsigned8
+        IntLiteral 253u
+      assign nativeTlsUnsigned16
+        IntLiteral 65533u
+      assign nativeTlsUnsigned32
+        IntLiteral 4294967293u
+      assign nativeTlsUnsigned64
+        IntLiteral 18446744073709551613uL
+      Call println
+        Var nativeSigned8
+      Call println
+        Var nativeSigned16
+      Call println
+        Var nativeSigned32
+      Call println
+        Var nativeSigned64
+      Call println
+        Var nativeUnsigned8
+      Call println
+        Var nativeUnsigned16
+      Call println
+        Var nativeUnsigned32
+      Call println
+        Var nativeUnsigned64
+      Call println
+        Call verifyWrittenGlobals
+      Call println
+        Var nativeTlsSigned8
+      Call println
+        Var nativeTlsSigned16
+      Call println
+        Var nativeTlsSigned32
+      Call println
+        Var nativeTlsSigned64
+      Call println
+        Var nativeTlsUnsigned8
+      Call println
+        Var nativeTlsUnsigned16
+      Call println
+        Var nativeTlsUnsigned32
+      Call println
+        Var nativeTlsUnsigned64
+      Call println
+        Call verifyWrittenTls
+      Call println
+        Call applyU16
+          IntLiteral 41u
+          CallableReference 0 incrementU16
+      Call println
+        Call verifyWidthsCallback
+          CallableReference 1 roundTripWidths
+      val transformed
+        Call transformWidths
+          Call FixedWidths
+            Unary Neg
+              IntLiteral 1
+            Unary Neg
+              IntLiteral 2
+            Unary Neg
+              IntLiteral 3
+            Unary Neg
+              IntLiteral 4L
+            IntLiteral 1u
+            IntLiteral 2u
+            IntLiteral 3u
+            IntLiteral 4uL
+      Call println
+        FieldAccess signed8
+          Var transformed
+      Call println
+        FieldAccess signed16
+          Var transformed
+      Call println
+        FieldAccess signed32
+          Var transformed
+      Call println
+        FieldAccess signed64
+          Var transformed
+      Call println
+        FieldAccess unsigned8
+          Var transformed
+      Call println
+        FieldAccess unsigned16
+          Var transformed
+      Call println
+        FieldAccess unsigned32
+          Var transformed
+      Call println
+        FieldAccess unsigned64
+          Var transformed

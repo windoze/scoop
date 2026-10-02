@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m22-copy-update/errors/empty.scoop:7:26: error: copy update field list must not be empty

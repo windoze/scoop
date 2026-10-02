@@ -1,0 +1,132 @@
+SourceFile
+  RootPackage
+  fun mark(label: String, value: Int): Int
+    Call println
+      Var label
+    return
+      Var value
+  fun arrange(first: Int = <expr>, second: Int, third: Int = <expr>): Int
+    =
+      Binary Add
+        Binary Add
+          Binary Mul
+            Var first
+            IntLiteral 100
+          Binary Mul
+            Var second
+            IntLiteral 10
+        Var third
+  class Receiver(val base: Int)
+    fun combine
+  fun makeReceiver(): Receiver
+    Call println
+      StringLiteral "receiver"
+    return
+      Call Receiver
+        IntLiteral 100
+  struct Coordinate
+    field x: Int
+    field y: Int = <expr>
+  class Box(val left: Int, val right: Int = <expr>)
+  enum Payload
+    Record <ctor>
+      left: Int
+      right: Int = <expr>
+    Pair(Int, Int)
+  fun T.replace<T>(original: T, replacement: T = <expr>): T
+    =
+      Var replacement
+  fun main()
+    Call println
+      Call arrange
+        Argument third=
+          Call mark
+            StringLiteral "explicit-third"
+            IntLiteral 3
+        Argument second=
+          Call mark
+            StringLiteral "explicit-second"
+            IntLiteral 2
+    Call println
+      Call arrange
+        Call mark
+          StringLiteral "mixed-first"
+          IntLiteral 4
+        Argument second=
+          Call mark
+            StringLiteral "mixed-second"
+            IntLiteral 5
+        Call mark
+          StringLiteral "mixed-third"
+          IntLiteral 6
+    Call println
+      MethodCall combine
+        Call makeReceiver
+        Argument second=
+          Call mark
+            StringLiteral "member-second"
+            IntLiteral 20
+        Argument first=
+          Call mark
+            StringLiteral "member-first"
+            IntLiteral 1
+    val coordinate
+      Call Coordinate
+        Argument y=
+          Call mark
+            StringLiteral "struct-y"
+            IntLiteral 2
+        Argument x=
+          Call mark
+            StringLiteral "struct-x"
+            IntLiteral 1
+    Call println
+      Binary Add
+        FieldAccess x
+          Var coordinate
+        FieldAccess y
+          Var coordinate
+    val box
+      Call Box
+        Argument right=
+          Call mark
+            StringLiteral "class-right"
+            IntLiteral 4
+        Argument left=
+          Call mark
+            StringLiteral "class-left"
+            IntLiteral 3
+    Call println
+      Binary Add
+        FieldAccess left
+          Var box
+        FieldAccess right
+          Var box
+    val payload
+      MethodCall Record
+        Var Payload
+        Argument right=
+          Call mark
+            StringLiteral "variant-right"
+            IntLiteral 6
+        Argument left=
+          Call mark
+            StringLiteral "variant-left"
+            IntLiteral 5
+    when
+      Var payload
+      arm Record(left, right)
+        Call println
+          Binary Add
+            Var left
+            Var right
+      else
+        Call println
+          IntLiteral 0
+    Call println
+      MethodCall replace
+        StringLiteral "receiver"
+        Argument replacement=
+          StringLiteral "result"
+        Argument original=
+          StringLiteral "ignored"
