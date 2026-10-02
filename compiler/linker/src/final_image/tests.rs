@@ -5,7 +5,8 @@ mod support;
 #[test]
 fn actual_executable_corruption_is_rejected_before_publication() {
     let fixture = support::fixture();
-    let inputs = ProgramInputs::new(&fixture.closure, &fixture.runtime, &fixture.profile).unwrap();
+    let inputs =
+        ProgramInputs::new(&fixture.closure, &fixture.runtime, &fixture.profile, &[]).unwrap();
     let startup =
         StartupObject::build(&inputs, &fixture.profile, fixture.directory.path()).unwrap();
     let original = std::fs::read(&fixture.output.path).unwrap();

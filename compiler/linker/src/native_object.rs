@@ -40,6 +40,7 @@ impl NativeObjectInfo {
         if file.architecture() != Architecture::Aarch64
             || file.kind() != ObjectKind::Relocatable
             || !file.is_little_endian()
+            || file.macho_header().cpusubtype.get(file.endian()) != macho::CPU_SUBTYPE_ARM64_ALL
         {
             return Err(error(
                 "native input must be an ordinary little-endian arm64 Mach-O object",
@@ -52,6 +53,8 @@ impl NativeObjectInfo {
                 name,
                 "__mod_init_func" | "__mod_term_func" | "__thread_init" | "__init_offsets"
             ) || section.segment_name().map_err(error)? == Some("__LLVM")
+                || name.starts_with("__objc_")
+                || name.starts_with("__swift")
             {
                 return Err(error(format!(
                     "native object contains forbidden initialization or LTO section {name}"
@@ -84,6 +87,22 @@ impl NativeObjectInfo {
                 continue;
             }
             let name = symbol.name().map_err(error)?.to_owned();
+            if name.starts_with("___cxa_")
+                || name.starts_with("___gxx_personality")
+                || name.starts_with("___gcc_personality")
+                || name.starts_with("__ZSt9terminate")
+            {
+                return Err(error(format!(
+                    "native object has forbidden C++ ABI dependency {name}"
+                )));
+            }
+            // In Mach-O, an external N_UNDF with a nonzero value is tentative
+            // storage; object::ObjectSymbol::is_common() does not expose it.
+            if symbol.is_undefined() && symbol.address() != 0 {
+                return Err(error(format!(
+                    "native common/tentative definition {name} requires actual storage"
+                )));
+            }
             if symbol.is_undefined() {
                 requirements.insert(name);
                 continue;

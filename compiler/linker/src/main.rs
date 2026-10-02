@@ -18,6 +18,9 @@ struct Cli {
     runtime_index: PathBuf,
     #[arg(long)]
     target: String,
+    /// Search these explicit roots for libraries required by the artifacts.
+    #[arg(long = "library-path")]
+    library_paths: Vec<PathBuf>,
     #[arg(short = 'o', long = "output")]
     output: PathBuf,
     /// Print the canonical input order and generated startup source.
@@ -32,6 +35,7 @@ fn main() -> ExitCode {
         dependency_slibs: cli.dependencies,
         runtime_index: cli.runtime_index,
         target: cli.target,
+        library_paths: cli.library_paths,
         output: cli.output,
     };
     match request.link() {

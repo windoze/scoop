@@ -207,6 +207,18 @@ pub struct NativeLinkRequirementKey {
 }
 
 impl NativeLinkRequirementKey {
+    pub fn library(&self) -> &CanonicalNativeLibraryName {
+        &self.library
+    }
+
+    pub fn kind(&self) -> NativeLibraryKind {
+        self.kind
+    }
+
+    pub fn grouping(&self) -> &NativeLibraryGrouping {
+        &self.grouping
+    }
+
     pub fn target_default(library: CanonicalNativeLibraryName) -> Self {
         Self {
             target_profile: TargetProfileWireId::darwin_aarch64(),

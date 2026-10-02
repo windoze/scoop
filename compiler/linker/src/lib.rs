@@ -2,6 +2,7 @@
 mod artifacts;
 mod final_image;
 mod link;
+mod native_input;
 mod native_object;
 mod program;
 mod runtime;

@@ -74,6 +74,7 @@ kind = "executable"
         outcome.closure(),
         &runtime,
         &profile,
+        &[],
         &directory.path().join("memory-program"),
     )
     .unwrap();

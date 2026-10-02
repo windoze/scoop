@@ -11,6 +11,7 @@ pub struct ArtifactLinkRequest {
     pub dependency_slibs: Vec<PathBuf>,
     pub runtime_index: PathBuf,
     pub target: String,
+    pub library_paths: Vec<PathBuf>,
     pub output: PathBuf,
 }
 
@@ -23,7 +24,13 @@ impl ArtifactLinkRequest {
             profile.target(),
             profile.startup_toolchain().profile(),
         )?;
-        link_program(&closure, &runtime, &profile, &self.output)
+        link_program(
+            &closure,
+            &runtime,
+            &profile,
+            &self.library_paths,
+            &self.output,
+        )
     }
 }
 

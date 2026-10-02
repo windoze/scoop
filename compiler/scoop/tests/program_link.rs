@@ -26,7 +26,7 @@ fn artifact_only_process_links_core_library_and_executable() {
     std::fs::remove_dir_all(directory.path().join("sources")).unwrap();
     let executable = directory.path().join("program");
     let result = environment.link(&root, &[&library], &executable);
-    assert!(result.contains("program-link v1\n"), "{result}");
+    assert!(result.contains("program-link v2\n"), "{result}");
     assert!(result.contains("images=3 "), "{result}");
     support::assert_plan_snapshot(&result);
     assert_eq!(run(&executable, false), "42\n");

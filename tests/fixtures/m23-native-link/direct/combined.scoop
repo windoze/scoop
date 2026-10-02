@@ -1,0 +1,8 @@
+import nativelink.facade.*
+
+struct Marker(val value: Int)
+
+fun main() {
+    @Unsafe { println(add(40)) }
+    println(through(Marker(7)))
+}

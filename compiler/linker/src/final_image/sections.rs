@@ -5,7 +5,7 @@ pub(super) fn check(image: &FinalImage<'_>, inputs: &ProgramInputs<'_>) -> Resul
     let mut stackmaps = Vec::new();
     let mut needs_eh = false;
     for input in &inputs.objects {
-        let file: MachOFile64<'_> = MachOFile64::parse(input.bytes).map_err(error)?;
+        let file: MachOFile64<'_> = MachOFile64::parse(input.bytes()).map_err(error)?;
         check_definition_sections(image, &file, inputs)?;
         needs_eh |= file
             .section_by_name("__eh_frame")

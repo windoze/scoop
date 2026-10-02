@@ -79,7 +79,7 @@ pub(super) fn fixture() -> Fixture {
     )
     .unwrap();
     let closure = read_program_artifacts(&root, &[library, core], &profile).unwrap();
-    let output = link_program(&closure, &runtime, &profile, &path.join("program")).unwrap();
+    let output = link_program(&closure, &runtime, &profile, &[], &path.join("program")).unwrap();
     Fixture {
         directory,
         profile,

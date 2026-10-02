@@ -28,9 +28,10 @@ pub fn link_program(
     closure: &ProgramLinkClosure,
     runtime: &RuntimeObjectSet,
     profile: &ValidatedFinalLinkProfile,
+    library_paths: &[PathBuf],
     output: &Path,
 ) -> Result<ProgramLinkOutput, LinkError> {
-    let inputs = ProgramInputs::new(closure, runtime, profile)?;
+    let inputs = ProgramInputs::new(closure, runtime, profile, library_paths)?;
     let output = std::path::absolute(output).map_err(error)?;
     let parent = output
         .parent()
@@ -47,7 +48,7 @@ pub fn link_program(
     paths.push(first);
     for input in &inputs.objects {
         let path = directory.path().join(format!("{}.o", input.origin));
-        write_new(&path, input.bytes)?;
+        write_new(&path, input.bytes())?;
         paths.push(path);
     }
     let sdk = directory.path().join("sdk");
@@ -81,7 +82,7 @@ pub fn link_program(
     let profile_fingerprint = profile.fingerprint().map_err(error)?;
     let fingerprint = ResolvedLinkPlanFingerprint(
         domain_separated_cbor_hash(
-            "scoop-resolved-link-plan-v1",
+            "scoop-resolved-link-plan-v2",
             &Plan {
                 closure,
                 runtime,
@@ -127,7 +128,7 @@ struct Plan<'a> {
 }
 impl WireEncode for Plan<'_> {
     fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        e.map(7)?;
+        e.map(8)?;
         e.field(1)?;
         self.closure.root().encode(e)?;
         e.field(2)?;
@@ -150,12 +151,21 @@ impl WireEncode for Plan<'_> {
         for input in &self.inputs.objects {
             e.array(2)?;
             e.text(&input.origin.to_string())?;
-            sha256(input.bytes).encode(e)?;
+            sha256(input.bytes()).encode(e)?;
         }
         e.field(7)?;
         e.array(2)?;
         e.text(&self.inputs.string_target)?;
-        e.text("_scoop_td_String")
+        e.text("_scoop_td_String")?;
+        e.field(8)?;
+        e.array(self.inputs.native.libraries.len() as u64)?;
+        for (id, library) in &self.inputs.native.libraries {
+            e.array(3)?;
+            id.encode(e)?;
+            library.key.encode(e)?;
+            library.input.encode(e)?;
+        }
+        Ok(())
     }
 }
 
@@ -165,7 +175,7 @@ fn dump(
     inputs: &ProgramInputs<'_>,
     startup: &StartupObject,
 ) -> String {
-    let mut text = String::from("program-link v1\n");
+    let mut text = String::from("program-link v2\n");
     for (artifact, symbols) in closure.artifacts() {
         text.push_str(&format!(
             "cone {} kind={:?} objects={}\n",
@@ -183,6 +193,20 @@ fn dump(
         inputs.string_target
     ));
     text.push_str("link inputs: startup, cone/member order, runtime/object order, libSystem\n");
+    for (id, library) in &inputs.native.libraries {
+        text.push_str(&format!(
+            "native library {} requirement={id} input={} origins={}\n",
+            library.key.library().as_str(),
+            library.input,
+            library.origins.join(", ")
+        ));
+    }
+    for file in inputs.native.ordered_files() {
+        text.push_str(&format!(
+            "native object {} slice={}..{}\n",
+            file.id, file.slice.start, file.slice.end
+        ));
+    }
     text.push_str("startup object references:\n");
     for symbol in &startup.references {
         text.push_str(&format!("  {symbol}\n"));
