@@ -313,6 +313,8 @@ schema 的首版字段围绕当前实际测试需要组织，不把不同里程�
 
 首版以 Python 3.11+ 的 `tomllib`、`subprocess`、`pathlib`、`tempfile` 等标准库完成已有能力；模块按发现／schema、执行、断言／快照和报告划分。交付 fixture 编写说明与成功、negative、多 Cone、native、stress、cold/warm 的数据示例。通过“仅增加 fixture 数据、Python 源码无变更”的新增用例验收扩展能力；infra 自身只针对解析、组合、匹配和进程状态等公共规则测试，不复制语言语义测试。
 
+大量历史用例按 fixture 并行执行，`--jobs` 控制同时运行的用例数，默认最多四个；同一用例的步骤和变体仍严格有序。各用例独立工作目录，只共享本次私有 sysroot/cache，并由正常构建锁协调缓存。报告按发现顺序保存，不受完成顺序影响。用户中断时停止尚未执行的步骤、清理并收割已启动的进程；未完成项明确计为 interrupted，不计作通过。
+
 ### 7.3 快照与运行保持
 
 正例通过 `--emit all --dump-dir ...` 从一次当前 root 编译取得四阶段 dump，再执行同次生成的 binary，保留 warning、stdout/stderr、exit 或 trap 覆盖。negative 从结构化诊断核对 canonical source/span、code、message 和 notes；不能让“任意非零退出”满足原语言错误期望。

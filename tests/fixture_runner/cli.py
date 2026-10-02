@@ -14,8 +14,8 @@ from collections import Counter
 from pathlib import Path
 
 from .discovery import discover
-from .execute import execute
 from .model import ConfigurationError, EnvironmentError
+from .suite import run_suite
 
 
 def arguments(argv):
@@ -27,10 +27,13 @@ def arguments(argv):
     parser.add_argument("--update-snapshots", action="store_true")
     parser.add_argument("--work-dir", type=Path)
     parser.add_argument("--keep", action="store_true")
+    parser.add_argument("--jobs", type=int, default=min(4, os.cpu_count() or 1))
     parser.add_argument("--scoop", type=Path)
     parser.add_argument("--scoopc", type=Path)
     parser.add_argument("--scoop-link", type=Path)
     args = parser.parse_args(argv)
+    if args.jobs < 1:
+        parser.error("--jobs must be positive")
     if args.all and (args.suite or args.filter or args.update_snapshots):
         parser.error("--all cannot be combined with suite/filter/snapshot updates")
     if args.update_snapshots and not (args.suite or args.filter):
@@ -123,23 +126,7 @@ def main(argv=None):
         f"fixtures: {len(selected)} selected / {len(fixtures)} discovered; work: {work}",
         flush=True,
     )
-    results = []
-    for index, fixture in enumerate(selected):
-        if fixture.data.get("targets") and common["target"] not in fixture.data["targets"]:
-            from .model import Result
-
-            result = Result(
-                fixture.name,
-                "inapplicable",
-                0,
-                message="target is not declared applicable",
-            )
-        else:
-            result = execute(fixture, common, work / "cases" / str(index), args.update_snapshots)
-        results.append(result)
-        print(f"{result.status}: {result.name} ({result.seconds:.2f}s)", flush=True)
-        if result.message:
-            print(result.message, flush=True)
+    results = run_suite(selected, common, work, args.update_snapshots, args.jobs)
     counts = Counter(result.status for result in results)
     report = {
         "schema": 1,
@@ -162,4 +149,4 @@ def main(argv=None):
         print(f"report and work retained: {work}")
     else:
         shutil.rmtree(work)
-    return 1 if failed else 0
+    return 130 if counts["interrupted"] else 1 if failed else 0

@@ -9,7 +9,7 @@ import time
 from contextlib import ExitStack, suppress
 
 from .assertions import signal_number
-from .model import AssertionFailure, EnvironmentError
+from .model import AssertionFailure, EnvironmentError, check_interrupted
 from .values import argv_values, byte_value, expand, path
 
 
@@ -88,16 +88,20 @@ class Process:
         except OSError as error:
             raise EnvironmentError(f"cannot start {argv!r}: {error}") from error
 
-    def finish(self):
+    def finish(self, interrupted=None):
         timeout = self.step.get("timeout", 120)
-        remaining = max(0.001, timeout - (time.monotonic() - self.started))
-        try:
-            code = self.child.wait(timeout=remaining)
-        except subprocess.TimeoutExpired as error:
-            self.cleanup()
-            raise AssertionFailure(
-                f"{self.step['name']}: process timed out after {timeout}s"
-            ) from error
+        while True:
+            check_interrupted(interrupted)
+            remaining = max(0.001, timeout - (time.monotonic() - self.started))
+            try:
+                code = self.child.wait(timeout=min(remaining, 0.1))
+                break
+            except subprocess.TimeoutExpired as error:
+                if time.monotonic() - self.started >= timeout:
+                    self.cleanup()
+                    raise AssertionFailure(
+                        f"{self.step['name']}: process timed out after {timeout}s"
+                    ) from error
         self.stdout.seek(0)
         self.stderr.seek(0)
         result = decode_streams(self.stdout.read(), self.stderr.read(), self.step.get("json"))

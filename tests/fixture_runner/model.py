@@ -17,6 +17,15 @@ class AssertionFailure(AssertionError):
     pass
 
 
+class Interrupted(RuntimeError):
+    pass
+
+
+def check_interrupted(event):
+    if event is not None and event.is_set():
+        raise Interrupted("fixture run interrupted")
+
+
 @dataclass(frozen=True)
 class Fixture:
     locator: Path

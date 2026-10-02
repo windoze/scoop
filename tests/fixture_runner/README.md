@@ -5,6 +5,9 @@
 所有被扫描的 `.scoop` 必须归属于声明的 `inputs` 或 `support`，支持文件不单独计为通过。
 缺少工具、期望文件、未知字段、重复载体与前向步骤引用均报配置／环境错误。
 Python 3.11+ 只用标准库；格式化／lint 使用 `tests/requirements-dev.txt` 固定的 Ruff。
+默认最多并行运行四个用例，可用 `--jobs N` 调整，`--jobs 1` 顺序运行。
+每个用例的步骤与变体保持有序；报告按发现顺序保存。中断时清理运行中的进程，
+未完成项标记 `interrupted`，退出码为 130。
 
 每个用例选择一种载体：相邻 `name.fixture.toml`、目录中的 `fixture.toml`，
 或源码开头 `// fixture:begin` 到 `// fixture:end` 之间每行带 `//` 的 TOML。
