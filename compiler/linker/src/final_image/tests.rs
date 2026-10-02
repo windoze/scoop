@@ -1,5 +1,6 @@
 use super::*;
 
+mod dynamic;
 mod native;
 use crate::test_support as support;
 
