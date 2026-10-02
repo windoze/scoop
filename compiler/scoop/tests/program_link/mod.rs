@@ -9,10 +9,6 @@ mod build;
 mod inputs;
 mod native;
 mod plans;
-mod publication;
-mod rebuilt_core;
-
-pub use plans::assert_plan_snapshot;
 
 pub struct Environment {
     _directory: tempfile::TempDir,

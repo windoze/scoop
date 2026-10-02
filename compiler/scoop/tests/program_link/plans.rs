@@ -1,15 +1,5 @@
 use super::*;
 
-pub fn assert_plan_snapshot(output: &str) {
-    let (dump, _) = split_plan(output);
-    let path = workspace().join("tests/fixtures/m23-program-link/basic.plan");
-    if std::env::var("SCOOP_UPDATE_PROGRAM_LINK_SNAPSHOTS").as_deref() == Ok("1") {
-        std::fs::write(&path, dump).unwrap();
-    }
-    let expected = std::fs::read_to_string(&path).unwrap();
-    assert_eq!(dump, expected, "{}", path.display());
-}
-
 fn split_plan(output: &str) -> (&str, &str) {
     let (dump, fingerprint) = output.rsplit_once("link-plan ").unwrap();
     let fingerprint = fingerprint.trim();

@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.programlink"
+name = "ordinary-string"
+version = "0.1.0"
+kind = "library"
+
+[dependencies]
+"scoop:scoop.core" = { version = "0.1.0", artifact = "../../rebuilt-core.slib" }

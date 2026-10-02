@@ -1,0 +1,26 @@
+package relocated
+
+import ToString
+import Hash
+import Long
+import Boolean
+import coreStringEquals
+import coreStringHash
+
+@Intrinsic("core_string")
+public class String : ToString, Hash {
+    public fun rebuiltAnswer(): Int = 42
+
+    public operator fun equals(other: String): Boolean = coreStringEquals(this, other)
+
+    @Intrinsic("string_concat")
+    public operator fun plus(other: String): String
+
+    @Intrinsic("string_compare_to")
+    public operator fun compareTo(other: String): Long
+
+    public override fun toString(): String = this
+
+    public override fun hash(): Long = coreStringHash(this)
+}
+

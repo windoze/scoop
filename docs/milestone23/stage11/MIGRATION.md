@@ -192,6 +192,21 @@ fixture 的 `truncate(path,size)` 只缩短现有文件；对应归档的初始�
 
 该用例暴露并修复了发布阶段再次 canonicalize 已移走 cache root 的问题：构建准备完成后保存解析路径，发布复用它；输入别名通过 metadata 比较，不重新打开已消费的输入内容。既有 source symlink、hardlink、cache output 保护继续通过。公共 `remove` 同时支持解除命名管道，22 个 infra 单元测试通过。旧 Rust 生命周期编排已删除。该用例在新目录只读验收通过，共 1 个变体、10 次进程、5 次 golden 比较；发布别名保护用例另执行 6 次进程并通过。
 
-## 8. 后续批次
+## 8. 基础链接、并发发布与重建 core
+
+以下四项迁为 `m23-cli-program-link/` 中的独立声明，只读验收全部通过：4 个变体、25 次进程、31 次 golden 比较。
+
+| 原 Rust 测试 | 当前用例 | 保留的条件 |
+| --- | --- | --- |
+| `artifact_only_process_links_core_library_and_executable` | `basic` | core/library/root 三个 image、完整 plan、42 的普通／moving 输出；同时独立执行低层 `scoop-link`，完整 stdout plan 与公开 `scoop link` 相同 |
+| `simultaneous_links_publish_one_complete_executable` | `publication` | 两个真正并发进程发布同一个路径，完整 plan/fingerprint 相等，最终程序普通／moving 输出 42，临时发布目录清理 |
+| `failed_rename_leaves_the_original_output_directory_untouched` | `publication-directory` | 已有目录及其 keep 文件内容不变；公开命令先检查目标类型，诊断为 `existing output is not a regular file` |
+| `rebuilt_core_protocol_selects_its_real_string_descriptor_beside_an_ordinary_string` | `rebuilt-core` | String 声明移至 `relocated`、旧处公开别名、新成员正文；删除 core 和用户源码后再链接，实际 TD alias 改变，与普通库的同名 String 并存，普通／moving 输出 `rebuilt/root/42/42` |
+
+基础旧 plan 的唯一文本差异是当前 core 的实际对象数从 266 变为 269；原库/root 对象数、image 顺序、native 合同及 alias 保持。当前完整 plan 已由真实产物重新核对，不删除对象数或摘要字段。provider/root 四阶段 dump 都来自各自一次真实编译；重建 core 的源码调整与新增文件在声明中可见，没有隐藏拼接。
+
+删除基础 Rust 进程测试、publication/rebuilt_core 模块、只服务于旧基础 plan 的 helper 和 `SCOOP_UPDATE_PROGRAM_LINK_SNAPSHOTS` 入口，以及退役的 `m23-program-link/basic.plan`。新期望只由统一 runner 的显式更新参数维护。
+
+## 9. 后续批次
 
 parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end、program-link/native 以及需要外部构建的 runtime 测试仍按原断言逐批迁移。直接构造内存 typed IR 的内部单元测试保留。完成每批后补充对应关系、删除的 helper 与实际验证结果；全部完成前不将 M23-11 标记完成。
