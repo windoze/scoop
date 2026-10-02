@@ -1,6 +1,0 @@
-span=35..86
-expression=public interface LocalLeft: Readable, LocalRight {}
-interface `LocalLeft` directly or indirectly inherits from itself
-span=87..128
-expression=public interface LocalRight: LocalLeft {}
-interface `LocalRight` directly or indirectly inherits from itself

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`read` must have the same `effect` modifier as `UnsafeReader.read`",
+    "notes": [],
+    "origin": {
+      "cone": "017854c54773109af5306c4a3acbf0c48e3ec537103069e102a7cdf4455e681e",
+      "end": 112,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 108
+    },
+    "severity": "error"
+  }
+]

@@ -1,21 +1,6 @@
 use super::*;
 
 #[test]
-fn local_interfaces_inherit_dependency_members_report_source_errors() {
-    check_class_cases(
-        "direct",
-        &[],
-        &[
-            "conformance-interface-override-missing",
-            "conformance-interface-override-effect",
-            "conformance-interface-override-visibility",
-            "conformance-interface-conflict",
-            "conformance-interface-cycle",
-        ],
-    );
-}
-
-#[test]
 fn abstract_dependency_conformances_keep_actual_targets_through_artifacts() {
     check_class_cases(
         "direct",

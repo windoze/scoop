@@ -261,8 +261,9 @@ fixture 的 `truncate(path,size)` 只缩短现有文件；对应归档的初始�
 | `local_types_implement_dependency_interfaces_through_actual_artifacts` | 8／0 | 88／40 | 16 份旧阶段逐字相同；8 份补齐默认 equals 及一致的函数序号调整 |
 | `local_types_implement_dependency_interfaces_report_source_errors` | 0／10 | 40／0 | 10 份诊断相同 |
 | `local_interfaces_inherit_dependency_members_through_actual_artifacts` | 4／0 | 44／20 | 4 份 HIR Export 相同；8 份补齐默认 equals 及一致的函数序号调整 |
+| `local_interfaces_inherit_dependency_members_report_source_errors` | 0／5 | 20／0 | 5 份诊断相同 |
 
-本节目前覆盖 162 项；其余类、接口及继承用例继续逐功能迁移。共享的旧 runtime helper 仍被其他待迁测试调用，随那些调用一起退役。
+本节目前覆盖 167 项；其余类、接口及继承用例继续逐功能迁移。共享的旧 runtime helper 仍被其他待迁测试调用，随那些调用一起退役。
 
 ## 12. 后续批次
 

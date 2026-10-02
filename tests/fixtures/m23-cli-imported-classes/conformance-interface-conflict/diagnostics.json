@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "struct `LocalValue` inherits conflicting defaults for `choose` from FirstChoice.choose and SecondChoice.choose; declare an explicit override",
+    "notes": [],
+    "origin": {
+      "cone": "be8acdded5479306674293f63e0ddbd5f645b21a98253caa52a039c431763b6e",
+      "end": 175,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 136
+    },
+    "severity": "error"
+  }
+]

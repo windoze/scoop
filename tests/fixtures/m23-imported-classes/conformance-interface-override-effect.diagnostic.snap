@@ -1,3 +1,0 @@
-span=108..112
-expression=read
-`read` must have the same `effect` modifier as `UnsafeReader.read`

@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "interface `LocalLeft` directly or indirectly inherits from itself",
+    "notes": [],
+    "origin": {
+      "cone": "e8e6a469883a74311005f1e70b53b8a82708d54da1644036bcb52cabb39abd4d",
+      "end": 86,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 35
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "interface `LocalRight` directly or indirectly inherits from itself",
+    "notes": [],
+    "origin": {
+      "cone": "e8e6a469883a74311005f1e70b53b8a82708d54da1644036bcb52cabb39abd4d",
+      "end": 128,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 87
+    },
+    "severity": "error"
+  }
+]
