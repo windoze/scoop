@@ -20,7 +20,7 @@
 | 合并与运行 | Strong 原 provider、逐 member ODR、共享 TD/storage/init、全部 stackmap、异常和 moving GC 正常工作 |
 | 发布 | 完成必要的最终 Mach-O 检查后原子发布 executable；失败不破坏已有输出 |
 
-本阶段仍只有 macOS/AArch64、单个主 Mach-O 和静态完整 Cone 图。一般用户 native library 解析、archive 抽取规则、第三方 native producer 与 Link-required blob handler 由 M23-10 完成；umbrella `build/run`、单文件 CLI 和历史 fixture 全面迁移由 M23-11 完成。final-link cache 是后续可选优化，本阶段不实现。
+本阶段仍只有 macOS/AArch64、单个主 Mach-O 和静态完整 Cone 图。一般用户 native library 解析、archive 成员选择与 dynamic provider 由 [M23-10](../stage10/DESIGN.md) 完成；该阶段已明确不为尚无实际调用方的 Cone 内 C/C++ producer 或 Link-required blob 增加 handler，unknown required capability 继续诊断。umbrella `build/run`、单文件 CLI 和历史 fixture 全面迁移由 M23-11 完成。final-link cache 是后续可选优化，本阶段不实现。
 
 本阶段限制的是物理输入的供应方式。所有 `SourceExtern` 使用同一套声明合同合并与符号解析，从实际 runtime 对象和已选系统 provider 的定义／export 中查找目标；不建立 core 函数清单、普通 extern 白名单或专用解析分支。新增 native library 的定位、archive 抽取等输入供应能力留给 M23-10；当前输入中找不到的符号按普通未解析引用报错，core 也不例外。
 

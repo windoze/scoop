@@ -239,6 +239,8 @@ M23-8 的私有 C 启动入口为 `int scoop_rt_run_program(const ScoopImageDesc
 
 M23-9 的正式链接按 [阶段设计](../milestone23/stage9/DESIGN.md) 生成 C main、静态 image pointer array 与唯一 root 引用，直接调用上述入口。runtime 自身不提供 C main，也不要求 program/core descriptor；已有 metadata ABI 3、初始化、gateway 和 GC 行为保持。`scoop_td_String` 由实际 typed TD 的等地址 alias 满足，不增加 TD 或 pointer slot。program-link 在文件边界检查入口、绑定、ODR 地址与 section 保留，本节继续负责实际加载后的权限、registry 和精确 stackmap；两边不重复重算语言布局或整个 RuntimeImage/Graph/ODR。
 
+M23-10 的普通 native object、archive 成员与进程装载时引入的 dylib/framework 按 [阶段设计](../milestone23/stage10/DESIGN.md) 参与 FFI 符号解析，不成为新的 Scoop logical image，不增加 registration、program descriptor 或 runtime metadata ABI。native C 的全局数据与静态初始化 TLS 仍为 GC-free 外部存储；Darwin TLV bootstrap 不登记 managed root，也不等同于本节禁止的运行时新增 Cone。SourceExtern 的 C native-safe、Scoop native-borrowed、caller-root、回调 attach 和异常边界继续按第 3～5 章执行。链接器检查实际选中对象和装载绑定，不要求 runtime 再次扫描 native 文件、确认 producer 身份或重放 link plan；外部实现遵守 FFI 契约仍由作者负责。
+
 登记只检查当前加载边界的格式、实际地址、引用、唯一性、扫描与初始化契约。编译器和 reader 已完成的语言、canonical definition、布局摘要及 ODR 内容比较不在 runtime 重放；runtime 不重算 RuntimeImage/Graph/ObjectDefinition fingerprint，不重建 canonical exact-type key 或程序来源证明。实际 stackmap 的规范化摘要核对用于确认链接后的 PC、owner 和 root locations，与重放编译语义不同。完整不可变记录检查一次，ODR 的同址重复引用和 GC 热点直接复用结果。
 
 空接口仍保留以真实 interface TD 为键的 itable entry，其无槽派发表沿既有 codegen 表示为 null；空 vtable 同理。runtime 检查非空 dispatch pointer 的只读起点，不拒绝合法的 null 空表，也不从地址或接口名称推测槽数。实际槽清单、空表与接口契约的一致性由编译器及对象 reader 验证。

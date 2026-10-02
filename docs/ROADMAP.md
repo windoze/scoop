@@ -389,9 +389,13 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 ### M23-10 一般 native 输入与链接闭包
 
+详细设计见 [M23-10](milestone23/stage10/DESIGN.md)，状态：设计完成、待实施（2026-10-02），前置条件为已验收的 M23-9。
+
 - 继承共同 HIR 已选的 native 签名／effects 和 MIR/LIR 的实际 ABI requirement；直接、默认值、泛型实例和依赖调用共用前端规则，本阶段只解析对应 native 输入。
-- 复用 M23-9 的 extern 合并／解析器，增加 direct object/archive/general dynamic provider 的定位与供应，完成实际候选／抽取／绑定、必要内容快照、link plan/map/trace 核对与最终检查；可选 link cache 按实际内容、合同和工具失效。
-- native候选只能经`.slib`已有typed requirement和显式`--library-path`解析，不能直接注入无来源raw `.o`、archive、linker option或script；任意多个`LinkObject`按typed directory参与，非link blob永不误入。
+- 复用 M23-9 的 extern、对象、startup 与最终检查，增加 direct object/archive/dylib/framework 的明确候选解析；archive 在有限符号工作集中选择成员并独立交给 ld，dynamic 保留 export/load/re-export，从已选 binding 生成标准链接 stub 以保证重名 export 下的显式选库，并检查实际 two-level binding。输入快照、map/trace、全局数据／TLS 和实际 RPATH 均进入对应链接职责。
+- 普通 native 输入不要求 Scoop producer 来源凭证或通用 verifier/effect 框架；删除逐 selection/contribution/binding 的证明外层及未选 archive 成员的完整效果拒绝。不为不存在的调用方新增 blob handler、Cone 内 C/C++ producer 或 whole-archive 模式；unknown Link-required capability 继续诊断。
+- native 候选经 `.slib` 已有 typed requirement 和显式 `--library-path` 定位，不直接注入 raw `.o`、archive、linker option 或 script；全部 `LinkObject` 按原目录参与，非 link blob 永不误入。plan/profile 使用新的 v2 内容规则，实际 install name/RPATH 纳入摘要，既有 `.slib`、native ABI 和 runtime metadata ABI 3 保持；本阶段不实现 final-link cache。
+- 完成门包括移走源码后的独立进程链接、真实成员链／回边／同名、动态绑定、CLayout/global/TLS、Scoop ABI、callback、跨 Cone 默认值／泛型与 moving GC，以及合同冲突、输入变化、损坏／确定性、最终检查和原子输出。M23-11 再迁移公开 CLI 与历史 fixture。
 
 ### M23-11 umbrella CLI、single-file mode与总验收
 
