@@ -51,6 +51,7 @@ impl RuntimeObjectSet {
             return Err(error("runtime index object IDs are not unique and sorted"));
         }
         let mut objects = Vec::with_capacity(index.objects.len());
+        let mut input_paths = vec![path.to_owned()];
         for record in index.objects {
             let relative = Path::new(&record.locator);
             if relative.as_os_str().is_empty()
@@ -64,6 +65,7 @@ impl RuntimeObjectSet {
                 )));
             }
             let path = parent.join(relative);
+            input_paths.push(path.clone());
             let bytes = std::fs::read(&path)
                 .map_err(|err| error(format!("runtime object {}: {err}", path.display())))?;
             let digest = sha256(&bytes);
@@ -96,10 +98,11 @@ impl RuntimeObjectSet {
                 info,
             });
         }
-        let set = Self::assemble(target, index.toolchain, index.configuration, objects)?;
+        let mut set = Self::assemble(target, index.toolchain, index.configuration, objects)?;
         if set.fingerprint.0 != index.fingerprint {
             return Err(error("runtime artifact fingerprint mismatch"));
         }
+        set.input_paths = input_paths;
         Ok(set)
     }
 

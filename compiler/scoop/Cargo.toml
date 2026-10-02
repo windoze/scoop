@@ -4,6 +4,7 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+scoop-process.workspace = true
 scoop-identity.workspace = true
 scoop-manifest.workspace = true
 scoop-lir.workspace = true
@@ -14,11 +15,12 @@ scoop-toolchain.workspace = true
 scoop-wire.workspace = true
 tempfile.workspace = true
 fs4.workspace = true
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 
 [target.'cfg(unix)'.dependencies]
 rustix.workspace = true
 
 [dev-dependencies]
 object.workspace = true
-serde.workspace = true
-serde_json.workspace = true

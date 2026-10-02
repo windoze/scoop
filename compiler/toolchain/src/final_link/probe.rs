@@ -1,5 +1,6 @@
 use super::*;
 use object::{Architecture, Object, ObjectKind, macho, read::macho::MachOFile64};
+use scoop_process::CommandExt;
 
 pub(super) fn check(profile: &ValidatedFinalLinkProfile) -> Result<(), ToolchainError> {
     for symbol in profile.linker_system_requirements() {
@@ -23,7 +24,7 @@ pub(super) fn check(profile: &ValidatedFinalLinkProfile) -> Result<(), Toolchain
     let output = profile
         .startup
         .object_compilation_command(&source, &object)
-        .output()
+        .scoop_output()
         .map_err(error)?;
     if !output.status.success() {
         return Err(error(format!(
@@ -38,7 +39,7 @@ pub(super) fn check(profile: &ValidatedFinalLinkProfile) -> Result<(), Toolchain
         .command(&sdk, &executable, &directory.path().join("program.map"))
         .arg(&object)
         .arg(stub)
-        .output()
+        .scoop_output()
         .map_err(error)?;
     if !output.status.success() {
         return Err(error(format!(

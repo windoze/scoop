@@ -59,7 +59,11 @@ enum Emit {
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
-    match cli.command {
+    if let Err(error) = scoop_process::initialize() {
+        eprintln!("cannot initialize process signal handling: {error}");
+        return ExitCode::FAILURE;
+    }
+    let result = match cli.command {
         Command::Build {
             input,
             direct_slibs,
@@ -78,7 +82,9 @@ fn main() -> ExitCode {
         ),
         Command::MachineCapability => write_machine_capability(),
         Command::ChildProtocol { version } => child_protocol::run(version),
-    }
+    };
+    scoop_process::finish_interruption();
+    result
 }
 
 fn write_machine_capability() -> ExitCode {

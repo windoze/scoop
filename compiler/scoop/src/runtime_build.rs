@@ -31,6 +31,7 @@ pub struct RuntimeBuildOutput {
     objects: RuntimeObjectSet,
     index: PathBuf,
     cache_hit: bool,
+    input_paths: Vec<PathBuf>,
 }
 
 impl RuntimeBuildOutput {
@@ -45,6 +46,10 @@ impl RuntimeBuildOutput {
     }
     pub fn cache_hit(&self) -> bool {
         self.cache_hit
+    }
+
+    pub fn input_paths(&self) -> &[PathBuf] {
+        &self.input_paths
     }
 }
 
@@ -71,11 +76,12 @@ pub fn build_runtime(
         .map_err(error)?;
     FileExt::lock(&lock).map_err(error)?;
     let entry = namespace.join(inputs.base_key.to_string());
-    if let Some(objects) = cached_objects(&entry, request.target, &inputs) {
+    if let Some((objects, dependencies)) = cached_objects(&entry, request.target, &inputs) {
         return Ok(RuntimeBuildOutput {
             objects,
             index: entry.join("index.cbor"),
             cache_hit: true,
+            input_paths: input_paths(&request, &inputs, &dependencies),
         });
     }
     let staging = tempfile::Builder::new()
@@ -113,6 +119,7 @@ pub fn build_runtime(
         objects,
         index: entry.join("index.cbor"),
         cache_hit: false,
+        input_paths: input_paths(&request, &inputs, &dependencies),
     })
 }
 
@@ -120,7 +127,7 @@ fn cached_objects(
     entry: &Path,
     target: &ResolvedTargetProfile,
     inputs: &inputs::Inputs,
-) -> Option<RuntimeObjectSet> {
+) -> Option<(RuntimeObjectSet, dependencies::Dependencies)> {
     let bytes = std::fs::read(entry.join("dependencies.cbor")).ok()?;
     let dependencies: dependencies::Dependencies = scoop_wire::decode_canonical(&bytes).ok()?;
     if !dependencies.is_current(inputs) {
@@ -133,5 +140,18 @@ fn cached_objects(
     )
     .ok()?;
     (objects.configuration().input_key == dependencies.input_key(inputs.base_key).ok()?)
-        .then_some(objects)
+        .then_some((objects, dependencies))
+}
+
+fn input_paths(
+    request: &RuntimeBuildRequest<'_>,
+    inputs: &inputs::Inputs,
+    dependencies: &dependencies::Dependencies,
+) -> Vec<PathBuf> {
+    inputs
+        .files
+        .keys()
+        .map(|path| request.runtime_root.join(path))
+        .chain(dependencies.input_paths(inputs))
+        .collect()
 }

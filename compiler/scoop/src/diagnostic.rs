@@ -29,6 +29,10 @@ pub enum BuildFailurePhase {
     ChildDiagnostic,
     ChildOutput,
     CachePublish,
+    RuntimeBuild,
+    FinalLink,
+    Publication,
+    Run,
 }
 
 impl BuildFailurePhase {
@@ -49,6 +53,10 @@ impl BuildFailurePhase {
             Self::ChildDiagnostic => "ChildDiagnostic",
             Self::ChildOutput => "ChildOutput",
             Self::CachePublish => "CachePublish",
+            Self::RuntimeBuild => "RuntimeBuild",
+            Self::FinalLink => "FinalLink",
+            Self::Publication => "Publication",
+            Self::Run => "Run",
         }
     }
 }

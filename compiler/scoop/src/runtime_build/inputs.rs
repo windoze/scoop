@@ -1,4 +1,5 @@
 use super::*;
+use scoop_process::CommandExt;
 use std::collections::BTreeMap;
 use std::process::Command;
 
@@ -36,7 +37,7 @@ impl Inputs {
         let resource = Command::new(invocation.compiler_driver())
             .env_clear()
             .arg("-print-resource-dir")
-            .output()
+            .scoop_output()
             .ok()
             .filter(|output| output.status.success())
             .and_then(|output| String::from_utf8(output.stdout).ok())

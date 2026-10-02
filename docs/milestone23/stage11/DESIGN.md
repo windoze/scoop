@@ -202,6 +202,8 @@ human 默认将错误、warning 和最终产物位置写 stderr；成功 build/l
 
 JSON 是现有 typed result 的展示格式，不是新的 child/build 协议；复用仓库已有 serde/serde_json。语义 golden 只截取 canonical 字段，CLI presentation golden 单独规范化显示路径。文本内容和多字节字符不能被截断来满足固定诊断长度。
 
+逐字段展示格式见 [CLI-JSON.md](CLI-JSON.md)。成功记录中的一次性 `observations` 汇总直接展示现有 scheduler 的节点来源和 child 调用顺序，供 cold/warm fixture 核对；不产生逐步骤事件或持久化 transcript。
+
 ### 5.3 一次编译取得全部请求的观察结果
 
 `--emit all` 表示 AST、HIR、MIR、LIR 四项；其余值只请求对应项。`root` scope 只观察 root；`sources` scope 观察完整图中所有源码节点，包括实际从源码构建的 core，不对 prebuilt 请求其未保存的 AST／LocalConcrete。

@@ -1,5 +1,6 @@
 //! Bounded process transport for the paired single-Cone compiler.
 
+use scoop_process::CommandExt;
 use std::fmt;
 use std::io::{Read, Write};
 use std::path::PathBuf;
@@ -66,7 +67,7 @@ impl SingleConeCompilerRunner for ProductionSingleConeCompilerRunner {
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
-            .spawn()
+            .scoop_spawn()
             .map_err(|source| ChildTransportError::Spawn {
                 path: tool.executable_path().to_path_buf(),
                 source,

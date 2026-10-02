@@ -15,6 +15,13 @@ use scoop_slib::{
 
 use crate::ArtifactSearchRoot;
 
+pub(crate) fn artifact_candidate_path(root: &Path, coordinate: &ConeCoordinate) -> PathBuf {
+    root.join(coordinate.group())
+        .join(coordinate.name())
+        .join(coordinate.version())
+        .join("cone.slib")
+}
+
 #[derive(Debug)]
 pub(crate) enum LocatedDependencyClaim {
     Source(Box<ManifestSourceProjection>),
@@ -222,12 +229,7 @@ pub(crate) fn locate_from_search_roots(
     let mut checked = Vec::new();
     let mut resolved = Vec::new();
     for root in search_roots {
-        let candidate = root
-            .as_path()
-            .join(coordinate.group())
-            .join(coordinate.name())
-            .join(coordinate.version())
-            .join("cone.slib");
+        let candidate = artifact_candidate_path(root.as_path(), coordinate);
 
         checked.push(candidate.clone());
         match std::fs::symlink_metadata(&candidate) {

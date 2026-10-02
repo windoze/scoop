@@ -76,7 +76,7 @@ def environment(repo, work, fixtures, args):
             cc=tool_output(["/usr/bin/xcrun", "--find", "clang"]),
             ar=tool_output(["/usr/bin/xcrun", "--find", "ar"]),
             sdk=tool_output(["/usr/bin/xcrun", "--sdk", "macosx", "--show-sdk-path"]),
-            deployment="13.0",
+            deployment=tool_output(["/usr/bin/sw_vers", "-productVersion"]),
         )
     if not (work / "sysroot").exists():
         shutil.copytree(repo / "sysroot", work / "sysroot", symlinks=True)

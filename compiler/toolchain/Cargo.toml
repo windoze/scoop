@@ -4,6 +4,7 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+scoop-process.workspace = true
 object.workspace = true
 scoop-lir.workspace = true
 scoop-protocol.workspace = true

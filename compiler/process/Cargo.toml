@@ -1,0 +1,8 @@
+[package]
+name = "scoop-process"
+edition.workspace = true
+rust-version.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+rustix = { workspace = true, features = ["process"] }
+signal-hook.workspace = true

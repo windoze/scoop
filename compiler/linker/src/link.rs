@@ -1,3 +1,4 @@
+use scoop_process::CommandExt;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -25,6 +26,8 @@ pub struct ProgramLinkOutput {
     pub path: PathBuf,
     pub fingerprint: ResolvedLinkPlanFingerprint,
     pub plan_dump: String,
+    /// Actual native files used by this link, for destination alias checks.
+    pub input_paths: Vec<PathBuf>,
 }
 
 pub fn link_program(
@@ -85,7 +88,7 @@ fn link_inputs(
     }
     command.args(stubs.keys());
     let result = command
-        .output()
+        .scoop_output()
         .map_err(|err| error(format!("cannot start system linker: {err}")))?;
     if !result.status.success() {
         return Err(error(format!(
@@ -144,6 +147,19 @@ fn link_inputs(
         path: output,
         fingerprint,
         plan_dump,
+        input_paths: inputs
+            .native
+            .files
+            .values()
+            .map(|file| file.locator.clone())
+            .chain(
+                inputs
+                    .providers
+                    .providers
+                    .values()
+                    .map(|provider| provider.locator.clone()),
+            )
+            .collect(),
     })
 }
 
