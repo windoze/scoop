@@ -5,23 +5,6 @@ mod inheritance;
 pub(super) mod runtime;
 
 #[test]
-fn rebuilt_intrinsic_declarations_inherit_interface_default_members() {
-    check_class_cases(
-        "direct",
-        &[
-            "primitive-inherited-long",
-            "primitive-inherited-boolean",
-            "primitive-inherited-string",
-            "primitive-inherited-combined",
-        ],
-        &[
-            "primitive-inherited-no-gc",
-            "primitive-inherited-wrong-argument",
-        ],
-    );
-}
-
-#[test]
 fn integer_division_compiles_and_runs_through_actual_artifacts() {
     check_class_cases(
         "direct",

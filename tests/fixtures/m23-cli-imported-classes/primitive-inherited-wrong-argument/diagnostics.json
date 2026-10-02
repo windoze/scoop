@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `score` expects 0 argument(s), but 1 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "688802ee1693789f0ed9b94f178508ef54bed282be8cef50d195e5b4e685541e",
+      "end": 77,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 63
+    },
+    "severity": "error"
+  }
+]
