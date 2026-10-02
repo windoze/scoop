@@ -239,6 +239,8 @@ fixture 的 `truncate(path,size)` 只缩短现有文件；对应归档的初始�
 
 以下批次均已关闭更新开关、清除旧快照环境和 `RUST_MIN_STACK`，经统一入口只读通过。每批负例的原字节区间、表达式和信息逐项核对后保存完整 canonical JSON，并确认没有发布 consumer 产物；原测试注册和相应旧期望同步删除。
 
+接口继承的四个用例分别补齐三个空 struct 的默认相等函数及单标签 enum 的标签比较函数。八份 MIR/LIR 在按原函数身份还原序号后，其余正文逐字相同；四份 HIR Export 不变，普通与 moving GC 均通过。
+
 | 原 Rust 入口 | 正例／负例 | 进程／golden 比较 | 旧阶段对照 |
 | --- | --- | --- | --- |
 | `dependency_classes_compile_and_run_through_actual_artifacts` | 24／12 | 312／120 | 72 份 HIR Export、MIR、LIR 逐字相同；12 份诊断相同 |
@@ -258,8 +260,9 @@ fixture 的 `truncate(path,size)` 只缩短现有文件；对应归档的初始�
 | `inherited_dependency_parameters_report_source_errors` | 0／4 | 16／0 | 4 份诊断相同 |
 | `local_types_implement_dependency_interfaces_through_actual_artifacts` | 8／0 | 88／40 | 16 份旧阶段逐字相同；8 份补齐默认 equals 及一致的函数序号调整 |
 | `local_types_implement_dependency_interfaces_report_source_errors` | 0／10 | 40／0 | 10 份诊断相同 |
+| `local_interfaces_inherit_dependency_members_through_actual_artifacts` | 4／0 | 44／20 | 4 份 HIR Export 相同；8 份补齐默认 equals 及一致的函数序号调整 |
 
-本节目前覆盖 158 项；其余类、接口及继承用例继续逐功能迁移。共享的旧 runtime helper 仍被其他待迁测试调用，随那些调用一起退役。
+本节目前覆盖 162 项；其余类、接口及继承用例继续逐功能迁移。共享的旧 runtime helper 仍被其他待迁测试调用，随那些调用一起退役。
 
 ## 12. 后续批次
 

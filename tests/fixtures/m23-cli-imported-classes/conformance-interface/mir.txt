@@ -33,25 +33,30 @@ Module
   generated_exact_type get2 location=enum1 nominal_id=622534c9c5922df3097f906026e27069b37b6571b71015931bede359e956c937 exact_id=9524e06f6d40f8d5fbb622044493194f87549ffadf8b7375d3f65a2bdd4ee0f7
   generated_exact_type get3 location=enum4 nominal_id=8ea4998369595ea06ffdf209e903bff5bb36181f0eaf3109f5e1aa1b4d073938 exact_id=9f90d6b7cac54fa2c4dae52dd8e19dae0673e9fc014e53eb28cec4916abc14f2
   generated_exact_type get4 location=class4 nominal_id=edb3f78beaf6576b5efacead640a88538ae4e704dba0f615c5898edee8e5eb8c exact_id=f790367571fb6acdeca76a1fdf820a4e2da362be344a52a65dffcc6a13048cc4
-  generated_callable gc0 function=@fn15 id=3d2ddeb099efa0ba1524a5f5bf2e0f060a90a21ab9093a7be324cc3339aee24e
-  generated_callable gc1 function=@fn13 id=5ae27a2d296fe8ae5da0cad089c129c839868a5b10190730cf238659edf25149
-  generated_callable gc2 function=@fn16 id=6f89e319fb4aaab61c739884bbf64a348c0676afe4f69168d4093d69ead312f9
-  generated_callable gc3 function=@fn17 id=a665dd454cd6191cb5b59341b7ac4fd8d5c22558158d7fc14d44179c516e349d
-  generated_callable gc4 function=@fn19 id=b97d075072df57e8228c1251ebb639240bad653d8145ad598640d6a67344f5dd
-  generated_callable gc5 function=@fn18 id=f5d3ed8b87c2064b5dc24342365cbd460ef7676b2f011192173282a9768b49ec
-  generated_callable gc6 function=@fn14 id=fcc947b75244577ee6e19aa2bbcde91cb42f3b378bfd734998ef62cced1ad3e4
-  fun localReader @fn0() -> LocalReader
+  generated_callable gc0 function=@fn16 id=3d2ddeb099efa0ba1524a5f5bf2e0f060a90a21ab9093a7be324cc3339aee24e
+  generated_callable gc1 function=@fn14 id=5ae27a2d296fe8ae5da0cad089c129c839868a5b10190730cf238659edf25149
+  generated_callable gc2 function=@fn17 id=6f89e319fb4aaab61c739884bbf64a348c0676afe4f69168d4093d69ead312f9
+  generated_callable gc3 function=@fn18 id=a665dd454cd6191cb5b59341b7ac4fd8d5c22558158d7fc14d44179c516e349d
+  generated_callable gc4 function=@fn20 id=b97d075072df57e8228c1251ebb639240bad653d8145ad598640d6a67344f5dd
+  generated_callable gc5 function=@fn19 id=f5d3ed8b87c2064b5dc24342365cbd460ef7676b2f011192173282a9768b49ec
+  generated_callable gc6 function=@fn15 id=fcc947b75244577ee6e19aa2bbcde91cb42f3b378bfd734998ef62cced1ad3e4
+  fun LocalValue.equals @fn0(this: LocalValue, other: LocalValue) -> Boolean
     bb0 entry
-      call $call.1: LocalValue = @fn12 direct
+      return
+        Type Boolean
+        BoolLiteral true
+  fun localReader @fn1() -> LocalReader
+    bb0 entry
+      call $call.1: LocalValue = @fn13 direct
       return
         Type LocalReader
         Box
           Type LocalValue
           Local $call.1
-  fun primary @fn1() -> Counter
+  fun primary @fn2() -> Counter
     bb0 entry
-      call $receiver: LocalReader = @fn0 direct
-      call $dependency.argument.0: Long = @fn11 interface LocalReader[2]
+      call $receiver: LocalReader = @fn1 direct
+      call $dependency.argument.0: Long = @fn12 interface LocalReader[2]
         Type LocalReader
         Local $receiver
       val $dependency.parameter.value: Long
@@ -68,36 +73,36 @@ Module
       return
         Type Counter
         Local $new.1
-  fun Continuation.resume @fn2(this: Continuation<LocalValue>, value: LocalValue) -> Unit
+  fun Continuation.resume @fn3(this: Continuation<LocalValue>, value: LocalValue) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn3(this: Continuation<LocalValue>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn4(this: Continuation<LocalValue>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn4(this: SuspendTask<LocalValue>, $completion: Continuation<LocalValue>) -> CoroutineStep<LocalValue>
+  fun SuspendTask.run @fn5(this: SuspendTask<LocalValue>, $completion: Continuation<LocalValue>) -> CoroutineStep<LocalValue>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn5(this: SuspendRegistration<LocalValue>, continuation: Continuation<LocalValue>) -> Unit
+  fun SuspendRegistration.register @fn6(this: SuspendRegistration<LocalValue>, continuation: Continuation<LocalValue>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn6(this: Continuation<LocalReader>, value: LocalReader) -> Unit
+  fun Continuation.resume @fn7(this: Continuation<LocalReader>, value: LocalReader) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn7(this: Continuation<LocalReader>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn8(this: Continuation<LocalReader>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn8(this: SuspendTask<LocalReader>, $completion: Continuation<LocalReader>) -> CoroutineStep<LocalReader>
+  fun SuspendTask.run @fn9(this: SuspendTask<LocalReader>, $completion: Continuation<LocalReader>) -> CoroutineStep<LocalReader>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn9(this: SuspendRegistration<LocalReader>, continuation: Continuation<LocalReader>) -> Unit
+  fun SuspendRegistration.register @fn10(this: SuspendRegistration<LocalReader>, continuation: Continuation<LocalReader>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun LocalReader.read @fn10(this: LocalReader) -> Long
+  fun LocalReader.read @fn11(this: LocalReader) -> Long
     bb0 entry
       return
         Type Long
         IntegerLiteral Long value=20 bits=0x0000000000000014
-  fun LocalReader.complete @fn11(this: LocalReader) -> Long
+  fun LocalReader.complete @fn12(this: LocalReader) -> Long
     bb0 entry
       val $dependency.receiver: Readable
         Type Readable
@@ -115,16 +120,16 @@ Module
       return
         Type Long
         Local $call.1
-  fun ctor.LocalValue.$c0 @fn12() -> LocalValue <no-gc>
+  fun ctor.LocalValue.$c0 @fn13() -> LocalValue <no-gc>
     bb0 entry
       return
         Type LocalValue
         StructInit LocalValue
-  fun startCoroutine<LocalValue> @fn13(task: SuspendTask<LocalValue>, completion: Continuation<LocalValue>) -> Unit
+  fun startCoroutine<LocalValue> @fn14(task: SuspendTask<LocalValue>, completion: Continuation<LocalValue>) -> Unit
     bb0 suspended
       return
     bb1 completed
-      call @fn2 interface Continuation<LocalValue>[0]
+      call @fn3 interface Continuation<LocalValue>[0]
         Type Continuation<LocalValue>
         Local completion
         Type LocalValue
@@ -133,7 +138,7 @@ Module
           Local $step
       return
     bb2 failed
-      call @fn3 interface Continuation<LocalValue>[1]
+      call @fn4 interface Continuation<LocalValue>[1]
         Type Continuation<LocalValue>
         Local completion
         Type Throwable
@@ -148,7 +153,7 @@ Module
       end_catch
       goto bb2
     bb4 entry unwind bb3
-      call $step: CoroutineStep<LocalValue> = @fn4 interface SuspendTask<LocalValue>[0]
+      call $step: CoroutineStep<LocalValue> = @fn5 interface SuspendTask<LocalValue>[0]
         Type SuspendTask<LocalValue>
         Local task
         Type Continuation<LocalValue>
@@ -162,11 +167,11 @@ Module
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
-  fun startCoroutine<LocalReader> @fn14(task: SuspendTask<LocalReader>, completion: Continuation<LocalReader>) -> Unit
+  fun startCoroutine<LocalReader> @fn15(task: SuspendTask<LocalReader>, completion: Continuation<LocalReader>) -> Unit
     bb0 suspended
       return
     bb1 completed
-      call @fn6 interface Continuation<LocalReader>[0]
+      call @fn7 interface Continuation<LocalReader>[0]
         Type Continuation<LocalReader>
         Local completion
         Type LocalReader
@@ -175,7 +180,7 @@ Module
           Local $step
       return
     bb2 failed
-      call @fn7 interface Continuation<LocalReader>[1]
+      call @fn8 interface Continuation<LocalReader>[1]
         Type Continuation<LocalReader>
         Local completion
         Type Throwable
@@ -190,7 +195,7 @@ Module
       end_catch
       goto bb2
     bb4 entry unwind bb3
-      call $step: CoroutineStep<LocalReader> = @fn8 interface SuspendTask<LocalReader>[0]
+      call $step: CoroutineStep<LocalReader> = @fn9 interface SuspendTask<LocalReader>[0]
         Type SuspendTask<LocalReader>
         Local task
         Type Continuation<LocalReader>
@@ -204,7 +209,7 @@ Module
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
-  fun thunk<LocalValue> LocalReader.answer(Long) @fn15(this: LocalReader, extra: Long) -> Long
+  fun thunk<LocalValue> LocalReader.answer(Long) @fn16(this: LocalReader, extra: Long) -> Long
     bb0 entry
       call $call.1: Long = external0 direct
         Type Readable
@@ -216,17 +221,7 @@ Module
       return
         Type Long
         Local $call.1
-  fun thunk<LocalValue> LocalReader.read() @fn16(this: LocalReader) -> Long
-    bb0 entry
-      call $call.1: Long = @fn10 direct
-        Type LocalReader
-        Retype LocalReader
-          Type LocalReader
-          Local this
-      return
-        Type Long
-        Local $call.1
-  fun thunk<LocalValue> LocalReader.complete() @fn17(this: LocalReader) -> Long
+  fun thunk<LocalValue> LocalReader.read() @fn17(this: LocalReader) -> Long
     bb0 entry
       call $call.1: Long = @fn11 direct
         Type LocalReader
@@ -236,9 +231,19 @@ Module
       return
         Type Long
         Local $call.1
-  fun thunk<LocalValue> Readable.read() @fn18(this: Readable) -> Long
+  fun thunk<LocalValue> LocalReader.complete() @fn18(this: LocalReader) -> Long
     bb0 entry
-      call $call.1: Long = @fn10 direct
+      call $call.1: Long = @fn12 direct
+        Type LocalReader
+        Retype LocalReader
+          Type LocalReader
+          Local this
+      return
+        Type Long
+        Local $call.1
+  fun thunk<LocalValue> Readable.read() @fn19(this: Readable) -> Long
+    bb0 entry
+      call $call.1: Long = @fn11 direct
         Type LocalReader
         Retype LocalReader
           Type Readable
@@ -246,7 +251,7 @@ Module
       return
         Type Long
         Local $call.1
-  fun thunk<LocalValue> Readable.answer(Long) @fn19(this: Readable, extra: Long) -> Long
+  fun thunk<LocalValue> Readable.answer(Long) @fn20(this: Readable, extra: Long) -> Long
     bb0 entry
       call $call.1: Long = external0 direct
         Type Readable
@@ -262,16 +267,16 @@ Module
   coroutine_step cs1 CoroutineStep<LocalReader> result=LocalReader
   coroutine_slot cl0 CoroutineSlot<LocalValue> value=LocalValue
   coroutine_slot cl1 CoroutineSlot<LocalReader> value=LocalReader
-  coroutine_start ct0 result=LocalValue function=fn13
-  coroutine_start ct1 result=LocalReader function=fn14
-  coroutine_fn cf0 @fn4 source_return=LocalValue step=cs0 immediate
-  coroutine_fn cf1 @fn8 source_return=LocalReader step=cs1 immediate
-  instance mi0 function=@fn2 <- Continuation.resume
-  instance mi1 function=@fn3 <- Continuation.resumeWithException
-  instance mi2 function=@fn4 <- SuspendTask.run
-  instance mi3 function=@fn5 <- SuspendRegistration.register
-  instance mi4 function=@fn6 <- Continuation.resume
-  instance mi5 function=@fn7 <- Continuation.resumeWithException
-  instance mi6 function=@fn8 <- SuspendTask.run
-  instance mi7 function=@fn9 <- SuspendRegistration.register
+  coroutine_start ct0 result=LocalValue function=fn14
+  coroutine_start ct1 result=LocalReader function=fn15
+  coroutine_fn cf0 @fn5 source_return=LocalValue step=cs0 immediate
+  coroutine_fn cf1 @fn9 source_return=LocalReader step=cs1 immediate
+  instance mi0 function=@fn3 <- Continuation.resume
+  instance mi1 function=@fn4 <- Continuation.resumeWithException
+  instance mi2 function=@fn5 <- SuspendTask.run
+  instance mi3 function=@fn6 <- SuspendRegistration.register
+  instance mi4 function=@fn7 <- Continuation.resume
+  instance mi5 function=@fn8 <- Continuation.resumeWithException
+  instance mi6 function=@fn9 <- SuspendTask.run
+  instance mi7 function=@fn10 <- SuspendRegistration.register
   output library

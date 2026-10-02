@@ -1,0 +1,19 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.Readable
+  public interface LocalReader : Readable
+    fun read
+    fun answer
+  public struct LocalValue : LocalReader
+  public fun localReader(): LocalReader
+    =
+      Call LocalValue
+  public fun primary(): Counter
+    val extra: Long
+      IntLiteral 1
+    return
+      Call Counter
+        MethodCall answer
+          Call LocalValue
+          Var extra
