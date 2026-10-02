@@ -1,0 +1,71 @@
+SourceFile
+  QualifiedPackage consumer.enums
+  ImportExact Local dependency.enums.Choice
+  ImportExact Local dependency.enums.Packet
+  ImportExact Local dependency.enums.Flag
+  ImportExact Local dependency.enums.make
+  ImportExact Local dependency.enums.empty
+  ImportExact Local dependency.enums.packet
+  ImportExact Local dependency.enums.flag
+  public typealias Selected = Choice
+    @NoGC
+  public fun relay(value: Choice): Choice
+    =
+      Var value
+    @NoGC
+  public fun score(value: Choice): Long
+    =
+      WhenExpression
+        Var value
+        arm Selected.Empty()
+          IntLiteral 0
+        arm Selected.Pair{left, right, ..} if <guard>
+          IntLiteral 0
+        arm Selected.Pair{left, right, ..}
+          Binary Add
+            Var left
+            Var right
+    @NoGC
+  public fun packetScore(value: Packet): Long
+    =
+      WhenExpression
+        Var value
+        arm Missing
+          IntLiteral 0
+        arm Data((left, _, right), _)
+          Binary Add
+            Var left
+            Var right
+    @NoGC
+  public fun flagScore(value: Flag): Long
+    =
+      WhenExpression
+        Var value
+        arm Off
+          IntLiteral 0
+        arm On
+          IntLiteral 1
+    @NoGC
+  public fun defaultScore(value: Choice, result: Long = <expr>): Long
+    =
+      Var result
+    @NoGC
+  public fun test(): Long
+    =
+      Binary Sub
+        Binary Add
+          Binary Add
+            Binary Add
+              Call score
+                Call relay
+                  Call make
+                    IntLiteral 17
+                    Unary Neg
+                      IntLiteral 29
+              Call packetScore
+                Call packet
+            Call defaultScore
+              Call empty
+          Call flagScore
+            Call flag
+        IntLiteral 1

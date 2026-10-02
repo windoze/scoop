@@ -1,0 +1,20 @@
+SourceFile
+  QualifiedPackage downstream.enums
+  ImportExact Local consumer.enums.test
+  ImportExact Local consumer.enums.defaultScore
+  ImportExact Local consumer.enums.defaultFlag
+  ImportExact Local consumer.enums.defaultMarker
+    @NoGC
+  public fun check(): Long
+    =
+      Binary Add
+        Binary Sub
+          Binary Add
+            Binary Sub
+              Binary Add
+                Call test
+                Call defaultScore
+              IntLiteral 42
+            Call defaultFlag
+          IntLiteral 1
+        Call defaultMarker

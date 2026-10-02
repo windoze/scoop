@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "body of `invalid` must be of type Other, found Choice",
+    "notes": [],
+    "origin": {
+      "cone": "ec9d1a0ea54ffebc4a34763ce3b7476dab81d66e3d78dbedd80754cbefccdae5",
+      "end": 164,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 114
+    },
+    "severity": "error"
+  }
+]

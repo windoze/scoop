@@ -1,0 +1,83 @@
+Module
+  enum Choice tagged size=24 align=8 variants=()@8+0 (i64, struct0, i64)@8+16
+  enum Flag tagged size=8 align=8 variants=()@8+0 ()@8+0
+  enum Marker tagged size=8 align=8 variants=()@8+0
+  fun @scoop$1$cb$f703a4cc798144dd4c8975b398cf3d437ec810354b6512cf83e2070ce3b7830b() -> i64 <no-gc>
+    local %0 $default.local.0: i64
+    local %1 $default.local.1: struct0 <logical-zst 2e5150f5508d1ccf2ff6c07c33404cda36145d153a1845fedc7134a3adeddfee>
+    local %2 $default.local.2: i64
+    local %3 $default.local.3: i64
+    local %4 $default.local.4: struct0 <logical-zst 2e5150f5508d1ccf2ff6c07c33404cda36145d153a1845fedc7134a3adeddfee>
+    local %5 $default.local.5: i64
+    local %6 $dependency.parameter.value: enum0
+    local %7 $dependency.receiver: i64
+    local %8 $dependency.argument.0: i64
+    local %9 $dependency.parameter.other: i64
+    local %10 $dependency.receiver: i64
+    local %11 $dependency.argument.0: i64
+    local %12 $dependency.parameter.other: i64
+    local %13 $dependency.parameter.value: enum1
+    local %14 $dependency.receiver: i64
+    local %15 $dependency.argument.0: i64
+    local %16 $dependency.parameter.other: i64
+    local %17 $dependency.receiver: i64
+    local %18 $dependency.argument.0: i64
+    local %19 $dependency.parameter.other: i64
+    local %20 $dependency.parameter.value: enum2
+    local %21 $dependency.receiver: i64
+    local %22 $dependency.argument.0: i64
+    local %23 $dependency.parameter.other: i64
+    local %24 $sc.1: enum0
+    local %25 $sc.2: enum1
+    local %26 $sc.3: enum2
+  block entry
+    call no-gc-direct-target0 t0 = sig=direct0 () -> i64 external-fn0()
+    store t0 -> local7
+    store integer<Long>(0x000000000000000b) -> local0
+    call no-gc-elided-zst-target0 t1 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> external-fn1()
+    store t1 -> local1
+    store integer<Long>(0x000000000000001f) -> local2
+    store local0 -> local3
+    store local1 -> local4
+    store local2 -> local5
+    t2 = enum_wrap e0 v1 (local3, local4, local5) : enum0
+    store t2 -> local6
+    store local6 -> local24
+    call no-gc-direct-target1 t3 = sig=direct1 (indirect<enum0 size=24 align=8 scan=none>) -> i64 external-fn2(indirect local24)
+    store t3 -> local8
+    store local8 -> local9
+    t4 = integer_Add<Long> local7, local9 : i64
+    store t4 -> local10
+    store integer<Long>(0x000000000000002a) -> local11
+    store local11 -> local12
+    t5 = integer_Subtract<Long> local10, local12 : i64
+    store t5 -> local14
+    t6 = enum_wrap e1 v1 () : enum1
+    store t6 -> local13
+    store local13 -> local25
+    call no-gc-direct-target2 t7 = sig=direct2 (indirect<enum1 size=8 align=8 scan=none>) -> i64 external-fn3(indirect local25)
+    store t7 -> local15
+    store local15 -> local16
+    t8 = integer_Add<Long> local14, local16 : i64
+    store t8 -> local17
+    store integer<Long>(0x0000000000000001) -> local18
+    store local18 -> local19
+    t9 = integer_Subtract<Long> local17, local19 : i64
+    store t9 -> local21
+    t10 = enum_wrap e2 v0 () : enum2
+    store t10 -> local20
+    store local20 -> local26
+    call no-gc-direct-target3 t11 = sig=direct3 (indirect<enum2 size=8 align=8 scan=none>) -> i64 external-fn4(indirect local26)
+    store t11 -> local22
+    store local22 -> local23
+    t12 = integer_Add<Long> local21, local23 : i64
+    ret t12
+  fun @scoop$1$cb$97457ca28f6fdd96b790e0b43a8d706bb3d5239a5ca73cc881e85c93aed837b8(ptr<raw>) -> void <no-gc>
+    local %0 $value: i64
+  block entry
+    call no-gc-direct-target0 t0 = sig=direct0 () -> i64 local-fn0()
+    store t0 -> local0
+    raw_store param0 local0 align 8
+    t1 = aggregate () : {}
+    ret
+  output library

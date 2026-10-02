@@ -1,0 +1,171 @@
+schema = 1
+name = "imported-enum-constructors"
+inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "../../m23-imported-enums/provider.scoop", "enum-provider", "../../m23-imported-enums/constructors.scoop", "enums-constructors", "../../m23-imported-enums/constructor-downstream.scoop", "downstream-constructors", "../support/enum-main.scoop", "value-runtime-enum-constructors"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["imported-values", "enum", "stage-golden"]
+
+[[steps]]
+name = "prepare_core"
+files = [
+  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"copy" = {"from" = "${fixture}/../../m23-cli-imported-classes/support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
+  {"mkdir" = {"path" = "${work}/empty-sysroot"}},
+]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "remove_core_source"
+files = [
+  {"remove" = {"path" = "${work}/core-source"}},
+]
+
+[[steps]]
+name = "prepare_enum-provider"
+files = [
+  {"copy" = {"from" = "${fixture}/enum-provider", "to" = "${work}/sources/enum-provider"}},
+  {"copy" = {"from" = "${fixture}/../../m23-imported-enums/provider.scoop", "to" = "${work}/sources/enum-provider/src/main.scoop"}},
+]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", "${work}/sources/enum-provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/enum-provider/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/provider"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${provider.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/provider/${provider.result.root.identity}/ast.txt", "snapshot" = "provider.ast.txt"},
+  {"file" = "${work}/dump/provider/${provider.result.root.identity}/hir.txt", "snapshot" = "provider.hir.txt"},
+  {"file" = "${work}/dump/provider/${provider.result.root.identity}/mir.txt", "snapshot" = "provider.mir.txt"},
+  {"file" = "${work}/dump/provider/${provider.result.root.identity}/lir.txt", "snapshot" = "provider.lir.txt"},
+]
+
+[[steps]]
+name = "remove_provider_source"
+files = [
+  {"remove" = {"path" = "${work}/sources/enum-provider"}},
+]
+
+[[steps]]
+name = "prepare_enums-constructors"
+files = [
+  {"copy" = {"from" = "${fixture}/enums-constructors", "to" = "${work}/sources/enums-constructors"}},
+  {"copy" = {"from" = "${fixture}/../../m23-imported-enums/constructors.scoop", "to" = "${work}/sources/enums-constructors/src/main.scoop"}},
+]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", "${work}/sources/enums-constructors", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/enums-constructors/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/consumer"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${consumer.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/ast.txt", "snapshot" = "consumer.ast.txt"},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/hir.txt", "snapshot" = "consumer.hir.txt"},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/mir.txt", "snapshot" = "consumer.mir.txt"},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/lir.txt", "snapshot" = "consumer.lir.txt"},
+]
+
+[[steps]]
+name = "remove_consumer_source"
+files = [
+  {"remove" = {"path" = "${work}/sources/enums-constructors"}},
+]
+
+[[steps]]
+name = "prepare_downstream-constructors"
+files = [
+  {"copy" = {"from" = "${fixture}/downstream-constructors", "to" = "${work}/sources/downstream-constructors"}},
+  {"copy" = {"from" = "${fixture}/../../m23-imported-enums/constructor-downstream.scoop", "to" = "${work}/sources/downstream-constructors/src/main.scoop"}},
+]
+
+[[steps]]
+name = "downstream"
+argv = ["${scoop}", "build", "${work}/sources/downstream-constructors", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-downstream", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/downstream-constructors/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/downstream"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${downstream.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/ast.txt", "snapshot" = "downstream.ast.txt"},
+  {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/hir.txt", "snapshot" = "downstream.hir.txt"},
+  {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/mir.txt", "snapshot" = "downstream.mir.txt"},
+  {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/lir.txt", "snapshot" = "downstream.lir.txt"},
+]
+
+[[steps]]
+name = "remove_downstream_source"
+files = [
+  {"remove" = {"path" = "${work}/sources/downstream-constructors"}},
+]
+
+[[steps]]
+name = "prepare_value-runtime-enum-constructors"
+files = [
+  {"copy" = {"from" = "${fixture}/value-runtime-enum-constructors", "to" = "${work}/sources/value-runtime-enum-constructors"}},
+  {"copy" = {"from" = "${fixture}/../support/enum-main.scoop", "to" = "${work}/sources/value-runtime-enum-constructors/src/main.scoop"}},
+]
+
+[[steps]]
+name = "program"
+argv = ["${scoop}", "build", "${work}/sources/value-runtime-enum-constructors", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/program", "--runtime-root", "${runtime}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "isolate"
+files = [
+  {"remove" = {"path" = "${work}/sources"}},
+  {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}},
+]
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${program.result.root.path}", "--cone-path", "${work}/artifacts", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "-o", "${work}/relinked", "--dump-plan", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${link.result.dependencies.length}", "equals" = 4},
+  {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan.txt"},
+  {"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
+]
+
+[[steps]]
+name = "run"
+argv = ["${link.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "run_moving"
+argv = ["${link.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}

@@ -1,0 +1,596 @@
+Module
+  callback cb0 @fn6 -> @fn12 function_type0 id=92d1e5812f9626c8abb080c87757bb089b6f05ea2c0bd7a61fdf106002e2d3fc
+  struct Carrier (value: Choice, markers: (Token, Token))
+  struct Token ()
+  enum Wrapper
+    Empty()
+    Value(_1: Choice, _2: (Token, Token), _3: Draft)
+  enum Choice
+    Empty()
+    Pair(left: Long, marker: Token, right: Long)
+  enum Draft
+    Absent()
+    Position(_0: Long, _1: Token, _2: Long)
+    Named(left: Long, marker: Token, right: Long)
+    Defaults(left: Long, marker: Token, right: Long)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Flag
+    Off()
+    On()
+  enum Marker
+    Only()
+  enum CoroutineStep<Carrier>
+    Completed(value: Carrier)
+    Suspended()
+  enum CoroutineSlot<Carrier>
+    Empty()
+    Value(value: Carrier)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Carrier> vtable=0 itables=0
+  interface Continuation<Carrier>
+  interface SuspendTask<Carrier>
+  interface SuspendRegistration<Carrier>
+  generated_exact_type get0 location=enum7 nominal_id=36b4bd52a2cc15c05f3375050a883d53eb0cf0a5d33d89a5826735c2aa86e229 exact_id=17a1a9c8b2e1c91b8933abc1fad662595dca436231ceac03c6430639deedf341
+  generated_exact_type get1 location=class3 nominal_id=87c91f015956692d97ff4e2d926197dd5038e1bda447758ab6ed341c19392154 exact_id=659c9955aebf414e4898d27bab872981bf59ed79c0f9db5de1b2627ef0317615
+  generated_exact_type get2 location=enum6 nominal_id=525494e1643dd177eb915d2085262bb400e76642f0e8d12b304fcac97a75921c exact_id=74752f29fd4335eb229915a06d0d3cca68b9de4122ba40f9fe2dd8f24b2c44b2
+  generated_callable gc0 function=@fn12 id=92d1e5812f9626c8abb080c87757bb089b6f05ea2c0bd7a61fdf106002e2d3fc
+  generated_callable gc1 function=@fn13 id=9723a76ae5161d8166106f5f4e035df070fae7ad54510c244ab58271f592c031
+  fun Carrier.equals @fn0(this: Carrier, other: Carrier) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = external2 direct
+        Type Choice
+        FieldAccess 0
+          Type Carrier
+          Local this
+        Type Choice
+        FieldAccess 0
+          Type Carrier
+          Local other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 logic.rhs.1
+      call $call.3: Boolean = @fn1 direct
+        Type (Token, Token)
+        FieldAccess 1
+          Type Carrier
+          Local this
+        Type (Token, Token)
+        FieldAccess 1
+          Type Carrier
+          Local other
+      assign $logic.2
+        Type Boolean
+        Local $call.3
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.2
+  fun $derived.equals.0 @fn1(this: (Token, Token), other: (Token, Token)) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = external3 direct
+        Type Token
+        FieldAccess 0
+          Type (Token, Token)
+          Local this
+        Type Token
+        FieldAccess 0
+          Type (Token, Token)
+          Local other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 logic.rhs.1
+      call $call.3: Boolean = external3 direct
+        Type Token
+        FieldAccess 1
+          Type (Token, Token)
+          Local this
+        Type Token
+        FieldAccess 1
+          Type (Token, Token)
+          Local other
+      assign $logic.2
+        Type Boolean
+        Local $call.3
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.2
+  fun relay @fn2(value: Choice) -> Choice <no-gc>
+    bb0 entry
+      return
+        Type Choice
+        Local value
+  fun defaultScore @fn3(value: Choice) -> Long <no-gc>
+    bb0 entry
+      val $dependency.argument.0: Choice
+        Type Choice
+        Local value
+      val $dependency.parameter.value: Choice
+        Type Choice
+        Local $dependency.argument.0
+      call $call.1: Long = external1 direct
+        Type Choice
+        Local $dependency.parameter.value
+      return
+        Type Long
+        Local $call.1
+  fun defaultFlag @fn4(value: Flag) -> Long <no-gc>
+    bb0 entry
+      val $when.1: Flag
+        Type Flag
+        Local value
+      val $pattern.subject.2: Flag
+        Type Flag
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Flag v0
+          Type Flag
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $result.0
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Flag
+        Type Flag
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Flag v1
+          Type Flag
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Long
+        Local $result.0
+    bb4 pattern.pass.4
+      assign $result.0
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun defaultMarker @fn5(value: Marker) -> Long <no-gc>
+    bb0 entry
+      val $when.1: Marker
+        Type Marker
+        Local value
+      val $pattern.subject.2: Marker
+        Type Marker
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Marker v0
+          Type Marker
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $result.1
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb3
+    bb2 pattern.else.2
+      unreachable
+    bb3 pattern.merge.3
+      return
+        Type Long
+        Local $result.1
+  fun test @fn6() -> Long <no-gc>
+    bb0 entry
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=17 bits=0x0000000000000011
+      call $dependency.argument.1: Token = external0 direct
+      val $dependency.argument.2: Long
+        Type Long
+        IntegerLiteral Long value=-29 bits=0xffffffffffffffe3
+      val $dependency.parameter.left: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.marker: Token
+        Type Token
+        Local $dependency.argument.1
+      val $dependency.parameter.right: Long
+        Type Long
+        Local $dependency.argument.2
+      val $argument.0: Choice
+        Type Choice
+        VariantConstruct Choice v1
+          Type Long
+          Local $dependency.parameter.left
+          Type Token
+          Local $dependency.parameter.marker
+          Type Long
+          Local $dependency.parameter.right
+      call $call.1: Token = external0 direct
+      call $call.2: Token = external0 direct
+      val $argument.1: (Token, Token)
+        Type (Token, Token)
+        TupleLiteral
+          Type Token
+          Local $call.1
+          Type Token
+          Local $call.2
+      val $parameter.value: Choice
+        Type Choice
+        Local $argument.0
+      val $parameter.markers: (Token, Token)
+        Type (Token, Token)
+        Local $argument.1
+      call carrier: Carrier = @fn11 direct
+        Type Choice
+        Local $parameter.value
+        Type (Token, Token)
+        Local $parameter.markers
+      val $argument.0: Choice
+        Type Choice
+        FieldAccess 0
+          Type Carrier
+          Local carrier
+      val $parameter.value: Choice
+        Type Choice
+        Local $argument.0
+      call $argument.0: Choice = @fn2 direct
+        Type Choice
+        Local $parameter.value
+      val $argument.1: (Token, Token)
+        Type (Token, Token)
+        FieldAccess 1
+          Type Carrier
+          Local carrier
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=47 bits=0x000000000000002f
+      val $dependency.parameter.left: Long
+        Type Long
+        Local $dependency.argument.0
+      call $dependency.parameter.marker: Token = external0 direct
+      val $default.local.2: Long
+        Type Long
+        Local $dependency.parameter.left
+      val $default.local.3: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $default.local.4: Long
+        Type Long
+        Local $default.local.3
+      val $dependency.parameter.right: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $default.local.2
+          Type Long
+          Local $default.local.4
+      val $argument.2: Draft
+        Type Draft
+        VariantConstruct Draft v3
+          Type Long
+          Local $dependency.parameter.left
+          Type Token
+          Local $dependency.parameter.marker
+          Type Long
+          Local $dependency.parameter.right
+      val $parameter._1: Choice
+        Type Choice
+        Local $argument.0
+      val $parameter._2: (Token, Token)
+        Type (Token, Token)
+        Local $argument.1
+      val $parameter._3: Draft
+        Type Draft
+        Local $argument.2
+      val wrapped: Wrapper
+        Type Wrapper
+        VariantConstruct Wrapper v1
+          Type Choice
+          Local $parameter._1
+          Type (Token, Token)
+          Local $parameter._2
+          Type Draft
+          Local $parameter._3
+      val $when.1: Wrapper
+        Type Wrapper
+        Local wrapped
+      val $pattern.subject.2: Wrapper
+        Type Wrapper
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Wrapper v0
+          Type Wrapper
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $result.3
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Wrapper
+        Type Wrapper
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Wrapper v1
+          Type Wrapper
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Long
+        Local $result.3
+    bb4 pattern.pass.4
+      val choice: Choice
+        Type Choice
+        VariantPayloadProject Wrapper v1 f0
+          Type Wrapper
+          Local $pattern.subject.3
+      val draft: Draft
+        Type Draft
+        VariantPayloadProject Wrapper v1 f2
+          Type Wrapper
+          Local $pattern.subject.3
+      val $dependency.argument.0: Choice
+        Type Choice
+        Local choice
+      val $dependency.parameter.value: Choice
+        Type Choice
+        Local $dependency.argument.0
+      call $dependency.receiver: Long = external1 direct
+        Type Choice
+        Local $dependency.parameter.value
+      val $when.4: Draft
+        Type Draft
+        Local draft
+      val $pattern.subject.5: Draft
+        Type Draft
+        Local $when.4
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Draft v0
+          Type Draft
+          Local $pattern.subject.5
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+    bb7 pattern.pass.7
+      assign $result.2
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb9
+    bb8 pattern.else.8
+      val $pattern.subject.6: Draft
+        Type Draft
+        Local $when.4
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Draft v1
+          Type Draft
+          Local $pattern.subject.6
+    bb9 pattern.merge.9
+      val $dependency.argument.0: Long
+        Type Long
+        Local $result.2
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $result.3
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      goto bb6
+    bb10 pattern.pass.10
+      val left: Long
+        Type Long
+        VariantPayloadProject Draft v1 f0
+          Type Draft
+          Local $pattern.subject.6
+      val right: Long
+        Type Long
+        VariantPayloadProject Draft v1 f2
+          Type Draft
+          Local $pattern.subject.6
+      val $dependency.receiver: Long
+        Type Long
+        Local left
+      val $dependency.argument.0: Long
+        Type Long
+        Local right
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $result.2
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      goto bb12
+    bb11 pattern.else.11
+      val $pattern.subject.7: Draft
+        Type Draft
+        Local $when.4
+      branch bb13 bb14
+        Type Boolean
+        VariantTest Draft v2
+          Type Draft
+          Local $pattern.subject.7
+    bb12 pattern.merge.12
+      goto bb9
+    bb13 pattern.pass.13
+      val left: Long
+        Type Long
+        VariantPayloadProject Draft v2 f0
+          Type Draft
+          Local $pattern.subject.7
+      val right: Long
+        Type Long
+        VariantPayloadProject Draft v2 f2
+          Type Draft
+          Local $pattern.subject.7
+      val $dependency.receiver: Long
+        Type Long
+        Local left
+      val $dependency.argument.0: Long
+        Type Long
+        Local right
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $result.2
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      goto bb15
+    bb14 pattern.else.14
+      val $pattern.subject.8: Draft
+        Type Draft
+        Local $when.4
+      branch bb16 bb17
+        Type Boolean
+        VariantTest Draft v3
+          Type Draft
+          Local $pattern.subject.8
+    bb15 pattern.merge.15
+      goto bb12
+    bb16 pattern.pass.16
+      val left: Long
+        Type Long
+        VariantPayloadProject Draft v3 f0
+          Type Draft
+          Local $pattern.subject.8
+      val right: Long
+        Type Long
+        VariantPayloadProject Draft v3 f2
+          Type Draft
+          Local $pattern.subject.8
+      val $dependency.receiver: Long
+        Type Long
+        Local left
+      val $dependency.argument.0: Long
+        Type Long
+        Local right
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $result.2
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      goto bb18
+    bb17 pattern.else.17
+      unreachable
+    bb18 pattern.merge.18
+      goto bb15
+  fun Continuation.resume @fn7(this: Continuation<Carrier>, value: Carrier) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn8(this: Continuation<Carrier>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn9(this: SuspendTask<Carrier>, $completion: Continuation<Carrier>) -> CoroutineStep<Carrier>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn10(this: SuspendRegistration<Carrier>, continuation: Continuation<Carrier>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.Carrier.$c0 @fn11(value: Choice, markers: (Token, Token)) -> Carrier <no-gc>
+    bb0 entry
+      return
+        Type Carrier
+        StructInit Carrier
+          Type Choice
+          Local value
+          Type (Token, Token)
+          Local markers
+  fun callback bridge for test @fn12($result: Ptr<Long>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Long = @fn6 direct
+      Type Unit
+      PtrStore Long
+        Type Ptr<Long>
+        Local $result
+        Type Long
+        Local $value
+      return
+  fun startCoroutine<Carrier> @fn13(task: SuspendTask<Carrier>, completion: Continuation<Carrier>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn7 interface Continuation<Carrier>[0]
+        Type Continuation<Carrier>
+        Local completion
+        Type Carrier
+        EnumField v0 f0
+          Type CoroutineStep<Carrier>
+          Local $step
+      return
+    bb2 failed
+      call @fn8 interface Continuation<Carrier>[1]
+        Type Continuation<Carrier>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Carrier> = @fn9 interface SuspendTask<Carrier>[0]
+        Type SuspendTask<Carrier>
+        Local task
+        Type Continuation<Carrier>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Carrier>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Carrier> result=Carrier
+  coroutine_slot cl0 CoroutineSlot<Carrier> value=Carrier
+  coroutine_start ct0 result=Carrier function=fn13
+  coroutine_fn cf0 @fn9 source_return=Carrier step=cs0 immediate
+  instance mi0 function=@fn7 <- Continuation.resume
+  instance mi1 function=@fn8 <- Continuation.resumeWithException
+  instance mi2 function=@fn9 <- SuspendTask.run
+  instance mi3 function=@fn10 <- SuspendRegistration.register
+  output library

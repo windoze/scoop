@@ -1,0 +1,60 @@
+Module
+  callback cb0 @fn0 -> @fn1 function_type0 id=3849f8b3dce1ed822d3ebe504e7af4a0f2805012b07ab72b252ca7d36e74f269
+  struct Token ()
+  enum Choice
+    Empty()
+    Pair(left: Long, marker: Token, right: Long)
+  generated_callable gc0 function=@fn1 id=3849f8b3dce1ed822d3ebe504e7af4a0f2805012b07ab72b252ca7d36e74f269
+  fun check @fn0() -> Long <no-gc>
+    bb0 entry
+      call $dependency.receiver: Long = external0 direct
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=5 bits=0x0000000000000005
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=-5 bits=0xfffffffffffffffb
+      val $dependency.parameter.left: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Long
+        Type Long
+        Local $dependency.argument.1
+      call $dependency.argument.0: Choice = external1 direct
+        Type Long
+        Local $dependency.parameter.left
+        Type Long
+        Local $dependency.parameter.right
+      val $dependency.parameter.value: Choice
+        Type Choice
+        Local $dependency.argument.0
+      call $dependency.argument.0: Choice = external2 direct
+        Type Choice
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Choice
+        Type Choice
+        Local $dependency.argument.0
+      call $dependency.argument.0: Long = external3 direct
+        Type Choice
+        Local $dependency.parameter.value
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+  fun callback bridge for check @fn1($result: Ptr<Long>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Long = @fn0 direct
+      Type Unit
+      PtrStore Long
+        Type Ptr<Long>
+        Local $result
+        Type Long
+        Local $value
+      return
+  output library

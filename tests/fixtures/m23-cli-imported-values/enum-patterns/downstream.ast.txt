@@ -1,0 +1,15 @@
+SourceFile
+  QualifiedPackage downstream.enums
+  ImportExact Local consumer.enums.test
+  ImportExact Local consumer.enums.defaultScore
+  ImportExact Local dependency.enums.make
+    @NoGC
+  public fun check(): Long
+    =
+      Binary Add
+        Call test
+        Call defaultScore
+          Call make
+            IntLiteral 5
+            Unary Neg
+              IntLiteral 5

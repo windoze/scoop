@@ -1,3 +1,0 @@
-span=97..108
-expression=left = true
-dependency constructor argument must be of type Long, found Boolean
