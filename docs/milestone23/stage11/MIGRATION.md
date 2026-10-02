@@ -318,3 +318,11 @@ parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end，
 11 份旧阶段输出逐字相同。`combined` 和 `constructor-combinations` 的四份 MIR/LIR 只补齐 `Carrier.equals` 与 `(Token, Token)` 的派生相等函数，并一致调整函数序号；按原函数身份对照后其余正文逐字相同。两个来源中的 `choice`／`draft` 是合法 catch-all binding，当前 CLI 返回的三条 warning 按原字节范围记录完整 canonical 期望，未修改源码或忽略额外诊断。18 个负例的原表达式、范围和信息逐项一致，并检查失败无产物。
 
 删除原 Rust 文件编排、object/archive 提取与手工链接 helper、旧 LLVM main、更新环境变量及 33 份旧快照；27 份原 Scoop 源码全部保留。只读验收 23 项全部通过，共 23 个变体、94 次进程、65 次阶段／plan golden 比较，五个程序均经过正式独立链接并通过普通／moving GC 运行；格式化与全 workspace lint 通过。
+
+## 16. 外来值类型成员、属性和默认参数
+
+`dependency_members_compile_and_run_through_actual_artifacts` 迁为 `member-*` 的两个正例和六个负例。原三层来源、十份 Scoop 源码、接收者与参数 ABI 保留；provider 的 `sameToken` 两个 ZST 参数和结果消除，`copyWide`／`plus` 的接收者、参数和结果为相同 24 字节、8 字节对齐的值，`total` 的接收者也保持该布局。三层完整阶段输出记录实际类型与 callable 信息。
+
+原 LLVM 检查体成为普通 native 函数，由正式 Scoop 程序调用。13 个实际 callable 符号显式绑定在数据中，原 17/-29/53、48、17、41 等字段、计算属性、默认值和重发布断言全部保留；此前手工选取对象、补 property/default helper 和直接链接的 Rust 代码删除，改由实际产物闭包供应定义与 runtime 启动。
+
+四份旧阶段逐字相同；组合用例的 MIR/LIR 仅增加按 Token、Wide 字段比较的 `Container.equals` 及一致的函数序号调整。六个负例保留原范围、表达式、消息及无产物断言。删除原 Rust 模块、helper、更新变量和 12 份旧快照。只读验收八项全部通过，共 8 个变体、38 次进程、26 次阶段／plan golden 比较，两个程序通过普通／moving GC；格式化与全 workspace lint 通过。

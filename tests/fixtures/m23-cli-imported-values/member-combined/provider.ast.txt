@@ -1,0 +1,47 @@
+SourceFile
+  QualifiedPackage dependency.members
+  public struct Token
+    public fun sameToken
+  public struct Wide
+    field first: Long
+    field second: Long
+    field third: Long
+    public fun copyWide
+    public fun total
+    public operator fun plus
+    private fun hidden
+    public val calculated: Long <computed>
+      @NoGC
+      get()
+        Binary Add
+          Binary Add
+            Var first
+            Var second
+          Var third
+    private val hiddenValue: Long <computed>
+      @NoGC
+      get()
+        Var first
+  public struct Managed
+    field text: String
+    field token: Token
+    public fun sameManaged
+  public struct Nested
+    field value: Wide
+    field marker: Token
+    @NoGC
+  public fun defaultField(value: Wide, selected: Long = <expr>): Long
+    =
+      Var selected
+    @NoGC
+  public fun defaultMember(value: Wide, selected: Long = <expr>): Long
+    =
+      Var selected
+    @NoGC
+  public fun defaultProperty(value: Wide, selected: Long = <expr>): Long
+    =
+      Var selected
+    @NoGC
+  public fun defaultMarker(value: Nested, marker: Token = <expr>): Token
+    =
+      Var marker

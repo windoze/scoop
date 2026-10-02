@@ -25,7 +25,6 @@ mod heap_zst;
 mod image_dependencies;
 mod imported_classes;
 mod imported_constructors;
-mod imported_members;
 mod layout_exports;
 mod nominal_signatures;
 mod program_link;
