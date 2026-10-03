@@ -1,0 +1,20 @@
+SourceFile
+  RootPackage
+  object UserCache
+    val value: Int =
+      Call userCoreWithDefault
+  val eager: Int = <expr>
+  fun selectedValue(useCache: Boolean): Int
+    return
+      IfExpression
+        Var useCache
+        Call userCoreOffset
+          FieldAccess value
+            Var UserCache
+        else
+        Call userCoreWithDefault
+          Var eager
+  fun main()
+    val result
+      Call selectedValue
+        BoolLiteral true

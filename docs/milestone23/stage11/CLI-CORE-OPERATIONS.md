@@ -61,3 +61,4 @@ MIR/LIR golden 保留。
 | 功能 | 新 case（`library-` 前缀） | 用例／进程／golden |
 | --- | --- | --- |
 | core alias 类型与值名称 | `aliases` | 1／5／5 |
+| 初始化与普通 core 调用 | `initialization-call`、`initialization-combined` | 2／10／10 |
