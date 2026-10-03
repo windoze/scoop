@@ -7,3 +7,4 @@
 | 原功能 | 用例 | 只读进程／golden | 核对内容 |
 | --- | --- | --- | --- |
 | `imported_option_roles_follow_rebuilt_core_declarations` | `option-edited-core` | 12／9 | 反转 None／Some 声明顺序，保留嵌套 Option、缺省值、callback、unwrap 异常和再次泛型具体化；删除旧文件测试、注册与对应三阶段快照 |
+| `imported_coroutine_roles_follow_rebuilt_core_declarations` | `coroutine-rebuilt-core` | 12／9 | 修改 core Coroutine 声明后保留协议角色、泛型 suspend 正文与再次发布；删除旧文件测试、注册与对应三阶段快照 |

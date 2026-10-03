@@ -1,7 +1,6 @@
 use super::*;
 
 mod constructors;
-mod coroutines;
 mod initialization;
 mod machine;
 mod native_addresses;
