@@ -1,8 +1,6 @@
 use super::*;
 use std::collections::BTreeMap;
 
-mod errors;
-
 fn lower_source(source: &str) -> Result<hir::Output, Vec<ast::Diagnostic>> {
     lower(&[complete_core_file(), scoop_parser::parse(source).unwrap()])
 }
