@@ -1,0 +1,30 @@
+SourceFile
+  RootPackage
+  public fun internalFactory(): Factory
+    =
+      Call Factory
+        IntLiteral 3L
+SourceFile
+  RootPackage
+  public interface Marker
+    fun tag
+  public open class Factory(seed: Int), Marker
+    public val seedValue: Int = <expr>
+      Var seed
+    public companion object
+      public fun privateFactory
+    constructor(text: String) : this(<1 args>)
+    constructor(flag: Boolean) : this(<1 args>)
+    constructor(value: Long) : this(<1 args>)
+  public class Product(count: Int, label: String) : Factory(<1 args>)
+  public struct Pair
+    field left: Int
+    field right: Long
+    constructor(text: String) : this(<2 args>)
+  public class Defaults(value: Int = <expr>)
+    public val observed: Int = <expr>
+      Var value
+  public class HiddenConstructors()
+    public companion object
+      public fun create
+  public object Singleton

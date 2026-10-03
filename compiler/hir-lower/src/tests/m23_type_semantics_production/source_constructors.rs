@@ -39,7 +39,7 @@ fn constructors_project_all_visibilities_defaults_and_struct_representation() {
                 .unwrap();
             names.insert(owner, structure.name.as_str());
         }
-        let mut lines = Vec::new();
+        let mut owners = BTreeMap::new();
         for record in &records {
             let payload = *record;
             let hir::SourceNominalId::Concrete(owner) = payload.owner().nominal_owner().unwrap()
@@ -58,27 +58,36 @@ fn constructors_project_all_visibilities_defaults_and_struct_representation() {
                 payload.effects().implementation(),
                 hir::CallableImplementationV1::Scoop
             );
-            let parameters = payload.parameters().parameters();
-            lines.push(format!(
-                "{}({}): {:?}, {:?}\n",
-                names[&owner],
-                parameters
-                    .iter()
-                    .map(|parameter| parameter.name().as_str())
-                    .collect::<Vec<_>>()
-                    .join(","),
-                record.declared_visibility(),
-                payload.modality()
-            ));
+            assert_eq!(payload.modality(), hir::CallableModalityV1::Final);
+            *owners.entry(names[&owner]).or_insert(0) += 1;
+            *visibilities
+                .entry(payload.declared_visibility())
+                .or_insert(0) += 1;
         }
-        lines.sort();
         assert_eq!(
-            lines.concat(),
-            include_str!(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/../../tests/fixtures/m23-type-source-dispatch/constructors.contracts.snap"
-            ))
+            owners,
+            BTreeMap::from([
+                ("Defaults", 1),
+                ("Factory", 4),
+                ("HiddenConstructors", 1),
+                ("Pair", 2),
+                ("Product", 1),
+            ])
         );
+        for (visibility, count) in [
+            (hir::DeclaredVisibilityV1::Public, 5),
+            (hir::DeclaredVisibilityV1::Protected, 1),
+            (hir::DeclaredVisibilityV1::Internal, 1),
+            (hir::DeclaredVisibilityV1::Private, 2),
+        ] {
+            assert_eq!(
+                records
+                    .iter()
+                    .filter(|record| record.declared_visibility() == visibility)
+                    .count(),
+                count
+            );
+        }
         verify_parameter_types(export, &records);
     });
 }

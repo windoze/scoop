@@ -1,0 +1,27 @@
+SourceFile
+  RootPackage
+  fun verifyDispatch(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val produced
+      Call Produced
+    val view: Factory
+      Var produced
+    Call verifyDispatch
+      Binary RefEq
+        Var view
+        Var produced
+    Call verifyDispatch
+      Binary RefNe
+        Call factory
+        Call factory
+    val singleton: Factory
+      Var Singleton
+    Call verifyDispatch
+      Binary RefEq
+        Var singleton
+        Var Singleton
