@@ -1,0 +1,59 @@
+SourceFile
+  RootPackage
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call verifyDefault
+      Binary Eq
+        MethodCall pick
+          Call defaultProviderChild
+          IntLiteral 3
+        IntLiteral 3
+    val base: ProviderBase
+      Call defaultProviderChild
+    Call verifyDefault
+      Binary Eq
+        MethodCall pick
+          Var base
+          Argument value=
+            IntLiteral 9
+          Argument seed=
+            IntLiteral 3
+        IntLiteral 9
+    Call verifyDefault
+      Binary Eq
+        MethodCall pick
+          Call defaultProviderApplied<Int>
+          TupleLiteral
+            IntLiteral 1
+            IntLiteral 2
+        TupleLiteral
+          IntLiteral 1
+          IntLiteral 2
+    Call verifyDefault
+      Binary Eq
+        MethodCall pick
+          Call defaultProviderApplied<String>
+          TupleLiteral
+            StringLiteral "a"
+            StringLiteral "b"
+        TupleLiteral
+          StringLiteral "a"
+          StringLiteral "b"
+    Call verifyDefault
+      Binary Eq
+        MethodCall copy
+          Call defaultProviderGeneric<String>
+          StringLiteral "source"
+          IntLiteral 4
+        IntLiteral 4
+    Call verifyDefault
+      Binary Eq
+        MethodCall copy
+          Call defaultProviderStatic
+          IntLiteral 5
+        IntLiteral 5
