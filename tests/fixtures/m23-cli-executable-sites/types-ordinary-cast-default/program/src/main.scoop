@@ -1,0 +1,10 @@
+fun main() {
+    if (useCast(42) != 42) { throw IllegalStateException() }
+    var rejected: Boolean = false
+    try {
+        useCast("wrong")
+    } catch (error: ClassCastException) {
+        rejected = true
+    }
+    if (!rejected) { throw IllegalStateException() }
+}

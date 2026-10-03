@@ -1,0 +1,23 @@
+SourceFile
+  RootPackage
+  fun main()
+    if
+      Binary Ne
+        Call useCast
+          IntLiteral 42
+        IntLiteral 42
+      throw
+        Call IllegalStateException
+    var rejected: Boolean
+      BoolLiteral false
+    try
+      Call useCast
+        StringLiteral "wrong"
+    catch error: ClassCastException
+      assign rejected
+        BoolLiteral true
+    if
+      Unary Not
+        Var rejected
+      throw
+        Call IllegalStateException
