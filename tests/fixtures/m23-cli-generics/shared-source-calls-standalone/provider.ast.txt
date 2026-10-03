@@ -1,0 +1,42 @@
+SourceFile
+  QualifiedPackage upstream.sourcecalls
+  private var trace: Int = <expr>
+  public fun reset(): Unit
+    assign trace
+      IntLiteral 0
+  public fun state(): Int
+    =
+      Var trace
+  public fun step(value: Int): Int
+    assign trace
+      Binary Add
+        Binary Mul
+          Var trace
+          IntLiteral 10
+        Var value
+    return
+      Var value
+  public fun take(first: Int, second: Int = <expr>, third: Int = <expr>): Int
+    =
+      Binary Add
+        Binary Add
+          Var first
+          Var second
+        Var third
+  public fun identity<T>(value: T): T
+    =
+      Var value
+  public fun choose<T>(value: T, copy: T = <expr>): T
+    =
+      Var copy
+  public fun relay<T>(value: T, callback: () -> T = <expr>): T
+    =
+      Call callback
+  public fun T.echo<T>(): T
+    =
+      Call identity<T>
+        This
+    @NoGC
+  public fun scalar<T>(value: T): T
+    =
+      Var value

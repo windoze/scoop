@@ -1,3 +1,0 @@
-span=78..99
-expression=scalar<String>(value)
-generic function `scalar` requires type argument String for `T` to be GC-free

@@ -13,7 +13,6 @@ mod publication;
 mod qualified_types;
 mod rebuilt_core;
 mod siblings;
-mod source_calls;
 mod value_layouts;
 
 #[test]

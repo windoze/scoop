@@ -1,3 +1,0 @@
-span=76..87
-expression=step(value)
-managed dependency calls are not allowed in `@NoGC` code

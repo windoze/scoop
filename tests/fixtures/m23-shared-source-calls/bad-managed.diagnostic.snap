@@ -1,3 +1,0 @@
-span=80..100
-expression=identity<Int>(value)
-calling a managed dependency function is not allowed in `@NoGC` code
