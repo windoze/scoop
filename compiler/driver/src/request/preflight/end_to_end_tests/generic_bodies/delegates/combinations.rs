@@ -193,14 +193,6 @@ fn check_fixture_cases(fixture: &str, cases: &[&str]) {
 }
 
 #[test]
-fn generic_delegate_initializer_local_functions_republish_and_execute() {
-    check_fixture_cases(
-        "m23-generic-delegate-generated",
-        &["initializer-basic", "initializer-local"],
-    );
-}
-
-#[test]
 fn generic_delegate_initializer_closures_republish_and_execute() {
     check_fixture_cases(
         "m23-generic-delegate-closures",

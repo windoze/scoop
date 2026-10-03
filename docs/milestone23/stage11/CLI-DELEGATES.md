@@ -10,6 +10,8 @@
 
 只读与只写用例在完整 MIR golden 之外，继续明确断言没有物化未使用的 setter／getter。最终 binary 的完整外部定义与去除 weak 后的符号表也分别比较，保留实际 callable 合并覆盖。helper 由声明中的 C compiler／archive 步骤准备，经普通 typed native requirement 加入链接；没有手工 startup 或 raw object 注入。
 
+委托初始化中的局部函数、closure 和函数引用继续要求每个实际委托单元仅依赖 provider 的同一个 `Trace` 单元。正常 LIR dump 现在从同次生产的 typed registration 显示 `init-dependencies`，完整 golden 保留单元、provider 和全部依赖序列；声明另检查 provider 为实际发布者。原模块正文逐字不变。该显示不修改 `.slib`、ABI 或生产指纹。纯内存测试覆盖 eager／lazy、没有依赖、本地依赖和本地／外部混合依赖；51 个既有含初始化的 CLI 用例复核中，只有 imported-object 的一份 LIR golden 追加了这一信息。
+
 每项先格式化、lint，核对旧断言与快照后删除对应 Rust 测试注册及不再使用的旧快照，再进行关闭全部更新开关的只读验收，分别提交。下表数字是实际完成结果。
 
 | 原 Rust 测试 | 正例／负例 | 进程／golden 比较 | 原有期望核对 |
@@ -19,3 +21,4 @@
 | `generic_delegates_use_dependency_members_and_local_accessors` | 2／0 | 28／26 | 4 份旧阶段、0 份旧诊断逐项相同；foreign-delegate 的私有 extension 初始化路径加入 Cone coordinate／canonical source；MIR 6 处、LIR 1 处仅显示路径变化，符号与指令逐字相同 |
 | `generic_delegate_mixed_roles_republish_and_execute` | 2／0 | 28／26 | 2 份旧阶段、0 份旧诊断逐项相同；mixed-members 的私有 extension 初始化路径加入 Cone coordinate／canonical source；MIR 12 处、LIR 2 处仅显示路径变化，符号与指令逐字相同；foreign-extensions 的私有 extension 初始化路径加入 Cone coordinate／canonical source；MIR 6 处、LIR 1 处仅显示路径变化，符号与指令逐字相同 |
 | `generic_delegate_language_errors_have_source_diagnostics` | 0／18 | 54／0 | 0 份旧阶段、18 份旧诊断逐项相同 |
+| `generic_delegate_initializer_local_functions_republish_and_execute` | 2／0 | 28／26 | 5 份旧阶段、0 份旧诊断逐项相同；LIR 仅追加实际初始化依赖；每个委托单元恰好依赖同一 provider 的 Trace，原正文逐字相同 |

@@ -136,11 +136,6 @@ pub(super) fn assemble(
         &diagnostics,
     )
     .map_err(CurrentConeProductionFailure::Lir)?;
-    dump.extend(capture_stage_dump(
-        request.emit(),
-        StageDumpKind::Lir,
-        || scoop_lir::dump(lir.module()),
-    ));
     let mut pending = scoop_identity::PendingIdentityValidation::from_graph(identities);
     lir.foundation()
         .as_canonical()
@@ -165,6 +160,17 @@ pub(super) fn assemble(
             &initialization,
         )
         .map_err(|error| Error::Registration(Box::new(error)))?;
+    dump.extend(capture_stage_dump(
+        request.emit(),
+        StageDumpKind::Lir,
+        || {
+            let mut text = scoop_lir::dump(lir.module());
+            text.push_str(&scoop_lir::dump_initialization_dependencies(
+                registration.initialization_registrations(),
+            ));
+            text
+        },
+    ));
     let input = scoop_lir_lower::LayoutAbiExportInputV1 {
         mir: &mir.strong,
         lir: &lir,

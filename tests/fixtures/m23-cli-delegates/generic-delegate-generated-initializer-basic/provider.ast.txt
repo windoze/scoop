@@ -1,0 +1,14 @@
+SourceFile
+  QualifiedPackage templates.delegateGenerated
+  public object Trace
+    public var initializerLocal: Int = <expr>
+      IntLiteral 0
+  public class Receiver<T>(val value: T)
+  public class Payload(var value: Int)
+  public struct ReferenceSlot<T>
+    field first: Payload
+    field second: Payload
+    field third: Payload
+    public operator fun getValue
+  public val <T>Receiver<T>.initializerLocal: Int by <expr>
+  public val <T>Receiver<T>.initializerBasic: Int by <expr>

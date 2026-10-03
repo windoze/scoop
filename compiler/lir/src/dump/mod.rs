@@ -1,12 +1,15 @@
 use super::*;
 
 mod boxing;
+mod initialization;
 mod instruction;
 mod metadata;
 mod names;
 
 use instruction::dump_instruction;
 use names::*;
+
+pub use initialization::dump_initialization_dependencies;
 
 /// Indented text dump for golden tests (`scoopc build --emit=lir`).
 pub fn dump(module: &Module) -> String {

@@ -214,6 +214,8 @@ JSON 是现有 typed result 的展示格式，不是新的 child/build 协议；
 
 每项内容来自同次真实 pipeline：AST 为按 source identity 排序的当前源码；HIR 分别显示共同 Export 与 LocalConcrete，保留两者边界；MIR/LIR 为本次生产的完整模块。跨 Cone 身份改变可以导致受控 golden 更新，不能靠删掉 imports、origin 或 generated identity 让旧输出看起来不变。
 
+LIR 模块中的 `deps` 是本地 arena 引用；含外部初始化依赖的单元还追加 `init-dependencies`，记录同次 production 的 canonical 单元与带 provider 的完整依赖序列。该输出保留跨 Cone 委托初始化的实际关系，不要求测试重读内部产物，也不新增观察命令或持久字段。
+
 父进程为每个观察节点在已有私有 staging 中分配一个空目录，child 把请求的文本写成固定 `ast.txt`／`hir.txt`／`mir.txt`／`lir.txt`。成功后按原阶段顺序返回实际文件 descriptor。父进程检查它们恰好覆盖请求、路径匹配、文件类型／内容 digest 正确，再输出到 `<dump-dir>/<完整 ConeIdentity>/<stage>.txt`；同一次编译中相同 stage 不产生两个文件。
 
 默认缓存命中时没有新 child。显式观察的源码节点即使命中也运行一次完整 compiler，复用同一 source/dependency 快照和正常 cache key，捕获全部所需 stage 后正常生产 artifact。缓存条目相同则复用，差异走现有 nondeterminism 诊断；不能为了四份 dump 编译四次，也不能从 `.slib` 反造没有序列化的 LocalConcrete。dump 不持久化到编译 cache，不成为 `.slib` member，不影响 Code 或 semantic fingerprints。

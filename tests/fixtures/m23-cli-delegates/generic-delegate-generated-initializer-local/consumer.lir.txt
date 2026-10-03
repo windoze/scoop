@@ -394,3 +394,4 @@ Module
   layout Receiver value size=8 align=8 refs=[0]
   layout Receiver size=24 align=8 refs=[]
   output library
+  init-dependencies 4bc9c1b749fd097e888b88dbca8a5ede2c1f31a6c8bc8c713482098660085ad1 [external(provider=db7ae4f18a6559b5f50bdbe4793388614cc4615b56078554e93d0f9e9b5fa72f,unit=40567c949aa3d307026d2899e8c0ef2f23164e277ea7739ed457e78f751095cc)]

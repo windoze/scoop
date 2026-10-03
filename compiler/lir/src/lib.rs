@@ -140,7 +140,7 @@ mod instruction;
 pub use instruction::*;
 
 mod dump;
-pub use dump::dump;
+pub use dump::{dump, dump_initialization_dependencies};
 
 mod link_data;
 pub use link_data::LinkDataError;
