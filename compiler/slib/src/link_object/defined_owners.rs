@@ -320,9 +320,23 @@ impl WireDecode for DecodedMemberId {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) struct DecodedStrongDefinitionOwnerV1 {
+pub(crate) struct DecodedStrongDefinitionOwnerV1 {
     entity: DecodedStrongDefinitionEntity,
     role: StrongDefinitionRole,
+}
+
+impl DecodedStrongDefinitionOwnerV1 {
+    pub(crate) fn exact_descriptor(
+        self,
+    ) -> Option<DecodedPersistentId<scoop_identity::PersistentExactTypeId>> {
+        match (self.entity, self.role) {
+            (
+                DecodedStrongDefinitionEntity::ExactType(exact),
+                StrongDefinitionRole::TypeDescriptor,
+            ) => Some(exact),
+            _ => None,
+        }
+    }
 }
 
 impl WireEncode for DecodedStrongDefinitionOwnerV1 {

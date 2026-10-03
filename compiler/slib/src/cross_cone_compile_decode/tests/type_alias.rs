@@ -492,7 +492,7 @@ fn replace_section(
     *existing = section(
         MetadataLocation::Hir,
         capability,
-        MemberPurposeSet::COMPILE,
+        existing.required_for(),
         bytes,
     );
 }

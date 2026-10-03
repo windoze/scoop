@@ -1,9 +1,9 @@
-  fun localCall @fn24(seed: String, value: String) -> String
+  fun localCall @fn34(seed: String, value: String) -> String
     bb0 entry
       return
         Type String
         Local value
-  fun main @fn25() -> Unit
+  fun main @fn35() -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -21,7 +21,7 @@
       val $parameter.value: String
         Type String
         Local $argument.0
-      call $call.1: String = @fn26 direct
+      call $call.1: String = @fn36 direct
         Type String
         Local $parameter.value
       assign $result.0
@@ -37,7 +37,7 @@
       val $parameter.value: String
         Type String
         Local $result.0
-      call $call.2: String = @fn24 direct
+      call $call.2: String = @fn34 direct
         Type String
         Local $parameter.seed
         Type String
@@ -58,7 +58,7 @@
       val $parameter.value: String
         Type String
         Local $argument.0
-      call $call.3: String = @fn27 direct
+      call $call.3: String = @fn37 direct
         Type String
         Local $parameter.value
       assign $result.1
@@ -74,26 +74,26 @@
       val $parameter.value: String
         Type String
         Local $result.1
-      call $call.4: String = @fn28 direct
+      call $call.4: String = @fn38 direct
         Type String
         Local $parameter.seed
         Type String
         Local $parameter.value
       return
-  fun $local.0.copy @fn26(value: String) -> String
+  fun $local.0.copy @fn36(value: String) -> String
     bb0 entry
       return
         Type String
         Local value
-  fun $local.1.copy @fn27(value: String) -> String
+  fun $local.1.copy @fn37(value: String) -> String
     bb0 entry
       return
         Type String
         Local value
-  fun localCallGeneric @fn28(seed: String, value: String) -> String
+  fun localCallGeneric @fn38(seed: String, value: String) -> String
     bb0 entry
       return
         Type String
         Local value
-  instance mi0 function=@fn27 <- $local.1.copy
-  instance mi1 function=@fn28 <- localCallGeneric
+  instance mi0 function=@fn37 <- $local.1.copy
+  instance mi1 function=@fn38 <- localCallGeneric

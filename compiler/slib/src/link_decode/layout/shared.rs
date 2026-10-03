@@ -9,10 +9,11 @@ use crate::DecodedCrossConeLayoutCompileSections;
 /// semantic payloads. These fields still require object and fingerprint checks.
 #[derive(Debug)]
 pub struct DecodedCrossConeLayoutLinkOnlySections {
-    production_manifest: DecodedSingleConeProductionManifestV1,
-    link_identity_closure: DecodedLinkIdentityClosureSectionV1,
-    cross_cone_link_closure: DecodedCrossConeLinkClosureSectionV1,
-    layout_link_closure: DecodedCrossConeLayoutLinkClosureSectionV1,
+    pub(super) production_manifest: DecodedSingleConeProductionManifestV1,
+    pub(super) link_identity_closure: DecodedLinkIdentityClosureSectionV1,
+    pub(super) cross_cone_link_closure: DecodedCrossConeLinkClosureSectionV1,
+    pub(super) layout_link_closure: DecodedCrossConeLayoutLinkClosureSectionV1,
+    pub(super) link_support: crate::DecodedLirLinkSupportSectionV1,
 }
 
 #[derive(Debug)]
@@ -54,6 +55,7 @@ impl<'input> DecodedCrossConeLayoutLinkSections<'input> {
             link_identity_closure,
             cross_cone_link_closure,
             layout_link_closure,
+            link_support,
         } = self;
 
         let view = DecodedLayoutView::Link(Box::new(DecodedCrossConeLayoutLinkOnlySections {
@@ -61,6 +63,7 @@ impl<'input> DecodedCrossConeLayoutLinkSections<'input> {
             link_identity_closure,
             cross_cone_link_closure,
             layout_link_closure,
+            link_support,
         }));
         Ok(DecodedCrossConeLayoutCompileSections {
             graph,
@@ -82,6 +85,9 @@ impl<'input> DecodedCrossConeLayoutLinkSections<'input> {
 }
 
 impl DecodedCrossConeLayoutLinkOnlySections {
+    pub const fn link_support_wire(&self) -> &crate::DecodedLirLinkSupportSectionV1 {
+        &self.link_support
+    }
     pub const fn production_manifest_wire(&self) -> &DecodedSingleConeProductionManifestV1 {
         &self.production_manifest
     }

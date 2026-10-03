@@ -377,22 +377,26 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 扩展现有 stackmap parser，消费全部 LLVM v3 blob，按实际 registration、owner、原始 PC 与规范化 payload 核对 ODR 重复。GC 复用唯一静态 root/immortal/TD/PC 索引；不重算 RuntimeImage/Graph/ODR 全图或增加来源凭证。
 - 按实现规范 2.14 同批迁移 metadata ABI 3、generic profile /2、初始化 production/object 格式与缓存。完成门包含实际 3+ Cone image、Strong/ODR 地址与独立 member 并集、eager/lazy、failure/cycle、函数值/协程、ZST/大值/引用、moving GC、受控线程竞争和损坏 metadata；正式启动对象、runtime-build 与 artifact-only program-link 留给 M23-9。
 
-### M23-9 基础artifact-only program-link
+### M23-9 基础 artifact-only program-link
 
-- 继承 Stage 8，沿同一已验证 Link 数据完成链接；全新进程在 provider 源码不可用时工作，不调用 HIR lower 修补缺失定义，不回退到源码拼接。
-- M23-9 接入普通 runtime 对象构建与实际 artifact-only program-link：runtime 按 target、C toolchain、build rules 和源码内容构建并缓存；linker 消费共有 reader 的完整 Link 数据、runtime 对象及 final-link profile，生成实际启动对象和多 Cone binary。保留符号、格式、ABI、对象与 relocation 检查，复用未变化的读取结果，不建立 runtime/program 来源凭证、不可伪造包装或测试工厂。默认系统输入由明确 target/profile 解析，用户 native requirement 的一般解析仍在 M23-10 完成。
-- 完成真实ODR coalesce、multi-object stackmap、初始化、moving GC与exception gateway；带尚未处理native requirement的程序稳定拒绝。
+详细设计见 [M23-9](milestone23/stage9/DESIGN.md)，状态：已完成并验收（2026-10-02）；真实产物链接、运行矩阵与完整回归见 [验收记录](milestone23/stage9/ACCEPTANCE.md)。
 
-### M23-10 general native requirement闭包与link evidence hardening
+- 继承已验收 Stage 8；独立 Link reader 复用原 foundation 的 identity/ABI、production/import 和对象完成读取，不再重放完整 HIR/MIR 或具体化模板。新增只补 runtime 数据 alias 的 `link-support/1`，required inventory／profile fingerprint 更新，旧产物和缓存重建；现有语言与 runtime ABI 保持。
+- `compiler/linker` 提供库及低层 `scoop-link`，全新进程只凭 `.slib` 闭包、普通 runtime 对象索引和明确 target/toolchain 工作。`scoop` 编排 runtime 源文件／头文件构建与内容缓存；program-link 只编译自己生成的 startup C，不读 Scoop/runtime 源码、不加载 LLVM。
+- 正式 C main 引用原 image/root 并调用 `scoop_rt_run_program`，String 以实际 TD 同地址 alias 接入。直接使用明确系统 linker、libSystem 和固定 flags，不依赖 `cc` 默认搜索或 archive；SourceExtern 统一合并声明合同并从实际对象／系统 export 解析，不设 core API 白名单；缺失符号与合同冲突同样报错。
+- 复用逐 member ODR 和原对象检查，final verifier 只核对链接新产生的 entry、绑定、地址合并、fixup 与 section 保留；Stage 8 负责实际加载地址／权限与精确 stackmap。没有 runtime/program 来源凭证、平台认证或重复完整语义重放。
+- 完成门包含多 Cone/multi-object、ODR member 并集、eager/lazy/failed/cycle、moving GC、exception gateway、ZST/大值/引用、重建 core、runtime cache 失效和原子输出。新 native library 输入的定位与供应留到 M23-10，umbrella CLI 总迁移留到 M23-11；本阶段不实现 final-link cache。
+
+### M23-10 一般 native 输入与链接闭包
 
 - 继承共同 HIR 已选的 native 签名／effects 和 MIR/LIR 的实际 ABI requirement；直接、默认值、泛型实例和依赖调用共用前端规则，本阶段只解析对应 native 输入。
-- 把M23-9固定target/runtime slice推广到完整用户native extern contract，完成direct object/archive/general dynamic provider验证、snapshot/TOCTOU hardening、完整link plan/evidence、trace核对、可选link-cache重验与最终artifact verifier。
+- 复用 M23-9 的 extern 合并／解析器，增加 direct object/archive/general dynamic provider 的定位与供应，完成实际候选／抽取／绑定、必要内容快照、link plan/map/trace 核对与最终检查；可选 link cache 按实际内容、合同和工具失效。
 - native候选只能经`.slib`已有typed requirement和显式`--library-path`解析，不能直接注入无来源raw `.o`、archive、linker option或script；任意多个`LinkObject`按typed directory参与，非link blob永不误入。
 
 ### M23-11 umbrella CLI、single-file mode与总验收
 
 - 只编排同一编译管线；将 6a 的内存／wire 等价、声明位置变化、双向泛型与再次发布矩阵纳入正式 CLI 总验收，历史 fixture 不保留专用本地语义路径。
-- 正式启用`cargo`式`scoop`：`scoop build <root>`按DAG调用配套`scoopc`，`scoop run <root> -- ...`仅在同一build/program-link成功后执行。文件root使用reserved synthetic identity、logical `main.scoop`、唯一source与core-only Cone dependency；不发现相邻manifest、Scoop/C/C++源码或blob。FFI只能通过已有typed requirement加显式library search root解析。
+- 正式启用`cargo`式`scoop`：`scoop build <root>`按DAG调用配套`scoopc`，`scoop run <root> -- ...`仅在同一build/program-link成功后执行。文件root使用reserved synthetic identity、logical `main.scoop`、唯一source与core-only Cone dependency；不发现相邻manifest、Scoop/C/C++源码或blob。额外 native 输入只通过已有 typed requirement 和显式 library search root 定位；已提供对象／系统 provider 使用同一 extern 解析。
 - M1–M22及M25历史fixture全部迁到正式`scoop build <file>` orchestration并保留stage dump/诊断/运行结果覆盖；完成多Cone、corruption/reproducibility、cache和moving-GC/exception/closure/coroutine/FFI全量回归后，删除core/source拼接、`scoopc`最终链接和固定object名称/数量旁路。final-link cache是可选优化，不是完成门。
 
 ### M24 GC-free release hook（设计见 `docs/milestone24/DESIGN.md`）

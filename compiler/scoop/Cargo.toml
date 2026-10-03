@@ -7,6 +7,7 @@ rust-version.workspace = true
 scoop-identity.workspace = true
 scoop-manifest.workspace = true
 scoop-lir.workspace = true
+scoop-linker.workspace = true
 scoop-protocol.workspace = true
 scoop-slib.workspace = true
 scoop-toolchain.workspace = true
@@ -18,5 +19,6 @@ fs4.workspace = true
 rustix.workspace = true
 
 [dev-dependencies]
+object.workspace = true
 serde.workspace = true
 serde_json.workspace = true

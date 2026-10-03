@@ -2,6 +2,7 @@ use super::*;
 
 #[derive(Debug)]
 pub enum LayoutLinkSymbolUseError {
+    LinkSupport(crate::LinkSupportError),
     Resource(WireError),
     Defined(DefinedLinkSymbolOwnerBuildError),
     Native(lir::CanonicalNativeExternalRequirementBuildError),
@@ -42,6 +43,7 @@ macro_rules! from_error {
     };
 }
 from_error!(WireError, Resource);
+from_error!(crate::LinkSupportError, LinkSupport);
 from_error!(DefinedLinkSymbolOwnerBuildError, Defined);
 from_error!(lir::CanonicalNativeExternalRequirementBuildError, Native);
 from_error!(CurrentConeUndefinedRequirementValidationError, Current);
@@ -78,6 +80,9 @@ from_error!(LayoutCodeFingerprintError, CodeFingerprint);
 
 impl std::fmt::Display for LayoutLinkSymbolUseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Self::FinalMembers(source) = self {
+            return write!(f, "invalid layout Link members: {source}");
+        }
         write!(f, "invalid layout Link symbol uses: {self:?}")
     }
 }

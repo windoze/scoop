@@ -232,6 +232,7 @@ impl<D: crate::StrongDescriptorReference, C: Clone + WireEncode, I: WireEncode> 
 }
 
 mod decoded;
+mod link;
 pub use decoded::*;
 
 mod registrations;

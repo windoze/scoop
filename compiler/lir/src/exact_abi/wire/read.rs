@@ -18,6 +18,25 @@ pub struct DecodedCanonicalExactCallableAbiExportsV1 {
 }
 
 impl DecodedExactCallableAbiExportV1 {
+    pub fn read_link(
+        self,
+        target: crate::LirTargetProfile,
+        foundation: &crate::ConeLirFoundation,
+        identities: &mut scoop_identity::ValidatedIdentityGraph,
+    ) -> Result<ExactCallableAbiExportV1, crate::LinkDataError> {
+        use crate::link_data::link_error;
+        let owner = self.target.resolve(identities).map_err(link_error)?;
+        let signature = self
+            .signature
+            .clone()
+            .resolve(identities)
+            .map_err(link_error)?;
+        let expected =
+            ExactCallableAbiExportV1::from_signature(target, owner, signature, foundation)
+                .map_err(link_error)?;
+        self.validate_against(&expected).map_err(link_error)
+    }
+
     pub fn validate_against(
         self,
         expected: &ExactCallableAbiExportV1,
@@ -50,6 +69,29 @@ impl DecodedExactCallableAbiExportV1 {
 }
 
 impl DecodedCanonicalExactCallableAbiExportsV1 {
+    pub fn read_link(
+        self,
+        target: crate::LirTargetProfile,
+        foundation: &crate::ConeLirFoundation,
+        identities: &mut scoop_identity::ValidatedIdentityGraph,
+    ) -> Result<CanonicalExactCallableAbiExportsV1, crate::LinkDataError> {
+        use crate::link_data::link_error;
+        let records = self
+            .records
+            .into_iter()
+            .map(|record| record.read_link(target, foundation, identities))
+            .collect::<Result<Vec<_>, _>>()?;
+        if records
+            .windows(2)
+            .any(|pair| pair[0].target() >= pair[1].target())
+        {
+            return Err(crate::LinkDataError(
+                "noncanonical callable ABI table order".into(),
+            ));
+        }
+        CanonicalExactCallableAbiExportsV1::try_new(target, foundation, records).map_err(link_error)
+    }
+
     pub fn validate_against(
         self,
         expected: &CanonicalExactCallableAbiExportsV1,

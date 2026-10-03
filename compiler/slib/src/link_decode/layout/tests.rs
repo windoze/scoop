@@ -206,6 +206,12 @@ fn layout_sections(
     lir.extend([
         section(
             MetadataLocation::Lir,
+            crate::lir_link_support_capability(),
+            MemberPurposeSet::COMPILE_AND_LINK,
+            encode(&crate::LirLinkSupportSectionV1::default()).unwrap(),
+        ),
+        section(
+            MetadataLocation::Lir,
             lir_cone_production_capability(),
             MemberPurposeSet::COMPILE_AND_LINK,
             encode(&production).unwrap(),
@@ -213,7 +219,7 @@ fn layout_sections(
         section(
             MetadataLocation::Lir,
             lir_cross_cone_param_free_bridge_capability(),
-            MemberPurposeSet::COMPILE,
+            MemberPurposeSet::COMPILE_AND_LINK,
             empty_array_fields(2),
         ),
         section(
@@ -225,7 +231,7 @@ fn layout_sections(
         section(
             MetadataLocation::Lir,
             lir_cross_cone_layout_abi_capability(),
-            MemberPurposeSet::COMPILE,
+            MemberPurposeSet::COMPILE_AND_LINK,
             empty_layout_abi(),
         ),
         section(

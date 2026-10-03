@@ -13,37 +13,53 @@ Module
   global11 $init$failure$4: Any managed initial=zeroed-for-runtime-unit
   global12 $init$failure$5: Any managed initial=zeroed-for-runtime-unit
   global13 $init$failure$6: Any managed initial=zeroed-for-runtime-unit
-  init0 top-level:localDefault eager global0 initializer=@fn5 ensure=@fn6 failure=7 deps=[]
-  init1 top-level:localExplicit eager global1 initializer=@fn8 ensure=@fn9 failure=8 deps=[]
-  init2 top-level:localTwice eager global2 initializer=@fn11 ensure=@fn12 failure=9 deps=[]
-  init3 top-level:localWrite eager global3 initializer=@fn14 ensure=@fn15 failure=10 deps=[]
-  init4 top-level:localComputed eager global4 initializer=@fn17 ensure=@fn18 failure=11 deps=[]
-  init5 top-level:localImage eager global5 initializer=@fn20 ensure=@fn21 failure=12 deps=[]
-  init6 top-level:localImageWrite eager global6 initializer=@fn23 ensure=@fn24 failure=13 deps=[]
+  init0 top-level:localDefault eager global0 initializer=@fn7 ensure=@fn8 failure=7 deps=[]
+  init1 top-level:localExplicit eager global1 initializer=@fn10 ensure=@fn11 failure=8 deps=[]
+  init2 top-level:localTwice eager global2 initializer=@fn13 ensure=@fn14 failure=9 deps=[]
+  init3 top-level:localWrite eager global3 initializer=@fn16 ensure=@fn17 failure=10 deps=[]
+  init4 top-level:localComputed eager global4 initializer=@fn19 ensure=@fn20 failure=11 deps=[]
+  init5 top-level:localImage eager global5 initializer=@fn22 ensure=@fn23 failure=12 deps=[]
+  init6 top-level:localImageWrite eager global6 initializer=@fn25 ensure=@fn26 failure=13 deps=[]
   extern ef0 nativeIdentity @scoop_test_identity(Int) -> Int <abi=c no-gc>
   extern ef1 nativeOther @scoop_test_other(Int) -> Int <abi=c no-gc>
-  fun defaultRead @fn0(value: Int) -> Int
+  fun nativeIdentity @fn0(arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = extern0 @scoop_test_identity direct
+        Type Int
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun nativeOther @fn1(arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = extern1 @scoop_test_other direct
+        Type Int
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun defaultRead @fn2(value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun outside @fn1() -> Int
+  fun outside @fn3() -> Int
     bb0 entry
       call $call.1: Int = external0 direct
       return
         Type Int
         Local $call.1
-  fun unusedDefault @fn2(value: Int) -> Int
+  fun unusedDefault @fn4(value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun linkLabel @fn3() -> String
+  fun linkLabel @fn5() -> String
     bb0 entry
       return
         Type String
         StringConst @str0
-  fun nativeCalls @fn4(value: Int) -> Int
+  fun nativeCalls @fn6(value: Int) -> Int
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -73,17 +89,17 @@ Module
           Local $dependency.receiver
           Type Int
           Local $dependency.parameter.other
-  fun $init$body$0 @fn5() -> Unit
+  fun $init$body$0 @fn7() -> Unit
     bb0 entry
       call $parameter.value: Int = external0 direct
-      call $call.1: Int = @fn0 direct
+      call $call.1: Int = @fn2 direct
         Type Int
         Local $parameter.value
       global_assign localDefault
         Type Int
         Local $call.1
       return
-  fun $init$ensure$0 @fn6() -> Unit
+  fun $init$ensure$0 @fn8() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -128,7 +144,7 @@ Module
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @fn5 direct
+      call @fn7 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 top-level:localDefault
@@ -181,13 +197,13 @@ Module
       unreachable
     bb19 if.merge.19
       unreachable
-  fun $get$localDefault @fn7() -> Int
+  fun $get$localDefault @fn9() -> Int
     bb0 entry
-      call @fn6 direct
+      call @fn8 direct
       return
         Type Int
         GlobalRead localDefault
-  fun $init$body$1 @fn8() -> Unit
+  fun $init$body$1 @fn10() -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -195,14 +211,14 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Int = @fn0 direct
+      call $call.1: Int = @fn2 direct
         Type Int
         Local $parameter.value
       global_assign localExplicit
         Type Int
         Local $call.1
       return
-  fun $init$ensure$1 @fn9() -> Unit
+  fun $init$ensure$1 @fn11() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -247,7 +263,7 @@ Module
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @fn8 direct
+      call @fn10 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init1 top-level:localExplicit
@@ -300,13 +316,13 @@ Module
       unreachable
     bb19 if.merge.19
       unreachable
-  fun $get$localExplicit @fn10() -> Int
+  fun $get$localExplicit @fn12() -> Int
     bb0 entry
-      call @fn9 direct
+      call @fn11 direct
       return
         Type Int
         GlobalRead localExplicit
-  fun $init$body$2 @fn11() -> Unit
+  fun $init$body$2 @fn13() -> Unit
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -328,7 +344,7 @@ Module
         Type Int
         Local $result.0
       return
-  fun $init$ensure$2 @fn12() -> Unit
+  fun $init$ensure$2 @fn14() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -373,7 +389,7 @@ Module
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @fn11 direct
+      call @fn13 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init2 top-level:localTwice
@@ -426,13 +442,13 @@ Module
       unreachable
     bb19 if.merge.19
       unreachable
-  fun $get$localTwice @fn13() -> Int
+  fun $get$localTwice @fn15() -> Int
     bb0 entry
-      call @fn12 direct
+      call @fn14 direct
       return
         Type Int
         GlobalRead localTwice
-  fun $init$body$3 @fn14() -> Unit
+  fun $init$body$3 @fn16() -> Unit
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -457,7 +473,7 @@ Module
         Type Int
         Local $result.1
       return
-  fun $init$ensure$3 @fn15() -> Unit
+  fun $init$ensure$3 @fn17() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -502,7 +518,7 @@ Module
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @fn14 direct
+      call @fn16 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init3 top-level:localWrite
@@ -555,20 +571,20 @@ Module
       unreachable
     bb19 if.merge.19
       unreachable
-  fun $get$localWrite @fn16() -> Int
+  fun $get$localWrite @fn18() -> Int
     bb0 entry
-      call @fn15 direct
+      call @fn17 direct
       return
         Type Int
         GlobalRead localWrite
-  fun $init$body$4 @fn17() -> Unit
+  fun $init$body$4 @fn19() -> Unit
     bb0 entry
       call $call.1: Int = external2 direct
       global_assign localComputed
         Type Int
         Local $call.1
       return
-  fun $init$ensure$4 @fn18() -> Unit
+  fun $init$ensure$4 @fn20() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -613,7 +629,7 @@ Module
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @fn17 direct
+      call @fn19 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init4 top-level:localComputed
@@ -666,20 +682,20 @@ Module
       unreachable
     bb19 if.merge.19
       unreachable
-  fun $get$localComputed @fn19() -> Int
+  fun $get$localComputed @fn21() -> Int
     bb0 entry
-      call @fn18 direct
+      call @fn20 direct
       return
         Type Int
         GlobalRead localComputed
-  fun $init$body$5 @fn20() -> Unit
+  fun $init$body$5 @fn22() -> Unit
     bb0 entry
       call $call.1: Int = external3 direct
       global_assign localImage
         Type Int
         Local $call.1
       return
-  fun $init$ensure$5 @fn21() -> Unit
+  fun $init$ensure$5 @fn23() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -724,7 +740,7 @@ Module
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @fn20 direct
+      call @fn22 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init5 top-level:localImage
@@ -777,13 +793,13 @@ Module
       unreachable
     bb19 if.merge.19
       unreachable
-  fun $get$localImage @fn22() -> Int
+  fun $get$localImage @fn24() -> Int
     bb0 entry
-      call @fn21 direct
+      call @fn23 direct
       return
         Type Int
         GlobalRead localImage
-  fun $init$body$6 @fn23() -> Unit
+  fun $init$body$6 @fn25() -> Unit
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -808,7 +824,7 @@ Module
         Type Int
         Local $result.2
       return
-  fun $init$ensure$6 @fn24() -> Unit
+  fun $init$ensure$6 @fn26() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -853,7 +869,7 @@ Module
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @fn23 direct
+      call @fn25 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init6 top-level:localImageWrite
@@ -906,9 +922,9 @@ Module
       unreachable
     bb19 if.merge.19
       unreachable
-  fun $get$localImageWrite @fn25() -> Int
+  fun $get$localImageWrite @fn27() -> Int
     bb0 entry
-      call @fn24 direct
+      call @fn26 direct
       return
         Type Int
         GlobalRead localImageWrite

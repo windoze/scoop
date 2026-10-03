@@ -142,6 +142,9 @@ fn canonical_object_compilation_command(
             CanonicalCBridgeFlagV1::NoAsynchronousUnwindTables => {
                 command.arg("-fno-asynchronous-unwind-tables");
             }
+            CanonicalCBridgeFlagV1::NoBuiltinSubstitution => {
+                command.arg("-fno-builtin");
+            }
         }
     }
     command
@@ -222,6 +225,7 @@ mod tests {
                 "-fno-stack-protector",
                 "-fno-unwind-tables",
                 "-fno-asynchronous-unwind-tables",
+                "-fno-builtin",
             ]
         );
     }

@@ -5,6 +5,7 @@ fn source_interface_v43_retains_nominal_instantiation_conditions() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
         43,
+        MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
             ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
@@ -17,6 +18,7 @@ fn type_semantics_v11_uses_complete_slot_receivers() {
     assert_retired_version(
         hir_cross_cone_type_semantics_capability(),
         11,
+        MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }
@@ -26,6 +28,7 @@ fn mir_type_bridge_v6_includes_definition_owned_coroutine_starts() {
     assert_retired_version(
         mir_cross_cone_type_bridge_capability(),
         6,
+        MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }
@@ -35,6 +38,7 @@ fn lir_layout_abi_v5_requires_application_callable_definitions() {
     assert_retired_version(
         lir_cross_cone_layout_abi_capability(),
         5,
+        MemberPurposeSet::COMPILE_AND_LINK,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }
@@ -44,6 +48,7 @@ fn compiler_protocol_v4_rejects_retired_protocol_wrappers_in_all_views() {
     assert_retired_version(
         hir_core_bootstrap_interface_capability(),
         4,
+        MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
@@ -55,11 +60,12 @@ fn compiler_protocol_v4_rejects_retired_protocol_wrappers_in_all_views() {
 fn assert_retired_version(
     current: CapabilityId,
     major: u32,
+    required_for: MemberPurposeSet,
     profiles: &[ArtifactCapabilityProfile],
 ) {
     let contract = CapabilityContractRegistry::contract(&current).unwrap();
     assert_eq!(current.major_version(), major);
-    assert_eq!(contract.required_for(), MemberPurposeSet::COMPILE);
+    assert_eq!(contract.required_for(), required_for);
     for retired in 1..major {
         let old = CapabilityId::new(current.namespace(), current.name(), retired).unwrap();
         assert!(CapabilityContractRegistry::contract(&old).is_none());
@@ -99,6 +105,7 @@ fn hir_foundation_v3_rejects_retired_native_witnesses_in_every_profile_and_view(
     assert_retired_version(
         hir_identity_foundation_capability(),
         3,
+        MemberPurposeSet::COMPILE_AND_LINK,
         &[
             ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,

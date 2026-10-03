@@ -6,6 +6,7 @@ pub enum LayoutArtifactProductionError {
     Layout(Box<slib::LayoutLinkClosureError>),
     Code(Box<slib::LayoutCodeFingerprintError>),
     Assembly(Box<slib::CrossConeLayoutArtifactWriteError>),
+    LinkSupport(slib::LinkSupportError),
     TargetSelectionMismatch,
 }
 
@@ -22,6 +23,7 @@ impl std::fmt::Display for LayoutArtifactProductionError {
             Self::Layout(error) => error.fmt(f),
             Self::Code(error) => error.fmt(f),
             Self::Assembly(error) => error.fmt(f),
+            Self::LinkSupport(error) => error.fmt(f),
             Self::TargetSelectionMismatch => {
                 f.write_str("the layout archive changed the emitted target selection")
             }
@@ -36,6 +38,7 @@ impl std::error::Error for LayoutArtifactProductionError {
             Self::Layout(error) => Some(error.as_ref()),
             Self::Code(error) => Some(error.as_ref()),
             Self::Assembly(error) => Some(error.as_ref()),
+            Self::LinkSupport(error) => Some(error),
             Self::TargetSelectionMismatch => None,
         }
     }

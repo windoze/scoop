@@ -22,7 +22,9 @@ use crate::{
 mod accessors;
 mod code_input;
 mod decode;
+mod machine;
 mod shared;
+pub(crate) use machine::DecodedMachineLinkSections;
 
 pub(crate) use code_input::layout_code_strong_input;
 pub use decode::CrossConeLayoutLinkSectionDecodeError;
@@ -54,6 +56,7 @@ pub struct DecodedCrossConeLayoutLinkSections<'input> {
     link_identity_closure: DecodedLinkIdentityClosureSectionV1,
     cross_cone_link_closure: DecodedCrossConeLinkClosureSectionV1,
     layout_link_closure: DecodedCrossConeLayoutLinkClosureSectionV1,
+    link_support: crate::DecodedLirLinkSupportSectionV1,
 }
 
 #[cfg(test)]

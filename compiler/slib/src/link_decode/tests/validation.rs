@@ -172,10 +172,13 @@ fn link_section_decode_requires_foundations_and_matching_semantic_fingerprints()
     );
     assert!(matches!(
         open_graph(&missing).decode_single_cone_link_sections(),
-        Err(SingleConeLinkSectionDecodeError::MissingSection {
-            location: Some(MetadataLocation::Lir),
-            ..
-        })
+        Err(SingleConeLinkSectionDecodeError::Inventory(
+            crate::ArtifactProfileInventoryError::MissingRequiredCapability {
+                view: crate::ArtifactProfileView::Link,
+                location: crate::SectionLocation::Lir,
+                ..
+            }
+        ))
     ));
 
     let missing_hir_production = build_artifact(

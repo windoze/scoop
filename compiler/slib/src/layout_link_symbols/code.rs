@@ -33,9 +33,6 @@ pub(super) fn replay(
     let production = verify_production_code_projection_common(
         manifest.cone(),
         &dependencies,
-        input
-            .hir_foundation
-            .source_count_for_cone(manifest.cone().identity()),
         ProductionPlanInputs::from(input.strong),
         objects,
     )?;

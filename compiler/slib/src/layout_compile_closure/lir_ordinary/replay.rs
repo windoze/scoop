@@ -61,7 +61,7 @@ pub fn replay_shared_ordinary_lir_bridge(
             .callable_interfaces()
             .declaration(origin)
             .ok_or(Error::CallableInterface(declaration))?;
-        let gc = interface.effects().gc_effect();
+        let gc = interface.effects().provider_entry_gc_effect();
         let signature = types.replay(target, callable.signature(), gc)?;
         layouts::check(declaration, &signature, target, &layouts)?;
         let root = match gc {

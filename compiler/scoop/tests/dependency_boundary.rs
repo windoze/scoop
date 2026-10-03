@@ -68,6 +68,27 @@ fn compiler_driver_cannot_reach_orchestration() {
     );
 }
 
+#[test]
+fn artifact_linker_cannot_reach_frontend_or_llvm_implementations() {
+    let metadata = workspace_metadata();
+    for name in normal_dependency_names(&metadata, "scoop-linker") {
+        assert!(
+            !matches!(
+                name,
+                "scoop"
+                    | "scoopc"
+                    | "scoop-parser"
+                    | "scoop-hir-lower"
+                    | "scoop-mir-lower"
+                    | "scoop-lir-lower"
+                    | "scoop-codegen"
+                    | "inkwell"
+            ) && !name.starts_with("llvm-sys"),
+            "artifact-only linker reaches implementation crate {name}"
+        );
+    }
+}
+
 fn workspace_metadata() -> Metadata {
     let workspace = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()

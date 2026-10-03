@@ -1,15 +1,15 @@
 use std::collections::btree_map::Entry;
 
 use super::*;
-use crate::layout_compile_closure::lir_physical::PhysicalImportsReplayedCrossConeLayoutSections;
 use crate::{LinkDefinitionOwnerV1, ReplayedLayoutLinkSymbolUsesV1};
+use scoop_identity::ValidatedIdentityGraph;
 
 /// Compare physical definitions from artifacts whose own semantics, objects,
 /// and imports have already been checked. This does not read or rehash them.
 pub fn merge_cross_cone_odr_definitions<'a>(
     artifacts: impl IntoIterator<
         Item = (
-            &'a PhysicalImportsReplayedCrossConeLayoutSections,
+            &'a ValidatedIdentityGraph,
             &'a ReplayedLayoutLinkSymbolUsesV1,
         ),
     >,
@@ -20,7 +20,7 @@ pub fn merge_cross_cone_odr_definitions<'a>(
     let mut symbol_owners = BTreeMap::new();
     let mut previous_artifacts = BTreeMap::new();
 
-    for (sections, artifact) in artifacts {
+    for (identities, artifact) in artifacts {
         let provider = artifact.provider();
         if previous_artifacts.insert(provider, artifact).is_some() {
             return Err(OdrDefinitionMergeError::DuplicateArtifact(provider));
@@ -47,8 +47,7 @@ pub fn merge_cross_cone_odr_definitions<'a>(
             }
         }
         for group in artifact.production_projection().odr_members().groups() {
-            let group_key = sections
-                .identity_graph()
+            let group_key = identities
                 .canonical_key::<_, SpecializationKey>(group.group())
                 .map_err(|source| OdrDefinitionMergeError::Identity { provider, source })?;
             let group_conflict = match groups.entry(group.group()) {
@@ -75,8 +74,7 @@ pub fn merge_cross_cone_odr_definitions<'a>(
                 if let Some(first) = group_conflict {
                     return Err(conflict(first, OdrDefinitionDifference::GroupKey));
                 }
-                let key = sections
-                    .identity_graph()
+                let key = identities
                     .canonical_key::<_, OdrMemberKey>(entry.member())
                     .map_err(|source| OdrDefinitionMergeError::Identity { provider, source })?;
                 match keys.entry(entry.member()) {

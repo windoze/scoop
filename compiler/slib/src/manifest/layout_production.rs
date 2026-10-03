@@ -49,10 +49,10 @@ pub fn verify_cross_cone_layout_production_code_projection_v1(
         .iter()
         .map(DependencyRecord::identity)
         .collect::<Vec<_>>();
+    super::production::distribution(cone, &dependency_identities, source_count)?;
     let projection = verify_production_code_projection_common(
         cone,
         &dependency_identities,
-        source_count,
         ProductionPlanInputs::from(&strong_production),
         &link_objects,
     )?;

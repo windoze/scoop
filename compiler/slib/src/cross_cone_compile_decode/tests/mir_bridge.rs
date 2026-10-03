@@ -56,7 +56,7 @@ fn cross_cone_hir_front_rejects_a_noncanonical_lir_bridge_payload() {
     *bridge = section(
         MetadataLocation::Lir,
         lir_cross_cone_param_free_bridge_capability(),
-        MemberPurposeSet::COMPILE,
+        MemberPurposeSet::COMPILE_AND_LINK,
         vec![0x80],
     );
     let bytes = build_artifact_for_profile(

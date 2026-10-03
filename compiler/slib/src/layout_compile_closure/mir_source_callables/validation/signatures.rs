@@ -81,7 +81,7 @@ pub(super) fn binding(
             || binding.lowered_signature() == semantic,
     )?;
     exact(declaration, metadata, source, semantic.exact())?;
-    let gc = match source.effects().gc_effect() {
+    let gc = match source.effects().provider_entry_gc_effect() {
         scoop_identity::GcEffect::Managed => mir::GcEffect::Managed,
         scoop_identity::GcEffect::NoGc => mir::GcEffect::NoGc,
     };

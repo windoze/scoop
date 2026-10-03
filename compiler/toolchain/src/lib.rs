@@ -8,11 +8,15 @@ use std::fmt;
 
 mod c_bridge;
 mod compiler;
+mod final_link;
 mod registry;
+mod system_provider;
 mod trusted_core;
 
-pub use registry::{
-    ResolvedTargetProfile, ValidatedFinalLinkProfile, ValidatedRuntimeBuildProfile,
+pub use final_link::ValidatedFinalLinkProfile;
+pub use registry::{ResolvedTargetProfile, ValidatedRuntimeBuildProfile};
+pub use system_provider::{
+    LIBSYSTEM_INSTALL_NAME, SystemExportKind, SystemProvider, SystemStubFile,
 };
 pub use trusted_core::TrustedCoreSlotLayoutV1;
 

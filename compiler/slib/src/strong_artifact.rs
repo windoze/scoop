@@ -25,5 +25,6 @@ pub enum StrongArtifactSectionV1 {
     LirCrossConeLayoutAbi,
     CrossConeLinkClosure,
     CrossConeLayoutLinkClosure,
+    LinkSupport,
     ProductionManifest,
 }

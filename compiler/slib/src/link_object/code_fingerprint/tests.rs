@@ -151,9 +151,10 @@ fn link_object_projection_rejects_content_drift_and_link_extensions() {
         b"extension",
     )
     .unwrap();
+    let member = extension.id();
     assert_eq!(
         verify_directory_records(&expected, &[record, extension]),
-        Err(CodeLinkObjectMemberValidationError::UnsupportedLinkExtension(capability))
+        Err(CodeLinkObjectMemberValidationError::UnsupportedLinkExtension { member, capability })
     );
 }
 

@@ -237,7 +237,10 @@ fn command_text(program: &str, args: &[&str]) -> Result<String, ToolchainError> 
     command_text_from_path(Path::new(program), args)
 }
 
-fn command_text_from_path(program: &Path, args: &[&str]) -> Result<String, ToolchainError> {
+pub(crate) fn command_text_from_path(
+    program: &Path,
+    args: &[&str],
+) -> Result<String, ToolchainError> {
     let output = Command::new(program)
         .env_clear()
         .env("LC_ALL", "C")
@@ -332,7 +335,7 @@ fn parse_apple_clang_identity(
     Ok(compiler)
 }
 
-fn parse_darwin_version(
+pub(crate) fn parse_darwin_version(
     spelling: &str,
     role: &'static str,
 ) -> Result<DarwinPackedVersionV1, ToolchainError> {
@@ -421,6 +424,7 @@ mod tests {
                 "-fno-stack-protector",
                 "-fno-unwind-tables",
                 "-fno-asynchronous-unwind-tables",
+                "-fno-builtin",
             ]
         );
         assert_eq!(

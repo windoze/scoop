@@ -128,17 +128,17 @@ impl CapabilityContractRegistry {
         ) {
             ("org.scoop-lang.hir", "identity-foundation", 3) => (
                 SectionLocation::Hir,
-                MemberPurposeSet::COMPILE,
+                MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::HIR,
             ),
             ("org.scoop-lang.mir", "identity-foundation", 1) => (
                 SectionLocation::Mir,
-                MemberPurposeSet::COMPILE,
+                MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::MIR,
             ),
             ("org.scoop-lang.lir", "identity-foundation", 2) => (
                 SectionLocation::Lir,
-                MemberPurposeSet::COMPILE,
+                MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::LIR,
             ),
             ("org.scoop-lang.manifest", "single-cone-production", 2) => (
@@ -170,7 +170,7 @@ impl CapabilityContractRegistry {
             ),
             ("org.scoop-lang.lir", "cross-cone-layout-abi", 5) => (
                 SectionLocation::Lir,
-                MemberPurposeSet::COMPILE,
+                MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::LIR,
             ),
             ("org.scoop-lang.lir", "cross-cone-layout-link-closure", 4) => (
@@ -190,7 +190,7 @@ impl CapabilityContractRegistry {
             ),
             ("org.scoop-lang.lir", "cross-cone-param-free-bridge", 1) => (
                 SectionLocation::Lir,
-                MemberPurposeSet::COMPILE,
+                MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::LIR,
             ),
             ("org.scoop-lang.lir", "cross-cone-link-closure", 1) => (
@@ -210,6 +210,11 @@ impl CapabilityContractRegistry {
                 SectionLocation::Lir,
                 MemberPurposeSet::LINK,
                 FingerprintSinkSet::LINK_VALIDATION_ONLY,
+            ),
+            ("org.scoop-lang.lir", "link-support", 1) => (
+                SectionLocation::Lir,
+                MemberPurposeSet::COMPILE_AND_LINK,
+                FingerprintSinkSet::CODE.union(FingerprintSinkSet::LINK_VALIDATION_ONLY),
             ),
             _ => return None,
         };

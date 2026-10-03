@@ -98,7 +98,7 @@ pub(in super::super) fn complete_artifact(corrupt_final_image_digest: bool) -> V
         MetadataSection::new(
             MetadataLocation::Hir,
             hir_identity_foundation_capability(),
-            MemberPurposeSet::COMPILE,
+            MemberPurposeSet::COMPILE_AND_LINK,
             encode(&hir_foundation).unwrap(),
         )
         .unwrap(),
@@ -114,7 +114,7 @@ pub(in super::super) fn complete_artifact(corrupt_final_image_digest: bool) -> V
         MetadataSection::new(
             MetadataLocation::Mir,
             mir_identity_foundation_capability(),
-            MemberPurposeSet::COMPILE,
+            MemberPurposeSet::COMPILE_AND_LINK,
             encode(&mir_foundation).unwrap(),
         )
         .unwrap(),
@@ -130,7 +130,7 @@ pub(in super::super) fn complete_artifact(corrupt_final_image_digest: bool) -> V
         MetadataSection::new(
             MetadataLocation::Lir,
             lir_identity_foundation_capability(),
-            MemberPurposeSet::COMPILE,
+            MemberPurposeSet::COMPILE_AND_LINK,
             encode(&lir_foundation).unwrap(),
         )
         .unwrap(),
@@ -242,7 +242,7 @@ pub(super) fn build_artifact(
         MetadataSection::new(
             MetadataLocation::Hir,
             hir_identity_foundation_capability(),
-            MemberPurposeSet::COMPILE,
+            MemberPurposeSet::COMPILE_AND_LINK,
             encode(&hir_foundation).unwrap(),
         )
         .unwrap(),
@@ -262,7 +262,7 @@ pub(super) fn build_artifact(
         MetadataSection::new(
             MetadataLocation::Mir,
             mir_identity_foundation_capability(),
-            MemberPurposeSet::COMPILE,
+            MemberPurposeSet::COMPILE_AND_LINK,
             encode(&mir_foundation).unwrap(),
         )
         .unwrap(),
@@ -282,7 +282,7 @@ pub(super) fn build_artifact(
             MetadataSection::new(
                 MetadataLocation::Lir,
                 lir_identity_foundation_capability(),
-                MemberPurposeSet::COMPILE,
+                MemberPurposeSet::COMPILE_AND_LINK,
                 encode(&foundation).unwrap(),
             )
             .unwrap(),

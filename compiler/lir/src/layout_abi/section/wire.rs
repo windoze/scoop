@@ -1,6 +1,7 @@
 use super::*;
 
 mod descriptors;
+mod link;
 mod physical;
 mod resolved_dependencies;
 pub use physical::PhysicalImportsReplayedLayoutAbiSectionV1;

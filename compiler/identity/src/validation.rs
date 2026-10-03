@@ -1131,7 +1131,8 @@ impl ValidatedIdentityGraph {
             .downcast_ref::<K>()
     }
 
-    pub(crate) fn contains_resolved_identity<I: PersistentId>(&self, id: I) -> bool {
+    /// Tests whether an already typed identity is present in this graph.
+    pub fn contains_resolved_identity<I: PersistentId>(&self, id: I) -> bool {
         self.candidates
             .get(&IdentityNode::trusted(id))
             .is_some_and(|candidate| candidate.resolved)

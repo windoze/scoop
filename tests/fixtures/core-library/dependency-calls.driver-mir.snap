@@ -1,5 +1,5 @@
   global0 $singleton$LocalTools: LocalTools managed initial=zeroed-for-runtime-unit
-  init0 object:LocalTools singleton lazy global0 initializer=@fn74 ensure=@fn75 failure=1 deps=[]
+  init0 object:LocalTools singleton lazy global0 initializer=@fn84 ensure=@fn85 failure=1 deps=[]
   enum CoroutineStep<LocalTools>
     Completed(value: LocalTools)
     Suspended()
@@ -10,11 +10,11 @@
   interface Continuation<LocalTools>
   interface SuspendTask<LocalTools>
   interface SuspendRegistration<LocalTools>
-  fun userCoreDependency @fn72() -> Unit
+  fun userCoreDependency @fn82() -> Unit
     bb0 entry
       call external0 direct
       return
-  fun userCoreCombined @fn73(flag: Boolean) -> Unit
+  fun userCoreCombined @fn83(flag: Boolean) -> Unit
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -41,19 +41,19 @@
       goto bb6
     bb6 if.merge.6
       return
-  fun $init$body$0 @fn74() -> Unit
+  fun $init$body$0 @fn84() -> Unit
     bb0 entry
       assign $new.1
         Type LocalTools
         ClassAlloc LocalTools
-      call @fn215 direct
+      call @fn225 direct
         Type LocalTools
         Local $new.1
       global_assign $singleton$LocalTools
         Type LocalTools
         Local $new.1
       return
-  fun $init$ensure$0 @fn75() -> Unit
+  fun $init$ensure$0 @fn85() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -98,7 +98,7 @@
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @fn74 direct
+      call @fn84 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 object:LocalTools
@@ -145,32 +145,32 @@
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 object:LocalTools
-      call @fn71 direct
+      call @fn72 direct
         Type String
         Local $init.message
       unreachable
     bb19 if.merge.19
       unreachable
-  fun Continuation.resume @fn190(this: Continuation<LocalTools>, value: LocalTools) -> Unit
+  fun Continuation.resume @fn200(this: Continuation<LocalTools>, value: LocalTools) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn191(this: Continuation<LocalTools>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn201(this: Continuation<LocalTools>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn192(this: SuspendTask<LocalTools>, $completion: Continuation<LocalTools>) -> CoroutineStep<LocalTools>
+  fun SuspendTask.run @fn202(this: SuspendTask<LocalTools>, $completion: Continuation<LocalTools>) -> CoroutineStep<LocalTools>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn193(this: SuspendRegistration<LocalTools>, continuation: Continuation<LocalTools>) -> Unit
+  fun SuspendRegistration.register @fn203(this: SuspendRegistration<LocalTools>, continuation: Continuation<LocalTools>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun init.LocalTools.$c18 @fn215(this: LocalTools) -> Unit
+  fun init.LocalTools.$c18 @fn225(this: LocalTools) -> Unit
     bb0 entry
       return
-  fun startCoroutine<LocalTools> @fn239(task: SuspendTask<LocalTools>, completion: Continuation<LocalTools>) -> Unit
+  fun startCoroutine<LocalTools> @fn249(task: SuspendTask<LocalTools>, completion: Continuation<LocalTools>) -> Unit
     bb0 suspended
       return
     bb1 completed
-      call @fn190 interface Continuation<LocalTools>[0]
+      call @fn200 interface Continuation<LocalTools>[0]
         Type Continuation<LocalTools>
         Local completion
         Type LocalTools
@@ -179,7 +179,7 @@
           Local $step
       return
     bb2 failed
-      call @fn191 interface Continuation<LocalTools>[1]
+      call @fn201 interface Continuation<LocalTools>[1]
         Type Continuation<LocalTools>
         Local completion
         Type Throwable
@@ -194,7 +194,7 @@
       end_catch
       goto bb2
     bb4 entry unwind bb3
-      call $step: CoroutineStep<LocalTools> = @fn192 interface SuspendTask<LocalTools>[0]
+      call $step: CoroutineStep<LocalTools> = @fn202 interface SuspendTask<LocalTools>[0]
         Type SuspendTask<LocalTools>
         Local task
         Type Continuation<LocalTools>
@@ -210,5 +210,5 @@
           MachineScalarLiteral EnumTag(0)
   coroutine_step cs22 CoroutineStep<LocalTools> result=LocalTools
   coroutine_slot cl22 CoroutineSlot<LocalTools> value=LocalTools
-  coroutine_start ct22 result=LocalTools function=fn239
-  coroutine_fn cf28 @fn192 source_return=LocalTools step=cs22 immediate
+  coroutine_start ct22 result=LocalTools function=fn249
+  coroutine_fn cf28 @fn202 source_return=LocalTools step=cs22 immediate

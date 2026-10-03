@@ -40,7 +40,7 @@ impl NominalExactLeafClassifierV1 {
         Ok(Some(ParamFreeNominalCallableV1 {
             implementation,
             signature,
-            gc_effect: callable.effects().gc_effect(),
+            gc_effect: callable.effects().provider_entry_gc_effect(),
             modality: callable.modality(),
         }))
     }
@@ -98,7 +98,10 @@ fn eligible_declaration(
     };
     if !direct_owner
         || !callable.type_parameters().is_empty()
-        || callable.effects().implementation() != CallableImplementationV1::Scoop
+        || matches!(
+            callable.effects().implementation(),
+            CallableImplementationV1::Intrinsic(_)
+        )
     {
         return None;
     }

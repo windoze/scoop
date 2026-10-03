@@ -81,7 +81,7 @@ fn dependency_default_calls_public_provider_helper_with_split_origins() {
 }
 
 #[test]
-fn rejected_dependency_default_falls_through_without_committing_provider_state() {
+fn native_dependency_default_uses_the_original_provider_entry() {
     let mut core = trusted_core();
     let provider = ConeCoordinate::new("test", "rejected-default-provider", "1.0.0").unwrap();
     let mut with_default = fun_expr(
@@ -117,10 +117,10 @@ fn rejected_dependency_default_falls_through_without_committing_provider_state()
     let provider_foundation = core.import_dependency_foundation(&provider, &foundation, 55);
     let aliases = empty_alias_expansions();
 
-    let mut consumer = file(vec![
-        fun("withDefault", Vec::new()),
-        fun("consumer", vec![stmt(call("withDefault", Vec::new()))]),
-    ]);
+    let mut consumer = file(vec![fun(
+        "consumer",
+        vec![stmt(call("withDefault", Vec::new()))],
+    )]);
     consumer
         .imports
         .push(exact_import(&["dependency", "api", "withDefault"]));
@@ -142,44 +142,15 @@ fn rejected_dependency_default_falls_through_without_committing_provider_state()
     let input = CurrentConeSources::try_new(&ordinary, core_inputs, &world).unwrap();
 
     let output = lower_current_cone(scoop_identity::RequestedConeKind::Library, &input)
-        .expect("a rejected dependency default must not shadow the current-package callable");
-
-    assert!(output.imported_dependencies().is_empty());
-    assert!(
-        output
-            .output()
-            .export
-            .imported_dependency_callables
-            .is_empty()
+        .expect("native defaults call the existing provider ABI entry");
+    assert_eq!(
+        output.output().export.imported_dependency_callables.len(),
+        2
     );
     assert!(
-        output
-            .output()
-            .export
-            .source_files
-            .iter()
-            .all(|source| source.identity.cone() != provider.identity().unwrap())
+        output.output().export.extern_functions.is_empty(),
+        "the consumer does not copy the provider's extern declaration"
     );
-
-    let mut unsupported = file(vec![fun(
-        "consumer",
-        vec![stmt(call("withDefault", Vec::new()))],
-    )]);
-    unsupported
-        .imports
-        .push(exact_import(&["dependency", "api", "withDefault"]));
-    let unsupported = parsed_ordinary(unsupported);
-    let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
-    let input = CurrentConeSources::try_new(&unsupported, core_inputs, &world).unwrap();
-    let diagnostics = match lower_current_cone(scoop_identity::RequestedConeKind::Library, &input) {
-        Ok(_) => panic!("a native dependency in the only default candidate must be rejected"),
-        Err(diagnostics) => diagnostics,
-    };
-    assert!(diagnostics.iter().any(|diagnostic| {
-        diagnostic
-            .message
-            .contains("SCOOP_HIR_CROSS_CONE_NATIVE_REQUIRED")
-    }));
 }
 
 fn dependency_with_callable_default(

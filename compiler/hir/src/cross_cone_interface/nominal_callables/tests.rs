@@ -217,26 +217,49 @@ fn suspend_callables_retain_the_source_effect_and_result() {
 }
 
 #[test]
-fn external_and_unresolved_signatures_remain_semantic_only() {
+fn param_free_source_extern_uses_its_provider_callable_entry() {
+    let (classifier, unit, exact) = classifier();
+    let callable = callable(
+        SignatureTypeKey::Nominal(unit),
+        Effect::Ordinary,
+        CallableImplementationV1::SourceExternScoop,
+        GcEffect::Managed,
+    );
+    let entry = classifier.classify_callable(&callable).unwrap().unwrap();
+    assert_eq!(entry.signature().result(), exact);
+    assert_eq!(entry.gc_effect(), GcEffect::Managed);
+    assert!(entry.direct_declaration().is_some());
+}
+
+#[test]
+fn native_leaf_contracts_keep_managed_provider_entries() {
     let (classifier, unit, _) = classifier();
-    let cases = [
-        callable(
+    for implementation in [
+        CallableImplementationV1::SourceExternC,
+        CallableImplementationV1::SourceExternScoop,
+    ] {
+        let callable = callable(
             SignatureTypeKey::Nominal(unit),
             Effect::Ordinary,
-            CallableImplementationV1::SourceExternScoop,
-            GcEffect::Managed,
-        ),
-        callable(
-            SignatureTypeKey::Nominal(foreign_type()),
-            Effect::Ordinary,
-            CallableImplementationV1::Scoop,
-            GcEffect::Managed,
-        ),
-    ];
-
-    for callable in cases {
-        assert_eq!(classifier.classify_callable(&callable).unwrap(), None);
+            implementation,
+            GcEffect::NoGc,
+        );
+        let entry = classifier.classify_callable(&callable).unwrap().unwrap();
+        assert_eq!(callable.effects().gc_effect(), GcEffect::NoGc);
+        assert_eq!(entry.gc_effect(), GcEffect::Managed);
     }
+}
+
+#[test]
+fn unresolved_signatures_remain_semantic_only() {
+    let (classifier, _, _) = classifier();
+    let callable = callable(
+        SignatureTypeKey::Nominal(foreign_type()),
+        Effect::Ordinary,
+        CallableImplementationV1::Scoop,
+        GcEffect::Managed,
+    );
+    assert_eq!(classifier.classify_callable(&callable).unwrap(), None);
 }
 
 fn classifier() -> (
@@ -288,7 +311,11 @@ fn callable(
         result,
         CallableSourceEffectsV1::try_new(
             effect,
-            CallableSafetyV1::Safe,
+            if implementation == CallableImplementationV1::SourceExternC {
+                CallableSafetyV1::Unsafe
+            } else {
+                CallableSafetyV1::Safe
+            },
             gc_effect,
             implementation,
             CallableOperatorRoleV1::None,

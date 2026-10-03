@@ -455,7 +455,7 @@ fn validate_section(
 ) -> Result<(), MetadataSectionError> {
     let bits = required_for.bits();
     let purpose_valid = match location {
-        MetadataLocation::Hir | MetadataLocation::Mir => matches!(bits, 0 | 2),
+        MetadataLocation::Hir | MetadataLocation::Mir => matches!(bits, 0 | 2 | 6),
         MetadataLocation::Lir => matches!(bits, 0 | 2 | 4 | 6),
     };
     if !purpose_valid {

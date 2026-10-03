@@ -146,7 +146,12 @@ pub(crate) fn with_empty_layout_code_fixture<R>(
         finalize_layout_partitioned_undefined_symbol_requirements_v1(current, external, &shape)
             .unwrap();
     let code = compute_cross_cone_layout_code_fingerprint_v1(
-        production, native, defined, partitions, &shape,
+        production,
+        native,
+        defined,
+        partitions,
+        &shape,
+        crate::LirLinkSupportSectionV1::default(),
     )
     .unwrap();
 

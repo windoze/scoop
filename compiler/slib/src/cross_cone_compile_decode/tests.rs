@@ -615,7 +615,7 @@ pub(crate) fn cross_cone_artifact_for_with_hir_foundation(
     *foundation = section(
         MetadataLocation::Hir,
         hir_identity_foundation_capability(),
-        MemberPurposeSet::COMPILE,
+        MemberPurposeSet::COMPILE_AND_LINK,
         encode(hir_foundation).unwrap(),
     );
     hir.push(section(
@@ -649,7 +649,7 @@ fn retarget_lir_sections(
         *foundation_section = section(
             MetadataLocation::Lir,
             lir_identity_foundation_capability(),
-            MemberPurposeSet::COMPILE,
+            MemberPurposeSet::COMPILE_AND_LINK,
             encode(&scoop_lir::CanonicalLirFoundation::empty()).unwrap(),
         );
         return;
@@ -669,7 +669,7 @@ fn retarget_lir_sections(
     *foundation_section = section(
         MetadataLocation::Lir,
         lir_identity_foundation_capability(),
-        MemberPurposeSet::COMPILE,
+        MemberPurposeSet::COMPILE_AND_LINK,
         encode(&foundation).unwrap(),
     );
     let production_section = lir
@@ -697,7 +697,7 @@ fn add_cross_cone_bridge_sections(
     lir.push(section(
         MetadataLocation::Lir,
         lir_cross_cone_param_free_bridge_capability(),
-        MemberPurposeSet::COMPILE,
+        MemberPurposeSet::COMPILE_AND_LINK,
         vec![0xa2, 0x01, 0x80, 0x02, 0x80],
     ));
     lir.push(section(

@@ -128,12 +128,18 @@ fn layout_code_fingerprint_binds_v2_imports_and_the_required_member_directory() 
             defined.clone(),
             partitions.clone(),
             &wrong_shape,
+            crate::LirLinkSupportSectionV1::default(),
         ),
         Err(LayoutCodeFingerprintError::ExternalShapeClosureMismatch)
     ));
 
     let proof = compute_cross_cone_layout_code_fingerprint_v1(
-        production, native, defined, partitions, &shape,
+        production,
+        native,
+        defined,
+        partitions,
+        &shape,
+        crate::LirLinkSupportSectionV1::default(),
     )
     .unwrap();
     assert_eq!(
@@ -142,7 +148,7 @@ fn layout_code_fingerprint_binds_v2_imports_and_the_required_member_directory() 
             .link_extension_contributions()
             .contributions()
             .len(),
-        2
+        3
     );
     assert_eq!(
         encode(proof.layout_link_closure().semantic_imports()).unwrap(),

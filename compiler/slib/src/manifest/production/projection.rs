@@ -10,7 +10,6 @@ use registrations::registration_identities_match;
 pub(crate) fn verify_production_code_projection_common<D, C, I>(
     cone: &ConeRecord,
     dependency_identities: &[scoop_identity::ConeIdentity],
-    source_count: usize,
     plans: ProductionPlanInputs<'_>,
     link_objects: &VerifiedCodeLinkObjectMemberSetV1<D, C, I>,
 ) -> Result<SingleConeProductionCodeProjectionV1, ProductionCodeProjectionError>
@@ -55,7 +54,7 @@ where
         return Err(ProductionCodeProjectionError::DependencyMismatch);
     }
 
-    let distribution = distribution(cone, dependency_identities, source_count)?;
+    let distribution = link_distribution(cone, dependency_identities)?;
     let output = output(cone, final_objects)?;
     let odr_members = CanonicalOdrMemberDirectoryV1::from_patch_set(registrations)
         .map_err(ProductionCodeProjectionError::OdrMembers)?;
@@ -74,7 +73,7 @@ where
     Ok(projection)
 }
 
-pub(super) fn distribution(
+pub(crate) fn distribution(
     cone: &ConeRecord,
     dependencies: &[scoop_identity::ConeIdentity],
     source_count: usize,
@@ -93,6 +92,22 @@ pub(super) fn distribution(
             source_count,
             dependencies: dependencies.to_vec(),
         }),
+    }
+}
+
+fn link_distribution(
+    cone: &ConeRecord,
+    dependencies: &[scoop_identity::ConeIdentity],
+) -> Result<ArtifactDistributionClassV1, ProductionCodeProjectionError> {
+    match cone.source_form() {
+        ConeSourceForm::Manifest => Ok(ArtifactDistributionClassV1::DistributableCone),
+        ConeSourceForm::SingleFile
+            if cone.kind() == ConeKind::Executable
+                && dependencies == [scoop_identity::ConeIdentity::CORE] =>
+        {
+            Ok(ArtifactDistributionClassV1::LocalExecutableRoot)
+        }
+        ConeSourceForm::SingleFile => Err(ProductionCodeProjectionError::InvalidSingleFileLinkRoot),
     }
 }
 

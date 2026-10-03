@@ -38,6 +38,7 @@ pub(super) struct LayoutMetadataInput<'section, 'ir> {
     pub link_identity_closure: &'section LinkIdentityClosureSectionV1,
     pub callable_link_closure: &'section CrossConeLinkClosureSectionV1,
     pub layout_link_closure: &'section CrossConeLayoutLinkClosureSectionV1<'ir>,
+    pub link_support: &'section crate::LirLinkSupportSectionV1,
 }
 
 pub(super) struct LayoutMetadataAssembly {
@@ -60,7 +61,7 @@ pub(super) fn assemble_metadata(
                 StrongArtifactSectionV1::HirFoundation,
                 MetadataLocation::Hir,
                 hir_identity_foundation_capability(),
-                MemberPurposeSet::COMPILE,
+                MemberPurposeSet::COMPILE_AND_LINK,
                 input.hir_foundation,
             )?,
             build_section(
@@ -93,7 +94,7 @@ pub(super) fn assemble_metadata(
                 StrongArtifactSectionV1::MirFoundation,
                 MetadataLocation::Mir,
                 mir_identity_foundation_capability(),
-                MemberPurposeSet::COMPILE,
+                MemberPurposeSet::COMPILE_AND_LINK,
                 input.mir_foundation,
             )?,
             build_section(
@@ -123,17 +124,24 @@ pub(super) fn assemble_metadata(
         MetadataLocation::Lir,
         vec![
             build_section(
+                StrongArtifactSectionV1::LinkSupport,
+                MetadataLocation::Lir,
+                crate::lir_link_support_capability(),
+                MemberPurposeSet::COMPILE_AND_LINK,
+                input.link_support,
+            )?,
+            build_section(
                 StrongArtifactSectionV1::LirFoundation,
                 MetadataLocation::Lir,
                 lir_identity_foundation_capability(),
-                MemberPurposeSet::COMPILE,
+                MemberPurposeSet::COMPILE_AND_LINK,
                 input.lir_foundation,
             )?,
             build_section(
                 StrongArtifactSectionV1::LirCrossConeBridge,
                 MetadataLocation::Lir,
                 lir_cross_cone_param_free_bridge_capability(),
-                MemberPurposeSet::COMPILE,
+                MemberPurposeSet::COMPILE_AND_LINK,
                 input.lir_cross_cone,
             )?,
             build_section(
@@ -147,7 +155,7 @@ pub(super) fn assemble_metadata(
                 StrongArtifactSectionV1::LirCrossConeLayoutAbi,
                 MetadataLocation::Lir,
                 lir_cross_cone_layout_abi_capability(),
-                MemberPurposeSet::COMPILE,
+                MemberPurposeSet::COMPILE_AND_LINK,
                 input.lir_layout_abi,
             )?,
             build_section(

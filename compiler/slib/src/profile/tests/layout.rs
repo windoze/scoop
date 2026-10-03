@@ -10,7 +10,7 @@ fn generic_profile_has_a_fixed_descriptor_and_fingerprint() {
     );
     assert_eq!(
         profile.fingerprint().unwrap().to_string(),
-        "75aa3802dc75fe9cdbbe124ca22ec1a45827fcfcdc277e390452551530b5c860"
+        "803512d065288817215dd104c6c9c94400fecb92dea092efefc99b6657e3cc5e"
     );
     assert_eq!(
         ArtifactCapabilityProfile::from_id(descriptor.id()),
@@ -46,7 +46,7 @@ fn layout_sections_have_distinct_semantic_and_physical_purposes() {
         (
             lir_cross_cone_layout_abi_capability(),
             SectionLocation::Lir,
-            MemberPurposeSet::COMPILE,
+            MemberPurposeSet::COMPILE_AND_LINK,
             FingerprintSinkSet::LIR,
         ),
         (

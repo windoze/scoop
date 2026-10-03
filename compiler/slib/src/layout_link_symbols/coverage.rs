@@ -6,6 +6,7 @@ pub(super) fn replay(
     finalized: VerifiedEntryPatchSetV2,
     ordinary: &VerifiedCrossConeStrongRequirementClosureV1,
     shape: &VerifiedExternalShapeRequirementClosureV1<'_>,
+    support: &crate::LirLinkSupportSectionV1,
     input: &ReplayInputs<'_>,
 ) -> Result<
     (
@@ -36,6 +37,7 @@ pub(super) fn replay(
             ordinary.semantic_imports(),
             shape.semantic_imports(),
         )
+        .and_then(|contributions| contributions.with_link_support(support))
         .map_err(LayoutCodeFingerprintError::LinkContributionEncoding)?;
     Ok((finalized, contributions))
 }

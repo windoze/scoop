@@ -173,6 +173,7 @@ pub(super) fn verify(
         owners,
         undefined,
         &shape,
+        scoop_slib::LirLinkSupportSectionV1::default(),
     )
     .unwrap();
     directory::check(code.code(), &expected_members);

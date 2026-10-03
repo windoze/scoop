@@ -193,6 +193,16 @@ impl CallableSourceEffectsV1 {
         self.gc_effect
     }
 
+    /// The Scoop entry for a source extern performs a native transition, even
+    /// when the native callee itself promises not to interact with the GC.
+    pub const fn provider_entry_gc_effect(self) -> GcEffect {
+        match self.implementation {
+            CallableImplementationV1::SourceExternC
+            | CallableImplementationV1::SourceExternScoop => GcEffect::Managed,
+            _ => self.gc_effect,
+        }
+    }
+
     pub const fn implementation(self) -> CallableImplementationV1 {
         self.implementation
     }

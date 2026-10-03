@@ -10,6 +10,10 @@ pub struct DecodedTupleElementStorageV1 {
 }
 
 impl DecodedTupleElementStorageV1 {
+    pub(crate) fn link_storage(&self) -> &DecodedFieldStorageV1 {
+        &self.storage
+    }
+
     pub fn validate_against(
         self,
         expected: &TupleElementStorageV1,

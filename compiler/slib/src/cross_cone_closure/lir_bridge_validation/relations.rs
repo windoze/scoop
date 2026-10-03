@@ -106,7 +106,7 @@ pub(crate) fn validate_local_projection(
         let callable = callable_interface(interface, declaration).ok_or(
             CrossConeLirClosureRelationError::MissingExportCallableInterface { declaration },
         )?;
-        let expected_gc = callable.effects().gc_effect();
+        let expected_gc = callable.effects().provider_entry_gc_effect();
         let actual_gc = actual.abi_signature().gc_effect();
         if actual_gc != expected_gc {
             return Err(CrossConeLirClosureRelationError::ExportGcEffectMismatch {

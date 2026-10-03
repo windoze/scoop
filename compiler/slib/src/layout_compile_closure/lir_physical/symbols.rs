@@ -36,7 +36,6 @@ impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
                         profile,
                         manifest: parts.manifest,
                         code_strong: &code_strong,
-                        hir_foundation: parts.hir_foundation,
                     },
                     previous,
                     physical.iter().map(|artifact| &artifact.layout),
@@ -45,7 +44,10 @@ impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
                 Ok(symbols)
             })?;
         let odr_definitions = merge_cross_cone_odr_definitions(
-            physical.dependency_first().zip(&symbols),
+            physical
+                .dependency_first()
+                .map(|artifact| artifact.identity_graph())
+                .zip(&symbols),
         )
         .map_err(|source| CrossConeLayoutLirPhysicalError {
             provider: source.provider(),

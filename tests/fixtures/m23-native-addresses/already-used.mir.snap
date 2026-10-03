@@ -1,7 +1,17 @@
 Module
   extern ef0 nativeScalar @m23_call_scalar(FunPtr<(Long) -> Long>, Long) -> Long <abi=c no-gc>
   callback cb0 external0 -> external2 function_type0 id=56842925a930db10edc2f638033325adb78813ee6493d9aee438502320ca285d
-  fun callScalar @fn0(callback: FunPtr<(Long) -> Long>, value: Long) -> Long
+  fun nativeScalar @fn0(arg0: FunPtr<(Long) -> Long>, arg1: Long) -> Long
+    bb0 entry
+      call $call.1: Long = extern0 @m23_call_scalar direct
+        Type FunPtr<(Long) -> Long>
+        Local arg0
+        Type Long
+        Local arg1
+      return
+        Type Long
+        Local $call.1
+  fun callScalar @fn1(callback: FunPtr<(Long) -> Long>, value: Long) -> Long
     bb0 entry
       val $argument.0: FunPtr<(Long) -> Long>
         Type FunPtr<(Long) -> Long>
@@ -23,7 +33,7 @@ Module
       return
         Type Long
         Local $call.1
-  fun result @fn1() -> Long
+  fun result @fn2() -> Long
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -31,13 +41,13 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Long = @fn2 direct
+      call $call.1: Long = @fn3 direct
         Type Int
         Local $parameter.value
       return
         Type Long
         Local $call.1
-  fun exercise @fn2(value: Int) -> Long
+  fun exercise @fn3(value: Int) -> Long
     bb0 entry
       val callback: FunPtr<(Long) -> Long>
         Type FunPtr<(Long) -> Long>
@@ -54,7 +64,7 @@ Module
       val $parameter.value: Long
         Type Long
         Local $argument.1
-      call $dependency.receiver: Long = @fn0 direct
+      call $dependency.receiver: Long = @fn1 direct
         Type FunPtr<(Long) -> Long>
         Local $parameter.callback
         Type Long
@@ -69,7 +79,7 @@ Module
       val $parameter.value: Long
         Type Long
         Local $argument.1
-      call $dependency.argument.0: Long = @fn0 direct
+      call $dependency.argument.0: Long = @fn1 direct
         Type FunPtr<(Long) -> Long>
         Local $parameter.callback
         Type Long
@@ -84,5 +94,5 @@ Module
           Local $dependency.receiver
           Type Long
           Local $dependency.parameter.other
-  instance mi0 function=@fn2 <- exercise
+  instance mi0 function=@fn3 <- exercise
   output library

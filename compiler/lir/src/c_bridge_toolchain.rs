@@ -342,10 +342,11 @@ pub enum CanonicalCBridgeFlagV1 {
     NoStackProtector,
     NoUnwindTables,
     NoAsynchronousUnwindTables,
+    NoBuiltinSubstitution,
 }
 
 impl CanonicalCBridgeFlagV1 {
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 13] = [
         Self::ExplicitCanonicalTarget,
         Self::ExplicitResolvedSdkRoot,
         Self::ExplicitMinimumDeployment,
@@ -358,6 +359,7 @@ impl CanonicalCBridgeFlagV1 {
         Self::NoStackProtector,
         Self::NoUnwindTables,
         Self::NoAsynchronousUnwindTables,
+        Self::NoBuiltinSubstitution,
     ];
 
     const fn tag(self) -> u32 {
@@ -374,6 +376,7 @@ impl CanonicalCBridgeFlagV1 {
             Self::NoStackProtector => 10,
             Self::NoUnwindTables => 11,
             Self::NoAsynchronousUnwindTables => 12,
+            Self::NoBuiltinSubstitution => 13,
         }
     }
 }

@@ -80,6 +80,7 @@ impl ArtifactCapabilityProfile {
                     lir_cross_cone_layout_abi_capability(),
                     lir_cross_cone_layout_link_closure_capability(),
                     lir_cone_production_capability(),
+                    lir_link_support_capability(),
                 ]);
                 descriptor.required_hir.sort_unstable();
                 descriptor.required_mir.sort_unstable();

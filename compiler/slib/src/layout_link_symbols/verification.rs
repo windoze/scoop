@@ -10,7 +10,6 @@ pub(crate) struct ReplayInputs<'a> {
     pub profile: &'a lir::CBridgeToolchainProfileV1,
     pub manifest: &'a crate::BootstrapManifest,
     pub code_strong: &'a lir::DecodedConeProductionSectionV2,
-    pub hir_foundation: &'a scoop_hir::CanonicalHirFoundation,
 }
 
 pub(crate) fn replay<'a>(
@@ -43,6 +42,10 @@ pub(crate) fn replay<'a>(
         input.selection.target(),
         input.foundation,
     )?;
+    let support = input
+        .link
+        .link_support_wire()
+        .read_link(input.layout.exports().descriptors())?;
 
     let ordinary = verify_cross_cone_strong_requirements_v1(
         input.selection.target(),
@@ -69,7 +72,8 @@ pub(crate) fn replay<'a>(
         .link_identity_closure_wire()
         .replay_symbol_projections(&defined, undefined.legacy())?;
     let finalized = finalization::replay(&objects, &undefined, &input)?;
-    let (finalized, contributions) = coverage::replay(finalized, &ordinary, &shape, &input)?;
+    let (finalized, contributions) =
+        coverage::replay(finalized, &ordinary, &shape, &support, &input)?;
     let (code, production) = code::replay(
         &finalized,
         &contributions,
@@ -86,6 +90,7 @@ pub(crate) fn replay<'a>(
         finalized,
         code,
         production,
+        support,
     })
 }
 

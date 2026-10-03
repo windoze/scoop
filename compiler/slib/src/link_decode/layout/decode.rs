@@ -117,6 +117,11 @@ impl<'input> ValidatedGraphArtifact<'input> {
             MetadataLocation::Lir,
             lir_cross_cone_layout_link_closure_capability(),
         )?;
+        let link_support = decode_required(
+            &lir,
+            MetadataLocation::Lir,
+            crate::lir_link_support_capability(),
+        )?;
 
         // Only the three Compile semantic contributions are checked here.
         // Code and LinkValidationOnly projections require final-object proofs.
@@ -140,11 +145,12 @@ impl<'input> ValidatedGraphArtifact<'input> {
             link_identity_closure,
             cross_cone_link_closure,
             layout_link_closure,
+            link_support,
         })
     }
 }
 
-fn validate_inventories(
+pub(super) fn validate_inventories(
     profile: ArtifactCapabilityProfile,
     hir: &crate::DecodedMetadataEnvelope<'_>,
     mir: &crate::DecodedMetadataEnvelope<'_>,
@@ -165,7 +171,7 @@ fn validate_inventories(
     Ok(())
 }
 
-fn decode_required<T: scoop_wire::WireDecode>(
+pub(super) fn decode_required<T: scoop_wire::WireDecode>(
     envelope: &crate::DecodedMetadataEnvelope<'_>,
     location: MetadataLocation,
     capability: scoop_identity::CapabilityId,

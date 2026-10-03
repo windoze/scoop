@@ -30,6 +30,7 @@ mod imported_members;
 mod imported_structs;
 mod layout_exports;
 mod nominal_signatures;
+mod program_link;
 mod publication;
 mod runtime_images;
 mod runtime_layout_gates;

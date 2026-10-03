@@ -48,6 +48,7 @@ impl Concretizer<'_> {
                 | export::FunctionKind::Abstract { .. }
                 | export::FunctionKind::InitializationEnsure
                 | export::FunctionKind::DerivedEquality
+                | export::FunctionKind::Extern(_)
         ) {
             return false;
         }

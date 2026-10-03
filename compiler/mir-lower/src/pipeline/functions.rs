@@ -1,5 +1,7 @@
 use super::*;
 
+mod native;
+
 impl Lowerer {
     /// Lower one fully concrete source implementation or abstract slot.
     pub(super) fn lower_user_function(

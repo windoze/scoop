@@ -49,6 +49,11 @@ mod layout_compile_decode;
 pub use layout_compile_decode::*;
 
 mod dependency_reachability;
+mod production_dependencies;
+mod program_link;
+pub use program_link::*;
+mod link_support;
+pub use link_support::*;
 mod layout_compile_closure;
 pub use layout_compile_closure::*;
 

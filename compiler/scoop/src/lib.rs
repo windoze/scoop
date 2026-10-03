@@ -12,7 +12,9 @@ mod diagnostic;
 mod discovery;
 mod graph;
 mod locator;
+mod program_link;
 mod request;
+mod runtime_build;
 mod schedule;
 mod snapshot;
 
@@ -25,7 +27,9 @@ pub use diagnostic::*;
 pub use discovery::*;
 pub use graph::*;
 pub use locator::{DependencyLocatorError, LocatorIoOperation};
+pub use program_link::link_built_program;
 pub use request::*;
+pub use runtime_build::*;
 pub use schedule::*;
 pub use snapshot::*;
 

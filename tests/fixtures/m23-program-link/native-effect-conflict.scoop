@@ -1,0 +1,4 @@
+@NoGC
+@Extern(name = "scoop_rt_bool_hash", abi = "scoop")
+private fun wrong(value: Boolean): Long
+fun main() {}

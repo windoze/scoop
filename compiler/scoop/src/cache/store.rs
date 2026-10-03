@@ -15,6 +15,7 @@ mod io;
 
 pub use error::*;
 use io::*;
+pub(crate) use io::{open_lock_file as open_build_lock, sync_directory as sync_cache_directory};
 
 const LOCK_DIRECTORY: &str = ".locks";
 const STAGING_DIRECTORY: &str = ".staging";

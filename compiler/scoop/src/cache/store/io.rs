@@ -34,7 +34,7 @@ pub(super) fn validate_directory(
     Ok(())
 }
 
-pub(super) fn open_lock_file(path: &Path) -> Result<File, CompileCacheStoreError> {
+pub(crate) fn open_lock_file(path: &Path) -> Result<File, CompileCacheStoreError> {
     match open_lock_file_create_new(path) {
         Ok(file) => Ok(file),
         Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
@@ -136,7 +136,7 @@ pub(super) fn write_cache_file(path: &Path, bytes: &[u8]) -> Result<(), CompileC
     Ok(())
 }
 
-pub(super) fn sync_directory(path: &Path) -> Result<(), CompileCacheStoreError> {
+pub(crate) fn sync_directory(path: &Path) -> Result<(), CompileCacheStoreError> {
     File::open(path)
         .and_then(|directory| directory.sync_all())
         .map_err(|source| io_error(CacheIoOperation::Sync, path, source))

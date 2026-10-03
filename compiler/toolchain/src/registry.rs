@@ -3,7 +3,9 @@ use scoop_lir::{
     ValidatedLirTargetSelection,
 };
 
-use crate::{ToolchainError, c_bridge::resolve_system_c_bridge_toolchain};
+use crate::{
+    ToolchainError, ValidatedFinalLinkProfile, c_bridge::resolve_system_c_bridge_toolchain,
+};
 
 /// Complete target selection resolved atomically by the shared registry.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -22,18 +24,13 @@ pub struct ValidatedRuntimeBuildProfile {
     runtime_c_flags: &'static [&'static str],
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ValidatedFinalLinkProfile {
-    target: LirTargetProfile,
-    canonical_triple: &'static str,
-    linker_driver: &'static str,
-    linker_args: &'static [&'static str],
-}
-
 impl ResolvedTargetProfile {
-    fn darwin_aarch64(c_bridge_toolchain: ValidatedCBridgeToolchainInvocation) -> Self {
+    fn darwin_aarch64(
+        c_bridge_toolchain: ValidatedCBridgeToolchainInvocation,
+    ) -> Result<Self, ToolchainError> {
         let lir_target = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
-        Self {
+        let final_link = ValidatedFinalLinkProfile::from_startup(c_bridge_toolchain.clone())?;
+        Ok(Self {
             lir_target,
             backend: lir_target.backend(),
             c_bridge_toolchain,
@@ -101,36 +98,14 @@ impl ResolvedTargetProfile {
                     "-fno-optimize-sibling-calls",
                 ],
             },
-            final_link: ValidatedFinalLinkProfile {
-                target: LirTargetProfile::DARWIN_AARCH64,
-                canonical_triple: "aarch64-apple-darwin",
-                linker_driver: "cc",
-                linker_args: &[
-                    "-pthread",
-                    "-Wl,-rename_section,__LLVM_STACKMAPS,__llvm_stackmaps,__DATA_CONST,__llvm_stackmaps",
-                ],
-            },
-        }
+            final_link,
+        })
     }
 
     /// Resolves all mutually compatible projections as one value.
     pub fn resolve(triple: &str) -> Result<Self, ToolchainError> {
-        let mut components = triple.split('-');
-        let arch = components.next().unwrap_or_default();
-        let vendor = components.next().unwrap_or_default();
-        let os = components.next().unwrap_or_default();
-        let has_extra_identity = components.any(|component| !component.is_empty());
-        let supported_arch = matches!(arch, "aarch64" | "arm64");
-        let supported_os = versioned_component(os, "darwin") || versioned_component(os, "macosx");
-
-        if supported_arch && vendor == "apple" && supported_os && !has_extra_identity {
-            Ok(Self::darwin_aarch64(resolve_system_c_bridge_toolchain()?))
-        } else {
-            Err(ToolchainError(format!(
-                "unsupported target {triple:?}; M23 supports only macOS/AArch64 \
-                 (`aarch64-apple-darwin`, with `arm64` accepted as an alias)"
-            )))
-        }
+        validate_target(triple)?;
+        Self::darwin_aarch64(resolve_system_c_bridge_toolchain()?)
     }
 
     /// Resolves the current host through the same closed registry.
@@ -175,8 +150,8 @@ impl ResolvedTargetProfile {
         self.runtime_build
     }
 
-    pub const fn final_link(&self) -> ValidatedFinalLinkProfile {
-        self.final_link
+    pub const fn final_link(&self) -> &ValidatedFinalLinkProfile {
+        &self.final_link
     }
 }
 
@@ -194,21 +169,23 @@ impl ValidatedRuntimeBuildProfile {
     }
 }
 
-impl ValidatedFinalLinkProfile {
-    pub const fn id(self) -> TargetProfileId {
-        self.target.id()
-    }
-
-    pub const fn canonical_triple(self) -> &'static str {
-        self.canonical_triple
-    }
-
-    pub const fn linker_driver(self) -> &'static str {
-        self.linker_driver
-    }
-
-    pub const fn linker_args(self) -> &'static [&'static str] {
-        self.linker_args
+pub(crate) fn validate_target(triple: &str) -> Result<(), ToolchainError> {
+    let mut components = triple.split('-');
+    let arch = components.next().unwrap_or_default();
+    let vendor = components.next().unwrap_or_default();
+    let os = components.next().unwrap_or_default();
+    let has_extra_identity = components.any(|component| !component.is_empty());
+    let supported_os = versioned_component(os, "darwin") || versioned_component(os, "macosx");
+    if matches!(arch, "aarch64" | "arm64")
+        && vendor == "apple"
+        && supported_os
+        && !has_extra_identity
+    {
+        Ok(())
+    } else {
+        Err(ToolchainError(format!(
+            "unsupported target {triple:?}; M23 supports only macOS/AArch64 (`aarch64-apple-darwin`, with `arm64` accepted as an alias)"
+        )))
     }
 }
 
@@ -261,12 +238,23 @@ mod tests {
                     "-fno-optimize-sibling-calls",
                 ]
             );
+            assert!(profile.final_link().linker_driver().is_absolute());
+            assert!(
+                profile
+                    .final_link()
+                    .linker_args()
+                    .contains(&"-no_deduplicate")
+            );
+            assert!(
+                profile
+                    .final_link()
+                    .system_provider()
+                    .exports()
+                    .contains_key("_getpagesize")
+            );
             assert_eq!(
-                profile.final_link().linker_args(),
-                [
-                    "-pthread",
-                    "-Wl,-rename_section,__LLVM_STACKMAPS,__llvm_stackmaps,__DATA_CONST,__llvm_stackmaps"
-                ]
+                profile.final_link().fingerprint().unwrap(),
+                expected.final_link().fingerprint().unwrap()
             );
         }
     }

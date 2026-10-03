@@ -76,7 +76,7 @@ pub fn validate_shared_mir_source_callables(
             binding.implementation() == declaration.implementation(),
         )?;
         signatures::exact(declaration, metadata, source, binding.signature())?;
-        let gc = match source.effects().gc_effect() {
+        let gc = match source.effects().provider_entry_gc_effect() {
             scoop_identity::GcEffect::Managed => mir::GcEffect::Managed,
             scoop_identity::GcEffect::NoGc => mir::GcEffect::NoGc,
         };
