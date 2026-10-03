@@ -23,7 +23,6 @@ mod interface_members;
 mod interfaces;
 mod local_calls;
 mod machine;
-mod members;
 mod metadata;
 mod method_calls;
 mod native_calls;

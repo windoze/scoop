@@ -3,7 +3,7 @@ name = "generic-member-consumption-extension-rhs-type"
 inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../m23-generic-member-consumption/provider.scoop", "extension-rhs-type", "../../m23-generic-member-consumption/extension-rhs-type.scoop"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin"]
-tags = ["generics", "generic_extension_properties_republish_and_execute_from_artifacts", "negative"]
+tags = ["generics", "generic_extension_properties_republish_and_execute_from_artifacts", "negative", "hir-generic-members"]
 
 [[steps]]
 name = "prepare_core"

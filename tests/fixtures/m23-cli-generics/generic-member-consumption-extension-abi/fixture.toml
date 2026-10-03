@@ -3,7 +3,7 @@ name = "generic-member-consumption-extension-abi"
 inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../m23-generic-member-consumption/provider.scoop", "generic-member-extension-abi", "../../m23-generic-member-consumption/extension-abi.scoop", "generic-member-downstream-extension-abi", "../../m23-generic-member-consumption/extension-downstream.scoop", "runtime-fixture", "../../m23-cli-imported-classes/support/gc.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
 targets = ["aarch64-apple-darwin"]
-tags = ["generics", "generic_extension_properties_republish_and_execute_from_artifacts", "stage-golden"]
+tags = ["generics", "generic_extension_properties_republish_and_execute_from_artifacts", "stage-golden", "hir-generic-members"]
 
 [[steps]]
 name = "prepare_core"
@@ -79,6 +79,7 @@ checks = [
   {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/hir.txt", "snapshot" = "consumer.hir.txt"},
   {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/mir.txt", "snapshot" = "consumer.mir.txt"},
   {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/lir.txt", "snapshot" = "consumer.lir.txt"},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/hir.txt", "contains" = "receiver: Extension("},
 ]
 
 [[steps]]

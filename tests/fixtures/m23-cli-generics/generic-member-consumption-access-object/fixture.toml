@@ -3,7 +3,7 @@ name = "generic-member-consumption-access-object"
 inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../m23-generic-member-consumption/provider.scoop", "generic-member-access-object", "../../m23-generic-member-consumption/access-object.scoop", "generic-member-downstream-access-object", "../../m23-generic-member-consumption/downstream.scoop", "runtime-fixture", "../../m23-cli-imported-classes/support/gc.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
 targets = ["aarch64-apple-darwin"]
-tags = ["generics", "protected_generic_members_republish_and_execute_from_artifacts", "stage-golden"]
+tags = ["generics", "protected_generic_members_republish_and_execute_from_artifacts", "stage-golden", "hir-generic-members"]
 
 [[steps]]
 name = "prepare_core"

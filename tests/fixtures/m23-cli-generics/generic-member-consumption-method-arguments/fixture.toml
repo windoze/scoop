@@ -3,7 +3,7 @@ name = "generic-member-consumption-method-arguments"
 inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "generic-member-provider", "../../m23-generic-member-consumption/provider.scoop", "generic-member-method-arguments", "../../m23-generic-member-consumption/method-arguments.scoop", "generic-member-downstream-method-arguments", "../../m23-generic-member-consumption/downstream.scoop", "runtime-fixture", "../../m23-cli-imported-classes/support/gc.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
 targets = ["aarch64-apple-darwin"]
-tags = ["generics", "generic_member_templates_republish_and_execute_from_artifacts", "stage-golden"]
+tags = ["generics", "generic_member_templates_republish_and_execute_from_artifacts", "stage-golden", "hir-generic-members"]
 
 [[steps]]
 name = "prepare_core"
@@ -79,6 +79,8 @@ checks = [
   {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/hir.txt", "snapshot" = "consumer.hir.txt"},
   {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/mir.txt", "snapshot" = "consumer.mir.txt"},
   {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/lir.txt", "snapshot" = "consumer.lir.txt"},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/hir.txt", "not_contains" = "\n  class Box"},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/hir.txt", "contains" = "arguments: Method {"},
 ]
 
 [[steps]]
