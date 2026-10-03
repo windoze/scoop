@@ -66,3 +66,20 @@ MIR/LIR golden 保留。
 | 整数默认参数组合 | `integer-defaults` | 1／5／5 |
 | 托管整数默认值的异常布局 | `integer-exception` | 1／5／5 |
 | 分支、局部值与默认参数组合 | `branch-default`、`branch-combinations` | 2／10／10 |
+
+## 验证与退役
+
+最终只读运行：**35 用例、35 变体、132 个真实进程、122 份阶段／plan golden**，
+包含 18 个成功用例和 17 个完整诊断用例，61 个 artifact 指纹断言。
+17 个诊断的原消息及 operand span 已逐项对照；其中 3 个混合整数相等错误保留
+已有实现 `9950e8f48` 添加的显式 `toInt32()` 转换建议，原源码范围不变。
+
+删除 driver 的 28 份旧阶段快照和 6 个专用 stage helper，删除 HIR 中已迁移的
+诊断／dump 字符串编排，Rust 净减少 603 行。原 `.scoop` 全部保留。
+保留 no-intrinsic／无外部调用、8 种 literal equality plan、typed const 和静态
+编码值、异常 Option<String> 特化、改名后的 const 值等内部检查；driver 的
+共享依赖闭包、metadata/ABI、source fields、直接输入、版本及重建指纹检查保留。
+host target 不可用现在明确失败。清理后 25 项普通 core HIR 测试与 1 项 driver
+综合测试通过，Rust/Python 格式化和完整 workspace lint 通过。
+
+这只是 M23-11 的 core 运算批次；剩余 fixture 与最终全仓验收仍待完成。
