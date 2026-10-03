@@ -1,0 +1,10 @@
+import sourcepolicy.*
+
+fun verifyNominal(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    verifyNominal(payloadValue(Payload(17)) == 17)
+    verifyNominal(Payload(19) == Payload(19))
+    verifyNominal(Payload(19) != Payload(23))
+}
