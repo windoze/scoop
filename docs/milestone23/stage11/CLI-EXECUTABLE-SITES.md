@@ -16,3 +16,4 @@
 | 字段、variant、初始化结果与静态存储 | `types-storage-standalone`、`types-storage-combined` | 14／26 |
 | 构造函数和 object 的实际源上下文 | `types-constructors` | 6／9 |
 | 装箱、拆箱、cast 与类型测试 | `types-shape-standalone`、`types-shape-combined` | 12／18 |
+| 按实际操作选择外部 shape owner | `types-shape-selection-standalone`、`types-shape-selection-combined` | 12／18 |

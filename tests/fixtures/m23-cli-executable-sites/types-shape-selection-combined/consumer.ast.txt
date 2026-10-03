@@ -1,0 +1,28 @@
+SourceFile
+  RootPackage
+  public fun boxPair(value: (UInt16, UInt)): Any
+    =
+      Var value
+  public fun testPair(value: Any): Boolean
+    =
+      Is (UInt16, UInt) false
+        Var value
+  public fun testString(value: Any): Boolean
+    =
+      Is String false
+        Var value
+  public fun boxUnit(value: Unit): Any
+    =
+      Var value
+  public fun smartInteger(value: Any): Int
+    if
+      Is Int false
+        Var value
+      return
+        Var value
+    return
+      IntLiteral 0
+  public struct LocalValue
+  public fun boxLocal(value: LocalValue): Any
+    =
+      Var value
