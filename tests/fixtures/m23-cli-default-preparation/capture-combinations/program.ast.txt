@@ -1,0 +1,48 @@
+SourceFile
+  RootPackage
+  public fun genericCapture<A, B>(seed: A, ignored: B, value: A = <expr>): A
+    =
+      Var value
+  fun forward<X, Y>(left: X, right: Y): Y
+    =
+      Call genericCapture
+        Var right
+        Var left
+  fun localDefault(seed: String): String
+    fun choose(value: String): String
+      Var value
+    return
+      Call choose
+  public fun capturedCallback(seed: String, value: () -> String = <expr>): () -> String
+    =
+      Var value
+  public fun capturedReference(seed: String, value: () -> String = <expr>): () -> String
+    =
+      Var value
+  fun unused(seed: String, value: () -> String = <expr>): () -> String
+    =
+      Var value
+  fun main()
+    Call genericCapture
+      StringLiteral "one"
+      IntLiteral 1
+    Call genericCapture
+      IntLiteral 2
+      StringLiteral "two"
+    Call forward
+      StringLiteral "left"
+      IntLiteral 3
+    Call localDefault
+      StringLiteral "local"
+    Invoke
+      Call capturedCallback
+        StringLiteral "first"
+    Invoke
+      Call capturedCallback
+        StringLiteral "second"
+    Invoke
+      Call capturedReference
+        StringLiteral "first"
+    Invoke
+      Call capturedReference
+        StringLiteral "second"
