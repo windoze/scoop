@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`read` is marked `override` but does not override any method",
+    "notes": [],
+    "origin": {
+      "cone": "66bd4eb41debf2fea21ca0c8b1e54ebd49636812339c6be56fec0f11f7df68b9",
+      "end": 115,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 111
+    },
+    "severity": "error"
+  }
+]
