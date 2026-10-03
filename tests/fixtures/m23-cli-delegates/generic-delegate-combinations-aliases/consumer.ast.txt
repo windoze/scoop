@@ -1,0 +1,36 @@
+SourceFile
+  QualifiedPackage consumer.delegates
+  ImportExact PublicReexport templates.delegateCombinations.Receiver
+  ImportExact PublicReexport templates.delegateCombinations.flat as aliasValue
+  public typealias PairReceiver = Receiver<(Int, Boolean)>
+  public fun exercise<T>(value: T): Int
+    val receiver
+      Call Receiver<(T, Boolean)>
+        TupleLiteral
+          Var value
+          BoolLiteral true
+    return
+      IfExpression
+        Binary Eq
+          FieldAccess aliasValue
+            Var receiver
+          IntLiteral 42
+        IntLiteral 42
+        else
+        IntLiteral 1
+  public fun result(): Int
+    val aliased
+      FieldAccess aliasValue
+        Call PairReceiver
+          TupleLiteral
+            IntLiteral 1
+            BoolLiteral true
+    return
+      IfExpression
+        Binary Eq
+          Var aliased
+          IntLiteral 42
+        Call exercise<Int>
+          IntLiteral 1
+        else
+        IntLiteral 1

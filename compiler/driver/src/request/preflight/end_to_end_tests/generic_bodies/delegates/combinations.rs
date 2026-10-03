@@ -1,16 +1,5 @@
 use super::*;
 
-#[test]
-fn generic_delegate_aliases_cycles_and_local_source_republish_and_execute() {
-    check_cases(&[
-        "aliases",
-        "cycle-direct",
-        "cycle-indirect",
-        "local-source",
-        "foreign-receiver",
-    ]);
-}
-
 fn check_cases(cases: &[&str]) {
     check_fixture_cases("m23-generic-delegate-combinations", cases);
 }

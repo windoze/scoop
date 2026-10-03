@@ -15,3 +15,4 @@
 | 原 Rust 测试 | 正例／负例 | 进程／golden 比较 | 原有期望核对 |
 | --- | --- | --- | --- |
 | `generic_delegate_values_and_order_republish_and_execute` | 7／0 | 98／91 | 21 份旧阶段、0 份旧诊断逐项相同 |
+| `generic_delegate_aliases_cycles_and_local_source_republish_and_execute` | 5／0 | 70／65 | 11 份旧阶段、0 份旧诊断逐项相同；local-source 的私有 extension 初始化路径加入 Cone coordinate／canonical source；MIR 6 处、LIR 1 处仅显示路径变化，符号与指令逐字相同；foreign-receiver 的私有 extension 初始化路径加入 Cone coordinate／canonical source；MIR 6 处、LIR 1 处仅显示路径变化，符号与指令逐字相同 |
