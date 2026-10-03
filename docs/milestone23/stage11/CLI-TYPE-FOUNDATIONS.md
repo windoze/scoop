@@ -10,3 +10,4 @@
 | --- | --- | --- |
 | source facts | `provider` | 3／8 |
 | constructors and inherited members | `constructors`、`inheritance-members` | 6／16 |
+| declaration dispatch order | `dispatch-order` | 3／8 |

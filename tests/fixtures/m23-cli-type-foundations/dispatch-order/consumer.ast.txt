@@ -1,0 +1,16 @@
+SourceFile
+  RootPackage
+  ImportStar Local dependency.dispatch.*
+  public fun read(value: Joined): Int
+    =
+      Binary Add
+        Binary Add
+          Binary Add
+            MethodCall root
+              Var value
+            MethodCall left
+              Var value
+          MethodCall right
+            Var value
+        FieldAccess size
+          Var value
