@@ -29,3 +29,13 @@
 `explicit_core_source_rebuilds_and_can_be_replaced_by_its_prebuilt_artifact` 迁为 `core-locator/`。原 root／helper 坐标与 core extension／consumer 保留，默认 sysroot 始终不存在。cold 按 core、helper、root 顺序编译，warm 零 child；修改 core 后三者的实际产物和缓存键都变化，再构建命中缓存。把 core 源码 locator 改为刚完成的 `.slib` 并删除源码后，core 为 prebuilt 且没有 source cache key，helper／root 仍命中相同 bytes。通过依赖 root 的真实 executable 再次发现这条显式 core 边，程序在普通与 moving GC 下保持 42、43、43。
 
 原 Rust 进程测试与注册已删除。格式化与全 workspace lint 后，退役状态再次只读通过：1 个用例、1 个变体、14 次进程、8 次 golden 比较。此前五项 CLI cache 用例一起关闭更新开关也全部通过，共 5 个变体、73 次进程、52 次 golden 比较。
+
+## 基本进程与 canonical 调度
+
+原真实进程测试逐项迁为独立声明。保留原坐标和源码文本，cold 的 core／source 完成顺序与来源、warm 的零 child 和相同归档字节／缓存键均通过公开 JSON 检查；全部根从一次编译保存四阶段输出。直接 `scoopc` 以同一 core 产物编译原根，所得 `.slib` 与公开构建逐字相同。executable 另通过正式链接并运行普通／moving GC。diamond 按原 beta 在前的 manifest 声明检查实际 core、alpha、beta、root 的 canonical 顺序。每次完成后私有 staging 为空，返回产物仍可读取。
+
+各批删除对应 Rust 注册及失去调用者的 helper，格式化与全 workspace lint 后进行只读验收。
+
+| 原 Rust 测试 | 新用例 | 进程／golden 比较 |
+| --- | --- | --- |
+| `real_process_compiles_then_reuses_core_and_source_cache` | `process-library` | 3／4 |
