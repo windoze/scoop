@@ -1,0 +1,23 @@
+SourceFile
+  RootPackage
+  private class Unrelated()
+  internal open class StorageBase(val number: Int)
+  private class SecretStorage() : StorageBase(<1 args>)
+    private var payload: Int = <expr>
+      IntLiteral 5
+  public interface DeferredGeneric<T>
+  public open class Container()
+    private val storage: SecretStorage = <expr>
+      Call SecretStorage
+    private fun helper
+    internal fun internalValue
+    protected fun base
+    public fun echo
+    public val value: Int <computed>
+      get()
+        Call helper
+    private nested class Hidden
+    internal nested class InternalOnly
+    protected nested class Deferred
+    public nested class Visible
+    public nested object Cache

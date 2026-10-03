@@ -5,9 +5,8 @@ mod interior_mutability;
 
 #[test]
 fn formal_publication_preserves_private_storage_and_nested_declaration_support() {
-    let Some(target) = resolved_target() else {
-        return;
-    };
+    let target =
+        resolved_target().expect("shared nominal publication requires the supported target");
     let sysroot = tempfile::tempdir().unwrap();
     let core = bootstrap_core(sysroot.path(), &target);
     let core_bytes = std::fs::read(core.artifact().path()).unwrap();

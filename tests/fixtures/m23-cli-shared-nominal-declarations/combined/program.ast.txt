@@ -1,0 +1,50 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val value
+      Call container
+    Call verifyType
+      Binary And
+        Binary Eq
+          FieldAccess value
+            Var value
+          IntLiteral 2
+        Binary Eq
+          MethodCall observe
+            Var value
+          IntLiteral 3
+    Call verifyType
+      Binary And
+        Binary Eq
+          MethodCall echo
+            Var value
+            IntLiteral 17
+          IntLiteral 17
+        Binary Eq
+          MethodCall echo
+            Var value
+            StringLiteral "text"
+          StringLiteral "text"
+    Call verifyType
+      Is DeferredGeneric<Int> false
+        MethodCall deferred
+          Var value
+    val visible
+      MethodCall visible<String>
+        Var value
+    Call verifyType
+      Binary RefEq
+        Var visible
+        Var visible
+    Call verifyType
+      Binary Eq
+        MethodCall read
+          FieldAccess Cache
+            Var Container
+        IntLiteral 8

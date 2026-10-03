@@ -1,0 +1,118 @@
+Module
+  global0 $singleton$d93e4c0843600fc841d67304266f6ff82d0059338eef00ba9b2540dcc36d5fad: Cache imported provider=a60122263b8b95977ac4c5d5888d697d17310979a21e9058a64528189400b322 storage=51b0e04861d0b87502ee360a3565b0401c5a0305180ce556bffd89d4e1508677
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Envelope vtable=0 itables=0
+  class SecretStorage vtable=0 itables=0
+  class StorageBase vtable=0 itables=0
+  class Cache vtable=0 itables=0
+  fun verifyType @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call value: Envelope = external1 direct
+      val $dependency.receiver: Envelope
+        Type Envelope
+        Local value
+      call $call.1: Any = external2 direct
+        Type Envelope
+        Local $dependency.receiver
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance String
+            Type Any
+            Local $call.1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call external4 direct
+      val $dependency.receiver: Cache
+        Type Cache
+        GlobalRead $singleton$d93e4c0843600fc841d67304266f6ff82d0059338eef00ba9b2540dcc36d5fad
+      call $dependency.receiver: Int = external3 direct
+        Type Cache
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      call external4 direct
+      call external4 direct
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb1 logic.rhs.1
+      assign $logic.2
+        Type Boolean
+        Binary RefEq
+          Type Cache
+          GlobalRead $singleton$d93e4c0843600fc841d67304266f6ff82d0059338eef00ba9b2540dcc36d5fad
+          Type Cache
+          GlobalRead $singleton$d93e4c0843600fc841d67304266f6ff82d0059338eef00ba9b2540dcc36d5fad
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      val $argument.0: Boolean
+        Type Boolean
+        Local $logic.2
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  str @str0 "illegal state"
+  output executable @fn1
