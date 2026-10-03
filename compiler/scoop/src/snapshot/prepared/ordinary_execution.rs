@@ -15,6 +15,8 @@ use crate::{
     SingleConeCompilerRunner, SnapshotFileError, validate_child_success_artifact,
 };
 
+mod diagnostics;
+
 impl PreparedBuildGraph {
     /// Resolves one ordinary source node through the content-addressed cache
     /// or exactly one paired compiler child while the exclusive key lock is
@@ -79,7 +81,11 @@ impl PreparedBuildGraph {
 
         let success = match response {
             ScoopcResponseEnvelopeV1::Success { result, .. } => result,
-            ScoopcResponseEnvelopeV1::Failure { diagnostics, .. } => {
+            ScoopcResponseEnvelopeV1::Failure {
+                mut diagnostics, ..
+            } => {
+                diagnostics::restore_artifact_locations(&mut diagnostics, completed)
+                    .map_err(OrdinarySourceExecutionError::DiagnosticPath)?;
                 return Err(OrdinarySourceExecutionError::ChildFailure(diagnostics));
             }
         };
@@ -169,6 +175,7 @@ pub enum OrdinarySourceExecutionError {
 
     ChildTransport(ChildTransportError),
     ChildFailure(Vec<StructuredDiagnosticV1>),
+    DiagnosticPath(scoop_protocol::HostPathError),
     OutputLayout(crate::StagingError),
     OutputSnapshot(SnapshotFileError),
     Completion(CompiledCompletionError),
@@ -197,6 +204,10 @@ impl fmt::Display for OrdinarySourceExecutionError {
                 formatter,
                 "compiler child reported {} diagnostic(s)",
                 diagnostics.len()
+            ),
+            Self::DiagnosticPath(source) => write!(
+                formatter,
+                "cannot retain artifact diagnostic locator: {source}"
             ),
             Self::OutputLayout(source) => {
                 write!(formatter, "invalid private child output layout: {source}")
@@ -227,6 +238,7 @@ impl std::error::Error for OrdinarySourceExecutionError {
             Self::RequestPlan(source) => Some(source),
 
             Self::ChildTransport(source) => Some(source),
+            Self::DiagnosticPath(source) => Some(source),
             Self::OutputLayout(source) => Some(source),
             Self::OutputSnapshot(source) => Some(source),
             Self::Completion(source) => Some(source),

@@ -393,7 +393,7 @@ impl ClassifyBuildFailure for OrdinarySourceExecutionError {
                 BuildFailurePhase::ChildOutput,
                 BuildDiagnosticCode::CHILD_OUTPUT_MISSING,
             ),
-            Self::ChildResult(_) => classified(
+            Self::ChildResult(_) | Self::DiagnosticPath(_) => classified(
                 BuildFailurePhase::ChildOutput,
                 BuildDiagnosticCode::CHILD_RESPONSE_MISMATCH,
             ),

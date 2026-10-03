@@ -970,6 +970,8 @@ manifest parser与driver请求归一化不得为当前core设置dependency必须
 
 driver的HIR stage把完整DependencyHirOutput、canonical foundation、production section、公共interface与ABI leaf classifier保存为一个不可缺字段的共有产物。foundation投影、公共interface产生和源码位置补齐只有一份实现；classifier根据HIR中已确定的protocol来源读取当前或direct provider的普通nominal interface。最终strong-profile封装消费这一共有HIR产物、strong MIR与完整LIR，统一执行HIR ODR检查并携带各层公共接口，不为core复制投影或封装流程。
 
+依赖 closure 失败在已加载的 artifact 表仍可用时，将 reader 的实际 slot／provider 关联回该输入 locator，并保留 metadata／semantic field 路径。driver 的结构化错误传递该来源，umbrella 将 child 使用的依赖快照 locator 显示为本次原输入位置；不得先格式化错误再解析文本寻找文件，也不得重新读取或验证 closure 只为恢复诊断上下文。
+
 公开 LIR dump 在同次 registration production 完成后，除本地模块外还显示实际初始化依赖：保留模块的本地 arena `deps`，并为含外部依赖的单元追加 canonical unit、provider 与完整 dependency 序列。数据直接取自已产生的 typed registration，不从源码推断、重读产物或再次验证；观察输出不改变产物格式、指纹或 runtime ABI。
 
 parse完成后，core、普通manifest和single-file使用同一个ParsedSingleConeBuildRequest及production/publication入口。Cone record由已验证当前输入推导；dump、HIR warning、实际依赖记录、codegen、artifact验证与原子发布共用编排，protocol来源仅选择对应typed HIR/MIR/LIR投影。共有production错误保留失败阶段，并在HIR成功后携带其warning及原始源码上下文；CLI分别渲染warning和错误，machine failure response把warning作为独立typed diagnostic追加，不能只把warning拼进error message或在失败时丢弃。

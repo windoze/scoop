@@ -5,6 +5,8 @@ use crate::path::DecodedHostPathCarrier;
 use crate::response::ProtocolConeIdentity;
 use crate::{HostPathCarrier, ProtocolValidationError};
 
+mod artifact_paths;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DiagnosticSeverityV1 {
     Error,

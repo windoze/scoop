@@ -139,11 +139,28 @@ impl SingleConeProductionError {
 fn tool_error(
     error: &SingleConeProductionError,
 ) -> Result<StructuredDiagnosticV1, DiagnosticMappingError> {
+    let dependency = match error {
+        SingleConeProductionError::Validation(
+            crate::SingleConeDependencyValidationError::ExplicitDependencies(error),
+        )
+        | SingleConeProductionError::Preflight(crate::SingleConePreflightError::Dependencies(
+            error,
+        )) => Some(error),
+        _ => None,
+    };
+    let origin = match dependency.and_then(|error| error.artifact_location()) {
+        Some((path, member)) => DiagnosticOriginV1::artifact_path(
+            scoop_protocol::HostPathCarrier::from_path(path).map_err(mapping)?,
+            member,
+        )
+        .map_err(mapping)?,
+        None => DiagnosticOriginV1::None,
+    };
     StructuredDiagnosticV1::new(
         DiagnosticSeverityV1::Error,
         "SCOOPC_BUILD_FAILED".to_owned(),
         error.to_string(),
-        DiagnosticOriginV1::None,
+        origin,
         Vec::new(),
     )
     .map_err(mapping)

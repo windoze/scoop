@@ -1,0 +1,30 @@
+SourceFile
+  QualifiedPackage consumer.delegates
+  ImportStar Local templates.delegates.*
+  public fun result(): Int
+    val first
+      Call Receiver<Int, Boolean>
+        IntLiteral 1
+        BoolLiteral true
+    val second
+      Call Receiver<Int, Boolean>
+        IntLiteral 2
+        BoolLiteral false
+    assign .shared
+      Var first
+      IntLiteral 42
+    return
+      FieldAccess shared
+        Var second
+  public fun otherFirst(): Int
+    =
+      FieldAccess shared
+        Call Receiver<Boolean, Boolean>
+          BoolLiteral true
+          BoolLiteral false
+  public fun otherSecond(): Int
+    =
+      FieldAccess shared
+        Call Receiver<Int, Int>
+          IntLiteral 1
+          IntLiteral 2

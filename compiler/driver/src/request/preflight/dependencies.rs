@@ -7,6 +7,7 @@ use scoop_slib::{
 };
 use scoop_wire::HashError;
 
+mod diagnostic;
 mod graph;
 mod load;
 mod summary;
@@ -148,6 +149,11 @@ pub enum ExplicitDependencyValidationError {
         source: Box<ArtifactManifestSummaryError>,
     },
     Closure(Box<CrossConeArtifactClosureValidationError>),
+    ArtifactClosure {
+        input: ExplicitDependencyArtifactInput,
+        semantic_path: String,
+        source: Box<CrossConeArtifactClosureValidationError>,
+    },
     CompilerProtocols(scoop_slib::CrossConeProtocolImportError),
     CurrentConeArtifact {
         input: ExplicitDependencyArtifactInput,
@@ -217,7 +223,7 @@ impl fmt::Display for ExplicitDependencyValidationError {
             Self::Summary { input, source } => {
                 write!(formatter, "cannot summarize dependency {input}: {source}")
             }
-            Self::Closure(source) => {
+            Self::Closure(source) | Self::ArtifactClosure { source, .. } => {
                 write!(formatter, "dependency closure is not valid: {source}")
             }
             Self::CompilerProtocols(source) => source.fmt(formatter),
@@ -315,7 +321,7 @@ impl std::error::Error for ExplicitDependencyValidationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Summary { source, .. } => Some(source.as_ref()),
-            Self::Closure(source) => Some(source.as_ref()),
+            Self::Closure(source) | Self::ArtifactClosure { source, .. } => Some(source.as_ref()),
             Self::CompilerProtocols(source) => Some(source),
             Self::ManifestIdentity { source, .. } => Some(source),
             Self::CurrentConeArtifact { .. }

@@ -1,6 +1,6 @@
 # M23-11 泛型委托 CLI 迁移
 
-本记录按功能列出已完成的迁移；其余委托与产物损坏测试继续保留原入口，直到相同断言已迁移并验证。总验收仍以统一 Python 入口的完整只读运行结果为准。
+本记录按功能列出已完成的委托迁移。原委托文件 harness、损坏产物 helper 与旧快照均已删除；原 Scoop 源码保留。总验收仍以统一 Python 入口的完整只读运行结果为准。
 
 ## 共同路径与结构断言
 
@@ -23,7 +23,7 @@
 | `generic_delegate_language_errors_have_source_diagnostics` | 0／18 | 54／0 | 0 份旧阶段、18 份旧诊断逐项相同 |
 | `generic_delegate_initializer_local_functions_republish_and_execute` | 2／0 | 28／26 | 5 份旧阶段、0 份旧诊断逐项相同；LIR 仅追加实际初始化依赖；每个委托单元恰好依赖同一 provider 的 Trace，原正文逐字相同 |
 | `generic_delegate_initializer_closures_republish_and_execute` | 6／0 | 84／78 | 13 份旧阶段、0 份旧诊断逐项相同；LIR 仅追加实际初始化依赖；每个委托单元恰好依赖同一 provider 的 Trace，原正文逐字相同；LIR 仅追加实际初始化依赖；每个委托单元恰好依赖同一 provider 的 Trace，原正文逐字相同；LIR 仅追加实际初始化依赖；每个委托单元恰好依赖同一 provider 的 Trace，原正文逐字相同；LIR 仅追加实际初始化依赖；每个委托单元恰好依赖同一 provider 的 Trace，原正文逐字相同；LIR 仅追加实际初始化依赖；每个委托单元恰好依赖同一 provider 的 Trace，原正文逐字相同 |
-| `generic_delegate_initializer_references_republish_and_execute` | 15／0 | 210／195 | 30 份旧阶段、0 份旧诊断逐项相同；LIR 仅追加实际初始化依赖；每个委托单元恰好依赖同一 provider 的 Trace，原正文逐字相同；LIR 仅追加实际初始化依赖；每个委托单元恰好依赖同一 provider 的 Trace，原正文逐字相同；LIR 仅追加实际初始化依赖；每个委托单元恰好依赖同一 provider 的 Trace，原正文逐字相同；LIR 仅追加实际初始化依赖；每个委托单元恰好依赖同一 provider 的 Trace，原正文逐字相同；LIR 仅追加实际初始化依赖；每个委托单元恰好依赖同一 provider 的 Trace，原正文逐字相同；LIR 仅追加实际初始化依赖；每个委托单元恰好依赖同一 provider 的 Trace，原正文逐字相同；LIR 仅追加实际初始化依赖；每个委托单元恰好依赖同一 provider 的 Trace，原正文逐字相同；LIR 仅追加实际初始化依赖；每个委托单元恰好依赖同一 provider 的 Trace，原正文逐字相同；LIR 仅追加实际初始化依赖；每个委托单元恰好依赖同一 provider 的 Trace，原正文逐字相同；LIR 仅追加实际初始化依赖；每个委托单元恰好依赖同一 provider 的 Trace，原正文逐字相同；LIR 仅追加实际初始化依赖；每个委托单元恰好依赖同一 provider 的 Trace，原正文逐字相同；LIR 仅追加实际初始化依赖；每个委托单元恰好依赖同一 provider 的 Trace，原正文逐字相同；LIR 仅追加实际初始化依赖；每个委托单元恰好依赖同一 provider 的 Trace，原正文逐字相同；LIR 仅追加实际初始化依赖；每个委托单元恰好依赖同一 provider 的 Trace，原正文逐字相同；LIR 仅追加实际初始化依赖；每个委托单元恰好依赖同一 provider 的 Trace，原正文逐字相同 |
+| `generic_delegate_initializer_references_republish_and_execute` | 15／0 | 210／195 | 30 份旧阶段、0 份旧诊断逐项相同；LIR 仅追加实际初始化依赖；每个委托单元恰好依赖同一 provider 的 Trace，原正文逐字相同（15 个用例逐项核对） |
 
 ## Sibling 初始化身份
 
@@ -32,3 +32,13 @@
 普通 C helper 直接检查本次左右 image：左侧两个单元、右侧五个；每个左侧单元在右侧恰好出现一次，registration、cell、delegate storage 和 failure root 均为相同实际地址，ODR group/member 身份一致。两个 sibling 的输入、完整 link plan 和最终符号表仍受声明式期望约束。没有手工 startup 或临时链接入口。
 
 只读验收通过：1 个用例／变体、15 次进程、17 个 golden。原 Rust sibling harness 和六份旧快照已删除。
+
+## 原始消费与五个损坏产物
+
+`generic_delegated_properties_republish_and_execute_from_artifacts` 迁为 `generic-delegate-consumption-consumer`。三份原源码、坐标及 consumer 的 HIR/MIR/LIR 正文保持；普通与 moving GC 均检查原返回值、GC 收集及三个 ODR／LazyAccess 单元。
+
+原 Rust typed mutation 生成的五个反例已逐项对照原 reader 错误，迁为声明式二进制片段替换。每次先正式编译有效产物，完整摘要必须与基准一致；每份变体同时更新 container/member 摘要并检查最终摘要，使正式 compiler 到达原 LIR 语义边界。删除 delegate storage、failure root、initializer callable、initialization unit 及交换 initializer/ensure 分别保留原表长度、SurfaceMismatch、initializer_role 断言。公共 Python runner 只作唯一字节替换，不解析 IR 或 CBOR；生成脚本和临时 Rust 入口未保留。
+
+迁移暴露的诊断来源丢失已修复：driver 在已加载依赖表仍存在时关联实际 artifact slot/provider 与 locator；父进程从本次快照映射恢复原依赖路径，primary 和 note 分别保留位置。原错误详情不变，不增加产物解码、语义验证或协议字段。五个完整 JSON 期望均要求正确的 consumer 路径、`lir/cone-production/4` 内成员及具体错误；失败不得发布 `.slib`。
+
+只读验收：本用例 19 次进程、13 个 golden；另复验诊断、源码位置和 cache 共 13 个用例、123 次进程、100 个 golden。三个纯内存测试覆盖 artifact slot/provider 定位、原始字节路径和独立 note 映射。

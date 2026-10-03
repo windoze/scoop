@@ -3,7 +3,6 @@ use super::*;
 mod adapters;
 mod constructors;
 mod coroutines;
-mod delegates;
 mod initialization;
 mod machine;
 mod members;

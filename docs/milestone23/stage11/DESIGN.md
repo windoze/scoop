@@ -185,6 +185,8 @@ single-file root 的 core 匹配使用 edge 中实际记录的 HIR/MIR/LIR seman
 
 parser/HIR 的现有诊断已经具有 file/span 和 note；driver 应在丢弃源码上下文前把这些索引映射成 `SourceIdentity` 与真实 byte span。拓展当前 report 的 source 映射，不先调用 `error.to_string()` 再解析其中的 `source 0` 或路径文本。
 
+依赖 reader 失败时，driver 在释放已加载输入表之前按实际 artifact slot／provider 关联 locator，并保留原 semantic field／member。父进程借本次依赖快照关系映射回原 locator，结构化通道不把它降级为无位置 tool error；关联只读取已有数据，不重新解码产物。
+
 每条 primary／note 独立使用实际来源：
 
 - 当前源码或依赖定义：已有 `SemanticSourceSpan { cone, logical_path, span }`。依赖来源使用已有 definition-source 记录，不冒充调用者；optional 源码文本缺失时仍能展示 coordinate、logical path 和 byte span。

@@ -1,0 +1,6 @@
+SourceFile
+  QualifiedPackage downstream.delegates
+  ImportExact Local consumer.delegates.result
+  public fun check(): Int
+    =
+      Call result
