@@ -1,0 +1,14 @@
+SourceFile
+  RootPackage
+  public struct Token
+  public struct Payload
+    field marker: Token
+    field ready: Boolean
+  public interface Deferred<T>
+  public class Later(), Deferred<Boolean>
+  public class Published()
+    public fun deferred
+    public fun ready
+  public fun pass(value: Token): Token
+    =
+      Var value
