@@ -1,0 +1,22 @@
+SourceFile
+  RootPackage
+  public struct Token<T>
+  public class DerivedHost()
+    public fun nominal
+    public fun tuple
+  public fun concrete(left: Token<Unit>, right: Token<Unit>, unit: Unit): Boolean
+    val host
+      Call DerivedHost
+    MethodCall nominal<Unit>
+      Var host
+      Var left
+      Var right
+    return
+      MethodCall tuple<Unit>
+        Var host
+        TupleLiteral
+          Var left
+          Var unit
+        TupleLiteral
+          Var right
+          Var unit

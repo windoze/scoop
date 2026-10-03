@@ -250,6 +250,10 @@ core 的 `Option` 语法使用既有 imported protocol 的 typed owner/variant/p
 | static/dynamic function adapter 及 environment | 既有目标 `FunctionShape` 的 Structural root，source signature 仍属于 member key |
 | dispatch/boxing adjust | implementor/payload 的既有 root；slot 和目标实现是 typed 依赖 |
 
+`Unit` 派生相等可由多个 Cone 独立请求，使用其 exact type 的 `StructuralType` ODR 组；
+普通 `Unit` 类型、布局与装箱继续使用原名义归属。该选择只改变派生相等 helper 的
+materialization，不新增生成身份或运行时入口。
+
 函数值适配的参数逆变与结果协变复用普通 subtype 转换，包括 `Ptr`／`FunPtr` 装箱、引用上行和嵌套函数型变；指针类型参数与原生函数签名保持不变。closure、动态类型检查及 bridge 调用是函数形状描述符的实际需求根，LIR 按完整 exact function identity 发射 Structural ODR 描述符及签名所需的类型引用。closure 的 parent 指向精确函数形状，vtable 第 0 槽固定为保留挂起性及参数个数的 Any 动态 invoke；参数解包、调用原 typed invoke 和结果装箱由普通 managed CFG 实现。目标 adapter 执行相反方向的转换，运行时按完整签名检查型变。TD 和 bridge 不得随消费者所用的检查目标集合变化；提供方无需预见下游类型。普通正文、默认参数和 generic delegate initializer 共用这条路径，泛型仍保持单态化。 函数签名及函数型变所需的 interface 直接父关系通过共有类型登记的必需 field 29 发布，使用 `Absent | Signature | Interface` 封闭表示；当前 cone-production/3、历史 strong-production/16 与 runtime metadata ABI 2 同步拒绝旧布局产物。泛型引用实参消除保守装箱时保留显式上行转换及操作数原始类型，捕获字段仍按其实际声明类型读取。 实际 closure、adapter 及动态检查的函数签名所引用的私有 source nominal 进入共有表示闭包，包括 tuple 或嵌套函数中的类型；这些用途由原 HIR 遍历一次收集，无关私有声明继续保持本地。
 
 物理 producer 和 semantic owner 分开。普通 Strong 引用携带真实定义方；ODR 引用携带 group/member。reader 可以记录某个物理候选所在 provider，但该候选位置不进入 ODR identity 或 canonical relocation。

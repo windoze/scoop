@@ -1,8 +1,5 @@
 use super::*;
-use scoop_identity::{
-    CallableOwner, GeneratedCallableKey, PersistentGeneratedCallableId,
-    StrongCallableDefinitionOwner,
-};
+use scoop_identity::{CallableOwner, GeneratedCallableKey, PersistentGeneratedCallableId};
 use scoop_slib::SharedMirEqualityValidationError as Error;
 
 mod applications;

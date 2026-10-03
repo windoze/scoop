@@ -1,0 +1,22 @@
+Module
+  fun unitDefault @fn0(left: Unit, right: Unit, value: Boolean) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        Local value
+  fun inProvider @fn1(left: Unit, right: Unit) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn2 direct
+        Type Unit
+        Local left
+        Type Unit
+        Local right
+      return
+        Type Boolean
+        Local $call.1
+  fun $derived.equals.0 @fn2(this: Unit, other: Unit) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  output library

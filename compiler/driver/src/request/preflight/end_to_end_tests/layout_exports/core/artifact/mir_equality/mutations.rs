@@ -29,9 +29,7 @@ pub(super) fn check(replay: &Replay<'_>) {
                     .iter()
                     .filter(|record| {
                         record.subject()
-                            != mir::CallableSignatureSubject::strong(CallableOwner::Generated(
-                                callable,
-                            ))
+                            != mir::CallableSignatureSubject::from(binding.implementation())
                     })
                     .cloned()
                     .collect(),

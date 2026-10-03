@@ -1,0 +1,159 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  fun unitValue @fn0() -> Unit
+    bb0 entry
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call @fn0 direct
+      val value: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.argument.0: Unit
+        Type Unit
+        Local value
+      val $dependency.argument.1: Unit
+        Type Unit
+        Local value
+      val $dependency.parameter.left: Unit
+        Type Unit
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Unit
+        Type Unit
+        Local $dependency.argument.1
+      call $dependency.receiver: Boolean = external0 direct
+        Type Unit
+        Local $dependency.parameter.left
+        Type Unit
+        Local $dependency.parameter.right
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external1 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      val $dependency.argument.0: Unit
+        Type Unit
+        Local value
+      val $dependency.argument.1: Unit
+        Type Unit
+        Local value
+      val $dependency.parameter.left: Unit
+        Type Unit
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Unit
+        Type Unit
+        Local $dependency.argument.1
+      call $dependency.parameter.value: Boolean = @fn2 direct
+        Type Unit
+        Local $dependency.parameter.left
+        Type Unit
+        Local $dependency.parameter.right
+      call $dependency.receiver: Boolean = external2 direct
+        Type Unit
+        Local $dependency.parameter.left
+        Type Unit
+        Local $dependency.parameter.right
+        Type Boolean
+        Local $dependency.parameter.value
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb3 if.then.3
+      val $default.local.0: String
+        Type String
+        StringConst @str1
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.2
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external1 direct
+        Type IllegalStateException
+        Local $new.2
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.2
+    bb4 if.merge.4
+      call $dependency.receiver: Boolean = @fn2 direct
+        Type Unit
+        Local value
+        Type Unit
+        Local value
+      branch bb5 bb6
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb5 if.then.5
+      val $default.local.0: String
+        Type String
+        StringConst @str2
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.3
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external1 direct
+        Type IllegalStateException
+        Local $new.3
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.3
+    bb6 if.merge.6
+      return
+  fun $derived.equals.0 @fn2(this: Unit, other: Unit) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  str @str0 "illegal state"
+  str @str1 "illegal state"
+  str @str2 "illegal state"
+  output executable @fn1

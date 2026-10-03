@@ -3,9 +3,9 @@
 use std::fmt;
 
 use scoop_identity::{
-    CborIdentityRecord, ExactTypeKey, OdrGroupId, OdrMemberDiscriminator, OdrMemberId,
-    OdrMemberIdentityError, OdrMemberKey, OdrMemberRole, PersistentExactTypeId, PersistentTypeId,
-    SpecializationKey,
+    CborIdentityRecord, CoreBuiltinNominal, ExactTypeKey, OdrGroupId, OdrMemberDiscriminator,
+    OdrMemberId, OdrMemberIdentityError, OdrMemberKey, OdrMemberRole, PersistentExactTypeId,
+    PersistentTypeId, SpecializationKey,
 };
 use scoop_wire::HashError;
 
@@ -92,10 +92,10 @@ impl ExactOwnerRoot {
         role: OdrMemberRole,
         discriminator: OdrMemberDiscriminator,
     ) -> Result<Self, ExactOwnerRootError> {
-        if matches!(
-            exact.key(),
-            ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. }
-        ) {
+        // Builtin Unit equality can be requested independently in each Cone.
+        let source_nominal = matches!(exact.key(), ExactTypeKey::Nominal(owner)
+            if *owner != CoreBuiltinNominal::Unit.identity_record().id());
+        if source_nominal || matches!(exact.key(), ExactTypeKey::NominalApplication { .. }) {
             return Err(ExactOwnerRootError::ExpectedStructuralType);
         }
         let group = CborIdentityRecord::from_key(SpecializationKey::StructuralType {

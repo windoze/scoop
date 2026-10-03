@@ -2,6 +2,7 @@ use super::*;
 use source_dispatch::with_source;
 mod generic;
 mod structural;
+mod unit;
 
 #[test]
 fn derived_equality_is_available_while_source_defaults_are_prepared() {

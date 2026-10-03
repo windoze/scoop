@@ -1,0 +1,10 @@
+SourceFile
+  RootPackage
+  public fun unitDefault(left: Unit, right: Unit, value: Boolean = <expr>): Boolean
+    =
+      Var value
+  public fun inProvider(left: Unit, right: Unit): Boolean
+    =
+      Binary Eq
+        Var left
+        Var right
