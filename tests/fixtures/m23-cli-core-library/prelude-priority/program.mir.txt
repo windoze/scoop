@@ -1,0 +1,19 @@
+Module
+  fun userCoreOffset @fn0(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call value: Int = @fn0 direct
+        Type Int
+        Local $parameter.value
+      return
+  output executable @fn1
