@@ -2,6 +2,8 @@
 
 本记录按已迁移批次更新。历史单文件覆盖与剩余 driver／stage／program-link 文件测试分别计数，不能用 Rust workspace 总通过数代替 Python 总验收。
 
+公开 CLI 的缓存迁移与验证另记于 [CLI-CACHE.md](CLI-CACHE.md)。
+
 ## 1. 历史端到端用例
 
 原 `compiler/driver/tests/fixtures.rs` 已在 `c02bd245c` 退役，留下的合并快照此前不再被执行。此次从原已接受快照和 runner 的 moving 清单恢复全部条件，统一调用正式 `scoop build`，从同一次 root 编译取得四个 stage dump，再执行同次产物。
