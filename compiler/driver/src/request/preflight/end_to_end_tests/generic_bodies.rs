@@ -4,7 +4,6 @@ mod adapters;
 mod constructors;
 mod coroutines;
 mod delegates;
-mod globals;
 mod host_properties;
 mod initialization;
 mod iteration;

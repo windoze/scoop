@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "cannot assign value of type Boolean to property `answer` of type Int",
+    "notes": [],
+    "origin": {
+      "cone": "ce04e810dbcecf41a6274120169c35ec0fbda5734e1c67751cd1ebb546a40721",
+      "end": 79,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 75
+    },
+    "severity": "error"
+  }
+]

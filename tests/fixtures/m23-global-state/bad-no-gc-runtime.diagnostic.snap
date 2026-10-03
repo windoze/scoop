@@ -1,3 +1,0 @@
-span=102..108
-expression=answer
-`@NoGC` code may not call managed function `$get$answer`

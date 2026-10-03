@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@NoGC` code may not call managed function `$get$answer`",
+    "notes": [],
+    "origin": {
+      "cone": "fd02b95b340e0aef3a17599046d56380ac2585995a110f3f8e87298ab59ba9fb",
+      "end": 108,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 102
+    },
+    "severity": "error"
+  }
+]

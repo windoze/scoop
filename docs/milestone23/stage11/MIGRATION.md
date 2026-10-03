@@ -383,3 +383,4 @@ parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end，
 | `declaration_views_share_calls_and_reference_applicability` | `m23-shared-declaration-views` | 2／6 | 42／26 | 6 份阶段、6 份诊断逐项相同 |
 | `libraries_without_initialization_do_not_require_a_unit_result_record` | `m23-demanded-initialization` | 2／0 | 24／26 | 4 份阶段、0 份诊断逐项相同；combined 的私有 Cache 初始化诊断路径改为 Cone coordinate／canonical source；MIR 6 处、LIR 1 处仅显示路径变化，符号、类型与指令逐字相同 |
 | `generic_derived_equality_republishes_and_executes` | `m23-generic-equality` | 8／6 | 114／104 | 24 份阶段、6 份诊断逐项相同 |
+| `generic_global_state_republishes_and_executes_from_artifacts` | `m23-global-state` | 11／9 | 159／143 | 33 份阶段、9 份诊断逐项相同 |

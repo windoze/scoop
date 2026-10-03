@@ -1,0 +1,50 @@
+SourceFile
+  QualifiedPackage consumer.globals
+  private class Cell(val number: Int)
+  private enum State<T>
+    Empty
+    Item(T)
+  private var stored: State<Cell> = <expr>
+  public fun exercise<T>(value: T): Int
+    assign stored
+      Call Item
+        Call Cell
+          IntLiteral 42
+    val saved
+      Var stored
+    assign stored
+      Var Empty
+    val allocated
+      Call Cell
+        IntLiteral 0
+    if
+      Binary Ne
+        FieldAccess number
+          Var allocated
+        IntLiteral 0
+      return
+        IntLiteral 1
+    val cleared
+      WhenExpression
+        Var stored
+        arm Empty
+          BoolLiteral true
+        arm Item(cell)
+          BoolLiteral false
+    if
+      Unary Not
+        Var cleared
+      return
+        IntLiteral 2
+    return
+      WhenExpression
+        Var saved
+        arm Item(cell)
+          FieldAccess number
+            Var cell
+        arm Empty
+          IntLiteral 3
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0

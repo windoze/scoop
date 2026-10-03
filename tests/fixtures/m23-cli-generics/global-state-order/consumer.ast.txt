@@ -1,0 +1,20 @@
+SourceFile
+  QualifiedPackage consumer.globals
+  ImportExact Local templates.globals.ordered
+  public fun exercise<T>(value: T): Int
+    if
+      Binary Ne
+        Call ordered<T>
+          Var value
+          BoolLiteral false
+        IntLiteral 42
+      return
+        IntLiteral 1
+    return
+      Call ordered<T>
+        Var value
+        BoolLiteral true
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0

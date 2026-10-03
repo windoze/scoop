@@ -1,0 +1,18 @@
+SourceFile
+  QualifiedPackage consumer.globals
+  ImportExact Local templates.globals.initialized
+  public fun exercise<T>(value: T): Int
+    if
+      Binary Ne
+        Call initialized<Int>
+          IntLiteral 0
+        IntLiteral 42
+      return
+        IntLiteral 1
+    return
+      Call initialized<T>
+        Var value
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0
