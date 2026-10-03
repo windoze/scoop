@@ -1,0 +1,49 @@
+SourceFile
+  RootPackage
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+    @NoGC
+  fun increment(value: Int): Int
+    =
+      Binary Add
+        Var value
+        IntLiteral 1
+  fun main()
+    var value
+      IntLiteral 7
+    val callback: FunPtr<(Int) -> Int>
+      CallableReference 0 increment
+    @Unsafe block
+      val pointer
+        Call addressOf
+          Var value
+      Call verifyDefault
+        Binary Eq
+          MethodCall load
+            Call accessPointer
+              Var pointer
+          IntLiteral 7
+      MethodCall store
+        Call accessPointer
+          Var pointer
+        IntLiteral 11
+      Call verifyDefault
+        Binary Eq
+          Var value
+          IntLiteral 11
+    Call verifyDefault
+      Binary Eq
+        Call accessFunctionPointer<Int>
+          IntLiteral 13
+          Var callback
+        IntLiteral 13
+    Call verifyDefault
+      Binary Eq
+        Call accessFunctionPointer<String>
+          StringLiteral "pointer"
+          Var callback
+        StringLiteral "pointer"

@@ -1,0 +1,16 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+@NoGC fun increment(value: Int): Int = value + 1
+
+fun main() {
+    var value = 7
+    val callback: FunPtr<(Int) -> Int> = ::increment
+    @Unsafe {
+        val pointer = addressOf(value)
+        verifyDefault(accessPointer(pointer).load() == 7)
+        accessPointer(pointer).store(11)
+        verifyDefault(value == 11)
+    }
+    verifyDefault(accessFunctionPointer<Int>(13, callback) == 13)
+    verifyDefault(accessFunctionPointer<String>("pointer", callback) == "pointer")
+}
