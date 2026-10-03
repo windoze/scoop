@@ -946,12 +946,24 @@ base class的全部constructor body与初始化项先于derived自有字段。�
 
 #### 9.1.6 GC-free release block
 
-普通final class可以声明至多一个受限的release block：
+M24 为普通 final class 增加至多一个 `release { ... }`，在遗漏显式释放时兜底清理 native resource。本节是待实现的 M24 契约；实现范围、跨 Cone 数据流及验收见 [M24 设计](../milestone24/DESIGN.md)。
 
 ```scoop
-final class NativeOwner(
-    private var handle: Option<Ptr<UInt8>>,
+@Extern(name = "free")
+fun nativeFree(address: Ptr<Unit>)
+
+final class NativeOwner public constructor(
+    private var handle: Option<Ptr<Unit>>,
 ) {
+    public fun close() {
+        val owned = handle
+        handle = None
+        when (owned) {
+            Some(value) -> @Unsafe { nativeFree(value) }
+            None -> {}
+        }
+    }
+
     release {
         when (handle) {
             Some(value) -> @Unsafe { nativeFree(value) }
@@ -961,20 +973,39 @@ final class NativeOwner(
 }
 ```
 
-`release { ... }`是class member位置的contextual语法，不是名为`release`的方法。普通`fun release()`仍可作为显式释放API存在。release block没有名称、参数、返回类型、visibility、annotation或modifier；它不进入lookup、overload、override、vtable/itable、callable reference或反射表面，源码也不能直接调用。block正常完成结果固定为`Unit`，`return`、`throw`与挂起均非法。
+`release` 只在 type body 的 member 起始位置、后接 block 时作为 contextual keyword。`fun release()`、局部变量及普通参数中的同名 identifier 保持原义。release block 没有名称、参数、返回类型、visibility、annotation 或 modifier；不进入 lookup、overload、override、dispatch 或 callable reference。正常完成结果固定为 `Unit`；block 内的 `return`、`throw`、`try`、挂起及局部 callable 声明均为编译错误。`while`、`break`、`continue`、`when` 和值绑定沿用已有规则，但所有实际执行的操作须满足下述 effect。
 
-- owner必须是普通、可实例化的final class。`open`/`abstract`/`sealed` class、interface、struct、enum、annotation class、intrinsic class、`object`/companion及compiler-generated class均不能声明release block；`Throwable`的任意子类也不能声明，因为异常runtime会按值复制异常payload。合法owner可以是static nested或generic final class，也可以继承一个不带release block的base class，但release语义不继承、不覆写且不形成hook chain；
-- release block没有普通`this`，而是在独立的reclaiming-receiver上下文中定型。它只可direct读取本owner自己声明、确有backing storage且fully resolved exact type满足`ReleaseValue`的primary/body stored property；该读取始终绕过getter并直接load backing field，即使stored property另有explicit accessor，结果也是只读release value。inherited、computed/accessor-only或delegated property、任何getter/setter调用、method、extension、`super`及任何managed field均不可用；field write、receiver传参/返回/存储/捕获/装箱/cast/取址、root/handle/pin及把当前对象转回managed ref均为编译错误；
-- `ReleaseValue(T)`要求fully resolved exact `T`为GC-free，且其递归表示不含GC/root/callback capability。M24按typed core identity封闭排除`PinnedPtr`、`GcHandle`、`FunPtr`、`ForeignCallback`及其aggregate/`Option`包装；它们虽为GC-free值，却可能固定、保活或回调managed对象。普通integer、`Ptr<Unit>`、pointee也满足`ReleaseValue`的`Ptr<T>`、相应`Option<Ptr<T>>`及只由release value组成的aggregate合法；
-- generic owner可以导出release template。body所读取字段若依赖type parameter，编译器为每个fully specialized application验证typed `RequiresReleaseValue`条件；不能证明的application是编译错误。未被release body读取的managed字段不影响合法性；
-- release block隐式满足比普通`@NoGC`更严格的release-safe effect，但本身不是`@NoGC` annotation target。所有local、temporary、expression、field read、参数与非`Unit`结果必须满足`ReleaseValue`；不得分配managed对象、触发safepoint/GC、抛异常、挂起、调用ordinary managed callable、Scoop ABI extern或virtual/interface/indirect dispatch，执行managed/native线程状态转换，操作root/handle/pin/thread/GC入口或回调Scoop。它可以调用经传递验证为release-safe且目标静态可确定的`@NoGC` Scoop helper，包括top-level function与GC-free value-type的direct method；callee既有NoGC body不得包含C extern或runtime transition，M24不生成release-context clone。release block还可以直接调用签名C-FFI-safe且全部参数/非`Unit`结果满足`ReleaseValue`的C ABI extern leaf；后者不经过managed线程transition且不得foreign unwind或回调Scoop。普通`@NoGC`拼写本身不足以证明release-safe；
-- `@Unsafe`规则不因release上下文放宽。C ABI extern与raw pointer操作仍须写在`@Unsafe` callable/block中；release block中访问`@ThreadLocal`非法，因为执行线程不属于语言契约；
-- 分配时对象的内部release-ready状态为false。只有最外层constructor正常返回、构造表达式即将发布完整对象时，生成代码才把它设为true；构造失败对象不运行release block，构造途中已经取得的unmanaged resource必须由构造代码显式清理。该状态不是源码property或通用field-initialization bitmap，源码/FFI不能读取或修改；
-- collector只在release-ready对象已被证明逻辑死亡且其storage即将真正reclaim时，通过exact TypeDescriptor登记的静态hook同步执行该block。marked/live/pinned/handle-rooted对象不执行；moving的from-space旧副本不是逻辑死亡且绝不执行，ready状态随存活对象搬迁；hook返回前storage保持完整可读，返回后立即失效。详细ABI与顺序见runtime spec 2.1、2.2和3.8；
-- hook是best effort：不保证何时发生GC、对象间顺序、执行线程、native release结果或进程退出时调用；shutdown不做全堆finalization pass。但一次正常collection已经决定回收一个ready对象时，必须在poison、复用或unmap其storage之前尝试一次且至多一次；
-- 程序仍应提供显式`close`/`release`并用`try/finally`管理资源。显式释放应先把handle字段置为`None`等合法inert state，再释放取出的资源，使以后可能发生的hook成为no-op。语言不自动生成close，也不公开arm/disarm或手动调用hook的能力。
+**owner 与字段读取：**
 
-release block不提供GC finalizer语义：不能观察managed对象图、复活对象、依赖另一个hook的顺序或承担及时释放、事务、锁、flush等正确性责任。
+- owner 必须是普通、可实例化的 final class，默认 final 也合法；`open`/`abstract`/`sealed`、interface、struct、enum、annotation class、intrinsic class、object/companion 及 compiler-generated class 均不能声明。`Throwable` 的继承闭包同样排除，因为异常记录会按值复制 payload。static nested 与 generic final class 合法；可以继承普通无 hook 基类并实现 interface，release 不继承、不覆写、不形成 hook chain。
+- block 没有 managed `this`，只在独立的 reclaiming-receiver 上下文中读取本 owner 自己声明的 backing field。primary property 与 body stored property 均可读；即使 stored property 有 custom getter，此处仍直接读取 backing storage。computed、delegated、inherited property 及 primary constructor 的非 property 参数不提供这样的字段。局部绑定按普通词法规则遮蔽字段，不能用 `this` 绕过遮蔽。
+- 字段读取取得普通值副本；字段赋值、复合赋值、更新及 `addressOf(field)` 均非法。对副本的值类型投影、解构、局部更新及合法 native pointer 操作遵守现有规则。源对象不能被传参、返回、存储、捕获、装箱、cast、比较、取址或取得 root/handle/pin；`super`、本对象的 getter/setter/method/extension 不能被调用。
+
+**`ReleaseValue`：**
+
+`ReleaseValue(T)` 是普通类型属性：exact `T` 必须 GC-free，并且其实际递归表示不包含已解析 compiler protocol 所指的 `PinnedPtr`、`GcHandle`、`FunPtr` 或 `ForeignCallback`。判定使用真实 typed declaration/representation，不使用 FQN、字段形状或 core 来源资格。它不建立新的源码 trait、annotation 或资源所有权类型。
+
+Boolean、已实现的数值类型、Unit、只由合格字段组成的 struct/enum/tuple、相应 Option 均可用；enum 要求全部 variant 合格。`Ptr<Unit>` 可用，`Ptr<T>` 还要求 pointee `T` 满足同一条件，不能通过 `Ptr<GcHandle<...>>` 绕过限制。指针间接形成的合法递归类型按有限类型图求属性固定点，不能因回访节点就报错或无限展开。只检查参与表示的参数，phantom type argument 不额外受限；`sizeOf<T>()` 等纯布局查询也不因类型实参而产生运行时 `T` 值。
+
+block 的字段读取、local、temporary、实参和结果都须满足该条件；未被读取的 managed 字段不影响 owner 合法性。generic release template 保存实际需要的 `RequiresReleaseValue` 条件，沿已有类型替换规则传播；闭合 application 即使只出现在签名、别名或字段中也必须满足，不能等到构造或回收才检查。依赖 `ref` bound 的不可能条件在 release 定义处诊断。`Ptr<Unit>` 和 integer 的合法性不证明其地址来源、生命周期或 ownership；通过 unsafe/native 代码访问 GC heap、隐藏 managed reference 或恢复源对象仍违反 unsafe/FFI 契约，编译器不增加通用来源追踪或防伪机制。
+
+**release-safe 操作与调用：**
+
+- release 是比普通 `@NoGC` 更窄的执行上下文，不是 `@NoGC` annotation target，也不新增公开 `@ReleaseSafe`。禁止 managed allocation/ref、boxing、String/Array/closure、异常、suspend、safepoint/poll、初始化 ensure、动态/接口/间接调用及 root/handle/pin/thread/GC runtime 操作。
+- 直接调用的 Scoop helper 必须有实际 Scoop 正文、满足既有 NoGc 合同，并经定义方推导为传递 release-safe。普通顶层/扩展函数、值类型 direct method/accessor、值类型 secondary constructor 及编译器已有的纯存储 accessor 使用同一规则；值的 primary construction 和 enum assembly 仍为普通值操作。未标注且未由既有规则生成 NoGc 合同的 callable 不因正文看似简单而自动放行。任何 C/Scoop ABI extern 函数调用、native transition、TLS、managed 操作或捕获环境都会使 helper 不可用于 release；不为 helper 生成另一份 release-context body。
+- 推导结果和泛型条件保存在已有 callable 接口中。依赖方直接消费该效果信息与真实 typed target，不重新读取非泛型 helper 源码或遍历其完整实现调用图；泛型正文仍在本次正常实例化中检查替换后的值和实际调用。没有额外调用资格、凭证或独立信任链。
+- release block 本身可以在显式 `@Unsafe` 中直接调用 C ABI extern。签名须满足既有 C-FFI-safe，全部参数及结果还须满足 `ReleaseValue`；此调用直接使用 native ABI 或既有纯 storage bridge，不执行 managed/native transition。同一 extern 在普通代码中的调用仍走既有 FFI 协议。C 实现必须不展开异常、不回调任何 Scoop 入口、不操作 GC/root/handle/pin/thread runtime、不保留 hook 的临时地址，也不等待已停顿的 mutator 或依赖其进展。这是调用处承担的 unsafe native 契约，不能由 `@Extern` 拼写、`nounwind` 或对象文件符号扫描证明。
+- effect 在普通名称查找、唯一目标选择和完整实参展开之后检查。默认参数、operator/accessor、解构、`for`、`vararg` 等产生的操作一并检查；不能因 effect 不合格而退回另一个重载。运行期整数 `/`、`%` 仍按 11.2 调用可抛异常的 Managed 运算，即使受 `if` 保护或除数为常量也不允许；已合法求值的 GC-free const 可直接使用。不新增路径证明或循环执行预算。
+- `@Unsafe`/`@Safe` 嵌套规则不变。TLS、singleton 和需要 ensure 的普通全局属性不可访问；GC-free const、无 ensure 的合格普通存储 accessor、非 TLS 的 GC-free raw/native global 可按原可见性、unsafe 和数据竞争规则访问。native global storage bridge 只进行普通存储操作；`@ThreadLocal` 不能借 helper 或 bridge 绕过限制。
+
+**生命周期：**
+
+1. 分配时内部 `RELEASE_READY` 为 0；完整最外层 constructor 正常返回后、构造表达式产生对象值前，由生成代码置 1。base/`this` delegation 不发布，异常出口不发布；本地、依赖与泛型构造遵守同一规则。构造失败前取得的 native resource 由构造/调用方显式清理。已经独立构造成功的子对象保持自己的生命周期。
+2. collector 在对象逻辑死亡且 storage 即将真正回收时，先原子清除 ready，再同步调用 exact TypeDescriptor 的 hook，返回后才能 poison、复用或释放 storage。live、pinned、被 root/handle 保活的对象不调用；moving 的旧副本不表示逻辑死亡，ready 随存活对象搬迁。ABI 与顺序见 runtime spec 2.1、2.2、3.8。
+3. best effort 不保证 GC 时机、对象间顺序、执行线程、native release 结果或退出时调用；正常 collection 一旦回收 ready 对象，就必须在存储失效前尝试一次且至多一次。shutdown 不补做全堆释放。
+4. 显式 `close`/`release` 与 `try/finally` 仍负责确定性释放。显式路径先将字段置为 `None` 等 inert state，再释放取出的资源；hook 以后仍可运行，但不再释放该资源。并发关闭和 native handle 别名由库自身的同步/ownership 契约处理。语言不自动生成 close，也不公开 arm/disarm、手动 hook、重试或异常传播接口。
+
+release 不提供 GC finalizer、对象图访问、对象复活或及时释放保证；不能依赖它完成 flush、事务、锁或要求特定线程的操作。
 
 ### 9.2 委托
 
@@ -1674,13 +1705,13 @@ OdrMemberKey = { group: OdrGroupId, role: OdrMemberRole,
 OdrMemberId = DomainSeparatedCborHash("scoop-odr-member-v1", OdrMemberKey)
 ```
 
-四个specialization variant的wire tag固定为1…4。全部argument/application必须使用persistent exact type identity；没有owner/application/argument时使用对应variant的typed空分支，不能靠空vector推断entity kind。member role只区分同一group内的member，不进入`SpecializationKey`或`OdrGroupId`。`OdrMemberRole`的tag 1…16固定为`CallableBody, GeneratedNominal, Layout, ScanProgram, TypeDescriptor, DispatchTable, DispatchAdapter, StaticStorage, ImmortalObject, InitializationCell, InitializationDescriptor, RegistrationRecord, DiagnosticBytes, AddressTakenConstant, ObjectSupport, ReleaseHook`；`ReleaseHook=16`在identity schema v1中已有唯一语义且只允许`ExactType` discriminator，但M23 HIR/MIR/LIR schema v1与artifact profile必须拒绝产生/消费它，M24 schema/profile v2才启用。
+四个specialization variant的wire tag固定为1…4。全部argument/application必须使用persistent exact type identity；没有owner/application/argument时使用对应variant的typed空分支，不能靠空vector推断entity kind。member role只区分同一group内的member，不进入`SpecializationKey`或`OdrGroupId`。`OdrMemberRole`的tag 1…16固定为`CallableBody, GeneratedNominal, Layout, ScanProgram, TypeDescriptor, DispatchTable, DispatchAdapter, StaticStorage, ImmortalObject, InitializationCell, InitializationDescriptor, RegistrationRecord, DiagnosticBytes, AddressTakenConstant, ObjectSupport, ReleaseHook`；`ReleaseHook=16`在identity schema v1中已有唯一语义且只允许`ExactType` discriminator，但 M23 的 HIR/MIR/LIR outer schema 1 与完整 artifact profile 仍拒绝产生/消费它；M24 的 outer schema 2 与 cross-cone-generic/3 才启用，不能只按 profile 数字 2 判断。
 
 role/discriminator 合法性之外，reader 还须从 discriminator 的 canonical key 和 typed owner 关系核对其唯一 group root：Callable 对应完整 application，Nominal 对应 origin 与 exact arguments，DelegatedProperty 对应原 property application unit，StructuralType 对应实际非名义 exact type。producer Cone、symbol、物理分片或相同 layout 不能替代实体归属。实际产生的 layout、TD、scan、dispatch、callable、closure/coroutine、静态存储、registration 和取址常量均按既有 root 与 member role 保存；generated-C bridge 仍只在 canonical LIR/ODR 中引用 producer-independent unit，物理 relocation 经核对后规范化回该 unit。
 
 M23-7 的 ODR 按实际重复 member 判等。一个 artifact 记录本次发射的成员集合；不同 artifact 可以需要同组的不同独立 helper，例如从不同 source signature 转换到同一 target function shape 的 adapter。同一 `(group, member)` 的完整 key、ABI 与 definition 必须一致，兼容成员取并集，不要求整个 group 的成员集合相等。每个实际物化操作及已发射定义的必要引用仍须闭合；不能漏掉已使用的 TD/scan/dispatch、callable/EH/stackmap 或 storage/registration。generic delegated unit 的 storage、cell、failure root、initializer、ensure 和登记是每次物化的固定整体。具体规则见实现规范 2.13 与 M23-7 设计第 5、8 节。
 
-M24 generic release hook恰好使用其owner的Nominal specialization group及`{ role=ReleaseHook, discriminator=ExactType(owner application) }`，validator逐字段核对group origin/arguments；hook body使用`CallableBodyKeyV2::ReleaseHook(owner)`的`cb` primary和`OdrWeak`，另有同组唯一`RegistrationRecord/CallableBody(body id)`供`cr`使用，不得再造`CallableBody` member或`od` alias，且不得有safepoint/`sr`。param-free hook不构造ReleaseHook ODR member；body、registration与TD沿同一个exact source subject统一取得`ConeStrong`，或按定义处实际模板引用及原声明可见性使用普通的 `TemplateSupportHidden` 链接属性。
+M24 generic release hook 使用 owner 的 Nominal specialization group 及 `ReleaseHook/ExactType(owner application)` member，沿既有 owner key 核对归属；`CallableBodyKeyV2::ReleaseHook(owner)` 对应唯一 cb primary 与 OdrWeak，另有同组唯一 `RegistrationRecord/CallableBody(body id)` 对应 cr，不另造 CallableBody member、od alias 或 safepoint/sr。param-free hook 使用原 exact source subject 的普通 Strong 定义与链接可见性，不构造 ReleaseHook ODR member，也不增加来源或模板支持证明。不同 consumer 仍按共同 member 判等、独立 member 取并集；TD、hook 和登记的实际引用必须完整。版本与边界见 [M24 设计第 4 节](../milestone24/DESIGN.md#4-typedescriptor身份与产物)。
 
 每个实际 ODR member 分别保存 `OdrAbiFingerprint` 与 `OdrDefinitionFingerprint`，使用 `scoop-odr-member-abi-v1` 和 `scoop-odr-member-definition-v1` 域。定义摘要包含 group/member/role、该成员的 canonical LIR、规范化 object/typed relocation 和关联 EH/stackmap leaves，不含其他独立成员、producer、`SlibMemberId`、物理分片或最终地址；旧整组摘要退役。Link 合并前必须比较所有重复 member 的完整定义，只有 ABI 相同不足以合并。摘要计算只依赖实际声明的上游输入，自身和非上游补丁槽归零；typed 调用目标按身份编码，不递归把 callee 的摘要纳入 caller，因此正常递归不形成摘要环。generated-C bridge 的规范化例外保持，不扩展到其他 consumer-local 符号。
 
@@ -1831,7 +1862,7 @@ annotation class NoGC
 - `T : value` 只保证实参是 value type，不保证其递归表示中不含 managed ref，因此不能代替上述 GC-free 条件；`T : ref` 则不可能满足该条件。当前没有单独的源码 bound 语法来声明 GC-free，条件由 `@NoGC` body及其调用图推导。
 - 这样的函数可以安全地跨越 FFI boundary（例如作为 FFI 回调）。
 - 该约束也意味着 `@NoGC` 的成员函数只能属于 value type：class method 有隐含的 `this` 参数，而 `this` 是 ref value。
-- 9.1.6的release block不是普通callable或`@NoGC` target；编译器对它及其可调用闭包验证更窄的release-safe effect，并以`ReleaseValue`而非仅`gc_free`约束所有运行时值。一个callable仅有`@NoGC` annotation并不自动获得从collector reclaim上下文调用的资格。
+- 9.1.6 的 release block 不是普通 callable 或 `@NoGC` target。定义方在已有 NoGc 检查上推导更窄的 release-call effect 与 `ReleaseValue` 条件，并通过普通 callable 接口供依赖使用；`@NoGC` 本身不保证没有 native transition、TLS 或 GC capability 操作。普通 NoGc 代码的既有调用语义不因 M24 改变。
 
 ```
 @NoGC
