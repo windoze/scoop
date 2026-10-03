@@ -23,3 +23,4 @@
 | `shared_source_callable_inventory_replays_bodies_and_abstract_overrides` | `shared-callables-standalone`、`shared-callables-combined` | 4／16 | 逐字相同 |
 | `shared_constructor_inventory_replays_primary_secondary_and_class_initializers` | `shared-constructors-standalone`、`shared-constructors-combined` | 4／16 | 逐字相同 |
 | `heap_zst_fields_produce_valid_layout_objects_and_shared_metadata` | `heap-zst-storage` | 2／8 | 逐字相同 |
+| `shared_object_inventory_replays_singletons_companions_and_initialization_entries` | `shared-objects-standalone`、`shared-objects-combined` | 4／16 | 逐字相同 |
