@@ -1,0 +1,429 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<TypeEnvelopeHost>
+    Completed(value: TypeEnvelopeHost)
+    Suspended()
+  enum CoroutineSlot<TypeEnvelopeHost>
+    Empty()
+    Value(value: TypeEnvelopeHost)
+  class TypeEnvelopeHost vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface Continuation<TypeEnvelopeHost>
+  interface SuspendTask<TypeEnvelopeHost>
+  interface SuspendRegistration<TypeEnvelopeHost>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn5 captures=1
+    bridge function_type1 -> @fn16 id=3b718eeee013f208e248cb4346cfbc5016573aad568be0aa8f5f17b806450250
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn6 captures=1
+    bridge function_type1 -> @fn17 id=738a3bc07feed8caeec16def8196870ca5d0faa6995dc74a42f8da2097ea3e62
+  closure cc2 $Closure$lambda2 type=function_type0 invoke=@fn8 captures=1
+    bridge function_type1 -> @fn18 id=1cbc7d72d4abf1c3d5329f3683e105fa927ed2dc22c37b2652d9a7062c15817a
+  generated_exact_type get0 location=enum2 nominal_id=ded2335da58c1b0aacf84b58baf72858142daa3463b18ef12b2fb11e6e676264 exact_id=4761d922456dd6e222c5004568318d60791f81b3630a49b8882f77e099ea6645
+  generated_exact_type get1 location=enum1 nominal_id=d083255c61da980a10d3bbe038db7f374cf40d19a026b61c6fb2557b4771de35 exact_id=768ab4fb69241946766b901b604d07ea89e524d73192a7ee0ae4b46771b5f0a0
+  generated_exact_type get2 location=closure1 nominal_id=e5cec0c787af2b0172b15ee26b1508a7ac824993ff78640769155ca8ad5b5e29 exact_id=89e8f89e08fbfecf516b86cb506e26ef16d2de3f182cb8be718615c302544db8
+  generated_exact_type get3 location=class4 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get4 location=closure0 nominal_id=b55289643778f80b3453c65108e56ff1a3ce6d17a1a527a2b5ea48b1e1be7abf exact_id=ee35d9b3903867daefa40797ead60047666b3b045b8f80c8df92f7c1befd5ac6
+  generated_exact_type get5 location=closure2 nominal_id=9f8601e9fb7fc3e4dd72ad73b6fe3dd8644f25d625fac87789ed3c056d2219a1 exact_id=f6d0cc22d792084e89400766ecc0355e896f9d43e85043ed2cf8236f43259998
+  generated_callable gc0 function=@fn18 id=1cbc7d72d4abf1c3d5329f3683e105fa927ed2dc22c37b2652d9a7062c15817a
+  generated_callable gc1 function=@fn16 id=3b718eeee013f208e248cb4346cfbc5016573aad568be0aa8f5f17b806450250
+  generated_callable gc2 function=@fn17 id=738a3bc07feed8caeec16def8196870ca5d0faa6995dc74a42f8da2097ea3e62
+  generated_callable gc3 function=@fn15 id=d91cdd4d43f90a659ef17b3166dd881b3dfacd2d0be3609508b5bd863bd07f9e
+  fun TypeEnvelopeHost.check @fn0(this: TypeEnvelopeHost, seed: String) -> String
+    bb0 entry
+      val $receiver: TypeEnvelopeHost
+        Type TypeEnvelopeHost
+        Local this
+      val $argument.0: String
+        Type String
+        Local seed
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      val $parameter.value: () -> String
+        Type () -> String
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type String
+            Local $parameter.seed
+      call $call.1: () -> String = @fn2 direct
+        Type TypeEnvelopeHost
+        Local $receiver
+        Type String
+        Local $parameter.seed
+        Type () -> String
+        Local $parameter.value
+      call $call.2: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $call.1
+      return
+        Type String
+        Local $call.2
+  fun TypeEnvelopeHost.scoped @fn1(this: TypeEnvelopeHost, seed: Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun TypeEnvelopeHost.capture @fn2(this: TypeEnvelopeHost, seed: String, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun verifyDefault @fn3(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn4() -> Unit
+    bb0 entry
+      assign $new.1
+        Type TypeEnvelopeHost
+        ClassAlloc TypeEnvelopeHost
+      call @fn14 direct
+        Type TypeEnvelopeHost
+        Local $new.1
+      val host: TypeEnvelopeHost
+        Type TypeEnvelopeHost
+        Local $new.1
+      val $receiver: TypeEnvelopeHost
+        Type TypeEnvelopeHost
+        Local host
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      branch bb1 bb2
+        Type Boolean
+        BoolLiteral true
+    bb1 if.then.1
+      val copy: Int
+        Type Int
+        Local $parameter.seed
+      assign $result.0
+        Type Int
+        Local copy
+      goto bb3
+    bb2 if.else.2
+      assign $result.0
+        Type Int
+        Local $parameter.seed
+      goto bb3
+    bb3 if.merge.3
+      val $parameter.value: Int
+        Type Int
+        Local $result.0
+      call $dependency.receiver: Int = @fn1 direct
+        Type TypeEnvelopeHost
+        Local $receiver
+        Type Int
+        Local $parameter.seed
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn3 direct
+        Type Boolean
+        Local $parameter.value
+      val $receiver: TypeEnvelopeHost
+        Type TypeEnvelopeHost
+        Local host
+      val $argument.0: String
+        Type String
+        StringConst @str1
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      call $dependency.receiver: String = @fn0 direct
+        Type TypeEnvelopeHost
+        Local $receiver
+        Type String
+        Local $parameter.seed
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external1 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn3 direct
+        Type Boolean
+        Local $parameter.value
+      val $receiver: TypeEnvelopeHost
+        Type TypeEnvelopeHost
+        Local host
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      val $parameter.value: () -> Int
+        Type () -> Int
+        ClosureAlloc cc1 $Closure$lambda1
+          CaptureInit field=0
+            Type Int
+            Local $parameter.seed
+      call $call.2: () -> Int = @fn7 direct
+        Type TypeEnvelopeHost
+        Local $receiver
+        Type Int
+        Local $parameter.seed
+        Type () -> Int
+        Local $parameter.value
+      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $call.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn3 direct
+        Type Boolean
+        Local $parameter.value
+      val $receiver: TypeEnvelopeHost
+        Type TypeEnvelopeHost
+        Local host
+      val $argument.0: String
+        Type String
+        StringConst @str3
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      val $parameter.value: () -> String
+        Type () -> String
+        ClosureAlloc cc2 $Closure$lambda2
+          CaptureInit field=0
+            Type String
+            Local $parameter.seed
+      call $call.3: () -> String = @fn9 direct
+        Type TypeEnvelopeHost
+        Local $receiver
+        Type String
+        Local $parameter.seed
+        Type () -> String
+        Local $parameter.value
+      call $dependency.receiver: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $call.3
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str4
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external1 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn3 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun $lambda.0 @fn5($closure: () -> String) -> String
+    bb0 entry
+      return
+        Type String
+        ClosureCapture cc0 0
+          Type () -> String
+          Local $closure
+  fun $lambda.1 @fn6($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        ClosureCapture cc1 0
+          Type () -> Int
+          Local $closure
+  fun TypeEnvelopeHost.genericCapture @fn7(this: TypeEnvelopeHost, seed: Int, value: () -> Int) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        Local value
+  fun $lambda.1 @fn8($closure: () -> String) -> String
+    bb0 entry
+      return
+        Type String
+        ClosureCapture cc2 0
+          Type () -> String
+          Local $closure
+  fun TypeEnvelopeHost.genericCapture @fn9(this: TypeEnvelopeHost, seed: String, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun Continuation.resume @fn10(this: Continuation<TypeEnvelopeHost>, value: TypeEnvelopeHost) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn11(this: Continuation<TypeEnvelopeHost>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn12(this: SuspendTask<TypeEnvelopeHost>, $completion: Continuation<TypeEnvelopeHost>) -> CoroutineStep<TypeEnvelopeHost>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn13(this: SuspendRegistration<TypeEnvelopeHost>, continuation: Continuation<TypeEnvelopeHost>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.TypeEnvelopeHost.$c0 @fn14(this: TypeEnvelopeHost) -> Unit
+    bb0 entry
+      return
+  fun startCoroutine<TypeEnvelopeHost> @fn15(task: SuspendTask<TypeEnvelopeHost>, completion: Continuation<TypeEnvelopeHost>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn10 interface Continuation<TypeEnvelopeHost>[0]
+        Type Continuation<TypeEnvelopeHost>
+        Local completion
+        Type TypeEnvelopeHost
+        EnumField v0 f0
+          Type CoroutineStep<TypeEnvelopeHost>
+          Local $step
+      return
+    bb2 failed
+      call @fn11 interface Continuation<TypeEnvelopeHost>[1]
+        Type Continuation<TypeEnvelopeHost>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<TypeEnvelopeHost> = @fn12 interface SuspendTask<TypeEnvelopeHost>[0]
+        Type SuspendTask<TypeEnvelopeHost>
+        Local task
+        Type Continuation<TypeEnvelopeHost>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<TypeEnvelopeHost>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$lambda0.() -> Any @fn16($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.() -> Any @fn17($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.() -> Any @fn18($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<TypeEnvelopeHost> result=TypeEnvelopeHost
+  coroutine_slot cl0 CoroutineSlot<TypeEnvelopeHost> value=TypeEnvelopeHost
+  coroutine_start ct0 result=TypeEnvelopeHost function=fn15
+  coroutine_fn cf0 @fn12 source_return=TypeEnvelopeHost step=cs0 immediate
+  instance mi0 function=@fn6 <- $lambda.1
+  instance mi1 function=@fn7 <- TypeEnvelopeHost.genericCapture
+  instance mi2 function=@fn8 <- $lambda.1
+  instance mi3 function=@fn9 <- TypeEnvelopeHost.genericCapture
+  instance mi4 function=@fn10 <- Continuation.resume
+  instance mi5 function=@fn11 <- Continuation.resumeWithException
+  instance mi6 function=@fn12 <- SuspendTask.run
+  instance mi7 function=@fn13 <- SuspendRegistration.register
+  str @str0 "illegal state"
+  str @str1 "capture"
+  str @str2 "capture"
+  str @str3 "generic"
+  str @str4 "generic"
+  output executable @fn4

@@ -1,0 +1,6 @@
+SourceFile
+  RootPackage
+  public class TypeEnvelopeHost()
+    internal fun scoped
+    protected fun capture
+    internal fun genericCapture
