@@ -1,0 +1,3 @@
+import dependency.sourceProtocols.*
+
+public fun read(): Int = exported()

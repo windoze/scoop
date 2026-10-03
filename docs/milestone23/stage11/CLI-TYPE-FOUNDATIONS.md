@@ -13,3 +13,4 @@
 | declaration dispatch order | `dispatch-order` | 3／8 |
 | complete dispatch selections | `slot-selections`、`slot-combinations` | 6／16 |
 | protected declarations | `protected-sources` | 3／8 |
+| parameter protocols | `source-protocols` | 3／8 |

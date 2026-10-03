@@ -1,0 +1,18 @@
+SourceFile
+  QualifiedPackage dependency.sourceProtocols
+  public interface Bound
+  public fun exported(): Int
+    =
+      IntLiteral 0
+  public open class Envelope(seed: Int = <expr>)
+    protected fun none
+    protected fun paired
+    protected fun parameters
+    protected fun generic
+    protected nested class Box
+    protected nested enum Choice
+  public class Defaults(first: Int, second: Int = <expr>)
+  public open class Base()
+    protected fun inherited
+  public class Derived() : Base(<0 args>)
+    protected fun inherited
