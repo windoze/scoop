@@ -1,0 +1,10 @@
+SourceFile
+  RootPackage
+  ImportExact Local image.consumer.result
+  fun main()
+    if
+      Binary Ne
+        Call result
+        IntLiteral 42
+      throw
+        Call IllegalStateException

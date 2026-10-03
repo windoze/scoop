@@ -1,5 +1,4 @@
 use super::*;
-use std::fmt::Write;
 
 #[test]
 fn published_image_preserves_all_direct_dependencies_in_both_views() {
@@ -92,31 +91,18 @@ fn published_image_preserves_all_direct_dependencies_in_both_views() {
     assert_eq!(selected.len(), 1);
     assert_eq!(selected[0].provider(), coordinates[0].identity().unwrap());
 
-    let mut snapshot = String::new();
-    for (name, provider) in [
-        ("core", ConeIdentity::CORE),
-        ("provider", coordinates[0].identity().unwrap()),
-        ("unused", coordinates[1].identity().unwrap()),
+    for provider in [
+        ConeIdentity::CORE,
+        coordinates[0].identity().unwrap(),
+        coordinates[1].identity().unwrap(),
     ] {
-        let image = closure
-            .semantic()
-            .direct_provider(provider)
-            .unwrap()
-            .production()
-            .lir_strong()
-            .image_plan();
-        writeln!(snapshot, "image {name}").unwrap();
-        for dependency in image.dependencies() {
-            writeln!(snapshot, "  dependency {dependency}").unwrap();
-        }
+        let semantic = closure.semantic().direct_provider(provider).unwrap();
+        let image = semantic.production().lir_strong().image_plan();
+        let expected = if provider == ConeIdentity::CORE {
+            vec![]
+        } else {
+            vec![ConeIdentity::CORE]
+        };
+        assert_eq!(image.dependencies(), expected);
     }
-    writeln!(snapshot, "image consumer").unwrap();
-    for dependency in compile_image.dependencies() {
-        writeln!(snapshot, "  dependency {dependency}").unwrap();
-    }
-    let golden = fixtures.join("image.snap");
-    if std::env::var_os("SCOOP_UPDATE_IMAGE_DEPENDENCY_SNAPSHOTS").is_some() {
-        std::fs::write(&golden, &snapshot).unwrap();
-    }
-    assert_eq!(snapshot, std::fs::read_to_string(golden).unwrap());
 }

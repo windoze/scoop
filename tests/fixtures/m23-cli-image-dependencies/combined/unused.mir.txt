@@ -1,0 +1,7 @@
+Module
+  fun unused @fn0() -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+  output library
