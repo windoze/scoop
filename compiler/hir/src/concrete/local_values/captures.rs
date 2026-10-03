@@ -97,8 +97,12 @@ impl LocalValueIdentityBuilder<'_> {
                 CallableInstantiationOwner::EnclosingInitializationApplication(unit) => {
                     CallableMaterializationContext::InitializationApplication(unit)
                 }
-                CallableInstantiationOwner::NoOwner
-                | CallableInstantiationOwner::ExactNominalOwner(_) => return None,
+                // A local function can have its own type arguments while its
+                // lexical parent has no substitution context.
+                CallableInstantiationOwner::NoOwner => {
+                    CallableMaterializationContext::NoSubstitution
+                }
+                CallableInstantiationOwner::ExactNominalOwner(_) => return None,
             };
         }
     }
