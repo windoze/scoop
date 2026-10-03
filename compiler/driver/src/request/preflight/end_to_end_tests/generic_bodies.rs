@@ -10,7 +10,6 @@ mod members;
 mod native_addresses;
 mod nominals;
 mod options;
-mod pointers;
 mod publication;
 mod qualified_types;
 mod ranges;

@@ -1,0 +1,49 @@
+SourceFile
+  RootPackage
+  ImportExact Local consumer.pointers.result
+  ImportExact Local consumer.pointers.exercise
+  ImportExact Local consumer.pointers.roundTrip
+  private class Later(val number: Int)
+  private struct LaterValue
+    field number: Int
+  public fun check(): Int
+    val value
+      Call Later
+        Call result
+    val answer
+      Call exercise<Later>
+        Var value
+    @Unsafe block
+      val empty
+        Call roundTrip<Unit>
+          UnitLiteral
+      if
+        Binary Ne
+          FieldAccess number
+            Call roundTrip<LaterValue>
+              Call LaterValue
+                IntLiteral 42
+          IntLiteral 42
+        return
+          IntLiteral 1
+      if
+        Binary Ne
+          Call roundTrip<Int>
+            IntLiteral 42
+          IntLiteral 42
+        return
+          IntLiteral 2
+    return
+      IfExpression
+        Binary And
+          Binary Eq
+            Call exercise<Int>
+              IntLiteral 0
+            IntLiteral 42
+          Binary Eq
+            FieldAccess number
+              Var value
+            IntLiteral 42
+        Var answer
+        else
+        IntLiteral 3

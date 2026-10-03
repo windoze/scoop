@@ -1,0 +1,41 @@
+SourceFile
+  QualifiedPackage consumer.pointers
+  ImportExact Local dependency.pointers.copy
+  ImportExact Local dependency.pointers.replace
+  ImportExact Local dependency.pointers.bytes
+  ImportExact Local dependency.pointers.alignment
+  ImportExact Local dependency.pointers.layoutDefault
+  public fun exercise<T>(value: T): Int
+    @Unsafe block
+      val number
+        Call copy<Int>
+          IntLiteral 40
+      if
+        Binary Or
+          Binary Or
+            Binary Ne
+              Call bytes<Int>
+              IntLiteral 4uL
+            Binary Ne
+              Call alignment<Int>
+              IntLiteral 4uL
+          Binary Ne
+            Call layoutDefault<Int>
+            IntLiteral 8uL
+        return
+          IntLiteral 1
+      return
+        Call replace<Int>
+          IntLiteral 0
+          Binary Add
+            Var number
+            IntLiteral 2
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0
+    @Unsafe
+  public fun roundTrip<P : value>(value: P): P
+    =
+      Call copy<P>
+        Var value
