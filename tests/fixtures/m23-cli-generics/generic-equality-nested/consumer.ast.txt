@@ -1,0 +1,79 @@
+SourceFile
+  QualifiedPackage consumer.equality
+  ImportStar Local templates.equality.*
+  public struct LocalKey<T> : EqualTo<LocalKey<T>>
+    field payload: T
+    field number: Int
+    public operator fun equals
+  public fun exercise<T>(value: T): Int
+    val first
+      Call LocalKey<T>
+        Var value
+        IntLiteral 42
+    val same
+      Call LocalKey<T>
+        Var value
+        IntLiteral 42
+    val other
+      Call LocalKey<T>
+        Var value
+        IntLiteral 1
+    val left
+      Call Nested<LocalKey<T>>
+        Call Payload<LocalKey<T>>
+          Var first
+          IntLiteral 2
+        IntLiteral 3
+    val right
+      Call Nested<LocalKey<T>>
+        Call Payload<LocalKey<T>>
+          Var same
+          IntLiteral 2
+        IntLiteral 3
+    if
+      Binary Or
+        Unary Not
+          Call compareNested
+            Var left
+            Var right
+        Binary Ne
+          Var left
+          Var right
+      return
+        IntLiteral 1
+    if
+      Binary Eq
+        Var left
+        Call Nested<LocalKey<T>>
+          Call Payload<LocalKey<T>>
+            Var other
+            IntLiteral 2
+          IntLiteral 3
+      return
+        IntLiteral 2
+    if
+      Binary Eq
+        Var left
+        Call Nested<LocalKey<T>>
+          Call Payload<LocalKey<T>>
+            Var same
+            IntLiteral 3
+          IntLiteral 3
+      return
+        IntLiteral 3
+    if
+      Binary Eq
+        Var left
+        Call Nested<LocalKey<T>>
+          Call Payload<LocalKey<T>>
+            Var same
+            IntLiteral 2
+          IntLiteral 4
+      return
+        IntLiteral 4
+    return
+      IntLiteral 42
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 1

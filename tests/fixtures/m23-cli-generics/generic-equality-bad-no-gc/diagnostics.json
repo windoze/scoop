@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@NoGC` code may not call managed function `Counter<Int>.equals`",
+    "notes": [],
+    "origin": {
+      "cone": "faedc0e4ae58eaba9c2faa973e37fb924a61cb79b0ccbd494be65b3e65e9276b",
+      "end": 134,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 121
+    },
+    "severity": "error"
+  }
+]

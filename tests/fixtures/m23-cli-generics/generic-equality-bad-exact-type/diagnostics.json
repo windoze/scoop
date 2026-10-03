@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `Counter<Int>` has no member operator `equals` for `==`",
+    "notes": [],
+    "origin": {
+      "cone": "6fc4a222b18ea523266d1ffa25bfbb698c9689201af06c30c4ea8bdf219707bb",
+      "end": 157,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 144
+    },
+    "severity": "error"
+  }
+]

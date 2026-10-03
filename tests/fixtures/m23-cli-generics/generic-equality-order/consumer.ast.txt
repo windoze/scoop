@@ -1,0 +1,98 @@
+SourceFile
+  QualifiedPackage consumer.equality
+  ImportStar Local templates.equality.*
+  public fun exercise<T>(value: T): Int
+    val trace
+      Call Trace<T>
+        IntLiteral 0
+    val first
+      Call Tracked<T>
+        Var value
+        Var trace
+        IntLiteral 1
+        IntLiteral 1
+    val second
+      Call Tracked<T>
+        Var value
+        Var trace
+        IntLiteral 2
+        IntLiteral 2
+    val third
+      Call Tracked<T>
+        Var value
+        Var trace
+        IntLiteral 3
+        IntLiteral 3
+    val left
+      Call Wide<Tracked<T>>
+        Var first
+        Var second
+        Var third
+    val other
+      Call Wide<Tracked<T>>
+        Var first
+        Var third
+        Var third
+    if
+      Binary Or
+        Call compareWide
+          Var left
+          Var other
+        Binary Ne
+          FieldAccess visits
+            Var trace
+          IntLiteral 12
+      return
+        IntLiteral 1
+    assign .visits
+      Var trace
+      IntLiteral 0
+    if
+      Binary Or
+        Binary Ne
+          Var left
+          Var left
+        Binary Ne
+          FieldAccess visits
+            Var trace
+          IntLiteral 123
+      return
+        IntLiteral 2
+    assign .visits
+      Var trace
+      IntLiteral 0
+    if
+      Binary Or
+        Binary Eq
+          Call pair
+            Var first
+            Var second
+          Call single
+            Var first
+        Binary Ne
+          FieldAccess visits
+            Var trace
+          IntLiteral 0
+      return
+        IntLiteral 3
+    if
+      Binary Or
+        Call compareChoices
+          Call pair
+            Var first
+            Var second
+          Call pair
+            Var first
+            Var third
+        Binary Ne
+          FieldAccess visits
+            Var trace
+          IntLiteral 12
+      return
+        IntLiteral 4
+    return
+      IntLiteral 42
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 1

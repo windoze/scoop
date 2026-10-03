@@ -1,3 +1,0 @@
-span=121..134
-expression=left == right
-`@NoGC` code may not call managed function `Counter<Int>.equals`

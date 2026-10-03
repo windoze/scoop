@@ -1,3 +1,0 @@
-span=253..266
-expression=left == right
-cannot derive `equals` for `Payload<Missing>`: field `Payload.data` of type `Missing` has no applicable member operator `equals`
