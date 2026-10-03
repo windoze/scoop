@@ -8,3 +8,4 @@
 | --- | --- | --- | --- |
 | `imported_option_roles_follow_rebuilt_core_declarations` | `option-edited-core` | 12／9 | 反转 None／Some 声明顺序，保留嵌套 Option、缺省值、callback、unwrap 异常和再次泛型具体化；删除旧文件测试、注册与对应三阶段快照 |
 | `imported_coroutine_roles_follow_rebuilt_core_declarations` | `coroutine-rebuilt-core` | 12／9 | 修改 core Coroutine 声明后保留协议角色、泛型 suspend 正文与再次发布；删除旧文件测试、注册与对应三阶段快照 |
+| `modified_core_array_bodies_and_new_generic_templates_republish_and_execute` | `array-standalone`、`array-combined` | 24／18 | Array／MutableArray iterator 从索引 1 开始；新增 RebuiltCell、private generic helper 与 callable reference，源码移走后仍执行修改后的正文；删除旧文件测试、注册与对应三阶段快照 |

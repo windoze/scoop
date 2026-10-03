@@ -6,7 +6,6 @@ mod machine;
 mod native_addresses;
 mod nominals;
 mod qualified_types;
-mod rebuilt_core;
 mod siblings;
 
 #[test]
