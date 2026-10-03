@@ -41,3 +41,4 @@
 | `real_process_compiles_then_reuses_core_and_source_cache` | `process-library` | 3／4 |
 | `real_process_builds_and_reuses_manifest_executable` | `process-manifest-executable` | 5／4 |
 | `real_process_builds_and_reuses_single_file` | `process-single-file` | 5／4 |
+| `real_process_diamond_invokes_shared_core_once_in_canonical_order` | `process-diamond` | 3／4 |
