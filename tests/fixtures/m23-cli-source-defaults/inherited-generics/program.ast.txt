@@ -1,0 +1,57 @@
+SourceFile
+  RootPackage
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val child
+      Call defaultGenericChild<Int>
+    Call verifyDefault
+      Binary Eq
+        MethodCall choose
+          Var child
+          TupleLiteral
+            IntLiteral 3
+            IntLiteral 4
+        TupleLiteral
+          IntLiteral 3
+          IntLiteral 4
+    val parent: GenericParent<(Int, Int)>
+      Var child
+    Call verifyDefault
+      Binary Eq
+        MethodCall choose
+          Var parent
+          TupleLiteral
+            IntLiteral 5
+            IntLiteral 6
+        TupleLiteral
+          IntLiteral 5
+          IntLiteral 6
+    Call verifyDefault
+      Binary Eq
+        MethodCall choose
+          Var child
+          TupleLiteral
+            IntLiteral 3
+            IntLiteral 4
+          Argument value=
+            TupleLiteral
+              IntLiteral 7
+              IntLiteral 8
+        TupleLiteral
+          IntLiteral 7
+          IntLiteral 8
+    Call verifyDefault
+      Binary Eq
+        MethodCall choose
+          Call defaultGenericChild<String>
+          TupleLiteral
+            StringLiteral "a"
+            StringLiteral "b"
+        TupleLiteral
+          StringLiteral "a"
+          StringLiteral "b"
