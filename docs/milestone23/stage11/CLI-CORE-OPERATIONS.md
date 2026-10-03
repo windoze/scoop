@@ -15,6 +15,7 @@ core 包含原 driver 用例的六个扩展文件与两个 reference source-fiel
 | 功能 | 原输入 | 用例／进程／golden | 与原断言对照 |
 | --- | --- | --- | --- |
 | 成员调用组合 | `m23-imported-core-members/methods.scoop`、`combined.scoop` | 1／5／5 | 原 HIR export、完整 MIR/LIR 逐字相同；新 HIR 同时锁定 LocalConcrete |
+| 整数相等与模式组合 | `m23-imported-core-members/equality.scoop`、`equality-patterns.scoop`、`equality-combined.scoop` | 1／5／5 | 原 HIR export、完整 MIR/LIR 逐字相同；新 HIR 同时锁定 LocalConcrete |
 
 公共文件动作的 29 项单元测试通过，包含原始 UTF-8／二进制字节、显式分隔符、
 目标作为输入、后续 patch、缺失输入不覆盖目标，以及 schema 与步骤引用校验。
