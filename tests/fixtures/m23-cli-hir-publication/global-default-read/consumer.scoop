@@ -1,0 +1,15 @@
+public fun check(): Int {
+    if (readGlobalDefault() != 7) { return 1 }
+    globalDefaultValue = 9
+    if (readGlobalDefault() != 9) { return 2 }
+    if (readGlobalDefault(11) != 11) { return 3 }
+    if (readThreadDefault() != 13) { return 4 }
+    threadDefaultValue = 17
+    if (readThreadDefault() != 17) { return 5 }
+    @Unsafe {
+        if (readNativeDefault() != 23) { return 6 }
+        nativeDefaultValue = 29
+        if (readNativeDefault() != 29) { return 7 }
+    }
+    return 42
+}

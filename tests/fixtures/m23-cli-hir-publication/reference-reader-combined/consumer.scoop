@@ -1,0 +1,6 @@
+public fun check(): Int {
+    if (readerCompose<String>("payload") != "payload") { return 1 }
+    if (readerCompose<Int>(42) != 42) { return 2 }
+    if (readerSeed() != 3 || ReaderDefaults.seed != 5 || READER_GLOBAL != 4) { return 3 }
+    return 42
+}

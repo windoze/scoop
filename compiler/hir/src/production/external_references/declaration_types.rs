@@ -1,7 +1,7 @@
 //! Types attached to the actual materialized declarations, including unread locals.
 
 use super::ExternalHirReferenceProductionError as Error;
-use crate::concrete::{FunctionKind, Module, PropertyStorageOwner, TypeId};
+use crate::concrete::{FunctionKind, GlobalStorage, Module, PropertyStorageOwner, TypeId};
 use crate::{
     HirCallableTypePositionV1 as Part, HirDependencyTypePositionV1 as Position,
     HirDependencyTypeSiteV1 as Site,
@@ -13,7 +13,9 @@ use std::collections::BTreeMap;
 mod constructors;
 mod storage;
 
-pub(super) fn collect<E>(local: &crate::LocalConcreteHirOutput) -> Result<Vec<Site>, Error<E>> {
+pub(super) fn collect<E>(hir: &crate::DependencyHirOutput) -> Result<Vec<Site>, Error<E>> {
+    let local = &hir.output().local;
+    let export = hir.output().export.module();
     let module = local.module();
     let mut output = Collector {
         module,
@@ -55,6 +57,17 @@ pub(super) fn collect<E>(local: &crate::LocalConcreteHirOutput) -> Result<Vec<Si
     constructors::collect(&mut output)?;
     storage::collect(local, &mut output)?;
     for (_, global) in module.globals.iter() {
+        if let GlobalStorage::Extern {
+            source_contract, ..
+        } = &global.storage
+            && !export
+                .source_native_contracts
+                .iter()
+                .any(|source| source.record().id() == source_contract.id())
+        {
+            // Borrowed native storage is a use of its provider's declaration.
+            continue;
+        }
         output.add(global.ty, |exact| match global.storage_owner {
             PropertyStorageOwner::Backing(property) => Site::BackingStorage { property, exact },
             PropertyStorageOwner::Delegate(property) => Site::DelegateStorage { property, exact },

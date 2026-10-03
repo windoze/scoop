@@ -1,0 +1,34 @@
+SourceFile
+  RootPackage
+  public fun check(): Int
+    if
+      Binary Ne
+        Call readerCompose<String>
+          StringLiteral "payload"
+        StringLiteral "payload"
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call readerCompose<Int>
+          IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 2
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Call readerSeed
+            IntLiteral 3
+          Binary Ne
+            FieldAccess seed
+              Var ReaderDefaults
+            IntLiteral 5
+        Binary Ne
+          Var READER_GLOBAL
+          IntLiteral 4
+      return
+        IntLiteral 3
+    return
+      IntLiteral 42

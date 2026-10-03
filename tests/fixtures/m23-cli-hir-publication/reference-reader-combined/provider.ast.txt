@@ -1,0 +1,16 @@
+SourceFile
+  RootPackage
+  public val READER_SEED: Int <const> = <expr>
+    @Global
+  public var READER_GLOBAL: Int = <expr>
+  public struct ReaderBox<T>
+    field value: T
+  public object ReaderDefaults
+    public val seed: Int = <expr>
+      IntLiteral 5
+  public fun readerSeed(): Int
+    =
+      Var READER_SEED
+  public fun readerCompose<T>(value: T, box: ReaderBox<T> = <expr>, field: T = <expr>, amount: Int = <expr>, closure: () -> T = <expr>): T
+    =
+      Var field

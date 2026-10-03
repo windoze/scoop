@@ -1,0 +1,55 @@
+SourceFile
+  RootPackage
+  public fun check(): Int
+    if
+      Binary Ne
+        Call readGlobalDefault
+        IntLiteral 7
+      return
+        IntLiteral 1
+    assign globalDefaultValue
+      IntLiteral 9
+    if
+      Binary Ne
+        Call readGlobalDefault
+        IntLiteral 9
+      return
+        IntLiteral 2
+    if
+      Binary Ne
+        Call readGlobalDefault
+          IntLiteral 11
+        IntLiteral 11
+      return
+        IntLiteral 3
+    if
+      Binary Ne
+        Call readThreadDefault
+        IntLiteral 13
+      return
+        IntLiteral 4
+    assign threadDefaultValue
+      IntLiteral 17
+    if
+      Binary Ne
+        Call readThreadDefault
+        IntLiteral 17
+      return
+        IntLiteral 5
+    @Unsafe block
+      if
+        Binary Ne
+          Call readNativeDefault
+          IntLiteral 23
+        return
+          IntLiteral 6
+      assign nativeDefaultValue
+        IntLiteral 29
+      if
+        Binary Ne
+          Call readNativeDefault
+          IntLiteral 29
+        return
+          IntLiteral 7
+    return
+      IntLiteral 42

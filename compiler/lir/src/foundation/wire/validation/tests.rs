@@ -25,6 +25,8 @@ use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 
+mod native_dependencies;
+
 #[test]
 fn empty_foundation_validates_and_reencodes_identically() {
     let canonical = CanonicalLirFoundation::empty();

@@ -25,7 +25,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn1 direct
+      call @fn11 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: Int
@@ -34,7 +34,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn1 direct
+      call @fn11 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: Int
@@ -45,7 +45,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn1 direct
+      call @fn11 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: Int
@@ -56,7 +56,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn1 direct
+      call @fn11 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: Int
@@ -65,7 +65,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn1 direct
+      call @fn11 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: Int
@@ -74,7 +74,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn1 direct
+      call @fn11 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: Int
@@ -83,7 +83,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn1 direct
+      call @fn11 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: Int
@@ -94,7 +94,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn1 direct
+      call @fn11 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: Int
@@ -105,7 +105,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn1 direct
+      call @fn11 direct
         Type Int
         Local $dependency.parameter.value
       global_assign scoopCounter
@@ -141,7 +141,7 @@ Module
       val $parameter.right: Int
         Type Int
         Local $argument.1
-      call $call.1: NativePair = @fn2 direct
+      call $call.1: NativePair = @fn12 direct
         Type Int
         Local $parameter.left
         Type Int
@@ -182,7 +182,7 @@ Module
       val $parameter.right: Int
         Type Int
         Local $argument.1
-      call $call.2: NativePair = @fn2 direct
+      call $call.2: NativePair = @fn12 direct
         Type Int
         Local $parameter.left
         Type Int
@@ -196,7 +196,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn1 direct
+      call @fn11 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: Int
@@ -205,7 +205,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn1 direct
+      call @fn11 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: Int
@@ -216,7 +216,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn1 direct
+      call @fn11 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: Int
@@ -227,7 +227,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn1 direct
+      call @fn11 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: Int
@@ -236,7 +236,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn1 direct
+      call @fn11 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: Int
@@ -245,7 +245,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn1 direct
+      call @fn11 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: Int
@@ -256,7 +256,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn1 direct
+      call @fn11 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: Int
@@ -267,11 +267,66 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn1 direct
+      call @fn11 direct
         Type Int
         Local $dependency.parameter.value
       return
-  fun println @fn1(value: Int) -> Unit
+  fun $get$scoopCounter @fn1() -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        GlobalRead scoopCounter
+  fun $set$scoopCounter @fn2(value: Int) -> Unit <no-gc>
+    bb0 entry
+      global_assign scoopCounter
+        Type Int
+        Local value
+      return
+  fun $get$scoopTlsCounter @fn3() -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        GlobalRead scoopTlsCounter
+  fun $set$scoopTlsCounter @fn4(value: Int) -> Unit <no-gc>
+    bb0 entry
+      global_assign scoopTlsCounter
+        Type Int
+        Local value
+      return
+  fun $get$pair @fn5() -> NativePair <no-gc>
+    bb0 entry
+      return
+        Type NativePair
+        GlobalRead pair
+  fun $set$pair @fn6(value: NativePair) -> Unit <no-gc>
+    bb0 entry
+      global_assign pair
+        Type NativePair
+        Local value
+      return
+  fun $get$emptyPointer @fn7() -> Option<Ptr<Int>> <no-gc>
+    bb0 entry
+      return
+        Type Option<Ptr<Int>>
+        GlobalRead emptyPointer
+  fun $set$emptyPointer @fn8(value: Option<Ptr<Int>>) -> Unit <no-gc>
+    bb0 entry
+      global_assign emptyPointer
+        Type Option<Ptr<Int>>
+        Local value
+      return
+  fun $get$emptyCallback @fn9() -> Option<FunPtr<(Int) -> Int>> <no-gc>
+    bb0 entry
+      return
+        Type Option<FunPtr<(Int) -> Int>>
+        GlobalRead emptyCallback
+  fun $set$emptyCallback @fn10(value: Option<FunPtr<(Int) -> Int>>) -> Unit <no-gc>
+    bb0 entry
+      global_assign emptyCallback
+        Type Option<FunPtr<(Int) -> Int>>
+        Local value
+      return
+  fun println @fn11(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
         Type Int
@@ -295,7 +350,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun ctor.NativePair.$c0 @fn2(left: Int, right: Int) -> NativePair <no-gc>
+  fun ctor.NativePair.$c0 @fn12(left: Int, right: Int) -> NativePair <no-gc>
     bb0 entry
       return
         Type NativePair
@@ -304,6 +359,6 @@ Module
           Local left
           Type Int
           Local right
-  instance mi0 function=@fn1 <- println
+  instance mi0 function=@fn11 <- println
   str @str0 "\n"
   output executable @fn0

@@ -1,0 +1,12 @@
+@Global public var globalDefaultValue: Int = 7
+
+public fun readGlobalDefault(value: Int = globalDefaultValue): Int = value
+
+@ThreadLocal public var threadDefaultValue: Int = 13
+
+public fun readThreadDefault(value: Int = threadDefaultValue): Int = value
+
+@Extern(lib = "m23_default_storage", name = "m23_default_value")
+@Global public var nativeDefaultValue: Int
+
+@Unsafe public fun readNativeDefault(value: Int = nativeDefaultValue): Int = value

@@ -71,51 +71,51 @@ Module
     t0 = global_load global1 : i32
     store t0 -> local0
     store local0 -> local1
-    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 (i32) local-fn1(local1)
+    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 (i32) local-fn11(local1)
     t1 = aggregate () : {}
     t2 = global_load global2 : i32
     store t2 -> local2
     store local2 -> local3
-    call managed-void-target1 sp<managed-call:1> live=[] sig=void1 (i32) local-fn1(local3)
+    call managed-void-target1 sp<managed-call:1> live=[] sig=void1 (i32) local-fn11(local3)
     t3 = aggregate () : {}
     t4 = global_load global3 : struct0
     t5 = extract t4, 0 : i32
     store t5 -> local4
     store local4 -> local5
-    call managed-void-target2 sp<managed-call:2> live=[] sig=void2 (i32) local-fn1(local5)
+    call managed-void-target2 sp<managed-call:2> live=[] sig=void2 (i32) local-fn11(local5)
     t6 = aggregate () : {}
     t7 = global_load global3 : struct0
     t8 = extract t7, 1 : i32
     store t8 -> local6
     store local6 -> local7
-    call managed-void-target3 sp<managed-call:3> live=[] sig=void3 (i32) local-fn1(local7)
+    call managed-void-target3 sp<managed-call:3> live=[] sig=void3 (i32) local-fn11(local7)
     t9 = aggregate () : {}
     t10 = native_global_load ng0 sp<native-safe:0> roots=[] : i32
     store t10 -> local8
     store local8 -> local9
-    call managed-void-target4 sp<managed-call:4> live=[] sig=void4 (i32) local-fn1(local9)
+    call managed-void-target4 sp<managed-call:4> live=[] sig=void4 (i32) local-fn11(local9)
     t11 = aggregate () : {}
     t12 = native_global_load ng1 sp<native-safe:1> roots=[] : i32
     store t12 -> local10
     store local10 -> local11
-    call managed-void-target5 sp<managed-call:5> live=[] sig=void5 (i32) local-fn1(local11)
+    call managed-void-target5 sp<managed-call:5> live=[] sig=void5 (i32) local-fn11(local11)
     t13 = aggregate () : {}
     t14 = native_global_load ng2 sp<native-safe:2> roots=[] : i32
     store t14 -> local12
     store local12 -> local13
-    call managed-void-target6 sp<managed-call:6> live=[] sig=void6 (i32) local-fn1(local13)
+    call managed-void-target6 sp<managed-call:6> live=[] sig=void6 (i32) local-fn11(local13)
     t15 = aggregate () : {}
     t16 = native_global_load ng3 sp<native-safe:3> roots=[] : struct0
     t17 = extract t16, 0 : i32
     store t17 -> local14
     store local14 -> local15
-    call managed-void-target7 sp<managed-call:7> live=[] sig=void7 (i32) local-fn1(local15)
+    call managed-void-target7 sp<managed-call:7> live=[] sig=void7 (i32) local-fn11(local15)
     t18 = aggregate () : {}
     t19 = native_global_load ng3 sp<native-safe:4> roots=[] : struct0
     t20 = extract t19, 1 : i32
     store t20 -> local16
     store local16 -> local17
-    call managed-void-target8 sp<managed-call:8> live=[] sig=void8 (i32) local-fn1(local17)
+    call managed-void-target8 sp<managed-call:8> live=[] sig=void8 (i32) local-fn11(local17)
     t21 = aggregate () : {}
     global_store global1, integer<Int>(0x00000014)
     global_store global2, integer<Int>(0x00000015)
@@ -129,7 +129,7 @@ Module
     store integer<Int>(0x00000018) -> local22
     store local21 -> local23
     store local22 -> local24
-    call no-gc-indirect-target0 local50 = sig=indirect0 (sret struct0 size=8 align=4 scan=none, i32, i32) local-fn2(local23, local24)
+    call no-gc-indirect-target0 local50 = sig=indirect0 (sret struct0 size=8 align=4 scan=none, i32, i32) local-fn12(local23, local24)
     store local50 -> local48
     global_store global3, local48
     native_global_store ng0, integer<Int>(0x00000028) sp<native-safe:5> roots=[]
@@ -144,53 +144,93 @@ Module
     store integer<Int>(0x0000002c) -> local29
     store local28 -> local30
     store local29 -> local31
-    call no-gc-indirect-target1 local51 = sig=indirect1 (sret struct0 size=8 align=4 scan=none, i32, i32) local-fn2(local30, local31)
+    call no-gc-indirect-target1 local51 = sig=indirect1 (sret struct0 size=8 align=4 scan=none, i32, i32) local-fn12(local30, local31)
     store local51 -> local49
     native_global_store ng3, local49 sp<native-safe:8> roots=[]
     t26 = global_load global1 : i32
     store t26 -> local32
     store local32 -> local33
-    call managed-void-target9 sp<managed-call:9> live=[] sig=void9 (i32) local-fn1(local33)
+    call managed-void-target9 sp<managed-call:9> live=[] sig=void9 (i32) local-fn11(local33)
     t27 = aggregate () : {}
     t28 = global_load global2 : i32
     store t28 -> local34
     store local34 -> local35
-    call managed-void-target10 sp<managed-call:10> live=[] sig=void10 (i32) local-fn1(local35)
+    call managed-void-target10 sp<managed-call:10> live=[] sig=void10 (i32) local-fn11(local35)
     t29 = aggregate () : {}
     t30 = global_load global3 : struct0
     t31 = extract t30, 0 : i32
     store t31 -> local36
     store local36 -> local37
-    call managed-void-target11 sp<managed-call:11> live=[] sig=void11 (i32) local-fn1(local37)
+    call managed-void-target11 sp<managed-call:11> live=[] sig=void11 (i32) local-fn11(local37)
     t32 = aggregate () : {}
     t33 = global_load global3 : struct0
     t34 = extract t33, 1 : i32
     store t34 -> local38
     store local38 -> local39
-    call managed-void-target12 sp<managed-call:12> live=[] sig=void12 (i32) local-fn1(local39)
+    call managed-void-target12 sp<managed-call:12> live=[] sig=void12 (i32) local-fn11(local39)
     t35 = aggregate () : {}
     t36 = native_global_load ng0 sp<native-safe:9> roots=[] : i32
     store t36 -> local40
     store local40 -> local41
-    call managed-void-target13 sp<managed-call:13> live=[] sig=void13 (i32) local-fn1(local41)
+    call managed-void-target13 sp<managed-call:13> live=[] sig=void13 (i32) local-fn11(local41)
     t37 = aggregate () : {}
     t38 = native_global_load ng1 sp<native-safe:10> roots=[] : i32
     store t38 -> local42
     store local42 -> local43
-    call managed-void-target14 sp<managed-call:14> live=[] sig=void14 (i32) local-fn1(local43)
+    call managed-void-target14 sp<managed-call:14> live=[] sig=void14 (i32) local-fn11(local43)
     t39 = aggregate () : {}
     t40 = native_global_load ng3 sp<native-safe:11> roots=[] : struct0
     t41 = extract t40, 0 : i32
     store t41 -> local44
     store local44 -> local45
-    call managed-void-target15 sp<managed-call:15> live=[] sig=void15 (i32) local-fn1(local45)
+    call managed-void-target15 sp<managed-call:15> live=[] sig=void15 (i32) local-fn11(local45)
     t42 = aggregate () : {}
     t43 = native_global_load ng3 sp<native-safe:12> roots=[] : struct0
     t44 = extract t43, 1 : i32
     store t44 -> local46
     store local46 -> local47
-    call managed-void-target16 sp<managed-call:16> live=[] sig=void16 (i32) local-fn1(local47)
+    call managed-void-target16 sp<managed-call:16> live=[] sig=void16 (i32) local-fn11(local47)
     t45 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$ea3a9bba4266b1b2d516954954a6000d4e6f0a1e6b39b47c8410c51730d5d207() -> i32 <no-gc>
+  block entry
+    t0 = global_load global1 : i32
+    ret t0
+  fun @scoop$1$cb$cf67f4d15d98e015f5640caf59ad1f8a44597b8e69e23e73c0ba7935847313fa(i32) -> void <no-gc>
+  block entry
+    global_store global1, param0
+    ret
+  fun @scoop$1$cb$336cbaec004e1f75e7f699dace78c39970dd03192ec2527d00c1a51bdf5dc047() -> i32 <no-gc>
+  block entry
+    t0 = global_load global2 : i32
+    ret t0
+  fun @scoop$1$cb$48d8187214a5b3087466b4200be8d981c94d9c293252d0a0f8372bdc12fa09fa(i32) -> void <no-gc>
+  block entry
+    global_store global2, param0
+    ret
+  fun @scoop$1$cb$05ac0c0c906d9631f5765d11cc911b372fa03d800c734db1eb5f6fcb7c382f53() -> sret<struct0 size=8 align=4 scan=none> <no-gc>
+  block entry
+    t0 = global_load global3 : struct0
+    ret t0
+  fun @scoop$1$cb$e70beda7c72ef67acf2a099240952ac340d4f4eef0b8bac444d4e31a6a3a90e0(indirect<struct0 size=8 align=4 scan=none>) -> void <no-gc>
+  block entry
+    global_store global3, param0
+    ret
+  fun @scoop$1$cb$2627b0dc362e011cc1ed8daa5e7328e6d9944af20c9dea1f6da4f5cf368b774c() -> enum0 <no-gc>
+  block entry
+    t0 = global_load global4 : enum0
+    ret t0
+  fun @scoop$1$cb$6aa35990f35d6586195136ec683c9d0f3aa82914778574d32bcd0842294b5460(enum0) -> void <no-gc>
+  block entry
+    global_store global4, param0
+    ret
+  fun @scoop$1$cb$a1d1e5e0e354f64324ada9b4b10f5d82d0ca2272047309fe532557db5415fad1() -> enum1 <no-gc>
+  block entry
+    t0 = global_load global5 : enum1
+    ret t0
+  fun @scoop$1$cb$c8800aadb5bc36c81bec92919d3ad1cc892b02d643c5683f7840ef5c548a5ba8(enum1) -> void <no-gc>
+  block entry
+    global_store global5, param0
     ret
   fun @scoop$1$cb$05ffc32f631b2fcd15ae6cb61f370b61c17fa98cb6f1492449586fa0abce58a1(i32) -> void
     local %0 $dependency.local.1: i32
