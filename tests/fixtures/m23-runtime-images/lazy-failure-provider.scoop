@@ -1,5 +1,5 @@
 package startup.lazy
-@Extern(name = "m23_trace") private fun trace(value: Long)
+@Extern(lib = "m23_runtime_images", name = "m23_trace") private fun trace(value: Long)
 public class Box public constructor(public val value: Long)
 public class Fault public constructor(public val payload: Box) : Throwable()
 private var attempts: Int = 0

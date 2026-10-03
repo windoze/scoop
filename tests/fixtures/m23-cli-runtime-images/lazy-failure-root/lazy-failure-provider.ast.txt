@@ -1,0 +1,42 @@
+SourceFile
+  QualifiedPackage startup.lazy
+    @Extern(lib = "m23_runtime_images", name = "m23_trace")
+  private fun trace(value: Long)
+  public class Box(val value: Long)
+  public class Fault(val payload: Box) : Throwable(<0 args>)
+  private var attempts: Int = <expr>
+  private fun fail(): Long
+    compound-assign Add
+      IntLiteral 1
+    @Unsafe block
+      Call trace
+        IntLiteral 1L
+    throw
+      Call Fault
+        Call Box
+          IntLiteral 42L
+  private object Broken
+    val value: Long =
+      Call fail
+  private object Unused
+    val value: Long =
+      IfExpression
+        BoolLiteral true
+        @Unsafe block
+          Call trace
+            IntLiteral 99L
+        throw
+          Call IllegalStateException
+        else
+        IntLiteral 0L
+  public fun readFailure(): Long
+    =
+      FieldAccess value
+        Var Broken
+  public fun unused(): Long
+    =
+      FieldAccess value
+        Var Unused
+  public fun count(): Int
+    =
+      Var attempts
