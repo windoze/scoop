@@ -1,0 +1,36 @@
+SourceFile
+  RootPackage
+  public fun deferred(): DeferredStorage
+    =
+      Call DeferredStorage
+        Call DeferredRoot
+SourceFile
+  RootPackage
+  public interface Readable
+    fun evaluate
+  public interface Root : Readable
+    public open var count: Int <computed>
+      get()
+        IntLiteral 2
+      set(value)
+  public open class Factory(seed: Int = <expr>), Root
+    constructor(text: String) : this(<1 args>)
+    constructor(flag: Boolean) : this(<1 args>)
+    constructor(value: Long) : this(<1 args>)
+    private val hidden: Int = <expr>
+      IntLiteral 7
+    public fun observe
+    protected fun protectedValue
+    public fun ordinary
+  public class Child(label: String) : Factory(<1 args>)
+  public struct Value : Readable
+    field payload: Int
+    public fun evaluate
+  public class FinalReader(), Readable
+    public fun evaluate
+  public struct Generic<T>
+    field value: T
+  public interface DeferredGeneric<T>
+  public class DeferredRoot(), DeferredGeneric<Int>
+  public struct DeferredStorage
+    field root: DeferredRoot
