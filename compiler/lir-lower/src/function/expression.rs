@@ -90,17 +90,20 @@ impl<'a> FunctionLowerer<'a> {
             } => self.lower_array_clone(ty, source_type, target_type, operand)?,
             mir::ExprKind::Local(local) => self.local_value(*local),
             mir::ExprKind::GlobalRead(global) => {
-                let out_ty = self.value_type(ty);
-                let out = self.new_temp(out_ty);
                 match *self
                     .storage_globals
                     .get(global)
                     .expect("every MIR global has storage")
                 {
                     StorageGlobal::Local(global) => {
-                        self.push(lir::Instruction::GlobalLoad { out, global })
+                        let out_ty = self.value_type(ty);
+                        let out = self.new_temp(out_ty);
+                        self.push(lir::Instruction::GlobalLoad { out, global });
+                        lir::Value::Temp(out)
                     }
                     StorageGlobal::Native(global) => {
+                        let out_ty = self.c_storage_type(ty);
+                        let out = self.new_temp(out_ty);
                         let safepoint =
                             self.new_safepoint(lir::SafepointSiteRole::NativeSafeTransition);
                         self.push(lir::Instruction::NativeGlobalLoad {
@@ -108,10 +111,10 @@ impl<'a> FunctionLowerer<'a> {
                             global,
                             safepoint,
                             roots: lir::NativeSafeRootSet::default(),
-                        })
+                        });
+                        self.restore_c_value(ty, lir::Value::Temp(out))
                     }
                 }
-                lir::Value::Temp(out)
             }
             mir::ExprKind::InitializationUnitAddress(unit) => {
                 lir::Value::InitializationUnit(lir::InitializationUnitId::from_raw(unit.into_raw()))

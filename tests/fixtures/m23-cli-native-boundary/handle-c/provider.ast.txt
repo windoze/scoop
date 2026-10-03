@@ -1,0 +1,10 @@
+SourceFile
+  RootPackage
+    @Extern(name = "handle_round_trip")
+  fun handleRoundTrip(value: GcHandle<Any>): GcHandle<Any>
+  fun main()
+    @Unsafe block
+      val result
+        Call handleRoundTrip
+          Call GcHandle<Any>
+            IntLiteral 42uL

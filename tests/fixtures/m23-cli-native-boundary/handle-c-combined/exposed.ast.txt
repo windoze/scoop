@@ -1,0 +1,57 @@
+SourceFile
+  RootPackage
+    @Extern(name = "verify_finished", lib = "m23_native_boundary")
+  fun verifyFinished()
+  public fun perform()
+    Call main
+    @Unsafe block
+      if
+        Binary Ne
+          Var nativeHandle
+          Call GcHandle<Any>
+            IntLiteral 9uL
+        throw
+          Call IllegalStateException
+    @Unsafe block
+      Call verifyFinished
+SourceFile
+  RootPackage
+    @CLayout
+  struct NativeHandles
+    field flag: UInt8
+    field pin: PinnedPtr<Any>
+    field handle: GcHandle<Any>
+    @Extern(name = "exchange_handles", lib = "m23_native_boundary")
+  fun exchangeHandles(value: NativeHandles, pointer: Ptr<GcHandle<Any>>, callback: FunPtr<(GcHandle<Any>) -> GcHandle<Any>>?): NativeHandles
+    @Extern(name = "native_handle", lib = "m23_native_boundary")
+    @Global
+  var nativeHandle: GcHandle<Any>
+    @NoGC
+  fun echoHandle(value: GcHandle<Any>): GcHandle<Any>
+    =
+      Var value
+  fun main()
+    @Unsafe block
+      val handle
+        Call GcHandle<Any>
+          IntLiteral 1uL
+      val pin
+        Call PinnedPtr<Any>
+          IntLiteral 2uL
+      val callback: FunPtr<(GcHandle<Any>) -> GcHandle<Any>>
+        CallableReference 0 echoHandle
+      val optional: FunPtr<(GcHandle<Any>) -> GcHandle<Any>>?
+        Call Some
+          Var callback
+      val result
+        Call exchangeHandles
+          Call NativeHandles
+            IntLiteral 3u
+            Var pin
+            Var handle
+          Call addressOf<GcHandle<Any>>
+            Var handle
+          Var optional
+      assign nativeHandle
+        FieldAccess handle
+          Var result

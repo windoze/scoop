@@ -314,6 +314,10 @@ enum 的具体化请求按原声明身份与完整实参复用同一缓存。声
 
 struct 同样按原声明和完整实参统一分配、字段替换、GC 计算及接口记录。声明读取保留实际 C 布局和 C ABI 投影；整数、Boolean、Ptr 与 FunPtr 的既定机器表示沿同一分配过程取得 canonical type。接口闭包从已经具体化的父类型记录取得，不重做成员选择。仅当前需要发射的实现进入方法、构造器与接口实现集合；普通外部方法和 primitive 装箱适配仍关联提供方定义，不能因统一具体化而复制实现或增加物化根。
 
+导入的 handle 声明在首次加载时，按已有完整 FFI protocol 的实际 generic nominal id 和声明中的唯一 field id 正规化 `UInt64Field` C 投影（语言规范 14.1、本规范 2.12）。提供方的 native-boundary 表只记录其实际使用的外来类型闭包；该表没有使用某个 handle 时，不能据此把其语言规定的 C 表示降为普通 struct。正规化结果随已加载声明复用，供 C-FFI 检查和 LocalConcrete 使用；不扩大 native-boundary 持久化集合，不新增产物字段，也不改变该 struct 的 Scoop aggregate ABI。
+
+LIR lowering 在 C extern 实参、结果和 native global 读写处，按 MIR 已检查的 `UInt64Field` 投影显式拆出或封装唯一字段，使 C storage 的整数类型与 Scoop 值的 struct 类型各自保持准确。CLayout 的构造与字段读取使用相同转换，嵌套字段按既有 C storage 布局保存。普通 Scoop 调用、局部变量、指针所指的完整值和 callback storage bridge 继续使用原 Scoop 表示；handle 的唯一字段与 C 整数具有相同内存布局，不新增指针复制或回调 ABI。codegen 继续检查每个操作的实际存储类型，不以相同字节数放宽类型相等要求。
+
 class 的实例缓存也使用原声明与完整实参，字段、基类、接口和既定方法记录在同一具体化流程中完成。String／Array／MutableArray 保留其既定表示，当前 object 的 backing class 登记继续在递归引用前建立关联；普通外部虚方法保留原 family 和外部定义引用，需要替换的泛型实现才进入共同函数请求。存储读取可适配声明记录，但不得重新推导继承、覆写或接口选择，也不得复制普通外部构造与初始化实现。
 
 interface 的实例与 family 分别按原声明及完整实参、原声明身份复用；当前和依赖接口共用父类型、槽映射与具体签名生成。每个继承方法保留到达其声明时的完整类型替换，不能用最外层接口的参数顺序解释中间父接口已交换或固定的实参。读取边界提供原槽、覆写关系、签名、效果和实现类别，继承去重只复用这些既定关系；普通依赖默认方法继续关联原定义，接口查询不增加外部实现的发射根。

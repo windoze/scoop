@@ -130,14 +130,25 @@ impl FunctionLowerer<'_> {
             )?;
             self.load_heap_value(receiver, offsets[*index as usize], ty)
         } else {
-            let out_ty = self.value_type(ty);
+            let c_layout = matches!(receiver_ty, mir::Type::Struct(id)
+                if self.structs[struct_def_id(id)].is_c_layout());
+            let out_ty = if c_layout {
+                self.c_storage_type(ty)
+            } else {
+                self.value_type(ty)
+            };
             let out = self.new_temp(out_ty);
             self.push(lir::Instruction::ExtractValue {
                 out,
                 aggregate: receiver,
                 index: *index,
             });
-            Ok(lir::Value::Temp(out))
+            let value = lir::Value::Temp(out);
+            Ok(if c_layout {
+                self.restore_c_value(ty, value)
+            } else {
+                value
+            })
         }
     }
 

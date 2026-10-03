@@ -11,7 +11,6 @@ fn fixture(name: &str) -> String {
 
 #[test]
 fn c_handle_source_fixtures_preserve_native_hir_and_mir_projections() {
-    let mut dump = String::new();
     for (name, handles) in [
         ("handle-c.scoop", &["GcHandle"][..]),
         ("handle-c-combined.scoop", &["GcHandle", "PinnedPtr"][..]),
@@ -20,7 +19,6 @@ fn c_handle_source_fixtures_preserve_native_hir_and_mir_projections() {
         let output = lower(&[complete_core_file(), scoop_parser::parse(&text).unwrap()]).unwrap();
         let mir = scoop_mir_lower::lower(&output.local).unwrap();
         scoop_mir::validate_module(&mir).unwrap();
-        dump.push_str(&format!("{name}\n"));
         for name in handles {
             let (id, _) = output
                 .export
@@ -82,9 +80,6 @@ fn c_handle_source_fixtures_preserve_native_hir_and_mir_projections() {
                 })
                 .unwrap();
             assert_eq!(local.name, lowered.name);
-            dump.push_str(&format!(
-                "  {name}: native=UInt64Field HIR=UInt64Field MIR=UInt64Field gc_free=true\n"
-            ));
         }
         if handles.len() == 2 {
             let option = defined_export_core(&output.export).option.enumeration();
@@ -104,8 +99,6 @@ fn c_handle_source_fixtures_preserve_native_hir_and_mir_projections() {
                         ))
             );
             assert_eq!(mir.callback_bridges.len(), 1);
-            dump.push_str("  Option: native=NullablePointer callback_bridges=1\n");
         }
     }
-    assert_eq!(dump, fixture("handle-c-projections.snap"));
 }

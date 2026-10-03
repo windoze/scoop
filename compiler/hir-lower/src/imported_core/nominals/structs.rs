@@ -18,8 +18,9 @@ impl Lowerer {
 
     fn load_struct_definition(
         &mut self,
-        declaration: Arc<hir::ImportedNominalDeclaration>,
+        mut declaration: Arc<hir::ImportedNominalDeclaration>,
     ) -> Result<(), ImportedSignatureTypeError> {
+        self.normalize_imported_struct_c_abi(&mut declaration)?;
         let (c_layout, interior_mutable, representation) =
             match declaration.interface.source_shape() {
                 hir::NominalSourceShapeV1::Struct(shape) => (
@@ -152,6 +153,35 @@ impl Lowerer {
             .expect("the struct builder registered its identity")
             .definition
             .interface_implementations = implementations?;
+        Ok(())
+    }
+
+    fn normalize_imported_struct_c_abi(
+        &self,
+        declaration: &mut Arc<hir::ImportedNominalDeclaration>,
+    ) -> Result<(), ImportedSignatureTypeError> {
+        let CoreLoweringAuthority::Imported(core) = &self.core else {
+            return Ok(());
+        };
+        let handles = [core.ffi().pinned_ptr(), core.ffi().gc_handle()];
+        if !handles.iter().any(|handle| {
+            declaration.owner() == hir::SourceNominalId::GenericTemplate(handle.persistent())
+        }) {
+            return Ok(());
+        }
+        let [field] = declaration.interface.source_shape().declared_fields() else {
+            return Err(ImportedSignatureTypeError::Structural);
+        };
+        let projection = hir::NativeBoundaryCAbiV1::UInt64Field {
+            field: field.field(),
+        };
+        if declaration.c_abi == projection {
+            return Ok(());
+        }
+        if declaration.c_abi != hir::NativeBoundaryCAbiV1::SourceRepresentation {
+            return Err(ImportedSignatureTypeError::Structural);
+        }
+        Arc::make_mut(declaration).c_abi = projection;
         Ok(())
     }
 }

@@ -32,7 +32,8 @@ impl<'a> FunctionLowerer<'a> {
                         );
                         let mut bridge_args = Vec::with_capacity(args.len());
                         for (value, ty) in args.into_iter().zip(parameter_types) {
-                            let ty = self.value_type(&ty);
+                            let value = self.project_c_value(&ty, value);
+                            let ty = self.c_storage_type(&ty);
                             let local = self.new_hidden_local(ty)?;
                             self.push(lir::Instruction::Store { local, value });
                             bridge_args.push(lir::Value::CArgumentStorage(
@@ -48,14 +49,15 @@ impl<'a> FunctionLowerer<'a> {
                                 bridge_args,
                             )?
                         } else {
-                            let result_type = self.value_type(result_ty);
-                            self.emit_native_storage_call(
+                            let result_type = self.c_storage_type(result_ty);
+                            let result = self.emit_native_storage_call(
                                 destination,
                                 bridge_parameter_types,
                                 result_type,
                                 lir::RefScan::None,
                                 bridge_args,
-                            )?
+                            )?;
+                            self.restore_c_value(result_ty, result)
                         }
                     }
                     LoweredExternFunctionRef::Scoop(function) => {
