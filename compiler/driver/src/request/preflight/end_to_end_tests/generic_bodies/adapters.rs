@@ -14,16 +14,6 @@ fn pointer_function_adapters_republish_and_execute() {
 }
 
 #[test]
-fn native_function_values_adapt_after_external_address_selection() {
-    super::members::check_fixture_cases(
-        "m23-function-adapters",
-        &["native-value"],
-        &[],
-        "downstream",
-    );
-}
-
-#[test]
 fn delegate_initializer_adapters_republish_and_execute() {
     super::members::check_fixture_cases(
         "m23-function-adapters",

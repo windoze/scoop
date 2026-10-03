@@ -17,22 +17,10 @@ fn actual_executable_corruption_is_rejected_before_publication() {
     let startup =
         StartupObject::build(&inputs, &fixture.profile, fixture.directory.path()).unwrap();
     let original = std::fs::read(&fixture.output.path).unwrap();
-    verify(
-        &original,
-        &inputs,
-        &startup,
-        &fixture.profile,
-        &crate::link::map::LinkMap::default(),
-    )
-    .unwrap();
+    let map = native::symbol_ranges(&inputs, &original);
+    verify(&original, &inputs, &startup, &fixture.profile, &map).unwrap();
     let reject = |name: &str, bytes: Vec<u8>, expected: &str| {
-        let error = match verify(
-            &bytes,
-            &inputs,
-            &startup,
-            &fixture.profile,
-            &crate::link::map::LinkMap::default(),
-        ) {
+        let error = match verify(&bytes, &inputs, &startup, &fixture.profile, &map) {
             Err(error) => error.to_string(),
             Ok(()) => panic!("{name}: corrupted executable was accepted"),
         };

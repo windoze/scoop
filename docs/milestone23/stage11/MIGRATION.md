@@ -2,7 +2,7 @@
 
 本记录按已迁移批次更新。历史单文件覆盖与剩余 driver／stage／program-link 文件测试分别计数，不能用 Rust workspace 总通过数代替 Python 总验收。
 
-公开 CLI 的缓存迁移与验证另记于 [CLI-CACHE.md](CLI-CACHE.md)。
+公开 CLI 的缓存、泛型委托和 native 函数值迁移分别记于 [CLI-CACHE.md](CLI-CACHE.md)、[CLI-DELEGATES.md](CLI-DELEGATES.md) 与 [CLI-NATIVE-FUNCTIONS.md](CLI-NATIVE-FUNCTIONS.md)。
 
 ## 1. 历史端到端用例
 

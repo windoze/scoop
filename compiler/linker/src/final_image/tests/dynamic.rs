@@ -1,5 +1,5 @@
 use super::*;
-use crate::{link::map::LinkMap, macho_cursor::Cursor};
+use crate::macho_cursor::Cursor;
 
 #[test]
 fn actual_native_dynamic_ordinal_version_and_rpath_corruption_are_rejected() {
@@ -58,7 +58,7 @@ fn actual_native_dynamic_ordinal_version_and_rpath_corruption_are_rejected() {
     .unwrap();
     let startup = StartupObject::build(&inputs, &fixture.profile, path).unwrap();
     let original = std::fs::read(&linked.path).unwrap();
-    let map = LinkMap::default();
+    let map = super::native::symbol_ranges(&inputs, &original);
     verify(&original, &inputs, &startup, &fixture.profile, &map).unwrap();
     let reject = |bytes: &[u8], expected: &str| {
         let message = verify(bytes, &inputs, &startup, &fixture.profile, &map)

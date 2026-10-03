@@ -1074,6 +1074,8 @@ program-link 生成一个普通 C main、位于 `__DATA_CONST,__const` 的静态
 
 系统 linker 的 map/trace、symbol/load-command/binding 信息用来核对实际输入、输出定义与动态导入。最终 verifier 只处理链接新产生的事实：Mach-O target/entry，唯一 C main、root 与每个 image 的实际引用，所有受控 definition/use 的解析，String alias 同址，重复 ODR 的唯一 winner 地址，不同 type/body/storage 的必要地址区别，保留的完整 stackmap section、EH/GC 所需段，以及没有额外动态 provider 或禁止依赖。最终文件中的指针按该 profile 的 rebase/bind 或 chained-fixup 格式读取；不能把磁盘编码直接当 ASLR 后地址。
 
+同一个受控 ODR atom 在多个输入对象中出现时，从实际 link map 的保留符号取得唯一的 Cone／member，核对它属于已读取的候选集合、地址与最终符号表相同，再使用该候选的原 relocation 检查最终引用。被合并掉的候选不再描述最终字节，不能用其物理引用重复校验 winner；例如相同泛型正文可以分别引用本 Cone 生成、语义相同的 C trampoline。单一候选与 Strong 引用保持原检查，缺失、重复、错误 owner 或地址不一致的 map 记录仍拒绝。不改变已有 ODR 内容兼容规则，也不重新生产或比较所有候选的语义。
+
 链接前的 canonical identity、ABI、ODR body 与对象内容检查不在最终 verifier 再执行。stackmap 的对象 payload 已由 reader 核对；最终 verifier 检查完整 blob 保留和可定位的链接目标，Stage 8 runtime 在实际加载地址／权限边界执行全量 site/owner/PC/payload 与 registry 检查。runtime 不重算 RuntimeImage/Graph/ODR 全图；正常链接也不运行用户程序来取得“通过证明”。完整静态交叉核对可以用于显式验证或测试，不能成为每次发布和启动的重复门禁。
 
 所有必要检查通过后，将临时 executable 原子物化到输出路径；失败保留原输出，不发布部分 binary。必要的 Mach-O ad-hoc code signing 是目标平台已有装载格式要求，不扩展为 Scoop 来源授权。返回普通输出路径、计划摘要和诊断。

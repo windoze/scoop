@@ -96,20 +96,17 @@ fn link_inputs(
             String::from_utf8_lossy(&result.stderr)
         )));
     }
-    let native_paths = inputs
+    let object_origins = inputs
         .objects
         .iter()
         .zip(&paths[1..])
-        .filter_map(|(input, path)| match input.origin {
-            crate::program::ObjectOrigin::Native(id) => Some((path.clone(), id)),
-            _ => None,
-        })
+        .map(|(input, path)| (path.clone(), input.origin))
         .collect();
     let map = map::check(
         &std::fs::read_to_string(link_map).map_err(error)?,
         &paths,
         &stubs,
-        &native_paths,
+        &object_origins,
     )?;
     map::trace(
         std::str::from_utf8(&result.stdout).map_err(error)?,

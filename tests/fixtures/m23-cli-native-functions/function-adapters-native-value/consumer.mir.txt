@@ -1,5 +1,5 @@
 Module
-  extern ef0 nativeCall @m23_call_scalar(FunPtr<(Long) -> Long>, Long) -> Long <abi=c no-gc>
+  extern ef0 nativeCall @m23_call_scalar(FunPtr<(Long) -> Long>, Long) -> Long <abi=c no-gc lib=m23_native_calls>
   callback cb0 external0 -> external5 function_type0 id=f07227a97aa30c897ae0d4ccf69dd08ed9592ac299078af826d80339d7bedfdf
   enum Option<String>
     Some(_0: String)

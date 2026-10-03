@@ -154,6 +154,8 @@ single-file root 的 core 匹配使用 edge 中实际记录的 HIR/MIR/LIR seman
 
 ## 4. 缓存和检查边界
 
+真实 native 函数值与泛型再次发布的组合要求最终引用核对沿实际 ODR winner 进行。link map 保留 Scoop 对象的 Cone／member 归属；重复 atom 的唯一保留记录必须属于既有候选且与最终符号地址一致。最终 verifier 使用 winner 的原 relocation，避免把被合并候选的本地 C trampoline 地址套用到保留正文。该修正复用现有 ODR 兼容检查，不修改 callback 身份、产物格式或 runtime ABI（实现规范 2.8）。
+
 ### 4.1 继续使用现有编译键与锁
 
 保留 `ConeCompileCacheKeyV1` 的真实输入：manifest／single-file semantic projection、canonical source identity 与内容、全部 direct 依赖三层语义 fingerprint、compiler executable／协议、identity/schema/产物 profile、target/backend 和实际 C bridge toolchain。当前 single-file key 还保留 core Code fingerprint，允许其造成保守重编译；本阶段不混入一次新的增量依赖裁剪设计。

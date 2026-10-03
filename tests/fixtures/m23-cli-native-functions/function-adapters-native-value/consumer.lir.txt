@@ -1,7 +1,7 @@
 Module
   global @scoop$1$io$7b9bbb1e26a3cf3a6fa4d16e398b593dea57f96fb3935cd70d6c826e407df627 = "illegal state"
   enum Option niche(kind=managed,payload_variant=0)
-  extern ef0 nativeCall @m23_call_scalar(ptr<code>, i64) -> i64 <c exact=(code-ptr<(Long)->Long,direct>,Long)->Long bridge=@scoop$1$br$65eb1e69802919bd06278b128ed5d538da063ab0ebe60922c7c39490eeeb8ef3 gc-leaf nounwind>
+  extern ef0 nativeCall @m23_call_scalar(ptr<code>, i64) -> i64 <c exact=(code-ptr<(Long)->Long,direct>,Long)->Long bridge=@scoop$1$br$2774631b54f4897ebf7fd177ad6f8563e890fe5e9aff9abeff287dc119040b97 gc-leaf nounwind lib=m23_native_calls>
   callback cb0 Function(PersistentFunctionId([37, 144, 201, 189, 39, 107, 169, 218, 158, 48, 245, 132, 4, 191, 125, 168, 236, 118, 90, 67, 82, 158, 207, 67, 238, 126, 152, 167, 18, 161, 205, 42])) @scoop$1$cb$83c0bb70e362f9cc9bdb29d751aced9efaf825b6c4270a3158dfe7ceebf6914e -> @scoop$1$br$430700708b9d0cbae90ce7fe85abb8c6d58808cee66f0bc44518194d48354796 c=(Long)->Long
   fun @scoop$1$cb$0bd7818938311617f82d249614d2af05db9925ff9f201d3756fa048993a26e1a(ptr<code>, i64) -> i64
     local %0 $call.1: i64
