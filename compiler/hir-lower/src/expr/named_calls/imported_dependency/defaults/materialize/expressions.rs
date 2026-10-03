@@ -379,19 +379,24 @@ impl Lowerer {
                 } else {
                     MemberCallKind::Ordinary
                 };
-                let receiver = self.materialize_imported_default_expression(receiver, context)?;
-                let receiver_type = receiver.ty;
-                let mut args = vec![receiver];
-                args.extend(self.materialize_imported_default_expressions(arguments, context)?);
-                self.imported_template_call_kind(
-                    callee,
-                    args,
-                    hir::SourceCallReceiver::Receiver {
-                        static_type: receiver_type,
+                let receiver =
+                    Box::new(self.materialize_imported_default_expression(receiver, context)?);
+                let callee = hir::MethodCallee::Callable(
+                    self.materialize_imported_callable_target(callee, kind, context)?,
+                );
+                let args = self.materialize_imported_default_expressions(arguments, context)?;
+                match kind {
+                    MemberCallKind::Ordinary => hir::ExprKind::MethodCall {
+                        receiver,
+                        callee,
+                        args,
                     },
-                    kind,
-                    context,
-                )?
+                    MemberCallKind::DirectSuper => hir::ExprKind::DirectSuperMethodCall {
+                        receiver,
+                        callee,
+                        args,
+                    },
+                }
             }
             Kind::MethodCall {
                 receiver,

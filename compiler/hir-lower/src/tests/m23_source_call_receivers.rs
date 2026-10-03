@@ -1,5 +1,6 @@
 use scoop_hir as hir;
 
+mod inheritance;
 mod support;
 use support::{fixture, with_output};
 

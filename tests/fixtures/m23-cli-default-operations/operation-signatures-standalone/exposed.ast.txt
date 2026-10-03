@@ -1,0 +1,44 @@
+SourceFile
+  RootPackage
+  public fun defaultSamples(): Samples
+    =
+      Call Samples
+SourceFile
+  RootPackage
+  public open class Cell(var backing: Int = <expr>)
+    public var value: Int <computed>
+      get()
+        Var backing
+      set(next)
+        assign backing
+          Var next
+    public fun read
+    public fun keep
+    public fun many
+    public suspend fun await
+  public class Child() : Cell(<1 args>)
+  public struct Packet
+    field value: Int
+  public enum Choice
+    None
+    Some <ctor>
+      value: Int
+  public class Empty()
+  public class Required(value: Int)
+  public class Variadic<T>(vararg values: T)
+  public class DefaultVariadic<T>(vararg values: T = <expr>)
+  public class Samples()
+    public fun method
+    public fun inherited
+    public fun generic
+    public fun getter
+    public fun setter
+    public fun variadicCall
+    public suspend fun suspended
+    public fun cell
+    public fun packet
+    public fun variant
+    public fun empty
+    public fun required
+    public fun variadic
+    public fun defaultVariadic

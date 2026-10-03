@@ -1,0 +1,116 @@
+SourceFile
+  RootPackage
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  class Completion(), Continuation<Int>
+    var result: Int =
+      IntLiteral 0
+    public fun resume
+    public fun resumeWithException
+  fun main()
+    val samples
+      Call defaultSamples
+    val cell
+      Call Cell
+    Call verifyDefault
+      Binary Eq
+        MethodCall method
+          Var samples
+          Var cell
+        IntLiteral 2
+    Call verifyDefault
+      Binary Eq
+        MethodCall inherited
+          Var samples
+          Call Child
+        IntLiteral 2
+    Call verifyDefault
+      Binary Eq
+        MethodCall generic<String>
+          Var samples
+          Var cell
+          StringLiteral "kept"
+        StringLiteral "kept"
+    Call verifyDefault
+      Binary Eq
+        MethodCall getter
+          Var samples
+          Var cell
+        IntLiteral 1
+    Call verifyDefault
+      Binary Eq
+        MethodCall setter
+          Var samples
+          Var cell
+        IntLiteral 4
+    Call verifyDefault
+      Binary Eq
+        MethodCall variadicCall<Int>
+          Var samples
+          Var cell
+          IntLiteral 7
+        IntLiteral 4
+    val completion
+      Call Completion
+    Call startCoroutine
+      Lambda 0 suspend=true
+        parameters omitted
+        MethodCall suspended<Int>
+          Var samples
+          Var cell
+          IntLiteral 23
+      Var completion
+    Call verifyDefault
+      Binary Eq
+        FieldAccess result
+          Var completion
+        IntLiteral 23
+    Call verifyDefault
+      Binary Eq
+        FieldAccess value
+          MethodCall cell
+            Var samples
+        IntLiteral 2
+    Call verifyDefault
+      Binary Eq
+        MethodCall packet
+          Var samples
+        Call Packet
+          IntLiteral 3
+    Call verifyDefault
+      Binary Eq
+        MethodCall variant
+          Var samples
+        MethodCall Some
+          Var Choice
+          IntLiteral 4
+    Call verifyDefault
+      Binary RefNe
+        MethodCall empty
+          Var samples
+        MethodCall empty
+          Var samples
+    Call verifyDefault
+      Binary RefNe
+        MethodCall required
+          Var samples
+        MethodCall required
+          Var samples
+    Call verifyDefault
+      Binary RefNe
+        MethodCall variadic<Int>
+          Var samples
+          IntLiteral 7
+        MethodCall variadic<Int>
+          Var samples
+          IntLiteral 7
+    Call verifyDefault
+      Binary RefNe
+        MethodCall defaultVariadic<Int>
+          Var samples
+        MethodCall defaultVariadic<Int>
+          Var samples
