@@ -1,3 +1,0 @@
-span=184..200
-expression=local("managed")
-`@NoGC` struct `Scalar` specialization is not GC-free because it directly or indirectly contains a ref type

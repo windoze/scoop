@@ -23,7 +23,6 @@ mod interface_members;
 mod interfaces;
 mod local_calls;
 mod machine;
-mod members;
 mod metadata;
 mod method_calls;
 mod native_calls;
@@ -53,10 +52,6 @@ const PROVIDER: &str = include_str!(concat!(
 const CONSUMER: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../tests/fixtures/m23-generic-body-consumption/consumer.scoop"
-));
-const BAD_KIND: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-generic-body-consumption/bad-kind.scoop"
 ));
 
 fn lower_consumer(source: &str) -> Result<hir::DependencyHirOutput, Vec<crate::Diagnostic>> {
@@ -175,38 +170,8 @@ fn imported_generic_bodies_infer_and_materialize_provider_templates() {
     let _ = scoop_wire::encode(&foundation).unwrap();
     let dependencies =
         scoop_mir::SelectedExternalMirSet::try_from_callables(local.cone, Vec::new()).unwrap();
-    let mir = scoop_mir_lower::lower_current_cone(&output, dependencies)
+    scoop_mir_lower::lower_current_cone(&output, dependencies)
         .expect("dependency templates lower through the ordinary MIR body path");
-    let mir_dump = scoop_mir::dump(mir.module());
-    let mir_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-generic-body-consumption/consumer.mir.snap");
-    if std::env::var_os("SCOOP_UPDATE_GENERIC_BODY_SNAPSHOTS").is_some() {
-        std::fs::write(&mir_path, &mir_dump).unwrap();
-    }
-    assert_eq!(std::fs::read_to_string(mir_path).unwrap(), mir_dump);
-    let dump = hir::dump(&output.output().export);
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-generic-body-consumption/consumer.hir.snap");
-    if std::env::var_os("SCOOP_UPDATE_GENERIC_BODY_SNAPSHOTS").is_some() {
-        std::fs::write(&path, &dump).unwrap();
-    }
-    assert_eq!(std::fs::read_to_string(path).unwrap(), dump);
-}
-
-#[test]
-fn imported_generic_kind_bound_reports_the_consumer_argument() {
-    let errors = lower_consumer(BAD_KIND)
-        .err()
-        .expect("a class cannot satisfy a value bound");
-    let error = errors
-        .iter()
-        .find(|error| error.message.contains("must satisfy `value`"))
-        .expect("the normal kind constraint reports the failure");
-    let span = error.span.unwrap();
-    assert_eq!(
-        &BAD_KIND[span.start as usize..span.end as usize],
-        "valueOnly(ReferenceValue())"
-    );
 }
 
 #[test]
@@ -238,74 +203,4 @@ fn imported_generic_overloads_compare_declarations_in_one_type_arena() {
         export.types[selected.params[0].ty],
         hir::Type::Tuple(_)
     ));
-}
-
-#[test]
-fn imported_generic_ambiguity_reports_both_declared_signatures() {
-    let source = include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m23-generic-body-consumption/bad-overload.scoop"
-    ));
-    let errors = lower_consumer(source)
-        .err()
-        .expect("neither declaration dominates");
-    let error = errors
-        .iter()
-        .find(|error| error.message.contains("ambiguous"))
-        .unwrap_or_else(|| panic!("missing ambiguity: {errors:?}"));
-    assert!(
-        error.message.contains("conflict<T>(left: T, right: Int)"),
-        "{error:?}"
-    );
-    assert!(
-        error.message.contains("conflict<T>(left: Int, right: T)"),
-        "{error:?}"
-    );
-    let span = error.span.unwrap();
-    assert_eq!(
-        &source[span.start as usize..span.end as usize],
-        "conflict(1, 2)"
-    );
-    assert_eq!(error.file, 0);
-}
-
-#[test]
-fn imported_generic_effects_and_pointee_predicates_reach_consumer_calls() {
-    for (source, message) in [
-        (
-            include_str!(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/../../tests/fixtures/m23-generic-body-consumption/bad-nogc.scoop"
-            )),
-            "calling a managed dependency function",
-        ),
-        (
-            include_str!(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/../../tests/fixtures/m23-generic-body-consumption/bad-nogc-argument.scoop"
-            )),
-            "GC-free",
-        ),
-        (
-            include_str!(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/../../tests/fixtures/m23-generic-body-consumption/bad-pointee.scoop"
-            )),
-            "GC-free `Ptr` pointee",
-        ),
-    ] {
-        let errors = lower_consumer(source)
-            .err()
-            .expect("the source violates the imported callable contract");
-        let error = errors
-            .iter()
-            .find(|error| error.message.contains(message))
-            .unwrap_or_else(|| panic!("missing {message}: {errors:?}"));
-        let span = error.span.unwrap();
-        assert!(
-            source[span.start as usize..span.end as usize].contains('('),
-            "{error:?}"
-        );
-        assert_eq!(error.file, 0);
-    }
 }

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`direct` cannot override final method `Parent.direct`",
+    "notes": [],
+    "origin": {
+      "cone": "b81b365c9424e659f1f6889c42c9b16262bec367e2c0562b98a983a538e1630f",
+      "end": 118,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 112
+    },
+    "severity": "error"
+  }
+]

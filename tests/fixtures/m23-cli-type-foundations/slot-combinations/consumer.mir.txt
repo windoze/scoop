@@ -1,0 +1,24 @@
+Module
+  interface Root
+  fun read @fn0(value: Root) -> Int
+    bb0 entry
+      val $dependency.receiver: Root
+        Type Root
+        Local value
+      call $dependency.receiver: Int = external0 interface Root[0]
+        Type Root
+        Local $dependency.receiver
+      call $dependency.argument.0: Int = external1 interface Root[1]
+        Type Root
+        Local value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  output library

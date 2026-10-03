@@ -1,5 +1,7 @@
 use super::*;
-use scoop_identity::{CanonicalScoopStorage, CoreBuiltinNominal, ScoopAbiArgument, ScoopAbiReturn};
+use scoop_identity::{
+    CoreBuiltinNominal, GcEffect, ScoopAbiArgument, ScoopAbiReturn, ScoopAbiValueShape,
+};
 
 pub(super) fn assert_abis(production: &scoop_slib::ValidatedCrossConeSemanticsProduction) {
     let unit = CoreBuiltinNominal::Unit.identity_record().id();
@@ -12,7 +14,6 @@ pub(super) fn assert_abis(production: &scoop_slib::ValidatedCrossConeSemanticsPr
         ("userCoreAbiUnit", vec![unit]),
         ("userCoreAbiMixed", vec![unit, integer, string]),
     ];
-    let mut dump = String::new();
     for (name, parameters) in cases {
         let function =
             PersistentFunctionId::from_source_declaration(&SourceDeclarationKey::function(
@@ -31,33 +32,35 @@ pub(super) fn assert_abis(production: &scoop_slib::ValidatedCrossConeSemanticsPr
         let lir = production.lir_cross_cone().export(declaration).unwrap();
         let abi = lir.abi_signature();
         assert_eq!(abi.signature(), mir.signature());
-        let arguments = abi
-            .arguments()
-            .iter()
-            .map(|argument| match argument {
-                ScoopAbiArgument::ElidedZst(value) => storage("elided", value),
-                ScoopAbiArgument::Direct(value) => storage("direct", value),
-                ScoopAbiArgument::Indirect(value) => storage("indirect", value),
-            })
-            .collect::<Vec<_>>()
-            .join(",");
-        let result = match abi.result() {
-            ScoopAbiReturn::UnitVoid => "unit".to_owned(),
-            ScoopAbiReturn::ElidedZst(value) => storage("elided", &value),
-            ScoopAbiReturn::Direct(value) => storage("direct", &value),
-            ScoopAbiReturn::Indirect(value) => storage("indirect", &value),
+        assert_eq!(abi.gc_effect(), GcEffect::Managed);
+        let [ScoopAbiArgument::ElidedZst(unit), tail @ ..] = abi.arguments() else {
+            panic!("both functions elide the leading Unit argument");
         };
-        dump.push_str(&format!(
-            "{name}: {:?} args=[{arguments}] result={result}\n",
-            abi.gc_effect()
-        ));
+        assert_eq!(
+            (unit.byte_size(), unit.shape()),
+            (0, ScoopAbiValueShape::Aggregate)
+        );
+        match tail {
+            [] => {
+                assert_eq!(name, "userCoreAbiUnit");
+                assert_eq!(abi.result(), ScoopAbiReturn::UnitVoid);
+            }
+            [
+                ScoopAbiArgument::Direct(integer),
+                ScoopAbiArgument::Direct(string),
+            ] => {
+                assert_eq!(name, "userCoreAbiMixed");
+                assert_eq!(
+                    (integer.byte_size(), integer.shape()),
+                    (4, ScoopAbiValueShape::Scalar)
+                );
+                assert_eq!(
+                    (string.byte_size(), string.shape()),
+                    (8, ScoopAbiValueShape::Scalar)
+                );
+                assert_eq!(abi.result(), ScoopAbiReturn::Direct(*string));
+            }
+            arguments => panic!("unexpected core ABI arguments: {arguments:?}"),
+        }
     }
-    assert_eq!(
-        dump,
-        include_str!("../../../../../../../../tests/fixtures/core-library/abi.snap")
-    );
-}
-
-fn storage(passing: &str, value: &CanonicalScoopStorage) -> String {
-    format!("{passing}:{}:{:?}", value.byte_size(), value.shape())
 }

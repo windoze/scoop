@@ -1,0 +1,29 @@
+SourceFile
+  RootPackage
+  enum Choice
+    Number(Int)
+    Empty
+  fun render(choice: Choice): String
+    =
+      WhenExpression
+        Var choice
+        arm Number(value)
+          IfExpression
+            Binary Gt
+              Var value
+              IntLiteral 0
+            StringLiteral "positive"
+            else
+            StringLiteral "zero"
+        arm Empty
+          StringLiteral "empty"
+  fun main()
+    Call println
+      Call render
+        MethodCall Number
+          Var Choice
+          IntLiteral 1
+    Call println
+      Call render
+        FieldAccess Empty
+          Var Choice

@@ -1,0 +1,272 @@
+Module
+  global0 $singleton$3c96259000ef15c054d1a329e3e643651afbf8d1af6ccf0dabac574e24b67d8a: Companion imported provider=911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006 storage=9325728c2ffd8c5bca671f91c989d25e38cb04b258f7f90995cf1e35fb861240
+  struct Packet (value: Int, extra: Long) <c-layout aligned=16 packed=2 interior-mutable>
+  struct GenericCell<Int> (value: Int) <interior-mutable>
+  struct GenericCell<String> (value: String) <interior-mutable>
+  struct Plain (value: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Companion vtable=0 itables=0
+  fun verifyType @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=25 bits=0x0000000000000019
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.extra: Long
+        Type Long
+        Local $dependency.argument.1
+      call value: Packet = external1 direct
+        Type Int
+        Local $dependency.parameter.value
+        Type Long
+        Local $dependency.parameter.extra
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Packet
+          Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 1
+          Type Packet
+          Local value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=25 bits=0x0000000000000019
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.0
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: GenericCell<Int> = @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type GenericCell<Int>
+          Local $call.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb4 bb5
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb4 if.then.4
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call $call.2: GenericCell<String> = @fn3 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: String
+        Type String
+        FieldAccess 0
+          Type GenericCell<String>
+          Local $call.2
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $shortCircuit.1: Boolean = external2 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      goto bb6
+    bb5 if.else.5
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 if.merge.6
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=23 bits=0x00000017
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.3: Plain = external3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Plain
+          Local $call.3
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=23 bits=0x00000017
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb7 bb8
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb7 if.then.7
+      call external5 direct
+      val $dependency.receiver: Companion
+        Type Companion
+        GlobalRead $singleton$3c96259000ef15c054d1a329e3e643651afbf8d1af6ccf0dabac574e24b67d8a
+      call $dependency.receiver: Int = external4 direct
+        Type Companion
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb9
+    bb8 if.else.8
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 if.merge.9
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.2
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun ctor.GenericCell.$c0 @fn2(value: Int) -> GenericCell<Int> <no-gc>
+    bb0 entry
+      return
+        Type GenericCell<Int>
+        StructInit GenericCell<Int>
+          Type Int
+          Local value
+  fun ctor.GenericCell.$c0 @fn3(value: String) -> GenericCell<String> <no-gc>
+    bb0 entry
+      return
+        Type GenericCell<String>
+        StructInit GenericCell<String>
+          Type String
+          Local value
+  str @str0 "illegal state"
+  str @str1 "text"
+  str @str2 "text"
+  output executable @fn1

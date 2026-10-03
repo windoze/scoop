@@ -1,0 +1,14 @@
+fun main() {
+    if (compare(7) != 1L || convert(4294967301L) != 5 || shift(3U) != 12U) {
+        throw IllegalStateException()
+    }
+    if (combined(4) != 0L || inferred() != 1L || narrow() != -126) {
+        throw IllegalStateException()
+    }
+    if (negate(true) || !negate(false) || !equality(3) || equality(4)) {
+        throw IllegalStateException()
+    }
+    if (concatenate("core") != "core!" || order("a") >= 0L || order("z") != 0L || pure(41) != 42) {
+        throw IllegalStateException()
+    }
+}

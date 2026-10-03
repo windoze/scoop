@@ -1,0 +1,55 @@
+SourceFile
+  RootPackage
+  public fun closureNumber(): Int
+    =
+      IntLiteral 3
+  public class ClosureCombinationHost()
+    internal fun nested
+    internal fun conversion
+    internal fun suspended
+SourceFile
+  RootPackage
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun acceptAny(value: Any): Int
+    =
+      IntLiteral 3
+  class Completion(), Continuation<Int>
+    var result: Int =
+      IntLiteral 0
+    public fun resume
+    public fun resumeWithException
+  fun main()
+    val host
+      Call ClosureCombinationHost
+    Call verifyDefault
+      Binary Eq
+        MethodCall nested
+          Var host
+          IntLiteral 7
+        IntLiteral 7
+    val converted
+      MethodCall conversion
+        Var host
+        CallableReference 0 acceptAny
+    Call verifyDefault
+      Binary Eq
+        Cast Int optional=false
+          Call converted
+            IntLiteral 11
+        IntLiteral 3
+    val completion
+      Call Completion
+    Call startCoroutine
+      MethodCall suspended
+        Var host
+      Var completion
+    Call verifyDefault
+      Binary Eq
+        FieldAccess result
+          Var completion
+        IntLiteral 3

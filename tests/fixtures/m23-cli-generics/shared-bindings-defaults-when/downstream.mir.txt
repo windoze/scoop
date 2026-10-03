@@ -1,0 +1,1147 @@
+Module
+  struct Pair<Later> (left: Later, right: Int)
+  struct Pair<Int> (left: Int, right: Int)
+  struct Pair<Unit> (left: Unit, right: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Later>
+    Completed(value: Later)
+    Suspended()
+  enum CoroutineSlot<Later>
+    Empty()
+    Value(value: Later)
+  class Later vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Unit> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface Continuation<Later>
+  interface SuspendTask<Later>
+  interface SuspendRegistration<Later>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
+    bridge function_type1 -> @fn25 id=91c1a47d3bdccee09b7530e3a89485f992cadfaa606e3d0f1a553a9a0c801b92
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn3 captures=0
+    bridge function_type1 -> @fn26 id=30aeff0dfa5ef29f20a21954e44929e69bce2b283fd5978e6a81164ab84379ef
+  closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn5 captures=0
+    bridge function_type1 -> @fn27 id=55b3e72dae20b7a9266d1173575b49451f4d9da7a3658d4654960ffe51e054cf
+  generated_exact_type get0 location=closure1 nominal_id=b0b902c674a03b330bc9830d7587d818a2759a07b30df7a388e236b7a71b9222 exact_id=3212f21fb230df6fa4aeba014fab0260493584bed2ea737d24ccd08fe6c3bd00
+  generated_exact_type get1 location=class4 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get2 location=enum2 nominal_id=5af78577c7329373f75686392db2f66c270276c0ac32194859b19a2d2e55006e exact_id=9b56c59d003e3a110ee40f3df33bbb1479261514a6ac1d874a554e692e6b4854
+  generated_exact_type get3 location=closure0 nominal_id=61c662b659eaa67e29fb090cb44971ce2d88b06ba8fd6102ba3f5b7d5a12d303 exact_id=e511161f5fa6b38644cab2a6eb2f22b3e99731f12c6a667a2dc4082df31b3c02
+  generated_exact_type get4 location=class5 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get5 location=closure2 nominal_id=529d86dc28f2dfa0e282d604fe023808628331cfaf8b433b37a2185c616695d7 exact_id=e8969c58afa4d4a349921a6d039559cbc664648780a98cf6f42a0fffb459f5d0
+  generated_exact_type get6 location=enum1 nominal_id=9dbec8edbb42fce5d18f658d16565c000088994e79515c23d415dc56d4df888a exact_id=f8bc583110e9849b83ab919a86e7ccaa8922e4f488c4b5243b94c2438249bb88
+  generated_callable gc0 function=@fn24 id=0a789da929f58a2b1d481b537ba0a2c2ba261e0667a88249f215ccd201397562
+  generated_callable gc1 function=@fn26 id=30aeff0dfa5ef29f20a21954e44929e69bce2b283fd5978e6a81164ab84379ef
+  generated_callable gc2 function=@fn27 id=55b3e72dae20b7a9266d1173575b49451f4d9da7a3658d4654960ffe51e054cf
+  generated_callable gc3 function=@fn25 id=91c1a47d3bdccee09b7530e3a89485f992cadfaa606e3d0f1a553a9a0c801b92
+  fun check @fn0() -> Int
+    bb0 entry
+      call $argument.0: Int = external0 direct
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Later
+        ClassAlloc Later
+      call @fn20 direct
+        Type Later
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val value: Later
+        Type Later
+        Local $new.1
+      val $dependency.argument.0: Later
+        Type Later
+        Local value
+      val $dependency.argument.1: (Later) -> Int
+        Type (Later) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      val $dependency.parameter.seed: Later
+        Type Later
+        Local $dependency.argument.0
+      val $dependency.parameter.read: (Later) -> Int
+        Type (Later) -> Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = @fn2 direct
+        Type Later
+        Local $dependency.parameter.seed
+        Type (Later) -> Int
+        Local $dependency.parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.argument.1: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc1 $Closure$lambda1
+      val $dependency.parameter.seed: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.read: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = @fn4 direct
+        Type Int
+        Local $dependency.parameter.seed
+        Type (Int) -> Int
+        Local $dependency.parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      val $dependency.argument.0: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.argument.1: (Unit) -> Int
+        Type (Unit) -> Int
+        ClosureAlloc cc2 $Closure$lambda2
+      val $dependency.parameter.seed: Unit
+        Type Unit
+        Local $dependency.argument.0
+      val $dependency.parameter.read: (Unit) -> Int
+        Type (Unit) -> Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = @fn6 direct
+        Type Unit
+        Local $dependency.parameter.seed
+        Type (Unit) -> Int
+        Local $dependency.parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb5 bb6
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb5 if.then.5
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb6 if.merge.6
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Later
+        ClassAlloc Later
+      call @fn20 direct
+        Type Later
+        Local $new.2
+        Type Int
+        Local $parameter.value
+      val allocation: Later
+        Type Later
+        Local $new.2
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local value
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local allocation
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun $lambda.0 @fn1($closure: (Later) -> Int, item: Later) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local item
+  fun exercise @fn2(seed: Later, read: (Later) -> Int) -> Int
+    bb0 entry
+      val $dependency.local.5: Later
+        Type Later
+        Local seed
+      val $dependency.local.6: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.7: Later
+        Type Later
+        Local $dependency.local.5
+      val $dependency.local.8: Int
+        Type Int
+        Local $dependency.local.6
+      call $dependency.local.2: Pair<Later> = @fn21 direct
+        Type Later
+        Local $dependency.local.7
+        Type Int
+        Local $dependency.local.8
+      val $dependency.local.16: (Later) -> Int
+        Type (Later) -> Int
+        Local read
+      val $dependency.local.9: Pair<Later>
+        Type Pair<Later>
+        Local $dependency.local.2
+      val $dependency.local.10: Pair<Later>
+        Type Pair<Later>
+        Local $dependency.local.9
+      branch bb1 bb2
+        Type Boolean
+        BoolLiteral true
+    bb1 if.then.1
+      val $dependency.local.12: Pair<Later>
+        Type Pair<Later>
+        Local $dependency.local.10
+      val $dependency.local.13: Later
+        Type Later
+        FieldAccess 0
+          Type Pair<Later>
+          Local $dependency.local.12
+      val $dependency.local.11: Later
+        Type Later
+        Local $dependency.local.13
+      assign $dependency.local.14
+        Type Later
+        Local $dependency.local.11
+      goto bb3
+    bb2 if.else.2
+      assign $dependency.local.14
+        Type Later
+        FieldAccess 0
+          Type Pair<Later>
+          Local $dependency.local.10
+      goto bb3
+    bb3 if.merge.3
+      val $dependency.local.15: Later
+        Type Later
+        Local $dependency.local.14
+      call $call.1: Later = @fn7 direct
+        Type Pair<Later>
+        Local $dependency.local.10
+        Type Later
+        Local $dependency.local.15
+      call $dependency.local.17: Int = <closure:function_type0> closure[function_type0]
+        Type (Later) -> Int
+        Local $dependency.local.16
+        Type Later
+        Local $call.1
+      val $dependency.local.18: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.19: Int
+        Type Int
+        Local $dependency.local.18
+      branch bb4 bb5
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.17
+            Type Int
+            Local $dependency.local.19
+    bb4 if.then.4
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb5 if.merge.5
+      val $dependency.local.25: (Later) -> Int
+        Type (Later) -> Int
+        Local read
+      val $dependency.local.20: Pair<Later>
+        Type Pair<Later>
+        Local $dependency.local.2
+      val $dependency.local.21: Pair<Later>
+        Type Pair<Later>
+        Local $dependency.local.20
+      val $when.1: Pair<Later>
+        Type Pair<Later>
+        Local $dependency.local.21
+      val $dependency.local.22: Later
+        Type Later
+        FieldAccess 0
+          Type Pair<Later>
+          Local $when.1
+      assign $dependency.local.23
+        Type Later
+        Local $dependency.local.22
+      val $dependency.local.24: Later
+        Type Later
+        Local $dependency.local.23
+      call $call.2: Later = @fn8 direct
+        Type Pair<Later>
+        Local $dependency.local.21
+        Type Later
+        Local $dependency.local.24
+      call $dependency.local.26: Int = <closure:function_type0> closure[function_type0]
+        Type (Later) -> Int
+        Local $dependency.local.25
+        Type Later
+        Local $call.2
+      val $dependency.local.27: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.28: Int
+        Type Int
+        Local $dependency.local.27
+      branch bb6 bb7
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.26
+            Type Int
+            Local $dependency.local.28
+    bb6 if.then.6
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb7 if.merge.7
+      val $dependency.local.29: Pair<Later>
+        Type Pair<Later>
+        Local $dependency.local.2
+      val $dependency.local.30: (Later) -> Int
+        Type (Later) -> Int
+        Local read
+      val $dependency.local.31: Pair<Later>
+        Type Pair<Later>
+        Local $dependency.local.29
+      val $dependency.local.32: (Later) -> Int
+        Type (Later) -> Int
+        Local $dependency.local.30
+      call $dependency.local.33: Int = @fn9 direct
+        Type Pair<Later>
+        Local $dependency.local.31
+        Type (Later) -> Int
+        Local $dependency.local.32
+      val $dependency.local.34: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.35: Int
+        Type Int
+        Local $dependency.local.34
+      branch bb8 bb9
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.33
+            Type Int
+            Local $dependency.local.35
+    bb8 if.then.8
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb9 if.merge.9
+      val $when.2: Pair<Later>
+        Type Pair<Later>
+        Local $dependency.local.2
+      val $dependency.local.4: Later
+        Type Later
+        FieldAccess 0
+          Type Pair<Later>
+          Local $when.2
+      val $dependency.local.3: Int
+        Type Int
+        FieldAccess 1
+          Type Pair<Later>
+          Local $when.2
+      call $dependency.local.36: Int = <closure:function_type0> closure[function_type0]
+        Type (Later) -> Int
+        Local read
+        Type Later
+        Local $dependency.local.4
+      val $dependency.local.37: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.38: Int
+        Type Int
+        Local $dependency.local.37
+      assign $dependency.local.39
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.36
+          Type Int
+          Local $dependency.local.38
+      return
+        Type Int
+        Local $dependency.local.39
+  fun $lambda.1 @fn3($closure: (Int) -> Int, item: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local item
+  fun exercise @fn4(seed: Int, read: (Int) -> Int) -> Int
+    bb0 entry
+      val $dependency.local.5: Int
+        Type Int
+        Local seed
+      val $dependency.local.6: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.7: Int
+        Type Int
+        Local $dependency.local.5
+      val $dependency.local.8: Int
+        Type Int
+        Local $dependency.local.6
+      call $dependency.local.2: Pair<Int> = @fn22 direct
+        Type Int
+        Local $dependency.local.7
+        Type Int
+        Local $dependency.local.8
+      val $dependency.local.16: (Int) -> Int
+        Type (Int) -> Int
+        Local read
+      val $dependency.local.9: Pair<Int>
+        Type Pair<Int>
+        Local $dependency.local.2
+      val $dependency.local.10: Pair<Int>
+        Type Pair<Int>
+        Local $dependency.local.9
+      branch bb1 bb2
+        Type Boolean
+        BoolLiteral true
+    bb1 if.then.1
+      val $dependency.local.12: Pair<Int>
+        Type Pair<Int>
+        Local $dependency.local.10
+      val $dependency.local.13: Int
+        Type Int
+        FieldAccess 0
+          Type Pair<Int>
+          Local $dependency.local.12
+      val $dependency.local.11: Int
+        Type Int
+        Local $dependency.local.13
+      assign $dependency.local.14
+        Type Int
+        Local $dependency.local.11
+      goto bb3
+    bb2 if.else.2
+      assign $dependency.local.14
+        Type Int
+        FieldAccess 0
+          Type Pair<Int>
+          Local $dependency.local.10
+      goto bb3
+    bb3 if.merge.3
+      val $dependency.local.15: Int
+        Type Int
+        Local $dependency.local.14
+      call $call.1: Int = @fn10 direct
+        Type Pair<Int>
+        Local $dependency.local.10
+        Type Int
+        Local $dependency.local.15
+      call $dependency.local.17: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local $dependency.local.16
+        Type Int
+        Local $call.1
+      val $dependency.local.18: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.19: Int
+        Type Int
+        Local $dependency.local.18
+      branch bb4 bb5
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.17
+            Type Int
+            Local $dependency.local.19
+    bb4 if.then.4
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb5 if.merge.5
+      val $dependency.local.25: (Int) -> Int
+        Type (Int) -> Int
+        Local read
+      val $dependency.local.20: Pair<Int>
+        Type Pair<Int>
+        Local $dependency.local.2
+      val $dependency.local.21: Pair<Int>
+        Type Pair<Int>
+        Local $dependency.local.20
+      val $when.1: Pair<Int>
+        Type Pair<Int>
+        Local $dependency.local.21
+      val $dependency.local.22: Int
+        Type Int
+        FieldAccess 0
+          Type Pair<Int>
+          Local $when.1
+      assign $dependency.local.23
+        Type Int
+        Local $dependency.local.22
+      val $dependency.local.24: Int
+        Type Int
+        Local $dependency.local.23
+      call $call.2: Int = @fn11 direct
+        Type Pair<Int>
+        Local $dependency.local.21
+        Type Int
+        Local $dependency.local.24
+      call $dependency.local.26: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local $dependency.local.25
+        Type Int
+        Local $call.2
+      val $dependency.local.27: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.28: Int
+        Type Int
+        Local $dependency.local.27
+      branch bb6 bb7
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.26
+            Type Int
+            Local $dependency.local.28
+    bb6 if.then.6
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb7 if.merge.7
+      val $dependency.local.29: Pair<Int>
+        Type Pair<Int>
+        Local $dependency.local.2
+      val $dependency.local.30: (Int) -> Int
+        Type (Int) -> Int
+        Local read
+      val $dependency.local.31: Pair<Int>
+        Type Pair<Int>
+        Local $dependency.local.29
+      val $dependency.local.32: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.local.30
+      call $dependency.local.33: Int = @fn12 direct
+        Type Pair<Int>
+        Local $dependency.local.31
+        Type (Int) -> Int
+        Local $dependency.local.32
+      val $dependency.local.34: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.35: Int
+        Type Int
+        Local $dependency.local.34
+      branch bb8 bb9
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.33
+            Type Int
+            Local $dependency.local.35
+    bb8 if.then.8
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb9 if.merge.9
+      val $when.2: Pair<Int>
+        Type Pair<Int>
+        Local $dependency.local.2
+      val $dependency.local.4: Int
+        Type Int
+        FieldAccess 0
+          Type Pair<Int>
+          Local $when.2
+      val $dependency.local.3: Int
+        Type Int
+        FieldAccess 1
+          Type Pair<Int>
+          Local $when.2
+      call $dependency.local.36: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local $dependency.local.4
+      val $dependency.local.37: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.38: Int
+        Type Int
+        Local $dependency.local.37
+      assign $dependency.local.39
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.36
+          Type Int
+          Local $dependency.local.38
+      return
+        Type Int
+        Local $dependency.local.39
+  fun $lambda.2 @fn5($closure: (Unit) -> Int, item: Unit) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun exercise @fn6(seed: Unit, read: (Unit) -> Int) -> Int
+    bb0 entry
+      val $dependency.local.5: Unit
+        Type Unit
+        Local seed
+      val $dependency.local.6: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.7: Unit
+        Type Unit
+        Local $dependency.local.5
+      val $dependency.local.8: Int
+        Type Int
+        Local $dependency.local.6
+      call $dependency.local.2: Pair<Unit> = @fn23 direct
+        Type Unit
+        Local $dependency.local.7
+        Type Int
+        Local $dependency.local.8
+      val $dependency.local.16: (Unit) -> Int
+        Type (Unit) -> Int
+        Local read
+      val $dependency.local.9: Pair<Unit>
+        Type Pair<Unit>
+        Local $dependency.local.2
+      val $dependency.local.10: Pair<Unit>
+        Type Pair<Unit>
+        Local $dependency.local.9
+      branch bb1 bb2
+        Type Boolean
+        BoolLiteral true
+    bb1 if.then.1
+      val $dependency.local.12: Pair<Unit>
+        Type Pair<Unit>
+        Local $dependency.local.10
+      val $dependency.local.13: Unit
+        Type Unit
+        FieldAccess 0
+          Type Pair<Unit>
+          Local $dependency.local.12
+      val $dependency.local.11: Unit
+        Type Unit
+        Local $dependency.local.13
+      assign $dependency.local.14
+        Type Unit
+        Local $dependency.local.11
+      goto bb3
+    bb2 if.else.2
+      assign $dependency.local.14
+        Type Unit
+        FieldAccess 0
+          Type Pair<Unit>
+          Local $dependency.local.10
+      goto bb3
+    bb3 if.merge.3
+      val $dependency.local.15: Unit
+        Type Unit
+        Local $dependency.local.14
+      call @fn13 direct
+        Type Pair<Unit>
+        Local $dependency.local.10
+        Type Unit
+        Local $dependency.local.15
+      call $dependency.local.17: Int = <closure:function_type3> closure[function_type3]
+        Type (Unit) -> Int
+        Local $dependency.local.16
+        Type Unit
+        UnitLiteral
+      val $dependency.local.18: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.19: Int
+        Type Int
+        Local $dependency.local.18
+      branch bb4 bb5
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.17
+            Type Int
+            Local $dependency.local.19
+    bb4 if.then.4
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb5 if.merge.5
+      val $dependency.local.25: (Unit) -> Int
+        Type (Unit) -> Int
+        Local read
+      val $dependency.local.20: Pair<Unit>
+        Type Pair<Unit>
+        Local $dependency.local.2
+      val $dependency.local.21: Pair<Unit>
+        Type Pair<Unit>
+        Local $dependency.local.20
+      val $when.1: Pair<Unit>
+        Type Pair<Unit>
+        Local $dependency.local.21
+      val $dependency.local.22: Unit
+        Type Unit
+        FieldAccess 0
+          Type Pair<Unit>
+          Local $when.1
+      assign $dependency.local.23
+        Type Unit
+        Local $dependency.local.22
+      val $dependency.local.24: Unit
+        Type Unit
+        Local $dependency.local.23
+      call @fn14 direct
+        Type Pair<Unit>
+        Local $dependency.local.21
+        Type Unit
+        Local $dependency.local.24
+      call $dependency.local.26: Int = <closure:function_type3> closure[function_type3]
+        Type (Unit) -> Int
+        Local $dependency.local.25
+        Type Unit
+        UnitLiteral
+      val $dependency.local.27: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.28: Int
+        Type Int
+        Local $dependency.local.27
+      branch bb6 bb7
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.26
+            Type Int
+            Local $dependency.local.28
+    bb6 if.then.6
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb7 if.merge.7
+      val $dependency.local.29: Pair<Unit>
+        Type Pair<Unit>
+        Local $dependency.local.2
+      val $dependency.local.30: (Unit) -> Int
+        Type (Unit) -> Int
+        Local read
+      val $dependency.local.31: Pair<Unit>
+        Type Pair<Unit>
+        Local $dependency.local.29
+      val $dependency.local.32: (Unit) -> Int
+        Type (Unit) -> Int
+        Local $dependency.local.30
+      call $dependency.local.33: Int = @fn15 direct
+        Type Pair<Unit>
+        Local $dependency.local.31
+        Type (Unit) -> Int
+        Local $dependency.local.32
+      val $dependency.local.34: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.35: Int
+        Type Int
+        Local $dependency.local.34
+      branch bb8 bb9
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.33
+            Type Int
+            Local $dependency.local.35
+    bb8 if.then.8
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb9 if.merge.9
+      val $when.2: Pair<Unit>
+        Type Pair<Unit>
+        Local $dependency.local.2
+      val $dependency.local.4: Unit
+        Type Unit
+        FieldAccess 0
+          Type Pair<Unit>
+          Local $when.2
+      val $dependency.local.3: Int
+        Type Int
+        FieldAccess 1
+          Type Pair<Unit>
+          Local $when.2
+      call $dependency.local.36: Int = <closure:function_type3> closure[function_type3]
+        Type (Unit) -> Int
+        Local read
+        Type Unit
+        Local $dependency.local.4
+      val $dependency.local.37: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.38: Int
+        Type Int
+        Local $dependency.local.37
+      assign $dependency.local.39
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.36
+          Type Int
+          Local $dependency.local.38
+      return
+        Type Int
+        Local $dependency.local.39
+  fun chosen @fn7(pair: Pair<Later>, value: Later) -> Later
+    bb0 entry
+      return
+        Type Later
+        Local value
+  fun matched @fn8(pair: Pair<Later>, value: Later) -> Later
+    bb0 entry
+      return
+        Type Later
+        Local value
+  fun patternBody @fn9(pair: Pair<Later>, read: (Later) -> Int) -> Int
+    bb0 entry
+      val $when.1: Pair<Later>
+        Type Pair<Later>
+        Local pair
+      val $dependency.local.2: Later
+        Type Later
+        FieldAccess 0
+          Type Pair<Later>
+          Local $when.1
+      val $dependency.local.3: Int
+        Type Int
+        FieldAccess 1
+          Type Pair<Later>
+          Local $when.1
+      call $dependency.local.4: Int = <closure:function_type0> closure[function_type0]
+        Type (Later) -> Int
+        Local read
+        Type Later
+        Local $dependency.local.2
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.6: Int
+        Type Int
+        Local $dependency.local.5
+      assign $dependency.local.7
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.4
+          Type Int
+          Local $dependency.local.6
+      return
+        Type Int
+        Local $dependency.local.7
+  fun chosen @fn10(pair: Pair<Int>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun matched @fn11(pair: Pair<Int>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun patternBody @fn12(pair: Pair<Int>, read: (Int) -> Int) -> Int
+    bb0 entry
+      val $when.1: Pair<Int>
+        Type Pair<Int>
+        Local pair
+      val $dependency.local.2: Int
+        Type Int
+        FieldAccess 0
+          Type Pair<Int>
+          Local $when.1
+      val $dependency.local.3: Int
+        Type Int
+        FieldAccess 1
+          Type Pair<Int>
+          Local $when.1
+      call $dependency.local.4: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local $dependency.local.2
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.6: Int
+        Type Int
+        Local $dependency.local.5
+      assign $dependency.local.7
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.4
+          Type Int
+          Local $dependency.local.6
+      return
+        Type Int
+        Local $dependency.local.7
+  fun chosen @fn13(pair: Pair<Unit>, value: Unit) -> Unit
+    bb0 entry
+      Type Unit
+      Local value
+      return
+  fun matched @fn14(pair: Pair<Unit>, value: Unit) -> Unit
+    bb0 entry
+      Type Unit
+      Local value
+      return
+  fun patternBody @fn15(pair: Pair<Unit>, read: (Unit) -> Int) -> Int
+    bb0 entry
+      val $when.1: Pair<Unit>
+        Type Pair<Unit>
+        Local pair
+      val $dependency.local.2: Unit
+        Type Unit
+        FieldAccess 0
+          Type Pair<Unit>
+          Local $when.1
+      val $dependency.local.3: Int
+        Type Int
+        FieldAccess 1
+          Type Pair<Unit>
+          Local $when.1
+      call $dependency.local.4: Int = <closure:function_type3> closure[function_type3]
+        Type (Unit) -> Int
+        Local read
+        Type Unit
+        Local $dependency.local.2
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.6: Int
+        Type Int
+        Local $dependency.local.5
+      assign $dependency.local.7
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.4
+          Type Int
+          Local $dependency.local.6
+      return
+        Type Int
+        Local $dependency.local.7
+  fun Continuation.resume @fn16(this: Continuation<Later>, value: Later) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn17(this: Continuation<Later>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn18(this: SuspendTask<Later>, $completion: Continuation<Later>) -> CoroutineStep<Later>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn19(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Later.$c0 @fn20(this: Later, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Later
+        Local this
+        Type Int
+        Local value
+      return
+  fun ctor.Pair.$c0 @fn21(left: Later, right: Int) -> Pair<Later> <no-gc>
+    bb0 entry
+      return
+        Type Pair<Later>
+        StructInit Pair<Later>
+          Type Later
+          Local left
+          Type Int
+          Local right
+  fun ctor.Pair.$c0 @fn22(left: Int, right: Int) -> Pair<Int> <no-gc>
+    bb0 entry
+      return
+        Type Pair<Int>
+        StructInit Pair<Int>
+          Type Int
+          Local left
+          Type Int
+          Local right
+  fun ctor.Pair.$c0 @fn23(left: Unit, right: Int) -> Pair<Unit> <no-gc>
+    bb0 entry
+      return
+        Type Pair<Unit>
+        StructInit Pair<Unit>
+          Type Unit
+          Local left
+          Type Int
+          Local right
+  fun startCoroutine<Later> @fn24(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn16 interface Continuation<Later>[0]
+        Type Continuation<Later>
+        Local completion
+        Type Later
+        EnumField v0 f0
+          Type CoroutineStep<Later>
+          Local $step
+      return
+    bb2 failed
+      call @fn17 interface Continuation<Later>[1]
+        Type Continuation<Later>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Later> = @fn18 interface SuspendTask<Later>[0]
+        Type SuspendTask<Later>
+        Local task
+        Type Continuation<Later>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Later>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn25($source: (Later) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Later) -> Int
+        Local $source
+        Type Later
+        Retype Later
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn26($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn27($source: (Unit) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type (Unit) -> Int
+        Local $source
+        Type Unit
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<Later> result=Later
+  coroutine_slot cl0 CoroutineSlot<Later> value=Later
+  coroutine_start ct0 result=Later function=fn24
+  coroutine_fn cf0 @fn18 source_return=Later step=cs0 immediate
+  instance mi0 function=@fn2 <- exercise
+  instance mi1 function=@fn4 <- exercise
+  instance mi2 function=@fn6 <- exercise
+  instance mi3 function=@fn7 <- chosen
+  instance mi4 function=@fn8 <- matched
+  instance mi5 function=@fn9 <- patternBody
+  instance mi6 function=@fn10 <- chosen
+  instance mi7 function=@fn11 <- matched
+  instance mi8 function=@fn12 <- patternBody
+  instance mi9 function=@fn13 <- chosen
+  instance mi10 function=@fn14 <- matched
+  instance mi11 function=@fn15 <- patternBody
+  instance mi12 function=@fn16 <- Continuation.resume
+  instance mi13 function=@fn17 <- Continuation.resumeWithException
+  instance mi14 function=@fn18 <- SuspendTask.run
+  instance mi15 function=@fn19 <- SuspendRegistration.register
+  output library

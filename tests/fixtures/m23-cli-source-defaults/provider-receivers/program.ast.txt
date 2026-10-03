@@ -1,0 +1,63 @@
+SourceFile
+  RootPackage
+  public open class ProviderBase()
+    public fun check
+    protected fun pick
+  public class ProviderChild() : ProviderBase(<0 args>)
+    protected fun pick
+  public open class ProviderGeneric<T>()
+    public fun check
+    public fun checkCopy
+    public fun checkStatic
+    protected fun pick
+    protected fun copy
+    protected nested class Static
+  public class ProviderApplied<U>() : ProviderGeneric<(U, U)>(<0 args>)
+    protected fun pick
+SourceFile
+  RootPackage
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call verifyDefault
+      Binary Eq
+        MethodCall check
+          Call ProviderChild
+          IntLiteral 3
+        IntLiteral 3
+    Call verifyDefault
+      Binary Eq
+        MethodCall check
+          Call ProviderApplied<Int>
+          TupleLiteral
+            IntLiteral 1
+            IntLiteral 2
+        TupleLiteral
+          IntLiteral 1
+          IntLiteral 2
+    Call verifyDefault
+      Binary Eq
+        MethodCall check
+          Call ProviderApplied<String>
+          TupleLiteral
+            StringLiteral "a"
+            StringLiteral "b"
+        TupleLiteral
+          StringLiteral "a"
+          StringLiteral "b"
+    Call verifyDefault
+      Binary Eq
+        MethodCall checkCopy
+          Call ProviderGeneric<String>
+          StringLiteral "source"
+          IntLiteral 4
+        IntLiteral 4
+    Call verifyDefault
+      Binary Eq
+        MethodCall checkStatic
+          Call ProviderGeneric<Int>
+        IntLiteral 9

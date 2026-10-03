@@ -1,0 +1,32 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call verifyType
+      Binary Eq
+        Call heapFieldRoundtrip
+        Call HeapEmpty
+    val cell
+      Call heapCellSource
+    assign .empty
+      Var cell
+      Call heapEmptySource
+    Call verifyType
+      Binary Eq
+        FieldAccess empty
+          Var cell
+        Call HeapEmpty
+    val captured
+      Lambda 0 suspend=false
+        parameters omitted
+        FieldAccess empty
+          Var cell
+    Call verifyType
+      Binary Eq
+        Call captured
+        Call HeapEmpty

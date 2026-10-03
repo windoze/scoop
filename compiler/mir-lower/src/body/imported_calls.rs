@@ -1,6 +1,28 @@
 use super::*;
 
 impl BodyLowerer<'_> {
+    pub(super) fn lower_imported_equality(
+        &mut self,
+        target: hir::ImportedDerivedEqualityUseId,
+        args: &[hir::Expr],
+        result: hir::TypeId,
+    ) -> smir::Expr {
+        let target = self.module.imported_derived_equalities[target].0;
+        let callee = crate::current::external_equality(self.external_callables, target);
+        let return_ty = self.lower_type(result);
+        smir::Expr::new(
+            return_ty.clone(),
+            smir::ExprKind::Call(smir::Call {
+                target: mir::CallTarget {
+                    kind: mir::CallKind::Direct,
+                    callee: mir::Callee::External(callee),
+                },
+                args: args.iter().map(|arg| self.lower_expr(arg)).collect(),
+                return_ty,
+            }),
+        )
+    }
+
     pub(super) fn lower_imported_call(
         &mut self,
         callee: hir::ImportedDependencyCallableUseId,

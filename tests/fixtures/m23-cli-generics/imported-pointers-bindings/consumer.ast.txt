@@ -1,0 +1,33 @@
+SourceFile
+  QualifiedPackage consumer.pointers
+  ImportExact Local addressOf as placeOf
+  ImportExact Local sizeOf as bytesOf
+  private fun addressOf(value: Int): Int
+    =
+      Binary Add
+        Var value
+        IntLiteral 1
+  public fun exercise<T>(value: T): Int
+    var number
+      IntLiteral 40
+    @Unsafe block
+      val pointer
+        Call placeOf
+          Argument value=
+            Var number
+      MethodCall store
+        Var pointer
+        Call addressOf
+          IntLiteral 41
+      if
+        Binary Ne
+          Call bytesOf<Int>
+          IntLiteral 4uL
+        return
+          IntLiteral 1
+      return
+        Var number
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0

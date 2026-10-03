@@ -1,0 +1,62 @@
+SourceFile
+  RootPackage
+  ImportExact Local consumer.delegates.result
+  ImportExact Local consumer.delegates.exercise
+  ImportExact Local consumer.delegates.PairReceiver
+  ImportExact Local consumer.delegates.Receiver
+  ImportExact Local consumer.delegates.aliasValue
+  private class Later(val value: Int)
+  public fun check(): Int
+    if
+      Binary Ne
+        Call result
+        IntLiteral 42
+      return
+        IntLiteral 1
+    val value
+      Call Later
+        IntLiteral 42
+    if
+      Binary Ne
+        Call exercise<Later>
+          Var value
+        IntLiteral 42
+      return
+        IntLiteral 2
+    val repeated
+      FieldAccess aliasValue
+        Call PairReceiver
+          TupleLiteral
+            IntLiteral 1
+            BoolLiteral true
+    val first
+      Call Receiver<(Later, Boolean)>
+        TupleLiteral
+          Var value
+          BoolLiteral true
+    val allocated
+      Call Later
+        IntLiteral 0
+    return
+      IfExpression
+        Binary And
+          Binary And
+            Binary And
+              Binary Eq
+                Var repeated
+                IntLiteral 42
+              Binary Eq
+                FieldAccess aliasValue
+                  Var first
+                IntLiteral 42
+            Binary Eq
+              FieldAccess value
+                Var value
+              IntLiteral 42
+          Binary Eq
+            FieldAccess value
+              Var allocated
+            IntLiteral 0
+        IntLiteral 42
+        else
+        IntLiteral 3

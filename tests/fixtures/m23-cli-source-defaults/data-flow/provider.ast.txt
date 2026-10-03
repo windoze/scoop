@@ -1,0 +1,12 @@
+SourceFile
+  RootPackage
+  public struct FlowPair<T>
+    field first: T
+    field second: T
+  public struct FlowOther
+    field first: Int
+    field second: Int
+  public class FlowHost()
+    internal fun scoped
+    protected fun loop
+    internal fun generic

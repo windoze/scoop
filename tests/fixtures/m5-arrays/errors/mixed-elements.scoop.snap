@@ -1,7 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m5-arrays/errors/mixed-elements.scoop:2:17: error: array literal elements must have the same type, found Int and String
-m5-arrays/errors/mixed-elements.scoop:3:13: error: unknown variable `a`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation

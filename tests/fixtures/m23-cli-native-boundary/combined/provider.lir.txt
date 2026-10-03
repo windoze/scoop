@@ -1,0 +1,36 @@
+Module
+  c-struct struct1 Packed fields=[Int8@0/1,Boolean@1/1]
+  enum Choice tagged size=24 align=8 variants=(struct1)@8+8 (ptr<managed>)@16+8:refs ()@8+0
+  extern ef0 nativeMixed @native_mixed(indirect<struct0 size=24 align=8 scan=refs[16]>, i8, i16, i32, i64, i8, i16, i32, i64) -> void <scoop managed nounwind>
+  fun @scoop$1$cb$b19129104915f5538ea4791eb94c12f7eb6b282ec22f9c3ebb96fb96355506f1(indirect<struct0 size=24 align=8 scan=refs[16]>, i8, i16, i32, i64, i8, i16, i32, i64) -> void
+    local %0 $sc.1: struct0
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:struct0@16]
+    store param0 -> local0
+    call native-borrowed-void-target0 sp<native-borrowed:0> roots=[local0:refs[16]] sig=void0 (indirect<struct0 size=24 align=8 scan=refs[16]>, i8, i16, i32, i64, i8, i16, i32, i64) extern0(indirect local0, param1, param2, param3, param4, param5, param6, param7, param8)
+    t0 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$55f4f1c05bf0ed3a43e53915014775d4e7cf11cf029bc18eaef2766c60a2a814(i8, i1) -> sret<struct1 size=8 align=8 scan=none> <no-gc>
+  block entry
+    t0 = aggregate (param0, param1) : struct1
+    ret t0
+  fun @scoop$1$cb$0f0f8d17c321646cf210e1eeec0b845f95ebb7fe300f87d818ed7564075eab0a(indirect<enum0 size=24 align=8 scan=refs[16]>) -> sret<struct0 size=24 align=8 scan=refs[16]> <no-gc>
+  block entry
+    t0 = aggregate (param0) : struct0
+    ret t0
+  fun @scoop$1$cb$2d60eddc620304f6b7fe7c82e33f4053effe8a99e67ac6aec8b4d70aa863e7d3(i64) -> sret<struct2 size=8 align=8 scan=none> <no-gc>
+  block entry
+    t0 = aggregate (param0) : struct2
+    ret t0
+  td td0 n(c=test%3Ascoop-hir-lower%3A0.0.0;p=;o=-;k=S;x=Unused) @scoop$1$td$0ec112ab4682ace6222ba14ad7731a33beb42cb013c80563fd39c4c3bf63c285 type-id=1696407846884649472 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td1 n(c=test%3Ascoop-hir-lower%3A0.0.0;p=;o=-;k=S;x=Wrapper) @scoop$1$td$2f1cc1b25dc5bc84ba6404289a3d89bc0297e20301f84d2274db5f1880b05b20 type-id=18047249852826507279 shape=BoxedValue minimum-size=40 align=8 parent=none vtable=[] itables=[]
+  td td2 n(c=test%3Ascoop-hir-lower%3A0.0.0;p=;o=-;k=S;x=Packed) @scoop$1$td$a6efcc47ae029490e241d95e60a9202a90f1be8c3def47800b3d156cbbab9871 type-id=15101001275093113457 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td3 n(c=test%3Ascoop-hir-lower%3A0.0.0;p=;o=-;k=E;x=Choice) @scoop$1$td$aa29def804f285f26c67bc466f373dbfbce365c4c7eb8337fbaab9748866ac5a type-id=6615720845396830353 shape=BoxedValue minimum-size=40 align=8 parent=none vtable=[] itables=[]
+  layout Wrapper size=24 align=8 refs=[16]
+  layout Packed size=8 align=8 refs=[]
+  layout-meta Packed c-layout(aligned=8,packed=1) fields=[0@1,1@1] interior-mutable=false
+  layout Packed size=8 align=8 refs=[]
+  layout-meta Packed c-layout(aligned=8,packed=1) fields=[0@1,1@1] interior-mutable=false
+  layout Unused size=8 align=8 refs=[]
+  layout Choice size=24 align=8 enum-scan=refs[16]
+  output library

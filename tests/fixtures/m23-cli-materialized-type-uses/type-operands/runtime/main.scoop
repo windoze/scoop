@@ -1,0 +1,7 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val narrow: Int8 = 7
+    verifyType(observe(narrow))
+    verifyType(!observe(7) && !observe("text"))
+}

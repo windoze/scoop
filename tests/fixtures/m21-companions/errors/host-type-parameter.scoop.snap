@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m21-companions/errors/host-type-parameter.scoop:3:22: error: companion object cannot use host type parameter `T`

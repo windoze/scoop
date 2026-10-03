@@ -1,0 +1,1195 @@
+Module
+  global0 stored: Int managed initial=encoded(Int:0x0)
+  global1 $singleton$Singleton: Singleton managed initial=zeroed-for-runtime-unit
+  global2 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  init0 object:Singleton singleton lazy global1 initializer=@fn3 ensure=@fn4 failure=2 deps=[]
+  struct Packet<Int> (stored: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Choice<String>
+    Item(stored: String)
+  enum CoroutineStep<Child>
+    Completed(value: Child)
+    Suspended()
+  enum CoroutineSlot<Child>
+    Empty()
+    Value(value: Child)
+  enum CoroutineStep<Store>
+    Completed(value: Store)
+    Suspended()
+  enum CoroutineSlot<Store>
+    Empty()
+    Value(value: Store)
+  enum CoroutineStep<Counter>
+    Completed(value: Counter)
+    Suspended()
+  enum CoroutineSlot<Counter>
+    Empty()
+    Value(value: Counter)
+  enum CoroutineStep<Singleton>
+    Completed(value: Singleton)
+    Suspended()
+  enum CoroutineSlot<Singleton>
+    Empty()
+    Value(value: Singleton)
+  enum CoroutineStep<Base>
+    Completed(value: Base)
+    Suspended()
+  enum CoroutineSlot<Base>
+    Empty()
+    Value(value: Base)
+  class Base vtable=2 itables=2
+  class Child vtable=2 itables=2
+  class Singleton vtable=0 itables=1
+  class Store vtable=0 itables=1
+  class Reader<String> vtable=0 itables=2
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Packet<Int>> vtable=0 itables=1
+  class box<Choice<String>> vtable=0 itables=1
+  interface Counter
+  interface Rich<Int> : Reading<Int>
+  interface Reading<Int>
+  interface Rich<String> : Reading<String>
+  interface Reading<String>
+  interface Continuation<Counter>
+  interface SuspendTask<Counter>
+  interface SuspendRegistration<Counter>
+  interface Continuation<Base>
+  interface SuspendTask<Base>
+  interface SuspendRegistration<Base>
+  interface Continuation<Child>
+  interface SuspendTask<Child>
+  interface SuspendRegistration<Child>
+  interface Continuation<Singleton>
+  interface SuspendTask<Singleton>
+  interface SuspendRegistration<Singleton>
+  interface Continuation<Store>
+  interface SuspendTask<Store>
+  interface SuspendRegistration<Store>
+  generated_exact_type get0 location=enum4 nominal_id=140e11eeb67666b6e655932cc7e350313b2ffeb9b81fac8a1b94af631344ceb3 exact_id=18e2f9d56be4edbe906c4050af1ee8e13b1f4acb147316f9adf39557d662e450
+  generated_exact_type get1 location=enum9 nominal_id=38474626de890357e7d578de560409eedb4c310fa88c8bef0fa38da1d2e05ec0 exact_id=23ffa289dd0c7596c5daf4ea0f53d3575e2a21c8377a1fa15b8c89512607f07a
+  generated_exact_type get2 location=enum7 nominal_id=257081db209d61b027c235a8a9da3aa30b69640396d71e2d7f57e8526f55e549 exact_id=299db50d7303f0548413d688b99021f3d8775ada8023f168e2b8f20cce63cce9
+  generated_exact_type get3 location=enum2 nominal_id=8697709f8f9a072cb2072036cacef1b8ce876c07ab8e28868e3e2cc517c969df exact_id=4629f961c59657227a975cfefefb16a7be5573a74564f6cac1f43490925a2ca1
+  generated_exact_type get4 location=enum6 nominal_id=5788e01c809e96fe4fe05b3f038b4a0b6a254d6c30d6ce5aa05341e5a466546c exact_id=4c61529bbd9c7100ed5ed134ce892fba3fe444faa69e8ad3a85c2b4e861c63b3
+  generated_exact_type get5 location=enum5 nominal_id=6f98694229e5dd193c832dddc5de6b7cd13e6220b937bb547aefc976359b2a70 exact_id=4c89cb68f4279e40dbaad6dd7d1d1b11f3c93ce20cbe14533c478716fe35a080
+  generated_exact_type get6 location=enum8 nominal_id=19b33ea0cae29e54cf47893965e2e4f272c1c25867eec59c71c4dd3ebb116130 exact_id=7f81583d1fe51b4eb718452eb8fc54e669eb3f77cc1323098b8a9aeb74824a43
+  generated_exact_type get7 location=class9 nominal_id=28505a35998f94ee3afed28296ec909b2316ebd101e3fb641c7af1c509a6a246 exact_id=a02a38e05e6571ce3e322374103c00ac906f7f9241cef12a9af9d4b049ebe9df
+  generated_exact_type get8 location=enum11 nominal_id=5c3cbb13b9ad3f4e4afdfb7d479cc24399a3bf6d6f27a10ab55536f53459d4d0 exact_id=c077b6c199e415f2d03c2d5acde4987ab24c315ae993bbe73a865a2111a8c057
+  generated_exact_type get9 location=enum10 nominal_id=dd19882a05e3eadd85520972639cc84949453ed20e2a759547c37418dec19325 exact_id=e63283ba819ca0db9da1aa16157cd042850dcc0a2137b545d7b16a4e9f34480f
+  generated_exact_type get10 location=enum3 nominal_id=ec5baaf8a7fae016de1a6bb6dbc43d4723795f1b65251b6db75c35cde6a19822 exact_id=f14d27d711cae8dc451e7c3a39300da6d4436eee136a5e17f70a544f16a502a7
+  generated_exact_type get11 location=class8 nominal_id=970d67ec3f797653409a9a21e8236d8e3d5617beaa3d9e7a1432a27ac74ce2e2 exact_id=fc0cdd1471684db40b4f08956b8c1a6ec1bb3e94cdd6357187d239b80d93dc3f
+  generated_callable gc0 function=@fn55 id=069ae59ce4ea36c7d28b6ef967ebd972c05addcc2c7d742979dbd0f26759cf3f
+  generated_callable gc1 function=@fn47 id=1b89925109f3967a4828a071697df34868fcfbe97cc2d91e5005a479c162971f
+  generated_callable gc2 function=@fn53 id=35c3f106f4a96839f6da9d611eb8035a53ccc77ac3c82fd2b28387a75bf7b2a4
+  generated_callable gc3 function=@fn48 id=5380d7288183f19baee836c357f974facb460ce00c6540478a77bd1f73e5ab4b
+  generated_callable gc4 function=@fn50 id=5b34d6c29ee065e1a01e7ffe6d5f9a34486c75ae7d0270d5dc7a37f0fca95b07
+  generated_callable gc5 function=@fn51 id=64a8a75b406f4237049be77444804868b724c57c298578f2daa9f231e64612a2
+  generated_callable gc6 function=@fn54 id=676834121f3d3595acdb973c1075262ac5ac5f3ac1e5d794a1c71263089fa3c2
+  generated_callable gc7 function=@fn46 id=7b01dd3efa672c2ad77d9d9dd82d9525e5d739219bf8442879dbe9496c83d2e1
+  generated_callable gc8 function=@fn56 id=955375b2c5ff31c231cc916eb82016e7727db28188b949cd0902b936f2bf8a1d
+  generated_callable gc9 function=@fn52 id=98f97fdd397bb6fc69c64c09f55e4292c3071a7c7acf37c71461f2e86d0e23cc
+  generated_callable gc10 function=@fn49 id=9ec22bf33cd2d00a9c7d9b3fc185e5a22483220d3629b2553256c703517b550b
+  fun Base.$get$item @fn0(this: Base) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+  fun Base.$get$size @fn1(this: Base) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+  fun Singleton.$get$item @fn2(this: Singleton) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+  fun $init$body$0 @fn3() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Singleton
+        ClassAlloc Singleton
+      call @fn42 direct
+        Type Singleton
+        Local $new.1
+      global_assign $singleton$Singleton
+        Type Singleton
+        Local $new.1
+      return
+  fun $init$ensure$0 @fn4() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Singleton
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn3 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Singleton
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Singleton
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Singleton
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Singleton
+      call external1 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun localCheck @fn5() -> Boolean
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $parameter.stored: String
+        Type String
+        Local $argument.0
+      assign $new.1
+        Type Reader<String>
+        ClassAlloc Reader<String>
+      call @fn44 direct
+        Type Reader<String>
+        Local $new.1
+        Type String
+        Local $parameter.stored
+      val reader: Reader<String>
+        Type Reader<String>
+        Local $new.1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $parameter.stored: Int
+        Type Int
+        Local $argument.0
+      call packet: Packet<Int> = @fn45 direct
+        Type Int
+        Local $parameter.stored
+      val $argument.0: String
+        Type String
+        StringConst @str1
+      val $parameter.stored: String
+        Type String
+        Local $argument.0
+      val choice: Choice<String>
+        Type Choice<String>
+        VariantConstruct Choice<String> v0
+          Type String
+          Local $parameter.stored
+      assign $new.2
+        Type Store
+        ClassAlloc Store
+      call @fn43 direct
+        Type Store
+        Local $new.2
+      val store: Store
+        Type Store
+        Local $new.2
+      call @fn32 interface Counter[1]
+        Type Counter
+        Retype Counter
+          Type Store
+          Local store
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $place.0: Store
+        Type Store
+        Local store
+      call $old.1: Int = @fn31 interface Counter[0]
+        Type Counter
+        Retype Counter
+          Type Store
+          Local $place.0
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn32 interface Counter[1]
+        Type Counter
+        Retype Counter
+          Type Store
+          Local $place.0
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $place.2: Store
+        Type Store
+        Local store
+      call $old.3: Int = @fn31 interface Counter[0]
+        Type Counter
+        Retype Counter
+          Type Store
+          Local $place.2
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.3
+      val $new.4: Int
+        Type Int
+        IntegerUnary increment kind=Int
+          Type Int
+          Local $dependency.receiver
+      call @fn32 interface Counter[1]
+        Type Counter
+        Retype Counter
+          Type Store
+          Local $place.2
+        Type Int
+        Local $new.4
+      val before: Int
+        Type Int
+        Local $old.3
+      val view: Reading<String>
+        Type Reading<String>
+        Retype Reading<String>
+          Type Reader<String>
+          Local reader
+      val counter: Counter
+        Type Counter
+        Retype Counter
+          Type Store
+          Local store
+      call $dependency.receiver: String = @fn36 interface Reading<String>[1]
+        Type Reading<String>
+        Retype Reading<String>
+          Type Reader<String>
+          Local reader
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.3: Boolean = external0 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.3
+    bb1 if.then.1
+      call $dependency.receiver: Int = @fn37 interface Rich<String>[2]
+        Type Rich<String>
+        Retype Rich<String>
+          Type Reader<String>
+          Local reader
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.5: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.5: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.5
+    bb4 if.then.4
+      call $dependency.receiver: Int = @fn38 interface Reading<String>[2]
+        Type Reading<String>
+        Local view
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.6: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb6
+    bb5 if.else.5
+      val $shortCircuit.6: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 if.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $shortCircuit.6
+    bb7 if.then.7
+      call $dependency.receiver: Int = @fn33 interface Reading<Int>[1]
+        Type Reading<Int>
+        Box
+          Type Packet<Int>
+          Local packet
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.7: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb9
+    bb8 if.else.8
+      val $shortCircuit.7: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 if.merge.9
+      branch bb10 bb11
+        Type Boolean
+        Local $shortCircuit.7
+    bb10 if.then.10
+      call $dependency.receiver: Int = @fn34 interface Reading<Int>[2]
+        Type Reading<Int>
+        Box
+          Type Packet<Int>
+          Local packet
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.8: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb12
+    bb11 if.else.11
+      val $shortCircuit.8: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb12 if.merge.12
+      branch bb13 bb14
+        Type Boolean
+        Local $shortCircuit.8
+    bb13 if.then.13
+      call $dependency.receiver: String = @fn36 interface Reading<String>[1]
+        Type Reading<String>
+        Box
+          Type Choice<String>
+          Local choice
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $shortCircuit.9: Boolean = external0 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      goto bb15
+    bb14 if.else.14
+      val $shortCircuit.9: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb15
+    bb15 if.merge.15
+      branch bb16 bb17
+        Type Boolean
+        Local $shortCircuit.9
+    bb16 if.then.16
+      call $dependency.receiver: Int = @fn38 interface Reading<String>[2]
+        Type Reading<String>
+        Box
+          Type Choice<String>
+          Local choice
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.10: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb18
+    bb17 if.else.17
+      val $shortCircuit.10: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb18
+    bb18 if.merge.18
+      branch bb19 bb20
+        Type Boolean
+        Local $shortCircuit.10
+    bb19 if.then.19
+      assign $new.4
+        Type Child
+        ClassAlloc Child
+      call @fn41 direct
+        Type Child
+        Local $new.4
+      call $dependency.receiver: Int = @fn1 virtual[1]
+        Type Base
+        Retype Base
+          Type Child
+          Local $new.4
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.11: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb21
+    bb20 if.else.20
+      val $shortCircuit.11: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb21
+    bb21 if.merge.21
+      branch bb22 bb23
+        Type Boolean
+        Local $shortCircuit.11
+    bb22 if.then.22
+      call @fn4 direct
+      call $dependency.receiver: Int = @fn33 interface Reading<Int>[1]
+        Type Reading<Int>
+        Retype Reading<Int>
+          Type Singleton
+          GlobalRead $singleton$Singleton
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.12: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb24
+    bb23 if.else.23
+      val $shortCircuit.12: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb24
+    bb24 if.merge.24
+      branch bb25 bb26
+        Type Boolean
+        Local $shortCircuit.12
+    bb25 if.then.25
+      val $dependency.receiver: Int
+        Type Int
+        Local before
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.13: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb27
+    bb26 if.else.26
+      val $shortCircuit.13: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb27
+    bb27 if.merge.27
+      branch bb28 bb29
+        Type Boolean
+        Local $shortCircuit.13
+    bb28 if.then.28
+      call $dependency.receiver: Int = @fn31 interface Counter[0]
+        Type Counter
+        Retype Counter
+          Type Store
+          Local store
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.14: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb30
+    bb29 if.else.29
+      val $shortCircuit.14: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb30
+    bb30 if.merge.30
+      branch bb31 bb32
+        Type Boolean
+        Local $shortCircuit.14
+    bb31 if.then.31
+      call $dependency.receiver: Int = @fn31 interface Counter[0]
+        Type Counter
+        Local counter
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.15: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb33
+    bb32 if.else.32
+      val $shortCircuit.15: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb33
+    bb33 if.merge.33
+      return
+        Type Boolean
+        Local $shortCircuit.15
+  fun $get$stored @fn6() -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        GlobalRead stored
+  fun $set$stored @fn7(value: Int) -> Unit <no-gc>
+    bb0 entry
+      global_assign stored
+        Type Int
+        Local value
+      return
+  fun Reader.$get$item @fn8(this: Reader<String>) -> String
+    bb0 entry
+      return
+        Type String
+        FieldAccess 0
+          Type Reader<String>
+          Local this
+  fun Packet.$get$item @fn9(this: Packet<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Packet<Int>
+          Local this
+  fun Choice.$get$item @fn10(this: Choice<String>) -> String
+    bb0 entry
+      val $when.1: Choice<String>
+        Type Choice<String>
+        Local this
+      val $pattern.subject.2: Choice<String>
+        Type Choice<String>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Choice<String> v0
+          Type Choice<String>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val value: String
+        Type String
+        VariantPayloadProject Choice<String> v0 f0
+          Type Choice<String>
+          Local $pattern.subject.2
+      assign $result.16
+        Type String
+        Local value
+      goto bb3
+    bb2 pattern.else.2
+      unreachable
+    bb3 pattern.merge.3
+      return
+        Type String
+        Local $result.16
+  fun Continuation.resume @fn11(this: Continuation<Counter>, value: Counter) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn12(this: Continuation<Counter>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn13(this: SuspendTask<Counter>, $completion: Continuation<Counter>) -> CoroutineStep<Counter>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn14(this: SuspendRegistration<Counter>, continuation: Continuation<Counter>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn15(this: Continuation<Base>, value: Base) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn16(this: Continuation<Base>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn17(this: SuspendTask<Base>, $completion: Continuation<Base>) -> CoroutineStep<Base>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn18(this: SuspendRegistration<Base>, continuation: Continuation<Base>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn19(this: Continuation<Child>, value: Child) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn20(this: Continuation<Child>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn21(this: SuspendTask<Child>, $completion: Continuation<Child>) -> CoroutineStep<Child>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn22(this: SuspendRegistration<Child>, continuation: Continuation<Child>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn23(this: Continuation<Singleton>, value: Singleton) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn24(this: Continuation<Singleton>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn25(this: SuspendTask<Singleton>, $completion: Continuation<Singleton>) -> CoroutineStep<Singleton>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn26(this: SuspendRegistration<Singleton>, continuation: Continuation<Singleton>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn27(this: Continuation<Store>, value: Store) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn28(this: Continuation<Store>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn29(this: SuspendTask<Store>, $completion: Continuation<Store>) -> CoroutineStep<Store>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn30(this: SuspendRegistration<Store>, continuation: Continuation<Store>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Counter.$get$value @fn31(this: Counter) -> Int
+    bb0 entry
+      call $call.1: Int = @fn6 direct
+      return
+        Type Int
+        Local $call.1
+  fun Counter.$set$value @fn32(this: Counter, value: Int) -> Unit
+    bb0 entry
+      call @fn7 direct
+        Type Int
+        Local value
+      return
+  fun Reading.$get$fallback @fn33(this: Reading<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn35 interface Reading<Int>[0]
+        Type Reading<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun Reading.$get$size @fn34(this: Reading<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+  fun Reading.$get$item @fn35(this: Reading<Int>) -> Int
+    bb0 entry
+      trap "call to abstract method `Reading.$get$item`"
+  fun Reading.$get$fallback @fn36(this: Reading<String>) -> String
+    bb0 entry
+      call $call.1: String = @fn39 interface Reading<String>[0]
+        Type Reading<String>
+        Local this
+      return
+        Type String
+        Local $call.1
+  fun Rich.$get$size @fn37(this: Rich<String>) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+  fun Reading.$get$size @fn38(this: Reading<String>) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+  fun Reading.$get$item @fn39(this: Reading<String>) -> String
+    bb0 entry
+      trap "call to abstract method `Reading.$get$item`"
+  fun init.Base.$c1 @fn40(this: Base) -> Unit
+    bb0 entry
+      return
+  fun init.Child.$c2 @fn41(this: Child) -> Unit
+    bb0 entry
+      call @fn40 direct
+        Type Base
+        Retype Base
+          Type Child
+          Local this
+      return
+  fun init.Singleton.$c4 @fn42(this: Singleton) -> Unit
+    bb0 entry
+      return
+  fun init.Store.$c3 @fn43(this: Store) -> Unit
+    bb0 entry
+      return
+  fun init.Reader.$c0 @fn44(this: Reader<String>, stored: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type Reader<String>
+        Local this
+        Type String
+        Local stored
+      return
+  fun ctor.Packet.$c0 @fn45(stored: Int) -> Packet<Int> <no-gc>
+    bb0 entry
+      return
+        Type Packet<Int>
+        StructInit Packet<Int>
+          Type Int
+          Local stored
+  fun startCoroutine<Child> @fn46(task: SuspendTask<Child>, completion: Continuation<Child>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn19 interface Continuation<Child>[0]
+        Type Continuation<Child>
+        Local completion
+        Type Child
+        EnumField v0 f0
+          Type CoroutineStep<Child>
+          Local $step
+      return
+    bb2 failed
+      call @fn20 interface Continuation<Child>[1]
+        Type Continuation<Child>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Child> = @fn21 interface SuspendTask<Child>[0]
+        Type SuspendTask<Child>
+        Local task
+        Type Continuation<Child>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Child>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Store> @fn47(task: SuspendTask<Store>, completion: Continuation<Store>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn27 interface Continuation<Store>[0]
+        Type Continuation<Store>
+        Local completion
+        Type Store
+        EnumField v0 f0
+          Type CoroutineStep<Store>
+          Local $step
+      return
+    bb2 failed
+      call @fn28 interface Continuation<Store>[1]
+        Type Continuation<Store>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Store> = @fn29 interface SuspendTask<Store>[0]
+        Type SuspendTask<Store>
+        Local task
+        Type Continuation<Store>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Store>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Counter> @fn48(task: SuspendTask<Counter>, completion: Continuation<Counter>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn11 interface Continuation<Counter>[0]
+        Type Continuation<Counter>
+        Local completion
+        Type Counter
+        EnumField v0 f0
+          Type CoroutineStep<Counter>
+          Local $step
+      return
+    bb2 failed
+      call @fn12 interface Continuation<Counter>[1]
+        Type Continuation<Counter>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Counter> = @fn13 interface SuspendTask<Counter>[0]
+        Type SuspendTask<Counter>
+        Local task
+        Type Continuation<Counter>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Counter>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Singleton> @fn49(task: SuspendTask<Singleton>, completion: Continuation<Singleton>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn23 interface Continuation<Singleton>[0]
+        Type Continuation<Singleton>
+        Local completion
+        Type Singleton
+        EnumField v0 f0
+          Type CoroutineStep<Singleton>
+          Local $step
+      return
+    bb2 failed
+      call @fn24 interface Continuation<Singleton>[1]
+        Type Continuation<Singleton>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Singleton> = @fn25 interface SuspendTask<Singleton>[0]
+        Type SuspendTask<Singleton>
+        Local task
+        Type Continuation<Singleton>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Singleton>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Base> @fn50(task: SuspendTask<Base>, completion: Continuation<Base>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn15 interface Continuation<Base>[0]
+        Type Continuation<Base>
+        Local completion
+        Type Base
+        EnumField v0 f0
+          Type CoroutineStep<Base>
+          Local $step
+      return
+    bb2 failed
+      call @fn16 interface Continuation<Base>[1]
+        Type Continuation<Base>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Base> = @fn17 interface SuspendTask<Base>[0]
+        Type SuspendTask<Base>
+        Local task
+        Type Continuation<Base>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Base>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun thunk<Packet<Int>> Reading.$get$item() @fn51(this: Reading<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn9 direct
+        Type Packet<Int>
+        Unbox
+          Type Reading<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun thunk<Packet<Int>> Reading.$get$fallback() @fn52(this: Reading<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn33 direct
+        Type Reading<Int>
+        Retype Reading<Int>
+          Type Reading<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun thunk<Packet<Int>> Reading.$get$size() @fn53(this: Reading<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn34 direct
+        Type Reading<Int>
+        Retype Reading<Int>
+          Type Reading<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun thunk<Choice<String>> Reading.$get$item() @fn54(this: Reading<String>) -> String
+    bb0 entry
+      call $call.1: String = @fn10 direct
+        Type Choice<String>
+        Unbox
+          Type Reading<String>
+          Local this
+      return
+        Type String
+        Local $call.1
+  fun thunk<Choice<String>> Reading.$get$fallback() @fn55(this: Reading<String>) -> String
+    bb0 entry
+      call $call.1: String = @fn36 direct
+        Type Reading<String>
+        Retype Reading<String>
+          Type Reading<String>
+          Local this
+      return
+        Type String
+        Local $call.1
+  fun thunk<Choice<String>> Reading.$get$size() @fn56(this: Reading<String>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn38 direct
+        Type Reading<String>
+        Retype Reading<String>
+          Type Reading<String>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  coroutine_step cs0 CoroutineStep<Child> result=Child
+  coroutine_step cs1 CoroutineStep<Store> result=Store
+  coroutine_step cs2 CoroutineStep<Counter> result=Counter
+  coroutine_step cs3 CoroutineStep<Singleton> result=Singleton
+  coroutine_step cs4 CoroutineStep<Base> result=Base
+  coroutine_slot cl0 CoroutineSlot<Child> value=Child
+  coroutine_slot cl1 CoroutineSlot<Store> value=Store
+  coroutine_slot cl2 CoroutineSlot<Counter> value=Counter
+  coroutine_slot cl3 CoroutineSlot<Singleton> value=Singleton
+  coroutine_slot cl4 CoroutineSlot<Base> value=Base
+  coroutine_start ct0 result=Child function=fn46
+  coroutine_start ct1 result=Store function=fn47
+  coroutine_start ct2 result=Counter function=fn48
+  coroutine_start ct3 result=Singleton function=fn49
+  coroutine_start ct4 result=Base function=fn50
+  coroutine_fn cf0 @fn13 source_return=Counter step=cs2 immediate
+  coroutine_fn cf1 @fn17 source_return=Base step=cs4 immediate
+  coroutine_fn cf2 @fn21 source_return=Child step=cs0 immediate
+  coroutine_fn cf3 @fn25 source_return=Singleton step=cs3 immediate
+  coroutine_fn cf4 @fn29 source_return=Store step=cs1 immediate
+  instance mi0 function=@fn8 <- Reader.$get$item
+  instance mi1 function=@fn9 <- Packet.$get$item
+  instance mi2 function=@fn10 <- Choice.$get$item
+  instance mi3 function=@fn11 <- Continuation.resume
+  instance mi4 function=@fn12 <- Continuation.resumeWithException
+  instance mi5 function=@fn13 <- SuspendTask.run
+  instance mi6 function=@fn14 <- SuspendRegistration.register
+  instance mi7 function=@fn15 <- Continuation.resume
+  instance mi8 function=@fn16 <- Continuation.resumeWithException
+  instance mi9 function=@fn17 <- SuspendTask.run
+  instance mi10 function=@fn18 <- SuspendRegistration.register
+  instance mi11 function=@fn19 <- Continuation.resume
+  instance mi12 function=@fn20 <- Continuation.resumeWithException
+  instance mi13 function=@fn21 <- SuspendTask.run
+  instance mi14 function=@fn22 <- SuspendRegistration.register
+  instance mi15 function=@fn23 <- Continuation.resume
+  instance mi16 function=@fn24 <- Continuation.resumeWithException
+  instance mi17 function=@fn25 <- SuspendTask.run
+  instance mi18 function=@fn26 <- SuspendRegistration.register
+  instance mi19 function=@fn27 <- Continuation.resume
+  instance mi20 function=@fn28 <- Continuation.resumeWithException
+  instance mi21 function=@fn29 <- SuspendTask.run
+  instance mi22 function=@fn30 <- SuspendRegistration.register
+  instance mi23 function=@fn33 <- Reading.$get$fallback
+  instance mi24 function=@fn34 <- Reading.$get$size
+  instance mi25 function=@fn35 <- Reading.$get$item
+  instance mi26 function=@fn36 <- Reading.$get$fallback
+  instance mi27 function=@fn37 <- Rich.$get$size
+  instance mi28 function=@fn38 <- Reading.$get$size
+  instance mi29 function=@fn39 <- Reading.$get$item
+  str @str0 "local"
+  str @str1 "enum"
+  str @str2 "local"
+  str @str3 "enum"
+  output library

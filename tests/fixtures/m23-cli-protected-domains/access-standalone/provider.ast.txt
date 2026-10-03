@@ -1,0 +1,6 @@
+SourceFile
+  RootPackage
+  public open class SourceBase<T>()
+    protected val seed: Int = <expr>
+      IntLiteral 3
+    protected fun read

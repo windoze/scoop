@@ -1,0 +1,57 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  fun main @fn0() -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: Boolean = @fn1 direct
+        Type Int
+        Local $dependency.parameter.value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun dormant @fn1(value: Int) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = external1 direct
+      return
+        Type Boolean
+        Local $call.1
+  instance mi0 function=@fn1 <- dormant
+  str @str0 "illegal state"
+  output executable @fn0

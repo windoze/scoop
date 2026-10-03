@@ -1,0 +1,340 @@
+Module
+  global0 $singleton$347e632305c2f9d9868dcc66762bfe34e92aeee94c2efbeae6f4e8061c773650: Cache imported provider=911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006 storage=b08350df3763cf3a7d3ab085e716c3aeef45f25610a15d79a8c9ffb8e966fa1e
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Service vtable=1 itables=1
+  class Base vtable=1 itables=0
+  class Outer vtable=0 itables=0
+  class Cache vtable=0 itables=0
+  class Cell<Int> vtable=0 itables=0
+  class Cell<String> vtable=0 itables=0
+  interface View
+  fun verifyType @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call value: Service = external3 direct
+      val view: View
+        Type View
+        Retype View
+          Type Service
+          Local value
+      call $dependency.receiver: Int = external2 interface View[0]
+        Type View
+        Local view
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      call $dependency.receiver: Int = external2 interface View[0]
+        Type View
+        Retype View
+          Type Service
+          Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.0
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Base
+        Type Base
+        Retype Base
+          Type Service
+          Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = external4 direct
+        Type Base
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.receiver: Outer = external5 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn2 direct
+        Type Outer
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb4 bb5
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb4 if.then.4
+      call $dependency.receiver: Outer = external5 direct
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call $dependency.receiver: String = @fn3 direct
+        Type Outer
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $shortCircuit.1: Boolean = external6 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      goto bb6
+    bb5 if.else.5
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 if.merge.6
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=23 bits=0x00000017
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = external7 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=23 bits=0x00000017
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      call external8 direct
+      call external8 direct
+      branch bb7 bb8
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb7 logic.rhs.7
+      assign $logic.1
+        Type Boolean
+        Binary RefEq
+          Type Cache
+          GlobalRead $singleton$347e632305c2f9d9868dcc66762bfe34e92aeee94c2efbeae6f4e8061c773650
+          Type Cache
+          GlobalRead $singleton$347e632305c2f9d9868dcc66762bfe34e92aeee94c2efbeae6f4e8061c773650
+      goto bb9
+    bb8 logic.short.8
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 logic.merge.9
+      val $argument.0: Boolean
+        Type Boolean
+        Local $logic.1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun read @fn2(this: Outer, value: Int) -> Int
+    bb0 entry
+      val $dependency.local.2: Int
+        Type Int
+        Local value
+      val $dependency.local.3: Int
+        Type Int
+        Local $dependency.local.2
+      assign $new.1
+        Type Cell<Int>
+        ClassAlloc Cell<Int>
+      call @fn6 direct
+        Type Cell<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.local.3
+      call $call.2: Int = @fn4 direct
+        Type Cell<Int>
+        Local $new.1
+      return
+        Type Int
+        Local $call.2
+  fun read @fn3(this: Outer, value: String) -> String
+    bb0 entry
+      val $dependency.local.2: String
+        Type String
+        Local value
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      assign $new.1
+        Type Cell<String>
+        ClassAlloc Cell<String>
+      call @fn7 direct
+        Type Cell<String>
+        Local $new.1
+        Type String
+        Local $dependency.local.3
+      call $call.2: String = @fn5 direct
+        Type Cell<String>
+        Local $new.1
+      return
+        Type String
+        Local $call.2
+  fun value @fn4(this: Cell<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Cell<Int>
+          Local this
+  fun value @fn5(this: Cell<String>) -> String
+    bb0 entry
+      return
+        Type String
+        FieldAccess 0
+          Type Cell<String>
+          Local this
+  fun init.Cell.$c0 @fn6(this: Cell<Int>, initial: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Cell<Int>
+        Local this
+        Type Int
+        Local initial
+      return
+  fun init.Cell.$c0 @fn7(this: Cell<String>, initial: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type Cell<String>
+        Local this
+        Type String
+        Local initial
+      return
+  instance mi0 function=@fn2 <- read
+  instance mi1 function=@fn3 <- read
+  instance mi2 function=@fn4 <- value
+  instance mi3 function=@fn5 <- value
+  str @str0 "illegal state"
+  str @str1 "text"
+  str @str2 "text"
+  output executable @fn1

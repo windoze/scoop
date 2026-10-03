@@ -1,0 +1,26 @@
+SourceFile
+  QualifiedPackage consumer.paths
+  ImportExact Local dependency.paths.Point
+  ImportExact Local dependency.paths.Box
+  ImportExact Local dependency.paths.make
+  public fun exercise<T>(value: T): Int
+    val box: dependency.paths.Box<T>
+      Call make<T>
+        Var value
+    val kept: T
+      FieldAccess value
+        Var box
+    val point: dependency.paths.Point
+      Call Point
+        IntLiteral 42
+    val concrete: dependency.paths.Box<Int>
+      Call Box<Int>
+        FieldAccess number
+          Var point
+    return
+      FieldAccess value
+        Var concrete
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0

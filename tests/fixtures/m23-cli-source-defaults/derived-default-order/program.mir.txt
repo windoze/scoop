@@ -1,0 +1,345 @@
+Module
+  struct Empty ()
+  enum Choice
+    First()
+    Second()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class Holder vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  fun Empty.equals @fn0(this: Empty, other: Empty) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun Choice.equals @fn1(this: Choice, other: Choice) -> Boolean
+    bb0 entry
+      val $when.1: Choice
+        Type Choice
+        Local this
+      val $pattern.subject.2: Choice
+        Type Choice
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Choice v0
+          Type Choice
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $when.3: Choice
+        Type Choice
+        Local other
+      val $pattern.subject.4: Choice
+        Type Choice
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Choice v0
+          Type Choice
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Choice
+        Type Choice
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Choice v1
+          Type Choice
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      return
+        Type Boolean
+        BoolLiteral true
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $when.6: Choice
+        Type Choice
+        Local other
+      val $pattern.subject.7: Choice
+        Type Choice
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Choice v1
+          Type Choice
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      return
+        Type Boolean
+        BoolLiteral true
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+  fun structDefault @fn2(left: Empty, right: Empty, value: Boolean) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        Local value
+  fun enumDefault @fn3(left: Choice, right: Choice, value: Boolean) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        Local value
+  fun use @fn4() -> Boolean
+    bb0 entry
+      call $call.1: Empty = @fn8 direct
+      call $call.2: Empty = @fn8 direct
+      call $parameter.same: Boolean = @fn0 direct
+        Type Empty
+        Local $call.1
+        Type Empty
+        Local $call.2
+      assign $new.3
+        Type Holder
+        ClassAlloc Holder
+      call @fn7 direct
+        Type Holder
+        Local $new.3
+        Type Boolean
+        Local $parameter.same
+      val holder: Holder
+        Type Holder
+        Local $new.3
+      val $argument.0: Choice
+        Type Choice
+        VariantConstruct Choice v0
+      val $argument.1: Choice
+        Type Choice
+        VariantConstruct Choice v1
+      val $parameter.left: Choice
+        Type Choice
+        Local $argument.0
+      val $parameter.right: Choice
+        Type Choice
+        Local $argument.1
+      call $parameter.value: Boolean = @fn1 direct
+        Type Choice
+        Local $parameter.left
+        Type Choice
+        Local $parameter.right
+      call $call.4: Boolean = @fn3 direct
+        Type Choice
+        Local $parameter.left
+        Type Choice
+        Local $parameter.right
+        Type Boolean
+        Local $parameter.value
+      call $argument.0: Empty = @fn8 direct
+      call $argument.1: Empty = @fn8 direct
+      val $parameter.left: Empty
+        Type Empty
+        Local $argument.0
+      val $parameter.right: Empty
+        Type Empty
+        Local $argument.1
+      call $parameter.value: Boolean = @fn0 direct
+        Type Empty
+        Local $parameter.left
+        Type Empty
+        Local $parameter.right
+      call $call.5: Boolean = @fn2 direct
+        Type Empty
+        Local $parameter.left
+        Type Empty
+        Local $parameter.right
+        Type Boolean
+        Local $parameter.value
+      return
+        Type Boolean
+        Local $call.5
+  fun verifyDefault @fn5(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn6() -> Unit
+    bb0 entry
+      call $argument.0: Boolean = @fn4 direct
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn5 direct
+        Type Boolean
+        Local $parameter.value
+      call $call.1: Empty = @fn8 direct
+      call $call.2: Empty = @fn8 direct
+      call $parameter.same: Boolean = @fn0 direct
+        Type Empty
+        Local $call.1
+        Type Empty
+        Local $call.2
+      assign $new.3
+        Type Holder
+        ClassAlloc Holder
+      call @fn7 direct
+        Type Holder
+        Local $new.3
+        Type Boolean
+        Local $parameter.same
+      val $argument.0: Boolean
+        Type Boolean
+        FieldAccess 0
+          Type Holder
+          Local $new.3
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn5 direct
+        Type Boolean
+        Local $parameter.value
+      call $argument.0: Empty = @fn8 direct
+      call $argument.1: Empty = @fn8 direct
+      val $parameter.left: Empty
+        Type Empty
+        Local $argument.0
+      val $parameter.right: Empty
+        Type Empty
+        Local $argument.1
+      call $parameter.value: Boolean = @fn0 direct
+        Type Empty
+        Local $parameter.left
+        Type Empty
+        Local $parameter.right
+      call $argument.0: Boolean = @fn2 direct
+        Type Empty
+        Local $parameter.left
+        Type Empty
+        Local $parameter.right
+        Type Boolean
+        Local $parameter.value
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn5 direct
+        Type Boolean
+        Local $parameter.value
+      call $argument.0: Empty = @fn8 direct
+      call $argument.1: Empty = @fn8 direct
+      val $argument.2: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $parameter.left: Empty
+        Type Empty
+        Local $argument.0
+      val $parameter.right: Empty
+        Type Empty
+        Local $argument.1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.2
+      call $dependency.receiver: Boolean = @fn2 direct
+        Type Empty
+        Local $parameter.left
+        Type Empty
+        Local $parameter.right
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn5 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Choice
+        Type Choice
+        VariantConstruct Choice v0
+      val $argument.1: Choice
+        Type Choice
+        VariantConstruct Choice v1
+      val $parameter.left: Choice
+        Type Choice
+        Local $argument.0
+      val $parameter.right: Choice
+        Type Choice
+        Local $argument.1
+      call $parameter.value: Boolean = @fn1 direct
+        Type Choice
+        Local $parameter.left
+        Type Choice
+        Local $parameter.right
+      call $dependency.receiver: Boolean = @fn3 direct
+        Type Choice
+        Local $parameter.left
+        Type Choice
+        Local $parameter.right
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn5 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun init.Holder.$c0 @fn7(this: Holder, same: Boolean) -> Unit
+    bb0 entry
+      field_set 0
+        Type Holder
+        Local this
+        Type Boolean
+        Local same
+      return
+  fun ctor.Empty.$c0 @fn8() -> Empty <no-gc>
+    bb0 entry
+      return
+        Type Empty
+        StructInit Empty
+  str @str0 "illegal state"
+  output executable @fn6

@@ -1,0 +1,36 @@
+SourceFile
+  QualifiedPackage consumer.sharedbounds
+  ImportStar Local upstream.sharedbounds.*
+  private fun observe(value: Any): Int
+    =
+      IntLiteral 42
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val widened
+      Call choose
+        Var seed
+        Call Holder<Any>
+          Var seed
+    if
+      Binary Ne
+        Call observe
+          Var widened
+        IntLiteral 42
+      return
+        IntLiteral 1
+    val source
+      Call Holder<T>
+        Var seed
+    return
+      Call delayed
+        Var source
+        Lambda 0 suspend=false
+          param value: _
+          Call read
+            Var value
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 1 suspend=false
+          param value: _
+          Var value

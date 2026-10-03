@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "source extern _main conflicts with a compiler-owned definition; origins: dev.programlink:native-reserved:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([219, 144, 201, 150, 208, 195, 18, 195, 196, 162, 162, 37, 40, 204, 144, 184, 57, 78, 139, 22, 169, 242, 4, 158, 66, 129, 139, 63, 107, 28, 45, 57])])",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

@@ -1,0 +1,29 @@
+SourceFile
+  RootPackage
+  fun main()
+    val a: Int??
+      Call Some
+        Call Some
+          IntLiteral 1
+    val b: Int??
+      Call Some
+        Var None
+    val c: Int??
+      Var None
+    Call println
+      Elvis
+        NullAssert
+          Var a
+        IntLiteral 0
+    Call println
+      Elvis
+        NullAssert
+          Var b
+        IntLiteral 0
+    Call println
+      Elvis
+        Elvis
+          Var c
+          Call Some
+            IntLiteral 3
+        IntLiteral 0

@@ -1,0 +1,332 @@
+Module
+  extern ef0 verifyFinished @verify_finished() -> Unit <abi=c no-gc lib=m23_native_boundary>
+  extern ef1 nativeMixed @native_mixed(Wrapper, Int8, Int16, Int, Long, UInt8, UInt16, UInt, ULong) -> Unit <abi=scoop managed lib=m23_native_boundary>
+  struct Wrapper (choice: Choice)
+  struct Packed (value: Int8, flag: Boolean) <c-layout aligned=8 packed=1>
+  struct Unused (ignored: ULong)
+  enum Choice
+    Data(_1: Packed)
+    Text(_1: String)
+    Empty()
+  fun verifyFinished @fn0() -> Unit
+    bb0 entry
+      call extern0 @verify_finished direct
+      return
+  fun perform @fn1() -> Unit
+    bb0 entry
+      val $argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=7 bits=0x07
+      val $argument.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.value: Int8
+        Type Int8
+        Local $argument.0
+      val $parameter.flag: Boolean
+        Type Boolean
+        Local $argument.1
+      call $argument.0: Packed = @fn3 direct
+        Type Int8
+        Local $parameter.value
+        Type Boolean
+        Local $parameter.flag
+      val $parameter._1: Packed
+        Type Packed
+        Local $argument.0
+      val $argument.0: Choice
+        Type Choice
+        VariantConstruct Choice v0
+          Type Packed
+          Local $parameter._1
+      val $parameter.choice: Choice
+        Type Choice
+        Local $argument.0
+      call $argument.0: Wrapper = @fn4 direct
+        Type Choice
+        Local $parameter.choice
+      val $argument.1: Int8
+        Type Int8
+        IntegerLiteral Int8 value=-7 bits=0xf9
+      val $argument.2: Int16
+        Type Int16
+        IntegerLiteral Int16 value=-300 bits=0xfed4
+      val $argument.3: Int
+        Type Int
+        IntegerLiteral Int value=-123456 bits=0xfffe1dc0
+      val $argument.4: Long
+        Type Long
+        IntegerLiteral Long value=-5000000000 bits=0xfffffffed5fa0e00
+      val $argument.5: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=250 bits=0xfa
+      val $argument.6: UInt16
+        Type UInt16
+        IntegerLiteral UInt16 value=60000 bits=0xea60
+      val $argument.7: UInt
+        Type UInt
+        IntegerLiteral UInt value=4000000000 bits=0xee6b2800
+      val $argument.8: ULong
+        Type ULong
+        IntegerLiteral ULong value=9000000000 bits=0x0000000218711a00
+      val $parameter.value: Wrapper
+        Type Wrapper
+        Local $argument.0
+      val $parameter.i8: Int8
+        Type Int8
+        Local $argument.1
+      val $parameter.i16: Int16
+        Type Int16
+        Local $argument.2
+      val $parameter.i32: Int
+        Type Int
+        Local $argument.3
+      val $parameter.i64: Long
+        Type Long
+        Local $argument.4
+      val $parameter.u8: UInt8
+        Type UInt8
+        Local $argument.5
+      val $parameter.u16: UInt16
+        Type UInt16
+        Local $argument.6
+      val $parameter.u32: UInt
+        Type UInt
+        Local $argument.7
+      val $parameter.u64: ULong
+        Type ULong
+        Local $argument.8
+      call extern1 @native_mixed direct
+        Type Wrapper
+        Local $parameter.value
+        Type Int8
+        Local $parameter.i8
+        Type Int16
+        Local $parameter.i16
+        Type Int
+        Local $parameter.i32
+        Type Long
+        Local $parameter.i64
+        Type UInt8
+        Local $parameter.u8
+        Type UInt16
+        Local $parameter.u16
+        Type UInt
+        Local $parameter.u32
+        Type ULong
+        Local $parameter.u64
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $parameter._1: String
+        Type String
+        Local $argument.0
+      val $argument.0: Choice
+        Type Choice
+        VariantConstruct Choice v1
+          Type String
+          Local $parameter._1
+      val $parameter.choice: Choice
+        Type Choice
+        Local $argument.0
+      call $argument.0: Wrapper = @fn4 direct
+        Type Choice
+        Local $parameter.choice
+      val $argument.1: Int8
+        Type Int8
+        IntegerLiteral Int8 value=-7 bits=0xf9
+      val $argument.2: Int16
+        Type Int16
+        IntegerLiteral Int16 value=-300 bits=0xfed4
+      val $argument.3: Int
+        Type Int
+        IntegerLiteral Int value=-123456 bits=0xfffe1dc0
+      val $argument.4: Long
+        Type Long
+        IntegerLiteral Long value=-5000000000 bits=0xfffffffed5fa0e00
+      val $argument.5: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=250 bits=0xfa
+      val $argument.6: UInt16
+        Type UInt16
+        IntegerLiteral UInt16 value=60000 bits=0xea60
+      val $argument.7: UInt
+        Type UInt
+        IntegerLiteral UInt value=4000000000 bits=0xee6b2800
+      val $argument.8: ULong
+        Type ULong
+        IntegerLiteral ULong value=9000000000 bits=0x0000000218711a00
+      val $parameter.value: Wrapper
+        Type Wrapper
+        Local $argument.0
+      val $parameter.i8: Int8
+        Type Int8
+        Local $argument.1
+      val $parameter.i16: Int16
+        Type Int16
+        Local $argument.2
+      val $parameter.i32: Int
+        Type Int
+        Local $argument.3
+      val $parameter.i64: Long
+        Type Long
+        Local $argument.4
+      val $parameter.u8: UInt8
+        Type UInt8
+        Local $argument.5
+      val $parameter.u16: UInt16
+        Type UInt16
+        Local $argument.6
+      val $parameter.u32: UInt
+        Type UInt
+        Local $argument.7
+      val $parameter.u64: ULong
+        Type ULong
+        Local $argument.8
+      call extern1 @native_mixed direct
+        Type Wrapper
+        Local $parameter.value
+        Type Int8
+        Local $parameter.i8
+        Type Int16
+        Local $parameter.i16
+        Type Int
+        Local $parameter.i32
+        Type Long
+        Local $parameter.i64
+        Type UInt8
+        Local $parameter.u8
+        Type UInt16
+        Local $parameter.u16
+        Type UInt
+        Local $parameter.u32
+        Type ULong
+        Local $parameter.u64
+      val $argument.0: Choice
+        Type Choice
+        VariantConstruct Choice v2
+      val $parameter.choice: Choice
+        Type Choice
+        Local $argument.0
+      call $argument.0: Wrapper = @fn4 direct
+        Type Choice
+        Local $parameter.choice
+      val $argument.1: Int8
+        Type Int8
+        IntegerLiteral Int8 value=-7 bits=0xf9
+      val $argument.2: Int16
+        Type Int16
+        IntegerLiteral Int16 value=-300 bits=0xfed4
+      val $argument.3: Int
+        Type Int
+        IntegerLiteral Int value=-123456 bits=0xfffe1dc0
+      val $argument.4: Long
+        Type Long
+        IntegerLiteral Long value=-5000000000 bits=0xfffffffed5fa0e00
+      val $argument.5: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=250 bits=0xfa
+      val $argument.6: UInt16
+        Type UInt16
+        IntegerLiteral UInt16 value=60000 bits=0xea60
+      val $argument.7: UInt
+        Type UInt
+        IntegerLiteral UInt value=4000000000 bits=0xee6b2800
+      val $argument.8: ULong
+        Type ULong
+        IntegerLiteral ULong value=9000000000 bits=0x0000000218711a00
+      val $parameter.value: Wrapper
+        Type Wrapper
+        Local $argument.0
+      val $parameter.i8: Int8
+        Type Int8
+        Local $argument.1
+      val $parameter.i16: Int16
+        Type Int16
+        Local $argument.2
+      val $parameter.i32: Int
+        Type Int
+        Local $argument.3
+      val $parameter.i64: Long
+        Type Long
+        Local $argument.4
+      val $parameter.u8: UInt8
+        Type UInt8
+        Local $argument.5
+      val $parameter.u16: UInt16
+        Type UInt16
+        Local $argument.6
+      val $parameter.u32: UInt
+        Type UInt
+        Local $argument.7
+      val $parameter.u64: ULong
+        Type ULong
+        Local $argument.8
+      call extern1 @native_mixed direct
+        Type Wrapper
+        Local $parameter.value
+        Type Int8
+        Local $parameter.i8
+        Type Int16
+        Local $parameter.i16
+        Type Int
+        Local $parameter.i32
+        Type Long
+        Local $parameter.i64
+        Type UInt8
+        Local $parameter.u8
+        Type UInt16
+        Local $parameter.u16
+        Type UInt
+        Local $parameter.u32
+        Type ULong
+        Local $parameter.u64
+      call extern0 @verify_finished direct
+      return
+  fun nativeMixed @fn2(arg0: Wrapper, arg1: Int8, arg2: Int16, arg3: Int, arg4: Long, arg5: UInt8, arg6: UInt16, arg7: UInt, arg8: ULong) -> Unit
+    bb0 entry
+      call extern1 @native_mixed direct
+        Type Wrapper
+        Local arg0
+        Type Int8
+        Local arg1
+        Type Int16
+        Local arg2
+        Type Int
+        Local arg3
+        Type Long
+        Local arg4
+        Type UInt8
+        Local arg5
+        Type UInt16
+        Local arg6
+        Type UInt
+        Local arg7
+        Type ULong
+        Local arg8
+      return
+  fun ctor.Packed.$c0 @fn3(value: Int8, flag: Boolean) -> Packed <no-gc>
+    bb0 entry
+      return
+        Type Packed
+        StructInit Packed
+          Type Int8
+          Local value
+          Type Boolean
+          Local flag
+  fun ctor.Wrapper.$c1 @fn4(choice: Choice) -> Wrapper <no-gc>
+    bb0 entry
+      return
+        Type Wrapper
+        StructInit Wrapper
+          Type Choice
+          Local choice
+  fun ctor.Unused.$c2 @fn5(ignored: ULong) -> Unused <no-gc>
+    bb0 entry
+      return
+        Type Unused
+        StructInit Unused
+          Type ULong
+          Local ignored
+  str @str0 "payload"
+  output library

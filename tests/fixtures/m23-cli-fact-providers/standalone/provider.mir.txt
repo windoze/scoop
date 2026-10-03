@@ -1,0 +1,130 @@
+Module
+  struct FlagValue (enabled: Boolean, count: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<FlagValue>
+    Completed(value: FlagValue)
+    Suspended()
+  enum CoroutineSlot<FlagValue>
+    Empty()
+    Value(value: FlagValue)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<FlagValue> vtable=0 itables=0
+  interface Continuation<FlagValue>
+  interface SuspendTask<FlagValue>
+  interface SuspendRegistration<FlagValue>
+  generated_exact_type get0 location=enum2 nominal_id=39f1148d929bf3ca2966cf77b7c9b63c72df0ca86ea36cc88a181fcf9ebac258 exact_id=6cac1831f61c8c92fd661d6209562016f12dfe598b226a3162daeada51aa78b2
+  generated_exact_type get1 location=class3 nominal_id=20df82191123872ca832f6a678f8bc7c718b744d58c06eddbf18a608722b025c exact_id=d81a29469db1e3df8caf523f2e9771a3fef78a458cd11026ce948ea8d19298bd
+  generated_exact_type get2 location=enum1 nominal_id=971ecd5ce5c77f5110ec3730c7d269d78dc4cdbecb8a8ac59292c75fe14f5d34 exact_id=dfb92c48e2415f1e9d6e4c997916061941db56fa695ea3539a814954d034a059
+  generated_callable gc0 function=@fn6 id=8759a8675a4669b0383fd3512bda8fa128da0f18e972b425b7c5e207b38befd2
+  fun FlagValue.equals @fn0(this: FlagValue, other: FlagValue) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = external0 direct
+        Type Boolean
+        FieldAccess 0
+          Type FlagValue
+          Local this
+        Type Boolean
+        FieldAccess 0
+          Type FlagValue
+          Local other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 logic.rhs.1
+      assign $logic.2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 1
+            Type FlagValue
+            Local this
+          Type Int
+          FieldAccess 1
+            Type FlagValue
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.2
+  fun Continuation.resume @fn1(this: Continuation<FlagValue>, value: FlagValue) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn2(this: Continuation<FlagValue>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn3(this: SuspendTask<FlagValue>, $completion: Continuation<FlagValue>) -> CoroutineStep<FlagValue>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn4(this: SuspendRegistration<FlagValue>, continuation: Continuation<FlagValue>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.FlagValue.$c0 @fn5(enabled: Boolean, count: Int) -> FlagValue <no-gc>
+    bb0 entry
+      return
+        Type FlagValue
+        StructInit FlagValue
+          Type Boolean
+          Local enabled
+          Type Int
+          Local count
+  fun startCoroutine<FlagValue> @fn6(task: SuspendTask<FlagValue>, completion: Continuation<FlagValue>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn1 interface Continuation<FlagValue>[0]
+        Type Continuation<FlagValue>
+        Local completion
+        Type FlagValue
+        EnumField v0 f0
+          Type CoroutineStep<FlagValue>
+          Local $step
+      return
+    bb2 failed
+      call @fn2 interface Continuation<FlagValue>[1]
+        Type Continuation<FlagValue>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<FlagValue> = @fn3 interface SuspendTask<FlagValue>[0]
+        Type SuspendTask<FlagValue>
+        Local task
+        Type Continuation<FlagValue>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<FlagValue>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<FlagValue> result=FlagValue
+  coroutine_slot cl0 CoroutineSlot<FlagValue> value=FlagValue
+  coroutine_start ct0 result=FlagValue function=fn6
+  coroutine_fn cf0 @fn3 source_return=FlagValue step=cs0 immediate
+  instance mi0 function=@fn1 <- Continuation.resume
+  instance mi1 function=@fn2 <- Continuation.resumeWithException
+  instance mi2 function=@fn3 <- SuspendTask.run
+  instance mi3 function=@fn4 <- SuspendRegistration.register
+  output library

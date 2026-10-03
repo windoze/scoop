@@ -63,6 +63,28 @@ impl ImportedCallableBody {
 }
 
 impl super::ImportedDependencySelectionPlan {
+    pub fn derived_equality(
+        &self,
+        nominal: scoop_identity::PersistentTypeId,
+    ) -> Option<crate::ImportedDerivedEquality> {
+        use scoop_identity::{
+            ExactTypeKey, GeneratedCallableKey, PersistentExactTypeId,
+            PersistentGeneratedCallableId,
+        };
+        let declaration = self.nominal(nominal)?;
+        let owner = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(nominal))
+            .expect("a checked nominal has an exact identity");
+        let key = GeneratedCallableKey::DerivedEquality { exact_owner: owner };
+        let callable = PersistentGeneratedCallableId::from_key(&key)
+            .expect("a checked exact owner has a generated equality identity");
+        self.generated_callable_definition(callable)?;
+        Some(crate::ImportedDerivedEquality {
+            provider: declaration.origin.origin().source().cone(),
+            callable,
+            owner,
+        })
+    }
+
     pub fn generated_callable_definition(
         &self,
         id: scoop_identity::PersistentGeneratedCallableId,

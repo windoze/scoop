@@ -1,0 +1,17 @@
+fun main() {
+    if (!equalInt8(1) || !equalInt16(1) || !equalInt(1) || !equalLong(1L)) {
+        throw IllegalStateException()
+    }
+    if (equalInt8(2) || equalInt16(2) || equalInt(2) || equalLong(2L)) {
+        throw IllegalStateException()
+    }
+    if (!equalUInt8(2U) || !equalUInt16(2U) || !equalUInt(2U) || !equalULong(2UL)) {
+        throw IllegalStateException()
+    }
+    if (equalUInt8(1U) || equalUInt16(1U) || equalUInt(1U) || equalULong(1UL)) {
+        throw IllegalStateException()
+    }
+    if (literalEquality() || !contextualLeft(1) || contextualLeft(2) || singleEvaluation()) {
+        throw IllegalStateException()
+    }
+}

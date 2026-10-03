@@ -1,0 +1,10 @@
+SourceFile
+  RootPackage
+  ImportExact Local answer
+  fun main()
+    if
+      Binary Ne
+        Call answer
+        IntLiteral 42
+      throw
+        Call IllegalStateException

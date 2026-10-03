@@ -1,8 +1,0 @@
-Module
-  fun readerSeed(): Int
-    return
-      IntegerLiteral 7 : Int
-  fun readerValue(value: Int): Int
-    return
-      Local value : Int
-  output library

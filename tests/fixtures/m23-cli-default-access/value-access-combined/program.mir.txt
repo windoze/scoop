@@ -1,0 +1,712 @@
+Module
+  global0 $singleton$6f2f86c1ae28c033fc555e5631274973fe9865ceb2d57be79ead3af1844b1992: AccessRegistry imported provider=8319641fa62985fa3a4ae99a66c751b8ad0dfe0b1ef13367917bc68b200f9dcf storage=8e49bf46c74d478c6650409092ccaa04c15685cb8af76a67894970441aba6a71
+  struct AccessPacket<Int> (first: Int)
+  struct AccessPacket<String> (first: String)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum AccessChoice<Int>
+    Present(value: Int)
+  enum AccessChoice<String>
+    Present(value: String)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class AccessCell<Int> vtable=0 itables=0
+  class AccessRegistry vtable=0 itables=0
+  class AccessCell<String> vtable=0 itables=0
+  fun verifyDefault @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.seed: Int
+        Type Int
+        Local $dependency.argument.0
+      val $default.local.1: Int
+        Type Int
+        Local $dependency.parameter.seed
+      val $default.local.2: Int
+        Type Int
+        Local $default.local.1
+      assign $new.1
+        Type AccessCell<Int>
+        ClassAlloc AccessCell<Int>
+      call @fn8 direct
+        Type AccessCell<Int>
+        Local $new.1
+        Type Int
+        Local $default.local.2
+      val $dependency.parameter.cell: AccessCell<Int>
+        Type AccessCell<Int>
+        Local $new.1
+      val $default.local.2: Int
+        Type Int
+        Local $dependency.parameter.seed
+      val $default.local.3: Int
+        Type Int
+        Local $default.local.2
+      val $dependency.parameter.choice: AccessChoice<Int>
+        Type AccessChoice<Int>
+        VariantConstruct AccessChoice<Int> v0
+          Type Int
+          Local $default.local.3
+      val $default.local.3: Int
+        Type Int
+        Local $dependency.parameter.seed
+      val $default.local.4: Int
+        Type Int
+        Local $default.local.3
+      call $dependency.parameter.packet: AccessPacket<Int> = @fn10 direct
+        Type Int
+        Local $default.local.4
+      val $dependency.parameter.field: Int
+        Type Int
+        FieldAccess 0
+          Type AccessPacket<Int>
+          Local $dependency.parameter.packet
+      val $dependency.parameter.pair: (Int, Int)
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          Local $dependency.parameter.seed
+          Type Int
+          Local $dependency.parameter.seed
+      val $dependency.parameter.tuple: Int
+        Type Int
+        FieldAccess 0
+          Type (Int, Int)
+          Local $dependency.parameter.pair
+      call external5 direct
+      val $dependency.parameter.singleton: AccessRegistry
+        Type AccessRegistry
+        GlobalRead $singleton$6f2f86c1ae28c033fc555e5631274973fe9865ceb2d57be79ead3af1844b1992
+      call $default.local.8: Int = external1 direct
+      call external5 direct
+      call $default.local.9: Int = external2 direct
+        Type AccessRegistry
+        GlobalRead $singleton$6f2f86c1ae28c033fc555e5631274973fe9865ceb2d57be79ead3af1844b1992
+      val $default.local.10: Int
+        Type Int
+        Local $default.local.9
+      val $dependency.parameter.sum: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $default.local.8
+          Type Int
+          Local $default.local.10
+      call $dependency.receiver: Int = @fn2 direct
+        Type Int
+        Local $dependency.parameter.seed
+        Type AccessCell<Int>
+        Local $dependency.parameter.cell
+        Type AccessChoice<Int>
+        Local $dependency.parameter.choice
+        Type AccessPacket<Int>
+        Local $dependency.parameter.packet
+        Type Int
+        Local $dependency.parameter.field
+        Type (Int, Int)
+        Local $dependency.parameter.pair
+        Type Int
+        Local $dependency.parameter.tuple
+        Type AccessRegistry
+        Local $dependency.parameter.singleton
+        Type Int
+        Local $dependency.parameter.sum
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.seed: String
+        Type String
+        Local $dependency.argument.0
+      val $default.local.1: String
+        Type String
+        Local $dependency.parameter.seed
+      val $default.local.2: String
+        Type String
+        Local $default.local.1
+      assign $new.2
+        Type AccessCell<String>
+        ClassAlloc AccessCell<String>
+      call @fn9 direct
+        Type AccessCell<String>
+        Local $new.2
+        Type String
+        Local $default.local.2
+      val $dependency.parameter.cell: AccessCell<String>
+        Type AccessCell<String>
+        Local $new.2
+      val $default.local.2: String
+        Type String
+        Local $dependency.parameter.seed
+      val $default.local.3: String
+        Type String
+        Local $default.local.2
+      val $dependency.parameter.choice: AccessChoice<String>
+        Type AccessChoice<String>
+        VariantConstruct AccessChoice<String> v0
+          Type String
+          Local $default.local.3
+      val $default.local.3: String
+        Type String
+        Local $dependency.parameter.seed
+      val $default.local.4: String
+        Type String
+        Local $default.local.3
+      call $dependency.parameter.packet: AccessPacket<String> = @fn11 direct
+        Type String
+        Local $default.local.4
+      val $dependency.parameter.field: String
+        Type String
+        FieldAccess 0
+          Type AccessPacket<String>
+          Local $dependency.parameter.packet
+      val $dependency.parameter.pair: (String, String)
+        Type (String, String)
+        TupleLiteral
+          Type String
+          Local $dependency.parameter.seed
+          Type String
+          Local $dependency.parameter.seed
+      val $dependency.parameter.tuple: String
+        Type String
+        FieldAccess 0
+          Type (String, String)
+          Local $dependency.parameter.pair
+      call external5 direct
+      val $dependency.parameter.singleton: AccessRegistry
+        Type AccessRegistry
+        GlobalRead $singleton$6f2f86c1ae28c033fc555e5631274973fe9865ceb2d57be79ead3af1844b1992
+      call $default.local.8: Int = external1 direct
+      call external5 direct
+      call $default.local.9: Int = external2 direct
+        Type AccessRegistry
+        GlobalRead $singleton$6f2f86c1ae28c033fc555e5631274973fe9865ceb2d57be79ead3af1844b1992
+      val $default.local.10: Int
+        Type Int
+        Local $default.local.9
+      val $dependency.parameter.sum: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $default.local.8
+          Type Int
+          Local $default.local.10
+      call $dependency.receiver: String = @fn3 direct
+        Type String
+        Local $dependency.parameter.seed
+        Type AccessCell<String>
+        Local $dependency.parameter.cell
+        Type AccessChoice<String>
+        Local $dependency.parameter.choice
+        Type AccessPacket<String>
+        Local $dependency.parameter.packet
+        Type String
+        Local $dependency.parameter.field
+        Type (String, String)
+        Local $dependency.parameter.pair
+        Type String
+        Local $dependency.parameter.tuple
+        Type AccessRegistry
+        Local $dependency.parameter.singleton
+        Type Int
+        Local $dependency.parameter.sum
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external3 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $dependency.parameter.first: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.1: AccessPacket<Int> = @fn10 direct
+        Type Int
+        Local $dependency.parameter.first
+      val $dependency.parameter.seed: Int
+        Type Int
+        Local $dependency.argument.0
+      val $default.local.1: Int
+        Type Int
+        Local $dependency.parameter.seed
+      val $default.local.2: Int
+        Type Int
+        Local $default.local.1
+      assign $new.3
+        Type AccessCell<Int>
+        ClassAlloc AccessCell<Int>
+      call @fn8 direct
+        Type AccessCell<Int>
+        Local $new.3
+        Type Int
+        Local $default.local.2
+      val $dependency.parameter.cell: AccessCell<Int>
+        Type AccessCell<Int>
+        Local $new.3
+      val $default.local.2: Int
+        Type Int
+        Local $dependency.parameter.seed
+      val $default.local.3: Int
+        Type Int
+        Local $default.local.2
+      val $dependency.parameter.choice: AccessChoice<Int>
+        Type AccessChoice<Int>
+        VariantConstruct AccessChoice<Int> v0
+          Type Int
+          Local $default.local.3
+      val $dependency.parameter.packet: AccessPacket<Int>
+        Type AccessPacket<Int>
+        Local $dependency.argument.1
+      val $dependency.parameter.field: Int
+        Type Int
+        FieldAccess 0
+          Type AccessPacket<Int>
+          Local $dependency.parameter.packet
+      val $dependency.parameter.pair: (Int, Int)
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          Local $dependency.parameter.seed
+          Type Int
+          Local $dependency.parameter.seed
+      val $dependency.parameter.tuple: Int
+        Type Int
+        FieldAccess 0
+          Type (Int, Int)
+          Local $dependency.parameter.pair
+      call external5 direct
+      val $dependency.parameter.singleton: AccessRegistry
+        Type AccessRegistry
+        GlobalRead $singleton$6f2f86c1ae28c033fc555e5631274973fe9865ceb2d57be79ead3af1844b1992
+      call $default.local.8: Int = external1 direct
+      call external5 direct
+      call $default.local.9: Int = external2 direct
+        Type AccessRegistry
+        GlobalRead $singleton$6f2f86c1ae28c033fc555e5631274973fe9865ceb2d57be79ead3af1844b1992
+      val $default.local.10: Int
+        Type Int
+        Local $default.local.9
+      val $dependency.parameter.sum: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $default.local.8
+          Type Int
+          Local $default.local.10
+      call $dependency.receiver: Int = @fn2 direct
+        Type Int
+        Local $dependency.parameter.seed
+        Type AccessCell<Int>
+        Local $dependency.parameter.cell
+        Type AccessChoice<Int>
+        Local $dependency.parameter.choice
+        Type AccessPacket<Int>
+        Local $dependency.parameter.packet
+        Type Int
+        Local $dependency.parameter.field
+        Type (Int, Int)
+        Local $dependency.parameter.pair
+        Type Int
+        Local $dependency.parameter.tuple
+        Type AccessRegistry
+        Local $dependency.parameter.singleton
+        Type Int
+        Local $dependency.parameter.sum
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=13 bits=0x0000000d
+      val $dependency.parameter.stored: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.4
+        Type AccessCell<Int>
+        ClassAlloc AccessCell<Int>
+      call @fn8 direct
+        Type AccessCell<Int>
+        Local $new.4
+        Type Int
+        Local $dependency.parameter.stored
+      val $dependency.receiver: AccessCell<Int>
+        Type AccessCell<Int>
+        Local $new.4
+      call $dependency.parameter.value: Int = @fn4 direct
+        Type AccessCell<Int>
+        Local $dependency.receiver
+      call $dependency.receiver: Int = @fn5 direct
+        Type AccessCell<Int>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=13 bits=0x0000000d
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.stored: String
+        Type String
+        Local $dependency.argument.0
+      assign $new.5
+        Type AccessCell<String>
+        ClassAlloc AccessCell<String>
+      call @fn9 direct
+        Type AccessCell<String>
+        Local $new.5
+        Type String
+        Local $dependency.parameter.stored
+      val $dependency.receiver: AccessCell<String>
+        Type AccessCell<String>
+        Local $new.5
+      call $dependency.parameter.value: String = @fn6 direct
+        Type AccessCell<String>
+        Local $dependency.receiver
+      call $dependency.receiver: String = @fn7 direct
+        Type AccessCell<String>
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str4
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external3 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call external5 direct
+      call $dependency.receiver: Int = external2 direct
+        Type AccessRegistry
+        GlobalRead $singleton$6f2f86c1ae28c033fc555e5631274973fe9865ceb2d57be79ead3af1844b1992
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call external4 direct
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $dependency.parameter.seed: Int
+        Type Int
+        Local $dependency.argument.0
+      val $default.local.1: Int
+        Type Int
+        Local $dependency.parameter.seed
+      val $default.local.2: Int
+        Type Int
+        Local $default.local.1
+      assign $new.6
+        Type AccessCell<Int>
+        ClassAlloc AccessCell<Int>
+      call @fn8 direct
+        Type AccessCell<Int>
+        Local $new.6
+        Type Int
+        Local $default.local.2
+      val $dependency.parameter.cell: AccessCell<Int>
+        Type AccessCell<Int>
+        Local $new.6
+      val $default.local.2: Int
+        Type Int
+        Local $dependency.parameter.seed
+      val $default.local.3: Int
+        Type Int
+        Local $default.local.2
+      val $dependency.parameter.choice: AccessChoice<Int>
+        Type AccessChoice<Int>
+        VariantConstruct AccessChoice<Int> v0
+          Type Int
+          Local $default.local.3
+      val $default.local.3: Int
+        Type Int
+        Local $dependency.parameter.seed
+      val $default.local.4: Int
+        Type Int
+        Local $default.local.3
+      call $dependency.parameter.packet: AccessPacket<Int> = @fn10 direct
+        Type Int
+        Local $default.local.4
+      val $dependency.parameter.field: Int
+        Type Int
+        FieldAccess 0
+          Type AccessPacket<Int>
+          Local $dependency.parameter.packet
+      val $dependency.parameter.pair: (Int, Int)
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          Local $dependency.parameter.seed
+          Type Int
+          Local $dependency.parameter.seed
+      val $dependency.parameter.tuple: Int
+        Type Int
+        FieldAccess 0
+          Type (Int, Int)
+          Local $dependency.parameter.pair
+      call external5 direct
+      val $dependency.parameter.singleton: AccessRegistry
+        Type AccessRegistry
+        GlobalRead $singleton$6f2f86c1ae28c033fc555e5631274973fe9865ceb2d57be79ead3af1844b1992
+      call $default.local.8: Int = external1 direct
+      call external5 direct
+      call $default.local.9: Int = external2 direct
+        Type AccessRegistry
+        GlobalRead $singleton$6f2f86c1ae28c033fc555e5631274973fe9865ceb2d57be79ead3af1844b1992
+      val $default.local.10: Int
+        Type Int
+        Local $default.local.9
+      val $dependency.parameter.sum: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $default.local.8
+          Type Int
+          Local $default.local.10
+      call $dependency.receiver: Int = @fn2 direct
+        Type Int
+        Local $dependency.parameter.seed
+        Type AccessCell<Int>
+        Local $dependency.parameter.cell
+        Type AccessChoice<Int>
+        Local $dependency.parameter.choice
+        Type AccessPacket<Int>
+        Local $dependency.parameter.packet
+        Type Int
+        Local $dependency.parameter.field
+        Type (Int, Int)
+        Local $dependency.parameter.pair
+        Type Int
+        Local $dependency.parameter.tuple
+        Type AccessRegistry
+        Local $dependency.parameter.singleton
+        Type Int
+        Local $dependency.parameter.sum
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun accessValues @fn2(seed: Int, cell: AccessCell<Int>, choice: AccessChoice<Int>, packet: AccessPacket<Int>, field: Int, pair: (Int, Int), tuple: Int, singleton: AccessRegistry, sum: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local field
+  fun accessValues @fn3(seed: String, cell: AccessCell<String>, choice: AccessChoice<String>, packet: AccessPacket<String>, field: String, pair: (String, String), tuple: String, singleton: AccessRegistry, sum: Int) -> String
+    bb0 entry
+      return
+        Type String
+        Local field
+  fun stored @fn4(this: AccessCell<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type AccessCell<Int>
+          Local this
+  fun read @fn5(this: AccessCell<Int>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun stored @fn6(this: AccessCell<String>) -> String
+    bb0 entry
+      return
+        Type String
+        FieldAccess 0
+          Type AccessCell<String>
+          Local this
+  fun read @fn7(this: AccessCell<String>, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun init.AccessCell.$c0 @fn8(this: AccessCell<Int>, stored: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type AccessCell<Int>
+        Local this
+        Type Int
+        Local stored
+      return
+  fun init.AccessCell.$c0 @fn9(this: AccessCell<String>, stored: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type AccessCell<String>
+        Local this
+        Type String
+        Local stored
+      return
+  fun ctor.AccessPacket.$c1 @fn10(first: Int) -> AccessPacket<Int> <no-gc>
+    bb0 entry
+      return
+        Type AccessPacket<Int>
+        StructInit AccessPacket<Int>
+          Type Int
+          Local first
+  fun ctor.AccessPacket.$c1 @fn11(first: String) -> AccessPacket<String> <no-gc>
+    bb0 entry
+      return
+        Type AccessPacket<String>
+        StructInit AccessPacket<String>
+          Type String
+          Local first
+  instance mi0 function=@fn2 <- accessValues
+  instance mi1 function=@fn3 <- accessValues
+  instance mi2 function=@fn4 <- stored
+  instance mi3 function=@fn5 <- read
+  instance mi4 function=@fn6 <- stored
+  instance mi5 function=@fn7 <- read
+  str @str0 "illegal state"
+  str @str1 "value"
+  str @str2 "value"
+  str @str3 "cell"
+  str @str4 "cell"
+  output executable @fn1

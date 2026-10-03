@@ -1,0 +1,38 @@
+SourceFile
+  QualifiedPackage upstream.structdefinitions
+  public interface Readable<T>
+    fun read
+    fun apply
+  public struct Cell<T> : Readable<T>
+    field value: T
+    field next: Link<T>?
+    public fun read
+  public class Link<T>(val cell: Cell<T>)
+    @CLayout
+  public struct NativePair
+    field left: Int
+    field right: Int
+  public fun make<T>(value: T): Cell<T>
+    =
+      Call Cell
+        Var value
+        Var None
+  public fun hasNext<T>(value: Cell<T>): Boolean
+    =
+      WhenExpression
+        FieldAccess next
+          Var value
+        arm Some(link)
+          BoolLiteral true
+        arm None
+          BoolLiteral false
+  public fun replace<T>(base: Cell<T>, value: T): Cell<T>
+    =
+      CopyUpdate
+        base
+          Var base
+        field value
+          Var value
+  public fun withoutNext<T>(base: Cell<T>, fallback: Cell<T> = <expr>): Cell<T>
+    =
+      Var fallback

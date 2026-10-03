@@ -1,0 +1,22 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.MutableValue
+  public abstract class LocalBase(), MutableValue
+    public abstract override var value: Long <abstract>
+  public class LocalReader() : LocalBase(<0 args>)
+    public open override var value: Long = <expr>
+      IntLiteral 20
+  public fun localReader(): LocalBase
+    =
+      Call LocalReader
+  public fun primary(): Counter
+    val reader
+      Call localReader
+    assign .value
+      Var reader
+      IntLiteral 21
+    return
+      Call Counter
+        FieldAccess value
+          Var reader

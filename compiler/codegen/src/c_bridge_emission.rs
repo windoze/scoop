@@ -1,3 +1,4 @@
+use scoop_process::CommandExt;
 use std::path::{Path, PathBuf};
 
 use super::*;
@@ -90,7 +91,7 @@ pub fn emit_c_bridge_object_set(
         |plan, source, object| {
             let output = profile
                 .object_compilation_command(source, object)
-                .output()
+                .scoop_output()
                 .map_err(|error| {
                     CodegenError(format!(
                         "failed to run generated-C compiler `{}`: {error}",

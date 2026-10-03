@@ -1,0 +1,60 @@
+SourceFile
+  QualifiedPackage consumer.enums
+  ImportStar Local upstream.enums.*
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val value: Choice<T>
+      MethodCall Item
+        Var Choice
+        Var seed
+    val selected
+      WhenExpression
+        Var value
+        arm Empty
+          IntLiteral 1
+        arm Item(payload)
+          Call read
+            Var payload
+        arm Named{payload, ..}
+          Call read
+            Var payload
+        arm Defaults{payload, ..}
+          Call read
+            Var payload
+    if
+      Binary Ne
+        Var selected
+        IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call read
+          Call select<T>
+            Var value
+            Var seed
+        IntLiteral 42
+      return
+        IntLiteral 2
+    val defaulted: Choice<T>
+      MethodCall Defaults
+        Var Choice
+        Var seed
+    return
+      WhenExpression
+        Var defaulted
+        arm Defaults{payload, amount}
+          Binary Sub
+            Binary Add
+              Call read
+                Var payload
+              Var amount
+            IntLiteral 2
+        else
+          IntLiteral 3
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 0 suspend=false
+          param value: _
+          Var value

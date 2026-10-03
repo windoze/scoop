@@ -1,0 +1,52 @@
+SourceFile
+  RootPackage
+  ImportStar Local facadeEquality.*
+  fun main()
+    val first
+      Call parts
+    val second
+      Call Parts
+        TupleLiteral
+          StringLiteral "left"
+          StringLiteral "right"
+        IntLiteral 42
+    Call println
+      Binary Eq
+        Var first
+        Var second
+    Call println
+      Binary Eq
+        MethodCall Item
+          Var Container
+          Var first
+        MethodCall Item
+          Var Container
+          Var second
+    Call println
+      Binary Ne
+        Var first
+        Call Parts
+          TupleLiteral
+            StringLiteral "right"
+            StringLiteral "left"
+          IntLiteral 42
+    Call println
+      Call sameSlots
+        Call slot
+        Call Slot
+          TupleLiteral
+            StringLiteral "slot"
+            IntLiteral 42
+    val compare: () -> Boolean
+      Lambda 0 suspend=false
+        parameters omitted
+        Binary Eq
+          MethodCall Item
+            Var Container
+            Var first
+          MethodCall Item
+            Var Container
+            Var second
+    Call gcCollect
+    Call println
+      Call compare

@@ -1,0 +1,25 @@
+SourceFile
+  RootPackage
+  ImportExact Local consumer.nativeAddresses.exposed
+  ImportExact Local consumer.nativeAddresses.exercise
+  ImportExact Local consumer.nativeAddresses.callScalar
+  private class Later(val number: Long)
+  public fun check(): Long
+    val value
+      Call Later
+        Call exercise<Long>
+          IntLiteral 0
+    val callback: FunPtr<(Long) -> Long>
+      CallableReference 0 exposed
+    return
+      IfExpression
+        Binary Eq
+          Call exercise<Later>
+            Var value
+          IntLiteral 42
+        Call callScalar
+          Var callback
+          FieldAccess number
+            Var value
+        else
+        IntLiteral 1

@@ -1,0 +1,16 @@
+SourceFile
+  QualifiedPackage consumer.members
+  ImportStar Local templates.members.*
+  public class Derived(value: Int) : ProtectedBox<Int>(<1 args>)
+    protected fun secret
+    public fun read
+  public fun result(): Int
+    =
+      MethodCall read
+        Call Derived
+          IntLiteral 41
+  public fun make<T>(value: T): T
+    =
+      MethodCall read
+        Call ProtectedChild<T>
+          Var value

@@ -1,3 +1,0 @@
-span=230..259
-expression=super<LocalAbstract>.choose()
-abstract base method `choose` cannot be called with `super`

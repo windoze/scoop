@@ -1,0 +1,525 @@
+Module
+  extern ef0 malloc @malloc(ULong) -> Ptr<Unit> <abi=c no-gc>
+  extern ef1 free @free(Ptr<Unit>) -> Unit <abi=c no-gc>
+  callback cb0 @fn1 -> @fn8 function_type0 id=375a865eccdac40aeecb274331c61448c4a6edb14382b76de23af0f981c8cb12
+  callback cb1 @fn4 -> @fn9 function_type0 id=995febd01803029359dcf9f69dcf82a473df85cdbfd6313c4c217b2b0bbec76e
+  struct Slot (value: Int)
+  enum Option<FunPtr<(Int) -> Int>>
+    Some(_0: FunPtr<(Int) -> Int>)
+    None()
+  enum Option<Ptr<Int>>
+    Some(_0: Ptr<Int>)
+    None()
+  interface ToString
+  interface Hash
+  generated_callable gc0 function=@fn8 id=375a865eccdac40aeecb274331c61448c4a6edb14382b76de23af0f981c8cb12
+  generated_callable gc1 function=@fn9 id=995febd01803029359dcf9f69dcf82a473df85cdbfd6313c4c217b2b0bbec76e
+  fun Slot.rewriteThis @fn0(this: Slot) -> Int <no-gc>
+    bb0 entry
+      val pointer: Ptr<Slot>
+        Type Ptr<Slot>
+        AddressOf this : Ptr<Slot>
+      val $dependency.receiver: Ptr<Slot>
+        Type Ptr<Slot>
+        Local pointer
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=13 bits=0x0000000d
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Slot = @fn7 direct
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter.value: Slot
+        Type Slot
+        Local $dependency.argument.0
+      Type Unit
+      PtrStore Slot
+        Type Ptr<Slot>
+        Local $dependency.receiver
+        Type Slot
+        Local $dependency.parameter.value
+      return
+        Type Int
+        FieldAccess 0
+          Type Slot
+          Local this
+  fun increment @fn1(value: Int) -> Int <no-gc>
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun malloc @fn2(arg0: ULong) -> Ptr<Unit>
+    bb0 entry
+      call $call.1: Ptr<Unit> = extern0 @malloc direct
+        Type ULong
+        Local arg0
+      return
+        Type Ptr<Unit>
+        Local $call.1
+  fun free @fn3(arg0: Ptr<Unit>) -> Unit
+    bb0 entry
+      call extern1 @free direct
+        Type Ptr<Unit>
+        Local arg0
+      return
+  fun rewriteParameter @fn4(value: Int) -> Int <no-gc>
+    bb0 entry
+      val pointer: Ptr<Int>
+        Type Ptr<Int>
+        AddressOf value : Ptr<Int>
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local pointer
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Int
+        Local value
+  fun main @fn5() -> Unit
+    bb0 entry
+      val intSize: ULong
+        Type ULong
+        SizeOf Int
+      val intAlignment: ULong
+        Type ULong
+        AlignOf Int
+      val empty: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
+        VariantConstruct Option<FunPtr<(Int) -> Int>> v1
+      val callback: FunPtr<(Int) -> Int>
+        Type FunPtr<(Int) -> Int>
+        FunctionAddress cb0
+      val noCallback: Option<FunPtr<(Int) -> Int>>
+        Type Option<FunPtr<(Int) -> Int>>
+        VariantConstruct Option<FunPtr<(Int) -> Int>> v1
+      var value: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val pointer: Ptr<Int>
+        Type Ptr<Int>
+        AddressOf value : Ptr<Int>
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local pointer
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local pointer
+      val $dependency.argument.0: Int
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $dependency.receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local pointer
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.offset: Long
+        Type Long
+        Local $dependency.argument.0
+      val shifted: Ptr<Int>
+        Type Ptr<Int>
+        PtrOffset Int subtract=false
+          Type Ptr<Int>
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.offset
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local shifted
+      val raw: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Int>
+          Local $dependency.receiver
+      val reconstructed: Ptr<Int>
+        Type Ptr<Int>
+        PtrFromNonZeroULong Int
+          Type ULong
+          Local raw
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local reconstructed
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.offset: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.0: Int
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.offset
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local reconstructed
+      val $dependency.receiver: Ptr<Boolean>
+        Type Ptr<Boolean>
+        PtrCast Boolean
+          Type Ptr<Int>
+          Local $dependency.receiver
+      val retyped: Ptr<Int>
+        Type Ptr<Int>
+        PtrCast Int
+          Type Ptr<Boolean>
+          Local $dependency.receiver
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local retyped
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local pointer
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $dependency.parameter.offset: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.1
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.offset
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local pointer
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.offset: Long
+        Type Long
+        Local $dependency.argument.0
+      val previous: Ptr<Int>
+        Type Ptr<Int>
+        PtrOffset Int subtract=true
+          Type Ptr<Int>
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.offset
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local previous
+      val $dependency.argument.0: Int
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $dependency.receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn4 direct
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $receiver: Slot = @fn7 direct
+        Type Int
+        Local $parameter.value
+      call $dependency.argument.0: Int = @fn0 direct
+        Type Slot
+        Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: ULong
+        Type ULong
+        SizeOf Int
+      val $parameter.size: ULong
+        Type ULong
+        Local $argument.0
+      call $dependency.receiver: Ptr<Unit> = extern0 @malloc direct
+        Type ULong
+        Local $parameter.size
+      val allocated: Ptr<Int>
+        Type Ptr<Int>
+        PtrCast Int
+          Type Ptr<Unit>
+          Local $dependency.receiver
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local allocated
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=14 bits=0x0000000e
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local allocated
+      val $dependency.argument.0: Int
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $dependency.receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local allocated
+      val $argument.0: Ptr<Unit>
+        Type Ptr<Unit>
+        PtrCast Unit
+          Type Ptr<Int>
+          Local $dependency.receiver
+      val $parameter.pointer: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $argument.0
+      call extern1 @free direct
+        Type Ptr<Unit>
+        Local $parameter.pointer
+      val $dependency.argument.0: Ptr<Int>
+        Type Ptr<Int>
+        Local pointer
+      val $dependency.parameter._1: Ptr<Int>
+        Type Ptr<Int>
+        Local $dependency.argument.0
+      val optional: Option<Ptr<Int>>
+        Type Option<Ptr<Int>>
+        VariantConstruct Option<Ptr<Int>> v0
+          Type Ptr<Int>
+          Local $dependency.parameter._1
+      val $when.1: Option<Ptr<Int>>
+        Type Option<Ptr<Int>>
+        Local optional
+      val $pattern.subject.2: Option<Ptr<Int>>
+        Type Option<Ptr<Int>>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Ptr<Int>> v0
+          Type Option<Ptr<Int>>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val present: Ptr<Int>
+        Type Ptr<Int>
+        VariantPayloadProject Option<Ptr<Int>> v0 f0
+          Type Option<Ptr<Int>>
+          Local $pattern.subject.2
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local present
+      val $dependency.argument.0: Int
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $dependency.receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Ptr<Int>>
+        Type Option<Ptr<Int>>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Ptr<Int>> v1
+          Type Option<Ptr<Int>>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+    bb4 pattern.pass.4
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun println @fn6(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun ctor.Slot.$c0 @fn7(value: Int) -> Slot <no-gc>
+    bb0 entry
+      return
+        Type Slot
+        StructInit Slot
+          Type Int
+          Local value
+  fun callback bridge for increment @fn8($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Int = @fn1 direct
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $arg0
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $result
+        Type Int
+        Local $value
+      return
+  fun callback bridge for rewriteParameter @fn9($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Int = @fn4 direct
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $arg0
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $result
+        Type Int
+        Local $value
+      return
+  instance mi0 function=@fn6 <- println
+  str @str0 "\n"
+  output executable @fn5

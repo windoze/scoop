@@ -1,0 +1,37 @@
+SourceFile
+  QualifiedPackage consumer.globals
+  ImportStar Local templates.globals.*
+  public fun exercise<T>(value: T): Int
+    Call reset
+    if
+      Binary Or
+        Binary Ne
+          Call defaults<T>
+            Var value
+          IntLiteral 42
+        Binary Ne
+          Call defaults<T>
+            Var value
+            IntLiteral 10
+          IntLiteral 12
+      return
+        IntLiteral 1
+    assign base
+      IntLiteral 10
+    val changed
+      Call defaults<T>
+        Var value
+    assign base
+      IntLiteral 40
+    return
+      IfExpression
+        Binary Eq
+          Var changed
+          IntLiteral 12
+        IntLiteral 42
+        else
+        IntLiteral 2
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0

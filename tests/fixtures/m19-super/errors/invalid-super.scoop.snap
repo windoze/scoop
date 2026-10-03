@@ -1,8 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m19-super/errors/invalid-super.scoop:18:22: error: initializing receiver cannot escape before construction completes
-m19-super/errors/invalid-super.scoop:2:30: error: class `Root` has no direct base for `super.value`
-m19-super/errors/invalid-super.scoop:10:33: error: abstract base method `value` cannot be called with `super`

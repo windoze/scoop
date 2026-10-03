@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@NoGC` struct specialization `Scalar<String>` is not GC-free because it directly or indirectly contains a ref type",
+    "notes": [],
+    "origin": {
+      "cone": "52591da55cca9dcccb1f8014ed55bc25d3a5249ab592ec214a7331db88f2668c",
+      "end": 129,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 114
+    },
+    "severity": "error"
+  }
+]

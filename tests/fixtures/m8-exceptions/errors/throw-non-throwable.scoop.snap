@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m8-exceptions/errors/throw-non-throwable.scoop:2:11: error: cannot throw value of type Int: not a subtype of Throwable

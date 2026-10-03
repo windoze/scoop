@@ -1,8 +1,7 @@
 use super::*;
 use std::collections::BTreeSet;
-use std::fmt::Write;
 
-pub(super) fn check(proof: &slib::ReplayedLayoutLinkSymbolUsesV1) -> (usize, [usize; 7]) {
+pub(super) fn check(proof: &slib::ReplayedLayoutLinkSymbolUsesV1) {
     let strong = proof
         .object_contents()
         .patch_sites()
@@ -47,40 +46,4 @@ pub(super) fn check(proof: &slib::ReplayedLayoutLinkSymbolUsesV1) -> (usize, [us
         actual.len()
     );
     assert_eq!(actual, expected);
-    let mut categories = [0; 7];
-    for requirement in legacy {
-        use slib::FinalUndefinedSymbolRequirementV1 as Requirement;
-        categories[match requirement.requirement() {
-            Requirement::OdrMember { .. } => 6,
-            Requirement::IntraConeStrong { .. } => 0,
-            Requirement::GeneratedBridge { .. } => 1,
-            Requirement::SourceExtern { .. } => 2,
-            Requirement::RuntimeAbi { .. } => 3,
-            Requirement::TargetEhSupport { .. } => 4,
-            Requirement::CBridgeTargetSupport { .. } => 5,
-        }] += 1;
-    }
-    (actual.len(), categories)
-}
-
-pub(super) fn dump(
-    output: &mut String,
-    current: bool,
-    proof: &slib::ReplayedLayoutLinkSymbolUsesV1,
-    uses: usize,
-    categories: [usize; 7],
-) {
-    let partitions = proof.undefined_partitions();
-    writeln!(
-        output,
-        "{}: owners={} uses={} ordinary={} shape={} native={} categories={:?}",
-        if current { "current" } else { "dependency" },
-        proof.defined_symbols().owners().len(),
-        uses,
-        partitions.cross_cone().requirements().len(),
-        partitions.external_shape().len(),
-        proof.native_requirements().contracts().len(),
-        categories
-    )
-    .unwrap();
 }

@@ -1,0 +1,9 @@
+SourceFile
+  QualifiedPackage consumer.cache
+  ImportExact Local dependency.cache.calculate
+  public class Payload(val number: Int)
+  public fun check(): Int
+    =
+      Call calculate
+        Call Payload
+          IntLiteral 1

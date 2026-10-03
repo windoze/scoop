@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`read` overrides `Readable.read` and must be marked `override`",
+    "notes": [],
+    "origin": {
+      "cone": "9075047df8de06ccb1576431b7611d7e4b977fc2a048066fdbd70e36b8e050bb",
+      "end": 95,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 91
+    },
+    "severity": "error"
+  }
+]

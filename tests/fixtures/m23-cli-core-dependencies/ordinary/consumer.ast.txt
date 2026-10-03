@@ -1,0 +1,30 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.api.invocationCount
+  public fun checkCoreDependencyCalls(): Int
+    Call userCoreDependency
+    Call userCoreCombined
+      BoolLiteral true
+    Call userCoreCombined
+      BoolLiteral false
+    return
+      Call invocationCount
+SourceFile
+  RootPackage
+  ImportExact Local dependency.api.run
+  ImportExact Local LocalTools.enabled as enabled
+  fun userCoreDependency()
+    Call run
+  fun userCoreCombined(flag: Boolean)
+    if
+      Binary And
+        Var flag
+        Var enabled
+      Call run
+    else
+      Call run
+SourceFile
+  RootPackage
+  public object LocalTools
+    public const val enabled: Boolean <const> = <expr>
+      BoolLiteral true

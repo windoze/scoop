@@ -1,0 +1,175 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  fun verifyType @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call $call.1: (Boolean, String, String, Boolean) = external1 direct
+      call $argument.0: Boolean = @fn2 direct
+        Type (Boolean, String, String, Boolean)
+        Local $call.1
+        Type (Boolean, String, String, Boolean)
+        TupleLiteral
+          Type Boolean
+          BoolLiteral true
+          Type String
+          StringConst @str1
+          Type String
+          StringConst @str2
+          Type Boolean
+          BoolLiteral true
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Any
+        Type Any
+        Retype Any
+          Type String
+          StringConst @str3
+      val $dependency.parameter.value: Any
+        Type Any
+        Local $dependency.argument.0
+      call $dependency.receiver: Boolean = external4 direct
+        Type Any
+        Local $dependency.parameter.value
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun $derived.equals.0 @fn2(this: (Boolean, String, String, Boolean), other: (Boolean, String, String, Boolean)) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = external2 direct
+        Type Boolean
+        FieldAccess 0
+          Type (Boolean, String, String, Boolean)
+          Local this
+        Type Boolean
+        FieldAccess 0
+          Type (Boolean, String, String, Boolean)
+          Local other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 logic.rhs.1
+      call $call.3: Boolean = external3 direct
+        Type String
+        FieldAccess 1
+          Type (Boolean, String, String, Boolean)
+          Local this
+        Type String
+        FieldAccess 1
+          Type (Boolean, String, String, Boolean)
+          Local other
+      assign $logic.2
+        Type Boolean
+        Local $call.3
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.2
+    bb4 logic.rhs.4
+      call $call.5: Boolean = external3 direct
+        Type String
+        FieldAccess 2
+          Type (Boolean, String, String, Boolean)
+          Local this
+        Type String
+        FieldAccess 2
+          Type (Boolean, String, String, Boolean)
+          Local other
+      assign $logic.4
+        Type Boolean
+        Local $call.5
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.4
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 logic.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $logic.4
+    bb7 logic.rhs.7
+      call $call.7: Boolean = external2 direct
+        Type Boolean
+        FieldAccess 3
+          Type (Boolean, String, String, Boolean)
+          Local this
+        Type Boolean
+        FieldAccess 3
+          Type (Boolean, String, String, Boolean)
+          Local other
+      assign $logic.6
+        Type Boolean
+        Local $call.7
+      goto bb9
+    bb8 logic.short.8
+      assign $logic.6
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 logic.merge.9
+      return
+        Type Boolean
+        Local $logic.6
+  str @str0 "illegal state"
+  str @str1 "cell"
+  str @str2 "captured"
+  str @str3 "text"
+  output executable @fn1

@@ -1,0 +1,25 @@
+SourceFile
+  QualifiedPackage consumer.arrayconstruction
+  ImportExact Local dependency.arrayconstruction.exercise as providerExercise
+  ImportExact Local Array as CoreArray
+  private class Array(val number: Int)
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    =
+      Call providerExercise<T>
+        Var seed
+        Var read
+  public fun result(): Int
+    val ordinary
+      Call Array
+        IntLiteral 42
+    val mutable: MutableArray<Int>
+      ArrayLiteral
+        FieldAccess number
+          Var ordinary
+    val converted
+      Call CoreArray
+        Var mutable
+    return
+      Index
+        Var converted
+        IntLiteral 0L

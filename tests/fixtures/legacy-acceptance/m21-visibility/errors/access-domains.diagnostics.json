@@ -1,0 +1,80 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "top-level function cannot be protected",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 29,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 14
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "member `hiddenObligation` of public interface `PublicContract` must be explicitly public",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 95,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 79
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "abstract method `hiddenAbstract` is not visible throughout the inheritance domain of class `AbstractApi`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 189,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 175
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "visibility of `run` does not cover inherited slot `PublicBase.run`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 395,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 392
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "signature of function `leak` exposes type `Hidden` outside its access domain",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 562,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 528
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "protected method `secret` cannot be accessed through receiver of static type `PublicBase`; receiver must be `NarrowOverride` or one of its subclasses",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 472,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 466
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,526 @@
+Module
+  struct Box<String> (value: String, label: String)
+  struct Cell<String> (value: String, label: String)
+  struct Cell<Int> (value: Int, label: String)
+  struct Box<Int> (value: Int, label: String)
+  interface ToString
+  interface Hash
+  fun replaceAlias @fn0(box: Box<String>) -> Box<String>
+    bb0 entry
+      val $copy.base.6: Box<String>
+        Type Box<String>
+        Local box
+      val $copy.update.7: String
+        Type String
+        StringConst @str0
+      return
+        Type Box<String>
+        StructConstruct Box<String>
+          Type String
+          Local $copy.update.7
+          Type String
+          FieldAccess 1
+            Type Box<String>
+            Local $copy.base.6
+  fun defaultCell @fn1(cell: Cell<String>) -> Cell<String>
+    bb0 entry
+      return
+        Type Cell<String>
+        Local cell
+  fun printIntCell @fn2(cell: Cell<Int>) -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Cell<Int>
+          Local cell
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 1
+          Type Cell<Int>
+          Local cell
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun printTextCell @fn3(cell: Cell<String>) -> Unit
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type Cell<String>
+          Local cell
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 1
+          Type Cell<String>
+          Local cell
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun main @fn4() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: String
+        Type String
+        StringConst @str1
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.label: String
+        Type String
+        Local $argument.1
+      call $argument.0: Box<Int> = @fn11 direct
+        Type Int
+        Local $parameter.value
+        Type String
+        Local $parameter.label
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.box: Box<Int>
+        Type Box<Int>
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call intBox: Box<Int> = @fn7 direct
+        Type Box<Int>
+        Local $parameter.box
+        Type Int
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str2
+      val $argument.1: String
+        Type String
+        StringConst @str3
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      val $parameter.label: String
+        Type String
+        Local $argument.1
+      call $argument.0: Box<String> = @fn12 direct
+        Type String
+        Local $parameter.value
+        Type String
+        Local $parameter.label
+      val $argument.1: String
+        Type String
+        StringConst @str4
+      val $parameter.box: Box<String>
+        Type Box<String>
+        Local $argument.0
+      val $parameter.value: String
+        Type String
+        Local $argument.1
+      call textBox: Box<String> = @fn8 direct
+        Type Box<String>
+        Local $parameter.box
+        Type String
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str5
+      val $argument.1: String
+        Type String
+        StringConst @str6
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      val $parameter.label: String
+        Type String
+        Local $argument.1
+      call $argument.0: Box<String> = @fn12 direct
+        Type String
+        Local $parameter.value
+        Type String
+        Local $parameter.label
+      val $parameter.box: Box<String>
+        Type Box<String>
+        Local $argument.0
+      call aliasBox: Box<String> = @fn0 direct
+        Type Box<String>
+        Local $parameter.box
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Box<Int>
+          Local intBox
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 1
+          Type Box<Int>
+          Local intBox
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type Box<String>
+          Local textBox
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 1
+          Type Box<String>
+          Local textBox
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type Box<String>
+          Local aliasBox
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 1
+          Type Box<String>
+          Local aliasBox
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $argument.1: String
+        Type String
+        StringConst @str7
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.label: String
+        Type String
+        Local $argument.1
+      call intCell: Cell<Int> = @fn13 direct
+        Type Int
+        Local $parameter.value
+        Type String
+        Local $parameter.label
+      val $argument.0: String
+        Type String
+        StringConst @str8
+      val $argument.1: String
+        Type String
+        StringConst @str9
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      val $parameter.label: String
+        Type String
+        Local $argument.1
+      call textCell: Cell<String> = @fn14 direct
+        Type String
+        Local $parameter.value
+        Type String
+        Local $parameter.label
+      val $argument.0: Cell<Int>
+        Type Cell<Int>
+        Local intCell
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter.cell: Cell<Int>
+        Type Cell<Int>
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $argument.0: Cell<Int> = @fn9 direct
+        Type Cell<Int>
+        Local $parameter.cell
+        Type Int
+        Local $parameter.value
+      val $parameter.cell: Cell<Int>
+        Type Cell<Int>
+        Local $argument.0
+      call @fn2 direct
+        Type Cell<Int>
+        Local $parameter.cell
+      val $argument.0: Cell<String>
+        Type Cell<String>
+        Local textCell
+      val $argument.1: String
+        Type String
+        StringConst @str10
+      val $parameter.cell: Cell<String>
+        Type Cell<String>
+        Local $argument.0
+      val $parameter.value: String
+        Type String
+        Local $argument.1
+      call $argument.0: Cell<String> = @fn10 direct
+        Type Cell<String>
+        Local $parameter.cell
+        Type String
+        Local $parameter.value
+      val $parameter.cell: Cell<String>
+        Type Cell<String>
+        Local $argument.0
+      call @fn3 direct
+        Type Cell<String>
+        Local $parameter.cell
+      val $argument.0: String
+        Type String
+        StringConst @str11
+      val $argument.1: String
+        Type String
+        StringConst @str12
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      val $parameter.label: String
+        Type String
+        Local $argument.1
+      call $copy.base.0: Cell<String> = @fn14 direct
+        Type String
+        Local $parameter.value
+        Type String
+        Local $parameter.label
+      val $copy.update.1: String
+        Type String
+        StringConst @str13
+      val $parameter.cell: Cell<String>
+        Type Cell<String>
+        StructConstruct Cell<String>
+          Type String
+          Local $copy.update.1
+          Type String
+          FieldAccess 1
+            Type Cell<String>
+            Local $copy.base.0
+      call $argument.0: Cell<String> = @fn1 direct
+        Type Cell<String>
+        Local $parameter.cell
+      val $parameter.cell: Cell<String>
+        Type Cell<String>
+        Local $argument.0
+      call @fn3 direct
+        Type Cell<String>
+        Local $parameter.cell
+      return
+  fun println @fn5(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str14
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn6(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str15
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun replaceBox @fn7(box: Box<Int>, value: Int) -> Box<Int>
+    bb0 entry
+      val $copy.base.2: Box<Int>
+        Type Box<Int>
+        Local box
+      val $copy.update.3: Int
+        Type Int
+        Local value
+      return
+        Type Box<Int>
+        StructConstruct Box<Int>
+          Type Int
+          Local $copy.update.3
+          Type String
+          FieldAccess 1
+            Type Box<Int>
+            Local $copy.base.2
+  fun replaceBox @fn8(box: Box<String>, value: String) -> Box<String>
+    bb0 entry
+      val $copy.base.2: Box<String>
+        Type Box<String>
+        Local box
+      val $copy.update.3: String
+        Type String
+        Local value
+      return
+        Type Box<String>
+        StructConstruct Box<String>
+          Type String
+          Local $copy.update.3
+          Type String
+          FieldAccess 1
+            Type Box<String>
+            Local $copy.base.2
+  fun replaceCell @fn9(cell: Cell<Int>, value: Int) -> Cell<Int>
+    bb0 entry
+      val $copy.base.4: Cell<Int>
+        Type Cell<Int>
+        Local cell
+      val $copy.update.5: Int
+        Type Int
+        Local value
+      return
+        Type Cell<Int>
+        StructConstruct Cell<Int>
+          Type Int
+          Local $copy.update.5
+          Type String
+          FieldAccess 1
+            Type Cell<Int>
+            Local $copy.base.4
+  fun replaceCell @fn10(cell: Cell<String>, value: String) -> Cell<String>
+    bb0 entry
+      val $copy.base.4: Cell<String>
+        Type Cell<String>
+        Local cell
+      val $copy.update.5: String
+        Type String
+        Local value
+      return
+        Type Cell<String>
+        StructConstruct Cell<String>
+          Type String
+          Local $copy.update.5
+          Type String
+          FieldAccess 1
+            Type Cell<String>
+            Local $copy.base.4
+  fun ctor.Box.$c0 @fn11(value: Int, label: String) -> Box<Int> <no-gc>
+    bb0 entry
+      return
+        Type Box<Int>
+        StructInit Box<Int>
+          Type Int
+          Local value
+          Type String
+          Local label
+  fun ctor.Box.$c0 @fn12(value: String, label: String) -> Box<String> <no-gc>
+    bb0 entry
+      return
+        Type Box<String>
+        StructInit Box<String>
+          Type String
+          Local value
+          Type String
+          Local label
+  fun ctor.Cell.$c1 @fn13(value: Int, label: String) -> Cell<Int> <no-gc>
+    bb0 entry
+      return
+        Type Cell<Int>
+        StructInit Cell<Int>
+          Type Int
+          Local value
+          Type String
+          Local label
+  fun ctor.Cell.$c1 @fn14(value: String, label: String) -> Cell<String> <no-gc>
+    bb0 entry
+      return
+        Type Cell<String>
+        StructInit Cell<String>
+          Type String
+          Local value
+          Type String
+          Local label
+  instance mi0 function=@fn5 <- println
+  instance mi1 function=@fn6 <- println
+  instance mi2 function=@fn7 <- replaceBox
+  instance mi3 function=@fn8 <- replaceBox
+  instance mi4 function=@fn9 <- replaceCell
+  instance mi5 function=@fn10 <- replaceCell
+  str @str0 "alias"
+  str @str1 "int"
+  str @str2 "before"
+  str @str3 "text"
+  str @str4 "after"
+  str @str5 "before-alias"
+  str @str6 "alias-label"
+  str @str7 "int-cell"
+  str @str8 "old"
+  str @str9 "text-cell"
+  str @str10 "new"
+  str @str11 "before-default"
+  str @str12 "default-label"
+  str @str13 "after-default"
+  str @str14 "\n"
+  str @str15 "\n"
+  output executable @fn4

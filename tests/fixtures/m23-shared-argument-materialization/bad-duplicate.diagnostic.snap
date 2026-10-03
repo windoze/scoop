@@ -1,3 +1,0 @@
-span=109..157
-expression=gather<Unit>(Tape(), Unit, first = 1, first = 2)
-dependency function `gather` parameter `first` is supplied more than once

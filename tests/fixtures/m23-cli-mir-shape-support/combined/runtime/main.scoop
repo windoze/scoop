@@ -1,0 +1,13 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val payload = Payload("payload")
+    val marker: Marker = payload
+    verifyType(marker.value() == 7 && payload.value() == 7)
+    val message = Message.Data(payload)
+    verifyType(held(holder(message)) == message)
+    verifyType(Singleton.label == "stable" && Singleton === Singleton)
+    verifyType(hide() !is String)
+    val erased: Any = message
+    verifyType((erased as Message) == message)
+}

@@ -1,0 +1,60 @@
+SourceFile
+  RootPackage
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  class MarkerValue(), Marker
+  fun main()
+    val samples
+      Call defaultSamples
+    Call verifyDefault
+      Binary Eq
+        MethodCall packet
+          Var samples
+        Call Packet
+          IntLiteral 1
+          BoolLiteral true
+          UnitLiteral
+    Call verifyDefault
+      Binary Eq
+        MethodCall empty
+          Var samples
+        Call Empty
+    Call verifyDefault
+      Binary Eq
+        MethodCall choice
+          Var samples
+        MethodCall Pair
+          Var Choice
+          IntLiteral 1
+          BoolLiteral true
+    Call verifyDefault
+      Binary Eq
+        MethodCall other
+          Var samples
+        MethodCall Pair
+          Var Other
+          IntLiteral 1
+          BoolLiteral true
+    Call verifyDefault
+      Binary RefEq
+        MethodCall cache
+          Var samples
+        Var Cache
+    Call verifyDefault
+      Binary RefNe
+        MethodCall box
+          Var samples
+        MethodCall box
+          Var samples
+    val marker
+      Call MarkerValue
+    Call verifyDefault
+      Binary RefEq
+        MethodCall marker
+          Var samples
+          Var marker
+        Var marker

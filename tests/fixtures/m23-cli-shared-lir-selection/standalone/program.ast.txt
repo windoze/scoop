@@ -1,0 +1,22 @@
+SourceFile
+  RootPackage
+  fun verifyProjection(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call verifyProjection
+      Binary Eq
+        Call read
+        StringLiteral "standalone"
+    Call verifyProjection
+      Binary Eq
+        Var message
+        StringLiteral "standalone"
+    Call gcCollect
+    Call verifyProjection
+      Binary Eq
+        Call read
+        StringLiteral "standalone"

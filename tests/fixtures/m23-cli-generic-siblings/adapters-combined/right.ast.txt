@@ -1,0 +1,33 @@
+SourceFile
+  QualifiedPackage sibling.right
+  ImportStar Local dependency.union.*
+  public fun action(): (Payload) -> Any
+    val payload
+      Call guarded
+        Call Payload
+          IntLiteral 22
+        BoolLiteral false
+    return
+      Call second
+        Call Other
+          FieldAccess number
+            Var payload
+  public fun dynamic(): Any
+    val payload
+      Call guarded
+        Call Payload
+          IntLiteral 22
+        BoolLiteral true
+    return
+      Call second
+        Call Other
+          FieldAccess number
+            Var payload
+  public fun sameType(): Any
+    =
+      Call Marker<Int>
+        IntLiteral 22
+  public fun otherType(): Any
+    =
+      Call Marker<Long>
+        IntLiteral 22L

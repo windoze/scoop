@@ -1,0 +1,8 @@
+SourceFile
+  RootPackage
+  public fun collect(): Unit
+    val values
+      ArrayLiteral
+        IntLiteral 1
+        IntLiteral 2
+        IntLiteral 3

@@ -1,0 +1,62 @@
+SourceFile
+  QualifiedPackage upstream.argumentmaterialization
+  public class Tape()
+    public var log: Int = <expr>
+      IntLiteral 0
+    public var calls: Int = <expr>
+      IntLiteral 0
+    public fun mark
+    public fun reset
+  public fun gather<T>(tape: Tape, value: T, first: Int = <expr>, second: Int = <expr>, vararg parts: Int): Int
+    var result
+      Binary Add
+        Var first
+        Var second
+    var index: Long
+      IntLiteral 0
+    while
+      Binary Lt
+        Var index
+        FieldAccess size
+          Var parts
+      assign result
+        Binary Add
+          Var result
+          Index
+            Var parts
+            Var index
+      assign index
+        Binary Add
+          Var index
+          IntLiteral 1
+    return
+      Var result
+  public class Calculator<T>(val value: T, val tape: Tape, val first: Int = <expr>, val second: Int = <expr>)
+    public fun run
+    public operator fun invoke
+  public fun receiver<T>(tape: Tape, value: Calculator<T>): Calculator<T>
+    MethodCall mark
+      Var tape
+      IntLiteral 1
+    return
+      Var value
+  public enum Packet
+    Item <ctor>
+      tape: Tape
+      first: Int = <expr>
+      second: Int = <expr>
+      vararg parts: Int
+  public fun more(tape: Tape, ignored: Int = <expr>): Boolean
+    =
+      Binary Lt
+        FieldAccess calls
+          Var tape
+        IntLiteral 3
+  public class ExtensionCalculator<T>(val value: T, val tape: Tape)
+  public operator fun ExtensionCalculator<T>.invoke<T>(first: Int = <expr>, second: Int = <expr>): Int
+    =
+      Binary Add
+        Var first
+        Var second
+  public class Ordinary()
+    public fun invoke

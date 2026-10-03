@@ -1,5 +1,6 @@
 use super::*;
-use crate::link::map::{LinkMap, MapSymbol};
+use crate::link::map::{ConeMapSymbol, LinkMap, MapSymbol};
+use crate::program::ObjectOrigin;
 use scoop_slib::{DarwinArm64RelocationShapeV1 as Shape, DarwinArm64RelocationTargetV1 as Target};
 
 #[test]
@@ -89,13 +90,17 @@ fn actual_native_call_pointer_and_map_address_corruption_are_rejected() {
         }
     }
     reject(&original, &wrong, "differs from final symbol table");
-    reject(&original, &LinkMap::default(), "no retained object symbol");
+    let mut missing = symbol_ranges(&inputs, &original);
+    missing.native.clear();
+    reject(&original, &missing, "no retained object symbol");
 }
 
 // The production link has already checked the actual ld map. For byte-mutation
-// tests retain its ordinary native symbol ranges using the unchanged input and
-// output tables, without invoking ld again or adding a production test hook.
-fn symbol_ranges(inputs: &ProgramInputs<'_>, bytes: &[u8]) -> LinkMap {
+// tests retain native ranges and the first weak definitions in this fixed
+// fixture's object order. The unmodified executable must pass before each
+// mutation. Actual map winner selection is covered separately by map tests
+// and public CLI fixtures with different per-Cone physical references.
+pub(super) fn symbol_ranges(inputs: &ProgramInputs<'_>, bytes: &[u8]) -> LinkMap {
     let file: MachOFile64<'_> = MachOFile64::parse(bytes).unwrap();
     let final_symbols: BTreeMap<_, _> = file
         .symbols()
@@ -104,10 +109,28 @@ fn symbol_ranges(inputs: &ProgramInputs<'_>, bytes: &[u8]) -> LinkMap {
         .collect();
     let mut map = LinkMap::default();
     for input in &inputs.objects {
-        let crate::program::ObjectOrigin::Native(id) = input.origin else {
+        if matches!(input.origin, ObjectOrigin::Runtime(_)) {
             continue;
-        };
+        }
         let source: MachOFile64<'_> = MachOFile64::parse(input.bytes()).unwrap();
+        if let ObjectOrigin::Cone { cone, member } = input.origin {
+            for symbol in source.symbols().filter(|symbol| symbol.is_definition()) {
+                let name = symbol.name().unwrap();
+                if let Some(address) = final_symbols.get(name) {
+                    map.cones.entry(name.to_owned()).or_insert_with(|| {
+                        vec![ConeMapSymbol {
+                            cone,
+                            member,
+                            address: *address,
+                        }]
+                    });
+                }
+            }
+            continue;
+        }
+        let ObjectOrigin::Native(id) = input.origin else {
+            unreachable!("runtime and Cone inputs were handled above");
+        };
         for section in source.sections() {
             let mut symbols: Vec<_> = source
                 .symbols()

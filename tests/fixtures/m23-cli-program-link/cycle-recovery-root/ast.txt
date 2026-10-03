@@ -1,0 +1,20 @@
+SourceFile
+  RootPackage
+  ImportExact Local startup.recovery.recovered
+  private fun trace(value: Long)
+    Call println
+      Var value
+  fun main()
+    if
+      Binary Or
+        Binary Ne
+          Call recovered
+          IntLiteral 42L
+        Binary Ne
+          Call recovered
+          IntLiteral 42L
+      throw
+        Call IllegalStateException
+    @Unsafe block
+      Call trace
+        IntLiteral 42L

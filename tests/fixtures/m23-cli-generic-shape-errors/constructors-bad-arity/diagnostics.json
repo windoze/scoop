@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `Pair` in exact import layer:\n  - dependency constructor `Pair` expects 1 type argument(s), found 2\n  - dependency constructor `Pair` expects 1 type argument(s), found 2",
+    "notes": [],
+    "origin": {
+      "cone": "4e348eddddb6c8aba84c59960afcfba23a20c59306e99fc66cafcbb069fefb43",
+      "end": 96,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 76
+    },
+    "severity": "error"
+  }
+]

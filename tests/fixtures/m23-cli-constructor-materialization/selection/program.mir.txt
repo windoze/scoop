@@ -1,0 +1,52 @@
+Module
+  struct DeferredData<Int> (value: Int)
+  class DeferredTypeOnly<Int> vtable=0 itables=0
+  class DeferredHolder<Int> vtable=0 itables=0
+  fun inspect @fn0(value: DeferredTypeOnly<Int>) -> Unit
+    bb0 entry
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type DeferredHolder<Int>
+        ClassAlloc DeferredHolder<Int>
+      call @fn2 direct
+        Type DeferredHolder<Int>
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val holder: DeferredHolder<Int>
+        Type DeferredHolder<Int>
+        Local $new.1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call data: DeferredData<Int> = @fn3 direct
+        Type Int
+        Local $parameter.value
+      return
+  fun init.DeferredHolder.$c0 @fn2(this: DeferredHolder<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type DeferredHolder<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun ctor.DeferredData.$c0 @fn3(value: Int) -> DeferredData<Int> <no-gc>
+    bb0 entry
+      return
+        Type DeferredData<Int>
+        StructInit DeferredData<Int>
+          Type Int
+          Local value
+  output executable @fn1

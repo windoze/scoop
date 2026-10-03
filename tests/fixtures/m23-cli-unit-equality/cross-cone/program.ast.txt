@@ -1,0 +1,27 @@
+SourceFile
+  RootPackage
+  fun unitValue()
+  fun main()
+    val value
+      Call unitValue
+    if
+      Unary Not
+        Call inProvider
+          Var value
+          Var value
+      throw
+        Call IllegalStateException
+    if
+      Unary Not
+        Call unitDefault
+          Var value
+          Var value
+      throw
+        Call IllegalStateException
+    if
+      Unary Not
+        Binary Eq
+          Var value
+          Var value
+      throw
+        Call IllegalStateException

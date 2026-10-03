@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m9-gc/errors/interface-invariance.scoop:8:44: error: body of `widen` must be of type Cell<Animal>, found Cell<Dog>; nominal application `Cell` is invariant: first differing type argument 1 (`T`) is `Dog` in `Cell<Dog>`, but `Animal` in `Cell<Animal>`; construct the target application directly or convert explicitly

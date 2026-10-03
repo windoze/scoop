@@ -1,3 +1,0 @@
-span=111..115
-expression=true
-dependency function argument must be of type Long, found Boolean

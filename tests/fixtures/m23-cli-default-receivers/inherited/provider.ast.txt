@@ -1,0 +1,8 @@
+SourceFile
+  RootPackage
+  public open class Parent()
+    public fun read
+  public class Child() : Parent(<0 args>)
+  public fun inherited(child: Child, value: Int = <expr>): Int
+    =
+      Var value

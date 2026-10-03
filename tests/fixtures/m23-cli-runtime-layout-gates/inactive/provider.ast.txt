@@ -1,0 +1,17 @@
+SourceFile
+  RootPackage
+  public fun withDefault(value: Any, result: Int = <expr>): Int
+    =
+      Var result
+  public fun supplied(value: Any): Int
+    =
+      Call withDefault
+        Var value
+        IntLiteral 7
+  public fun dormant<T>(value: Any, result: T = <expr>): T
+    =
+      Var result
+  public fun upcast(value: String): Any
+    =
+      Cast Any optional=false
+        Var value

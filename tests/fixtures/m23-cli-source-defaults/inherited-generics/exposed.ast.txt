@@ -1,0 +1,11 @@
+SourceFile
+  RootPackage
+  public fun defaultGenericChild<T>(): GenericChild<T>
+    =
+      Call GenericChild<T>
+SourceFile
+  RootPackage
+  public interface GenericParent<P>
+    fun choose
+  public class GenericChild<T>(), GenericParent<(T, T)>
+    public fun choose

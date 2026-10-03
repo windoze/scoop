@@ -12,6 +12,7 @@ fn actual_core_type_surface_materializes_closed_generic_inheritance() {
         &sources,
         scoop_hir_lower::CoreProtocolInput::CurrentDeclarations,
         &world,
+        Default::default(),
     )
     .unwrap();
     let input = hir.machine_input();

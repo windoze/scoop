@@ -1,0 +1,20 @@
+Module
+  class box<Int> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  generated_exact_type get0 location=class0 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  fun boxInteger @fn0(value: Int) -> Any
+    bb0 entry
+      return
+        Type Any
+        Box
+          Type Int
+          Local value
+  fun testInteger @fn1(value: Any) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        IsInstance Int
+          Type Any
+          Local value
+  output library

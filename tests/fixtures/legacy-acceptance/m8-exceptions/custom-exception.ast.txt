@@ -1,0 +1,17 @@
+SourceFile
+  RootPackage
+  class MyError(val code: Int) : Exception(<1 args>)
+  fun fail(): Int
+    throw
+      Call MyError
+        IntLiteral 42
+  fun main()
+    try
+      Call fail
+    catch e: MyError
+      Call println
+        FieldAccess code
+          Var e
+    finally
+      Call println
+        StringLiteral "done"

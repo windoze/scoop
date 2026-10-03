@@ -24,6 +24,7 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         &parsed,
         scoop_hir_lower::CoreProtocolInput::CurrentDeclarations,
         &world,
+        Default::default(),
     )
     .unwrap();
     assert!(matches!(

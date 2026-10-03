@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency constructor `Pair` parameter `left` is supplied more than once",
+    "notes": [],
+    "origin": {
+      "cone": "5f02b1909f76b5655528741b493fd6c952c987735b25838129996f50ccdf314c",
+      "end": 145,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 85
+    },
+    "severity": "error"
+  }
+]

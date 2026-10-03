@@ -1,0 +1,9 @@
+SourceFile
+  RootPackage
+  ImportStar Local programlink.nativeapi.*
+    @Extern(name = "scoop_rt_write", abi = "scoop")
+  private fun rootWrite(value: String)
+  fun main()
+    Call report
+    Call rootWrite
+      StringLiteral "root\n"

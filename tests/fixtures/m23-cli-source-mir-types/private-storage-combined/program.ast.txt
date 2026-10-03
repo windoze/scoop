@@ -1,0 +1,23 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call verifyType
+      Binary Eq
+        Call result
+        IntLiteral 42
+    Call verifyType
+      Binary Eq
+        Call sourceOnly
+          IntLiteral 17
+        IntLiteral 17
+    Call verifyType
+      Binary Eq
+        Call sourceOnly
+          StringLiteral "value"
+        StringLiteral "value"

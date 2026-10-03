@@ -1,0 +1,157 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Deferred>
+    Completed(value: Deferred)
+    Suspended()
+  enum CoroutineSlot<Deferred>
+    Empty()
+    Value(value: Deferred)
+  class Deferred vtable=0 itables=1
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface SourceOnly<Long>
+  interface Continuation<Deferred>
+  interface SuspendTask<Deferred>
+  interface SuspendRegistration<Deferred>
+  generated_exact_type get0 location=enum2 nominal_id=2d4d6035dfcd8aa9709b215ab00d2153578bee58b3050d27e335c753f5481848 exact_id=29112ebbc5a58eeed01057e65e64f779dec278ac562350d899bce4b314e6eee2
+  generated_exact_type get1 location=enum1 nominal_id=de67dafebc0965d1df38d0d7f4a955fb860ff0c66f66fccbab85016c79f96818 exact_id=a89f8df69a9749466b132883a695950d6d41e69d1e319d0427f5cd0bbbdecfe5
+  generated_callable gc0 function=@fn9 id=f11b1e21032452d52d92dd5a47a8ce2ae3db2905a0ef799ae9b2acd0d998c2bb
+  fun observe @fn0() -> Boolean
+    bb0 entry
+      assign $new.1
+        Type Deferred
+        ClassAlloc Deferred
+      call @fn8 direct
+        Type Deferred
+        Local $new.1
+      val value: SourceOnly<Long>
+        Type SourceOnly<Long>
+        Retype SourceOnly<Long>
+          Type Deferred
+          Local $new.1
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call $parameter.value: Boolean = @fn3 direct
+        Type String
+        Local $parameter.value
+      call $call.2: Boolean = @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      branch bb1 bb2
+        Type Boolean
+        Local $call.2
+    bb1 logic.rhs.1
+      assign $logic.3
+        Type Boolean
+        IsInstance SourceOnly<Long>
+          Type SourceOnly<Long>
+          Local value
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.3
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.3
+  fun observedFlag @fn1(value: Boolean) -> Boolean
+    bb0 entry
+      val $argument.0: Boolean
+        Type Boolean
+        Local value
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call $call.1: Boolean = @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      return
+        Type Boolean
+        Local $call.1
+  fun flag @fn2(value: Boolean) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        Local value
+  fun unexpanded @fn3(value: String) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun Continuation.resume @fn4(this: Continuation<Deferred>, value: Deferred) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn5(this: Continuation<Deferred>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn6(this: SuspendTask<Deferred>, $completion: Continuation<Deferred>) -> CoroutineStep<Deferred>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn7(this: SuspendRegistration<Deferred>, continuation: Continuation<Deferred>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Deferred.$c0 @fn8(this: Deferred) -> Unit
+    bb0 entry
+      return
+  fun startCoroutine<Deferred> @fn9(task: SuspendTask<Deferred>, completion: Continuation<Deferred>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn4 interface Continuation<Deferred>[0]
+        Type Continuation<Deferred>
+        Local completion
+        Type Deferred
+        EnumField v0 f0
+          Type CoroutineStep<Deferred>
+          Local $step
+      return
+    bb2 failed
+      call @fn5 interface Continuation<Deferred>[1]
+        Type Continuation<Deferred>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Deferred> = @fn6 interface SuspendTask<Deferred>[0]
+        Type SuspendTask<Deferred>
+        Local task
+        Type Continuation<Deferred>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Deferred>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Deferred> result=Deferred
+  coroutine_slot cl0 CoroutineSlot<Deferred> value=Deferred
+  coroutine_start ct0 result=Deferred function=fn9
+  coroutine_fn cf0 @fn6 source_return=Deferred step=cs0 immediate
+  instance mi0 function=@fn3 <- unexpanded
+  instance mi1 function=@fn4 <- Continuation.resume
+  instance mi2 function=@fn5 <- Continuation.resumeWithException
+  instance mi3 function=@fn6 <- SuspendTask.run
+  instance mi4 function=@fn7 <- SuspendRegistration.register
+  str @str0 "default"
+  output library

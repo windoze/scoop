@@ -39,7 +39,6 @@ pub(super) fn lower_root_artifacts(
             layout,
             ty: scoop_lir::MANAGED_PTR,
             initial_state: scoop_lir::LirStaticInitialState::ZeroedForRuntimeUnit,
-            thread_local: false,
         },
     });
 

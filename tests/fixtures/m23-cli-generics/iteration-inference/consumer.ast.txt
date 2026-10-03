@@ -1,0 +1,36 @@
+SourceFile
+  QualifiedPackage consumer.iteration
+  ImportStar Local upstream.iteration.*
+  private interface Reader<T>
+    fun read
+  private interface LeftReader<T> : Reader<T>
+  private interface RightReader<T> : Reader<T>
+  private interface BothReader<T> : LeftReader<T>, RightReader<T>
+  private class Holder<T>(val value: T), BothReader<T>
+    public fun read
+  private fun readBase<T>(value: Reader<T>): T
+    =
+      MethodCall read
+        Var value
+  private fun readBound<T, R : BothReader<T>>(value: R): T
+    =
+      Call readBase
+        Var value
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val value
+      Call readBound
+        Call Holder<T>
+          Var seed
+    return
+      Call boundTotal
+        Call Cursor<T>
+          ArrayLiteral
+            Var value
+        Var read
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 0 suspend=false
+          param value: _
+          Var value

@@ -21,6 +21,16 @@ impl Lowerer {
             }
             _ => receiver_ty,
         };
+        self.find_accessible_declared_nominal_property(lookup_ty, receiver_ty, name)
+            .or_else(|| self.find_selected_interface_property(lookup_ty, receiver_ty, name))
+    }
+
+    fn find_accessible_declared_nominal_property(
+        &mut self,
+        lookup_ty: TypeId,
+        receiver_ty: TypeId,
+        name: &str,
+    ) -> Option<(hir::PropertyId, hir::MethodOwnerApplication, TypeId)> {
         match self.types[lookup_ty].clone() {
             hir::Type::Class(application) => {
                 let (declaring, property, ty) = self.find_accessible_class_application_property(
@@ -82,6 +92,47 @@ impl Lowerer {
             }
             _ => None,
         }
+    }
+
+    fn find_selected_interface_property(
+        &mut self,
+        lookup_ty: TypeId,
+        receiver_ty: TypeId,
+        name: &str,
+    ) -> Option<(hir::PropertyId, hir::MethodOwnerApplication, TypeId)> {
+        let mut selected = Vec::new();
+        self.collect_selected_interface_members(lookup_ty, &mut selected);
+        for (candidate, _, _) in selected {
+            let crate::CallableCandidateOwner::Method(owner) = candidate.owner else {
+                unreachable!("selected interface members have method owners");
+            };
+            let hir::MethodOwnerApplication::Interface(application) = owner else {
+                unreachable!("selected interface members retain their interface application");
+            };
+            let application = self.interface_applications[application].clone();
+            let interface = self.source_interface_id(application.template)?;
+            let property = self.interfaces[interface]
+                .properties
+                .iter()
+                .copied()
+                .find(|&id| {
+                    let property = &self.properties[id];
+                    let getter = &self.property_getters[property.capability.getter()];
+                    property.name == name
+                        && matches!(
+                            getter.implementation,
+                            hir::PropertyAccessorImplementation::Body(function)
+                                | hir::PropertyAccessorImplementation::AbstractSlot(function)
+                                if function == candidate.function
+                        )
+                        && self.property_is_accessible(id, Some(receiver_ty))
+                });
+            if let Some(property) = property {
+                let ty = self.instantiate_ty(self.properties[property].ty, &application.arguments);
+                return Some((property, owner, ty));
+            }
+        }
+        None
     }
 
     pub(crate) fn find_accessible_interface_application_property(

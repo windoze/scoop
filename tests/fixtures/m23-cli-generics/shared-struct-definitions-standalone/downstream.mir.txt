@@ -1,0 +1,2358 @@
+Module
+  struct Cell<Later> (value: Later, next: Option<Link<Later>>)
+  struct NativePair (left: Int, right: Int) <c-layout aligned=natural packed=natural>
+  struct Cell<Int> (value: Int, next: Option<Link<Int>>)
+  struct Cell<Unit> (value: Unit, next: Option<Link<Unit>>)
+  enum Option<Link<Later>>
+    Some(_0: Link<Later>)
+    None()
+  enum Option<Link<Int>>
+    Some(_0: Link<Int>)
+    None()
+  enum Option<Link<Unit>>
+    Some(_0: Link<Unit>)
+    None()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Later>
+    Completed(value: Later)
+    Suspended()
+  enum CoroutineSlot<Later>
+    Empty()
+    Value(value: Later)
+  class Later vtable=0 itables=0
+  class Link<Later> vtable=0 itables=0
+  class Link<Int> vtable=0 itables=0
+  class Link<Unit> vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Cell<Later>> vtable=0 itables=1
+  class box<Cell<Int>> vtable=0 itables=1
+  class box<Cell<Unit>> vtable=0 itables=1
+  class box<Unit> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface Readable<Later>
+  interface Readable<Int>
+  interface Readable<Unit>
+  interface Continuation<Later>
+  interface SuspendTask<Later>
+  interface SuspendRegistration<Later>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
+    bridge function_type1 -> @fn58 id=741597eb142afe3e955cc91085706cbaafedb12fe7fd89f71557bcda345d6bd6
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn3 captures=0
+    bridge function_type1 -> @fn59 id=388a46b738e4c9cadc74761fa63518924792c02fe0cc19c6925059583c614548
+  closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn5 captures=0
+    bridge function_type1 -> @fn60 id=dc05fd79a702dc6eb11455155747657a39b5cc81e415e022c8cf942f8ed5ce36
+  generated_exact_type get0 location=enum5 nominal_id=28a62ec28cc392e5f3329d6b0f8fd0e7d452c8ca63fe51b66d6c19cca54a0eb5 exact_id=0ad45305ceed30c3525c1873665ba0d34fcdcd46c3df14ac9aae2cae8f45a44b
+  generated_exact_type get1 location=closure0 nominal_id=4c2c770da7c7bd32b2886b818019ecd88966ab2596c13b37cf25d14723479131 exact_id=0b0369a36612368482a152476ffd7cefe704d1639909d43288a1ac3533a7bbbe
+  generated_exact_type get2 location=class9 nominal_id=461d890174561488321118a1d02929ee663d2790ddc2fa7e83dfb03cac6ba3a9 exact_id=209ee19c1bb9acfc29ac2ea461de07a86e6990ddd4b092a548ae54ef33dbbc83
+  generated_exact_type get3 location=class8 nominal_id=81218f1053ca8ebb548aa09676ea8dbe499dbde602fb89d92a58d0a320c985c4 exact_id=2dfa34490c1f10f05021d243d1b79b614f4bfc1fa7514b552eb53cb9f22d7f82
+  generated_exact_type get4 location=class10 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get5 location=closure2 nominal_id=1c64165d669cb54156865720818d866efdfbcef4073fd319669d2fe828d057f7 exact_id=9df360b92f96c109b9fbc05216a5fba6837262ac9610326229bfdbb486214534
+  generated_exact_type get6 location=enum4 nominal_id=5e4773d3d3bdffb9fd1235a72877edc7856d992e038b1c9de3fcff6e9a0e66ea exact_id=ac1139f53abd3a82dac45e0837625934d09ceb8847f6cf96b061776f2ba0f6e7
+  generated_exact_type get7 location=closure1 nominal_id=161bd4b9704befd6f89b63f3b8869ad9996e4b9c8397d5b4fc51e5479d3b0fca exact_id=b8c72d4c4681af5e58063b54caf3f88d344df53e2d1423a86278de75652573ed
+  generated_exact_type get8 location=class7 nominal_id=5fdfe2426373350be221d0b005efe13de41922b55d9a7777587dd8b54453f12c exact_id=e17d57a35300aa96f7508922111920006d7769b6a495af99e7aa658763c73e31
+  generated_exact_type get9 location=class11 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn52 id=114e3eb423914f48bec9102e43039272f8c17fc227bfe8528592257217eb9c49
+  generated_callable gc1 function=@fn59 id=388a46b738e4c9cadc74761fa63518924792c02fe0cc19c6925059583c614548
+  generated_callable gc2 function=@fn51 id=53abf4722fcceabd3b777f1e045a288f35046609abd5f52073e014356d2eefa3
+  generated_callable gc3 function=@fn58 id=741597eb142afe3e955cc91085706cbaafedb12fe7fd89f71557bcda345d6bd6
+  generated_callable gc4 function=@fn56 id=7c7d0d2e530a792f000626bb18bf8c46d7b4d7258ac67e472e93eeb80eeee94c
+  generated_callable gc5 function=@fn57 id=84e84a09af07741799a0f752e3c249c5eb74a1456ef9581eb6943a5317fe001e
+  generated_callable gc6 function=@fn54 id=8d0497157920679fd9536873b041a58c849534132bb84eedf2e7e4d7f1d5fbc5
+  generated_callable gc7 function=@fn53 id=8d42e925f5523752ad64d34714ce5cf7aaeb666bf1129b00550f8228503d18ed
+  generated_callable gc8 function=@fn55 id=c71be1d2d1c37f0bbefe982b26c09acd3b3d703b4bfd5ccf3ea629aa6bdf4c38
+  generated_callable gc9 function=@fn60 id=dc05fd79a702dc6eb11455155747657a39b5cc81e415e022c8cf942f8ed5ce36
+  fun check @fn0() -> Int
+    bb0 entry
+      call $argument.0: Int = external0 direct
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Later
+        ClassAlloc Later
+      call @fn44 direct
+        Type Later
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val value: Later
+        Type Later
+        Local $new.1
+      val $dependency.argument.0: Later
+        Type Later
+        Local value
+      val $dependency.argument.1: (Later) -> Int
+        Type (Later) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      val $dependency.parameter.seed: Later
+        Type Later
+        Local $dependency.argument.0
+      val $dependency.parameter.read: (Later) -> Int
+        Type (Later) -> Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = @fn2 direct
+        Type Later
+        Local $dependency.parameter.seed
+        Type (Later) -> Int
+        Local $dependency.parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.argument.1: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc1 $Closure$lambda1
+      val $dependency.parameter.seed: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.read: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = @fn4 direct
+        Type Int
+        Local $dependency.parameter.seed
+        Type (Int) -> Int
+        Local $dependency.parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      val $dependency.argument.0: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.argument.1: (Unit) -> Int
+        Type (Unit) -> Int
+        ClosureAlloc cc2 $Closure$lambda2
+      val $dependency.parameter.seed: Unit
+        Type Unit
+        Local $dependency.argument.0
+      val $dependency.parameter.read: (Unit) -> Int
+        Type (Unit) -> Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = @fn6 direct
+        Type Unit
+        Local $dependency.parameter.seed
+        Type (Unit) -> Int
+        Local $dependency.parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb5 bb6
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb5 if.then.5
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb6 if.merge.6
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Later
+        ClassAlloc Later
+      call @fn44 direct
+        Type Later
+        Local $new.2
+        Type Int
+        Local $parameter.value
+      val allocation: Later
+        Type Later
+        Local $new.2
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local value
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local allocation
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun $lambda.0 @fn1($closure: (Later) -> Int, item: Later) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local item
+  fun exercise @fn2(seed: Later, read: (Later) -> Int) -> Int
+    bb0 entry
+      call external1 direct
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.9: Later
+        Type Later
+        Local seed
+      val $dependency.local.10: Later
+        Type Later
+        Local $dependency.local.9
+      call $dependency.local.2: Cell<Later> = @fn9 direct
+        Type Later
+        Local $dependency.local.10
+      val $dependency.local.11: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.12: Cell<Later>
+        Type Cell<Later>
+        Local $dependency.local.2
+      val $dependency.local.13: Int
+        Type Int
+        Local $dependency.local.11
+      val $dependency.local.14: Cell<Later>
+        Type Cell<Later>
+        Local $dependency.local.12
+      call $dependency.local.15: Cell<Later> = @fn10 direct
+        Type Int
+        Local $dependency.local.13
+        Type Cell<Later>
+        Local $dependency.local.14
+      val $dependency.local.20: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.16: Cell<Later>
+        Type Cell<Later>
+        Local $dependency.local.2
+      val $dependency.local.17: Cell<Later>
+        Type Cell<Later>
+        Local $dependency.local.16
+      assign $new.1
+        Type Link<Later>
+        ClassAlloc Link<Later>
+      call @fn45 direct
+        Type Link<Later>
+        Local $new.1
+        Type Cell<Later>
+        Local $dependency.local.17
+      val $dependency.local.18: Link<Later>
+        Type Link<Later>
+        Local $new.1
+      val $dependency.local.19: Link<Later>
+        Type Link<Later>
+        Local $dependency.local.18
+      val $dependency.local.21: Option<Link<Later>>
+        Type Option<Link<Later>>
+        VariantConstruct Option<Link<Later>> v0
+          Type Link<Later>
+          Local $dependency.local.19
+      val $dependency.local.22: Int
+        Type Int
+        Local $dependency.local.20
+      val $dependency.local.23: Option<Link<Later>>
+        Type Option<Link<Later>>
+        Local $dependency.local.21
+      call $dependency.local.24: Option<Link<Later>> = @fn11 direct
+        Type Int
+        Local $dependency.local.22
+        Type Option<Link<Later>>
+        Local $dependency.local.23
+      val $dependency.local.25: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.local.26: Later
+        Type Later
+        Local seed
+      val $dependency.local.27: Int
+        Type Int
+        Local $dependency.local.25
+      val $dependency.local.28: Later
+        Type Later
+        Local $dependency.local.26
+      call $dependency.local.29: Later = @fn12 direct
+        Type Int
+        Local $dependency.local.27
+        Type Later
+        Local $dependency.local.28
+      val $dependency.local.3: Cell<Later>
+        Type Cell<Later>
+        StructConstruct Cell<Later>
+          Type Later
+          Local $dependency.local.29
+          Type Option<Link<Later>>
+          Local $dependency.local.24
+      call $dependency.local.30: Int = external2 direct
+      val $dependency.local.31: Int
+        Type Int
+        IntegerLiteral Int value=123 bits=0x0000007b
+      val $dependency.local.32: Int
+        Type Int
+        Local $dependency.local.31
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.30
+            Type Int
+            Local $dependency.local.32
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $dependency.local.33: Cell<Later>
+        Type Cell<Later>
+        Local $dependency.local.2
+      val $dependency.local.34: Cell<Later>
+        Type Cell<Later>
+        Local $dependency.local.33
+      call $call.2: Boolean = @fn13 direct
+        Type Cell<Later>
+        Local $dependency.local.34
+      branch bb3 bb4
+        Type Boolean
+        Local $call.2
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      val $dependency.local.35: Cell<Later>
+        Type Cell<Later>
+        Local $dependency.local.3
+      val $dependency.local.36: Cell<Later>
+        Type Cell<Later>
+        Local $dependency.local.35
+      call $dependency.local.37: Boolean = @fn13 direct
+        Type Cell<Later>
+        Local $dependency.local.36
+      branch bb5 bb6
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.local.37
+    bb5 if.then.5
+      return
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+    bb6 if.merge.6
+      val $when.1: Option<Link<Later>>
+        Type Option<Link<Later>>
+        FieldAccess 1
+          Type Cell<Later>
+          Local $dependency.local.3
+      val $pattern.subject.2: Option<Link<Later>>
+        Type Option<Link<Later>>
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Option<Link<Later>> v0
+          Type Option<Link<Later>>
+          Local $pattern.subject.2
+    bb7 pattern.pass.7
+      val $dependency.local.4: Link<Later>
+        Type Link<Later>
+        VariantPayloadProject Option<Link<Later>> v0 f0
+          Type Option<Link<Later>>
+          Local $pattern.subject.2
+      call $call.3: Cell<Later> = @fn14 direct
+        Type Link<Later>
+        Local $dependency.local.4
+      assign $dependency.local.38
+        Type Later
+        FieldAccess 0
+          Type Cell<Later>
+          Local $call.3
+      goto bb9
+    bb8 pattern.else.8
+      val $pattern.subject.3: Option<Link<Later>>
+        Type Option<Link<Later>>
+        Local $when.1
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Option<Link<Later>> v1
+          Type Option<Link<Later>>
+          Local $pattern.subject.3
+    bb9 pattern.merge.9
+      val $dependency.local.5: Later
+        Type Later
+        Local $dependency.local.38
+      call $dependency.local.39: Int = <closure:function_type0> closure[function_type0]
+        Type (Later) -> Int
+        Local read
+        Type Later
+        Local $dependency.local.5
+      val $dependency.local.40: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.41: Int
+        Type Int
+        Local $dependency.local.40
+      branch bb13 bb14
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.39
+            Type Int
+            Local $dependency.local.41
+    bb10 pattern.pass.10
+      assign $dependency.local.38
+        Type Later
+        Local seed
+      goto bb12
+    bb11 pattern.else.11
+      unreachable
+    bb12 pattern.merge.12
+      goto bb9
+    bb13 if.then.13
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb14 if.merge.14
+      val $dependency.local.42: Cell<Later>
+        Type Cell<Later>
+        Local $dependency.local.3
+      val $dependency.local.43: Later
+        Type Later
+        Local seed
+      val $dependency.local.44: Cell<Later>
+        Type Cell<Later>
+        Local $dependency.local.42
+      val $dependency.local.45: Later
+        Type Later
+        Local $dependency.local.43
+      call $dependency.local.46: Cell<Later> = @fn15 direct
+        Type Cell<Later>
+        Local $dependency.local.44
+        Type Later
+        Local $dependency.local.45
+      val $dependency.local.47: Cell<Later>
+        Type Cell<Later>
+        Local $dependency.local.46
+      val $dependency.local.48: Cell<Later>
+        Type Cell<Later>
+        Local $dependency.local.47
+      val $dependency.local.49: Option<Link<Later>>
+        Type Option<Link<Later>>
+        VariantConstruct Option<Link<Later>> v1
+      val $dependency.local.50: Cell<Later>
+        Type Cell<Later>
+        StructConstruct Cell<Later>
+          Type Later
+          FieldAccess 0
+            Type Cell<Later>
+            Local $dependency.local.48
+          Type Option<Link<Later>>
+          Local $dependency.local.49
+      call $dependency.local.6: Cell<Later> = @fn16 direct
+        Type Cell<Later>
+        Local $dependency.local.47
+        Type Cell<Later>
+        Local $dependency.local.50
+      val $dependency.local.51: Cell<Later>
+        Type Cell<Later>
+        Local $dependency.local.6
+      val $dependency.local.52: Cell<Later>
+        Type Cell<Later>
+        Local $dependency.local.51
+      call $call.4: Boolean = @fn13 direct
+        Type Cell<Later>
+        Local $dependency.local.52
+      branch bb15 bb16
+        Type Boolean
+        Local $call.4
+    bb15 if.then.15
+      return
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+    bb16 if.merge.16
+      val $dependency.local.7: Readable<Later>
+        Type Readable<Later>
+        Box
+          Type Cell<Later>
+          Local $dependency.local.6
+      val $dependency.local.53: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.54: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.55: Int
+        Type Int
+        Local $dependency.local.53
+      val $dependency.local.56: Int
+        Type Int
+        Local $dependency.local.54
+      call $dependency.local.57: NativePair = external3 direct
+        Type Int
+        Local $dependency.local.55
+        Type Int
+        Local $dependency.local.56
+      val $dependency.local.58: Int
+        Type Int
+        IntegerLiteral Int value=22 bits=0x00000016
+      val $dependency.local.59: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $dependency.local.8: NativePair
+        Type NativePair
+        StructConstruct NativePair
+          Type Int
+          Local $dependency.local.59
+          Type Int
+          Local $dependency.local.58
+      val $dependency.local.60: Int
+        Type Int
+        FieldAccess 0
+          Type NativePair
+          Local $dependency.local.8
+      val $dependency.local.61: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $dependency.local.62: Int
+        Type Int
+        Local $dependency.local.61
+      branch bb17 bb18
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.60
+            Type Int
+            Local $dependency.local.62
+    bb17 if.then.17
+      val $dependency.local.66: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb19
+    bb18 if.else.18
+      val $dependency.local.63: Int
+        Type Int
+        FieldAccess 1
+          Type NativePair
+          Local $dependency.local.8
+      val $dependency.local.64: Int
+        Type Int
+        IntegerLiteral Int value=22 bits=0x00000016
+      val $dependency.local.65: Int
+        Type Int
+        Local $dependency.local.64
+      val $dependency.local.66: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.63
+            Type Int
+            Local $dependency.local.65
+      goto bb19
+    bb19 if.merge.19
+      branch bb20 bb21
+        Type Boolean
+        Local $dependency.local.66
+    bb20 if.then.20
+      return
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+    bb21 if.merge.21
+      val $dependency.local.67: Readable<Later>
+        Type Readable<Later>
+        Local $dependency.local.7
+      val $dependency.local.68: (Later) -> Int
+        Type (Later) -> Int
+        Local read
+      val $dependency.local.69: (Later) -> Int
+        Type (Later) -> Int
+        Local $dependency.local.68
+      call $call.5: Int = @fn8 interface Readable<Later>[1]
+        Type Readable<Later>
+        Local $dependency.local.67
+        Type (Later) -> Int
+        Local $dependency.local.69
+      return
+        Type Int
+        Local $call.5
+  fun $lambda.1 @fn3($closure: (Int) -> Int, item: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local item
+  fun exercise @fn4(seed: Int, read: (Int) -> Int) -> Int
+    bb0 entry
+      call external1 direct
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.9: Int
+        Type Int
+        Local seed
+      val $dependency.local.10: Int
+        Type Int
+        Local $dependency.local.9
+      call $dependency.local.2: Cell<Int> = @fn19 direct
+        Type Int
+        Local $dependency.local.10
+      val $dependency.local.11: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.12: Cell<Int>
+        Type Cell<Int>
+        Local $dependency.local.2
+      val $dependency.local.13: Int
+        Type Int
+        Local $dependency.local.11
+      val $dependency.local.14: Cell<Int>
+        Type Cell<Int>
+        Local $dependency.local.12
+      call $dependency.local.15: Cell<Int> = @fn20 direct
+        Type Int
+        Local $dependency.local.13
+        Type Cell<Int>
+        Local $dependency.local.14
+      val $dependency.local.20: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.16: Cell<Int>
+        Type Cell<Int>
+        Local $dependency.local.2
+      val $dependency.local.17: Cell<Int>
+        Type Cell<Int>
+        Local $dependency.local.16
+      assign $new.1
+        Type Link<Int>
+        ClassAlloc Link<Int>
+      call @fn46 direct
+        Type Link<Int>
+        Local $new.1
+        Type Cell<Int>
+        Local $dependency.local.17
+      val $dependency.local.18: Link<Int>
+        Type Link<Int>
+        Local $new.1
+      val $dependency.local.19: Link<Int>
+        Type Link<Int>
+        Local $dependency.local.18
+      val $dependency.local.21: Option<Link<Int>>
+        Type Option<Link<Int>>
+        VariantConstruct Option<Link<Int>> v0
+          Type Link<Int>
+          Local $dependency.local.19
+      val $dependency.local.22: Int
+        Type Int
+        Local $dependency.local.20
+      val $dependency.local.23: Option<Link<Int>>
+        Type Option<Link<Int>>
+        Local $dependency.local.21
+      call $dependency.local.24: Option<Link<Int>> = @fn21 direct
+        Type Int
+        Local $dependency.local.22
+        Type Option<Link<Int>>
+        Local $dependency.local.23
+      val $dependency.local.25: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.local.26: Int
+        Type Int
+        Local seed
+      val $dependency.local.27: Int
+        Type Int
+        Local $dependency.local.25
+      val $dependency.local.28: Int
+        Type Int
+        Local $dependency.local.26
+      call $dependency.local.29: Int = @fn22 direct
+        Type Int
+        Local $dependency.local.27
+        Type Int
+        Local $dependency.local.28
+      val $dependency.local.3: Cell<Int>
+        Type Cell<Int>
+        StructConstruct Cell<Int>
+          Type Int
+          Local $dependency.local.29
+          Type Option<Link<Int>>
+          Local $dependency.local.24
+      call $dependency.local.30: Int = external2 direct
+      val $dependency.local.31: Int
+        Type Int
+        IntegerLiteral Int value=123 bits=0x0000007b
+      val $dependency.local.32: Int
+        Type Int
+        Local $dependency.local.31
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.30
+            Type Int
+            Local $dependency.local.32
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $dependency.local.33: Cell<Int>
+        Type Cell<Int>
+        Local $dependency.local.2
+      val $dependency.local.34: Cell<Int>
+        Type Cell<Int>
+        Local $dependency.local.33
+      call $call.2: Boolean = @fn23 direct
+        Type Cell<Int>
+        Local $dependency.local.34
+      branch bb3 bb4
+        Type Boolean
+        Local $call.2
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      val $dependency.local.35: Cell<Int>
+        Type Cell<Int>
+        Local $dependency.local.3
+      val $dependency.local.36: Cell<Int>
+        Type Cell<Int>
+        Local $dependency.local.35
+      call $dependency.local.37: Boolean = @fn23 direct
+        Type Cell<Int>
+        Local $dependency.local.36
+      branch bb5 bb6
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.local.37
+    bb5 if.then.5
+      return
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+    bb6 if.merge.6
+      val $when.1: Option<Link<Int>>
+        Type Option<Link<Int>>
+        FieldAccess 1
+          Type Cell<Int>
+          Local $dependency.local.3
+      val $pattern.subject.2: Option<Link<Int>>
+        Type Option<Link<Int>>
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Option<Link<Int>> v0
+          Type Option<Link<Int>>
+          Local $pattern.subject.2
+    bb7 pattern.pass.7
+      val $dependency.local.4: Link<Int>
+        Type Link<Int>
+        VariantPayloadProject Option<Link<Int>> v0 f0
+          Type Option<Link<Int>>
+          Local $pattern.subject.2
+      call $call.3: Cell<Int> = @fn24 direct
+        Type Link<Int>
+        Local $dependency.local.4
+      assign $dependency.local.38
+        Type Int
+        FieldAccess 0
+          Type Cell<Int>
+          Local $call.3
+      goto bb9
+    bb8 pattern.else.8
+      val $pattern.subject.3: Option<Link<Int>>
+        Type Option<Link<Int>>
+        Local $when.1
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Option<Link<Int>> v1
+          Type Option<Link<Int>>
+          Local $pattern.subject.3
+    bb9 pattern.merge.9
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.38
+      call $dependency.local.39: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local $dependency.local.5
+      val $dependency.local.40: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.41: Int
+        Type Int
+        Local $dependency.local.40
+      branch bb13 bb14
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.39
+            Type Int
+            Local $dependency.local.41
+    bb10 pattern.pass.10
+      assign $dependency.local.38
+        Type Int
+        Local seed
+      goto bb12
+    bb11 pattern.else.11
+      unreachable
+    bb12 pattern.merge.12
+      goto bb9
+    bb13 if.then.13
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb14 if.merge.14
+      val $dependency.local.42: Cell<Int>
+        Type Cell<Int>
+        Local $dependency.local.3
+      val $dependency.local.43: Int
+        Type Int
+        Local seed
+      val $dependency.local.44: Cell<Int>
+        Type Cell<Int>
+        Local $dependency.local.42
+      val $dependency.local.45: Int
+        Type Int
+        Local $dependency.local.43
+      call $dependency.local.46: Cell<Int> = @fn25 direct
+        Type Cell<Int>
+        Local $dependency.local.44
+        Type Int
+        Local $dependency.local.45
+      val $dependency.local.47: Cell<Int>
+        Type Cell<Int>
+        Local $dependency.local.46
+      val $dependency.local.48: Cell<Int>
+        Type Cell<Int>
+        Local $dependency.local.47
+      val $dependency.local.49: Option<Link<Int>>
+        Type Option<Link<Int>>
+        VariantConstruct Option<Link<Int>> v1
+      val $dependency.local.50: Cell<Int>
+        Type Cell<Int>
+        StructConstruct Cell<Int>
+          Type Int
+          FieldAccess 0
+            Type Cell<Int>
+            Local $dependency.local.48
+          Type Option<Link<Int>>
+          Local $dependency.local.49
+      call $dependency.local.6: Cell<Int> = @fn26 direct
+        Type Cell<Int>
+        Local $dependency.local.47
+        Type Cell<Int>
+        Local $dependency.local.50
+      val $dependency.local.51: Cell<Int>
+        Type Cell<Int>
+        Local $dependency.local.6
+      val $dependency.local.52: Cell<Int>
+        Type Cell<Int>
+        Local $dependency.local.51
+      call $call.4: Boolean = @fn23 direct
+        Type Cell<Int>
+        Local $dependency.local.52
+      branch bb15 bb16
+        Type Boolean
+        Local $call.4
+    bb15 if.then.15
+      return
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+    bb16 if.merge.16
+      val $dependency.local.7: Readable<Int>
+        Type Readable<Int>
+        Box
+          Type Cell<Int>
+          Local $dependency.local.6
+      val $dependency.local.53: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.54: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.55: Int
+        Type Int
+        Local $dependency.local.53
+      val $dependency.local.56: Int
+        Type Int
+        Local $dependency.local.54
+      call $dependency.local.57: NativePair = external3 direct
+        Type Int
+        Local $dependency.local.55
+        Type Int
+        Local $dependency.local.56
+      val $dependency.local.58: Int
+        Type Int
+        IntegerLiteral Int value=22 bits=0x00000016
+      val $dependency.local.59: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $dependency.local.8: NativePair
+        Type NativePair
+        StructConstruct NativePair
+          Type Int
+          Local $dependency.local.59
+          Type Int
+          Local $dependency.local.58
+      val $dependency.local.60: Int
+        Type Int
+        FieldAccess 0
+          Type NativePair
+          Local $dependency.local.8
+      val $dependency.local.61: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $dependency.local.62: Int
+        Type Int
+        Local $dependency.local.61
+      branch bb17 bb18
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.60
+            Type Int
+            Local $dependency.local.62
+    bb17 if.then.17
+      val $dependency.local.66: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb19
+    bb18 if.else.18
+      val $dependency.local.63: Int
+        Type Int
+        FieldAccess 1
+          Type NativePair
+          Local $dependency.local.8
+      val $dependency.local.64: Int
+        Type Int
+        IntegerLiteral Int value=22 bits=0x00000016
+      val $dependency.local.65: Int
+        Type Int
+        Local $dependency.local.64
+      val $dependency.local.66: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.63
+            Type Int
+            Local $dependency.local.65
+      goto bb19
+    bb19 if.merge.19
+      branch bb20 bb21
+        Type Boolean
+        Local $dependency.local.66
+    bb20 if.then.20
+      return
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+    bb21 if.merge.21
+      val $dependency.local.67: Readable<Int>
+        Type Readable<Int>
+        Local $dependency.local.7
+      val $dependency.local.68: (Int) -> Int
+        Type (Int) -> Int
+        Local read
+      val $dependency.local.69: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.local.68
+      call $call.5: Int = @fn18 interface Readable<Int>[1]
+        Type Readable<Int>
+        Local $dependency.local.67
+        Type (Int) -> Int
+        Local $dependency.local.69
+      return
+        Type Int
+        Local $call.5
+  fun $lambda.2 @fn5($closure: (Unit) -> Int, item: Unit) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun exercise @fn6(seed: Unit, read: (Unit) -> Int) -> Int
+    bb0 entry
+      call external1 direct
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.9: Unit
+        Type Unit
+        Local seed
+      val $dependency.local.10: Unit
+        Type Unit
+        Local $dependency.local.9
+      call $dependency.local.2: Cell<Unit> = @fn29 direct
+        Type Unit
+        Local $dependency.local.10
+      val $dependency.local.11: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.12: Cell<Unit>
+        Type Cell<Unit>
+        Local $dependency.local.2
+      val $dependency.local.13: Int
+        Type Int
+        Local $dependency.local.11
+      val $dependency.local.14: Cell<Unit>
+        Type Cell<Unit>
+        Local $dependency.local.12
+      call $dependency.local.15: Cell<Unit> = @fn30 direct
+        Type Int
+        Local $dependency.local.13
+        Type Cell<Unit>
+        Local $dependency.local.14
+      val $dependency.local.20: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.16: Cell<Unit>
+        Type Cell<Unit>
+        Local $dependency.local.2
+      val $dependency.local.17: Cell<Unit>
+        Type Cell<Unit>
+        Local $dependency.local.16
+      assign $new.1
+        Type Link<Unit>
+        ClassAlloc Link<Unit>
+      call @fn47 direct
+        Type Link<Unit>
+        Local $new.1
+        Type Cell<Unit>
+        Local $dependency.local.17
+      val $dependency.local.18: Link<Unit>
+        Type Link<Unit>
+        Local $new.1
+      val $dependency.local.19: Link<Unit>
+        Type Link<Unit>
+        Local $dependency.local.18
+      val $dependency.local.21: Option<Link<Unit>>
+        Type Option<Link<Unit>>
+        VariantConstruct Option<Link<Unit>> v0
+          Type Link<Unit>
+          Local $dependency.local.19
+      val $dependency.local.22: Int
+        Type Int
+        Local $dependency.local.20
+      val $dependency.local.23: Option<Link<Unit>>
+        Type Option<Link<Unit>>
+        Local $dependency.local.21
+      call $dependency.local.24: Option<Link<Unit>> = @fn31 direct
+        Type Int
+        Local $dependency.local.22
+        Type Option<Link<Unit>>
+        Local $dependency.local.23
+      val $dependency.local.25: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.local.26: Unit
+        Type Unit
+        Local seed
+      val $dependency.local.27: Int
+        Type Int
+        Local $dependency.local.25
+      val $dependency.local.28: Unit
+        Type Unit
+        Local $dependency.local.26
+      call @fn32 direct
+        Type Int
+        Local $dependency.local.27
+        Type Unit
+        Local $dependency.local.28
+      val $dependency.local.29: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.local.3: Cell<Unit>
+        Type Cell<Unit>
+        StructConstruct Cell<Unit>
+          Type Unit
+          Local $dependency.local.29
+          Type Option<Link<Unit>>
+          Local $dependency.local.24
+      call $dependency.local.30: Int = external2 direct
+      val $dependency.local.31: Int
+        Type Int
+        IntegerLiteral Int value=123 bits=0x0000007b
+      val $dependency.local.32: Int
+        Type Int
+        Local $dependency.local.31
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.30
+            Type Int
+            Local $dependency.local.32
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $dependency.local.33: Cell<Unit>
+        Type Cell<Unit>
+        Local $dependency.local.2
+      val $dependency.local.34: Cell<Unit>
+        Type Cell<Unit>
+        Local $dependency.local.33
+      call $call.2: Boolean = @fn33 direct
+        Type Cell<Unit>
+        Local $dependency.local.34
+      branch bb3 bb4
+        Type Boolean
+        Local $call.2
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      val $dependency.local.35: Cell<Unit>
+        Type Cell<Unit>
+        Local $dependency.local.3
+      val $dependency.local.36: Cell<Unit>
+        Type Cell<Unit>
+        Local $dependency.local.35
+      call $dependency.local.37: Boolean = @fn33 direct
+        Type Cell<Unit>
+        Local $dependency.local.36
+      branch bb5 bb6
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.local.37
+    bb5 if.then.5
+      return
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+    bb6 if.merge.6
+      val $when.1: Option<Link<Unit>>
+        Type Option<Link<Unit>>
+        FieldAccess 1
+          Type Cell<Unit>
+          Local $dependency.local.3
+      val $pattern.subject.2: Option<Link<Unit>>
+        Type Option<Link<Unit>>
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Option<Link<Unit>> v0
+          Type Option<Link<Unit>>
+          Local $pattern.subject.2
+    bb7 pattern.pass.7
+      val $dependency.local.4: Link<Unit>
+        Type Link<Unit>
+        VariantPayloadProject Option<Link<Unit>> v0 f0
+          Type Option<Link<Unit>>
+          Local $pattern.subject.2
+      call $call.3: Cell<Unit> = @fn34 direct
+        Type Link<Unit>
+        Local $dependency.local.4
+      assign $dependency.local.38
+        Type Unit
+        FieldAccess 0
+          Type Cell<Unit>
+          Local $call.3
+      goto bb9
+    bb8 pattern.else.8
+      val $pattern.subject.3: Option<Link<Unit>>
+        Type Option<Link<Unit>>
+        Local $when.1
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Option<Link<Unit>> v1
+          Type Option<Link<Unit>>
+          Local $pattern.subject.3
+    bb9 pattern.merge.9
+      val $dependency.local.5: Unit
+        Type Unit
+        Local $dependency.local.38
+      call $dependency.local.39: Int = <closure:function_type3> closure[function_type3]
+        Type (Unit) -> Int
+        Local read
+        Type Unit
+        Local $dependency.local.5
+      val $dependency.local.40: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.41: Int
+        Type Int
+        Local $dependency.local.40
+      branch bb13 bb14
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.39
+            Type Int
+            Local $dependency.local.41
+    bb10 pattern.pass.10
+      assign $dependency.local.38
+        Type Unit
+        Local seed
+      goto bb12
+    bb11 pattern.else.11
+      unreachable
+    bb12 pattern.merge.12
+      goto bb9
+    bb13 if.then.13
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb14 if.merge.14
+      val $dependency.local.42: Cell<Unit>
+        Type Cell<Unit>
+        Local $dependency.local.3
+      val $dependency.local.43: Unit
+        Type Unit
+        Local seed
+      val $dependency.local.44: Cell<Unit>
+        Type Cell<Unit>
+        Local $dependency.local.42
+      val $dependency.local.45: Unit
+        Type Unit
+        Local $dependency.local.43
+      call $dependency.local.46: Cell<Unit> = @fn35 direct
+        Type Cell<Unit>
+        Local $dependency.local.44
+        Type Unit
+        Local $dependency.local.45
+      val $dependency.local.47: Cell<Unit>
+        Type Cell<Unit>
+        Local $dependency.local.46
+      val $dependency.local.48: Cell<Unit>
+        Type Cell<Unit>
+        Local $dependency.local.47
+      val $dependency.local.49: Option<Link<Unit>>
+        Type Option<Link<Unit>>
+        VariantConstruct Option<Link<Unit>> v1
+      val $dependency.local.50: Cell<Unit>
+        Type Cell<Unit>
+        StructConstruct Cell<Unit>
+          Type Unit
+          FieldAccess 0
+            Type Cell<Unit>
+            Local $dependency.local.48
+          Type Option<Link<Unit>>
+          Local $dependency.local.49
+      call $dependency.local.6: Cell<Unit> = @fn36 direct
+        Type Cell<Unit>
+        Local $dependency.local.47
+        Type Cell<Unit>
+        Local $dependency.local.50
+      val $dependency.local.51: Cell<Unit>
+        Type Cell<Unit>
+        Local $dependency.local.6
+      val $dependency.local.52: Cell<Unit>
+        Type Cell<Unit>
+        Local $dependency.local.51
+      call $call.4: Boolean = @fn33 direct
+        Type Cell<Unit>
+        Local $dependency.local.52
+      branch bb15 bb16
+        Type Boolean
+        Local $call.4
+    bb15 if.then.15
+      return
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+    bb16 if.merge.16
+      val $dependency.local.7: Readable<Unit>
+        Type Readable<Unit>
+        Box
+          Type Cell<Unit>
+          Local $dependency.local.6
+      val $dependency.local.53: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.54: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.55: Int
+        Type Int
+        Local $dependency.local.53
+      val $dependency.local.56: Int
+        Type Int
+        Local $dependency.local.54
+      call $dependency.local.57: NativePair = external3 direct
+        Type Int
+        Local $dependency.local.55
+        Type Int
+        Local $dependency.local.56
+      val $dependency.local.58: Int
+        Type Int
+        IntegerLiteral Int value=22 bits=0x00000016
+      val $dependency.local.59: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $dependency.local.8: NativePair
+        Type NativePair
+        StructConstruct NativePair
+          Type Int
+          Local $dependency.local.59
+          Type Int
+          Local $dependency.local.58
+      val $dependency.local.60: Int
+        Type Int
+        FieldAccess 0
+          Type NativePair
+          Local $dependency.local.8
+      val $dependency.local.61: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $dependency.local.62: Int
+        Type Int
+        Local $dependency.local.61
+      branch bb17 bb18
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.60
+            Type Int
+            Local $dependency.local.62
+    bb17 if.then.17
+      val $dependency.local.66: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb19
+    bb18 if.else.18
+      val $dependency.local.63: Int
+        Type Int
+        FieldAccess 1
+          Type NativePair
+          Local $dependency.local.8
+      val $dependency.local.64: Int
+        Type Int
+        IntegerLiteral Int value=22 bits=0x00000016
+      val $dependency.local.65: Int
+        Type Int
+        Local $dependency.local.64
+      val $dependency.local.66: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.63
+            Type Int
+            Local $dependency.local.65
+      goto bb19
+    bb19 if.merge.19
+      branch bb20 bb21
+        Type Boolean
+        Local $dependency.local.66
+    bb20 if.then.20
+      return
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+    bb21 if.merge.21
+      val $dependency.local.67: Readable<Unit>
+        Type Readable<Unit>
+        Local $dependency.local.7
+      val $dependency.local.68: (Unit) -> Int
+        Type (Unit) -> Int
+        Local read
+      val $dependency.local.69: (Unit) -> Int
+        Type (Unit) -> Int
+        Local $dependency.local.68
+      call $call.5: Int = @fn28 interface Readable<Unit>[1]
+        Type Readable<Unit>
+        Local $dependency.local.67
+        Type (Unit) -> Int
+        Local $dependency.local.69
+      return
+        Type Int
+        Local $call.5
+  fun read @fn7(this: Cell<Later>) -> Later
+    bb0 entry
+      return
+        Type Later
+        FieldAccess 0
+          Type Cell<Later>
+          Local this
+  fun apply @fn8(this: Readable<Later>, action: (Later) -> Int) -> Int
+    bb0 entry
+      val $dependency.local.3: (Later) -> Int
+        Type (Later) -> Int
+        Local action
+      val $dependency.local.2: Readable<Later>
+        Type Readable<Later>
+        Local this
+      call $call.1: Later = @fn37 interface Readable<Later>[0]
+        Type Readable<Later>
+        Local $dependency.local.2
+      call $call.2: Int = <closure:function_type0> closure[function_type0]
+        Type (Later) -> Int
+        Local $dependency.local.3
+        Type Later
+        Local $call.1
+      return
+        Type Int
+        Local $call.2
+  fun make @fn9(value: Later) -> Cell<Later>
+    bb0 entry
+      val $dependency.local.1: Later
+        Type Later
+        Local value
+      val $dependency.local.2: Option<Link<Later>>
+        Type Option<Link<Later>>
+        VariantConstruct Option<Link<Later>> v1
+      val $dependency.local.3: Later
+        Type Later
+        Local $dependency.local.1
+      val $dependency.local.4: Option<Link<Later>>
+        Type Option<Link<Later>>
+        Local $dependency.local.2
+      call $call.1: Cell<Later> = @fn48 direct
+        Type Later
+        Local $dependency.local.3
+        Type Option<Link<Later>>
+        Local $dependency.local.4
+      return
+        Type Cell<Later>
+        Local $call.1
+  fun mark @fn10(step: Int, value: Cell<Later>) -> Cell<Later>
+    bb0 entry
+      call $dependency.local.2: Int = external2 direct
+      val $dependency.local.3: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.5: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          Local $dependency.local.4
+      val $dependency.local.6: Int
+        Type Int
+        Local step
+      val $dependency.local.7: Int
+        Type Int
+        Local $dependency.local.6
+      call external1 direct
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.5
+          Type Int
+          Local $dependency.local.7
+      return
+        Type Cell<Later>
+        Local value
+  fun mark @fn11(step: Int, value: Option<Link<Later>>) -> Option<Link<Later>>
+    bb0 entry
+      call $dependency.local.2: Int = external2 direct
+      val $dependency.local.3: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.5: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          Local $dependency.local.4
+      val $dependency.local.6: Int
+        Type Int
+        Local step
+      val $dependency.local.7: Int
+        Type Int
+        Local $dependency.local.6
+      call external1 direct
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.5
+          Type Int
+          Local $dependency.local.7
+      return
+        Type Option<Link<Later>>
+        Local value
+  fun mark @fn12(step: Int, value: Later) -> Later
+    bb0 entry
+      call $dependency.local.2: Int = external2 direct
+      val $dependency.local.3: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.5: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          Local $dependency.local.4
+      val $dependency.local.6: Int
+        Type Int
+        Local step
+      val $dependency.local.7: Int
+        Type Int
+        Local $dependency.local.6
+      call external1 direct
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.5
+          Type Int
+          Local $dependency.local.7
+      return
+        Type Later
+        Local value
+  fun hasNext @fn13(value: Cell<Later>) -> Boolean
+    bb0 entry
+      val $when.1: Option<Link<Later>>
+        Type Option<Link<Later>>
+        FieldAccess 1
+          Type Cell<Later>
+          Local value
+      val $pattern.subject.2: Option<Link<Later>>
+        Type Option<Link<Later>>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Link<Later>> v0
+          Type Option<Link<Later>>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.1: Link<Later>
+        Type Link<Later>
+        VariantPayloadProject Option<Link<Later>> v0 f0
+          Type Option<Link<Later>>
+          Local $pattern.subject.2
+      assign $dependency.local.2
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Link<Later>>
+        Type Option<Link<Later>>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Link<Later>> v1
+          Type Option<Link<Later>>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Boolean
+        Local $dependency.local.2
+    bb4 pattern.pass.4
+      assign $dependency.local.2
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun cell @fn14(this: Link<Later>) -> Cell<Later>
+    bb0 entry
+      return
+        Type Cell<Later>
+        FieldAccess 0
+          Type Link<Later>
+          Local this
+  fun replace @fn15(base: Cell<Later>, value: Later) -> Cell<Later>
+    bb0 entry
+      val $dependency.local.2: Cell<Later>
+        Type Cell<Later>
+        Local base
+      val $dependency.local.3: Later
+        Type Later
+        Local value
+      return
+        Type Cell<Later>
+        StructConstruct Cell<Later>
+          Type Later
+          Local $dependency.local.3
+          Type Option<Link<Later>>
+          FieldAccess 1
+            Type Cell<Later>
+            Local $dependency.local.2
+  fun withoutNext @fn16(base: Cell<Later>, fallback: Cell<Later>) -> Cell<Later>
+    bb0 entry
+      return
+        Type Cell<Later>
+        Local fallback
+  fun read @fn17(this: Cell<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Cell<Int>
+          Local this
+  fun apply @fn18(this: Readable<Int>, action: (Int) -> Int) -> Int
+    bb0 entry
+      val $dependency.local.3: (Int) -> Int
+        Type (Int) -> Int
+        Local action
+      val $dependency.local.2: Readable<Int>
+        Type Readable<Int>
+        Local this
+      call $call.1: Int = @fn38 interface Readable<Int>[0]
+        Type Readable<Int>
+        Local $dependency.local.2
+      call $call.2: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local $dependency.local.3
+        Type Int
+        Local $call.1
+      return
+        Type Int
+        Local $call.2
+  fun make @fn19(value: Int) -> Cell<Int>
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      val $dependency.local.2: Option<Link<Int>>
+        Type Option<Link<Int>>
+        VariantConstruct Option<Link<Int>> v1
+      val $dependency.local.3: Int
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.4: Option<Link<Int>>
+        Type Option<Link<Int>>
+        Local $dependency.local.2
+      call $call.1: Cell<Int> = @fn49 direct
+        Type Int
+        Local $dependency.local.3
+        Type Option<Link<Int>>
+        Local $dependency.local.4
+      return
+        Type Cell<Int>
+        Local $call.1
+  fun mark @fn20(step: Int, value: Cell<Int>) -> Cell<Int>
+    bb0 entry
+      call $dependency.local.2: Int = external2 direct
+      val $dependency.local.3: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.5: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          Local $dependency.local.4
+      val $dependency.local.6: Int
+        Type Int
+        Local step
+      val $dependency.local.7: Int
+        Type Int
+        Local $dependency.local.6
+      call external1 direct
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.5
+          Type Int
+          Local $dependency.local.7
+      return
+        Type Cell<Int>
+        Local value
+  fun mark @fn21(step: Int, value: Option<Link<Int>>) -> Option<Link<Int>>
+    bb0 entry
+      call $dependency.local.2: Int = external2 direct
+      val $dependency.local.3: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.5: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          Local $dependency.local.4
+      val $dependency.local.6: Int
+        Type Int
+        Local step
+      val $dependency.local.7: Int
+        Type Int
+        Local $dependency.local.6
+      call external1 direct
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.5
+          Type Int
+          Local $dependency.local.7
+      return
+        Type Option<Link<Int>>
+        Local value
+  fun mark @fn22(step: Int, value: Int) -> Int
+    bb0 entry
+      call $dependency.local.2: Int = external2 direct
+      val $dependency.local.3: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.5: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          Local $dependency.local.4
+      val $dependency.local.6: Int
+        Type Int
+        Local step
+      val $dependency.local.7: Int
+        Type Int
+        Local $dependency.local.6
+      call external1 direct
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.5
+          Type Int
+          Local $dependency.local.7
+      return
+        Type Int
+        Local value
+  fun hasNext @fn23(value: Cell<Int>) -> Boolean
+    bb0 entry
+      val $when.1: Option<Link<Int>>
+        Type Option<Link<Int>>
+        FieldAccess 1
+          Type Cell<Int>
+          Local value
+      val $pattern.subject.2: Option<Link<Int>>
+        Type Option<Link<Int>>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Link<Int>> v0
+          Type Option<Link<Int>>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.1: Link<Int>
+        Type Link<Int>
+        VariantPayloadProject Option<Link<Int>> v0 f0
+          Type Option<Link<Int>>
+          Local $pattern.subject.2
+      assign $dependency.local.2
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Link<Int>>
+        Type Option<Link<Int>>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Link<Int>> v1
+          Type Option<Link<Int>>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Boolean
+        Local $dependency.local.2
+    bb4 pattern.pass.4
+      assign $dependency.local.2
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun cell @fn24(this: Link<Int>) -> Cell<Int>
+    bb0 entry
+      return
+        Type Cell<Int>
+        FieldAccess 0
+          Type Link<Int>
+          Local this
+  fun replace @fn25(base: Cell<Int>, value: Int) -> Cell<Int>
+    bb0 entry
+      val $dependency.local.2: Cell<Int>
+        Type Cell<Int>
+        Local base
+      val $dependency.local.3: Int
+        Type Int
+        Local value
+      return
+        Type Cell<Int>
+        StructConstruct Cell<Int>
+          Type Int
+          Local $dependency.local.3
+          Type Option<Link<Int>>
+          FieldAccess 1
+            Type Cell<Int>
+            Local $dependency.local.2
+  fun withoutNext @fn26(base: Cell<Int>, fallback: Cell<Int>) -> Cell<Int>
+    bb0 entry
+      return
+        Type Cell<Int>
+        Local fallback
+  fun read @fn27(this: Cell<Unit>) -> Unit
+    bb0 entry
+      Type Unit
+      FieldAccess 0
+        Type Cell<Unit>
+        Local this
+      return
+  fun apply @fn28(this: Readable<Unit>, action: (Unit) -> Int) -> Int
+    bb0 entry
+      val $dependency.local.3: (Unit) -> Int
+        Type (Unit) -> Int
+        Local action
+      val $dependency.local.2: Readable<Unit>
+        Type Readable<Unit>
+        Local this
+      call @fn39 interface Readable<Unit>[0]
+        Type Readable<Unit>
+        Local $dependency.local.2
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type (Unit) -> Int
+        Local $dependency.local.3
+        Type Unit
+        UnitLiteral
+      return
+        Type Int
+        Local $call.1
+  fun make @fn29(value: Unit) -> Cell<Unit>
+    bb0 entry
+      val $dependency.local.1: Unit
+        Type Unit
+        Local value
+      val $dependency.local.2: Option<Link<Unit>>
+        Type Option<Link<Unit>>
+        VariantConstruct Option<Link<Unit>> v1
+      val $dependency.local.3: Unit
+        Type Unit
+        Local $dependency.local.1
+      val $dependency.local.4: Option<Link<Unit>>
+        Type Option<Link<Unit>>
+        Local $dependency.local.2
+      call $call.1: Cell<Unit> = @fn50 direct
+        Type Unit
+        Local $dependency.local.3
+        Type Option<Link<Unit>>
+        Local $dependency.local.4
+      return
+        Type Cell<Unit>
+        Local $call.1
+  fun mark @fn30(step: Int, value: Cell<Unit>) -> Cell<Unit>
+    bb0 entry
+      call $dependency.local.2: Int = external2 direct
+      val $dependency.local.3: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.5: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          Local $dependency.local.4
+      val $dependency.local.6: Int
+        Type Int
+        Local step
+      val $dependency.local.7: Int
+        Type Int
+        Local $dependency.local.6
+      call external1 direct
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.5
+          Type Int
+          Local $dependency.local.7
+      return
+        Type Cell<Unit>
+        Local value
+  fun mark @fn31(step: Int, value: Option<Link<Unit>>) -> Option<Link<Unit>>
+    bb0 entry
+      call $dependency.local.2: Int = external2 direct
+      val $dependency.local.3: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.5: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          Local $dependency.local.4
+      val $dependency.local.6: Int
+        Type Int
+        Local step
+      val $dependency.local.7: Int
+        Type Int
+        Local $dependency.local.6
+      call external1 direct
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.5
+          Type Int
+          Local $dependency.local.7
+      return
+        Type Option<Link<Unit>>
+        Local value
+  fun mark @fn32(step: Int, value: Unit) -> Unit
+    bb0 entry
+      call $dependency.local.2: Int = external2 direct
+      val $dependency.local.3: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.5: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          Local $dependency.local.4
+      val $dependency.local.6: Int
+        Type Int
+        Local step
+      val $dependency.local.7: Int
+        Type Int
+        Local $dependency.local.6
+      call external1 direct
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.5
+          Type Int
+          Local $dependency.local.7
+      Type Unit
+      Local value
+      return
+  fun hasNext @fn33(value: Cell<Unit>) -> Boolean
+    bb0 entry
+      val $when.1: Option<Link<Unit>>
+        Type Option<Link<Unit>>
+        FieldAccess 1
+          Type Cell<Unit>
+          Local value
+      val $pattern.subject.2: Option<Link<Unit>>
+        Type Option<Link<Unit>>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Link<Unit>> v0
+          Type Option<Link<Unit>>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.1: Link<Unit>
+        Type Link<Unit>
+        VariantPayloadProject Option<Link<Unit>> v0 f0
+          Type Option<Link<Unit>>
+          Local $pattern.subject.2
+      assign $dependency.local.2
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Link<Unit>>
+        Type Option<Link<Unit>>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Link<Unit>> v1
+          Type Option<Link<Unit>>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Boolean
+        Local $dependency.local.2
+    bb4 pattern.pass.4
+      assign $dependency.local.2
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun cell @fn34(this: Link<Unit>) -> Cell<Unit>
+    bb0 entry
+      return
+        Type Cell<Unit>
+        FieldAccess 0
+          Type Link<Unit>
+          Local this
+  fun replace @fn35(base: Cell<Unit>, value: Unit) -> Cell<Unit>
+    bb0 entry
+      val $dependency.local.2: Cell<Unit>
+        Type Cell<Unit>
+        Local base
+      val $dependency.local.3: Unit
+        Type Unit
+        Local value
+      return
+        Type Cell<Unit>
+        StructConstruct Cell<Unit>
+          Type Unit
+          Local $dependency.local.3
+          Type Option<Link<Unit>>
+          FieldAccess 1
+            Type Cell<Unit>
+            Local $dependency.local.2
+  fun withoutNext @fn36(base: Cell<Unit>, fallback: Cell<Unit>) -> Cell<Unit>
+    bb0 entry
+      return
+        Type Cell<Unit>
+        Local fallback
+  fun Readable.read @fn37(this: Readable<Later>) -> Later
+    bb0 entry
+      trap "call to abstract method `Readable.read`"
+  fun Readable.read @fn38(this: Readable<Int>) -> Int
+    bb0 entry
+      trap "call to abstract method `Readable.read`"
+  fun Readable.read @fn39(this: Readable<Unit>) -> Unit
+    bb0 entry
+      trap "call to abstract method `Readable.read`"
+  fun Continuation.resume @fn40(this: Continuation<Later>, value: Later) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn41(this: Continuation<Later>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn42(this: SuspendTask<Later>, $completion: Continuation<Later>) -> CoroutineStep<Later>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn43(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Later.$c0 @fn44(this: Later, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Later
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Link.$c0 @fn45(this: Link<Later>, cell: Cell<Later>) -> Unit
+    bb0 entry
+      field_set 0
+        Type Link<Later>
+        Local this
+        Type Cell<Later>
+        Local cell
+      return
+  fun init.Link.$c0 @fn46(this: Link<Int>, cell: Cell<Int>) -> Unit
+    bb0 entry
+      field_set 0
+        Type Link<Int>
+        Local this
+        Type Cell<Int>
+        Local cell
+      return
+  fun init.Link.$c0 @fn47(this: Link<Unit>, cell: Cell<Unit>) -> Unit
+    bb0 entry
+      field_set 0
+        Type Link<Unit>
+        Local this
+        Type Cell<Unit>
+        Local cell
+      return
+  fun ctor.Cell.$c1 @fn48(value: Later, next: Option<Link<Later>>) -> Cell<Later> <no-gc>
+    bb0 entry
+      return
+        Type Cell<Later>
+        StructInit Cell<Later>
+          Type Later
+          Local value
+          Type Option<Link<Later>>
+          Local next
+  fun ctor.Cell.$c1 @fn49(value: Int, next: Option<Link<Int>>) -> Cell<Int> <no-gc>
+    bb0 entry
+      return
+        Type Cell<Int>
+        StructInit Cell<Int>
+          Type Int
+          Local value
+          Type Option<Link<Int>>
+          Local next
+  fun ctor.Cell.$c1 @fn50(value: Unit, next: Option<Link<Unit>>) -> Cell<Unit> <no-gc>
+    bb0 entry
+      return
+        Type Cell<Unit>
+        StructInit Cell<Unit>
+          Type Unit
+          Local value
+          Type Option<Link<Unit>>
+          Local next
+  fun startCoroutine<Later> @fn51(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn40 interface Continuation<Later>[0]
+        Type Continuation<Later>
+        Local completion
+        Type Later
+        EnumField v0 f0
+          Type CoroutineStep<Later>
+          Local $step
+      return
+    bb2 failed
+      call @fn41 interface Continuation<Later>[1]
+        Type Continuation<Later>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Later> = @fn42 interface SuspendTask<Later>[0]
+        Type SuspendTask<Later>
+        Local task
+        Type Continuation<Later>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Later>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun thunk<Cell<Later>> Readable.read() @fn52(this: Readable<Later>) -> Later
+    bb0 entry
+      call $call.1: Later = @fn7 direct
+        Type Cell<Later>
+        Unbox
+          Type Readable<Later>
+          Local this
+      return
+        Type Later
+        Local $call.1
+  fun thunk<Cell<Later>> Readable.apply((Later) -> Int) @fn53(this: Readable<Later>, action: (Later) -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn8 direct
+        Type Readable<Later>
+        Retype Readable<Later>
+          Type Readable<Later>
+          Local this
+        Type (Later) -> Int
+        Local action
+      return
+        Type Int
+        Local $call.1
+  fun thunk<Cell<Int>> Readable.read() @fn54(this: Readable<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn17 direct
+        Type Cell<Int>
+        Unbox
+          Type Readable<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun thunk<Cell<Int>> Readable.apply((Int) -> Int) @fn55(this: Readable<Int>, action: (Int) -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn18 direct
+        Type Readable<Int>
+        Retype Readable<Int>
+          Type Readable<Int>
+          Local this
+        Type (Int) -> Int
+        Local action
+      return
+        Type Int
+        Local $call.1
+  fun thunk<Cell<Unit>> Readable.read() @fn56(this: Readable<Unit>) -> Unit
+    bb0 entry
+      call @fn27 direct
+        Type Cell<Unit>
+        Unbox
+          Type Readable<Unit>
+          Local this
+      return
+  fun thunk<Cell<Unit>> Readable.apply((Unit) -> Int) @fn57(this: Readable<Unit>, action: (Unit) -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn28 direct
+        Type Readable<Unit>
+        Retype Readable<Unit>
+          Type Readable<Unit>
+          Local this
+        Type (Unit) -> Int
+        Local action
+      return
+        Type Int
+        Local $call.1
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn58($source: (Later) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Later) -> Int
+        Local $source
+        Type Later
+        Retype Later
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn59($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn60($source: (Unit) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type (Unit) -> Int
+        Local $source
+        Type Unit
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<Later> result=Later
+  coroutine_slot cl0 CoroutineSlot<Later> value=Later
+  coroutine_start ct0 result=Later function=fn51
+  coroutine_fn cf0 @fn42 source_return=Later step=cs0 immediate
+  instance mi0 function=@fn2 <- exercise
+  instance mi1 function=@fn4 <- exercise
+  instance mi2 function=@fn6 <- exercise
+  instance mi3 function=@fn7 <- read
+  instance mi4 function=@fn8 <- apply
+  instance mi5 function=@fn9 <- make
+  instance mi6 function=@fn10 <- mark
+  instance mi7 function=@fn11 <- mark
+  instance mi8 function=@fn12 <- mark
+  instance mi9 function=@fn13 <- hasNext
+  instance mi10 function=@fn14 <- cell
+  instance mi11 function=@fn15 <- replace
+  instance mi12 function=@fn16 <- withoutNext
+  instance mi13 function=@fn17 <- read
+  instance mi14 function=@fn18 <- apply
+  instance mi15 function=@fn19 <- make
+  instance mi16 function=@fn20 <- mark
+  instance mi17 function=@fn21 <- mark
+  instance mi18 function=@fn22 <- mark
+  instance mi19 function=@fn23 <- hasNext
+  instance mi20 function=@fn24 <- cell
+  instance mi21 function=@fn25 <- replace
+  instance mi22 function=@fn26 <- withoutNext
+  instance mi23 function=@fn27 <- read
+  instance mi24 function=@fn28 <- apply
+  instance mi25 function=@fn29 <- make
+  instance mi26 function=@fn30 <- mark
+  instance mi27 function=@fn31 <- mark
+  instance mi28 function=@fn32 <- mark
+  instance mi29 function=@fn33 <- hasNext
+  instance mi30 function=@fn34 <- cell
+  instance mi31 function=@fn35 <- replace
+  instance mi32 function=@fn36 <- withoutNext
+  instance mi33 function=@fn37 <- Readable.read
+  instance mi34 function=@fn38 <- Readable.read
+  instance mi35 function=@fn39 <- Readable.read
+  instance mi36 function=@fn40 <- Continuation.resume
+  instance mi37 function=@fn41 <- Continuation.resumeWithException
+  instance mi38 function=@fn42 <- SuspendTask.run
+  instance mi39 function=@fn43 <- SuspendRegistration.register
+  output library

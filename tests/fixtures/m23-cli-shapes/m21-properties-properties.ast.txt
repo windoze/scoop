@@ -1,0 +1,128 @@
+SourceFile
+  RootPackage
+  open class Base()
+    open var state: Int = <expr>
+      IntLiteral 1
+  class Callable()
+    operator fun invoke
+  class Derived() : Base(<0 args>)
+    open override var state: Int = <expr>
+      IntLiteral 10
+      get()
+        Binary Add
+          Var field
+          IntLiteral 1
+      set(next)
+        assign field
+          Binary Sub
+            Var next
+            IntLiteral 1
+    val doubled: Int <computed>
+      get()
+        Binary Mul
+          Var state
+          IntLiteral 2
+    val action: Callable <computed>
+      get()
+        Call Callable
+  abstract class Named()
+    abstract val name: String <abstract>
+  class Actual() : Named(<0 args>)
+    open override val name: String <computed>
+      get()
+        StringLiteral "actual"
+  class OptionalHolder()
+    var value: Int? <optional omitted>
+  struct Pair
+    field left: Int
+    field right: Int
+    val sum: Int <computed>
+      get()
+        Binary Add
+          Var left
+          Var right
+  enum Marker
+    Only
+    val code: Int <computed>
+      get()
+        IntLiteral 7
+  val answer: Int <computed>
+  var observed: Int <computed>
+  val callable: Callable <computed>
+  fun read(base: Base): Int
+    =
+      FieldAccess state
+        Var base
+  fun write(base: Base, value: Int)
+    assign .state
+      Var base
+      Var value
+  fun readName(value: Named): String
+    =
+      FieldAccess name
+        Var value
+  fun main()
+    val derived
+      Call Derived
+    Call println
+      Call read
+        Var derived
+    Call write
+      Var derived
+      IntLiteral 20
+    Call println
+      Call read
+        Var derived
+    compound-assign Add
+      Var derived
+      IntLiteral 2
+    Call println
+      FieldAccess doubled
+        Var derived
+    val optional: Derived?
+      Call Some
+        Var derived
+    Call println
+      NullAssert
+        FieldAccess ?doubled
+          Var optional
+    Call println
+      MethodCall action
+        Var derived
+        IntLiteral 6
+    Call println
+      Call readName
+        Call Actual
+    Call println
+      FieldAccess sum
+        Call Pair
+          IntLiteral 3
+          IntLiteral 4
+    Call println
+      FieldAccess code
+        FieldAccess Only
+          Var Marker
+    Call println
+      Var answer
+    assign observed
+      IntLiteral 9
+    Call println
+      Var observed
+    Call println
+      Call callable
+        IntLiteral 8
+    val holder
+      Call OptionalHolder
+    Call println
+      Binary Eq
+        FieldAccess value
+          Var holder
+        Var None
+    assign .value
+      Var holder
+      Call Some
+        IntLiteral 8
+    Call println
+      NullAssert
+        FieldAccess value
+          Var holder

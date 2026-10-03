@@ -1,0 +1,8 @@
+Module
+  fun result @fn0() -> Int
+    bb0 entry
+      call $call.1: Int = external0 direct
+      return
+        Type Int
+        Local $call.1
+  output library

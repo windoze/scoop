@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "constructing `Ptr` from a raw integer requires an unsafe context",
+    "notes": [],
+    "origin": {
+      "cone": "68ffe632b6a20d562ca3a57c1480f9613ae3493004a596c44f9f116c005cd245",
+      "end": 157,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 148
+    },
+    "severity": "error"
+  }
+]

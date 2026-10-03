@@ -1,0 +1,62 @@
+SourceFile
+  RootPackage
+  open class Base()
+  class Left() : Base(<0 args>)
+  class Right() : Base(<0 args>)
+  interface Named
+    fun name
+  class Cat(), Named
+    fun name
+  class Dog(), Named
+    fun name
+  struct Tag : Named
+    field text: String
+    fun name
+  fun baseCount(values: Array<Base>): Long
+    =
+      FieldAccess size
+        Var values
+  fun secondName(values: Array<Named>): String
+    =
+      MethodCall name
+        Index
+          Var values
+          IntLiteral 1
+  fun anyCount(values: Array<Any>): Long
+    =
+      FieldAccess size
+        Var values
+  fun main()
+    val bases
+      ArrayLiteral
+        Call Left
+        Call Right
+    Call println
+      Call baseCount
+        Var bases
+    val named
+      ArrayLiteral
+        Call Cat
+        Call Dog
+    Call println
+      Call secondName
+        Var named
+    val unrelated
+      ArrayLiteral
+        Call Left
+        StringLiteral "text"
+    Call println
+      Call anyCount
+        Var unrelated
+    val tag: Named
+      Call Tag
+        StringLiteral "tag"
+    val explicitlyBoxed: Array<Named>
+      ArrayLiteral
+        Var tag
+        Cast Named optional=false
+          Call Tag
+            StringLiteral "boxed"
+    Call println
+      Call secondName
+        Var explicitlyBoxed

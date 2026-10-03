@@ -1,0 +1,10 @@
+SourceFile
+  RootPackage
+  public struct Flag
+    field enabled: Boolean
+  public fun identity(value: Flag): Flag
+    =
+      Var value
+  private fun text(value: String): String
+    =
+      Var value

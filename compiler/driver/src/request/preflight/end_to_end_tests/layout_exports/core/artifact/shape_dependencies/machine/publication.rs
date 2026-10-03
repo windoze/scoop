@@ -12,7 +12,6 @@ pub(super) fn check<'a, 'p>(
 ) -> (
     lir::ConeProductionSectionV2,
     lir::CrossConeLayoutAbiSectionV1<'a>,
-    String,
 ) {
     let registration = output
         .build_production_section_v2(
@@ -107,9 +106,5 @@ pub(super) fn check<'a, 'p>(
         production.callable_registrations().registrations().len(),
         output.module().functions.len()
     );
-    let dump = relations
-        .iter()
-        .map(|relation| format!("{} {:?}\n", relation.provider(), relation.target()))
-        .collect();
-    (production, section, dump)
+    (production, section)
 }

@@ -1,0 +1,20 @@
+SourceFile
+  RootPackage
+  public interface DeferredGeneric<T>
+  public class DeferredUnused(), DeferredGeneric<Int>
+  public struct DeferredBox<T>
+    field value: T
+  public class DeferredWrapper(val box: DeferredBox<Int>)
+    public fun read
+  public fun demand(): Int
+    =
+      MethodCall read
+        Call DeferredWrapper
+          Call DeferredBox
+            IntLiteral 7
+  public class DeferredAccessorBox<T>(val value: T)
+  public fun demandAccessor(): Int
+    =
+      FieldAccess value
+        Call DeferredAccessorBox
+          IntLiteral 7

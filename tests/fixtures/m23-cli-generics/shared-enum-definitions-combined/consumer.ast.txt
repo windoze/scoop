@@ -1,0 +1,100 @@
+SourceFile
+  QualifiedPackage consumer.enumdefinitions
+  ImportStar Local upstream.enumdefinitions.*
+  private class LocalLink<T>(val value: T, val tail: LocalChain<T>)
+  private enum LocalChain<T>
+    End
+    Cons(LocalLink<T>)
+  private enum LocalEntry<T> : Readable<T>
+    Value(T)
+  private fun localTotal<T>(value: LocalChain<T>, read: (T) -> Int): Int
+    =
+      WhenExpression
+        Var value
+        arm End
+          IntLiteral 0
+        arm Cons(link)
+          Binary Add
+            Call read
+              FieldAccess value
+                Var link
+            Call localTotal
+              FieldAccess tail
+                Var link
+              Var read
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val tail: LocalChain<T>
+      Var End
+    val local: LocalChain<T>
+      Call Cons
+        Call LocalLink
+          Var seed
+          Var tail
+    if
+      Binary Ne
+        Call localTotal
+          Var local
+          Var read
+        IntLiteral 42
+      return
+        IntLiteral 1
+    val external: Chain<T>?
+      Call Some
+        Call singleton
+          Var seed
+    val value: T
+      WhenExpression
+        Var external
+        arm Some(Cons(link))
+          FieldAccess value
+            Var link
+        else
+          Var seed
+    val first: Readable<T>
+      MethodCall Value
+        Var Entry
+        Var value
+    val second: Readable<T>
+      MethodCall Value
+        Var LocalEntry
+        Var seed
+    if
+      Binary Ne
+        MethodCall apply
+          Var first
+          Var read
+        MethodCall apply
+          Var second
+          Var read
+      return
+        IntLiteral 2
+    return
+      Call read
+        Var value
+  public fun result(): Int
+    if
+      Binary Ne
+        Call exercise<String>
+          StringLiteral "value"
+          Lambda 0 suspend=false
+            param item: _
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call exercise<Unit>
+          UnitLiteral
+          Lambda 1 suspend=false
+            param item: _
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 2
+    return
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 2 suspend=false
+          param item: _
+          Var item

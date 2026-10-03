@@ -1,0 +1,543 @@
+Module
+  struct Bundle (optional: Option<Int>, signal: Signal)
+  struct UnitBox (Unit: Unit)
+  enum Signal
+    Ready()
+    Payload(_1: Int)
+  enum Option<Int>
+    Some(_0: Int)
+    None()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Signal>
+    Completed(value: Signal)
+    Suspended()
+  enum CoroutineSlot<Signal>
+    Empty()
+    Value(value: Signal)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Signal> vtable=0 itables=0
+  class box<(Option<Int>, Signal)> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Continuation<Signal>
+  interface SuspendTask<Signal>
+  interface SuspendRegistration<Signal>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn8 captures=0
+    bridge function_type1 -> @fn16 id=e8ef1d7fafb578b3655bacec466742cbb270d19ce09544bb9b9889f8a62adc30
+  generated_exact_type get0 location=class4 nominal_id=3ebefc3fdb651b9b4379eaf925e8adec262ed4eb4c0673f368486edddcb9fbf2 exact_id=04a3934cacf485d460b04ebbc84e00a609dee3c912e4d4f40b5010ef68029237
+  generated_exact_type get1 location=class3 nominal_id=e759b2c5535d4b7c4e6138eb42a891aedb0d0e05086637d754de5c4395dbae3a exact_id=7e4b6ff8dd45b68ed6f9f4f9870c4a95266f901b784d9433cc172d41ba6c9dc5
+  generated_exact_type get2 location=enum3 nominal_id=fb52d557a86b400ca643c36e72e1ea00dedb87d997103c89966576e662163915 exact_id=a253ca5b578dd4db12b8ca4e3e0627297f22c5df142af162ca01443b66de81da
+  generated_exact_type get3 location=enum4 nominal_id=3348c722c81918b50fdd083c0f72a36f67f8d172861a7e3e3f47ca203fdb1275 exact_id=d05f4d1434d8ed6efc137877ce2aed2fb4b092d4c19caaced54a2152af217855
+  generated_exact_type get4 location=closure0 nominal_id=74fba510a3a97183647296291700e952491f1229ba3403797f3e5034aeb5c979 exact_id=e08d87ccb302439c250a3014879d4a754804b3720edd5f70909ddc295504db9d
+  generated_exact_type get5 location=class5 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn15 id=02308c728fd275d58fcda46727312241e663fe8076f92fc8535cc28c34c9c7d7
+  generated_callable gc1 function=@fn16 id=e8ef1d7fafb578b3655bacec466742cbb270d19ce09544bb9b9889f8a62adc30
+  fun classify @fn0(value: Signal) -> Int
+    bb0 entry
+      val $when.1: Signal
+        Type Signal
+        Local value
+      val $pattern.subject.2: Signal
+        Type Signal
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Signal v0
+          Type Signal
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $result.0
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Signal
+        Type Signal
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Signal v1
+          Type Signal
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Int
+        Local $result.0
+    bb4 pattern.pass.4
+      val number: Int
+        Type Int
+        VariantPayloadProject Signal v1 f0
+          Type Signal
+          Local $pattern.subject.3
+      assign $result.0
+        Type Int
+        Local number
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun optionValue @fn1(value: Option<Int>) -> Int
+    bb0 entry
+      val $when.1: Option<Int>
+        Type Option<Int>
+        Local value
+      val $pattern.subject.2: Option<Int>
+        Type Option<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Int> v1
+          Type Option<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $result.1
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Int>
+        Type Option<Int>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Int
+        Local $result.1
+    bb4 pattern.pass.4
+      val number: Int
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local $pattern.subject.3
+      assign $result.1
+        Type Int
+        Local number
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun plainBinding @fn2() -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      val source: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+          Type Int
+          Local $dependency.parameter._1
+      val None: Option<Int>
+        Type Option<Int>
+        Local source
+      val $argument.0: Option<Int>
+        Type Option<Int>
+        Local None
+      val $parameter.value: Option<Int>
+        Type Option<Int>
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Option<Int>
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun nestedBinding @fn3() -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+          Type Int
+          Local $dependency.parameter._1
+      val $argument.1: Signal
+        Type Signal
+        VariantConstruct Signal v0
+      val $parameter.optional: Option<Int>
+        Type Option<Int>
+        Local $argument.0
+      val $parameter.signal: Signal
+        Type Signal
+        Local $argument.1
+      call bundle: Bundle = @fn13 direct
+        Type Option<Int>
+        Local $parameter.optional
+        Type Signal
+        Local $parameter.signal
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      val nested: (Signal, Option<Int>)
+        Type (Signal, Option<Int>)
+        TupleLiteral
+          Type Signal
+          VariantConstruct Signal v1
+            Type Int
+            Local $parameter._1
+          Type Option<Int>
+          VariantConstruct Option<Int> v1
+      val $binding.subject.2: (Bundle, (Signal, Option<Int>))
+        Type (Bundle, (Signal, Option<Int>))
+        TupleLiteral
+          Type Bundle
+          Local bundle
+          Type (Signal, Option<Int>)
+          Local nested
+      val $binding.projection.3: Bundle
+        Type Bundle
+        FieldAccess 0
+          Type (Bundle, (Signal, Option<Int>))
+          Local $binding.subject.2
+      val $binding.projection.4: Signal
+        Type Signal
+        FieldAccess 1
+          Type Bundle
+          Local $binding.projection.3
+      val Ready: Signal
+        Type Signal
+        Local $binding.projection.4
+      val $binding.projection.5: Option<Int>
+        Type Option<Int>
+        FieldAccess 0
+          Type Bundle
+          Local $binding.projection.3
+      val None: Option<Int>
+        Type Option<Int>
+        Local $binding.projection.5
+      val $binding.projection.6: (Signal, Option<Int>)
+        Type (Signal, Option<Int>)
+        FieldAccess 1
+          Type (Bundle, (Signal, Option<Int>))
+          Local $binding.subject.2
+      val $binding.projection.7: Signal
+        Type Signal
+        FieldAccess 0
+          Type (Signal, Option<Int>)
+          Local $binding.projection.6
+      val Payload: Signal
+        Type Signal
+        Local $binding.projection.7
+      val $binding.projection.8: Option<Int>
+        Type Option<Int>
+        FieldAccess 1
+          Type (Signal, Option<Int>)
+          Local $binding.projection.6
+      val NestedNone: Option<Int>
+        Type Option<Int>
+        Local $binding.projection.8
+      val $argument.0: Option<Int>
+        Type Option<Int>
+        Local None
+      val $parameter.value: Option<Int>
+        Type Option<Int>
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn1 direct
+        Type Option<Int>
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Signal
+        Type Signal
+        Local Ready
+      val $parameter.value: Signal
+        Type Signal
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn0 direct
+        Type Signal
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Signal
+        Type Signal
+        Local Payload
+      val $parameter.value: Signal
+        Type Signal
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn0 direct
+        Type Signal
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Option<Int>
+        Type Option<Int>
+        Local NestedNone
+      val $parameter.value: Option<Int>
+        Type Option<Int>
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn1 direct
+        Type Option<Int>
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun lambdaBinding @fn4() -> Int
+    bb0 entry
+      val unpack: ((Option<Int>, Signal)) -> Int
+        Type ((Option<Int>, Signal)) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      val $callable.receiver: ((Option<Int>, Signal)) -> Int
+        Type ((Option<Int>, Signal)) -> Int
+        Local unpack
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type ((Option<Int>, Signal)) -> Int
+        Local $callable.receiver
+        Type (Option<Int>, Signal)
+        TupleLiteral
+          Type Option<Int>
+          VariantConstruct Option<Int> v0
+            Type Int
+            Local $dependency.parameter._1
+          Type Signal
+          VariantConstruct Signal v0
+      return
+        Type Int
+        Local $call.1
+  fun explicitUnitFieldBinding @fn5() -> Unit
+    bb0 entry
+      val $argument.0: Unit
+        Type Unit
+        UnitLiteral
+      val $parameter.Unit: Unit
+        Type Unit
+        Local $argument.0
+      call $binding.subject.11: UnitBox = @fn14 direct
+        Type Unit
+        Local $parameter.Unit
+      val $binding.projection.12: Unit
+        Type Unit
+        FieldAccess 0
+          Type UnitBox
+          Local $binding.subject.11
+      val value: Unit
+        Type Unit
+        Local $binding.projection.12
+      Type Unit
+      Local value
+      return
+  fun main @fn6() -> Unit
+    bb0 entry
+      call $dependency.argument.0: Int = @fn2 direct
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Int
+        Local $dependency.parameter.value
+      call @fn3 direct
+      call $dependency.argument.0: Int = @fn4 direct
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Int
+        Local $dependency.parameter.value
+      call @fn5 direct
+      return
+  fun println @fn7(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun $lambda.0 @fn8($closure: ((Option<Int>, Signal)) -> Int, $arg.0: (Option<Int>, Signal)) -> Int
+    bb0 entry
+      val $binding.projection.9: Option<Int>
+        Type Option<Int>
+        FieldAccess 0
+          Type (Option<Int>, Signal)
+          Local $arg.0
+      val None: Option<Int>
+        Type Option<Int>
+        Local $binding.projection.9
+      val $binding.projection.10: Signal
+        Type Signal
+        FieldAccess 1
+          Type (Option<Int>, Signal)
+          Local $arg.0
+      val Ready: Signal
+        Type Signal
+        Local $binding.projection.10
+      val $argument.0: Option<Int>
+        Type Option<Int>
+        Local None
+      val $parameter.value: Option<Int>
+        Type Option<Int>
+        Local $argument.0
+      call $dependency.receiver: Int = @fn1 direct
+        Type Option<Int>
+        Local $parameter.value
+      val $argument.0: Signal
+        Type Signal
+        Local Ready
+      val $parameter.value: Signal
+        Type Signal
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn0 direct
+        Type Signal
+        Local $parameter.value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun Continuation.resume @fn9(this: Continuation<Signal>, value: Signal) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn10(this: Continuation<Signal>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn11(this: SuspendTask<Signal>, $completion: Continuation<Signal>) -> CoroutineStep<Signal>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn12(this: SuspendRegistration<Signal>, continuation: Continuation<Signal>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.Bundle.$c0 @fn13(optional: Option<Int>, signal: Signal) -> Bundle <no-gc>
+    bb0 entry
+      return
+        Type Bundle
+        StructInit Bundle
+          Type Option<Int>
+          Local optional
+          Type Signal
+          Local signal
+  fun ctor.UnitBox.$c1 @fn14(Unit: Unit) -> UnitBox <no-gc>
+    bb0 entry
+      return
+        Type UnitBox
+        StructInit UnitBox
+          Type Unit
+          Local Unit
+  fun startCoroutine<Signal> @fn15(task: SuspendTask<Signal>, completion: Continuation<Signal>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn9 interface Continuation<Signal>[0]
+        Type Continuation<Signal>
+        Local completion
+        Type Signal
+        EnumField v0 f0
+          Type CoroutineStep<Signal>
+          Local $step
+      return
+    bb2 failed
+      call @fn10 interface Continuation<Signal>[1]
+        Type Continuation<Signal>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Signal> = @fn11 interface SuspendTask<Signal>[0]
+        Type SuspendTask<Signal>
+        Local task
+        Type Continuation<Signal>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Signal>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn16($source: ((Option<Int>, Signal)) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type ((Option<Int>, Signal)) -> Int
+        Local $source
+        Type (Option<Int>, Signal)
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<Signal> result=Signal
+  coroutine_slot cl0 CoroutineSlot<Signal> value=Signal
+  coroutine_start ct0 result=Signal function=fn15
+  coroutine_fn cf0 @fn11 source_return=Signal step=cs0 immediate
+  instance mi0 function=@fn7 <- println
+  instance mi1 function=@fn9 <- Continuation.resume
+  instance mi2 function=@fn10 <- Continuation.resumeWithException
+  instance mi3 function=@fn11 <- SuspendTask.run
+  instance mi4 function=@fn12 <- SuspendRegistration.register
+  str @str0 "\n"
+  output executable @fn6

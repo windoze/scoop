@@ -1,0 +1,16 @@
+schema = 1
+name = "legacy-m1-hello-errors-missing-brace"
+root = "../../../m1-hello/errors/missing-brace.scoop"
+inputs = ["../../../m1-hello/errors/missing-brace.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["legacy", "m1-hello", "single-file", "negative"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "missing-brace.diagnostics.json"}

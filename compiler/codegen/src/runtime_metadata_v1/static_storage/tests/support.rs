@@ -53,6 +53,7 @@ pub(super) fn static_storage_plan() -> StrongStaticStorageRegistrationPlanSetV1 
             GlobalInit::StringConst { identity, .. } => Some(identity.identity_record().clone()),
             GlobalInit::CString { .. }
             | GlobalInit::Storage { .. }
+            | GlobalInit::RawStorage { .. }
             | GlobalInit::ImportedStorage { .. } => None,
         })
         .unwrap();
@@ -76,6 +77,7 @@ pub(super) fn static_storage_plan() -> StrongStaticStorageRegistrationPlanSetV1 
                     }
                     GlobalInit::CString { .. }
                     | GlobalInit::StringConst { .. }
+                    | GlobalInit::RawStorage { .. }
                     | GlobalInit::ImportedStorage { .. } => None,
                 })
                 .collect(),
@@ -95,6 +97,7 @@ pub(super) fn static_storage_plan() -> StrongStaticStorageRegistrationPlanSetV1 
                     }
                     GlobalInit::CString { .. }
                     | GlobalInit::StringConst { .. }
+                    | GlobalInit::RawStorage { .. }
                     | GlobalInit::ImportedStorage { .. } => None,
                 })
                 .collect(),
@@ -111,6 +114,7 @@ pub(super) fn static_storage_plan() -> StrongStaticStorageRegistrationPlanSetV1 
                     }
                     GlobalInit::CString { .. }
                     | GlobalInit::StringConst { .. }
+                    | GlobalInit::RawStorage { .. }
                     | GlobalInit::ImportedStorage { .. } => None,
                 })
                 .collect(),
@@ -494,7 +498,6 @@ fn storage_global(
             .into(),
             ty,
             initial_state,
-            thread_local: false,
         },
     }
 }

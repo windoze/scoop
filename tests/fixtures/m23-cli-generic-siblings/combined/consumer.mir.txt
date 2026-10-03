@@ -1,0 +1,92 @@
+Module
+  class Throwable vtable=0 itables=0
+  class Payload vtable=0 itables=0
+  fun check @fn0() -> Int
+    bb0 entry
+      assign $new.1
+        Type Throwable
+        ClassAlloc Throwable
+      call external0 direct
+        Type Throwable
+        Local $new.1
+      val $dependency.argument.0: Throwable
+        Type Throwable
+        Local $new.1
+      val $dependency.parameter.error: Throwable
+        Type Throwable
+        Local $dependency.argument.0
+      call $dependency.argument.0: Int = external1 direct
+        Type Throwable
+        Local $dependency.parameter.error
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.2
+        Type Payload
+        ClassAlloc Payload
+      call external2 direct
+        Type Payload
+        Local $new.2
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.argument.0: Payload
+        Type Payload
+        Local $new.2
+      val $dependency.parameter.value: Payload
+        Type Payload
+        Local $dependency.argument.0
+      call first: Payload = external3 direct
+        Type Payload
+        Local $dependency.parameter.value
+      assign $new.3
+        Type Throwable
+        ClassAlloc Throwable
+      call external0 direct
+        Type Throwable
+        Local $new.3
+      val $dependency.argument.0: Throwable
+        Type Throwable
+        Local $new.3
+      val $dependency.parameter.error: Throwable
+        Type Throwable
+        Local $dependency.argument.0
+      call $dependency.argument.0: Int = external4 direct
+        Type Throwable
+        Local $dependency.parameter.error
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.4
+        Type Payload
+        ClassAlloc Payload
+      call external2 direct
+        Type Payload
+        Local $new.4
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.argument.0: Payload
+        Type Payload
+        Local $new.4
+      val $dependency.parameter.value: Payload
+        Type Payload
+        Local $dependency.argument.0
+      call second: Payload = external5 direct
+        Type Payload
+        Local $dependency.parameter.value
+      call $dependency.receiver: Int = external6 direct
+        Type Payload
+        Local first
+      call $dependency.argument.0: Int = external6 direct
+        Type Payload
+        Local second
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  output library

@@ -1,0 +1,12 @@
+SourceFile
+  RootPackage
+  fun token()
+  fun main()
+    Call userCoreAbiUnit
+      Call token
+    val text
+      Call userCoreAbiMixed
+        Call userCoreAbiUnit
+          Call token
+        IntLiteral 7
+        StringLiteral "mixed ABI"

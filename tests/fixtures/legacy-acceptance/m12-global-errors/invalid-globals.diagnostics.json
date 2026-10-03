@@ -1,0 +1,119 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "a local top-level `val` is not supported; use a local binding or `@Extern val`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 95,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 74
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@Global` and `@ThreadLocal` cannot be combined",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 117,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 105
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "raw storage of type Managed has no valid all-zero initial image",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 182,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 145
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "an `@Extern` global must not have an initializer",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 283,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 259
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "an extern `var` requires exactly one of `@Global` or `@ThreadLocal`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 342,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 319
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "an extern `val` must not use `@Global` or `@ThreadLocal`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 396,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 379
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "an extern global supports only the C data ABI",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 458,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 441
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "global initializer must be a GC-free compile-time constant and must not call functions or read another global",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 219,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 211
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "reading an extern global requires an unsafe context",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 569,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 559
+    },
+    "severity": "error"
+  }
+]

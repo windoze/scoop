@@ -1,0 +1,33 @@
+SourceFile
+  RootPackage
+  var attempts: Int = <expr>
+  fun fail(): Int
+    assign attempts
+      Binary Add
+        Var attempts
+        IntLiteral 1
+    throw
+      Call UnwrapException
+  class Broken()
+    companion object
+      val value: Int =
+        Call fail
+  fun main()
+    try
+      Call println
+        FieldAccess value
+          Var Broken
+    catch exception: UnwrapException
+      Call println
+        Var attempts
+    Call gcCollect
+    try
+      Call println
+        FieldAccess value
+          Var Broken
+    catch exception: UnwrapException
+      Call println
+        Var attempts
+      Call println
+        Is UnwrapException false
+          Var exception

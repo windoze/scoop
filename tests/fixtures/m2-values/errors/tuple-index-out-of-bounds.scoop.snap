@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m2-values/errors/tuple-index-out-of-bounds.scoop:3:15: error: tuple type `(Int, Int)` has no element `_3`

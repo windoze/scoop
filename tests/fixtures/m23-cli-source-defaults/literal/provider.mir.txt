@@ -1,0 +1,7 @@
+Module
+  fun hidden @fn0(value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  output library

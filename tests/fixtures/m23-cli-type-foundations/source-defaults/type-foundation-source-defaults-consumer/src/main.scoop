@@ -1,0 +1,3 @@
+import dependency.sourceDefaults.*
+
+public class Child: Defaults() { public fun readAll(): Int = invoke() }

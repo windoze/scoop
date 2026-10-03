@@ -51,6 +51,7 @@ impl<'a> FunctionLowerer<'a> {
                 });
             }
             mir::StatementKind::GlobalAssign { global, value } => {
+                let ty = &value.ty;
                 let value = self.lower_expr(value)?;
                 match *self
                     .storage_globals
@@ -61,6 +62,7 @@ impl<'a> FunctionLowerer<'a> {
                         self.push(lir::Instruction::GlobalStore { global, value })
                     }
                     StorageGlobal::Native(global) => {
+                        let value = self.project_c_value(ty, value);
                         let safepoint =
                             self.new_safepoint(lir::SafepointSiteRole::NativeSafeTransition);
                         self.push(lir::Instruction::NativeGlobalStore {

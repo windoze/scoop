@@ -1,0 +1,18 @@
+SourceFile
+  QualifiedPackage dependency.protected_source
+  public open class Surface()
+    protected var stored: Int <computed>
+      get()
+        IntLiteral 1
+      private set(value)
+    protected val computed: Int <computed>
+      get()
+        Var stored
+    protected open var virtualValue: Int <computed>
+      get()
+        Var stored
+      set(value)
+    protected nested class Box
+    protected nested enum Choice
+  public open class GenericOwner<T>(var value: T)
+    protected fun echo

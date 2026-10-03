@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m17-defaults/errors/default-self-reference.scoop:1:26: error: unknown variable `value`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation

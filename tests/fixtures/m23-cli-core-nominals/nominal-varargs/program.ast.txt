@@ -1,0 +1,108 @@
+SourceFile
+  RootPackage
+  fun check(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun count(value: Batches<Int>): Long
+    =
+      WhenExpression
+        Var value
+        arm Batches.Items(values)
+          FieldAccess size
+            Var values
+        arm Batches.Defaulted(values)
+          FieldAccess size
+            Var values
+  fun main()
+    val values: Array<Int>
+      ArrayLiteral
+        IntLiteral 3
+        IntLiteral 4
+    val ints
+      Call Variadic<Int>
+        IntLiteral 1
+        IntLiteral 2
+    Call check
+      Binary Eq
+        MethodCall observe
+          Var ints
+        IntLiteral 0L
+    Call check
+      Binary Eq
+        MethodCall observe
+          Var ints
+          IntLiteral 1
+          Argument *
+            Var values
+          IntLiteral 5
+        IntLiteral 4L
+    Call check
+      Binary Eq
+        MethodCall observe
+          Var ints
+          Argument values=
+            Var values
+        IntLiteral 2L
+    Call check
+      Binary Eq
+        MethodCall generic<String>
+          Var ints
+          StringLiteral "one"
+        IntLiteral 0
+    val strings
+      Call Variadic<String>
+        StringLiteral "constructor"
+    Call check
+      Binary Eq
+        MethodCall observe
+          Var strings
+          StringLiteral "one"
+          StringLiteral "two"
+        IntLiteral 2L
+    Call check
+      Binary Eq
+        MethodCall generic<Int>
+          Var strings
+        IntLiteral 0
+    Call check
+      Binary Eq
+        Call count
+          MethodCall Items
+            Var Batches
+            IntLiteral 1
+            IntLiteral 2
+            IntLiteral 3
+        IntLiteral 3L
+    Call check
+      Binary Eq
+        Call count
+          MethodCall Items
+            Var Batches
+            Argument values=
+              Var values
+        IntLiteral 2L
+    Call check
+      Binary Eq
+        Call count
+          MethodCall Defaulted
+            Var Batches
+        IntLiteral 1L
+    Call check
+      Binary Eq
+        Call count
+          MethodCall Defaulted
+            Var Batches
+            IntLiteral 7
+            IntLiteral 8
+        IntLiteral 2L
+    Call check
+      Binary Eq
+        Call count
+          MethodCall Defaulted
+            Var Batches
+            Argument values=
+              Var values
+        IntLiteral 2L

@@ -1,6 +1,5 @@
 use super::*;
 use mir::{MirCallableLoweringRoleV1 as Role, MirTypeBridgeTypeIndexV1};
-use std::fmt::Write;
 
 pub(super) fn bytes(exports: &mir::MirTypeBridgeExportConstituentsV1) -> [Vec<u8>; 6] {
     [
@@ -139,62 +138,4 @@ pub(super) fn roundtrip(
         uses.validate(input.mir.module().cone, &mut graph).unwrap(),
         *exports.initialization_uses()
     );
-}
-
-pub(super) fn dump(
-    input: MirTypeBridgeExportInputV1<'_>,
-    exports: &mir::MirTypeBridgeExportConstituentsV1,
-) -> String {
-    let mut text = format!(
-        "types={} callables={} dispatch={} objects={} shapes={} initialization_uses={} ordinary={}\n",
-        exports.types().records().len(),
-        exports.callables().entries().len(),
-        exports.dispatch().records().len(),
-        exports.objects().records().len(),
-        exports.shapes().records().len(),
-        exports.initialization_uses().records().len(),
-        input.ordinary.exports().len(),
-    );
-    for (name, exact) in source_dispatch::owners(input.hir) {
-        let record = exports.types().get(exact).unwrap();
-        let schema = exports.dispatch().get(exact).unwrap();
-        writeln!(
-            text,
-            "type {name}: {:?}/{:?} vslots={} itables={}",
-            record.facts().kind(),
-            record.facts().gc(),
-            schema.vtable().len(),
-            schema.itables().len()
-        )
-        .unwrap();
-    }
-    let mut callables = Vec::new();
-    for record in exports.callables().entries() {
-        let (_, function) = callable(input.mir, record);
-        let name = &input.mir.module().functions[function].name;
-        let role = match record.lowering_role() {
-            Role::Ordinary => "ordinary",
-            Role::StaticCallbackStorage => "static-callback-storage",
-            Role::CoroutineStart => "coroutine-start",
-            Role::Accessor => "accessor",
-            Role::PureVirtualTrap { .. } => "trap",
-            Role::ClassInitializer { .. } => "class-initializer",
-            Role::PrimaryValueConstructor { .. } => "primary-value-constructor",
-            Role::ValueConstructor { .. } => "value-constructor",
-            Role::DispatchAdjust { .. } => "dispatch-adjust",
-            Role::BoxingAdjust { .. } => "boxing-adjust",
-            Role::DerivedEquality { .. } => "derived-equality",
-            Role::ObjectInitializer { .. } => "object-initializer",
-            Role::ObjectEnsure { .. } => "object-ensure",
-        };
-        callables.push(format!(
-            "callable {name}: {role} receiver={} parameters={} {:?}\n",
-            record.lowered_signature().exact().receiver().is_present(),
-            record.lowered_signature().exact().parameters().len(),
-            record.lowered_signature().gc_effect()
-        ));
-    }
-    callables.sort();
-    text.extend(callables);
-    text
 }

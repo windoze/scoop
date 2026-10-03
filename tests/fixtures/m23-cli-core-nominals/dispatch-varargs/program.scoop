@@ -1,0 +1,9 @@
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun main() {
+    val values: Array<Int> = [3, 4]
+    val instance = Variadic(1, *values)
+    check(instance.observe() == 0L)
+    check(instance.observe(1, *values, 5) == 4L)
+    check(instance.observe(values = values) == 2L)
+    check(Variadic(values = values).observe(7) == 1L)
+}

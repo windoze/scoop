@@ -1,0 +1,14 @@
+fun main() {
+    val integer = leaf(17)
+    if (integer.value() != 17) { throw IllegalStateException() }
+    if (integer.property != 17) { throw IllegalStateException() }
+    val string = leaf("source order")
+    if (string.value() != "source order") { throw IllegalStateException() }
+    if (string.property != "source order") { throw IllegalStateException() }
+    val interfaceInteger = reader(23)
+    if (interfaceInteger.value() != 23) { throw IllegalStateException() }
+    if (interfaceInteger.property != 23) { throw IllegalStateException() }
+    val interfaceString = reader("interface order")
+    if (interfaceString.value() != "interface order") { throw IllegalStateException() }
+    if (interfaceString.property != "interface order") { throw IllegalStateException() }
+}

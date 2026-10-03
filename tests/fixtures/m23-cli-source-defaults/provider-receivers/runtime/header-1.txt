@@ -1,0 +1,4 @@
+public open class ProviderGeneric<T> {
+    public fun check(seed: T): T = pick(seed)
+    public fun <U> checkCopy(first: T, second: U): U = copy(first, second)
+    public fun checkStatic(): Int = Static().copy(9)

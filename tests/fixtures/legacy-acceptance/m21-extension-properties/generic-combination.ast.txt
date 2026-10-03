@@ -1,0 +1,38 @@
+SourceFile
+  RootPackage
+  class Cell<T>(var value: T)
+  val <T>Cell<T>.item: T <computed>
+  var <T>Cell<T>.content: T <computed>
+  val <T>Cell<T>.kind: String <computed>
+  val Cell<Int>.kind: String <computed>
+  fun main()
+    val number
+      Call Cell
+        IntLiteral 10
+    Call println
+      FieldAccess item
+        Var number
+    assign .content
+      Var number
+      IntLiteral 12
+    Call println
+      FieldAccess content
+        Var number
+    Call println
+      FieldAccess kind
+        Var number
+    val text
+      Call Cell
+        StringLiteral "before"
+    Call println
+      FieldAccess item
+        Var text
+    assign .content
+      Var text
+      StringLiteral "after"
+    Call println
+      FieldAccess content
+        Var text
+    Call println
+      FieldAccess kind
+        Var text

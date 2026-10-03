@@ -1,0 +1,15 @@
+SourceFile
+  QualifiedPackage consumer.references
+  ImportStar Local templates.references.*
+  public fun exercise<T>(value: T): Int
+    val selected: ((T, Int)) -> Int
+      CallableReference 0 select
+    return
+      Call selected
+        TupleLiteral
+          Var value
+          IntLiteral 0
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0

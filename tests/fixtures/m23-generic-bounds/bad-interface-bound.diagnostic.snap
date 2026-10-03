@@ -1,3 +1,0 @@
-span=62..75
-expression=readBound(42)
-dependency function `readBound`: type argument `Int` for `T` must satisfy upper bound `Readable`

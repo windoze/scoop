@@ -1,4 +1,5 @@
 use super::*;
+use scoop_process::CommandExt;
 
 pub(super) fn compile(
     request: &RuntimeBuildRequest<'_>,
@@ -36,7 +37,7 @@ pub(super) fn compile(
             .arg(format!("-fmacro-prefix-map={}=runtime", root.display()))
             .args(["-MD", "-MT", "runtime.o", "-MF"])
             .arg(&depfile);
-        let output = command.output().map_err(error)?;
+        let output = command.scoop_output().map_err(error)?;
         if !output.status.success() {
             return Err(error(format!(
                 "{source}: C compiler failed: {}",

@@ -1,7 +1,21 @@
 use super::*;
-use std::fmt::Write;
+use scoop_identity::{
+    PersistentEnumVariantFieldId, PersistentEnumVariantId, PersistentExactTypeId,
+};
 
-fn project(source: &str) -> String {
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct ProjectedEnum {
+    exact: PersistentExactTypeId,
+    variants: Vec<ProjectedVariant>,
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct ProjectedVariant {
+    declaration: PersistentEnumVariantId,
+    fields: Vec<(PersistentEnumVariantFieldId, PersistentExactTypeId)>,
+}
+
+fn project(source: &str) -> Vec<ProjectedEnum> {
     let output = lower(&[complete_core_file(), scoop_parser::parse(source).unwrap()]).unwrap();
     let mir = scoop_mir_lower::lower(&output.local).unwrap();
     let export = output.export.module();
@@ -24,7 +38,7 @@ fn project(source: &str) -> String {
             let lowered = &mir.enums[*id];
             assert_eq!(local.variants.len(), declaration.variants.len());
             assert_eq!(lowered.variants.len(), declaration.variants.len());
-            let mut row = format!("{} exact:{exact}\n", declaration.name);
+            let mut variants = Vec::new();
             for (index, ((source, local), lowered)) in declaration
                 .variants
                 .iter()
@@ -43,7 +57,7 @@ fn project(source: &str) -> String {
                 assert_eq!(lowered.identity, expected);
                 assert_eq!(local.fields.len(), source.fields.len());
                 assert_eq!(lowered.fields.len(), source.fields.len());
-                writeln!(row, "  {} variant:{expected}", source.name).unwrap();
+                let mut fields = Vec::new();
                 for (field_index, (local_field, mir_field)) in
                     local.fields.iter().zip(&lowered.fields).enumerate()
                 {
@@ -82,19 +96,19 @@ fn project(source: &str) -> String {
                         field.definition(&mir.enums).unwrap().identity,
                         expected_field
                     );
-                    writeln!(
-                        row,
-                        "    {field_index} field:{expected_field}: exact:{expected_type}"
-                    )
-                    .unwrap();
+                    fields.push((expected_field, expected_type));
                 }
+                variants.push(ProjectedVariant {
+                    declaration: expected,
+                    fields,
+                });
             }
-            rows.push(row);
+            rows.push(ProjectedEnum { exact, variants });
         }
     }
     assert!(!rows.is_empty());
     rows.sort();
-    rows.concat()
+    rows
 }
 
 #[test]
@@ -108,18 +122,5 @@ fn enum_members_preserve_source_identity_through_concrete_hir_and_mir() {
             projected,
             project(&format!("enum Unrelated {{ Added }}\n{source}"))
         );
-        if let Some(output) = std::env::var_os("SCOOP_ENUM_MEMBER_SNAPSHOT_DIR") {
-            std::fs::create_dir_all(&output).unwrap();
-            std::fs::write(
-                std::path::Path::new(&output).join(format!("{fixture}.snap")),
-                &projected,
-            )
-            .unwrap();
-        } else {
-            assert_eq!(
-                projected,
-                std::fs::read_to_string(root.join(format!("{fixture}.snap"))).unwrap()
-            );
-        }
     }
 }

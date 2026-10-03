@@ -1,0 +1,215 @@
+Module
+  global @scoop$1$io$a4937e6da7fdccaa455cf45386325ec45eb54b206dcfddc0a9fc39685f54e65d = "payload"
+  c-struct struct1 Packed fields=[Int8@0/1,Boolean@1/1]
+  enum Choice tagged size=24 align=8 variants=(struct1)@8+8 (ptr<managed>)@16+8:refs ()@8+0
+  extern ef0 verifyFinished @verify_finished() -> void <c exact=()->void bridge=@scoop$1$br$97c8584d5dfff7daef249045132f594ceb70ad8bf5c66aa4310b679a2f9a0d64 gc-leaf nounwind lib=m23_native_boundary>
+  extern ef1 nativeMixed @native_mixed(indirect<struct0 size=24 align=8 scan=refs[16]>, i8, i16, i32, i64, i8, i16, i32, i64) -> void <scoop managed nounwind lib=m23_native_boundary>
+  fun @scoop$1$cb$20b957ca688e2f9da824e89c8d4fbe0f8f8c9e04d3fc3d92a1b04aa1d4aa714c() -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 () extern0()
+    t0 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$beda129bf81c5fc2366b9f97cef75248b05d6d4e45eca3bcb01d5bc6c9db19c2() -> void
+    local %0 $argument.0: i8
+    local %1 $argument.1: i1
+    local %2 $parameter.value: i8
+    local %3 $parameter.flag: i1
+    local %4 $argument.0: struct1
+    local %5 $parameter._1: struct1
+    local %6 $argument.0: enum0
+    local %7 $parameter.choice: enum0
+    local %8 $argument.0: struct0
+    local %9 $argument.1: i8
+    local %10 $argument.2: i16
+    local %11 $argument.3: i32
+    local %12 $argument.4: i64
+    local %13 $argument.5: i8
+    local %14 $argument.6: i16
+    local %15 $argument.7: i32
+    local %16 $argument.8: i64
+    local %17 $parameter.value: struct0
+    local %18 $parameter.i8: i8
+    local %19 $parameter.i16: i16
+    local %20 $parameter.i32: i32
+    local %21 $parameter.i64: i64
+    local %22 $parameter.u8: i8
+    local %23 $parameter.u16: i16
+    local %24 $parameter.u32: i32
+    local %25 $parameter.u64: i64
+    local %26 $argument.0: ptr<managed>
+    local %27 $parameter._1: ptr<managed>
+    local %28 $argument.0: enum0
+    local %29 $parameter.choice: enum0
+    local %30 $argument.0: struct0
+    local %31 $argument.1: i8
+    local %32 $argument.2: i16
+    local %33 $argument.3: i32
+    local %34 $argument.4: i64
+    local %35 $argument.5: i8
+    local %36 $argument.6: i16
+    local %37 $argument.7: i32
+    local %38 $argument.8: i64
+    local %39 $parameter.value: struct0
+    local %40 $parameter.i8: i8
+    local %41 $parameter.i16: i16
+    local %42 $parameter.i32: i32
+    local %43 $parameter.i64: i64
+    local %44 $parameter.u8: i8
+    local %45 $parameter.u16: i16
+    local %46 $parameter.u32: i32
+    local %47 $parameter.u64: i64
+    local %48 $argument.0: enum0
+    local %49 $parameter.choice: enum0
+    local %50 $argument.0: struct0
+    local %51 $argument.1: i8
+    local %52 $argument.2: i16
+    local %53 $argument.3: i32
+    local %54 $argument.4: i64
+    local %55 $argument.5: i8
+    local %56 $argument.6: i16
+    local %57 $argument.7: i32
+    local %58 $argument.8: i64
+    local %59 $parameter.value: struct0
+    local %60 $parameter.i8: i8
+    local %61 $parameter.i16: i16
+    local %62 $parameter.i32: i32
+    local %63 $parameter.i64: i64
+    local %64 $parameter.u8: i8
+    local %65 $parameter.u16: i16
+    local %66 $parameter.u32: i32
+    local %67 $parameter.u64: i64
+    local %68 $sc.1: struct1
+    local %69 $sc.2: enum0
+    local %70 $sc.3: struct0
+    local %71 $sc.4: struct0
+    local %72 $sc.5: enum0
+    local %73 $sc.6: struct0
+    local %74 $sc.7: struct0
+    local %75 $sc.8: enum0
+    local %76 $sc.9: struct0
+    local %77 $sc.10: struct0
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int8>(0x07) -> local0
+    store true -> local1
+    store local0 -> local2
+    store local1 -> local3
+    call no-gc-indirect-target0 local68 = sig=indirect0 (sret struct1 size=8 align=8 scan=none, i8, i1) local-fn3(local2, local3)
+    store local68 -> local4
+    store local4 -> local5
+    t0 = enum_wrap e0 v0 (local5) : enum0
+    store t0 -> local6
+    store local6 -> local7
+    store local7 -> local69
+    call no-gc-indirect-target1 local70 = sig=indirect1 (sret struct0 size=24 align=8 scan=refs[16], indirect<enum0 size=24 align=8 scan=refs[16]>) local-fn4(indirect local69)
+    store local70 -> local8
+    store integer<Int8>(0xf9) -> local9
+    store integer<Int16>(0xfed4) -> local10
+    store integer<Int>(0xfffe1dc0) -> local11
+    store integer<Long>(0xfffffffed5fa0e00) -> local12
+    store integer<UInt8>(0xfa) -> local13
+    store integer<UInt16>(0xea60) -> local14
+    store integer<UInt>(0xee6b2800) -> local15
+    store integer<ULong>(0x0000000218711a00) -> local16
+    store local8 -> local17
+    store local9 -> local18
+    store local10 -> local19
+    store local11 -> local20
+    store local12 -> local21
+    store local13 -> local22
+    store local14 -> local23
+    store local15 -> local24
+    store local16 -> local25
+    store local17 -> local71
+    call native-borrowed-void-target0 sp<native-borrowed:0> roots=[local71:refs[16]] sig=void0 (indirect<struct0 size=24 align=8 scan=refs[16]>, i8, i16, i32, i64, i8, i16, i32, i64) extern1(indirect local71, local18, local19, local20, local21, local22, local23, local24, local25)
+    t1 = aggregate () : {}
+    store global0 -> local26
+    store local26 -> local27
+    t2 = enum_wrap e0 v1 (local27) : enum0
+    store t2 -> local28
+    store local28 -> local29
+    store local29 -> local72
+    call no-gc-indirect-target2 local73 = sig=indirect2 (sret struct0 size=24 align=8 scan=refs[16], indirect<enum0 size=24 align=8 scan=refs[16]>) local-fn4(indirect local72)
+    store local73 -> local30
+    store integer<Int8>(0xf9) -> local31
+    store integer<Int16>(0xfed4) -> local32
+    store integer<Int>(0xfffe1dc0) -> local33
+    store integer<Long>(0xfffffffed5fa0e00) -> local34
+    store integer<UInt8>(0xfa) -> local35
+    store integer<UInt16>(0xea60) -> local36
+    store integer<UInt>(0xee6b2800) -> local37
+    store integer<ULong>(0x0000000218711a00) -> local38
+    store local30 -> local39
+    store local31 -> local40
+    store local32 -> local41
+    store local33 -> local42
+    store local34 -> local43
+    store local35 -> local44
+    store local36 -> local45
+    store local37 -> local46
+    store local38 -> local47
+    store local39 -> local74
+    call native-borrowed-void-target1 sp<native-borrowed:1> roots=[local74:refs[16]] sig=void1 (indirect<struct0 size=24 align=8 scan=refs[16]>, i8, i16, i32, i64, i8, i16, i32, i64) extern1(indirect local74, local40, local41, local42, local43, local44, local45, local46, local47)
+    t3 = aggregate () : {}
+    t4 = enum_wrap e0 v2 () : enum0
+    store t4 -> local48
+    store local48 -> local49
+    store local49 -> local75
+    call no-gc-indirect-target3 local76 = sig=indirect3 (sret struct0 size=24 align=8 scan=refs[16], indirect<enum0 size=24 align=8 scan=refs[16]>) local-fn4(indirect local75)
+    store local76 -> local50
+    store integer<Int8>(0xf9) -> local51
+    store integer<Int16>(0xfed4) -> local52
+    store integer<Int>(0xfffe1dc0) -> local53
+    store integer<Long>(0xfffffffed5fa0e00) -> local54
+    store integer<UInt8>(0xfa) -> local55
+    store integer<UInt16>(0xea60) -> local56
+    store integer<UInt>(0xee6b2800) -> local57
+    store integer<ULong>(0x0000000218711a00) -> local58
+    store local50 -> local59
+    store local51 -> local60
+    store local52 -> local61
+    store local53 -> local62
+    store local54 -> local63
+    store local55 -> local64
+    store local56 -> local65
+    store local57 -> local66
+    store local58 -> local67
+    store local59 -> local77
+    call native-borrowed-void-target2 sp<native-borrowed:2> roots=[local77:refs[16]] sig=void2 (indirect<struct0 size=24 align=8 scan=refs[16]>, i8, i16, i32, i64, i8, i16, i32, i64) extern1(indirect local77, local60, local61, local62, local63, local64, local65, local66, local67)
+    t5 = aggregate () : {}
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void3 () extern0()
+    t6 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$b19129104915f5538ea4791eb94c12f7eb6b282ec22f9c3ebb96fb96355506f1(indirect<struct0 size=24 align=8 scan=refs[16]>, i8, i16, i32, i64, i8, i16, i32, i64) -> void
+    local %0 $sc.1: struct0
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:struct0@16]
+    store param0 -> local0
+    call native-borrowed-void-target0 sp<native-borrowed:0> roots=[local0:refs[16]] sig=void0 (indirect<struct0 size=24 align=8 scan=refs[16]>, i8, i16, i32, i64, i8, i16, i32, i64) extern1(indirect local0, param1, param2, param3, param4, param5, param6, param7, param8)
+    t0 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$55f4f1c05bf0ed3a43e53915014775d4e7cf11cf029bc18eaef2766c60a2a814(i8, i1) -> sret<struct1 size=8 align=8 scan=none> <no-gc>
+  block entry
+    t0 = aggregate (param0, param1) : struct1
+    ret t0
+  fun @scoop$1$cb$0f0f8d17c321646cf210e1eeec0b845f95ebb7fe300f87d818ed7564075eab0a(indirect<enum0 size=24 align=8 scan=refs[16]>) -> sret<struct0 size=24 align=8 scan=refs[16]> <no-gc>
+  block entry
+    t0 = aggregate (param0) : struct0
+    ret t0
+  fun @scoop$1$cb$2d60eddc620304f6b7fe7c82e33f4053effe8a99e67ac6aec8b4d70aa863e7d3(i64) -> sret<struct2 size=8 align=8 scan=none> <no-gc>
+  block entry
+    t0 = aggregate (param0) : struct2
+    ret t0
+  td td0 n(c=test%3Ascoop-hir-lower%3A0.0.0;p=;o=-;k=S;x=Unused) @scoop$1$td$0ec112ab4682ace6222ba14ad7731a33beb42cb013c80563fd39c4c3bf63c285 type-id=1696407846884649472 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td1 n(c=test%3Ascoop-hir-lower%3A0.0.0;p=;o=-;k=S;x=Wrapper) @scoop$1$td$2f1cc1b25dc5bc84ba6404289a3d89bc0297e20301f84d2274db5f1880b05b20 type-id=18047249852826507279 shape=BoxedValue minimum-size=40 align=8 parent=none vtable=[] itables=[]
+  td td2 n(c=test%3Ascoop-hir-lower%3A0.0.0;p=;o=-;k=S;x=Packed) @scoop$1$td$a6efcc47ae029490e241d95e60a9202a90f1be8c3def47800b3d156cbbab9871 type-id=15101001275093113457 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td3 n(c=test%3Ascoop-hir-lower%3A0.0.0;p=;o=-;k=E;x=Choice) @scoop$1$td$aa29def804f285f26c67bc466f373dbfbce365c4c7eb8337fbaab9748866ac5a type-id=6615720845396830353 shape=BoxedValue minimum-size=40 align=8 parent=none vtable=[] itables=[]
+  layout Wrapper size=24 align=8 refs=[16]
+  layout Packed size=8 align=8 refs=[]
+  layout-meta Packed c-layout(aligned=8,packed=1) fields=[0@1,1@1] interior-mutable=false
+  layout Packed size=8 align=8 refs=[]
+  layout-meta Packed c-layout(aligned=8,packed=1) fields=[0@1,1@1] interior-mutable=false
+  layout Unused size=8 align=8 refs=[]
+  layout Choice size=24 align=8 enum-scan=refs[16]
+  output library

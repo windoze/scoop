@@ -2,7 +2,9 @@ use scoop_identity::{DecodedPersistentId, PersistentDispatchSlotId};
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 use super::{DecodedInheritanceCallableDeclarationV1, DecodedInheritanceCallableSignatureV1, wire};
-use crate::{CallableModalityV1, DecodedDeclarationAccessSourceV1};
+use crate::{
+    CallableModalityV1, DecodedDeclarationAccessSourceV1, DecodedInheritanceSlotSchemaRoleV1,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedInheritanceSlotTargetV1 {
@@ -77,6 +79,7 @@ impl WireDecode for DecodedInheritanceSlotImplementationV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedInheritanceSlotContractV1 {
+    pub(super) role: DecodedInheritanceSlotSchemaRoleV1,
     pub(super) slot: DecodedPersistentId<PersistentDispatchSlotId>,
     pub(super) declaration: DecodedInheritanceCallableDeclarationV1,
     pub(super) signature: DecodedInheritanceCallableSignatureV1,
@@ -85,7 +88,9 @@ pub struct DecodedInheritanceSlotContractV1 {
 }
 impl WireEncode for DecodedInheritanceSlotContractV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(5)?;
+        encoder.map(6)?;
+        encoder.field(0)?;
+        self.role.encode(encoder)?;
         encoder.field(1)?;
         self.slot.encode(encoder)?;
         encoder.field(3)?;
@@ -100,8 +105,9 @@ impl WireEncode for DecodedInheritanceSlotContractV1 {
 }
 impl WireDecode for DecodedInheritanceSlotContractV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(5)?;
+        decoder.expect_map(6)?;
         Ok(Self {
+            role: decoder.field(0, DecodedInheritanceSlotSchemaRoleV1::decode)?,
             slot: decoder.field(1, DecodedPersistentId::decode)?,
             declaration: decoder.field(3, DecodedInheritanceCallableDeclarationV1::decode)?,
             signature: decoder.field(4, DecodedInheritanceCallableSignatureV1::decode)?,

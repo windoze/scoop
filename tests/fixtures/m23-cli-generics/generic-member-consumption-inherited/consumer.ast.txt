@@ -1,0 +1,19 @@
+SourceFile
+  QualifiedPackage consumer.members
+  ImportStar Local templates.members.*
+  public fun result(): Int
+    val box
+      Call Inherited<Int>
+        IntLiteral 20
+    return
+      Binary Add
+        MethodCall echo
+          Var box
+        MethodCall choose<Int>
+          Var box
+          IntLiteral 22
+  public fun make<T>(value: T): T
+    =
+      MethodCall echo
+        Call Inherited<T>
+          Var value

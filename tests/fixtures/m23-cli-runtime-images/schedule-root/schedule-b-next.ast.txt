@@ -1,0 +1,19 @@
+SourceFile
+  QualifiedPackage schedule.next
+  ImportStar Local schedule.base.*
+    @Extern(lib = "m23_runtime_images", name = "m23_trace")
+  private fun trace(value: Long)
+  private fun initialize(): Long
+    @Unsafe block
+      Call trace
+        IntLiteral 20
+    return
+      IfExpression
+        Binary Eq
+          FieldAccess number
+            Var base
+          IntLiteral 10
+        IntLiteral 20L
+        else
+        IntLiteral 0L
+  public val next: Long = <expr>

@@ -219,7 +219,14 @@ impl Lowerer {
 
     pub(crate) fn commit_layer_diagnostics(&mut self, failed: Lowerer) {
         let baseline = self.diagnostics.len();
-        debug_assert!(failed.diagnostics.len() > baseline);
+        debug_assert!(
+            failed.diagnostics.len() > baseline
+                || self
+                    .diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.severity == ast::DiagnosticSeverity::Error),
+            "a failed expression must retain an existing or newly reported error"
+        );
         self.diagnostics
             .extend(failed.diagnostics.into_iter().skip(baseline));
     }

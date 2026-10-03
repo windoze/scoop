@@ -1,0 +1,40 @@
+SourceFile
+  RootPackage
+  ImportExact Local consumer.boundProperties.exercise
+  ImportExact Local consumer.boundProperties.result
+  private class Payload(val value: Int)
+  public fun check(): Int
+    if
+      Binary Or
+        Binary Ne
+          Call result
+          IntLiteral 42
+        Binary Ne
+          Call exercise<Int>
+            IntLiteral 42
+          IntLiteral 42
+      return
+        IntLiteral 1
+    val payload
+      Call Payload
+        IntLiteral 42
+    if
+      Binary Ne
+        Call exercise<Payload>
+          Var payload
+        IntLiteral 42
+      return
+        IntLiteral 2
+    val other
+      Call Payload
+        IntLiteral 0
+    if
+      Binary Ne
+        FieldAccess value
+          Var other
+        IntLiteral 0
+      return
+        IntLiteral 3
+    return
+      FieldAccess value
+        Var payload

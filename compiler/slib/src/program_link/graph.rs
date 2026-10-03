@@ -18,15 +18,18 @@ pub(super) fn read<'a>(
             .map_err(error)
     };
     let root = decode(root)?;
+    let root_identity = root.identity();
     if root.kind() != ConeKind::Executable {
-        return Err(error("program root must be an executable Cone"));
+        return Err(error("program root must be an executable Cone")
+            .at(root_identity, "manifest:cone.kind"));
     }
     let mut by_identity = BTreeMap::new();
     for bytes in dependencies {
         let artifact = decode(*bytes)?;
         if artifact.identity() == root.identity() {
             if artifact.artifact_fingerprint() != root.artifact_fingerprint() {
-                return Err(error("root Cone has conflicting artifact contents"));
+                return Err(error("root Cone has conflicting artifact contents")
+                    .at(root_identity, "manifest:cone.identity"));
             }
             continue;
         }
@@ -39,7 +42,8 @@ pub(super) fn read<'a>(
                     return Err(error(format!(
                         "Cone {} has conflicting artifact contents",
                         artifact.coordinate()
-                    )));
+                    ))
+                    .at(artifact.identity(), "manifest:cone.identity"));
                 }
             }
         }
@@ -68,7 +72,10 @@ pub(super) fn read<'a>(
                     .all(|dependency| ready.contains(&dependency.identity()))
             })
             .map(|(key, _)| key.clone())
-            .ok_or_else(|| error("dependency graph has a cycle or a missing provider"))?;
+            .ok_or_else(|| {
+                error("dependency graph has a cycle or a missing provider")
+                    .at(root_identity, "manifest:direct_dependencies")
+            })?;
         let artifact = pending.remove(&key).expect("selected pending artifact");
         ready.insert(artifact.identity());
         ordered.push(artifact);
@@ -83,7 +90,7 @@ pub(super) fn read<'a>(
         ordered,
         Some(root),
     )
-    .map_err(error)
+    .map_err(|source| super::error::graph(source, root_identity))
 }
 
 impl CrossConeClosureArtifact for ValidatedGraphArtifact<'_> {

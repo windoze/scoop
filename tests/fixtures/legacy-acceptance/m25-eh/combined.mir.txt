@@ -1,0 +1,872 @@
+Module
+  struct NestedPayload (label: String, pair: (String, String))
+  enum TaggedPayload
+    Present(_1: String, _2: String)
+    Empty()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class CombinedMovingError vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class ArrayIterator<String> vtable=0 itables=1
+  class ArithmeticException vtable=0 itables=0
+  class IndexOutOfBoundsException vtable=0 itables=0
+  interface Iterable<String>
+  interface Iterator<String>
+  interface ToString
+  interface Hash
+  fun iterator @fn0(this: Array<String>) -> Iterator<String>
+    bb0 entry
+      val $dependency.local.1: Array<String>
+        Type Array<String>
+        Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Array<String>
+        Type Array<String>
+        Local $dependency.local.1
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.2
+      assign $new.1
+        Type ArrayIterator<String>
+        ClassAlloc ArrayIterator<String>
+      call @fn7 direct
+        Type ArrayIterator<String>
+        Local $new.1
+        Type Array<String>
+        Local $dependency.local.3
+        Type Long
+        Local $dependency.local.4
+      return
+        Type Iterator<String>
+        Retype Iterator<String>
+          Type ArrayIterator<String>
+          Local $new.1
+  fun throwThroughFinally @fn1() -> Unit
+    bb0 entry
+      val $dependency.receiver: String
+        Type String
+        StringConst @str0
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call direct: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $dependency.receiver: String
+        Type String
+        StringConst @str2
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $dependency.receiver: String
+        Type String
+        StringConst @str4
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str5
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      val $dependency.receiver: String
+        Type String
+        StringConst @str6
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str7
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      call $call.2: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $argument.1: (String, String)
+        Type (String, String)
+        TupleLiteral
+          Type String
+          Local $call.1
+          Type String
+          Local $call.2
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.pair: (String, String)
+        Type (String, String)
+        Local $argument.1
+      call nested: NestedPayload = @fn8 direct
+        Type String
+        Local $parameter.label
+        Type (String, String)
+        Local $parameter.pair
+      val $dependency.receiver: String
+        Type String
+        StringConst @str8
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str9
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $dependency.receiver: String
+        Type String
+        StringConst @str10
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str11
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.1: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter._1: String
+        Type String
+        Local $argument.0
+      val $parameter._2: String
+        Type String
+        Local $argument.1
+      val tagged: TaggedPayload
+        Type TaggedPayload
+        VariantConstruct TaggedPayload v0
+          Type String
+          Local $parameter._1
+          Type String
+          Local $parameter._2
+      val $dependency.receiver: String
+        Type String
+        StringConst @str12
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str13
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      val $dependency.receiver: String
+        Type String
+        StringConst @str14
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str15
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.3: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      call $call.4: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val values: Array<String>
+        Type Array<String>
+        ArrayLiteral Array<String>
+          Type String
+          Local $call.3
+          Type String
+          Local $call.4
+      goto bb6
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      goto bb7
+    bb3 try.exit_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.exit_cleanup.4
+      end_catch
+      resume
+    bb5 try.end.5
+      unreachable
+    bb6 try.body.6 unwind bb1
+      val $argument.0: String
+        Type String
+        Local direct
+      val $argument.1: NestedPayload
+        Type NestedPayload
+        Local nested
+      val $argument.2: TaggedPayload
+        Type TaggedPayload
+        Local tagged
+      val $argument.3: Array<String>
+        Type Array<String>
+        Local values
+      val $parameter.direct: String
+        Type String
+        Local $argument.0
+      val $parameter.nested: NestedPayload
+        Type NestedPayload
+        Local $argument.1
+      val $parameter.tagged: TaggedPayload
+        Type TaggedPayload
+        Local $argument.2
+      val $parameter.values: Array<String>
+        Type Array<String>
+        Local $argument.3
+      assign $new.5
+        Type CombinedMovingError
+        ClassAlloc CombinedMovingError
+      call @fn6 direct
+        Type CombinedMovingError
+        Local $new.5
+        Type String
+        Local $parameter.direct
+        Type NestedPayload
+        Local $parameter.nested
+        Type TaggedPayload
+        Local $parameter.tagged
+        Type Array<String>
+        Local $parameter.values
+      throw unwind bb1
+        Type CombinedMovingError
+        Local $new.5
+    bb7 scope.7 unwind bb3
+      call @scoop_rt_gc_collect direct
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str16
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      rethrow unwind bb3
+  fun passThroughUnmatchedCatch @fn2() -> Unit
+    bb0 entry
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb9 bb10
+        Type Boolean
+        IsInstance ArithmeticException
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      return
+    bb8 try.body.8 unwind bb1
+      call @fn1 direct
+      goto bb7
+    bb9 try.catch.9
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: ArithmeticException
+        Type ArithmeticException
+        Retype ArithmeticException
+          Type Any
+          Local $catch.1
+      goto bb11
+    bb10 try.next.10
+      rethrow unwind bb5
+    bb11 scope.11 unwind bb3
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str17
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb12
+    bb12 scope.12
+      goto bb7
+  fun main @fn3() -> Unit
+    bb0 entry
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb9 bb10
+        Type Boolean
+        IsInstance CombinedMovingError
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      return
+    bb8 try.body.8 unwind bb1
+      call @fn2 direct
+      goto bb7
+    bb9 try.catch.9
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: CombinedMovingError
+        Type CombinedMovingError
+        Retype CombinedMovingError
+          Type Any
+          Local $catch.1
+      goto bb11
+    bb10 try.next.10
+      rethrow unwind bb5
+    bb11 scope.11 unwind bb3
+      call @scoop_rt_gc_collect direct
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 1
+          Type CombinedMovingError
+          Local error
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type NestedPayload
+          FieldAccess 2
+            Type CombinedMovingError
+            Local error
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type (String, String)
+          FieldAccess 1
+            Type NestedPayload
+            FieldAccess 2
+              Type CombinedMovingError
+              Local error
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 1
+          Type (String, String)
+          FieldAccess 1
+            Type NestedPayload
+            FieldAccess 2
+              Type CombinedMovingError
+              Local error
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      val $when.1: TaggedPayload
+        Type TaggedPayload
+        FieldAccess 3
+          Type CombinedMovingError
+          Local error
+      val $pattern.subject.2: TaggedPayload
+        Type TaggedPayload
+        Local $when.1
+      branch bb12 bb13
+        Type Boolean
+        VariantTest TaggedPayload v0
+          Type TaggedPayload
+          Local $pattern.subject.2
+    bb12 pattern.pass.12 unwind bb3
+      val first: String
+        Type String
+        VariantPayloadProject TaggedPayload v0 f0
+          Type TaggedPayload
+          Local $pattern.subject.2
+      val second: String
+        Type String
+        VariantPayloadProject TaggedPayload v0 f1
+          Type TaggedPayload
+          Local $pattern.subject.2
+      val $dependency.argument.0: String
+        Type String
+        Local first
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        Local second
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb14
+    bb13 pattern.else.13 unwind bb3
+      val $pattern.subject.3: TaggedPayload
+        Type TaggedPayload
+        Local $when.1
+      branch bb15 bb16
+        Type Boolean
+        VariantTest TaggedPayload v1
+          Type TaggedPayload
+          Local $pattern.subject.3
+    bb14 pattern.merge.14 unwind bb3
+      val $dependency.receiver: Array<String>
+        Type Array<String>
+        FieldAccess 4
+          Type CombinedMovingError
+          Local error
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      val $arr.4: Array<String>
+        Type Array<String>
+        Local $dependency.receiver
+      val $idx.5: Long
+        Type Long
+        Local $dependency.parameter.index
+      branch bb19 bb18
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.5
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb15 pattern.pass.15 unwind bb3
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str18
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb17
+    bb16 pattern.else.16 unwind bb3
+      unreachable
+    bb17 pattern.merge.17 unwind bb3
+      goto bb14
+    bb18 logic.rhs.18 unwind bb3
+      assign $logic.2
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.5
+          Type Long
+          ArrayLen Array<String>
+            Type Array<String>
+            Local $arr.4
+      goto bb20
+    bb19 logic.short.19 unwind bb3
+      assign $logic.2
+        Type Boolean
+        BoolLiteral true
+      goto bb20
+    bb20 logic.merge.20 unwind bb3
+      branch bb21 bb22
+        Type Boolean
+        Local $logic.2
+    bb21 if.then.21 unwind bb3
+      assign $new.3
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external3 direct
+        Type IndexOutOfBoundsException
+        Local $new.3
+      throw unwind bb3
+        Type IndexOutOfBoundsException
+        Local $new.3
+    bb22 if.merge.22 unwind bb3
+      val $dependency.argument.0: String
+        Type String
+        ArrayGet Array<String>
+          Type Array<String>
+          Local $arr.4
+          Type Long
+          Local $idx.5
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: Array<String>
+        Type Array<String>
+        FieldAccess 4
+          Type CombinedMovingError
+          Local error
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      val $arr.6: Array<String>
+        Type Array<String>
+        Local $dependency.receiver
+      val $idx.7: Long
+        Type Long
+        Local $dependency.parameter.index
+      branch bb24 bb23
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.7
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb23 logic.rhs.23 unwind bb3
+      assign $logic.4
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.7
+          Type Long
+          ArrayLen Array<String>
+            Type Array<String>
+            Local $arr.6
+      goto bb25
+    bb24 logic.short.24 unwind bb3
+      assign $logic.4
+        Type Boolean
+        BoolLiteral true
+      goto bb25
+    bb25 logic.merge.25 unwind bb3
+      branch bb26 bb27
+        Type Boolean
+        Local $logic.4
+    bb26 if.then.26 unwind bb3
+      assign $new.5
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external3 direct
+        Type IndexOutOfBoundsException
+        Local $new.5
+      throw unwind bb3
+        Type IndexOutOfBoundsException
+        Local $new.5
+    bb27 if.merge.27 unwind bb3
+      val $dependency.argument.0: String
+        Type String
+        ArrayGet Array<String>
+          Type Array<String>
+          Local $arr.6
+          Type Long
+          Local $idx.7
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb28
+    bb28 scope.28
+      goto bb7
+  fun next @fn4(this: ArrayIterator<String>) -> Option<String>
+    bb0 entry
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayIterator<String>
+          Local this
+      val $dependency.local.3: Long
+        Type Long
+        ArrayLen Array<String>
+          Type Array<String>
+          FieldAccess 0
+            Type ArrayIterator<String>
+            Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      val $dependency.local.5: Array<String>
+        Type Array<String>
+        FieldAccess 0
+          Type ArrayIterator<String>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayIterator<String>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      val $arr.1: Array<String>
+        Type Array<String>
+        Local $dependency.local.5
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.7
+      branch bb4 bb3
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb2 if.merge.2
+      return
+        Type Option<String>
+        VariantConstruct Option<String> v1
+    bb3 logic.rhs.3
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen Array<String>
+            Type Array<String>
+            Local $arr.1
+      goto bb5
+    bb4 logic.short.4
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb5
+    bb5 logic.merge.5
+      branch bb6 bb7
+        Type Boolean
+        Local $logic.1
+    bb6 if.then.6
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external3 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb7 if.merge.7
+      val $dependency.local.1: String
+        Type String
+        ArrayGet Array<String>
+          Type Array<String>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayIterator<String>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.9
+      field_set 1
+        Type ArrayIterator<String>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.8
+          Type Long
+          Local $dependency.local.10
+      val $dependency.local.11: String
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.12: String
+        Type String
+        Local $dependency.local.11
+      return
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $dependency.local.12
+  fun println @fn5(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str19
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun init.CombinedMovingError.$c0 @fn6(this: CombinedMovingError, direct: String, nested: NestedPayload, tagged: TaggedPayload, values: Array<String>) -> Unit
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        Local direct
+      val $dependency.parameter._1: String
+        Type String
+        Local $dependency.argument.0
+      val $dependency.argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $dependency.parameter._1
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        Local $dependency.argument.0
+      call external0 direct
+        Type Exception
+        Retype Exception
+          Type CombinedMovingError
+          Local this
+        Type Option<String>
+        Local $dependency.parameter.message
+      field_set 1
+        Type CombinedMovingError
+        Local this
+        Type String
+        Local direct
+      field_set 2
+        Type CombinedMovingError
+        Local this
+        Type NestedPayload
+        Local nested
+      field_set 3
+        Type CombinedMovingError
+        Local this
+        Type TaggedPayload
+        Local tagged
+      field_set 4
+        Type CombinedMovingError
+        Local this
+        Type Array<String>
+        Local values
+      return
+  fun init.ArrayIterator.$c0 @fn7(this: ArrayIterator<String>, source: Array<String>, index: Long) -> Unit
+    bb0 entry
+      field_set 0
+        Type ArrayIterator<String>
+        Local this
+        Type Array<String>
+        Local source
+      field_set 1
+        Type ArrayIterator<String>
+        Local this
+        Type Long
+        Local index
+      return
+  fun ctor.NestedPayload.$c0 @fn8(label: String, pair: (String, String)) -> NestedPayload <no-gc>
+    bb0 entry
+      return
+        Type NestedPayload
+        StructInit NestedPayload
+          Type String
+          Local label
+          Type (String, String)
+          Local pair
+  instance mi0 function=@fn0 <- iterator
+  instance mi1 function=@fn4 <- next
+  instance mi2 function=@fn5 <- println
+  str @str0 "direct-"
+  str @str1 "alive"
+  str @str2 "struct-"
+  str @str3 "alive"
+  str @str4 "tuple-first-"
+  str @str5 "alive"
+  str @str6 "tuple-second-"
+  str @str7 "alive"
+  str @str8 "enum-first-"
+  str @str9 "alive"
+  str @str10 "enum-second-"
+  str @str11 "alive"
+  str @str12 "array-first-"
+  str @str13 "alive"
+  str @str14 "array-second-"
+  str @str15 "alive"
+  str @str16 "in-flight-collected"
+  str @str17 "wrong-handler"
+  str @str18 "empty"
+  str @str19 "\n"
+  output executable @fn3

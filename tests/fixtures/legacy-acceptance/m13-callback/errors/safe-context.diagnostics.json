@@ -1,0 +1,67 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "calling an unsafe dependency function requires an unsafe context",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 160,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 32
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "calling an unsafe dependency function requires an unsafe context",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 211,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 180
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "calling an unsafe dependency function requires an unsafe context",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 258,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 228
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "calling an unsafe dependency function requires an unsafe context",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 309,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 277
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "calling an unsafe dependency function requires an unsafe context",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 346,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 314
+    },
+    "severity": "error"
+  }
+]

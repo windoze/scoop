@@ -1,0 +1,7 @@
+SourceFile
+  RootPackage
+  private class Token()
+  public class Holder(val token: Token)
+    private fun replace
+    internal fun total
+    public fun answer

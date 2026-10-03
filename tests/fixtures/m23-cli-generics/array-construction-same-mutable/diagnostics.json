@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for constructor `MutableArray` in nominal constructor candidate layer:\n  - class MutableArray<T>(source: Array<T>) — argument for `source` has type MutableArray<Int>, which is not a subtype of Array<T>",
+    "notes": [],
+    "origin": {
+      "cone": "565bdfd93e70af017809b325cf17bbc55340ba36244ff5045a16e8862241fca6",
+      "end": 104,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 98
+    },
+    "severity": "error"
+  }
+]

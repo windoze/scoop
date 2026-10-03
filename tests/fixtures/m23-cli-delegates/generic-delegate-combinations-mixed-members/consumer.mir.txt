@@ -1,0 +1,378 @@
+Module
+  global0 inheritedSpecific$delegate: LocalBroad<Int> managed initial=zeroed-for-runtime-unit
+  global1 localSpecific$delegate: LocalSpecific<Int> managed initial=zeroed-for-runtime-unit
+  global2 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  global3 $init$failure$1: Any managed initial=zeroed-for-runtime-unit
+  init0 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:inheritedSpecific generic-delegate lazy global0 initializer=@fn5 ensure=@fn6 failure=2 deps=[]
+  init1 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:localSpecific generic-delegate lazy global1 initializer=@fn8 ensure=@fn9 failure=3 deps=[]
+  class Receiver<Int> vtable=0 itables=0
+  class Payload vtable=0 itables=0
+  class LocalBroad<Int> vtable=0 itables=0
+  class SpecificBase<Int> vtable=0 itables=0
+  class LocalSpecific<Int> vtable=0 itables=0
+  class BroadBase vtable=0 itables=0
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.1
+        Type Receiver<Int>
+        ClassAlloc Receiver<Int>
+      call @fn10 direct
+        Type Receiver<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.value
+      val receiver: Receiver<Int>
+        Type Receiver<Int>
+        Local $new.1
+      val $receiver: Receiver<Int>
+        Type Receiver<Int>
+        Local receiver
+      call inherited: Int = @fn2 direct
+        Type Receiver<Int>
+        Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.2
+        Type Payload
+        ClassAlloc Payload
+      call external1 direct
+        Type Payload
+        Local $new.2
+        Type Int
+        Local $dependency.parameter.value
+      Type Payload
+      Local $new.2
+      val $dependency.receiver: Int
+        Type Int
+        Local inherited
+      val $receiver: Receiver<Int>
+        Type Receiver<Int>
+        Local receiver
+      call $dependency.argument.0: Int = @fn3 direct
+        Type Receiver<Int>
+        Local $receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun $extension.$get$inheritedSpecific @fn2(this: Receiver<Int>) -> Int
+    bb0 entry
+      call @fn6 direct
+      call $call.1: Int = @fn4 direct
+        Type SpecificBase<Int>
+        Retype SpecificBase<Int>
+          Type LocalBroad<Int>
+          GlobalRead inheritedSpecific$delegate
+        Type Receiver<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun $extension.$get$localSpecific @fn3(this: Receiver<Int>) -> Int
+    bb0 entry
+      call @fn9 direct
+      call $call.1: Int = @fn7 direct
+        Type LocalSpecific<Int>
+        GlobalRead localSpecific$delegate
+        Type Receiver<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun getValue @fn4(this: SpecificBase<Int>, thisRef: Receiver<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+  fun $init$body$0 @fn5() -> Unit
+    bb0 entry
+      assign $new.1
+        Type LocalBroad<Int>
+        ClassAlloc LocalBroad<Int>
+      call @fn11 direct
+        Type LocalBroad<Int>
+        Local $new.1
+      global_assign inheritedSpecific$delegate
+        Type LocalBroad<Int>
+        Local $new.1
+      return
+  fun $init$ensure$0 @fn6() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:inheritedSpecific
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn5 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:inheritedSpecific
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:inheritedSpecific
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:inheritedSpecific
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:inheritedSpecific
+      call external2 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun LocalSpecific.getValue @fn7(this: LocalSpecific<Int>, thisRef: Receiver<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+  fun $init$body$1 @fn8() -> Unit
+    bb0 entry
+      assign $new.1
+        Type LocalSpecific<Int>
+        ClassAlloc LocalSpecific<Int>
+      call @fn12 direct
+        Type LocalSpecific<Int>
+        Local $new.1
+      global_assign localSpecific$delegate
+        Type LocalSpecific<Int>
+        Local $new.1
+      return
+  fun $init$ensure$1 @fn9() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:localSpecific
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn8 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:localSpecific
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:localSpecific
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:localSpecific
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:localSpecific
+      call external2 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun init.Receiver.$c1 @fn10(this: Receiver<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Receiver<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.LocalBroad.$c0 @fn11(this: LocalBroad<Int>) -> Unit
+    bb0 entry
+      call @fn13 direct
+        Type SpecificBase<Int>
+        Retype SpecificBase<Int>
+          Type LocalBroad<Int>
+          Local this
+      return
+  fun init.LocalSpecific.$c1 @fn12(this: LocalSpecific<Int>) -> Unit
+    bb0 entry
+      call external0 direct
+        Type BroadBase
+        Retype BroadBase
+          Type LocalSpecific<Int>
+          Local this
+      return
+  fun init.SpecificBase.$c0 @fn13(this: SpecificBase<Int>) -> Unit
+    bb0 entry
+      return
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- $extension.$get$inheritedSpecific
+  instance mi2 function=@fn3 <- $extension.$get$localSpecific
+  instance mi3 function=@fn4 <- getValue
+  instance mi4 function=@fn5 <- $init$body$0
+  instance mi5 function=@fn6 <- $init$ensure$0
+  instance mi6 function=@fn7 <- LocalSpecific.getValue
+  instance mi7 function=@fn8 <- $init$body$1
+  instance mi8 function=@fn9 <- $init$ensure$1
+  output library

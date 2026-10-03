@@ -1,0 +1,18 @@
+SourceFile
+  RootPackage
+    @Extern(lib = "m23_class_gc", name = "m23_class_gc_collected")
+  fun collected(): Int
+  fun main()
+    if
+      Binary Ne
+        Call check
+        IntLiteral 42
+      throw
+        Call IllegalStateException
+    @Unsafe block
+      if
+        Binary Ne
+          Call collected
+          IntLiteral 1
+        throw
+          Call IllegalStateException

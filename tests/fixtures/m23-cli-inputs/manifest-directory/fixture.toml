@@ -1,0 +1,49 @@
+schema = 1
+name = "cli-input-manifest-directory"
+inputs = []
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["cli", "input", "negative"]
+
+[vars]
+options = ["--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
+human_options = ["--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target"]
+
+[[steps]]
+name = "prepare"
+files = [
+  {"mkdir" = {"path" = "${work}/Cone.toml"}},
+  {"write" = {"path" = "${work}/previous.slib", "data" = "previous output\n"}},
+]
+
+[[steps]]
+name = "public"
+argv = ["${scoop}", "build", "${work}/Cone.toml", "-o", "${work}/previous.slib", {"each" = "${options}"}]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "diagnostics.json"}
+checks = [
+  {"file" = "${work}/previous.slib", "equals" = "previous output\n"},
+]
+
+[[steps]]
+name = "producer"
+argv = ["${scoopc}", "build", "${work}/Cone.toml", "--sysroot", "${sysroot}", "--target", "${target}", "--out-slib", "${work}/producer.slib"]
+exit = 1
+stdout = ""
+stderr = "error: invalid Cone manifest root ${work}/Cone.toml/Cone.toml: cannot inspect: No such file or directory (os error 2)\n"
+checks = [
+  {"file" = "${work}/producer.slib", "exists" = false},
+]
+
+[[steps]]
+name = "human"
+argv = ["${scoop}", "build", "${work}/Cone.toml", "-o", "${work}/previous.slib", {"each" = "${human_options}"}]
+exit = 1
+stdout = ""
+stderr = "${work}/Cone.toml/Cone.toml: error[SCOOP_BUILD_FAILED]: invalid build root: invalid Cone manifest root ${work}/Cone.toml/Cone.toml: cannot inspect: No such file or directory (os error 2)\n"
+checks = [
+  {"file" = "${work}/previous.slib", "equals" = "previous output\n"},
+]

@@ -1,7 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m5-arrays/errors/empty-no-context.scoop:2:13: error: cannot infer the element type of an empty array literal
-m5-arrays/errors/empty-no-context.scoop:3:13: error: unknown variable `e`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation

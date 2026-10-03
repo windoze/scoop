@@ -1,0 +1,63 @@
+SourceFile
+  QualifiedPackage consumer.enumdefinitions
+  ImportStar Local upstream.enumdefinitions.*
+  private val empty: Chain<Int> = <expr>
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val value: Chain<T>
+      Call singleton
+        Var seed
+    if
+      Binary Ne
+        Call total
+          Var empty
+          Lambda 0 suspend=false
+            param item: _
+            Var item
+        IntLiteral 0
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call total
+          Var value
+          Var read
+        IntLiteral 42
+      return
+        IntLiteral 2
+    val selected: Entry<T>
+      MethodCall Value
+        Var Entry
+        Var seed
+    val readable: Readable<T>
+      Var selected
+    return
+      MethodCall apply
+        Var readable
+        Var read
+  public fun result(): Int
+    if
+      Binary Ne
+        Call exercise<Unit>
+          UnitLiteral
+          Lambda 1 suspend=false
+            param item: _
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call exercise<String>
+          StringLiteral "value"
+          Lambda 2 suspend=false
+            param item: _
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 2
+    return
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 3 suspend=false
+          param item: _
+          Var item

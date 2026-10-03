@@ -21,6 +21,7 @@ fn shape_demands_are_validated_against_real_mir_without_a_production_root_copy()
         &parsed,
         scoop_hir_lower::CoreProtocolInput::CurrentDeclarations,
         &world,
+        Default::default(),
     )
     .unwrap();
     let plan = hir.hir.output().local.materialization();

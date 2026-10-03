@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "foreign callback `contextIndex` is outside the native signature",
+    "notes": [],
+    "origin": {
+      "cone": "33525411975e9188b87792d2dcac87fa9f90e29d08e3bc01d0b5085fea746d1a",
+      "end": 103,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 101
+    },
+    "severity": "error"
+  }
+]

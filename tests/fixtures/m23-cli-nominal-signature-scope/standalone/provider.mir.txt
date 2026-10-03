@@ -1,0 +1,106 @@
+Module
+  struct Marker ()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Marker>
+    Completed(value: Marker)
+    Suspended()
+  enum CoroutineSlot<Marker>
+    Empty()
+    Value(value: Marker)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Marker> vtable=0 itables=0
+  interface Continuation<Marker>
+  interface SuspendTask<Marker>
+  interface SuspendRegistration<Marker>
+  generated_exact_type get0 location=enum1 nominal_id=2155e7dd6218379f7910907a01c7c416c01d4ab14e4c74af92c83ad517eeb948 exact_id=23f71c0fb14e27acfc1e2e16628d1f3c0d749035f9e1f1cf6b3d76cbc7d84994
+  generated_exact_type get1 location=class3 nominal_id=66b52be820b888224690e1df4377f52d5a08dccdb098b8ac64400b1b0c5add61 exact_id=dbf6b4d90ac8056c6530753f156ae8090ed741ef8b5833ea43ec1837daa70416
+  generated_exact_type get2 location=enum2 nominal_id=96f61d98dff37ea5585e50ca713d4b53ab5ab7ae32993ab00783e4164617ac1a exact_id=fa2de251b406d5d8b296fedded75f7bf51ef2ec9934b01ec2a55ede82ef952a3
+  generated_callable gc0 function=@fn8 id=28a83c7e5b2e47e884b00ee4c791f27f10a62c1218a16f50fab98f7ec9d84878
+  fun Marker.equals @fn0(this: Marker, other: Marker) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun pass @fn1(value: Marker) -> Marker
+    bb0 entry
+      return
+        Type Marker
+        Local value
+  fun empty @fn2() -> Marker
+    bb0 entry
+      call $call.1: Marker = @fn7 direct
+      return
+        Type Marker
+        Local $call.1
+  fun Continuation.resume @fn3(this: Continuation<Marker>, value: Marker) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn4(this: Continuation<Marker>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn5(this: SuspendTask<Marker>, $completion: Continuation<Marker>) -> CoroutineStep<Marker>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn6(this: SuspendRegistration<Marker>, continuation: Continuation<Marker>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.Marker.$c0 @fn7() -> Marker <no-gc>
+    bb0 entry
+      return
+        Type Marker
+        StructInit Marker
+  fun startCoroutine<Marker> @fn8(task: SuspendTask<Marker>, completion: Continuation<Marker>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn3 interface Continuation<Marker>[0]
+        Type Continuation<Marker>
+        Local completion
+        Type Marker
+        EnumField v0 f0
+          Type CoroutineStep<Marker>
+          Local $step
+      return
+    bb2 failed
+      call @fn4 interface Continuation<Marker>[1]
+        Type Continuation<Marker>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Marker> = @fn5 interface SuspendTask<Marker>[0]
+        Type SuspendTask<Marker>
+        Local task
+        Type Continuation<Marker>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Marker>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Marker> result=Marker
+  coroutine_slot cl0 CoroutineSlot<Marker> value=Marker
+  coroutine_start ct0 result=Marker function=fn8
+  coroutine_fn cf0 @fn5 source_return=Marker step=cs0 immediate
+  instance mi0 function=@fn3 <- Continuation.resume
+  instance mi1 function=@fn4 <- Continuation.resumeWithException
+  instance mi2 function=@fn5 <- SuspendTask.run
+  instance mi3 function=@fn6 <- SuspendRegistration.register
+  output library

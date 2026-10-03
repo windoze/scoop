@@ -1,0 +1,12 @@
+SourceFile
+  RootPackage
+  public fun nestedIdentityValue(): String
+    =
+      StringLiteral "identity"
+  public class NestedIdentityHost()
+    internal fun lambda
+    protected fun anonymous
+    internal fun reference
+    internal fun local
+    internal fun generic
+    internal fun genericLocal

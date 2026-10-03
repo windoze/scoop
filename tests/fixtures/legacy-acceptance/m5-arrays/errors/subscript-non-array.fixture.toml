@@ -1,0 +1,16 @@
+schema = 1
+name = "legacy-m5-arrays-errors-subscript-non-array"
+root = "../../../m5-arrays/errors/subscript-non-array.scoop"
+inputs = ["../../../m5-arrays/errors/subscript-non-array.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["legacy", "m5-arrays", "single-file", "negative"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "subscript-non-array.diagnostics.json"}

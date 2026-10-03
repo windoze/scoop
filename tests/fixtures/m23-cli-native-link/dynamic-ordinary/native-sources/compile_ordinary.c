@@ -1,0 +1,1 @@
+extern int m23_add(int, int); int facade_marker(void) { return m23_add(1, 2); }

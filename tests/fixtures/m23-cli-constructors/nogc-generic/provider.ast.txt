@@ -1,0 +1,72 @@
+SourceFile
+  RootPackage
+    @NoGC
+  fun identity<T>(value: T): T
+    =
+      Var value
+  public struct Native<T>
+    field value: T
+    constructor(value: T, flag: Boolean) : this(<1 args>)
+  public struct Phantom<T>
+    field code: Int
+    constructor() : this(<1 args>)
+  public class Wrapper<T>()
+    constructor(value: T)
+      val native: Native<T>
+        Call Native
+          Var value
+          BoolLiteral true
+    constructor(flag: Boolean)
+  public struct WrapperValue<T>
+    field value: T
+    constructor(value: T, flag: Boolean) : this(<1 args>)
+      val native: Native<T>
+        Call Native
+          Var value
+          BoolLiteral true
+  fun forward<T>(value: T): WrapperValue<T>
+    =
+      Call WrapperValue
+        Var value
+        BoolLiteral true
+    @NoGC
+  fun pure<T>(value: T): Native<T>
+    =
+      Call Native
+        Var value
+        BoolLiteral true
+  public struct Recursive<T>
+    field value: T
+    constructor(value: T, flag: Boolean) : this(<1 args>)
+      if
+        Var flag
+        Call recurse
+          Var value
+    @NoGC
+  fun recurse<T>(value: T): Recursive<T>
+    =
+      Call Recursive
+        Var value
+        BoolLiteral false
+  fun main()
+    val native: Native<Int>
+      Call pure
+        IntLiteral 1
+    val ordinary: Native<String>
+      Call Native
+        StringLiteral "managed"
+    val recursive: Recursive<Int>
+      Call Recursive
+        IntLiteral 1
+        BoolLiteral true
+    val phantom: Phantom<String>
+      Call Phantom<String>
+    val wrapper: Wrapper<Int>
+      Call Wrapper
+        IntLiteral 1
+    val unrelated: Wrapper<String>
+      Call Wrapper<String>
+        BoolLiteral true
+    val value: WrapperValue<Int>
+      Call forward
+        IntLiteral 1

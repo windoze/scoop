@@ -1,0 +1,31 @@
+schema = 1
+name = "legacy-m22-iteration-combined"
+root = "../../m22-iteration/combined.scoop"
+inputs = ["../../m22-iteration/combined.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["legacy", "m22-iteration", "single-file", "run", "moving-gc"]
+
+[[variants]]
+name = "normal"
+
+[[variants]]
+name = "moving"
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "combined.ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "combined.hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "combined.mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "combined.lir.txt"}]
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "array-source\ncapture-a\ncapture-b\ncapture-c\nuser-iterator\nuser-next-0\nuser-iterator\nuser-next-0\nuser-value-4\nuser-next-1\nvalue-iterator\nvalue-next\n11\n12\n13\n1\n31\n32\n33\njump-continue\njump-cleanup-0\njump-body-1\njump-cleanup-1\njump-break\njump-cleanup-2\ndelayed-source\niterator-enter\niterator-suspended\niterator-resume\nnext-0\ndelayed-a-capture-a\nnext-1\ndelayed-b-capture-b\nnext-2\ndelayed-c-capture-c\nnext-3\nrange-match-range-label--2-range-node--2\nrange-copy-copy-range-label--2\nrange-value--2\nrange-finally-enter--2\nrange-finally-exit--2\nrange-match-range-label-0-range-node-0\nrange-copy-copy-range-label-0\nrange-continue\nrange-finally-enter-0\nrange-await\nrange-suspended\nrange-node-0\nrange-contained\nrange-finally-exit-0\nrange-match-range-label-2-range-node-2\nrange-copy-copy-range-label-2\nrange-break\nrange-finally-enter-2\nrange-finally-exit-2\nsuspend-done\n0\n"
+stderr = ""

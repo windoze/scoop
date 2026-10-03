@@ -25,7 +25,7 @@ pub(super) fn context_key(
         SourceContextSubject::File => Ok(SourceContextKey::File {
             source: source.clone(),
         }),
-        SourceContextSubject::Imported(key) => {
+        SourceContextSubject::Imported { key, .. } => {
             if key.source() != source {
                 return Err(HirSourceContextIdentityError::SourceMismatch {
                     context: raw_index(context),

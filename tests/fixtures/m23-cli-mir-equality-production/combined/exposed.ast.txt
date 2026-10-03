@@ -1,0 +1,39 @@
+SourceFile
+  RootPackage
+  public fun notComparable(): NotComparable
+    =
+      Call NotComparable
+        Call Reference
+SourceFile
+  RootPackage
+  public struct Leaf
+  public struct Pair
+    field first: Leaf
+    field second: Leaf
+  public enum Choice
+    Empty
+    Full(Pair)
+  public struct Manual
+    public operator fun equals
+  public struct UsesManual
+    field value: Manual
+  public struct Overloaded
+    public operator fun equals
+  public class Reference()
+  public struct NotComparable
+    field value: Reference
+  public fun sameChoice(left: Choice, right: Choice): Boolean
+    =
+      Binary Eq
+        Var left
+        Var right
+  public fun sameManual(left: UsesManual, right: UsesManual): Boolean
+    =
+      Binary Eq
+        Var left
+        Var right
+  public fun sameOverloaded(left: Overloaded, right: Overloaded): Boolean
+    =
+      Binary Eq
+        Var left
+        Var right

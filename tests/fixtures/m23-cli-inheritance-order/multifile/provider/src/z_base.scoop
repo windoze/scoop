@@ -1,0 +1,8 @@
+public interface Reader<T> {
+    public fun value(): T
+    public val property: T
+}
+public abstract class Base<T> : Reader<T> {
+    public abstract override fun value(): T
+    public abstract override val property: T
+}

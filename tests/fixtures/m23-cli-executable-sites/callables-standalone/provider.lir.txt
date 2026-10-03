@@ -1,0 +1,14 @@
+Module
+  fun @scoop$1$cb$4dc0637dee98caf822dcae8dcd15116f1adb813c3278d31edb5c118161c6d383() -> i1
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret true
+  fun @scoop$1$cb$13480c3a76334a157e58894fbaf80e1455e2a530bf7411db87bf87d5372148c3(elided-zst<{} size=0 align=1>, elided-zst<{} size=0 align=1>) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret
+  fun @scoop$1$cb$f050cfa0dc3d28303a3ff8984384038181e05b76516079ad1d6ad368e9b3545d(i1) -> i1
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret param0
+  output library

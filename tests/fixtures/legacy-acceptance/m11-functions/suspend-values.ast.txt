@@ -1,0 +1,325 @@
+SourceFile
+  RootPackage
+  class Done(), Continuation<Int>
+    public fun resume
+    public fun resumeWithException
+  class UnitDone(), Continuation<Unit>
+    public fun resume
+    public fun resumeWithException
+  class Gate(var waiter: Continuation<Int>?)
+    fun complete
+    fun fail
+  fun makeTask(gate: Gate): suspend () -> Int
+    =
+      Lambda 1 suspend=true
+        parameters omitted
+        val marker
+          Binary Add
+            StringLiteral "alive-"
+            StringLiteral "capture"
+        try
+          val value
+            Call suspendCoroutine
+              Lambda 0 suspend=false
+                param continuation: Continuation<Int>
+                assign .waiter
+                  Var gate
+                  Call Some
+                    Var continuation
+          Call gcCollect
+          Call println
+            Var marker
+          Binary Add
+            Var value
+            IntLiteral 1
+        finally
+          Call println
+            StringLiteral "finally"
+  suspend fun referenced(): Int
+    =
+      IntLiteral 43
+  suspend fun acceptAny(value: Any): Int
+    =
+      IntLiteral 44
+  class Worker(val gate: Gate)
+    suspend fun await
+  interface AsyncValue
+    suspend fun read
+  class AsyncWorker(val gate: Gate), AsyncValue
+    suspend fun read
+  fun localTask(gate: Gate): suspend () -> Int
+    suspend fun local(): Int
+      Call suspendCoroutine
+        Lambda 4 suspend=false
+          param continuation: Continuation<Int>
+          assign .waiter
+            Var gate
+            Call Some
+              Var continuation
+    return
+      CallableReference 0 local
+  fun varianceTask(): suspend () -> Int
+    val exact: suspend (Any) -> Int
+      CallableReference 1 acceptAny
+    val widened: suspend (Int) -> Any
+      Var exact
+    return
+      Lambda 5 suspend=true
+        parameters omitted
+        Cast Int optional=false
+          Call widened
+            IntLiteral 0
+  fun dynamicVarianceTask(): suspend () -> Int
+    val exact: suspend (Any) -> Int
+      CallableReference 2 acceptAny
+    val erased: Any
+      Var exact
+    val checked
+      Cast suspend (Int) -> Any optional=false
+        Var erased
+    return
+      Lambda 6 suspend=true
+        parameters omitted
+        Cast Int optional=false
+          Call checked
+            IntLiteral 0
+  fun constantTask<T>(value: T): suspend () -> T
+    =
+      Lambda 7 suspend=true
+        parameters omitted
+        Var value
+  fun failureTask(gate: Gate): suspend () -> Int
+    =
+      Lambda 9 suspend=true
+        parameters omitted
+        try
+          Call suspendCoroutine
+            Lambda 8 suspend=false
+              param continuation: Continuation<Int>
+              assign .waiter
+                Var gate
+                Call Some
+                  Var continuation
+        catch exception: ArithmeticException
+          IntLiteral 49
+        finally
+          Call println
+            StringLiteral "failure-finally"
+  suspend fun synchronousValue(): Int
+    =
+      Call suspendCoroutine
+        Lambda 10 suspend=false
+          param continuation: Continuation<Int>
+          MethodCall resume
+            Var continuation
+            IntLiteral 51
+  suspend fun synchronousFailure(): Int
+    =
+      Call suspendCoroutine
+        Lambda 11 suspend=false
+          param continuation: Continuation<Int>
+          MethodCall resumeWithException
+            Var continuation
+            Call ArithmeticException
+  suspend fun registrationFailure(): Int
+    =
+      Call suspendCoroutine
+        Lambda 12 suspend=false
+          param continuation: Continuation<Int>
+          throw
+            Call ArithmeticException
+  suspend fun resumedThenThrows(): Int
+    =
+      Call suspendCoroutine
+        Lambda 13 suspend=false
+          param continuation: Continuation<Int>
+          MethodCall resume
+            Var continuation
+            IntLiteral 52
+          throw
+            Call ArithmeticException
+  suspend fun resumedTwice(): Int
+    =
+      Call suspendCoroutine
+        Lambda 14 suspend=false
+          param continuation: Continuation<Int>
+          MethodCall resume
+            Var continuation
+            IntLiteral 52
+          MethodCall resume
+            Var continuation
+            IntLiteral 53
+  fun nestedTask(gate: Gate): suspend () -> Int
+    =
+      Lambda 17 suspend=true
+        parameters omitted
+        val inner: suspend () -> Int
+          Lambda 16 suspend=true
+            parameters omitted
+            Call suspendCoroutine
+              Lambda 15 suspend=false
+                param continuation: Continuation<Int>
+                assign .waiter
+                  Var gate
+                  Call Some
+                    Var continuation
+        val value
+          Call inner
+        Binary Add
+          Var value
+          IntLiteral 1
+  fun main()
+    val task: suspend () -> Int
+      Lambda 18 suspend=true
+        parameters omitted
+        IntLiteral 42
+    Call startCoroutine
+      Var task
+      Call Done
+    Call println
+      StringLiteral "returned"
+    val gate
+      Call Gate
+        Var None
+    Call startCoroutine
+      Call makeTask
+        Var gate
+      Call Done
+    Call println
+      StringLiteral "suspended"
+    Call gcCollect
+    MethodCall complete
+      Var gate
+      IntLiteral 41
+    val top: suspend () -> Int
+      CallableReference 3 referenced
+    Call startCoroutine
+      Var top
+      Call Done
+    val erased: Any
+      Var top
+    Call println
+      Is suspend () -> Int false
+        Var erased
+    val checked
+      Cast suspend () -> Int optional=false
+        Var erased
+    Call startCoroutine
+      Var checked
+      Call Done
+    val anonymous: suspend () -> Int
+      AnonymousFunction 0 suspend=true return=Int
+        return
+          IntLiteral 45
+    Call startCoroutine
+      Var anonymous
+      Call Done
+    val unitTask: suspend () -> Unit
+      Lambda 19 suspend=true
+        parameters omitted
+        Call println
+          StringLiteral "unit-body"
+    Call startCoroutine
+      Var unitTask
+      Call UnitDone
+    val failing: suspend () -> Int
+      AnonymousFunction 1 suspend=true return=Int
+        throw
+          Call ArithmeticException
+    Call startCoroutine
+      Var failing
+      Call Done
+    val boundGate
+      Call Gate
+        Var None
+    val bound: suspend () -> Int
+      CallableReference 4 await
+        Call Worker
+          Var boundGate
+    Call startCoroutine
+      Var bound
+      Call Done
+    MethodCall complete
+      Var boundGate
+      IntLiteral 46
+    val interfaceGate
+      Call Gate
+        Var None
+    val interfaceValue: AsyncValue
+      Call AsyncWorker
+        Var interfaceGate
+    val interfaceBound: suspend () -> Int
+      CallableReference 5 read
+        Var interfaceValue
+    Call startCoroutine
+      Var interfaceBound
+      Call Done
+    MethodCall complete
+      Var interfaceGate
+      IntLiteral 50
+    val localGate
+      Call Gate
+        Var None
+    Call startCoroutine
+      Call localTask
+        Var localGate
+      Call Done
+    MethodCall complete
+      Var localGate
+      IntLiteral 47
+    Call startCoroutine
+      Call varianceTask
+      Call Done
+    Call startCoroutine
+      Call dynamicVarianceTask
+      Call Done
+    Call startCoroutine
+      Call constantTask
+        IntLiteral 48
+      Call Done
+    Call startCoroutine
+      Lambda 20 suspend=true
+        parameters omitted
+        Call synchronousValue
+      Call Done
+    Call startCoroutine
+      Lambda 21 suspend=true
+        parameters omitted
+        Call synchronousFailure
+      Call Done
+    Call startCoroutine
+      Lambda 22 suspend=true
+        parameters omitted
+        Call registrationFailure
+      Call Done
+    Call startCoroutine
+      Lambda 23 suspend=true
+        parameters omitted
+        Call resumedThenThrows
+      Call Done
+    Call startCoroutine
+      Lambda 24 suspend=true
+        parameters omitted
+        Call resumedTwice
+      Call Done
+    val nestedGate
+      Call Gate
+        Var None
+    Call startCoroutine
+      Call nestedTask
+        Var nestedGate
+      Call Done
+    Call gcCollect
+    MethodCall complete
+      Var nestedGate
+      IntLiteral 53
+    val failureGate
+      Call Gate
+        Var None
+    Call startCoroutine
+      Call failureTask
+        Var failureGate
+      Call Done
+    MethodCall fail
+      Var failureGate
+      Call ArithmeticException

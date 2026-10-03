@@ -1,0 +1,16 @@
+SourceFile
+  RootPackage
+    @CLayout(aligned = 8, packed = 1)
+  struct Packed
+    field value: Int8
+    field flag: Boolean
+  enum Choice
+    Data(Packed)
+    Text(String)
+    Empty
+  struct Wrapper
+    field choice: Choice
+  struct Unused
+    field ignored: ULong
+    @Extern(name = "native_mixed", abi = "scoop")
+  fun nativeMixed(value: Wrapper, i8: Int8, i16: Int16, i32: Int, i64: Long, u8: UInt8, u16: UInt16, u32: UInt, u64: ULong)

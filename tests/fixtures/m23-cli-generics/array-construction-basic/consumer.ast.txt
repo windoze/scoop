@@ -1,0 +1,153 @@
+SourceFile
+  QualifiedPackage consumer.arrayconstruction
+  ImportStar Local dependency.arrayconstruction.*
+  ImportExact Local dependency.arrayconstruction.exercise as providerExercise
+  private fun readInt(value: Int): Int
+    =
+      Var value
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    =
+      Call providerExercise<T>
+        Var seed
+        Var read
+  public fun result(): Int
+    val original: Array<Int>
+      ArrayLiteral
+        IntLiteral 42
+        IntLiteral 21
+    val mutable
+      Call MutableArray
+        Var original
+    val copied
+      Call Array
+        Argument source=
+          Var mutable
+    val explicit
+      Call Array<Int>
+        Var mutable
+    val inferred: MutableArray<Int>
+      Call MutableArray<_>
+        Var copied
+    assign []
+      Var mutable
+      IntLiteral 0L
+      IntLiteral 7
+    assign []
+      Var inferred
+      IntLiteral 1L
+      IntLiteral 8
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Index
+              Var original
+              IntLiteral 0L
+            IntLiteral 42
+          Binary Ne
+            Index
+              Var copied
+              IntLiteral 0L
+            IntLiteral 42
+        Binary Ne
+          Index
+            Var explicit
+            IntLiteral 0L
+          IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Index
+              Var copied
+              IntLiteral 1L
+            IntLiteral 21
+          Binary Ne
+            Index
+              Var mutable
+              IntLiteral 1L
+            IntLiteral 21
+        Binary Ne
+          Index
+            Var inferred
+            IntLiteral 1L
+          IntLiteral 8
+      return
+        IntLiteral 2
+    if
+      Binary Or
+        Binary Or
+          Binary RefEq
+            Var copied
+            Var original
+          Binary RefEq
+            Var copied
+            Var explicit
+        Binary RefEq
+          Var mutable
+          Var inferred
+      return
+        IntLiteral 3
+    val empty: Array<Int>
+      Call Array
+        Argument source=
+          ArrayLiteral
+    val emptyBuffer
+      Call MutableArray<Int>
+        Argument source=
+          ArrayLiteral
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess size
+            Var empty
+          IntLiteral 0L
+        Binary Ne
+          FieldAccess size
+            Var emptyBuffer
+          IntLiteral 0L
+      return
+        IntLiteral 4
+    assign trace
+      IntLiteral 0
+    val markedCopy
+      Call Array
+        Argument source=
+          Call marked
+            IntLiteral 2
+    if
+      Binary Or
+        Binary Ne
+          Var trace
+          IntLiteral 2
+        Binary Ne
+          Index
+            Var markedCopy
+            IntLiteral 0L
+          IntLiteral 42
+      return
+        IntLiteral 5
+    assign trace
+      IntLiteral 0
+    val defaulted
+      Call defaultSnapshot
+        Call marked
+          IntLiteral 3
+    if
+      Binary Or
+        Binary Ne
+          Var trace
+          IntLiteral 3
+        Binary Ne
+          Index
+            Var defaulted
+            IntLiteral 0L
+          IntLiteral 42
+      return
+        IntLiteral 6
+    return
+      Call exercise<Int>
+        IntLiteral 42
+        CallableReference 0 readInt

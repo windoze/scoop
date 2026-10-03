@@ -1,0 +1,174 @@
+Module
+  struct Empty ()
+  enum Choice
+    First()
+    Second()
+  class Holder vtable=0 itables=0
+  fun Empty.equals @fn0(this: Empty, other: Empty) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun Choice.equals @fn1(this: Choice, other: Choice) -> Boolean
+    bb0 entry
+      val $when.1: Choice
+        Type Choice
+        Local this
+      val $pattern.subject.2: Choice
+        Type Choice
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Choice v0
+          Type Choice
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $when.3: Choice
+        Type Choice
+        Local other
+      val $pattern.subject.4: Choice
+        Type Choice
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Choice v0
+          Type Choice
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Choice
+        Type Choice
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Choice v1
+          Type Choice
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      return
+        Type Boolean
+        BoolLiteral true
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $when.6: Choice
+        Type Choice
+        Local other
+      val $pattern.subject.7: Choice
+        Type Choice
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Choice v1
+          Type Choice
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      return
+        Type Boolean
+        BoolLiteral true
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+  fun structDefault @fn2(left: Empty, right: Empty, value: Boolean) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        Local value
+  fun enumDefault @fn3(left: Choice, right: Choice, value: Boolean) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        Local value
+  fun use @fn4() -> Boolean
+    bb0 entry
+      call $call.1: Empty = @fn6 direct
+      call $call.2: Empty = @fn6 direct
+      call $parameter.same: Boolean = @fn0 direct
+        Type Empty
+        Local $call.1
+        Type Empty
+        Local $call.2
+      assign $new.3
+        Type Holder
+        ClassAlloc Holder
+      call @fn5 direct
+        Type Holder
+        Local $new.3
+        Type Boolean
+        Local $parameter.same
+      val holder: Holder
+        Type Holder
+        Local $new.3
+      val $argument.0: Choice
+        Type Choice
+        VariantConstruct Choice v0
+      val $argument.1: Choice
+        Type Choice
+        VariantConstruct Choice v1
+      val $parameter.left: Choice
+        Type Choice
+        Local $argument.0
+      val $parameter.right: Choice
+        Type Choice
+        Local $argument.1
+      call $parameter.value: Boolean = @fn1 direct
+        Type Choice
+        Local $parameter.left
+        Type Choice
+        Local $parameter.right
+      call $call.4: Boolean = @fn3 direct
+        Type Choice
+        Local $parameter.left
+        Type Choice
+        Local $parameter.right
+        Type Boolean
+        Local $parameter.value
+      call $argument.0: Empty = @fn6 direct
+      call $argument.1: Empty = @fn6 direct
+      val $parameter.left: Empty
+        Type Empty
+        Local $argument.0
+      val $parameter.right: Empty
+        Type Empty
+        Local $argument.1
+      call $parameter.value: Boolean = @fn0 direct
+        Type Empty
+        Local $parameter.left
+        Type Empty
+        Local $parameter.right
+      call $call.5: Boolean = @fn2 direct
+        Type Empty
+        Local $parameter.left
+        Type Empty
+        Local $parameter.right
+        Type Boolean
+        Local $parameter.value
+      return
+        Type Boolean
+        Local $call.5
+  fun init.Holder.$c0 @fn5(this: Holder, same: Boolean) -> Unit
+    bb0 entry
+      field_set 0
+        Type Holder
+        Local this
+        Type Boolean
+        Local same
+      return
+  fun ctor.Empty.$c0 @fn6() -> Empty <no-gc>
+    bb0 entry
+      return
+        Type Empty
+        StructInit Empty
+  output library

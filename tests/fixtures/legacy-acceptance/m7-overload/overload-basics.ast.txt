@@ -1,0 +1,28 @@
+SourceFile
+  RootPackage
+  fun show(v: Int): String
+    =
+      StringLiteral "int"
+  fun show(v: String): String
+    =
+      StringLiteral "string"
+  fun show(v: Int, n: Int): String
+    =
+      StringLiteral "two"
+  fun main()
+    Call println
+      Call show
+        IntLiteral 1
+    Call println
+      Call show
+        StringLiteral "a"
+    Call println
+      Call show
+        IntLiteral 1
+        IntLiteral 2
+    Call println
+      IntLiteral 42
+    Call println
+      StringLiteral "x"
+    Call println
+      BoolLiteral true

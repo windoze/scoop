@@ -1,0 +1,2 @@
+public class Samples {
+    public fun checkPrivate(): Int = callable() + global()

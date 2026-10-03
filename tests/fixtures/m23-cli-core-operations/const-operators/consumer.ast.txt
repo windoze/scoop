@@ -1,0 +1,14 @@
+SourceFile
+  RootPackage
+  public val answer: Int <const> = <expr>
+  public val narrow: Int8 <const> = <expr>
+  public val unsigned: UInt8 <const> = <expr>
+  public val unsignedNegated: UInt8 <const> = <expr>
+  public val nested: Int16 <const> = <expr>
+  public val quotient: Int <const> = <expr>
+  public val remainder: Int <const> = <expr>
+  public val negated: Int8 <const> = <expr>
+  public val positive: Int8 <const> = <expr>
+  public val order: Boolean <const> = <expr>
+  public val equal: Boolean <const> = <expr>
+  public val staticValue: Int8 = <expr>

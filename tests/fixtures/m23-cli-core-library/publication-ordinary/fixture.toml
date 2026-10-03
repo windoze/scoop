@@ -1,0 +1,157 @@
+schema = 1
+name = "core-library-publication-ordinary"
+inputs = ["../../core-library/publication-warning.scoop", "../../m23-cli-imported-classes/support/stage3_test.scoop", "program", "consumer", "support"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["core-publication", "core-library", "stage-golden", "moving-gc"]
+
+[[steps]]
+name = "prepare_core"
+files = [
+  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"copy" = {"from" = "${fixture}/../../m23-cli-imported-classes/support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
+  {"copy" = {"from" = "${fixture}/../../core-library/publication-warning.scoop", "to" = "${work}/core-source/src/publication-warning.scoop"}},
+  {"mkdir" = {"path" = "${work}/empty-sysroot"}},
+  {"mkdir" = {"path" = "${work}/blocked.slib"}},
+]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "core-warning.json"}
+checks = [
+  {"actual" = "${core.result.root.artifact_fingerprint}", "equals" = "f3936c79fdaac520efb0555b6f9770ed2767ea1a62969a18c0b87fe9c45fac6a"},
+]
+
+[[steps]]
+name = "install_core"
+files = [
+  {"copy" = {"from" = "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib", "to" = "${work}/empty-sysroot/artifacts/darwin-aarch64/scoop.core.slib"}},
+  {"remove" = {"path" = "${work}/core-source"}},
+]
+
+[[steps]]
+name = "prepare_consumer"
+files = [
+  {"copy" = {"from" = "${fixture}/consumer", "to" = "${work}/sources/consumer"}},
+  {"copy" = {"from" = "${fixture}/../../core-library/publication-warning.scoop", "to" = "${work}/sources/consumer/src/main.scoop"}},
+]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", "${work}/sources/consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/original.slib", "--emit", "all", "--dump-dir", "${work}/dump/consumer"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "ordinary-warning.json"}
+checks = [
+  {"actual" = "${consumer.result.root.artifact_fingerprint}", "equals" = "4303b277c7798313bfad5ceb80304f9a30e6f1ff1bf98721a074c74edd4d7388"},
+  {"actual" = "${consumer.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/ast.txt", "snapshot" = "consumer.ast.txt"},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/hir.txt", "snapshot" = "consumer.hir.txt"},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/mir.txt", "snapshot" = "consumer.mir.txt"},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/lir.txt", "snapshot" = "consumer.lir.txt"},
+]
+
+[[steps]]
+name = "blocked"
+argv = ["${scoop}", "build", "${work}/sources/consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-blocked", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/blocked.slib"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "failure.json"}
+checks = [
+  {"file" = "${work}/blocked.slib", "type" = "directory"},
+  {"glob" = "${work}/blocked.slib/*", "equals" = []},
+]
+
+[[steps]]
+name = "add_runtime_check"
+files = [
+  {"copy" = {"from" = "${fixture}/support/check.scoop", "to" = "${work}/sources/consumer/src/check.scoop"}},
+]
+
+[[steps]]
+name = "checked"
+argv = ["${scoop}", "build", "${work}/sources/consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-checked", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/test/publication/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/checked"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "ordinary-warning.json"}
+checks = [
+  {"actual" = "${checked.result.root.artifact_fingerprint}", "equals" = "cc837ae401c91582b6e5d72bc3908a85a6cda4cc5b6a84262c5d2a5b8d9a7d9d"},
+  {"actual" = "${checked.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/checked/${checked.result.root.identity}/ast.txt", "snapshot" = "checked.ast.txt"},
+  {"file" = "${work}/dump/checked/${checked.result.root.identity}/hir.txt", "snapshot" = "checked.hir.txt"},
+  {"file" = "${work}/dump/checked/${checked.result.root.identity}/mir.txt", "snapshot" = "checked.mir.txt"},
+  {"file" = "${work}/dump/checked/${checked.result.root.identity}/lir.txt", "snapshot" = "checked.lir.txt"},
+]
+
+[[steps]]
+name = "prepare_program"
+files = [
+  {"remove" = {"path" = "${work}/sources"}},
+  {"copy" = {"from" = "${fixture}/program", "to" = "${work}/sources/program"}},
+]
+
+[[steps]]
+name = "program"
+argv = ["${scoop}", "build", "${work}/sources/program", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/built-program", "--emit", "all", "--dump-dir", "${work}/dump/program", "--runtime-root", "${runtime}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${program.result.root.artifact_fingerprint}", "equals" = "2089d2d333c8335b1de2a49d155db5aff16a15f4ede41f3502b9a1b82b2b4f0c"},
+  {"actual" = "${program.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/ast.txt", "snapshot" = "program.ast.txt"},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/hir.txt", "snapshot" = "program.hir.txt"},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/mir.txt", "snapshot" = "program.mir.txt"},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/lir.txt", "snapshot" = "program.lir.txt"},
+]
+
+[[steps]]
+name = "isolate"
+files = [
+  {"copy" = {"from" = "${program.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
+  {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}},
+  {"remove" = {"path" = "${work}/sources"}},
+]
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--cone-path", "${work}/artifacts", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [
+  {"actual" = "${link.result.dependencies.length}", "equals" = 2},
+  {"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
+  {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan.txt", "normalize" = ["paths"]},
+]
+
+[[steps]]
+name = "run"
+argv = ["${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "run_moving"
+argv = ["${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}

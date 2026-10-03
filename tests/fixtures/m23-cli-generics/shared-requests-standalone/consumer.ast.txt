@@ -1,0 +1,39 @@
+SourceFile
+  QualifiedPackage consumer.requests
+  ImportExact Local upstream.requests.identity as first
+  ImportExact Local upstream.requests.identity as second
+  public fun local<T>(value: T): T
+    =
+      Var value
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    =
+      Call read
+        Call first<T>
+          Call second<T>
+            Call local<T>
+              Var seed
+  public fun result(): Int
+    if
+      Binary Ne
+        Call first<String>
+          StringLiteral "value"
+        Call second<String>
+          StringLiteral "value"
+      return
+        IntLiteral 1
+    Call first<Unit>
+      UnitLiteral
+    Call second<Unit>
+      UnitLiteral
+    val number
+      Binary Add
+        Call first<Int>
+          IntLiteral 40
+        Call second<Int>
+          IntLiteral 2
+    return
+      Call exercise<Int>
+        Var number
+        Lambda 0 suspend=false
+          param value: _
+          Var value

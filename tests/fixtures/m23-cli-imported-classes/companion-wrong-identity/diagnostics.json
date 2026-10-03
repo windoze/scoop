@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "body of `wrong` must be of type Companion, found Factory",
+    "notes": [],
+    "origin": {
+      "cone": "bdd5336585c782f7a1163fa5696fbd677ccae2a5bfc4005c80440c8fdac96297",
+      "end": 158,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 137
+    },
+    "severity": "error"
+  }
+]

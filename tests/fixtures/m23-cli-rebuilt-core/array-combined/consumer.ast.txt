@@ -1,0 +1,69 @@
+SourceFile
+  QualifiedPackage consumer.rebuiltcore
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val immutable: Array<T>
+      ArrayLiteral
+        Var seed
+        Var seed
+    val mutable
+      Call MutableArray
+        Var immutable
+    var saved: T?
+      Var None
+    var count: Int
+      IntLiteral 0
+    for value
+      Var mutable
+      assign saved
+        Call Some
+          Var value
+      compound-assign Add
+        IntLiteral 1
+    if
+      Binary Ne
+        Var count
+        IntLiteral 1
+      return
+        IntLiteral 2
+    val copied
+      Call Array
+        Var mutable
+    var copiedCount: Int
+      IntLiteral 0
+    var result: Int
+      IntLiteral 0
+    for value
+      Var copied
+      compound-assign Add
+        IntLiteral 1
+      assign result
+        Call read
+          FieldAccess value
+            MethodCall copy
+              Call rebuiltCell
+                Var value
+    if
+      Binary Or
+        Binary Ne
+          Var copiedCount
+          IntLiteral 1
+        Binary Ne
+          Var result
+          IntLiteral 42
+      return
+        IntLiteral 3
+    val build: (T) -> RebuiltCell<T>
+      CallableReference 0 rebuiltCell
+    return
+      Call read
+        FieldAccess value
+          Call build
+            NullAssert
+              Var saved
+  public fun result(): Int
+    =
+      Call exercise
+        IntLiteral 42
+        Lambda 0 suspend=false
+          param value: Int
+          Var value

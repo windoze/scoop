@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "property delegate operator `provideDelegate` must have exactly 0 parameters, found 1",
+    "notes": [],
+    "origin": {
+      "cone": "286f847c8faee7fb544d19a4d3079413f578ae16600bfd5f9f1a4078ec596d3c",
+      "end": 99,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 84
+    },
+    "severity": "error"
+  }
+]

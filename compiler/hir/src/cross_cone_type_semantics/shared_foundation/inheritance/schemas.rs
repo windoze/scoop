@@ -38,9 +38,20 @@ pub(super) fn validate(
     slots::validate(current, dependencies, sources, &mut context, graph)
 }
 
+type AppliedDispatchSelections = BTreeMap<
+    (crate::InheritanceSlotSchemaRoleV1, PersistentDispatchSlotId),
+    AppliedDispatchSelection,
+>;
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+struct AppliedDispatchSelection {
+    selection: crate::InheritanceSourceSlotSelectionV1,
+    receiver: PersistentExactTypeId,
+}
+
 #[derive(Default)]
 struct SchemaDeclarations<'a> {
-    selections: BTreeMap<PersistentExactTypeId, &'a crate::CanonicalNominalDispatchSelectionsV1>,
+    selections: BTreeMap<PersistentExactTypeId, AppliedDispatchSelections>,
     schemas: BTreeMap<PersistentExactTypeId, Cow<'a, CanonicalInheritanceSlotSchemasV1>>,
     orders: BTreeMap<PersistentExactTypeId, &'a NominalDispatchOrderV1>,
     interface_parents: BTreeMap<PersistentExactTypeId, Vec<PersistentExactTypeId>>,

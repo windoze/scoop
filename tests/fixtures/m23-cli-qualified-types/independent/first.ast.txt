@@ -1,0 +1,5 @@
+SourceFile
+  QualifiedPackage facade.paths
+  ImportExact PublicReexport dependency.paths.Point
+  ImportExact PublicReexport dependency.paths.IntBox
+  ImportExact PublicReexport dependency.paths.Outer

@@ -1,3 +1,0 @@
-span=47..56
-expression=value / 2
-integer division is not allowed in `@NoGC` code because it may throw

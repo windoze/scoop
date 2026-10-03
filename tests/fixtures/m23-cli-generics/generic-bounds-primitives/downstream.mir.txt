@@ -1,0 +1,608 @@
+Module
+  class Later vtable=0 itables=0
+  interface ToString
+  interface Hash
+  fun check @fn0() -> Int
+    bb0 entry
+      call $argument.0: Int = external0 direct
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Later
+        ClassAlloc Later
+      call @fn13 direct
+        Type Later
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val first: Later
+        Type Later
+        Local $new.1
+      val $dependency.argument.0: Later
+        Type Later
+        Local first
+      val $dependency.parameter.value: Later
+        Type Later
+        Local $dependency.argument.0
+      call answer: Int = @fn1 direct
+        Type Later
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Later
+        ClassAlloc Later
+      call @fn13 direct
+        Type Later
+        Local $new.2
+        Type Int
+        Local $parameter.value
+      val allocated: Later
+        Type Later
+        Local $new.2
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local first
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local allocated
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb5 if.merge.5
+      return
+        Type Int
+        Local answer
+  fun exercise @fn1(value: Later) -> Int
+    bb0 entry
+      val $dependency.local.2: Int8
+        Type Int8
+        IntegerLiteral Int8 value=-128 bits=0x80
+      val $dependency.local.3: Int8
+        Type Int8
+        Local $dependency.local.2
+      call $dependency.local.4: String = @fn2 direct
+        Type Int8
+        Local $dependency.local.3
+      val $dependency.local.5: String
+        Type String
+        StringConst @str0
+      val $dependency.local.6: String
+        Type String
+        Local $dependency.local.5
+      call $call.1: Boolean = external1 direct
+        Type String
+        Local $dependency.local.4
+        Type String
+        Local $dependency.local.6
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.1
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $dependency.local.7: Int16
+        Type Int16
+        IntegerLiteral Int16 value=-32768 bits=0x8000
+      val $dependency.local.8: Int16
+        Type Int16
+        Local $dependency.local.7
+      call $dependency.local.9: String = @fn3 direct
+        Type Int16
+        Local $dependency.local.8
+      val $dependency.local.10: String
+        Type String
+        StringConst @str1
+      val $dependency.local.11: String
+        Type String
+        Local $dependency.local.10
+      call $call.2: Boolean = external1 direct
+        Type String
+        Local $dependency.local.9
+        Type String
+        Local $dependency.local.11
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.2
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      val $dependency.local.12: Int
+        Type Int
+        IntegerLiteral Int value=-2147483648 bits=0x80000000
+      val $dependency.local.13: Int
+        Type Int
+        Local $dependency.local.12
+      call $dependency.local.14: String = @fn4 direct
+        Type Int
+        Local $dependency.local.13
+      val $dependency.local.15: String
+        Type String
+        StringConst @str2
+      val $dependency.local.16: String
+        Type String
+        Local $dependency.local.15
+      call $call.3: Boolean = external1 direct
+        Type String
+        Local $dependency.local.14
+        Type String
+        Local $dependency.local.16
+      branch bb5 bb6
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.3
+    bb5 if.then.5
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb6 if.merge.6
+      val $dependency.local.17: Long
+        Type Long
+        IntegerLiteral Long value=-9223372036854775808 bits=0x8000000000000000
+      val $dependency.local.18: Long
+        Type Long
+        Local $dependency.local.17
+      call $dependency.local.19: String = @fn5 direct
+        Type Long
+        Local $dependency.local.18
+      val $dependency.local.20: String
+        Type String
+        StringConst @str3
+      val $dependency.local.21: String
+        Type String
+        Local $dependency.local.20
+      call $call.4: Boolean = external1 direct
+        Type String
+        Local $dependency.local.19
+        Type String
+        Local $dependency.local.21
+      branch bb7 bb8
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.4
+    bb7 if.then.7
+      return
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+    bb8 if.merge.8
+      val $dependency.local.22: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=255 bits=0xff
+      val $dependency.local.23: UInt8
+        Type UInt8
+        Local $dependency.local.22
+      call $dependency.local.24: String = @fn6 direct
+        Type UInt8
+        Local $dependency.local.23
+      val $dependency.local.25: String
+        Type String
+        StringConst @str4
+      val $dependency.local.26: String
+        Type String
+        Local $dependency.local.25
+      call $call.5: Boolean = external1 direct
+        Type String
+        Local $dependency.local.24
+        Type String
+        Local $dependency.local.26
+      branch bb9 bb10
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.5
+    bb9 if.then.9
+      return
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+    bb10 if.merge.10
+      val $dependency.local.27: UInt16
+        Type UInt16
+        IntegerLiteral UInt16 value=65535 bits=0xffff
+      val $dependency.local.28: UInt16
+        Type UInt16
+        Local $dependency.local.27
+      call $dependency.local.29: String = @fn7 direct
+        Type UInt16
+        Local $dependency.local.28
+      val $dependency.local.30: String
+        Type String
+        StringConst @str5
+      val $dependency.local.31: String
+        Type String
+        Local $dependency.local.30
+      call $call.6: Boolean = external1 direct
+        Type String
+        Local $dependency.local.29
+        Type String
+        Local $dependency.local.31
+      branch bb11 bb12
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.6
+    bb11 if.then.11
+      return
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+    bb12 if.merge.12
+      val $dependency.local.32: UInt
+        Type UInt
+        IntegerLiteral UInt value=4294967295 bits=0xffffffff
+      val $dependency.local.33: UInt
+        Type UInt
+        Local $dependency.local.32
+      call $dependency.local.34: String = @fn8 direct
+        Type UInt
+        Local $dependency.local.33
+      val $dependency.local.35: String
+        Type String
+        StringConst @str6
+      val $dependency.local.36: String
+        Type String
+        Local $dependency.local.35
+      call $call.7: Boolean = external1 direct
+        Type String
+        Local $dependency.local.34
+        Type String
+        Local $dependency.local.36
+      branch bb13 bb14
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.7
+    bb13 if.then.13
+      return
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+    bb14 if.merge.14
+      val $dependency.local.37: ULong
+        Type ULong
+        IntegerLiteral ULong value=18446744073709551615 bits=0xffffffffffffffff
+      val $dependency.local.38: ULong
+        Type ULong
+        Local $dependency.local.37
+      call $dependency.local.39: String = @fn9 direct
+        Type ULong
+        Local $dependency.local.38
+      val $dependency.local.40: String
+        Type String
+        StringConst @str7
+      val $dependency.local.41: String
+        Type String
+        Local $dependency.local.40
+      call $call.8: Boolean = external1 direct
+        Type String
+        Local $dependency.local.39
+        Type String
+        Local $dependency.local.41
+      branch bb15 bb16
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.8
+    bb15 if.then.15
+      return
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+    bb16 if.merge.16
+      val $dependency.local.42: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.local.43: Boolean
+        Type Boolean
+        Local $dependency.local.42
+      call $dependency.local.44: String = @fn10 direct
+        Type Boolean
+        Local $dependency.local.43
+      val $dependency.local.45: String
+        Type String
+        StringConst @str8
+      val $dependency.local.46: String
+        Type String
+        Local $dependency.local.45
+      call $call.9: Boolean = external1 direct
+        Type String
+        Local $dependency.local.44
+        Type String
+        Local $dependency.local.46
+      branch bb17 bb18
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.9
+    bb17 if.then.17
+      val $dependency.local.52: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb19
+    bb18 if.else.18
+      val $dependency.local.47: String
+        Type String
+        StringConst @str9
+      val $dependency.local.48: String
+        Type String
+        Local $dependency.local.47
+      call $dependency.local.49: String = @fn11 direct
+        Type String
+        Local $dependency.local.48
+      val $dependency.local.50: String
+        Type String
+        StringConst @str10
+      val $dependency.local.51: String
+        Type String
+        Local $dependency.local.50
+      call $call.10: Boolean = external1 direct
+        Type String
+        Local $dependency.local.49
+        Type String
+        Local $dependency.local.51
+      val $dependency.local.52: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.10
+      goto bb19
+    bb19 if.merge.19
+      branch bb20 bb21
+        Type Boolean
+        Local $dependency.local.52
+    bb20 if.then.20
+      return
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+    bb21 if.merge.21
+      val $dependency.local.1: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.53: Int
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.54: Int
+        Type Int
+        Local $dependency.local.53
+      call $dependency.local.56: Long = @fn12 direct
+        Type Int
+        Local $dependency.local.54
+      val $dependency.local.55: Int
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.57: Long
+        Type Long
+        Local $dependency.local.56
+      call $dependency.local.58: Long = external2 direct
+        Type Int
+        Local $dependency.local.55
+      val $dependency.local.59: Long
+        Type Long
+        Local $dependency.local.58
+      branch bb22 bb23
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.local.57
+            Type Long
+            Local $dependency.local.59
+    bb22 if.then.22
+      return
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+    bb23 if.merge.23
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun stringBound @fn2(value: Int8) -> String
+    bb0 entry
+      val $dependency.local.1: Int8
+        Type Int8
+        Local value
+      call $call.1: String = external3 direct
+        Type Int8
+        Local $dependency.local.1
+      return
+        Type String
+        Local $call.1
+  fun stringBound @fn3(value: Int16) -> String
+    bb0 entry
+      val $dependency.local.1: Int16
+        Type Int16
+        Local value
+      call $call.1: String = external4 direct
+        Type Int16
+        Local $dependency.local.1
+      return
+        Type String
+        Local $call.1
+  fun stringBound @fn4(value: Int) -> String
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $call.1: String = external5 direct
+        Type Int
+        Local $dependency.local.1
+      return
+        Type String
+        Local $call.1
+  fun stringBound @fn5(value: Long) -> String
+    bb0 entry
+      val $dependency.local.1: Long
+        Type Long
+        Local value
+      call $call.1: String = external6 direct
+        Type Long
+        Local $dependency.local.1
+      return
+        Type String
+        Local $call.1
+  fun stringBound @fn6(value: UInt8) -> String
+    bb0 entry
+      val $dependency.local.1: UInt8
+        Type UInt8
+        Local value
+      call $call.1: String = external7 direct
+        Type UInt8
+        Local $dependency.local.1
+      return
+        Type String
+        Local $call.1
+  fun stringBound @fn7(value: UInt16) -> String
+    bb0 entry
+      val $dependency.local.1: UInt16
+        Type UInt16
+        Local value
+      call $call.1: String = external8 direct
+        Type UInt16
+        Local $dependency.local.1
+      return
+        Type String
+        Local $call.1
+  fun stringBound @fn8(value: UInt) -> String
+    bb0 entry
+      val $dependency.local.1: UInt
+        Type UInt
+        Local value
+      call $call.1: String = external9 direct
+        Type UInt
+        Local $dependency.local.1
+      return
+        Type String
+        Local $call.1
+  fun stringBound @fn9(value: ULong) -> String
+    bb0 entry
+      val $dependency.local.1: ULong
+        Type ULong
+        Local value
+      call $call.1: String = external10 direct
+        Type ULong
+        Local $dependency.local.1
+      return
+        Type String
+        Local $call.1
+  fun stringBound @fn10(value: Boolean) -> String
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $call.1: String = external11 direct
+        Type Boolean
+        Local $dependency.local.1
+      return
+        Type String
+        Local $call.1
+  fun stringBound @fn11(value: String) -> String
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $call.1: String = external12 direct
+        Type String
+        Local $dependency.local.1
+      return
+        Type String
+        Local $call.1
+  fun hashBound @fn12(value: Int) -> Long
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $call.1: Long = external2 direct
+        Type Int
+        Local $dependency.local.1
+      return
+        Type Long
+        Local $call.1
+  fun init.Later.$c0 @fn13(this: Later, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Later
+        Local this
+        Type Int
+        Local value
+      return
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- stringBound
+  instance mi2 function=@fn3 <- stringBound
+  instance mi3 function=@fn4 <- stringBound
+  instance mi4 function=@fn5 <- stringBound
+  instance mi5 function=@fn6 <- stringBound
+  instance mi6 function=@fn7 <- stringBound
+  instance mi7 function=@fn8 <- stringBound
+  instance mi8 function=@fn9 <- stringBound
+  instance mi9 function=@fn10 <- stringBound
+  instance mi10 function=@fn11 <- stringBound
+  instance mi11 function=@fn12 <- hashBound
+  str @str0 "-128"
+  str @str1 "-32768"
+  str @str2 "-2147483648"
+  str @str3 "-9223372036854775808"
+  str @str4 "255"
+  str @str5 "65535"
+  str @str6 "4294967295"
+  str @str7 "18446744073709551615"
+  str @str8 "true"
+  str @str9 "bound"
+  str @str10 "bound"
+  output library

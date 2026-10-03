@@ -1,3 +1,0 @@
-span=118..132
-expression=extensionValue
-cannot assign to immutable property `extensionValue`

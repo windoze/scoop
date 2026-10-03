@@ -1,0 +1,55 @@
+SourceFile
+  RootPackage
+    @Extern(lib = "fixture_native", name = "m13_start_one")
+  fun startOne(callback: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, value: Int): Ptr<Unit>
+    @Extern(lib = "fixture_native", name = "m13_join_one")
+  fun joinOne(job: Ptr<Unit>): Int
+  class CallbackError(val payload: String) : Exception(<1 args>)
+  fun main()
+    @Unsafe block
+      val worker
+        Call foreignCallback<(Int, Ptr<Unit>) -> Int>
+          Lambda 0 suspend=false
+            param value: Int
+            throw
+              Call CallbackError
+                StringLiteral "managed payload"
+          IntLiteral 1
+          FieldAccess OneShot
+            Var ForeignCallbackMode
+      val observer
+        Call retainForeignCallback
+          Var worker
+      val job
+        Call startOne
+          FieldAccess function
+            Var worker
+          FieldAccess context
+            Var worker
+          IntLiteral 7
+      Call println
+        Call joinOne
+          Var job
+      Call println
+        Binary Eq
+          Call foreignCallbackState
+            Var observer
+          FieldAccess Failed
+            Var ForeignCallbackState
+      val failure
+        NullAssert
+          Call foreignCallbackFailure
+            Var observer
+      Call println
+        Is CallbackError false
+          Var failure
+      try
+        throw
+          Var failure
+      catch exception: CallbackError
+        Call println
+          FieldAccess payload
+            Var exception
+      finally
+        Call releaseForeignCallback
+          Var observer

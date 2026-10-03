@@ -1,4 +1,0 @@
-span=91..99
-expression=::offset
-no applicable candidate for callable reference `::offset` in dependency top-level candidate layer:
-  - fun offset(value: Int): Int — callable shape expects 0 parameter(s), but the actual type has 1

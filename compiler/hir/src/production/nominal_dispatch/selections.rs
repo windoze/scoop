@@ -1,13 +1,26 @@
 use super::*;
 
 mod merge;
+mod receivers;
 
 impl Projection<'_> {
     pub(super) fn selections(&mut self, nominal: NominalOwner) -> Result<Selections, Error> {
+        let parameters = match nominal {
+            NominalOwner::Class(id) => &self.export.classes[id].type_params[..],
+            NominalOwner::Interface(id) => &self.export.interfaces[id].type_params,
+            NominalOwner::Struct(id) => &self.export.structs[id].type_params,
+            NominalOwner::Enum(id) => &self.export.enums[id].type_params,
+            NominalOwner::Object(_) => &[],
+        };
+        self.binders = super::super::signatures::HirInterfaceSignatureProjector::new(self.export)
+            .binder_frame(parameters, 0)
+            .map_err(invalid)?;
+        let host = self.declaration_type(nominal);
+        let receiver = self.type_key(host)?;
         let mut selections = Selections::new();
         let (implementations, allow_abstract) = match nominal {
             NominalOwner::Class(id) => {
-                self.virtual_selections(id, &mut selections)?;
+                self.virtual_selections(id, &receiver, &mut selections)?;
                 let class = &self.export.classes[id];
                 (
                     &class.interface_implementations,
@@ -16,21 +29,32 @@ impl Projection<'_> {
             }
             NominalOwner::Object(id) => {
                 let class = self.export.objects[id].backing_class;
-                self.virtual_selections(class, &mut selections)?;
+                self.virtual_selections(class, &receiver, &mut selections)?;
                 (&self.export.classes[class].interface_implementations, false)
             }
             NominalOwner::Struct(id) => (&self.export.structs[id].interface_implementations, false),
             NominalOwner::Enum(id) => (&self.export.enums[id].interface_implementations, false),
             NominalOwner::Interface(id) => {
-                for member in self.interface_members(self.export.interfaces[id].self_application)? {
+                let application = self.export.interfaces[id].self_application;
+                let role = self.interface_role(
+                    self.export.interface_applications[application].canonical_type,
+                )?;
+                for member in self.interface_members(application)? {
                     let slot = self.interface_slot(member)?;
                     let selection = self.interface_selection(member)?;
-                    self.merge_selection(&mut selections, slot, selection)?;
+                    self.merge_selection(
+                        &mut selections,
+                        role.clone(),
+                        receiver.clone(),
+                        slot,
+                        selection,
+                    )?;
                 }
                 return Ok(selections);
             }
         };
         for implementation in implementations {
+            let role = self.interface_role(implementation.interface)?;
             for method in &implementation.methods {
                 let slot = self.interface_slot(method.member)?;
                 let selection = match method.target {
@@ -65,7 +89,8 @@ impl Projection<'_> {
                         ));
                     }
                 };
-                self.merge_selection(&mut selections, slot, selection)?;
+                let receiver = self.type_key(self.selected_receiver(method.target, host)?)?;
+                self.merge_selection(&mut selections, role.clone(), receiver, slot, selection)?;
             }
         }
         Ok(selections)
@@ -74,6 +99,7 @@ impl Projection<'_> {
     fn virtual_selections(
         &mut self,
         class: ClassId,
+        receiver: &scoop_identity::SignatureTypeKey,
         selections: &mut Selections,
     ) -> Result<(), Error> {
         // The first encounter in derived-to-base order is the selected override.
@@ -93,14 +119,18 @@ impl Projection<'_> {
                         .dispatch_selections()
                         .records()
                     {
-                        if class
-                            .virtual_methods
-                            .iter()
-                            .any(|method| method.slot == selection.slot())
-                            && !selections.contains_key(&selection.slot())
+                        if selection.role() == &SelectionRole::ClassVtable
+                            && class
+                                .virtual_methods
+                                .iter()
+                                .any(|method| method.slot == selection.slot())
+                            && !selections
+                                .contains_key(&(SelectionRole::ClassVtable, selection.slot()))
                         {
                             self.merge_selection(
                                 selections,
+                                SelectionRole::ClassVtable,
+                                receiver.clone(),
                                 selection.slot(),
                                 selection.selection(),
                             )?;
@@ -129,13 +159,19 @@ impl Projection<'_> {
                     .ok_or_else(|| invalid("virtual family has no sealed dispatch identity"))?
                     .id();
 
-                if !selections.contains_key(&slot) {
+                if !selections.contains_key(&(SelectionRole::ClassVtable, slot)) {
                     let selection = if method.modifier == MethodModifier::Abstract {
                         Selection::Abstract(self.callable(*function)?)
                     } else {
                         Selection::Concrete(self.callable(*function)?)
                     };
-                    self.merge_selection(selections, slot, selection)?;
+                    self.merge_selection(
+                        selections,
+                        SelectionRole::ClassVtable,
+                        receiver.clone(),
+                        slot,
+                        selection,
+                    )?;
                 }
             }
         }
@@ -145,9 +181,11 @@ impl Projection<'_> {
     fn merge_selection(
         &mut self,
         selections: &mut Selections,
+        role: SelectionRole,
+        receiver: scoop_identity::SignatureTypeKey,
         slot: PersistentDispatchSlotId,
         selection: Selection,
     ) -> Result<(), Error> {
-        merge::insert(selections, slot, selection)
+        merge::insert(selections, role, receiver, slot, selection)
     }
 }

@@ -1,0 +1,4 @@
+public fun reference(value: Int): Reference = Reference(value)
+public fun referenceValue(value: Reference): Int = value.value
+public fun <T> owner(value: T): Owner<T> = Owner(value)
+public fun <T> ownedValue(value: Owner<T>): T = value.value

@@ -1,0 +1,256 @@
+Module
+  extern ef0 bumpNode @bump_node(Node) -> Node <abi=c no-gc lib=fixture_native>
+  struct Node (next: Option<Ptr<Node>>, value: Int) <c-layout aligned=natural packed=natural>
+  enum Option<Ptr<Node>>
+    Some(_0: Ptr<Node>)
+    None()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Node>
+    Completed(value: Node)
+    Suspended()
+  enum CoroutineSlot<Node>
+    Empty()
+    Value(value: Node)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Node> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Continuation<Node>
+  interface SuspendTask<Node>
+  interface SuspendRegistration<Node>
+  generated_exact_type get0 location=enum2 nominal_id=fa2c3b4c73b124b48415b656e116f299162195af9831613d5f087d4bf5025e82 exact_id=033ef530d1b5bd2a0d4c92afe5da97147c7a6c5dde442a5b95bc1572d3e1c844
+  generated_exact_type get1 location=class3 nominal_id=0c0ca2f2e373d6c865c064098543d55615f0c686574dff35eb65a9f26fe3738b exact_id=12d96bfb419d22bee279edac1b47ce374821a6fec3ef7258ccb9a213df658d60
+  generated_exact_type get2 location=enum3 nominal_id=89c7a37a96e968750c3c025581122ee9b23400d567bd610d3b9c51ba9d684a04 exact_id=7c737b9c5ffcc60bae6fd9f3b626ff4a4387ab623a427a4e89acd4c6d4f2cf09
+  generated_callable gc0 function=@fn9 id=3254788d88a50cb2191c8092df38ecef7abeb7a5e4ea7c03682de9e720e4a67a
+  fun bumpNode @fn0(arg0: Node) -> Node
+    bb0 entry
+      call $call.1: Node = extern0 @bump_node direct
+        Type Node
+        Local arg0
+      return
+        Type Node
+        Local $call.1
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $argument.0: Option<Ptr<Node>>
+        Type Option<Ptr<Node>>
+        VariantConstruct Option<Ptr<Node>> v1
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $parameter.next: Option<Ptr<Node>>
+        Type Option<Ptr<Node>>
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $argument.0: Node = @fn8 direct
+        Type Option<Ptr<Node>>
+        Local $parameter.next
+        Type Int
+        Local $parameter.value
+      val $parameter.node: Node
+        Type Node
+        Local $argument.0
+      call result: Node = extern0 @bump_node direct
+        Type Node
+        Local $parameter.node
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 1
+          Type Node
+          Local result
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $when.1: Option<Ptr<Node>>
+        Type Option<Ptr<Node>>
+        FieldAccess 0
+          Type Node
+          Local result
+      val $pattern.subject.2: Option<Ptr<Node>>
+        Type Option<Ptr<Node>>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Ptr<Node>> v0
+          Type Option<Ptr<Node>>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val pointer: Ptr<Node>
+        Type Ptr<Node>
+        VariantPayloadProject Option<Ptr<Node>> v0 f0
+          Type Option<Ptr<Node>>
+          Local $pattern.subject.2
+      val $dependency.receiver: Ptr<Node>
+        Type Ptr<Node>
+        Local pointer
+      val $dependency.argument.0: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Node>
+          Local $dependency.receiver
+      val $dependency.parameter.value: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type ULong
+        Local $dependency.parameter.value
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Ptr<Node>>
+        Type Option<Ptr<Node>>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Ptr<Node>> v1
+          Type Option<Ptr<Node>>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+    bb4 pattern.pass.4
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun println @fn2(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn3(value: ULong) -> Unit
+    bb0 entry
+      val $dependency.local.1: ULong
+        Type ULong
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type ULong
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str1
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Continuation.resume @fn4(this: Continuation<Node>, value: Node) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn5(this: Continuation<Node>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn6(this: SuspendTask<Node>, $completion: Continuation<Node>) -> CoroutineStep<Node>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn7(this: SuspendRegistration<Node>, continuation: Continuation<Node>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.Node.$c0 @fn8(next: Option<Ptr<Node>>, value: Int) -> Node <no-gc>
+    bb0 entry
+      return
+        Type Node
+        StructInit Node
+          Type Option<Ptr<Node>>
+          Local next
+          Type Int
+          Local value
+  fun startCoroutine<Node> @fn9(task: SuspendTask<Node>, completion: Continuation<Node>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn4 interface Continuation<Node>[0]
+        Type Continuation<Node>
+        Local completion
+        Type Node
+        EnumField v0 f0
+          Type CoroutineStep<Node>
+          Local $step
+      return
+    bb2 failed
+      call @fn5 interface Continuation<Node>[1]
+        Type Continuation<Node>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Node> = @fn6 interface SuspendTask<Node>[0]
+        Type SuspendTask<Node>
+        Local task
+        Type Continuation<Node>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Node>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Node> result=Node
+  coroutine_slot cl0 CoroutineSlot<Node> value=Node
+  coroutine_start ct0 result=Node function=fn9
+  coroutine_fn cf0 @fn6 source_return=Node step=cs0 immediate
+  instance mi0 function=@fn2 <- println
+  instance mi1 function=@fn3 <- println
+  instance mi2 function=@fn4 <- Continuation.resume
+  instance mi3 function=@fn5 <- Continuation.resumeWithException
+  instance mi4 function=@fn6 <- SuspendTask.run
+  instance mi5 function=@fn7 <- SuspendRegistration.register
+  str @str0 "\n"
+  str @str1 "\n"
+  output executable @fn1

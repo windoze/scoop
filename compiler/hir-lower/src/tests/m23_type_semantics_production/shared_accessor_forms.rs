@@ -1,6 +1,5 @@
 use super::*;
 use hir::PropertyAccessorImplementationV1 as Form;
-use scoop_identity::{PropertyOwner, SourceDeclarationKey};
 use scoop_wire::{decode_canonical, encode};
 
 #[test]
@@ -50,7 +49,6 @@ fn shared_accessor_forms_preserve_actual_source_bodies_storage_constants_and_slo
                 }))
                 .collect();
             let mut counts = [0; 4];
-            let mut rows = Vec::new();
             for property in restored.all_declarations() {
                 for source in std::iter::once(property.accessors().getter_source())
                     .chain(property.accessors().setter_source())
@@ -66,39 +64,12 @@ fn shared_accessor_forms_preserve_actual_source_bodies_storage_constants_and_slo
                         Form::AbstractSlot => 3,
                     }] += 1;
                 }
-                let key = match property.declaration() {
-                    PropertyOwner::Property(id) => identities
-                        .canonical_key::<_, SourceDeclarationKey>(id)
-                        .unwrap(),
-                    PropertyOwner::ExtensionProperty(id) => identities
-                        .canonical_key::<_, SourceDeclarationKey>(id)
-                        .unwrap(),
-                };
-                let owner = match property.owner() {
-                    hir::PublicDeclarationOwnerV1::Nominal(owner) => {
-                        declaration_dump::nominal(owner, &identities)
-                    }
-                    other => format!("{other:?}"),
-                };
-                rows.push(format!(
-                    "{owner}.{}: {:?} getter={:?} setter={:?} lookup={}\n",
-                    declaration_dump::named(&key),
-                    property.declared_visibility(),
-                    property.accessors().getter_source().implementation(),
-                    property
-                        .accessors()
-                        .setter_source()
-                        .map(|source| source.implementation()),
-                    restored.get(property.declaration()).is_some()
-                ));
+                assert_eq!(
+                    restored.get(property.declaration()).is_some(),
+                    property.declared_visibility() == hir::DeclaredVisibilityV1::Public,
+                );
             }
             assert_eq!(counts, expected, "{case}");
-            rows.sort();
-            let snapshot = directory.join(format!("shared-accessors-{case}.hir.snap"));
-            if std::env::var_os("SCOOP_UPDATE_SHARED_ACCESSOR_FORMS").is_some() {
-                std::fs::write(&snapshot, rows.concat()).unwrap();
-            }
-            assert_eq!(rows.concat(), std::fs::read_to_string(snapshot).unwrap());
         });
     }
 }

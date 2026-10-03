@@ -1,0 +1,1395 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Int>
+    Some(_0: Int)
+    None()
+  enum Option<Remote<Int>>
+    Some(_0: Remote<Int>)
+    None()
+  enum Option<Payload>
+    Some(_0: Payload)
+    None()
+  enum Option<Remote<Payload>>
+    Some(_0: Remote<Payload>)
+    None()
+  enum CoroutineStep<Payload>
+    Completed(value: Payload)
+    Suspended()
+  enum CoroutineSlot<Payload>
+    Empty()
+    Value(value: Payload)
+  class Payload vtable=0 itables=0
+  class Remote<Int> vtable=2 itables=0
+  class Box<Int> vtable=2 itables=0
+  class Box<() -> Int> vtable=2 itables=0
+  class Remote<Payload> vtable=2 itables=0
+  class Box<Payload> vtable=2 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface Continuation<Payload>
+  interface SuspendTask<Payload>
+  interface SuspendRegistration<Payload>
+  closure cc0 $Closure$anonymous0 type=function_type0 invoke=@fn16 captures=0
+    bridge function_type1 -> @fn46 id=f78e4322d774693562b2ec0cac9722c59d770a23f879527c0dd3f333b4ff2217
+  closure cc1 $Closure$anonymous1 type=function_type0 invoke=@fn27 captures=0
+    bridge function_type1 -> @fn47 id=50a2d46003cc6aff10e680950bd1402c9c47322ff306cd865aaa7f23ee824e8f
+  generated_exact_type get0 location=enum6 nominal_id=79b720aa7287624cd1eba6cf3452b1406984f030785c645360c67ab9e5bbc360 exact_id=20b3a70cf83a3f126d2de001e5e3e36644deb0f685358db85cb25218a64d5a3c
+  generated_exact_type get1 location=enum5 nominal_id=f1b30b84e7cc84afc2354a3d006057b0b58e52c8a73423fab3168fc92537b467 exact_id=ae42857cda39ce4554ed2c2e11ed58d427e62af86caf73b8b089a844527c9d8f
+  generated_exact_type get2 location=closure1 nominal_id=845d971393ca7f2d5c08cb6d4ae2f8b3dd8bf0e148d36b83e0684a8ee6773764 exact_id=d1ace2fe5d1046883f62667610b00b5c30e2a68bd028b34516ddda69eec9dfc6
+  generated_exact_type get3 location=closure0 nominal_id=56afe12984ea875008a67751f3acfa1f6eea79f305a08cafe30317522c9ea173 exact_id=d9dd449ab1aa0331ac1b52d42c01f80e37927f38acaee3af667bfd050817e5a9
+  generated_exact_type get4 location=class9 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn45 id=266b94e9472defee12ea106ccfc8619af6772acfff3c24ea4f8a788f84684a69
+  generated_callable gc1 function=@fn47 id=50a2d46003cc6aff10e680950bd1402c9c47322ff306cd865aaa7f23ee824e8f
+  generated_callable gc2 function=@fn46 id=f78e4322d774693562b2ec0cac9722c59d770a23f879527c0dd3f333b4ff2217
+  fun check @fn0() -> Int
+    bb0 entry
+      call $dependency.receiver: Int = external0 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn1 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb5 if.merge.5
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Payload
+        ClassAlloc Payload
+      call @fn39 direct
+        Type Payload
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val payload: Payload
+        Type Payload
+        Local $new.1
+      val $dependency.argument.0: Payload
+        Type Payload
+        Local payload
+      val $dependency.parameter.value: Payload
+        Type Payload
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn2 direct
+        Type Payload
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb6 bb7
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb6 if.then.6
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb7 if.merge.7
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Payload
+        ClassAlloc Payload
+      call @fn39 direct
+        Type Payload
+        Local $new.2
+        Type Int
+        Local $parameter.value
+      val other: Payload
+        Type Payload
+        Local $new.2
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Payload
+          Local other
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb8 bb9
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb8 if.then.8
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb9 if.merge.9
+      return
+        Type Int
+        FieldAccess 0
+          Type Payload
+          Local payload
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      val $dependency.local.8: Int
+        Type Int
+        Local value
+      val $dependency.local.9: Int
+        Type Int
+        Local value
+      val $dependency.local.10: Int
+        Type Int
+        Local $dependency.local.8
+      val $dependency.local.11: Int
+        Type Int
+        Local $dependency.local.9
+      assign $new.1
+        Type Remote<Int>
+        ClassAlloc Remote<Int>
+      call @fn40 direct
+        Type Remote<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.local.10
+        Type Int
+        Local $dependency.local.11
+      val $dependency.local.1: Remote<Int>
+        Type Remote<Int>
+        Local $new.1
+      val $dependency.local.12: Remote<Int>
+        Type Remote<Int>
+        Local $dependency.local.1
+      val $dependency.local.13: Remote<Int>
+        Type Remote<Int>
+        Local $dependency.local.12
+      call $dependency.local.2: Int = @fn9 direct
+        Type Remote<Int>
+        Local $dependency.local.13
+      val $dependency.local.14: Remote<Int>
+        Type Remote<Int>
+        Local $dependency.local.1
+      val $dependency.local.15: Int
+        Type Int
+        Local value
+      val $dependency.local.16: Remote<Int>
+        Type Remote<Int>
+        Local $dependency.local.14
+      val $dependency.local.17: Int
+        Type Int
+        Local $dependency.local.15
+      call $dependency.local.3: Int = @fn10 direct
+        Type Remote<Int>
+        Local $dependency.local.16
+        Type Int
+        Local $dependency.local.17
+      val $dependency.local.18: Remote<Int>
+        Type Remote<Int>
+        Local $dependency.local.1
+      val $dependency.local.19: Remote<Int>
+        Type Remote<Int>
+        Local $dependency.local.18
+      call $dependency.local.20: Int = @fn11 direct
+        Type Box<Int>
+        Retype Box<Int>
+          Type Remote<Int>
+          Local $dependency.local.19
+      call $dependency.local.4: Int = @fn12 direct
+        Type Remote<Int>
+        Local $dependency.local.19
+        Type Int
+        Local $dependency.local.20
+      val $dependency.local.21: Remote<Int>
+        Type Remote<Int>
+        Local $dependency.local.1
+      val $dependency.local.22: Remote<Int>
+        Type Remote<Int>
+        Local $dependency.local.21
+      val $dependency.local.23: Option<Remote<Int>>
+        Type Option<Remote<Int>>
+        VariantConstruct Option<Remote<Int>> v0
+          Type Remote<Int>
+          Local $dependency.local.22
+      val $dependency.local.24: Option<Remote<Int>>
+        Type Option<Remote<Int>>
+        Local $dependency.local.23
+      call $dependency.local.5: Option<Int> = @fn13 direct
+        Type Option<Remote<Int>>
+        Local $dependency.local.24
+      val $dependency.local.25: Option<Remote<Int>>
+        Type Option<Remote<Int>>
+        VariantConstruct Option<Remote<Int>> v1
+      val $dependency.local.26: Option<Remote<Int>>
+        Type Option<Remote<Int>>
+        Local $dependency.local.25
+      call $when.1: Option<Int> = @fn13 direct
+        Type Option<Remote<Int>>
+        Local $dependency.local.26
+      val $pattern.subject.2: Option<Int>
+        Type Option<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Int> v1
+          Type Option<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $dependency.local.27
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Int>
+        Type Option<Int>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.6: Boolean
+        Type Boolean
+        Local $dependency.local.27
+      val $dependency.local.28: Boolean
+        Type Boolean
+        Local $dependency.local.6
+      branch bb7 bb8
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.local.28
+    bb4 pattern.pass.4
+      assign $dependency.local.27
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+    bb7 if.then.7
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb8 if.merge.8
+      val $dependency.local.29: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.30: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.31: Int
+        Type Int
+        Local $dependency.local.29
+      val $dependency.local.32: Int
+        Type Int
+        Local $dependency.local.30
+      assign $new.2
+        Type Remote<Int>
+        ClassAlloc Remote<Int>
+      call @fn40 direct
+        Type Remote<Int>
+        Local $new.2
+        Type Int
+        Local $dependency.local.31
+        Type Int
+        Local $dependency.local.32
+      val $dependency.local.7: Remote<Int>
+        Type Remote<Int>
+        Local $new.2
+      val $dependency.local.33: Remote<Int>
+        Type Remote<Int>
+        Local $dependency.local.7
+      val $dependency.local.34: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.35: Remote<Int>
+        Type Remote<Int>
+        Local $dependency.local.33
+      val $dependency.local.36: Int
+        Type Int
+        Local $dependency.local.34
+      call $dependency.local.37: Int = @fn10 direct
+        Type Remote<Int>
+        Local $dependency.local.35
+        Type Int
+        Local $dependency.local.36
+      val $dependency.local.38: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.39: Int
+        Type Int
+        Local $dependency.local.38
+      branch bb9 bb10
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.37
+            Type Int
+            Local $dependency.local.39
+    bb9 if.then.9
+      val $dependency.local.43: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb11
+    bb10 if.else.10
+      call $dependency.local.40: Int = @fn11 direct
+        Type Box<Int>
+        Retype Box<Int>
+          Type Remote<Int>
+          Local $dependency.local.7
+      val $dependency.local.41: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.42: Int
+        Type Int
+        Local $dependency.local.41
+      val $dependency.local.43: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.40
+            Type Int
+            Local $dependency.local.42
+      goto bb11
+    bb11 if.merge.11
+      branch bb12 bb13
+        Type Boolean
+        Local $dependency.local.43
+    bb12 if.then.12
+      val $dependency.local.47: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb14
+    bb13 if.else.13
+      call $dependency.local.44: Int = @fn14 direct
+        Type Remote<Int>
+        Local $dependency.local.7
+      val $dependency.local.45: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.46: Int
+        Type Int
+        Local $dependency.local.45
+      val $dependency.local.47: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.44
+            Type Int
+            Local $dependency.local.46
+      goto bb14
+    bb14 if.merge.14
+      branch bb15 bb16
+        Type Boolean
+        Local $dependency.local.47
+    bb15 if.then.15
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb16 if.merge.16
+      val $dependency.local.48: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $dependency.local.49: Int
+        Type Int
+        Local $dependency.local.48
+      assign $new.3
+        Type Box<Int>
+        ClassAlloc Box<Int>
+      call @fn41 direct
+        Type Box<Int>
+        Local $new.3
+        Type Int
+        Local $dependency.local.49
+      val $dependency.local.50: Box<Int>
+        Type Box<Int>
+        Local $new.3
+      val $dependency.local.51: Box<Int>
+        Type Box<Int>
+        Local $dependency.local.50
+      call $dependency.local.52: Int = @fn15 direct
+        Type Box<Int>
+        Local $dependency.local.51
+      val $dependency.local.53: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.54: Int
+        Type Int
+        Local $dependency.local.53
+      branch bb17 bb18
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.52
+            Type Int
+            Local $dependency.local.54
+    bb17 if.then.17
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb18 if.merge.18
+      val $dependency.local.55: () -> Int
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$anonymous0
+      val $dependency.local.56: () -> Int
+        Type () -> Int
+        Local $dependency.local.55
+      assign $new.4
+        Type Box<() -> Int>
+        ClassAlloc Box<() -> Int>
+      call @fn42 direct
+        Type Box<() -> Int>
+        Local $new.4
+        Type () -> Int
+        Local $dependency.local.56
+      val $dependency.local.57: Box<() -> Int>
+        Type Box<() -> Int>
+        Local $new.4
+      val $dependency.local.58: Box<() -> Int>
+        Type Box<() -> Int>
+        Local $dependency.local.57
+      call $call.5: Int = @fn17 direct
+        Type Box<() -> Int>
+        Local $dependency.local.58
+      return
+        Type Int
+        Local $call.5
+  fun exercise @fn2(value: Payload) -> Int
+    bb0 entry
+      val $dependency.local.8: Payload
+        Type Payload
+        Local value
+      val $dependency.local.9: Payload
+        Type Payload
+        Local value
+      val $dependency.local.10: Payload
+        Type Payload
+        Local $dependency.local.8
+      val $dependency.local.11: Payload
+        Type Payload
+        Local $dependency.local.9
+      assign $new.1
+        Type Remote<Payload>
+        ClassAlloc Remote<Payload>
+      call @fn43 direct
+        Type Remote<Payload>
+        Local $new.1
+        Type Payload
+        Local $dependency.local.10
+        Type Payload
+        Local $dependency.local.11
+      val $dependency.local.1: Remote<Payload>
+        Type Remote<Payload>
+        Local $new.1
+      val $dependency.local.12: Remote<Payload>
+        Type Remote<Payload>
+        Local $dependency.local.1
+      val $dependency.local.13: Remote<Payload>
+        Type Remote<Payload>
+        Local $dependency.local.12
+      call $dependency.local.2: Payload = @fn22 direct
+        Type Remote<Payload>
+        Local $dependency.local.13
+      val $dependency.local.14: Remote<Payload>
+        Type Remote<Payload>
+        Local $dependency.local.1
+      val $dependency.local.15: Payload
+        Type Payload
+        Local value
+      val $dependency.local.16: Remote<Payload>
+        Type Remote<Payload>
+        Local $dependency.local.14
+      val $dependency.local.17: Payload
+        Type Payload
+        Local $dependency.local.15
+      call $dependency.local.3: Payload = @fn23 direct
+        Type Remote<Payload>
+        Local $dependency.local.16
+        Type Payload
+        Local $dependency.local.17
+      val $dependency.local.18: Remote<Payload>
+        Type Remote<Payload>
+        Local $dependency.local.1
+      val $dependency.local.19: Remote<Payload>
+        Type Remote<Payload>
+        Local $dependency.local.18
+      call $dependency.local.20: Payload = @fn24 direct
+        Type Box<Payload>
+        Retype Box<Payload>
+          Type Remote<Payload>
+          Local $dependency.local.19
+      call $dependency.local.4: Payload = @fn25 direct
+        Type Remote<Payload>
+        Local $dependency.local.19
+        Type Payload
+        Local $dependency.local.20
+      val $dependency.local.21: Remote<Payload>
+        Type Remote<Payload>
+        Local $dependency.local.1
+      val $dependency.local.22: Remote<Payload>
+        Type Remote<Payload>
+        Local $dependency.local.21
+      val $dependency.local.23: Option<Remote<Payload>>
+        Type Option<Remote<Payload>>
+        VariantConstruct Option<Remote<Payload>> v0
+          Type Remote<Payload>
+          Local $dependency.local.22
+      val $dependency.local.24: Option<Remote<Payload>>
+        Type Option<Remote<Payload>>
+        Local $dependency.local.23
+      call $dependency.local.5: Option<Payload> = @fn26 direct
+        Type Option<Remote<Payload>>
+        Local $dependency.local.24
+      val $dependency.local.25: Option<Remote<Payload>>
+        Type Option<Remote<Payload>>
+        VariantConstruct Option<Remote<Payload>> v1
+      val $dependency.local.26: Option<Remote<Payload>>
+        Type Option<Remote<Payload>>
+        Local $dependency.local.25
+      call $when.1: Option<Payload> = @fn26 direct
+        Type Option<Remote<Payload>>
+        Local $dependency.local.26
+      val $pattern.subject.2: Option<Payload>
+        Type Option<Payload>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Payload> v1
+          Type Option<Payload>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $dependency.local.27
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Payload>
+        Type Option<Payload>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Payload> v0
+          Type Option<Payload>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.6: Boolean
+        Type Boolean
+        Local $dependency.local.27
+      val $dependency.local.28: Boolean
+        Type Boolean
+        Local $dependency.local.6
+      branch bb7 bb8
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.local.28
+    bb4 pattern.pass.4
+      assign $dependency.local.27
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+    bb7 if.then.7
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb8 if.merge.8
+      val $dependency.local.29: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.30: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.31: Int
+        Type Int
+        Local $dependency.local.29
+      val $dependency.local.32: Int
+        Type Int
+        Local $dependency.local.30
+      assign $new.2
+        Type Remote<Int>
+        ClassAlloc Remote<Int>
+      call @fn40 direct
+        Type Remote<Int>
+        Local $new.2
+        Type Int
+        Local $dependency.local.31
+        Type Int
+        Local $dependency.local.32
+      val $dependency.local.7: Remote<Int>
+        Type Remote<Int>
+        Local $new.2
+      val $dependency.local.33: Remote<Int>
+        Type Remote<Int>
+        Local $dependency.local.7
+      val $dependency.local.34: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.35: Remote<Int>
+        Type Remote<Int>
+        Local $dependency.local.33
+      val $dependency.local.36: Int
+        Type Int
+        Local $dependency.local.34
+      call $dependency.local.37: Int = @fn10 direct
+        Type Remote<Int>
+        Local $dependency.local.35
+        Type Int
+        Local $dependency.local.36
+      val $dependency.local.38: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.39: Int
+        Type Int
+        Local $dependency.local.38
+      branch bb9 bb10
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.37
+            Type Int
+            Local $dependency.local.39
+    bb9 if.then.9
+      val $dependency.local.43: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb11
+    bb10 if.else.10
+      call $dependency.local.40: Int = @fn11 direct
+        Type Box<Int>
+        Retype Box<Int>
+          Type Remote<Int>
+          Local $dependency.local.7
+      val $dependency.local.41: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.42: Int
+        Type Int
+        Local $dependency.local.41
+      val $dependency.local.43: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.40
+            Type Int
+            Local $dependency.local.42
+      goto bb11
+    bb11 if.merge.11
+      branch bb12 bb13
+        Type Boolean
+        Local $dependency.local.43
+    bb12 if.then.12
+      val $dependency.local.47: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb14
+    bb13 if.else.13
+      call $dependency.local.44: Int = @fn14 direct
+        Type Remote<Int>
+        Local $dependency.local.7
+      val $dependency.local.45: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.46: Int
+        Type Int
+        Local $dependency.local.45
+      val $dependency.local.47: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.44
+            Type Int
+            Local $dependency.local.46
+      goto bb14
+    bb14 if.merge.14
+      branch bb15 bb16
+        Type Boolean
+        Local $dependency.local.47
+    bb15 if.then.15
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb16 if.merge.16
+      val $dependency.local.48: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $dependency.local.49: Int
+        Type Int
+        Local $dependency.local.48
+      assign $new.3
+        Type Box<Int>
+        ClassAlloc Box<Int>
+      call @fn41 direct
+        Type Box<Int>
+        Local $new.3
+        Type Int
+        Local $dependency.local.49
+      val $dependency.local.50: Box<Int>
+        Type Box<Int>
+        Local $new.3
+      val $dependency.local.51: Box<Int>
+        Type Box<Int>
+        Local $dependency.local.50
+      call $dependency.local.52: Int = @fn15 direct
+        Type Box<Int>
+        Local $dependency.local.51
+      val $dependency.local.53: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.54: Int
+        Type Int
+        Local $dependency.local.53
+      branch bb17 bb18
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.52
+            Type Int
+            Local $dependency.local.54
+    bb17 if.then.17
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb18 if.merge.18
+      val $dependency.local.55: () -> Int
+        Type () -> Int
+        ClosureAlloc cc1 $Closure$anonymous1
+      val $dependency.local.56: () -> Int
+        Type () -> Int
+        Local $dependency.local.55
+      assign $new.4
+        Type Box<() -> Int>
+        ClassAlloc Box<() -> Int>
+      call @fn42 direct
+        Type Box<() -> Int>
+        Local $new.4
+        Type () -> Int
+        Local $dependency.local.56
+      val $dependency.local.57: Box<() -> Int>
+        Type Box<() -> Int>
+        Local $new.4
+      val $dependency.local.58: Box<() -> Int>
+        Type Box<() -> Int>
+        Local $dependency.local.57
+      call $call.5: Int = @fn17 direct
+        Type Box<() -> Int>
+        Local $dependency.local.58
+      return
+        Type Int
+        Local $call.5
+  fun exposed @fn3(this: Box<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn11 direct
+        Type Box<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun exposed @fn4(this: Box<Int>, next: Int) -> Unit
+    bb0 entry
+      call @fn28 direct
+        Type Box<Int>
+        Local this
+        Type Int
+        Local next
+      return
+  fun exposed @fn5(this: Remote<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn14 direct
+        Type Remote<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun exposed @fn6(this: Remote<Int>, next: Int) -> Unit
+    bb0 entry
+      call @fn29 direct
+        Type Remote<Int>
+        Local this
+        Type Int
+        Local next
+      return
+  fun exposed @fn7(this: Box<() -> Int>) -> () -> Int
+    bb0 entry
+      call $call.1: () -> Int = @fn30 direct
+        Type Box<() -> Int>
+        Local this
+      return
+        Type () -> Int
+        Local $call.1
+  fun exposed @fn8(this: Box<() -> Int>, next: () -> Int) -> Unit
+    bb0 entry
+      call @fn31 direct
+        Type Box<() -> Int>
+        Local this
+        Type () -> Int
+        Local next
+      return
+  fun stored @fn9(box: Remote<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn11 direct
+        Type Box<Int>
+        Retype Box<Int>
+          Type Remote<Int>
+          Local box
+      return
+        Type Int
+        Local $call.1
+  fun exchange @fn10(box: Remote<Int>, next: Int) -> Int
+    bb0 entry
+      call $dependency.local.2: Int = @fn3 virtual[0]
+        Type Box<Int>
+        Retype Box<Int>
+          Type Remote<Int>
+          Local box
+      call @fn4 virtual[1]
+        Type Box<Int>
+        Retype Box<Int>
+          Type Remote<Int>
+          Local box
+        Type Int
+        Local next
+      return
+        Type Int
+        Local $dependency.local.2
+  fun value @fn11(this: Box<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Box<Int>
+          Local this
+  fun defaultRead @fn12(box: Remote<Int>, previous: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local previous
+  fun optional @fn13(box: Option<Remote<Int>>) -> Option<Int>
+    bb0 entry
+      val $dependency.local.1: Option<Remote<Int>>
+        Type Option<Remote<Int>>
+        Local box
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Remote<Int>> v0
+          Type Option<Remote<Int>>
+          Local $dependency.local.1
+    bb1 if.then.1
+      call $call.1: Int = @fn11 direct
+        Type Box<Int>
+        Retype Box<Int>
+          Type Remote<Int>
+          VariantPayloadProject Option<Remote<Int>> v0 f0
+            Type Option<Remote<Int>>
+            Local $dependency.local.1
+      val $dependency.local.2: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+          Type Int
+          Local $call.1
+      goto bb3
+    bb2 if.else.2
+      val $dependency.local.2: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Option<Int>
+        Local $dependency.local.2
+  fun alternate @fn14(this: Remote<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 1
+          Type Remote<Int>
+          Local this
+  fun advance @fn15(box: Box<Int>) -> Int
+    bb0 entry
+      val $dependency.local.1: Box<Int>
+        Type Box<Int>
+        Local box
+      call $dependency.local.2: Int = @fn11 direct
+        Type Box<Int>
+        Local $dependency.local.1
+      val $dependency.local.3: Int
+        Type Int
+        Local $dependency.local.2
+      val $dependency.local.4: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.4
+      call @fn28 direct
+        Type Box<Int>
+        Local $dependency.local.1
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.3
+          Type Int
+          Local $dependency.local.5
+      call $call.1: Int = @fn11 direct
+        Type Box<Int>
+        Local box
+      return
+        Type Int
+        Local $call.1
+  fun $anonymous @fn16($argument.0: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun invoke @fn17(box: Box<() -> Int>) -> Int
+    bb0 entry
+      call $call.1: () -> Int = @fn30 direct
+        Type Box<() -> Int>
+        Local box
+      call $call.2: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $call.1
+      return
+        Type Int
+        Local $call.2
+  fun exposed @fn18(this: Box<Payload>) -> Payload
+    bb0 entry
+      call $call.1: Payload = @fn24 direct
+        Type Box<Payload>
+        Local this
+      return
+        Type Payload
+        Local $call.1
+  fun exposed @fn19(this: Box<Payload>, next: Payload) -> Unit
+    bb0 entry
+      call @fn32 direct
+        Type Box<Payload>
+        Local this
+        Type Payload
+        Local next
+      return
+  fun exposed @fn20(this: Remote<Payload>) -> Payload
+    bb0 entry
+      call $call.1: Payload = @fn33 direct
+        Type Remote<Payload>
+        Local this
+      return
+        Type Payload
+        Local $call.1
+  fun exposed @fn21(this: Remote<Payload>, next: Payload) -> Unit
+    bb0 entry
+      call @fn34 direct
+        Type Remote<Payload>
+        Local this
+        Type Payload
+        Local next
+      return
+  fun stored @fn22(box: Remote<Payload>) -> Payload
+    bb0 entry
+      call $call.1: Payload = @fn24 direct
+        Type Box<Payload>
+        Retype Box<Payload>
+          Type Remote<Payload>
+          Local box
+      return
+        Type Payload
+        Local $call.1
+  fun exchange @fn23(box: Remote<Payload>, next: Payload) -> Payload
+    bb0 entry
+      call $dependency.local.2: Payload = @fn18 virtual[0]
+        Type Box<Payload>
+        Retype Box<Payload>
+          Type Remote<Payload>
+          Local box
+      call @fn19 virtual[1]
+        Type Box<Payload>
+        Retype Box<Payload>
+          Type Remote<Payload>
+          Local box
+        Type Payload
+        Local next
+      return
+        Type Payload
+        Local $dependency.local.2
+  fun value @fn24(this: Box<Payload>) -> Payload
+    bb0 entry
+      return
+        Type Payload
+        FieldAccess 0
+          Type Box<Payload>
+          Local this
+  fun defaultRead @fn25(box: Remote<Payload>, previous: Payload) -> Payload
+    bb0 entry
+      return
+        Type Payload
+        Local previous
+  fun optional @fn26(box: Option<Remote<Payload>>) -> Option<Payload>
+    bb0 entry
+      val $dependency.local.1: Option<Remote<Payload>>
+        Type Option<Remote<Payload>>
+        Local box
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Remote<Payload>> v0
+          Type Option<Remote<Payload>>
+          Local $dependency.local.1
+    bb1 if.then.1
+      call $call.1: Payload = @fn24 direct
+        Type Box<Payload>
+        Retype Box<Payload>
+          Type Remote<Payload>
+          VariantPayloadProject Option<Remote<Payload>> v0 f0
+            Type Option<Remote<Payload>>
+            Local $dependency.local.1
+      val $dependency.local.2: Option<Payload>
+        Type Option<Payload>
+        VariantConstruct Option<Payload> v0
+          Type Payload
+          Local $call.1
+      goto bb3
+    bb2 if.else.2
+      val $dependency.local.2: Option<Payload>
+        Type Option<Payload>
+        VariantConstruct Option<Payload> v1
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Option<Payload>
+        Local $dependency.local.2
+  fun $anonymous @fn27($argument.0: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun value @fn28(this: Box<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Box<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun alternate @fn29(this: Remote<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 1
+        Type Remote<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun value @fn30(this: Box<() -> Int>) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        FieldAccess 0
+          Type Box<() -> Int>
+          Local this
+  fun value @fn31(this: Box<() -> Int>, value: () -> Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Box<() -> Int>
+        Local this
+        Type () -> Int
+        Local value
+      return
+  fun value @fn32(this: Box<Payload>, value: Payload) -> Unit
+    bb0 entry
+      field_set 0
+        Type Box<Payload>
+        Local this
+        Type Payload
+        Local value
+      return
+  fun alternate @fn33(this: Remote<Payload>) -> Payload
+    bb0 entry
+      return
+        Type Payload
+        FieldAccess 1
+          Type Remote<Payload>
+          Local this
+  fun alternate @fn34(this: Remote<Payload>, value: Payload) -> Unit
+    bb0 entry
+      field_set 1
+        Type Remote<Payload>
+        Local this
+        Type Payload
+        Local value
+      return
+  fun Continuation.resume @fn35(this: Continuation<Payload>, value: Payload) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn36(this: Continuation<Payload>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn37(this: SuspendTask<Payload>, $completion: Continuation<Payload>) -> CoroutineStep<Payload>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn38(this: SuspendRegistration<Payload>, continuation: Continuation<Payload>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Payload.$c0 @fn39(this: Payload, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Payload
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Remote.$c0 @fn40(this: Remote<Int>, value: Int, alternate: Int) -> Unit
+    bb0 entry
+      val $dependency.constructor.local.0: Int
+        Type Int
+        Local value
+      val $dependency.constructor.local.1: Int
+        Type Int
+        Local $dependency.constructor.local.0
+      call @fn41 direct
+        Type Box<Int>
+        Retype Box<Int>
+          Type Remote<Int>
+          Local this
+        Type Int
+        Local $dependency.constructor.local.1
+      field_set 1
+        Type Remote<Int>
+        Local this
+        Type Int
+        Local alternate
+      return
+  fun init.Box.$c1 @fn41(this: Box<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Box<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Box.$c1 @fn42(this: Box<() -> Int>, value: () -> Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Box<() -> Int>
+        Local this
+        Type () -> Int
+        Local value
+      return
+  fun init.Remote.$c0 @fn43(this: Remote<Payload>, value: Payload, alternate: Payload) -> Unit
+    bb0 entry
+      val $dependency.constructor.local.0: Payload
+        Type Payload
+        Local value
+      val $dependency.constructor.local.1: Payload
+        Type Payload
+        Local $dependency.constructor.local.0
+      call @fn44 direct
+        Type Box<Payload>
+        Retype Box<Payload>
+          Type Remote<Payload>
+          Local this
+        Type Payload
+        Local $dependency.constructor.local.1
+      field_set 1
+        Type Remote<Payload>
+        Local this
+        Type Payload
+        Local alternate
+      return
+  fun init.Box.$c1 @fn44(this: Box<Payload>, value: Payload) -> Unit
+    bb0 entry
+      field_set 0
+        Type Box<Payload>
+        Local this
+        Type Payload
+        Local value
+      return
+  fun startCoroutine<Payload> @fn45(task: SuspendTask<Payload>, completion: Continuation<Payload>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn35 interface Continuation<Payload>[0]
+        Type Continuation<Payload>
+        Local completion
+        Type Payload
+        EnumField v0 f0
+          Type CoroutineStep<Payload>
+          Local $step
+      return
+    bb2 failed
+      call @fn36 interface Continuation<Payload>[1]
+        Type Continuation<Payload>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Payload> = @fn37 interface SuspendTask<Payload>[0]
+        Type SuspendTask<Payload>
+        Local task
+        Type Continuation<Payload>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Payload>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$anonymous0.() -> Any @fn46($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$anonymous1.() -> Any @fn47($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<Payload> result=Payload
+  coroutine_slot cl0 CoroutineSlot<Payload> value=Payload
+  coroutine_start ct0 result=Payload function=fn45
+  coroutine_fn cf0 @fn37 source_return=Payload step=cs0 immediate
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- exercise
+  instance mi2 function=@fn3 <- exposed
+  instance mi3 function=@fn4 <- exposed
+  instance mi4 function=@fn5 <- exposed
+  instance mi5 function=@fn6 <- exposed
+  instance mi6 function=@fn7 <- exposed
+  instance mi7 function=@fn8 <- exposed
+  instance mi8 function=@fn9 <- stored
+  instance mi9 function=@fn10 <- exchange
+  instance mi10 function=@fn11 <- value
+  instance mi11 function=@fn12 <- defaultRead
+  instance mi12 function=@fn13 <- optional
+  instance mi13 function=@fn14 <- alternate
+  instance mi14 function=@fn15 <- advance
+  instance mi15 function=@fn16 <- $anonymous
+  instance mi16 function=@fn17 <- invoke
+  instance mi17 function=@fn18 <- exposed
+  instance mi18 function=@fn19 <- exposed
+  instance mi19 function=@fn20 <- exposed
+  instance mi20 function=@fn21 <- exposed
+  instance mi21 function=@fn22 <- stored
+  instance mi22 function=@fn23 <- exchange
+  instance mi23 function=@fn24 <- value
+  instance mi24 function=@fn25 <- defaultRead
+  instance mi25 function=@fn26 <- optional
+  instance mi26 function=@fn27 <- $anonymous
+  instance mi27 function=@fn28 <- value
+  instance mi28 function=@fn29 <- alternate
+  instance mi29 function=@fn30 <- value
+  instance mi30 function=@fn31 <- value
+  instance mi31 function=@fn32 <- value
+  instance mi32 function=@fn33 <- alternate
+  instance mi33 function=@fn34 <- alternate
+  instance mi34 function=@fn35 <- Continuation.resume
+  instance mi35 function=@fn36 <- Continuation.resumeWithException
+  instance mi36 function=@fn37 <- SuspendTask.run
+  instance mi37 function=@fn38 <- SuspendRegistration.register
+  output library

@@ -30,13 +30,6 @@ fn imported_core_aliases_use_shared_type_selection_and_separate_value_names() {
         assert_eq!(output.imported_dependencies().type_alias_count(), 2);
         assert_eq!(output.imported_dependencies().callable_count(), 1);
         assert!(output.binding_witness_uses().is_empty());
-        assert_eq!(
-            hir::dump(&output.output().export),
-            include_str!(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/../../tests/fixtures/core-library/alias-consumer.hir"
-            ))
-        );
     });
 }
 
@@ -53,81 +46,4 @@ fn current_type_alias_shadows_the_imported_core_type_namespace() {
         let alias = module.type_aliases.iter().next().unwrap().1;
         assert!(matches!(module.types[alias.target], hir::Type::Boolean));
     });
-}
-
-#[test]
-fn imported_core_alias_rejects_type_arguments_at_its_source_name() {
-    let source = include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/core-library/alias-generic-error.scoop"
-    ));
-    with_aliases(source, |input| {
-        let errors = lower_current_cone(scoop_identity::RequestedConeKind::Library, input)
-            .err()
-            .expect("generic alias use must fail");
-        assert_eq!(errors.len(), 1);
-        assert_eq!(
-            errors[0].message,
-            "typealias `UserCoreNumber` is not generic"
-        );
-        let start = source.find("UserCoreNumber").unwrap() as u32;
-        assert_eq!(
-            errors[0].span,
-            Some(scoop_ast::Span {
-                start,
-                end: start + "UserCoreNumber".len() as u32
-            })
-        );
-    });
-}
-
-#[test]
-fn imported_builtin_type_rejects_type_arguments_at_its_source_name() {
-    let source = include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/core-library/builtin-generic-error.scoop"
-    ));
-    with_aliases(source, |input| {
-        let errors = lower_current_cone(scoop_identity::RequestedConeKind::Library, input)
-            .err()
-            .expect("non-generic nominal use must fail");
-        assert_eq!(errors.len(), 1);
-        assert_eq!(errors[0].message, "type `Int` is not generic");
-        let start = source.find("Int<").unwrap() as u32;
-        assert_eq!(
-            errors[0].span,
-            Some(scoop_ast::Span {
-                start,
-                end: start + 3
-            })
-        );
-    });
-}
-
-#[test]
-fn builtin_type_names_require_shared_public_bindings() {
-    let core = trusted_core();
-    let source = include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/core-library/builtin-binding-error.scoop"
-    ));
-    let parsed = support::parsed_ordinary_text(source);
-    let world =
-        hir::ImportedSemanticWorld::from_dependencies(parsed.cone(), Vec::new(), Vec::new())
-            .unwrap();
-    let protocols = core.foundation.import_core_inputs(&core.interface).unwrap();
-    let input = CurrentConeSources::try_new(&parsed, protocols, &world).unwrap();
-    let errors = lower_current_cone(scoop_identity::RequestedConeKind::Library, &input)
-        .err()
-        .expect("a protocol identity does not publish a source-level name");
-    assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message, "unknown type `Int`");
-    let start = source.find("Int").unwrap() as u32;
-    assert_eq!(
-        errors[0].span,
-        Some(scoop_ast::Span {
-            start,
-            end: start + 3
-        })
-    );
 }

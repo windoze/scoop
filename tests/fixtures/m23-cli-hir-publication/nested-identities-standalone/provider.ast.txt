@@ -1,0 +1,5 @@
+SourceFile
+  RootPackage
+  public fun readerNested<T>(seed: T, value: () -> T = <expr>): () -> T
+    =
+      Var value

@@ -1,0 +1,27 @@
+SourceFile
+  RootPackage
+  struct S
+    field v: Int
+  fun main()
+    val a: Any
+      Call S
+        IntLiteral 9
+    if
+      Is S false
+        Var a
+      Call println
+        FieldAccess v
+          Var a
+    if
+      Is Int false
+        Var a
+      Call println
+        StringLiteral "int"
+    else
+      Call println
+        StringLiteral "not int"
+    Call println
+      Binary Ne
+        Cast S optional=true
+          Var a
+        Var None

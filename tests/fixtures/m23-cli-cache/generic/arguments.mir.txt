@@ -1,0 +1,183 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Payload>
+    Completed(value: Payload)
+    Suspended()
+  enum CoroutineSlot<Payload>
+    Empty()
+    Value(value: Payload)
+  class Payload vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<Payload>
+  interface SuspendTask<Payload>
+  interface SuspendRegistration<Payload>
+  generated_exact_type get0 location=enum2 nominal_id=dc2fd8a02ffcc803d50463ed72091ff89aa4d7030858c745937632ad4ec79172 exact_id=17b5929b64ebb50499d3a748d1611a0cde531f5d15053f48f1ee2728f5f33fe3
+  generated_exact_type get1 location=enum1 nominal_id=dcd6c3584c0d0f66158add5905c9961bbc60369e64af91adbcc38f36bbcd9cd8 exact_id=4e406afd9244a2873ae8cc033c1a322c02662ae74891fe8b07401e3aa30d4e99
+  generated_callable gc0 function=@fn9 id=2f3c5f24f6067b090b73f6c8029f07140e21cedf4f6026306cbadcbb7abfe53d
+  fun Payload.$get$number @fn0(this: Payload) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Payload
+          Local this
+  fun check @fn1() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Payload
+        ClassAlloc Payload
+      call @fn8 direct
+        Type Payload
+        Local $new.1
+        Type Int
+        Local $parameter.number
+      val $dependency.argument.0: Payload
+        Type Payload
+        Local $new.1
+      val $dependency.parameter.value: Payload
+        Type Payload
+        Local $dependency.argument.0
+      val $dependency.parameter.amount: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      call $call.2: Int = @fn2 direct
+        Type Payload
+        Local $dependency.parameter.value
+        Type Int
+        Local $dependency.parameter.amount
+      return
+        Type Int
+        Local $call.2
+  fun calculate @fn2(value: Payload, amount: Int) -> Int
+    bb0 entry
+      val $dependency.local.2: Payload
+        Type Payload
+        Local value
+      val $dependency.local.3: Int
+        Type Int
+        Local amount
+      val $dependency.local.4: Payload
+        Type Payload
+        Local $dependency.local.2
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.3
+      call $dependency.local.6: Int = @fn3 direct
+        Type Payload
+        Local $dependency.local.4
+        Type Int
+        Local $dependency.local.5
+      val $dependency.local.7: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.8: Int
+        Type Int
+        Local $dependency.local.7
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.6
+          Type Int
+          Local $dependency.local.8
+  fun hidden @fn3(value: Payload, amount: Int) -> Int
+    bb0 entry
+      val $dependency.local.2: Int
+        Type Int
+        Local amount
+      val $dependency.local.3: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          Local $dependency.local.4
+  fun Continuation.resume @fn4(this: Continuation<Payload>, value: Payload) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn5(this: Continuation<Payload>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn6(this: SuspendTask<Payload>, $completion: Continuation<Payload>) -> CoroutineStep<Payload>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn7(this: SuspendRegistration<Payload>, continuation: Continuation<Payload>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Payload.$c0 @fn8(this: Payload, number: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Payload
+        Local this
+        Type Int
+        Local number
+      return
+  fun startCoroutine<Payload> @fn9(task: SuspendTask<Payload>, completion: Continuation<Payload>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn4 interface Continuation<Payload>[0]
+        Type Continuation<Payload>
+        Local completion
+        Type Payload
+        EnumField v0 f0
+          Type CoroutineStep<Payload>
+          Local $step
+      return
+    bb2 failed
+      call @fn5 interface Continuation<Payload>[1]
+        Type Continuation<Payload>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Payload> = @fn6 interface SuspendTask<Payload>[0]
+        Type SuspendTask<Payload>
+        Local task
+        Type Continuation<Payload>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Payload>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Payload> result=Payload
+  coroutine_slot cl0 CoroutineSlot<Payload> value=Payload
+  coroutine_start ct0 result=Payload function=fn9
+  coroutine_fn cf0 @fn6 source_return=Payload step=cs0 immediate
+  instance mi0 function=@fn2 <- calculate
+  instance mi1 function=@fn3 <- hidden
+  instance mi2 function=@fn4 <- Continuation.resume
+  instance mi3 function=@fn5 <- Continuation.resumeWithException
+  instance mi4 function=@fn6 <- SuspendTask.run
+  instance mi5 function=@fn7 <- SuspendRegistration.register
+  output library

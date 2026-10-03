@@ -2,9 +2,7 @@ use super::*;
 
 #[test]
 fn formal_pipeline_calls_a_direct_dependency_through_the_cross_cone_artifact_closure() {
-    let Some(target) = resolved_target() else {
-        return;
-    };
+    let target = resolved_target().expect("artifact integration tests require a host target");
     let sysroot = tempfile::tempdir().unwrap();
     bootstrap_core(sysroot.path(), &target);
 
@@ -51,9 +49,7 @@ fn formal_pipeline_calls_a_direct_dependency_through_the_cross_cone_artifact_clo
 
 #[test]
 fn chained_reexport_resolves_every_machine_use_to_the_terminal_provider() {
-    let Some(target) = resolved_target() else {
-        return;
-    };
+    let target = resolved_target().expect("artifact integration tests require a host target");
     let sysroot = tempfile::tempdir().unwrap();
     let core = bootstrap_core(sysroot.path(), &target);
 

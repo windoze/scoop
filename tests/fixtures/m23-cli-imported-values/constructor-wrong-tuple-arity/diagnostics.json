@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function argument must be of type (Long, Token, Long), found (Int, Int)",
+    "notes": [],
+    "origin": {
+      "cone": "0f120e025df4c7c4d0c35dbd2894a6be7dfb01d177b64fed174b8c16cec8d602",
+      "end": 93,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 87
+    },
+    "severity": "error"
+  }
+]

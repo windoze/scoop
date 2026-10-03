@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m11-functions/errors/unbound-member-reference.scoop:6:21: error: unbound member reference `Mapper::map` is not supported; bind an expression receiver first

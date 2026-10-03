@@ -1,0 +1,10 @@
+SourceFile
+  RootPackage
+  public struct AccessBox<T>
+    field value: T
+  public class AccessHolder()
+    public nested struct Nested
+  public fun accessCombined<T>(value: T, box: AccessBox<T> = <expr>, pair: (T, Int) = <expr>, factory: () -> T = <expr>, nested: AccessHolder.Nested = <expr>): T
+    =
+      FieldAccess value
+        Var box

@@ -1,0 +1,50 @@
+SourceFile
+  RootPackage
+  ImportStar Local startup.lazy.*
+  private fun trace(value: Long)
+    Call println
+      Var value
+  private fun failure(): Fault
+    =
+      TryExpression
+        Call readFailure
+        throw
+          Call IllegalStateException
+        catch error: Fault
+          Var error
+  fun main()
+    val first
+      Call failure
+    val allocated
+      Call Box
+        IntLiteral 7L
+    val second
+      Call failure
+    if
+      Binary Or
+        Binary Or
+          Binary Or
+            Binary Ne
+              Call count
+              IntLiteral 1
+            Binary Ne
+              FieldAccess value
+                FieldAccess payload
+                  Var first
+              IntLiteral 42L
+          Binary RefNe
+            FieldAccess payload
+              Var first
+            FieldAccess payload
+              Var second
+        Binary Ne
+          FieldAccess value
+            Var allocated
+          IntLiteral 7L
+      throw
+        Call IllegalStateException
+    @Unsafe block
+      Call trace
+        FieldAccess value
+          FieldAccess payload
+            Var second

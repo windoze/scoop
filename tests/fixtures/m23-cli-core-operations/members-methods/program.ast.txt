@@ -1,0 +1,134 @@
+SourceFile
+  RootPackage
+  fun main()
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Call compare
+              IntLiteral 7
+            IntLiteral 1L
+          Binary Ne
+            Call convert
+              IntLiteral 4294967301L
+            IntLiteral 5
+        Binary Ne
+          Call shift
+            IntLiteral 3u
+          IntLiteral 12u
+      throw
+        Call IllegalStateException
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Call combined
+              IntLiteral 4
+            IntLiteral 0L
+          Binary Ne
+            Call inferred
+            IntLiteral 1L
+        Binary Ne
+          Call narrow
+          Unary Neg
+            IntLiteral 126
+      throw
+        Call IllegalStateException
+    if
+      Binary Or
+        Binary Or
+          Binary Or
+            Call negate
+              BoolLiteral true
+            Unary Not
+              Call negate
+                BoolLiteral false
+          Unary Not
+            Call equality
+              IntLiteral 3
+        Call equality
+          IntLiteral 4
+      throw
+        Call IllegalStateException
+    if
+      Binary Or
+        Binary Or
+          Binary Or
+            Binary Ne
+              Call concatenate
+                StringLiteral "core"
+              StringLiteral "core!"
+            Binary Ge
+              Call order
+                StringLiteral "a"
+              IntLiteral 0L
+          Binary Ne
+            Call order
+              StringLiteral "z"
+            IntLiteral 0L
+        Binary Ne
+          Call pure
+            IntLiteral 41
+          IntLiteral 42
+      throw
+        Call IllegalStateException
+SourceFile
+  RootPackage
+  fun compare(value: Int): Long
+    =
+      MethodCall compareTo
+        Var value
+        Argument other=
+          IntLiteral 3
+  fun convert(value: Long): Int
+    =
+      MethodCall toInt32
+        Var value
+  fun shift(value: UInt): UInt
+    =
+      InfixCall shl
+        Var value
+        IntLiteral 2L
+  fun combined(value: Int): Long
+    =
+      MethodCall compareTo
+        MethodCall inc
+          Binary Add
+            Var value
+            IntLiteral 2
+        IntLiteral 7
+  fun inferred(): Long
+    =
+      MethodCall compareTo
+        IntLiteral 7
+        IntLiteral 3
+  fun narrow(): Int8
+    =
+      MethodCall plus
+        IntLiteral 120
+        IntLiteral 10
+  fun negate(value: Boolean): Boolean
+    =
+      MethodCall not
+        Var value
+  fun equality(value: Int): Boolean
+    =
+      MethodCall equals
+        Var value
+        Argument other=
+          IntLiteral 3
+  fun concatenate(value: String): String
+    =
+      MethodCall plus
+        Var value
+        StringLiteral "!"
+  fun order(value: String): Long
+    =
+      MethodCall compareTo
+        Var value
+        StringLiteral "z"
+    @NoGC
+  fun pure(value: Int): Int
+    =
+      MethodCall inc
+        Var value

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "cannot assign value of type Boolean to property `ordered` of type Int",
+    "notes": [],
+    "origin": {
+      "cone": "917206099501ab7abc13b053b0ef8049bc5cb3c7fcb376580c4baaee94f46800",
+      "end": 92,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 88
+    },
+    "severity": "error"
+  }
+]

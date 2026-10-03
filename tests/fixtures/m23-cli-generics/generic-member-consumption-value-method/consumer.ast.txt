@@ -1,0 +1,24 @@
+SourceFile
+  QualifiedPackage consumer.members
+  ImportStar Local templates.members.*
+  public fun result(): Int
+    val cell
+      Call Cell<Int>
+        IntLiteral 20
+    val choice
+      Call emptyChoice<String>
+    return
+      Binary Add
+        MethodCall read
+          Var cell
+        MethodCall choose<Int>
+          Var choice
+          MethodCall choose<_>
+            Var cell
+            IntLiteral 22
+  public fun make<T>(value: T): T
+    =
+      MethodCall choose<T>
+        Call Cell<Int>
+          IntLiteral 1
+        Var value

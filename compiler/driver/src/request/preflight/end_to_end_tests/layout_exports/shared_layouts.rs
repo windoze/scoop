@@ -3,7 +3,6 @@ use scoop_lir_lower::{LayoutAbiExportDependenciesV1, LayoutAbiExportInputV1};
 use scoop_slib::SharedLirLayoutValidationError as Error;
 
 mod corruption;
-mod dump;
 
 pub(super) fn check(
     input: LayoutAbiExportInputV1<'_>,
@@ -80,13 +79,10 @@ fn has_foreign_layout_dependency(types: &mir::CanonicalParamFreeMirTypeExportsV1
 }
 
 pub(super) fn probe(
-    name: &str,
     input: LayoutAbiExportInputV1<'_>,
     expected: &lir::LayoutAbiExportConstituentsV1,
 ) {
     corruption::check(input, expected.layouts());
-
-    dump::check(name, input, expected.layouts());
 }
 
 fn replay(

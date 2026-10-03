@@ -126,11 +126,10 @@ impl Concretizer<'_> {
         if !self.automatic_type(receiver.owner) {
             return !matches!(receiver.dispatch, export::MethodDispatch::Direct);
         }
-        !function.is_suspend
-            && function
-                .params
-                .iter()
-                .all(|param| self.automatic_type(param.ty))
+        function
+            .params
+            .iter()
+            .all(|param| self.automatic_type(param.ty))
             && self.automatic_type(function.return_ty)
     }
 

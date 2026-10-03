@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "typealias `Packet` is not generic",
+    "notes": [],
+    "origin": {
+      "cone": "fd0b31ca51c7d6a360dcf79603dc7143d007787fbc18d5310266615d7fab9c57",
+      "end": 74,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 68
+    },
+    "severity": "error"
+  }
+]

@@ -1,3 +1,0 @@
-span=91..100
-expression=Other(21)
-cannot assign value of type Other to property `reference` of type Counter

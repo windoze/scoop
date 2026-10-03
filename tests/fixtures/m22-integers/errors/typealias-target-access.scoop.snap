@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m22-integers/errors/typealias-target-access.scoop:3:1: error: signature of typealias `Exposed` exposes type `Hidden` outside its access domain

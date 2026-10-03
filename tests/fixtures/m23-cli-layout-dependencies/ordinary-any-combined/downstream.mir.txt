@@ -1,0 +1,8 @@
+Module
+  fun read @fn0() -> Any
+    bb0 entry
+      call $call.1: Any = external0 direct
+      return
+        Type Any
+        Local $call.1
+  output library

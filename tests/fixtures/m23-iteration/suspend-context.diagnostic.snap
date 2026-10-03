@@ -1,3 +1,0 @@
-span=153..161
-expression=Source()
-suspend function `Source.iterator` cannot be called from non-suspend function `invalid`

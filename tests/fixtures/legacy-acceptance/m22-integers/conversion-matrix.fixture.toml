@@ -1,0 +1,24 @@
+schema = 1
+name = "legacy-m22-integers-conversion-matrix"
+root = "../../m22-integers/conversion-matrix.scoop"
+inputs = ["../../m22-integers/conversion-matrix.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["legacy", "m22-integers", "single-file", "run"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "conversion-matrix.ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "conversion-matrix.hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "conversion-matrix.mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "conversion-matrix.lir.txt"}]
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "-1\n-1\n-1\n-1\n255\n65535\n4294967295\n18446744073709551615\n-1\n-257\n-257\n-257\n255\n65279\n4294967039\n18446744073709551359\n-1\n-1\n-65537\n-65537\n255\n65535\n4294901759\n18446744073709486079\n-1\n-1\n-1\n-4294967297\n255\n65535\n4294967295\n18446744069414584319\n-1\n255\n255\n255\n255\n255\n255\n255\n-1\n-1\n65535\n65535\n255\n65535\n65535\n65535\n-1\n-1\n-1\n4294967295\n255\n65535\n4294967295\n4294967295\n-1\n-1\n-1\n-1\n255\n65535\n4294967295\n18446744073709551615\n"
+stderr = ""

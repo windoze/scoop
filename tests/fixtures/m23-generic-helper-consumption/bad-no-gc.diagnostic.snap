@@ -1,3 +1,0 @@
-span=123..142
-expression=native(Payload(42))
-generic function `native` requires type argument Payload for `T` to be GC-free

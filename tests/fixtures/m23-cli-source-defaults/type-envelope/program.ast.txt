@@ -1,0 +1,44 @@
+SourceFile
+  RootPackage
+  public class TypeEnvelopeHost()
+    public fun check
+    internal fun scoped
+    protected fun capture
+    internal fun genericCapture
+SourceFile
+  RootPackage
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val host
+      Call TypeEnvelopeHost
+    Call verifyDefault
+      Binary Eq
+        MethodCall scoped
+          Var host
+          IntLiteral 17
+        IntLiteral 17
+    Call verifyDefault
+      Binary Eq
+        MethodCall check
+          Var host
+          StringLiteral "capture"
+        StringLiteral "capture"
+    Call verifyDefault
+      Binary Eq
+        Invoke
+          MethodCall genericCapture
+            Var host
+            IntLiteral 19
+        IntLiteral 19
+    Call verifyDefault
+      Binary Eq
+        Invoke
+          MethodCall genericCapture
+            Var host
+            StringLiteral "generic"
+        StringLiteral "generic"

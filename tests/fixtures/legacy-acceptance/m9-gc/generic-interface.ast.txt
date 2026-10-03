@@ -1,0 +1,56 @@
+SourceFile
+  RootPackage
+  interface Producer<T>
+    fun get
+  interface Consumer<T>
+    fun put
+  open class Animal(val name: String)
+  class Dog() : Animal(<1 args>)
+  class DogProducer(), Producer<Dog>
+    fun get
+  class IntProducer(), Producer<Int>
+    fun get
+  struct IntValue : Producer<Int>
+    field value: Int
+    fun get
+  struct Value<T> : Producer<T>
+    field value: T
+    fun get
+  class AnimalConsumer(), Consumer<Animal>
+    fun put
+  class AnyConsumer(), Consumer<Any>
+    fun put
+  fun readOr<T>(producer: Producer<T>, fallback: T): T
+    =
+      MethodCall get
+        Var producer
+  fun main()
+    val producer: Producer<Dog>
+      Call DogProducer
+    Call println
+      FieldAccess name
+        MethodCall get
+          Var producer
+    val consumer: Consumer<Animal>
+      Call AnimalConsumer
+    MethodCall put
+      Var consumer
+      Call Dog
+    Call println
+      MethodCall get
+        Call IntProducer
+    Call println
+      MethodCall get
+        Call IntValue
+          IntLiteral 8
+    Call println
+      MethodCall get
+        Call Value
+          IntLiteral 10
+    MethodCall put
+      Call AnyConsumer
+      IntLiteral 9
+    Call println
+      Call readOr
+        Call IntProducer
+        IntLiteral 6

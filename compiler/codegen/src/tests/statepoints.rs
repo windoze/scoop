@@ -53,7 +53,6 @@ fn low_level_codegen_does_not_emit_legacy_image_tables() {
             initial_state: LirStaticInitialState::EncodedStaticValue {
                 payload: LirConstantImage::NullPointer(PointerKind::Managed),
             },
-            thread_local: false,
         },
     });
 
@@ -73,34 +72,25 @@ fn empty_module_does_not_emit_legacy_image_sentinels() {
 }
 
 #[test]
-fn managed_thread_local_global_is_rejected_at_codegen_boundary() {
+fn raw_thread_local_global_rejects_managed_references() {
     let mut module = values_module();
     let identity = static_storage_identity("managedTls");
     module.globals.alloc(Global {
         address_kind: PointerKind::Raw,
         scan: RefScan::References(vec![0]),
-        init: GlobalInit::Storage {
+        init: GlobalInit::RawStorage {
             identity,
-            layout: layout_identity(
-                "managedTls",
-                scoop_identity::RepresentationRole::ManagedValue,
-            )
-            .into(),
             ty: MANAGED_PTR,
-            initial_state: LirStaticInitialState::EncodedStaticValue {
-                payload: LirConstantImage::NullPointer(PointerKind::Managed),
-            },
+            initializer: LirConstantImage::NullPointer(PointerKind::Managed),
             thread_local: true,
         },
     });
     let machine = host_target_machine().expect("target machine");
     let context = Context::create();
     let error = emit_llvm_module(&context, &module, &machine, host_profile())
-        .expect_err("M23-3 strong static storage rejects thread-local definitions");
+        .expect_err("raw TLS cannot contain managed references");
     assert!(
-        error
-            .0
-            .contains("invalid strong static-storage semantics: ThreadLocal"),
+        error.0.contains("raw storage must be GC-free"),
         "unexpected error: {error}"
     );
 }

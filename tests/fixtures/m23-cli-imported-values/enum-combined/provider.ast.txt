@@ -1,0 +1,83 @@
+SourceFile
+  QualifiedPackage dependency.enums
+  public struct Token
+  public enum Choice
+    Empty
+    Pair <named>
+      left: Long
+      marker: Token
+      right: Long
+  public enum Other
+    Empty
+    Pair(Long, Token, Long)
+  public enum Flag
+    Off
+    On
+    @NoGC
+  public fun make(left: Long, right: Long): Choice
+    =
+      MethodCall Pair
+        Var Choice
+        Argument left=
+          Var left
+        Argument marker=
+          Call Token
+        Argument right=
+          Var right
+    @NoGC
+  public fun empty(): Choice
+    =
+      FieldAccess Empty
+        Var Choice
+    @NoGC
+  public fun sum(value: Choice): Long
+    =
+      WhenExpression
+        Var value
+        arm Empty
+          IntLiteral 0
+        arm Pair{left, right, ..}
+          Binary Add
+            Var left
+            Var right
+    @NoGC
+  public fun flag(): Flag
+    =
+      FieldAccess On
+        Var Flag
+    @NoGC
+  public fun flagValue(value: Flag): Long
+    =
+      WhenExpression
+        Var value
+        arm Off
+          IntLiteral 0
+        arm On
+          IntLiteral 1
+  public enum Packet
+    Missing
+    Data((Long, Token, Long), Token)
+    @NoGC
+  public fun packet(): Packet
+    =
+      MethodCall Data
+        Var Packet
+        TupleLiteral
+          IntLiteral 53
+          Call Token
+          IntLiteral 42
+        Call Token
+  public typealias ChoiceAlias = Choice
+  public enum Marker
+    Only
+  public enum Draft
+    Absent
+    Position(Long, Token, Long)
+    Named <named>
+      left: Long
+      marker: Token
+      right: Long
+    Defaults <ctor>
+      left: Long
+      marker: Token = <expr>
+      right: Long = <expr>

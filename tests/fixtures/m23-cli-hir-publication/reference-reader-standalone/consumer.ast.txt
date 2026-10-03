@@ -1,0 +1,18 @@
+SourceFile
+  RootPackage
+  public fun check(): Int
+    if
+      Binary Ne
+        Call readerValue
+        IntLiteral 7
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call readerValue
+          IntLiteral 19
+        IntLiteral 19
+      return
+        IntLiteral 2
+    return
+      IntLiteral 42

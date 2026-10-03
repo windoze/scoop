@@ -1,0 +1,130 @@
+schema = 1
+name = "native-link-mixed"
+inputs = ["mixed-provider", "../../m23-native-link/mixed/provider.scoop", "mixed-left", "../../m23-native-link/mixed/left.scoop", "mixed-right", "../../m23-native-link/mixed/right.scoop", "mixed-root", "../../m23-native-link/mixed/root.scoop", "../../m23-native-link/mixed/archive.c", "../../m23-native-link/mixed/helper.c", "../../m23-native-link/mixed/unused.c", "../../m23-native-link/mixed/dynamic.c"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin"]
+tags = ["native-link", "program-link", "moving-gc", "stage-golden"]
+
+[[variants]]
+name = "normal"
+
+[[variants]]
+name = "moving"
+env = { SCOOP_GC_STRESS_MOVE = "1" }
+
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${fixture}/mixed-provider", "to" = "${work}/sources/mixed-provider"}}, {"copy" = {"from" = "${fixture}/../../m23-native-link/mixed/provider.scoop", "to" = "${work}/sources/mixed-provider/src/main.scoop"}}, {"copy" = {"from" = "${fixture}/mixed-left", "to" = "${work}/sources/mixed-left"}}, {"copy" = {"from" = "${fixture}/../../m23-native-link/mixed/left.scoop", "to" = "${work}/sources/mixed-left/src/main.scoop"}}, {"copy" = {"from" = "${fixture}/mixed-right", "to" = "${work}/sources/mixed-right"}}, {"copy" = {"from" = "${fixture}/../../m23-native-link/mixed/right.scoop", "to" = "${work}/sources/mixed-right/src/main.scoop"}}, {"copy" = {"from" = "${fixture}/mixed-root", "to" = "${work}/sources/mixed-root"}}, {"copy" = {"from" = "${fixture}/../../m23-native-link/mixed/root.scoop", "to" = "${work}/sources/mixed-root/src/main.scoop"}}, {"copy" = {"from" = "${fixture}/../../m23-native-link/mixed/archive.c", "to" = "${work}/sources/native/mixed/archive.c"}}, {"copy" = {"from" = "${fixture}/../../m23-native-link/mixed/helper.c", "to" = "${work}/sources/native/mixed/helper.c"}}, {"copy" = {"from" = "${fixture}/../../m23-native-link/mixed/unused.c", "to" = "${work}/sources/native/mixed/unused.c"}}, {"copy" = {"from" = "${fixture}/../../m23-native-link/mixed/dynamic.c", "to" = "${work}/sources/native/mixed/dynamic.c"}}, {"mkdir" = {"path" = "${work}/native"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+
+[[steps]]
+name = "compile_0"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/mixed/archive.c", "-o", "${work}/objects/archive.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "compile_1"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/mixed/helper.c", "-o", "${work}/objects/helper.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "compile_2"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/mixed/unused.c", "-o", "${work}/objects/unused.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "compile_3"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/mixed/dynamic.c", "-o", "${work}/objects/dynamic.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "dylib_3"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-dynamiclib", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "${work}/objects/dynamic.o", "-install_name", "@rpath/libm23_mix_dynamic.dylib", "-current_version", "2.0", "-compatibility_version", "1.0", "-o", "${work}/native/libm23_mix_dynamic.dylib"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "archive_m23_mix_archive"
+argv = ["${ar}", "qcS", "${work}/native/libm23_mix_archive.a", "${work}/objects/archive.o", "${work}/objects/helper.o", "${work}/objects/unused.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"ZERO_AR_DATE" = "1"}
+
+[[steps]]
+name = "remove_objects"
+files = [{"remove" = {"path" = "${work}/objects/archive.o"}}, {"remove" = {"path" = "${work}/objects/helper.o"}}, {"remove" = {"path" = "${work}/objects/unused.o"}}, {"remove" = {"path" = "${work}/objects/dynamic.o"}}]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${work}/sources/mixed-root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump", "--dump-scope", "sources", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${build.result.dependencies.length}", "equals" = 4}, {"actual" = "${build.result.dependencies.0.coordinate.name}", "equals" = "scoop.core"}, {"actual" = "${build.result.dependencies.1.coordinate.name}", "equals" = "mixed-provider"}, {"file" = "${work}/dump/${build.result.dependencies.1.identity}/ast.txt", "snapshot" = "../goldens/mixed/provider.ast.txt"}, {"file" = "${work}/dump/${build.result.dependencies.1.identity}/hir.txt", "snapshot" = "../goldens/mixed/provider.hir.txt"}, {"file" = "${work}/dump/${build.result.dependencies.1.identity}/mir.txt", "snapshot" = "../goldens/mixed/provider.mir.txt"}, {"file" = "${work}/dump/${build.result.dependencies.1.identity}/lir.txt", "snapshot" = "../goldens/mixed/provider.lir.txt"}, {"actual" = "${build.result.dependencies.2.coordinate.name}", "equals" = "mixed-left"}, {"file" = "${work}/dump/${build.result.dependencies.2.identity}/ast.txt", "snapshot" = "../goldens/mixed/left.ast.txt"}, {"file" = "${work}/dump/${build.result.dependencies.2.identity}/hir.txt", "snapshot" = "../goldens/mixed/left.hir.txt"}, {"file" = "${work}/dump/${build.result.dependencies.2.identity}/mir.txt", "snapshot" = "../goldens/mixed/left.mir.txt"}, {"file" = "${work}/dump/${build.result.dependencies.2.identity}/lir.txt", "snapshot" = "../goldens/mixed/left.lir.txt"}, {"actual" = "${build.result.dependencies.3.coordinate.name}", "equals" = "mixed-right"}, {"file" = "${work}/dump/${build.result.dependencies.3.identity}/ast.txt", "snapshot" = "../goldens/mixed/right.ast.txt"}, {"file" = "${work}/dump/${build.result.dependencies.3.identity}/hir.txt", "snapshot" = "../goldens/mixed/right.hir.txt"}, {"file" = "${work}/dump/${build.result.dependencies.3.identity}/mir.txt", "snapshot" = "../goldens/mixed/right.mir.txt"}, {"file" = "${work}/dump/${build.result.dependencies.3.identity}/lir.txt", "snapshot" = "../goldens/mixed/right.lir.txt"}, {"actual" = "${build.result.root.coordinate.name}", "equals" = "mixed-root"}, {"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "../goldens/mixed/root.ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "../goldens/mixed/root.hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "../goldens/mixed/root.mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "../goldens/mixed/root.lir.txt"}]
+
+[[steps]]
+name = "run_built"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "100\n0\n200\n56\n96\n121\nmixed-alive\n"
+stderr = ""
+
+[[steps]]
+name = "isolate"
+files = [{"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}}, {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}}, {"mkdir" = {"path" = "${work}/empty-sysroot"}}, {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}}, {"copy" = {"from" = "${build.result.dependencies.1.path}", "to" = "${work}/artifacts/1.slib"}}, {"copy" = {"from" = "${build.result.dependencies.2.path}", "to" = "${work}/artifacts/2.slib"}}, {"copy" = {"from" = "${build.result.dependencies.3.path}", "to" = "${work}/artifacts/3.slib"}}, {"remove" = {"path" = "${work}/sources"}}, {"symlink" = {"from" = "${work}/native", "to" = "${work}/native-alias"}}]
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/3.slib", "--dependency-slib", "${work}/artifacts/2.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "-o", "${work}/artifacts/program", "--message-format", "json", "--dump-plan", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}, {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan", "normalize" = ["paths"]}]
+
+[[steps]]
+name = "run_linked"
+argv = ["${link.result.output}"]
+exit = 0
+stdout = "100\n0\n200\n56\n96\n121\nmixed-alive\n"
+stderr = ""
+
+[[steps]]
+name = "aliases_0"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/2.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/3.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "-o", "${work}/artifacts/program", "--message-format", "json", "--dump-plan", "--library-path", "${work}/native", "--library-path", "${work}/native-alias"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"actual" = "${aliases_0.result.link_plan}", "equals" = "${link.result.link_plan}"}, {"actual" = "${aliases_0.result.link_plan_fingerprint}", "equals" = "${link.result.link_plan_fingerprint}"}]
+
+[[steps]]
+name = "aliases_1"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/2.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/3.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "-o", "${work}/artifacts/program", "--message-format", "json", "--dump-plan", "--library-path", "${work}/native-alias", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"actual" = "${aliases_1.result.link_plan}", "equals" = "${link.result.link_plan}"}, {"actual" = "${aliases_1.result.link_plan_fingerprint}", "equals" = "${link.result.link_plan_fingerprint}"}]

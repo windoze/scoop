@@ -1,0 +1,409 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<LocalGenericHost>
+    Completed(value: LocalGenericHost)
+    Suspended()
+  enum CoroutineSlot<LocalGenericHost>
+    Empty()
+    Value(value: LocalGenericHost)
+  class LocalGenericHost vtable=0 itables=0
+  class GenericLocalHost<String> vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<LocalGenericHost>
+  interface SuspendTask<LocalGenericHost>
+  interface SuspendRegistration<LocalGenericHost>
+  generated_exact_type get0 location=enum2 nominal_id=2654405eec0d5b5611b1aed2ed18b4cea96b6e3ae81dd2d5fa4300be0d5f5103 exact_id=21de810945c35dd185d954d5cc91d0777765cafbd5b5307a040d3446bfe961d2
+  generated_exact_type get1 location=enum1 nominal_id=fe65ed797aa9545a44122dac20420e7506e88288880ac10ba9cb341dd1d4b3c2 exact_id=c93aed7250f8f0bd6404f1295e56b70f8b579db43c03b89d165b1c5fd5da6ff7
+  generated_callable gc0 function=@fn16 id=566f2171448fea934c7f347cbd9df36a6be83b5306de1ffabc29b7b3e215e946
+  fun main @fn0() -> Unit
+    bb0 entry
+      assign $new.1
+        Type LocalGenericHost
+        ClassAlloc LocalGenericHost
+      call @fn14 direct
+        Type LocalGenericHost
+        Local $new.1
+      val plain: LocalGenericHost
+        Type LocalGenericHost
+        Local $new.1
+      val $receiver: LocalGenericHost
+        Type LocalGenericHost
+        Local plain
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      branch bb1 bb2
+        Type Boolean
+        BoolLiteral true
+    bb1 if.then.1
+      val $argument.0: Int
+        Type Int
+        Local $parameter.seed
+      val $parameter.unused: Int
+        Type Int
+        Local $argument.0
+      call $call.2: Int = @fn1 direct
+        Type Int
+        Local $parameter.seed
+        Type Int
+        Local $parameter.unused
+      assign $result.1
+        Type Int
+        Local $call.2
+      goto bb3
+    bb2 if.else.2
+      assign $result.1
+        Type Int
+        Local $parameter.seed
+      goto bb3
+    bb3 if.merge.3
+      val $parameter.value: Int
+        Type Int
+        Local $result.1
+      call $call.3: Int = @fn2 direct
+        Type LocalGenericHost
+        Local $receiver
+        Type Int
+        Local $parameter.seed
+        Type Int
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $parameter.stored: String
+        Type String
+        Local $argument.0
+      assign $new.4
+        Type GenericLocalHost<String>
+        ClassAlloc GenericLocalHost<String>
+      call @fn15 direct
+        Type GenericLocalHost<String>
+        Local $new.4
+        Type String
+        Local $parameter.stored
+      val generic: GenericLocalHost<String>
+        Type GenericLocalHost<String>
+        Local $new.4
+      val $receiver: GenericLocalHost<String>
+        Type GenericLocalHost<String>
+        Local generic
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: String
+        Type String
+        StringConst @str1
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: String
+        Type String
+        Local $argument.1
+      branch bb4 bb5
+        Type Boolean
+        BoolLiteral true
+    bb4 if.then.4
+      val $argument.0: Int
+        Type Int
+        Local $parameter.first
+      val $parameter.unused: Int
+        Type Int
+        Local $argument.0
+      call $call.5: (String, String) = @fn3 direct
+        Type GenericLocalHost<String>
+        Local $receiver
+        Type String
+        Local $parameter.second
+        Type Int
+        Local $parameter.unused
+      assign $result.2
+        Type (String, String)
+        Local $call.5
+      goto bb6
+    bb5 if.else.5
+      assign $result.2
+        Type (String, String)
+        TupleLiteral
+          Type String
+          FieldAccess 0
+            Type GenericLocalHost<String>
+            Local $receiver
+          Type String
+          Local $parameter.second
+      goto bb6
+    bb6 if.merge.6
+      val $parameter.value: (String, String)
+        Type (String, String)
+        Local $result.2
+      call $call.6: (String, String) = @fn4 direct
+        Type GenericLocalHost<String>
+        Local $receiver
+        Type Int
+        Local $parameter.first
+        Type String
+        Local $parameter.second
+        Type (String, String)
+        Local $parameter.value
+      val $receiver: GenericLocalHost<String>
+        Type GenericLocalHost<String>
+        Local generic
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $argument.1: String
+        Type String
+        StringConst @str2
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: String
+        Type String
+        Local $argument.1
+      val $argument.0: String
+        Type String
+        Local $parameter.second
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      branch bb7 bb8
+        Type Boolean
+        BoolLiteral true
+    bb7 if.then.7
+      val $argument.0: String
+        Type String
+        Local $parameter.seed
+      val $argument.1: String
+        Type String
+        Local $parameter.seed
+      val $parameter.first: String
+        Type String
+        Local $argument.0
+      val $parameter.second: String
+        Type String
+        Local $argument.1
+      call $call.7: String = @fn5 direct
+        Type String
+        Local $parameter.seed
+        Type String
+        Local $parameter.first
+        Type String
+        Local $parameter.second
+      assign $result.0
+        Type String
+        Local $call.7
+      goto bb9
+    bb8 if.else.8
+      assign $result.0
+        Type String
+        Local $parameter.seed
+      goto bb9
+    bb9 if.merge.9
+      val $parameter.value: String
+        Type String
+        Local $result.0
+      call $parameter.value: String = @fn6 direct
+        Type String
+        Local $parameter.seed
+        Type String
+        Local $parameter.value
+      call $call.8: String = @fn7 direct
+        Type GenericLocalHost<String>
+        Local $receiver
+        Type Int
+        Local $parameter.first
+        Type String
+        Local $parameter.second
+        Type String
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      branch bb10 bb11
+        Type Boolean
+        BoolLiteral true
+    bb10 if.then.10
+      val $argument.0: Int
+        Type Int
+        Local $parameter.seed
+      val $argument.1: Int
+        Type Int
+        Local $parameter.seed
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: Int
+        Type Int
+        Local $argument.1
+      call $call.9: Int = @fn8 direct
+        Type Int
+        Local $parameter.seed
+        Type Int
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+      assign $result.0
+        Type Int
+        Local $call.9
+      goto bb12
+    bb11 if.else.11
+      assign $result.0
+        Type Int
+        Local $parameter.seed
+      goto bb12
+    bb12 if.merge.12
+      val $parameter.value: Int
+        Type Int
+        Local $result.0
+      call $call.10: Int = @fn9 direct
+        Type Int
+        Local $parameter.seed
+        Type Int
+        Local $parameter.value
+      return
+  fun $local.1.keep @fn1($capture.seed: Int, unused: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local $capture.seed
+  fun LocalGenericHost.pick @fn2(this: LocalGenericHost, seed: Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun $local.2.combine @fn3($capture.this: GenericLocalHost<String>, $capture.second: String, unused: Int) -> (String, String)
+    bb0 entry
+      return
+        Type (String, String)
+        TupleLiteral
+          Type String
+          FieldAccess 0
+            Type GenericLocalHost<String>
+            Local $capture.this
+          Type String
+          Local $capture.second
+  fun GenericLocalHost.direct @fn4(this: GenericLocalHost<String>, first: Int, second: String, value: (String, String)) -> (String, String)
+    bb0 entry
+      return
+        Type (String, String)
+        Local value
+  fun $local.0.keep @fn5($capture.seed: String, first: String, second: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local $capture.seed
+  fun genericLocalDependency @fn6(seed: String, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun GenericLocalHost.expanded @fn7(this: GenericLocalHost<String>, first: Int, second: String, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun $local.0.keep @fn8($capture.seed: Int, first: Int, second: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local $capture.seed
+  fun genericLocalDependency @fn9(seed: Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun Continuation.resume @fn10(this: Continuation<LocalGenericHost>, value: LocalGenericHost) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn11(this: Continuation<LocalGenericHost>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn12(this: SuspendTask<LocalGenericHost>, $completion: Continuation<LocalGenericHost>) -> CoroutineStep<LocalGenericHost>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn13(this: SuspendRegistration<LocalGenericHost>, continuation: Continuation<LocalGenericHost>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.LocalGenericHost.$c0 @fn14(this: LocalGenericHost) -> Unit
+    bb0 entry
+      return
+  fun init.GenericLocalHost.$c1 @fn15(this: GenericLocalHost<String>, stored: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type GenericLocalHost<String>
+        Local this
+        Type String
+        Local stored
+      return
+  fun startCoroutine<LocalGenericHost> @fn16(task: SuspendTask<LocalGenericHost>, completion: Continuation<LocalGenericHost>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn10 interface Continuation<LocalGenericHost>[0]
+        Type Continuation<LocalGenericHost>
+        Local completion
+        Type LocalGenericHost
+        EnumField v0 f0
+          Type CoroutineStep<LocalGenericHost>
+          Local $step
+      return
+    bb2 failed
+      call @fn11 interface Continuation<LocalGenericHost>[1]
+        Type Continuation<LocalGenericHost>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<LocalGenericHost> = @fn12 interface SuspendTask<LocalGenericHost>[0]
+        Type SuspendTask<LocalGenericHost>
+        Local task
+        Type Continuation<LocalGenericHost>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<LocalGenericHost>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<LocalGenericHost> result=LocalGenericHost
+  coroutine_slot cl0 CoroutineSlot<LocalGenericHost> value=LocalGenericHost
+  coroutine_start ct0 result=LocalGenericHost function=fn16
+  coroutine_fn cf0 @fn12 source_return=LocalGenericHost step=cs0 immediate
+  instance mi0 function=@fn1 <- $local.1.keep
+  instance mi1 function=@fn2 <- LocalGenericHost.pick
+  instance mi2 function=@fn3 <- $local.2.combine
+  instance mi3 function=@fn4 <- GenericLocalHost.direct
+  instance mi4 function=@fn5 <- $local.0.keep
+  instance mi5 function=@fn6 <- genericLocalDependency
+  instance mi6 function=@fn7 <- GenericLocalHost.expanded
+  instance mi7 function=@fn8 <- $local.0.keep
+  instance mi8 function=@fn9 <- genericLocalDependency
+  instance mi9 function=@fn10 <- Continuation.resume
+  instance mi10 function=@fn11 <- Continuation.resumeWithException
+  instance mi11 function=@fn12 <- SuspendTask.run
+  instance mi12 function=@fn13 <- SuspendRegistration.register
+  str @str0 "stored"
+  str @str1 "direct"
+  str @str2 "expanded"
+  output executable @fn0

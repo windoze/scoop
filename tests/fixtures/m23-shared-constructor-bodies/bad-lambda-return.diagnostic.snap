@@ -1,3 +1,0 @@
-span=96..112
-expression={ return value }
-a lambda cannot use `return`; use an anonymous function for local returns

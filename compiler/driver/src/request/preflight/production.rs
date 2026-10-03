@@ -51,11 +51,14 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
                         e,
                     ))
                 })?;
-        dump = dump.or_else(|| {
-            capture_stage_dump(emit, StageDumpKind::Hir, || {
-                scoop_hir::dump(&hir.hir.output().export)
-            })
-        });
+        dump.extend(capture_stage_dump(emit, StageDumpKind::Hir, || {
+            format!(
+                "== Export ==\n{}== LocalConcrete ==\n{}== CrossCone ==\n{}",
+                scoop_hir::dump(&hir.hir.output().export),
+                scoop_hir::dump_local(&hir.hir.output().local),
+                scoop_hir::dump_cross_cone(&hir.hir, &hir.cross_cone_section)
+            )
+        }));
         let artifact = (|| {
             let artifact =
                 protocols::lower_machine(hir, self.request, cone, temporary_parent, &mut dump)?;
@@ -82,11 +85,35 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
             .semantic()
             .imported_semantic_world()
             .map_err(CurrentConeHirStageError::SemanticWorld)?;
+        let mut source_names = self
+            .request
+            .dependencies()
+            .semantic()
+            .identity_inputs()
+            .map(|(coordinate, _)| {
+                (
+                    coordinate
+                        .identity()
+                        .expect("loaded dependency coordinates are valid"),
+                    coordinate.to_string(),
+                )
+            })
+            .collect::<std::collections::BTreeMap<_, _>>();
+        let current_coordinate = match self.request.current() {
+            ValidatedCurrentConeInput::Manifest { manifest } => {
+                manifest.parsed().semantic().coordinate().to_string()
+            }
+            ValidatedCurrentConeInput::SingleFile { .. } => {
+                ConeCoordinate::reserved_single_file().to_string()
+            }
+        };
+        source_names.insert(self.sources.cone(), current_coordinate);
         current_hir::CurrentConeHirArtifacts::lower(
             requested,
             &self.sources,
             protocols.hir_input(),
             &world,
+            source_names,
         )
     }
 }

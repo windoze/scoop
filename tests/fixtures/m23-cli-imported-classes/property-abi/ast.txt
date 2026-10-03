@@ -1,0 +1,58 @@
+SourceFile
+  RootPackage
+  ImportStar Local dependency.classes.*
+  public fun fill(cells: ValueCells, token: Token, wide: WideValue, reference: Counter)
+    assign .token
+      Var cells
+      Var token
+    assign .wide
+      Var cells
+      Var wide
+    assign .reference
+      Var cells
+      Var reference
+  public fun primary(): Counter
+    val cells
+      Call ValueCells
+        Call Token
+        Call WideValue
+          IntLiteral 0
+          IntLiteral 0
+          IntLiteral 0
+        Call Counter
+          IntLiteral 0
+    Call fill
+      Var cells
+      Call Token
+      Call WideValue
+        IntLiteral 20
+        IntLiteral 1
+        IntLiteral 0
+      Call Counter
+        IntLiteral 21
+    val moved
+      Call Holder
+        FieldAccess reference
+          Var cells
+        FieldAccess token
+          Var cells
+    return
+      IfExpression
+        Binary Eq
+          Binary Mul
+            Binary Add
+              FieldAccess first
+                FieldAccess wide
+                  Var cells
+              FieldAccess second
+                FieldAccess wide
+                  Var cells
+            IntLiteral 2
+          MethodCall twice
+            MethodCall read
+              Var moved
+        MethodCall read
+          Var moved
+        else
+        Call Counter
+          IntLiteral 0

@@ -1,3 +1,0 @@
-span=128..132
-expression=Pair
-type `Token` has no method `Pair`

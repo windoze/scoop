@@ -1,24 +1,5 @@
 use super::*;
 
-pub(super) fn fold_constant_branches(function: &mut lir::Function) {
-    for block in function.blocks.values_mut() {
-        let target = match &block.terminator {
-            lir::Terminator::CondBr {
-                cond: lir::Value::BoolConst(true),
-                then_block,
-                ..
-            } => *then_block,
-            lir::Terminator::CondBr {
-                cond: lir::Value::BoolConst(false),
-                else_block,
-                ..
-            } => *else_block,
-            _ => continue,
-        };
-        block.terminator = lir::Terminator::Br(target);
-    }
-}
-
 /// Canonicalize the final LIR CFG before assigning any safepoint identity.
 /// MIR lowering can leave detached EH and coroutine continuation blocks after
 /// control-flow simplification. LLVM is allowed to delete those blocks, so

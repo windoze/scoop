@@ -1,0 +1,41 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@NoGC` function `read` has non-GC-free return type Registry",
+    "notes": [],
+    "origin": {
+      "cone": "17b1036f7780bd85d3379e2abed4d2077ab7d2f6b85e1fc40517048194274f9a",
+      "end": 102,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 58
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "value of non-GC-free type Registry is not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "17b1036f7780bd85d3379e2abed4d2077ab7d2f6b85e1fc40517048194274f9a",
+      "end": 102,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 94
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "singleton access may initialize, allocate, and throw in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "17b1036f7780bd85d3379e2abed4d2077ab7d2f6b85e1fc40517048194274f9a",
+      "end": 102,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 94
+    },
+    "severity": "error"
+  }
+]

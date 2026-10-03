@@ -1,0 +1,30 @@
+SourceFile
+  RootPackage
+  class State(var first: Boolean, var second: Boolean, var count: Int)
+  fun main()
+    val state
+      Call State
+        BoolLiteral true
+        BoolLiteral false
+        IntLiteral 7
+    Call println
+      FieldAccess first
+        Var state
+    Call println
+      FieldAccess second
+        Var state
+    Call println
+      FieldAccess count
+        Var state
+    assign .second
+      Var state
+      BoolLiteral true
+    assign .count
+      Var state
+      IntLiteral 9
+    Call println
+      FieldAccess second
+        Var state
+    Call println
+      FieldAccess count
+        Var state

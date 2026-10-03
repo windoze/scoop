@@ -1,0 +1,18 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val token = Token()
+    val payload = Payload(reference())
+    val diamond: Diamond = payload
+    val root: Root = diamond
+    val left: Left = diamond
+    val right: Right = diamond
+    verifyType(root.echo(token) == token && root.token == token)
+    verifyType(left.left(token) == token && right.right(token) == token)
+    val choice: Diamond = Choice.One
+    val singleton: Diamond = Singleton
+    verifyType(choice.echo(token) == token && choice.token == token)
+    verifyType(singleton.echo(token) == token && singleton.right(token) == token)
+    val erased: Any = payload
+    verifyType((erased as Payload).reference === payload.reference)
+}

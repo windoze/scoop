@@ -1,0 +1,865 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<NestedIdentityHost>
+    Completed(value: NestedIdentityHost)
+    Suspended()
+  enum CoroutineSlot<NestedIdentityHost>
+    Empty()
+    Value(value: NestedIdentityHost)
+  class NestedIdentityHost vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface Continuation<NestedIdentityHost>
+  interface SuspendTask<NestedIdentityHost>
+  interface SuspendRegistration<NestedIdentityHost>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn9 captures=1
+    bridge function_type1 -> @fn32 id=132bfeb9c8410bb77f50b0619f00ef732e8ef44add46bda45b29ca4d6ebab374
+  closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn11 captures=1
+    bridge function_type1 -> @fn33 id=423f6a424c8b3238d39572a995b402f1d8fcafa9bb2376fc1a7517e41d80c379
+  closure cc2 $Closure$lambda2 type=function_type2 invoke=@fn12 captures=1
+    bridge function_type1 -> @fn34 id=2f499dceef738b9c99fe63695c7accf1b18684b2c64ada239931dafd70e69ab2
+  closure cc3 $Closure$lambda3 type=function_type0 invoke=@fn14 captures=1
+    bridge function_type1 -> @fn35 id=c402d29558e1c97327da2735c8536be9df8de06f1c56ef4fe3af9ded5eb0aa92
+  closure cc4 $Closure$lambda4 type=function_type2 invoke=@fn17 captures=1
+    bridge function_type1 -> @fn36 id=7413ea27aa84abcac0e4478f158b8cb0fde5db2fa3e18e7618e7a212696da752
+  closure cc5 $Closure$lambda5 type=function_type0 invoke=@fn20 captures=1
+    bridge function_type1 -> @fn37 id=6067117d4e9b0213d7cb9541e0aab6585bec3dcfd95185ad909ea02b05e0c069
+  closure cc6 $Closure$anonymous0 type=function_type0 invoke=@fn8 captures=1
+    bridge function_type1 -> @fn38 id=72bf05168a02a3cf577c72afaaa22aeee9f6a9db1ac6218c00ac9936416a2777
+  closure cc7 $Closure$reference0 type=function_type0 invoke=@fn26 captures=0
+    bridge function_type1 -> @fn39 id=5caaf4d2d7ea56f6475c8bd6f893c8b8fb7fe15d9609ef9b2e06322f1021b78d
+  closure cc8 $Closure$reference1 type=function_type0 invoke=@fn27 captures=1
+    bridge function_type1 -> @fn40 id=e02abfef3d2c6ca05af5c5493cc9a1a28e31c5837f38c58fcbc77951ce4a7db0
+  closure cc9 $Closure$reference2 type=function_type2 invoke=@fn28 captures=1
+    bridge function_type1 -> @fn41 id=c6fc2ed057b5977a0656237d36a4402194694c34aa48108c524125c83a377810
+  closure cc10 $Closure$reference3 type=function_type0 invoke=@fn29 captures=1
+    bridge function_type1 -> @fn42 id=2b57d3dca4502f4cb20c35f3241198e61e156c982afd89777522130c0b552f68
+  generated_exact_type get0 location=closure3 nominal_id=f23b52cd7a19078cb76f4ea57e7a743a36ee4805825797c57895999674896cbc exact_id=1bdf9d3d73c7c06e96920b47fa4d7d21dedca10b2f57ddd0bb54965feb980e9f
+  generated_exact_type get1 location=closure10 nominal_id=a4b903a54b725ffc92e4969c8d450e4a3d6de50f7a3995db38f90716180364f3 exact_id=20f4779dfbf3847413c25dfa6567901667ce56d8d04fb6f74141ee3090755ceb
+  generated_exact_type get2 location=closure5 nominal_id=7d934aa3d4ef07ffe1ea2418c5fd47ca1c0f468654fd6ce3d4171bf3118f2653 exact_id=318a32189df7f132dbdcdb8fdef103b5761cf64873fed2f0b97d5f60ee7d4bd4
+  generated_exact_type get3 location=closure1 nominal_id=1c48844d9efa99735a5b4fcf50374df87e71bced48703280bea11142ddd06aee exact_id=46619e38b1298a15972d5ef318d33db17ae7c07654f5bf50403c85c2477c118c
+  generated_exact_type get4 location=closure9 nominal_id=3efd597abb0ad47f3258de99f7a29b25570d757535a79054f0b10ee675ab449d exact_id=55e6f14041c0df77ed237336d8d9d2f2f5f575702f47d6711a4b8e42e89a55a5
+  generated_exact_type get5 location=closure6 nominal_id=cc19cf3de1a05b41a78f71014d9de8297eaf771fdaf5d1860a9b1d87f3440e92 exact_id=5c35d284fc0366397f2fcf4f70e74937ac3412c7be8ffeade510627672d025cc
+  generated_exact_type get6 location=closure2 nominal_id=b206fb7b0a26f6918bbe90691ba3e638b8833d7c99bb838bf1d569cbe021dece exact_id=631cb5b128064c512af50fb13060a3f09a5dad3036ad92d80614f443b930ecc0
+  generated_exact_type get7 location=closure4 nominal_id=55a05b06e65fc29251a11cfae195887e000c84341673cf7110ac75f41ef4234e exact_id=6aa339a1b4698c679fe7d0a8a956b398ed6562a78f58c6628daef6406a8b889d
+  generated_exact_type get8 location=closure8 nominal_id=f5dda62efe0abd999a03f0ad34d0e5eefffe1e89e01d07cc5c705b9811a87cdc exact_id=72755a43878291847796c74a0e771e616795af29114084a73caeb9ea8eae9d28
+  generated_exact_type get9 location=enum2 nominal_id=16948fd74c51c39639b6d89caab57705fb20eec6f591f9e5a750eb241621b0ea exact_id=75642d2243643acb922b8df6b4c04fbefdc74c5f290c1a0dbe414f137c30e12a
+  generated_exact_type get10 location=closure7 nominal_id=518c3002f3368f19d7e76ea559a0833212e26d30c23604b9a5715d3d22b52ea5 exact_id=7f511510bb8a0f5eb6885317c95684f708a57996a4398f4483bdeb81f5219dda
+  generated_exact_type get11 location=closure0 nominal_id=759b039213e02d6cdced40a6dc1315a0e8eb79b0128e03f4b38a846e8b985059 exact_id=9d55dd316b1764d03d1f8f5bb218f76bb8ea690e1069730e5bbe11d4d797d382
+  generated_exact_type get12 location=class4 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get13 location=enum1 nominal_id=958016aeaf8ea6669c50170aa50785acb19c4fe10b4e24e39accf65c26fb462c exact_id=f33ef795fe0216f13d5487021d29d0ec49ca372b909f0149308d3cb7f5ac7ff8
+  generated_callable gc0 function=@fn32 id=132bfeb9c8410bb77f50b0619f00ef732e8ef44add46bda45b29ca4d6ebab374
+  generated_callable gc1 function=@fn42 id=2b57d3dca4502f4cb20c35f3241198e61e156c982afd89777522130c0b552f68
+  generated_callable gc2 function=@fn34 id=2f499dceef738b9c99fe63695c7accf1b18684b2c64ada239931dafd70e69ab2
+  generated_callable gc3 function=@fn33 id=423f6a424c8b3238d39572a995b402f1d8fcafa9bb2376fc1a7517e41d80c379
+  generated_callable gc4 function=@fn39 id=5caaf4d2d7ea56f6475c8bd6f893c8b8fb7fe15d9609ef9b2e06322f1021b78d
+  generated_callable gc5 function=@fn37 id=6067117d4e9b0213d7cb9541e0aab6585bec3dcfd95185ad909ea02b05e0c069
+  generated_callable gc6 function=@fn31 id=629f56da394b9d415c17b4fd0072b5b32ee9e2daa6b5bb621e29cd6ac6b6e93c
+  generated_callable gc7 function=@fn38 id=72bf05168a02a3cf577c72afaaa22aeee9f6a9db1ac6218c00ac9936416a2777
+  generated_callable gc8 function=@fn36 id=7413ea27aa84abcac0e4478f158b8cb0fde5db2fa3e18e7618e7a212696da752
+  generated_callable gc9 function=@fn35 id=c402d29558e1c97327da2735c8536be9df8de06f1c56ef4fe3af9ded5eb0aa92
+  generated_callable gc10 function=@fn41 id=c6fc2ed057b5977a0656237d36a4402194694c34aa48108c524125c83a377810
+  generated_callable gc11 function=@fn40 id=e02abfef3d2c6ca05af5c5493cc9a1a28e31c5837f38c58fcbc77951ce4a7db0
+  fun NestedIdentityHost.check @fn0(this: NestedIdentityHost, seed: String) -> String
+    bb0 entry
+      val $receiver: NestedIdentityHost
+        Type NestedIdentityHost
+        Local this
+      val $argument.0: String
+        Type String
+        Local seed
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      val $parameter.value: () -> String
+        Type () -> String
+        ClosureAlloc cc6 $Closure$anonymous0
+          CaptureInit field=0
+            Type String
+            Local $parameter.seed
+      call $call.1: () -> String = @fn2 direct
+        Type NestedIdentityHost
+        Local $receiver
+        Type String
+        Local $parameter.seed
+        Type () -> String
+        Local $parameter.value
+      call $call.2: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $call.1
+      return
+        Type String
+        Local $call.2
+  fun NestedIdentityHost.lambda @fn1(this: NestedIdentityHost, seed: String, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun NestedIdentityHost.anonymous @fn2(this: NestedIdentityHost, seed: String, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun NestedIdentityHost.reference @fn3(this: NestedIdentityHost, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun NestedIdentityHost.local @fn4(this: NestedIdentityHost, seed: String, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun nestedIdentityValue @fn5() -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str0
+  fun verifyDefault @fn6(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str1
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn7() -> Unit
+    bb0 entry
+      assign $new.1
+        Type NestedIdentityHost
+        ClassAlloc NestedIdentityHost
+      call @fn30 direct
+        Type NestedIdentityHost
+        Local $new.1
+      val host: NestedIdentityHost
+        Type NestedIdentityHost
+        Local $new.1
+      val $receiver: NestedIdentityHost
+        Type NestedIdentityHost
+        Local host
+      val $argument.0: String
+        Type String
+        StringConst @str2
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      val $parameter.value: () -> String
+        Type () -> String
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type String
+            Local $parameter.seed
+      call $call.2: () -> String = @fn1 direct
+        Type NestedIdentityHost
+        Local $receiver
+        Type String
+        Local $parameter.seed
+        Type () -> String
+        Local $parameter.value
+      call $dependency.receiver: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $call.2
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external1 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $receiver: NestedIdentityHost
+        Type NestedIdentityHost
+        Local host
+      val $argument.0: String
+        Type String
+        StringConst @str4
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      call $dependency.receiver: String = @fn0 direct
+        Type NestedIdentityHost
+        Local $receiver
+        Type String
+        Local $parameter.seed
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str5
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external1 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $receiver: NestedIdentityHost
+        Type NestedIdentityHost
+        Local host
+      val $parameter.value: () -> String
+        Type () -> String
+        ClosureAlloc cc7 $Closure$reference0
+      call $call.3: () -> String = @fn3 direct
+        Type NestedIdentityHost
+        Local $receiver
+        Type () -> String
+        Local $parameter.value
+      call $dependency.receiver: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $call.3
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str6
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external1 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $receiver: NestedIdentityHost
+        Type NestedIdentityHost
+        Local host
+      val $argument.0: String
+        Type String
+        StringConst @str7
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      branch bb1 bb2
+        Type Boolean
+        BoolLiteral true
+    bb1 if.then.1
+      assign $result.0
+        Type () -> String
+        ClosureAlloc cc8 $Closure$reference1
+          CaptureInit field=0
+            Type String
+            Local $parameter.seed
+      goto bb3
+    bb2 if.else.2
+      val fallback: () -> String
+        Type () -> String
+        ClosureAlloc cc1 $Closure$lambda1
+          CaptureInit field=0
+            Type String
+            Local $parameter.seed
+      assign $result.0
+        Type () -> String
+        Local fallback
+      goto bb3
+    bb3 if.merge.3
+      val $parameter.value: () -> String
+        Type () -> String
+        Local $result.0
+      call $call.4: () -> String = @fn4 direct
+        Type NestedIdentityHost
+        Local $receiver
+        Type String
+        Local $parameter.seed
+        Type () -> String
+        Local $parameter.value
+      call $dependency.receiver: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $call.4
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str8
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external1 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $receiver: NestedIdentityHost
+        Type NestedIdentityHost
+        Local host
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      val $parameter.value: () -> Int
+        Type () -> Int
+        ClosureAlloc cc2 $Closure$lambda2
+          CaptureInit field=0
+            Type Int
+            Local $parameter.seed
+      call $call.5: () -> Int = @fn13 direct
+        Type NestedIdentityHost
+        Local $receiver
+        Type Int
+        Local $parameter.seed
+        Type () -> Int
+        Local $parameter.value
+      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $call.5
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $receiver: NestedIdentityHost
+        Type NestedIdentityHost
+        Local host
+      val $argument.0: String
+        Type String
+        StringConst @str9
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      val $parameter.value: () -> String
+        Type () -> String
+        ClosureAlloc cc3 $Closure$lambda3
+          CaptureInit field=0
+            Type String
+            Local $parameter.seed
+      call $call.6: () -> String = @fn15 direct
+        Type NestedIdentityHost
+        Local $receiver
+        Type String
+        Local $parameter.seed
+        Type () -> String
+        Local $parameter.value
+      call $dependency.receiver: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $call.6
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str10
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external1 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $receiver: NestedIdentityHost
+        Type NestedIdentityHost
+        Local host
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      branch bb4 bb5
+        Type Boolean
+        BoolLiteral true
+    bb4 if.then.4
+      assign $result.1
+        Type () -> Int
+        ClosureAlloc cc9 $Closure$reference2
+          CaptureInit field=0
+            Type Int
+            Local $parameter.seed
+      goto bb6
+    bb5 if.else.5
+      val fallback: () -> Int
+        Type () -> Int
+        ClosureAlloc cc4 $Closure$lambda4
+          CaptureInit field=0
+            Type Int
+            Local $parameter.seed
+      assign $result.1
+        Type () -> Int
+        Local fallback
+      goto bb6
+    bb6 if.merge.6
+      val $parameter.value: () -> Int
+        Type () -> Int
+        Local $result.1
+      call $call.7: () -> Int = @fn18 direct
+        Type NestedIdentityHost
+        Local $receiver
+        Type Int
+        Local $parameter.seed
+        Type () -> Int
+        Local $parameter.value
+      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $call.7
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $receiver: NestedIdentityHost
+        Type NestedIdentityHost
+        Local host
+      val $argument.0: String
+        Type String
+        StringConst @str11
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      branch bb7 bb8
+        Type Boolean
+        BoolLiteral true
+    bb7 if.then.7
+      assign $result.1
+        Type () -> String
+        ClosureAlloc cc10 $Closure$reference3
+          CaptureInit field=0
+            Type String
+            Local $parameter.seed
+      goto bb9
+    bb8 if.else.8
+      val fallback: () -> String
+        Type () -> String
+        ClosureAlloc cc5 $Closure$lambda5
+          CaptureInit field=0
+            Type String
+            Local $parameter.seed
+      assign $result.1
+        Type () -> String
+        Local fallback
+      goto bb9
+    bb9 if.merge.9
+      val $parameter.value: () -> String
+        Type () -> String
+        Local $result.1
+      call $call.8: () -> String = @fn21 direct
+        Type NestedIdentityHost
+        Local $receiver
+        Type String
+        Local $parameter.seed
+        Type () -> String
+        Local $parameter.value
+      call $dependency.receiver: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $call.8
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str12
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external1 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun $anonymous.0 @fn8($closure: () -> String) -> String
+    bb0 entry
+      return
+        Type String
+        ClosureCapture cc6 0
+          Type () -> String
+          Local $closure
+  fun $lambda.0 @fn9($closure: () -> String) -> String
+    bb0 entry
+      return
+        Type String
+        ClosureCapture cc0 0
+          Type () -> String
+          Local $closure
+  fun $local.0.copy @fn10($capture.seed: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local $capture.seed
+  fun $lambda.1 @fn11($closure: () -> String) -> String
+    bb0 entry
+      return
+        Type String
+        ClosureCapture cc1 0
+          Type () -> String
+          Local $closure
+  fun $lambda.2 @fn12($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        ClosureCapture cc2 0
+          Type () -> Int
+          Local $closure
+  fun NestedIdentityHost.generic @fn13(this: NestedIdentityHost, seed: Int, value: () -> Int) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        Local value
+  fun $lambda.2 @fn14($closure: () -> String) -> String
+    bb0 entry
+      return
+        Type String
+        ClosureCapture cc3 0
+          Type () -> String
+          Local $closure
+  fun NestedIdentityHost.generic @fn15(this: NestedIdentityHost, seed: String, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun $local.1.copy @fn16($capture.seed: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local $capture.seed
+  fun $lambda.3 @fn17($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        ClosureCapture cc4 0
+          Type () -> Int
+          Local $closure
+  fun NestedIdentityHost.genericLocal @fn18(this: NestedIdentityHost, seed: Int, value: () -> Int) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        Local value
+  fun $local.1.copy @fn19($capture.seed: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local $capture.seed
+  fun $lambda.3 @fn20($closure: () -> String) -> String
+    bb0 entry
+      return
+        Type String
+        ClosureCapture cc5 0
+          Type () -> String
+          Local $closure
+  fun NestedIdentityHost.genericLocal @fn21(this: NestedIdentityHost, seed: String, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun Continuation.resume @fn22(this: Continuation<NestedIdentityHost>, value: NestedIdentityHost) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn23(this: Continuation<NestedIdentityHost>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn24(this: SuspendTask<NestedIdentityHost>, $completion: Continuation<NestedIdentityHost>) -> CoroutineStep<NestedIdentityHost>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn25(this: SuspendRegistration<NestedIdentityHost>, continuation: Continuation<NestedIdentityHost>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun $reference.0 @fn26($closure: () -> String) -> String
+    bb0 entry
+      call $call.1: String = @fn5 direct
+      return
+        Type String
+        Local $call.1
+  fun $reference.1 @fn27($closure: () -> String) -> String
+    bb0 entry
+      call $call.1: String = @fn10 direct
+        Type String
+        ClosureCapture cc8 0
+          Type () -> String
+          Local $closure
+      return
+        Type String
+        Local $call.1
+  fun $reference.2 @fn28($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn16 direct
+        Type Int
+        ClosureCapture cc9 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun $reference.3 @fn29($closure: () -> String) -> String
+    bb0 entry
+      call $call.1: String = @fn19 direct
+        Type String
+        ClosureCapture cc10 0
+          Type () -> String
+          Local $closure
+      return
+        Type String
+        Local $call.1
+  fun init.NestedIdentityHost.$c0 @fn30(this: NestedIdentityHost) -> Unit
+    bb0 entry
+      return
+  fun startCoroutine<NestedIdentityHost> @fn31(task: SuspendTask<NestedIdentityHost>, completion: Continuation<NestedIdentityHost>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn22 interface Continuation<NestedIdentityHost>[0]
+        Type Continuation<NestedIdentityHost>
+        Local completion
+        Type NestedIdentityHost
+        EnumField v0 f0
+          Type CoroutineStep<NestedIdentityHost>
+          Local $step
+      return
+    bb2 failed
+      call @fn23 interface Continuation<NestedIdentityHost>[1]
+        Type Continuation<NestedIdentityHost>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<NestedIdentityHost> = @fn24 interface SuspendTask<NestedIdentityHost>[0]
+        Type SuspendTask<NestedIdentityHost>
+        Local task
+        Type Continuation<NestedIdentityHost>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<NestedIdentityHost>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$lambda0.() -> Any @fn32($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.() -> Any @fn33($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.() -> Any @fn34($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda3.() -> Any @fn35($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$lambda4.() -> Any @fn36($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda5.() -> Any @fn37($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$anonymous0.() -> Any @fn38($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$reference0.() -> Any @fn39($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$reference1.() -> Any @fn40($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$reference2.() -> Any @fn41($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference3.() -> Any @fn42($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<NestedIdentityHost> result=NestedIdentityHost
+  coroutine_slot cl0 CoroutineSlot<NestedIdentityHost> value=NestedIdentityHost
+  coroutine_start ct0 result=NestedIdentityHost function=fn31
+  coroutine_fn cf0 @fn24 source_return=NestedIdentityHost step=cs0 immediate
+  instance mi0 function=@fn12 <- $lambda.2
+  instance mi1 function=@fn13 <- NestedIdentityHost.generic
+  instance mi2 function=@fn14 <- $lambda.2
+  instance mi3 function=@fn15 <- NestedIdentityHost.generic
+  instance mi4 function=@fn16 <- $local.1.copy
+  instance mi5 function=@fn17 <- $lambda.3
+  instance mi6 function=@fn18 <- NestedIdentityHost.genericLocal
+  instance mi7 function=@fn19 <- $local.1.copy
+  instance mi8 function=@fn20 <- $lambda.3
+  instance mi9 function=@fn21 <- NestedIdentityHost.genericLocal
+  instance mi10 function=@fn22 <- Continuation.resume
+  instance mi11 function=@fn23 <- Continuation.resumeWithException
+  instance mi12 function=@fn24 <- SuspendTask.run
+  instance mi13 function=@fn25 <- SuspendRegistration.register
+  str @str0 "identity"
+  str @str1 "illegal state"
+  str @str2 "lambda"
+  str @str3 "lambda"
+  str @str4 "anonymous"
+  str @str5 "anonymous"
+  str @str6 "identity"
+  str @str7 "local"
+  str @str8 "local"
+  str @str9 "text"
+  str @str10 "text"
+  str @str11 "captured"
+  str @str12 "captured"
+  output executable @fn7

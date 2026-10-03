@@ -1,0 +1,23 @@
+SourceFile
+  QualifiedPackage consumer.delegates
+  ImportExact Local templates.delegateCombinations.LocalValueSlot
+  ImportExact Local templates.delegateCombinations.FixedLocalSlot
+  public fun echo<T>(value: T): T
+    var copy: T by
+      Call LocalValueSlot<T>
+        Var value
+    assign copy
+      Var value
+    fun read(): T
+      Var copy
+    return
+      Call read
+  public fun result(): Int
+    var copy: Int by
+      Call FixedLocalSlot
+        IntLiteral 0
+    assign copy
+      Call echo<Int>
+        IntLiteral 42
+    return
+      Var copy

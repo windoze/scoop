@@ -1,0 +1,8 @@
+Module
+  struct ReadyValue (value: Int)
+  fun pass @fn0(value: ReadyValue) -> ReadyValue
+    bb0 entry
+      return
+        Type ReadyValue
+        Local value
+  output library

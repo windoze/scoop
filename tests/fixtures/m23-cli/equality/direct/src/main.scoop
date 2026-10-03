@@ -1,0 +1,26 @@
+package equality.direct
+import equality.origin.*
+
+public fun <T> defaultSame(left: Flag, right: Flag, same: Boolean = left == right): Int {
+    if (same) { return 42 }
+    return 0
+}
+
+struct Generic<T>(val value: T)
+
+fun main() {
+    println(Flag.On == Flag.On)
+    println(Flag.Off != Flag.On)
+    println(Packet.Empty == Packet.Empty)
+    println(Packet.Item(3) == Packet.Item(3))
+    println(Packet.Item(3) != Packet.Item(4))
+    println(Packet.Item(3) != Packet.Empty)
+    println(Packet.Named(value = "x", flag = Flag.On) == Packet.Named(flag = Flag.On, value = "x"))
+    println(Packet.Named(value = "x", flag = Flag.On) != Packet.Named(value = "x", flag = Flag.Off))
+    println(Envelope(Packet.Item(3), Flag.On) == Envelope(Packet.Item(3), Flag.On))
+    println(Manual(1) == Manual(2))
+    println(Overloaded(3) == Overloaded(3))
+    println(Overloaded(3) == 3)
+    println(Generic(Flag.On) == Generic(Flag.On))
+    println(defaultSame<Unit>(Flag.On, Flag.On))
+}

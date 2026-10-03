@@ -1,0 +1,96 @@
+schema = 1
+name = "cli-library-defaults-and-publication"
+root = "cone/Cone.toml"
+inputs = ["cone"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["cli", "library", "publication"]
+
+[vars]
+options = ["--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--runtime-root", "${work}/absent-runtime", "--message-format", "json"]
+
+[[steps]]
+name = "project"
+files = [{copy = {from = "${fixture}/cone", to = "${work}/cone"}}]
+
+[[steps]]
+name = "default_root"
+argv = ["${scoop}", "build", {each = "${options}"}]
+cwd = "${work}/cone"
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${default_root.result.kind}", equals = "library"},
+  {actual = "${default_root.result.output}", equals = "${work}/cone/target/${target}/debug/library.slib"},
+  {file = "${default_root.result.output}", same_as = "${default_root.result.root.path}"},
+]
+
+[[steps]]
+name = "explicit_root"
+argv = ["${scoop}", "build", ".", {each = "${options}"}, "-o", "../published.slib", "--target-dir", "ignored", "--profile", "release"]
+cwd = "${work}/cone"
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${explicit_root.result.observations.child_invocations}", equals = []},
+  {actual = "${explicit_root.result.output}", equals = "${work}/published.slib"},
+  {actual = "${explicit_root.result.root.artifact_fingerprint}", equals = "${default_root.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "not_executable"
+argv = ["${scoop}", "run", "${work}/cone", {each = "${options}"}, "--scoopc", "${work}/absent-compiler"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = [{severity = "error", code = "SCOOP_RUN_LIBRARY", phase = "Request", message = "run requires an executable Cone; the root is a library", origin = {kind = "none"}, notes = []}]
+
+[[steps]]
+name = "aliases"
+files = [
+  {copy = {from = "${work}/cone/src/api.scoop", to = "${work}/original.scoop"}},
+  {hardlink = {from = "${work}/cone/src/api.scoop", to = "${work}/hardlink.slib"}},
+  {symlink = {from = "${work}/cone/src/api.scoop", to = "${work}/symlink.slib"}},
+]
+
+[[steps]]
+name = "hardlink"
+argv = ["${scoop}", "build", "${work}/cone", {each = "${options}"}, "-o", "${work}/hardlink.slib"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = [{severity = "error", code = "SCOOP_OUTPUT_WRITE", phase = "Publication", message = "output aliases input ${work}/cone/src/api.scoop", origin = {kind = "none"}, notes = []}]
+checks = [{file = "${work}/cone/src/api.scoop", same_as = "${work}/original.scoop"}]
+
+[[steps]]
+name = "symlink"
+argv = ["${scoop}", "build", "${work}/cone", {each = "${options}"}, "-o", "${work}/symlink.slib"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = [{severity = "error", code = "SCOOP_OUTPUT_WRITE", phase = "Publication", message = "output aliases input ${work}/cone/src/api.scoop", origin = {kind = "none"}, notes = []}]
+checks = [{file = "${work}/symlink.slib", type = "symlink"}]
+
+[[steps]]
+name = "cache_alias"
+argv = ["${scoop}", "build", "${work}/cone", {each = "${options}"}, "-o", "${default_root.result.root.path}"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = [{severity = "error", code = "SCOOP_OUTPUT_WRITE", phase = "Publication", message = "output would overwrite a cache file", origin = {kind = "none"}, notes = []}]
+checks = [{file = "${explicit_root.result.output}", same_as = "${default_root.result.root.path}"}]
+
+[[steps]]
+name = "published_copy"
+files = [{patch = {path = "${explicit_root.result.output}", offset = 0, hex = "00"}}]
+checks = [{file = "${explicit_root.result.output}", different_from = "${default_root.result.root.path}"}]

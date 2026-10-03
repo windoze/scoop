@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "setter of property `extensionRestricted` is not accessible",
+    "notes": [],
+    "origin": {
+      "cone": "83f4749ec26b2907a9a4c3451312cdc42848df693bc6866c469a92028a11db0d",
+      "end": 146,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 127
+    },
+    "severity": "error"
+  }
+]

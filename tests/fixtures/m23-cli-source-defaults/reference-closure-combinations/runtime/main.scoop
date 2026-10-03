@@ -1,0 +1,18 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun acceptAny(value: Any): Int = 3
+class Completion: Continuation<Int> {
+    var result: Int = 0
+    public override fun resume(value: Int) { result = value }
+    public override fun resumeWithException(exception: Throwable) { throw exception }
+}
+
+fun main() {
+    val host = ClosureCombinationHost()
+    verifyDefault(host.nested(7) == 7)
+    val converted = host.conversion(::acceptAny)
+    verifyDefault((converted(11) as Int) == 3)
+    val completion = Completion()
+    startCoroutine(host.suspended(), completion)
+    verifyDefault(completion.result == 3)
+}

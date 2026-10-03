@@ -1,0 +1,150 @@
+schema = 1
+name = "source-nominals-nested"
+inputs = ["provider", "runtime", "../../m23-type-source-nominals/nested.scoop", "factory"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["source-nominals", "stage-golden", "moving-gc"]
+
+[[steps]]
+name = "prepare_core"
+files = [
+  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"mkdir" = {"path" = "${work}/empty-sysroot"}},
+]
+checks = []
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${core.result.root.artifact_fingerprint}", "equals" = "5ecaed3d2f76be07ff2e14408b8ea5bce684a4cf52240268cbc55ce0d4b09301"},
+]
+
+[[steps]]
+name = "remove_core_source"
+files = [
+  {"remove" = {"path" = "${work}/core-source"}},
+]
+checks = []
+
+[[steps]]
+name = "prepare_provider"
+files = [
+  {"copy" = {"from" = "${fixture}/provider", "to" = "${work}/sources/provider"}},
+  {"copy" = {"from" = "${fixture}/../../m23-type-source-nominals/nested.scoop", "to" = "${work}/sources/provider/src/main.scoop"}},
+]
+checks = []
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", "${work}/sources/provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/test/scoop-hir-lower/0.0.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/provider"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${provider.result.root.artifact_fingerprint}", "equals" = "74d975b7181f5db5e972fed064e1cdc9357e6e5a4636f62d24f683bdf74f525e"},
+  {"file" = "${work}/dump/provider/${provider.result.root.identity}/ast.txt", "snapshot" = "provider.ast.txt"},
+  {"file" = "${work}/dump/provider/${provider.result.root.identity}/hir.txt", "snapshot" = "provider.hir.txt"},
+  {"file" = "${work}/dump/provider/${provider.result.root.identity}/mir.txt", "snapshot" = "provider.mir.txt"},
+  {"file" = "${work}/dump/provider/${provider.result.root.identity}/lir.txt", "snapshot" = "provider.lir.txt"},
+]
+
+[[steps]]
+name = "prepare_exposed"
+files = [
+  {"copy" = {"from" = "${fixture}/factory/factory.scoop", "to" = "${work}/sources/provider/src/factory.scoop"}},
+  {"replace" = {"path" = "${work}/sources/provider/src/main.scoop", "old" = "public open class Envelope : Base() {", "new" = "public open class Envelope : Base() {\n    private class Reader : View {\n        public override val number: Int get() = 11\n    }\n    public fun marker(): Marker = Cache\n    public fun <T : Marker> boxed(value: T): T {\n        val box = Box.Companion.create(value)\n        if (box.inspect() != 6) { throw IllegalStateException() }\n        return box.echo(box.value())\n    }\n    public fun readView(): Int = Reader().read() + Reader().number\n    public fun cacheValue(): Int = Cache.read()\n    public fun values(): Boolean = Pair(\"pair\", 1) == Pair(\"pair\", 1) && Choice.Named(value = \"named\") == Choice.Named(value = \"named\")"}},
+  {"replace" = {"path" = "${work}/sources/provider/src/main.scoop", "old" = "        public fun value(): T = item", "new" = "        public companion object {\n            public fun <T : Marker> create(value: T): Box<T> = Box(value)\n        }\n        public fun inspect(): Int = helper() + internalMethod() + protectedMethod()\n        public fun value(): T = item"}},
+  {"replace" = {"path" = "${work}/sources/provider/src/main.scoop", "old" = "public open class GenericOuter<T> {", "new" = "public open class GenericOuter<T> {\n    public fun childValue(): Int = ConcreteChild().method()\n    public fun <U> genericValue(value: U): U = GenericChild(value).item"}},
+]
+checks = []
+
+[[steps]]
+name = "exposed"
+argv = ["${scoop}", "build", "${work}/sources/provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/test/scoop-hir-lower/0.0.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/exposed"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${exposed.result.root.artifact_fingerprint}", "equals" = "3b9c254d708811164148a19637515e9a59a9e9a6e24159c7cdc23d8798d632ab"},
+  {"file" = "${work}/dump/exposed/${exposed.result.root.identity}/ast.txt", "snapshot" = "exposed.ast.txt"},
+  {"file" = "${work}/dump/exposed/${exposed.result.root.identity}/hir.txt", "snapshot" = "exposed.hir.txt"},
+  {"file" = "${work}/dump/exposed/${exposed.result.root.identity}/mir.txt", "snapshot" = "exposed.mir.txt"},
+  {"file" = "${work}/dump/exposed/${exposed.result.root.identity}/lir.txt", "snapshot" = "exposed.lir.txt"},
+]
+
+[[steps]]
+name = "prepare_program"
+files = [
+  {"remove" = {"path" = "${work}/sources/provider"}},
+  {"copy" = {"from" = "${fixture}/runtime", "to" = "${work}/sources/program"}},
+  {"copy" = {"from" = "${fixture}/runtime/main.scoop", "to" = "${work}/sources/program/src/main.scoop"}},
+  {"remove" = {"path" = "${work}/sources/program/main.scoop"}},
+]
+checks = []
+
+[[steps]]
+name = "program"
+argv = ["${scoop}", "build", "${work}/sources/program", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/built-program", "--emit", "all", "--dump-dir", "${work}/dump/program", "--runtime-root", "${runtime}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${program.result.root.artifact_fingerprint}", "equals" = "bb27c95000af97ee3fb129da7a4741f2cae784a057ca27a4ff435fde0ae6e4dc"},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/ast.txt", "snapshot" = "program.ast.txt"},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/hir.txt", "snapshot" = "program.hir.txt"},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/mir.txt", "snapshot" = "program.mir.txt"},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/lir.txt", "snapshot" = "program.lir.txt"},
+]
+
+[[steps]]
+name = "isolate"
+files = [
+  {"copy" = {"from" = "${program.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
+  {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}},
+  {"remove" = {"path" = "${work}/sources"}},
+]
+checks = []
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--cone-path", "${work}/artifacts", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [
+  {"actual" = "${link.result.dependencies.length}", "equals" = 2},
+  {"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
+  {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan.txt", "normalize" = ["paths"]},
+]
+
+[[steps]]
+name = "run"
+argv = ["${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+checks = []
+
+[[steps]]
+name = "run_moving"
+argv = ["${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}
+checks = []

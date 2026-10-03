@@ -1,0 +1,74 @@
+SourceFile
+  QualifiedPackage consumer.hostproperties
+  public class Item<T>(val value: T)
+    public fun read
+  public open class Base<T>(val item: Item<T>)
+  public class Host<T>(item: Item<T>, val action: () -> T) : Base<T>(<1 args>)
+  public class Hidden<T>(val item: Item<T>)
+  public fun Base<T>.readItem<T>(): T
+    =
+      MethodCall read
+        Var item
+  public fun Host<T>.readAction<T>(): T
+    =
+      MethodCall invoke
+        Var action
+  public fun Host<T>.referenceItem<T>(): () -> T
+    =
+      CallableReference 0 read
+        Var item
+  public class Local<T>(item: Item<T>) : Base<T>(<1 args>)
+    public fun readLocal
+  public fun exercise<T>(seed: T, inspect: (T) -> Int): Int
+    val item
+      Call Item<T>
+        Var seed
+    val host
+      Call Host<T>
+        Var item
+        Lambda 0 suspend=false
+          Var seed
+    if
+      Binary Ne
+        Call inspect
+          MethodCall readItem
+            Var host
+        IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call inspect
+          MethodCall readAction
+            Var host
+        IntLiteral 42
+      return
+        IntLiteral 2
+    val read
+      MethodCall referenceItem
+        Var host
+    if
+      Binary Ne
+        Call inspect
+          Call read
+        IntLiteral 42
+      return
+        IntLiteral 3
+    if
+      Binary Ne
+        Call inspect
+          MethodCall readLocal
+            Call Local<T>
+              Var item
+        IntLiteral 42
+      return
+        IntLiteral 4
+    return
+      IntLiteral 42
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 1 suspend=false
+          param value: _
+          Var value

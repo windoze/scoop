@@ -1,0 +1,123 @@
+SourceFile
+  QualifiedPackage upstream.references
+  public fun answer(): Int
+    =
+      IntLiteral 42
+  public fun identity<T>(value: T): T
+    =
+      Var value
+  public fun T.retain<T>(): T
+    =
+      This
+  public fun declarationOnly<T>(seed: T): T
+    fun neverCalled(): T
+      Var seed
+    return
+      Var seed
+  public fun recursiveReference<T>(seed: T, inspect: (T) -> Int): Int
+    fun descend(depth: Int): Box<T>
+      if
+        Binary Gt
+          Var depth
+          IntLiteral 0
+        val read: () -> T
+          CallableReference 0 read
+            Call descend
+              Binary Sub
+                Var depth
+                IntLiteral 1
+        return
+          Call Box<T>
+            Call read
+      return
+        Call Box<T>
+          Var seed
+    return
+      Call inspect
+        MethodCall read
+          Call descend
+            IntLiteral 2
+  public fun selfReference(seed: Int): Int
+    fun recur(depth: Int): Int
+      if
+        Binary Gt
+          Var depth
+          IntLiteral 0
+        val next: (Int) -> Int
+          CallableReference 1 recur
+        return
+          Call next
+            Binary Sub
+              Var depth
+              IntLiteral 1
+      return
+        Var seed
+    return
+      Call recur
+        IntLiteral 2
+  public fun genericSelfReference<T>(seed: T, inspect: (T) -> Int): Int
+    val limit
+      IntLiteral 0
+    fun recur<U>(ignored: U, depth: Int): T
+      if
+        Binary Gt
+          Var depth
+          Var limit
+        val next: (U, Int) -> T
+          CallableReference 2 recur
+        return
+          Call next
+            Var ignored
+            Binary Sub
+              Var depth
+              IntLiteral 1
+      return
+        Var seed
+    return
+      Binary Sub
+        Binary Add
+          Call inspect
+            Call recur<Unit>
+              UnitLiteral
+              IntLiteral 2
+          Call inspect
+            Call recur<Int>
+              IntLiteral 0
+              IntLiteral 2
+        Call inspect
+          Var seed
+  public class Box<T>(val value: T)
+    public fun read
+  public fun captured<T, U>(seed: T, inspect: (T) -> Int): () -> Int
+    fun value<V>(ignored: V): Int
+      Call inspect
+        Var seed
+    val first: (Int) -> Int
+      CallableReference 3 value
+    val repeated: (Int) -> Int
+      CallableReference 4 value
+    val alternate: (Unit) -> Int
+      CallableReference 5 value
+    return
+      Lambda 0 suspend=false
+        parameters omitted
+        Binary Sub
+          Binary Add
+            Binary Add
+              Call first
+                IntLiteral 0
+              Call repeated
+                IntLiteral 0
+            Call alternate
+              UnitLiteral
+          IntLiteral 84
+  public fun fromDefault<T, U>(seed: T, marker: U, read: () -> T = <expr>): T
+    =
+      Call read
+  public fun copyDefault<T>(seed: T, copy: (T) -> T = <expr>): T
+    =
+      Call copy
+        Var seed
+  public fun memberDefault<T>(owner: Box<T>, read: () -> T = <expr>): T
+    =
+      Call read

@@ -1,0 +1,11 @@
+SourceFile
+  RootPackage
+    @Extern(lib = "m23_lifecycle", name = "m23_reenter")
+  private fun reenter()
+  private fun initialize(): Long
+    @Unsafe block
+      Call reenter
+    return
+      IntLiteral 0L
+  val initialized: Long = <expr>
+  fun main()

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "interface `ParentReader` is not a direct superinterface of class `LocalReader`",
+    "notes": [],
+    "origin": {
+      "cone": "5a537bcabd471c38b65a8dabba2d2287c4b8bbad6ffcb6d95934dffba5783c0f",
+      "end": 189,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 177
+    },
+    "severity": "error"
+  }
+]

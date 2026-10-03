@@ -1,0 +1,41 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "value of type Plain is not callable",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 291,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 282
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `invoke` in member candidate layer:\n  - fun Outer.invoke(): Inner — expects 0 argument(s), but 1 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 345,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 337
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "function argument must be of type String, found Int",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 416,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 415
+    },
+    "severity": "error"
+  }
+]

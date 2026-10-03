@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.example"
+name = "imported-callable-values-root"
+version = "0.1.0"
+kind = "executable"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.example:imported-callable-values-provider" = "0.1.0"

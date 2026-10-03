@@ -1,0 +1,36 @@
+SourceFile
+  QualifiedPackage consumer.paths
+  ImportExact Local dependency.paths.IntBox
+  ImportExact Local dependency.paths.IntPointer
+  public typealias Again = dependency.paths.IntPointer
+  public typealias BoxAlias = dependency.paths.IntBox
+  public fun exercise<T>(value: T): Int
+    var number
+      IntLiteral 40
+    val box: dependency.paths.IntBox
+      Call IntBox
+        IntLiteral 2
+    @Unsafe block
+      val raw
+        MethodCall toULong
+          Call addressOf
+            Var number
+      val first: dependency.paths.IntPointer
+        Call IntPointer
+          Var raw
+      val second
+        Call Again
+          Var raw
+      MethodCall store
+        Var first
+        Binary Add
+          MethodCall load
+            Var second
+          FieldAccess value
+            Var box
+    return
+      Var number
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0

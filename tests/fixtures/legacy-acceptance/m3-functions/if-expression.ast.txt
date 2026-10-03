@@ -1,0 +1,16 @@
+SourceFile
+  RootPackage
+  fun choose(flag: Boolean): Int
+    =
+      IfExpression
+        Var flag
+        IntLiteral 1
+        else
+        IntLiteral 2
+  fun main()
+    Call println
+      Call choose
+        BoolLiteral true
+    Call println
+      Call choose
+        BoolLiteral false

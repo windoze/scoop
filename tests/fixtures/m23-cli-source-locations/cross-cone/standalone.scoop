@@ -1,0 +1,8 @@
+fun main() {
+    val location = getCurrentSourceLocation()
+    println(location.file)
+    println(location.line)
+    println(location.column)
+    println(location.functionName)
+    println(location.typeName)
+}

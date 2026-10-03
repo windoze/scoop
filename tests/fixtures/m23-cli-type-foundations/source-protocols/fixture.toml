@@ -1,0 +1,87 @@
+schema = 1
+name = "type-foundations-source-protocols"
+inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "source-protocols", "../../m23-shared-type-foundations/source-protocols.scoop", "type-foundation-source-protocols-consumer"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["type-foundations", "source-protocols", "stage-golden"]
+
+[[steps]]
+name = "prepare_core"
+files = [
+  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"copy" = {"from" = "${fixture}/../../m23-cli-imported-classes/support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
+  {"mkdir" = {"path" = "${work}/empty-sysroot"}},
+]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "remove_core_source"
+files = [
+  {"remove" = {"path" = "${work}/core-source"}},
+]
+
+[[steps]]
+name = "prepare_source-protocols"
+files = [
+  {"copy" = {"from" = "${fixture}/source-protocols", "to" = "${work}/sources/source-protocols"}},
+  {"copy" = {"from" = "${fixture}/../../m23-shared-type-foundations/source-protocols.scoop", "to" = "${work}/sources/source-protocols/src/main.scoop"}},
+]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", "${work}/sources/source-protocols", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/source-protocols/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/provider"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${provider.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/provider/${provider.result.root.identity}/ast.txt", "snapshot" = "provider.ast.txt"},
+  {"file" = "${work}/dump/provider/${provider.result.root.identity}/hir.txt", "snapshot" = "provider.hir.txt"},
+  {"file" = "${work}/dump/provider/${provider.result.root.identity}/mir.txt", "snapshot" = "provider.mir.txt"},
+  {"file" = "${work}/dump/provider/${provider.result.root.identity}/lir.txt", "snapshot" = "provider.lir.txt"},
+]
+
+[[steps]]
+name = "remove_provider_source"
+files = [
+  {"remove" = {"path" = "${work}/sources/source-protocols"}},
+]
+
+[[steps]]
+name = "prepare_type-foundation-source-protocols-consumer"
+files = [
+  {"copy" = {"from" = "${fixture}/type-foundation-source-protocols-consumer", "to" = "${work}/sources/type-foundation-source-protocols-consumer"}},
+]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", "${work}/sources/type-foundation-source-protocols-consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/type-foundation-source-protocols-consumer/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/consumer"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${consumer.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/ast.txt", "snapshot" = "consumer.ast.txt"},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/hir.txt", "snapshot" = "consumer.hir.txt"},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/mir.txt", "snapshot" = "consumer.mir.txt"},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/lir.txt", "snapshot" = "consumer.lir.txt"},
+]
+
+[[steps]]
+name = "remove_consumer_source"
+files = [
+  {"remove" = {"path" = "${work}/sources/type-foundation-source-protocols-consumer"}},
+]

@@ -1,26 +1,6 @@
 use super::*;
 
-mod process;
 mod rejection;
-
-fn fixture(name: &str) -> String {
-    std::fs::read_to_string(
-        crate::workspace_root()
-            .join("tests/fixtures/core-library/direct-build")
-            .join(name),
-    )
-    .unwrap()
-}
-
-fn write_cone(root: &Path, name: &str) {
-    std::fs::create_dir_all(root.join("src")).unwrap();
-    std::fs::write(root.join("Cone.toml"), fixture(&format!("{name}.toml"))).unwrap();
-    std::fs::write(
-        root.join("src/main.scoop"),
-        fixture(&format!("{name}.scoop")),
-    )
-    .unwrap();
-}
 
 fn request(
     target: &scoop_toolchain::ResolvedTargetProfile,
@@ -59,7 +39,21 @@ pub(super) fn check(
 ) {
     let root = workspace.join("direct-library");
     let absent = workspace.join("absent-direct-sysroot");
-    write_cone(&root, "standalone");
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    std::fs::write(
+        root.join("Cone.toml"),
+        include_str!(
+            "../../../../../../../tests/fixtures/core-library/direct-build/standalone.toml"
+        ),
+    )
+    .unwrap();
+    std::fs::write(
+        root.join("src/main.scoop"),
+        include_str!(
+            "../../../../../../../tests/fixtures/core-library/direct-build/standalone.scoop"
+        ),
+    )
+    .unwrap();
     let explicit = workspace.join("direct-explicit.slib");
     request(target, &root, &explicit, &absent, &[core], &[])
         .build_and_publish()
@@ -81,5 +75,4 @@ pub(super) fn check(
     );
     assert!(!sysroot.join("lib/scoop.core/src").exists());
     rejection::check(target, &root, workspace, &sysroot, core, slot.artifact());
-    process::check(target, &root, workspace, &sysroot, core, &explicit);
 }

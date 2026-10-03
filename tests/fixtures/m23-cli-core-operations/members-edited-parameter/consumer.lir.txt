@@ -1,0 +1,15 @@
+Module
+  fun @scoop$1$cb$6b88dceb2a34cb19c9fbadf6b60203a4daa3753f47c1ea595201d31ce68690fe(i32) -> i32
+    local %0 $dependency.receiver: i32
+    local %1 $dependency.argument.0: i64
+    local %2 $dependency.parameter.distance: i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store integer<Long>(0x0000000000000002) -> local1
+    store local1 -> local2
+    t0 = integer_BitwiseAnd<Long> local2, integer<Long>(0x000000000000001f) : i64
+    t1 = integer_convert<Long->Int> t0 : i32
+    t2 = integer_shift_Left<Int> local0, normalized=t1 : i32
+    ret t2
+  output library

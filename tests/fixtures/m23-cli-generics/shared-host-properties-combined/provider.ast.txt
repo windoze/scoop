@@ -1,0 +1,7 @@
+SourceFile
+  QualifiedPackage upstream.hostproperties
+  public class Item<T>(val value: T)
+    public fun read
+  public open class Base<T>(val item: Item<T>)
+  public class Host<T>(item: Item<T>, val action: () -> T) : Base<T>(<1 args>)
+  public class Hidden<T>(val item: Item<T>)

@@ -1,3 +1,0 @@
-span=56..68
-expression=Outer.Hidden
-type `Outer.Hidden` is not accessible from this source location

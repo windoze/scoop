@@ -1,0 +1,11 @@
+SourceFile
+  RootPackage
+  public fun consume(): Boolean
+    =
+      Call same
+        MethodCall Full
+          Var Choice
+          Call Pair
+        MethodCall Full
+          Var Choice
+          Call Pair

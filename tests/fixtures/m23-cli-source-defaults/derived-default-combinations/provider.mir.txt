@@ -1,0 +1,300 @@
+Module
+  struct Atom ()
+  struct Pair (first: Atom, second: Atom)
+  enum Choice
+    Present(value: Pair)
+    Empty()
+  class box<Boolean> vtable=0 itables=0
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn7 captures=2
+    bridge function_type1 -> @fn10 id=443787d5f0d4ec4208d6659b511164292bc93097897395fee4734299cb3248c4
+  generated_exact_type get0 location=class0 nominal_id=3536333a8ba0aaed76b3bec081995b49af64f164523f6560324f8e64e7ef08e0 exact_id=c4a33308c9b1a4e41424f4d1ffe01aa6e97556fe61c06a7387e42b4ddf522d17
+  generated_exact_type get1 location=closure0 nominal_id=c2538caa226c5eab55778cb75cdc8d0bfdb2b5c4ca4930221b67b8188798e2bb exact_id=e2d17f79871b50fb7d27a79a1c4a1c1deb95b47ac3bedb3405ad3e7b42d30618
+  generated_callable gc0 function=@fn10 id=443787d5f0d4ec4208d6659b511164292bc93097897395fee4734299cb3248c4
+  fun Atom.equals @fn0(this: Atom, other: Atom) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun Pair.equals @fn1(this: Pair, other: Pair) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn0 direct
+        Type Atom
+        FieldAccess 0
+          Type Pair
+          Local this
+        Type Atom
+        FieldAccess 0
+          Type Pair
+          Local other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 logic.rhs.1
+      call $call.3: Boolean = @fn0 direct
+        Type Atom
+        FieldAccess 1
+          Type Pair
+          Local this
+        Type Atom
+        FieldAccess 1
+          Type Pair
+          Local other
+      assign $logic.2
+        Type Boolean
+        Local $call.3
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.2
+  fun Choice.equals @fn2(this: Choice, other: Choice) -> Boolean
+    bb0 entry
+      val $when.1: Choice
+        Type Choice
+        Local this
+      val $pattern.subject.2: Choice
+        Type Choice
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Choice v0
+          Type Choice
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $left.0.0: Pair
+        Type Pair
+        VariantPayloadProject Choice v0 f0
+          Type Choice
+          Local $pattern.subject.2
+      val $when.3: Choice
+        Type Choice
+        Local other
+      val $pattern.subject.4: Choice
+        Type Choice
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Choice v0
+          Type Choice
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Choice
+        Type Choice
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Choice v1
+          Type Choice
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      val $right.0.0: Pair
+        Type Pair
+        VariantPayloadProject Choice v0 f0
+          Type Choice
+          Local $pattern.subject.4
+      call $call.1: Boolean = @fn1 direct
+        Type Pair
+        Local $left.0.0
+        Type Pair
+        Local $right.0.0
+      return
+        Type Boolean
+        Local $call.1
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $when.6: Choice
+        Type Choice
+        Local other
+      val $pattern.subject.7: Choice
+        Type Choice
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Choice v1
+          Type Choice
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      return
+        Type Boolean
+        BoolLiteral true
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+  fun nested @fn3(left: Pair, right: Pair, value: Boolean) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        Local value
+  fun enumNested @fn4(left: Choice, right: Choice, value: Boolean) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        Local value
+  fun closure @fn5(left: Pair, right: Pair, value: () -> Boolean) -> () -> Boolean
+    bb0 entry
+      return
+        Type () -> Boolean
+        Local value
+  fun use @fn6() -> Boolean
+    bb0 entry
+      call $argument.0: Atom = @fn8 direct
+      call $argument.1: Atom = @fn8 direct
+      val $parameter.first: Atom
+        Type Atom
+        Local $argument.0
+      val $parameter.second: Atom
+        Type Atom
+        Local $argument.1
+      call pair: Pair = @fn9 direct
+        Type Atom
+        Local $parameter.first
+        Type Atom
+        Local $parameter.second
+      val $argument.0: Pair
+        Type Pair
+        Local pair
+      val $argument.1: Pair
+        Type Pair
+        Local pair
+      val $parameter.left: Pair
+        Type Pair
+        Local $argument.0
+      val $parameter.right: Pair
+        Type Pair
+        Local $argument.1
+      call $parameter.value: Boolean = @fn1 direct
+        Type Pair
+        Local $parameter.left
+        Type Pair
+        Local $parameter.right
+      call $call.1: Boolean = @fn3 direct
+        Type Pair
+        Local $parameter.left
+        Type Pair
+        Local $parameter.right
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Pair
+        Type Pair
+        Local pair
+      val $argument.1: Pair
+        Type Pair
+        Local pair
+      val $parameter.left: Pair
+        Type Pair
+        Local $argument.0
+      val $parameter.right: Pair
+        Type Pair
+        Local $argument.1
+      val $parameter.value: () -> Boolean
+        Type () -> Boolean
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type Pair
+            Local $parameter.left
+          CaptureInit field=1
+            Type Pair
+            Local $parameter.right
+      call $call.2: () -> Boolean = @fn5 direct
+        Type Pair
+        Local $parameter.left
+        Type Pair
+        Local $parameter.right
+        Type () -> Boolean
+        Local $parameter.value
+      call $call.3: Boolean = <closure:function_type0> closure[function_type0]
+        Type () -> Boolean
+        Local $call.2
+      val $argument.0: Pair
+        Type Pair
+        Local pair
+      val $parameter.value: Pair
+        Type Pair
+        Local $argument.0
+      val $argument.0: Choice
+        Type Choice
+        VariantConstruct Choice v0
+          Type Pair
+          Local $parameter.value
+      val $argument.1: Choice
+        Type Choice
+        VariantConstruct Choice v1
+      val $parameter.left: Choice
+        Type Choice
+        Local $argument.0
+      val $parameter.right: Choice
+        Type Choice
+        Local $argument.1
+      call $parameter.value: Boolean = @fn2 direct
+        Type Choice
+        Local $parameter.left
+        Type Choice
+        Local $parameter.right
+      call $call.4: Boolean = @fn4 direct
+        Type Choice
+        Local $parameter.left
+        Type Choice
+        Local $parameter.right
+        Type Boolean
+        Local $parameter.value
+      return
+        Type Boolean
+        Local $call.4
+  fun $lambda.0 @fn7($closure: () -> Boolean) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn1 direct
+        Type Pair
+        ClosureCapture cc0 0
+          Type () -> Boolean
+          Local $closure
+        Type Pair
+        ClosureCapture cc0 1
+          Type () -> Boolean
+          Local $closure
+      return
+        Type Boolean
+        Local $call.1
+  fun ctor.Atom.$c0 @fn8() -> Atom <no-gc>
+    bb0 entry
+      return
+        Type Atom
+        StructInit Atom
+  fun ctor.Pair.$c1 @fn9(first: Atom, second: Atom) -> Pair <no-gc>
+    bb0 entry
+      return
+        Type Pair
+        StructInit Pair
+          Type Atom
+          Local first
+          Type Atom
+          Local second
+  fun function_bridge.$Closure$lambda0.() -> Any @fn10($source: () -> Boolean) -> Any
+    bb0 entry
+      call $call.1: Boolean = <closure:function_type0> closure[function_type0]
+        Type () -> Boolean
+        Local $source
+      return
+        Type Any
+        Box
+          Type Boolean
+          Local $call.1
+  output library

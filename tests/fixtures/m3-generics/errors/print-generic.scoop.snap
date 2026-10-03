@@ -1,7 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m3-generics/errors/print-generic.scoop:2:5: error: no applicable candidate for `println` in implicit-import candidate layer:
-  - fun println<T : ToString>(value: T): Unit — type argument `T` for `T` must satisfy interface upper bound `ToString`

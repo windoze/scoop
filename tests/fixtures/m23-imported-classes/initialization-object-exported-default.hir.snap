@@ -1,6 +1,0 @@
-Module
-  fun primary(holder: SharedHolder): Counter
-    return
-      Call external #0 : Counter
-        Local holder : SharedHolder
-  output library

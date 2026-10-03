@@ -34,6 +34,7 @@ pub struct Module {
     pub callable_references: Arena<CallableReference>,
     /// Ordinary dependency callable uses transposed one-to-one from Export
     /// HIR into their own LocalConcrete arena-id domain.
+    pub imported_derived_equalities: Arena<ImportedDerivedEqualityUse>,
     pub imported_dependency_callables: Arena<ImportedDependencyCallableUse>,
     pub function_coercions: Arena<FunctionCoercion>,
     pub foreign_callback_registrations: Arena<ForeignCallbackRegistration>,

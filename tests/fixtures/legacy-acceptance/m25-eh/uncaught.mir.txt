@@ -1,0 +1,44 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class M25UncaughtError vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  fun main @fn0() -> Unit
+    bb0 entry
+      assign $new.1
+        Type M25UncaughtError
+        ClassAlloc M25UncaughtError
+      call @fn1 direct
+        Type M25UncaughtError
+        Local $new.1
+      throw
+        Type M25UncaughtError
+        Local $new.1
+  fun init.M25UncaughtError.$c0 @fn1(this: M25UncaughtError) -> Unit
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter._1: String
+        Type String
+        Local $dependency.argument.0
+      val $dependency.argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $dependency.parameter._1
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        Local $dependency.argument.0
+      call external0 direct
+        Type Exception
+        Retype Exception
+          Type M25UncaughtError
+          Local this
+        Type Option<String>
+        Local $dependency.parameter.message
+      return
+  str @str0 "m25 uncaught"
+  output executable @fn0

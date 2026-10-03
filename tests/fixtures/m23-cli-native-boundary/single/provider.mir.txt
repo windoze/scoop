@@ -1,0 +1,11 @@
+Module
+  extern ef0 nativeNarrow @native_narrow(Int8) -> Int8 <abi=scoop managed>
+  fun nativeNarrow @fn0(arg0: Int8) -> Int8
+    bb0 entry
+      call $call.1: Int8 = extern0 @native_narrow direct
+        Type Int8
+        Local arg0
+      return
+        Type Int8
+        Local $call.1
+  output library

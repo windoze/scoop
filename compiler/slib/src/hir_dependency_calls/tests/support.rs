@@ -19,6 +19,7 @@ use scoop_mir::{
 use super::*;
 
 mod applications;
+mod exact_roots;
 
 pub(super) struct Fixture {
     current: ConeIdentity,

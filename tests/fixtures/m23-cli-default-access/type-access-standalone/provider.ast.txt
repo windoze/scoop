@@ -1,0 +1,6 @@
+SourceFile
+  RootPackage
+  public struct AccessToken
+  public fun accessToken(value: AccessToken = <expr>): AccessToken
+    =
+      Var value

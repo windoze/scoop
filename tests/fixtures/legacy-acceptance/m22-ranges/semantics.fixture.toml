@@ -1,0 +1,24 @@
+schema = 1
+name = "legacy-m22-ranges-semantics"
+root = "../../m22-ranges/semantics.scoop"
+inputs = ["../../m22-ranges/semantics.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["legacy", "m22-ranges", "single-file", "run"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "semantics.ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "semantics.hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "semantics.mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "semantics.lir.txt"}]
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "owner-int8\n-2\n-1\n0\n1\n2\nowner-int16\n-1\n0\n1\nowner-int\n1\n2\n3\nowner-long\n3\n2\n1\nowner-uint8\n1\n2\n3\nowner-uint16\n1\n2\n3\nowner-uint\n1\n2\n3\nowner-ulong\n3\n2\n1\nowner-alias\n1\n2\nnamed-rangeTo\n1\n2\n3\nnamed-rangeUntil\n1\n2\nnamed-until\n1\n2\nnamed-downTo\n3\n2\n1\nempty-closed\nnone\nempty-open\nnone\nempty-open-int-min\nnone\nempty-open-long-min\nnone-long\nempty-open-uint-zero\nnone-uint\nempty-open-ulong-zero\nnone-ulong\nempty-until\nnone\nempty-downTo\nnone\nsingle-closed\n2\nnone\nsingle-downTo\n2\nnone\nascending-aligned\n1\n4\n7\nopen-aligned\n1\n4\ndescending-aligned\n7\n4\n1\nstep-replaces\n1\n3\n5\n7\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\nstep-original\n1\n2\n3\n4\nstep-result\n1\n3\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\nint-full-four\n-2147483648\n-715827883\n715827882\n2147483647\nnone\nlong-full-four\n-9223372036854775808\n-3074457345618258603\n3074457345618258602\n9223372036854775807\nnone-long\nuint-full-two\n0\n4294967295\nnone-uint\nulong-full-two\n0\n18446744073709551615\nnone-ulong\nint-max\n2147483646\n2147483647\nnone\nint-min\n-2147483647\n-2147483648\nnone\nlong-max\n9223372036854775806\n9223372036854775807\nnone-long\nlong-min\n-9223372036854775807\n-9223372036854775808\nnone-long\nuint-max\n4294967294\n4294967295\nnone-uint\nuint-min\n1\n0\nnone-uint\nulong-single-max\n18446744073709551615\nnone-ulong\nulong-max-downTo\n18446744073709551615\n18446744073709551614\nnone-ulong\nuint-wrapped-positive-step\n0\n4294967295\nnone-uint\ntrue\n1\n2\nnone\nnone\n1\n1\n1\n1\ninvalid-int-zero\ninvalid-int-negative-empty\ninvalid-long-zero\ninvalid-long-negative-empty\ninvalid-uint-zero\ninvalid-uint-zero-empty\ninvalid-ulong-zero\ninvalid-ulong-zero-empty\n"
+stderr = ""

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for callable reference `::offset` in dependency top-level candidate layer:\n  - fun offset(value: Int): Int — callable shape expects 0 parameter(s), but the actual type has 1",
+    "notes": [],
+    "origin": {
+      "cone": "f8d5142e2439b5142a0ab3e7b9e0b9150156635166e1c920a243370bc4023e70",
+      "end": 99,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 91
+    },
+    "severity": "error"
+  }
+]

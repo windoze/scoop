@@ -1,0 +1,30 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.Token
+  ImportExact Local dependency.classes.ValueReader
+  ImportExact Local dependency.classes.WideValue
+  public struct LocalReader : ValueReader
+    field reference: Counter
+    public fun value
+  public fun primary(): Counter
+    val reader: ValueReader
+      Call LocalReader
+        Call Counter
+          IntLiteral 9
+    val result
+      MethodCall value
+        Var reader
+        Call Token
+        Call Counter
+          IntLiteral 1
+    return
+      Call Counter
+        Binary Add
+          Binary Add
+            FieldAccess first
+              Var result
+            FieldAccess second
+              Var result
+          FieldAccess third
+            Var result

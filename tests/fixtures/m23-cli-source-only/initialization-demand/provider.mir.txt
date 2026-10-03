@@ -1,0 +1,870 @@
+Module
+  global0 eager: Int managed initial=zeroed-for-runtime-unit
+  global1 $singleton$DeferredRegistry: DeferredRegistry managed initial=zeroed-for-runtime-unit
+  global2 $singleton$ReadyRegistry: ReadyRegistry managed initial=zeroed-for-runtime-unit
+  global3 $singleton$ReadyFactory: DeferredHost.ReadyFactory managed initial=zeroed-for-runtime-unit
+  global4 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  global5 $init$failure$1: Any managed initial=zeroed-for-runtime-unit
+  global6 $init$failure$2: Any managed initial=zeroed-for-runtime-unit
+  global7 $init$failure$3: Any managed initial=zeroed-for-runtime-unit
+  init0 top-level:eager eager global0 initializer=@fn11 ensure=@fn12 failure=4 deps=[2]
+  init1 object:DeferredRegistry singleton lazy global1 initializer=@fn5 ensure=@fn6 failure=5 deps=[]
+  init2 object:ReadyRegistry singleton lazy global2 initializer=@fn7 ensure=@fn8 failure=6 deps=[3]
+  init3 companion:DeferredHost.ReadyFactory singleton lazy global3 initializer=@fn9 ensure=@fn10 failure=7 deps=[]
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<DeferredSuspend>
+    Completed(value: DeferredSuspend)
+    Suspended()
+  enum CoroutineSlot<DeferredSuspend>
+    Empty()
+    Value(value: DeferredSuspend)
+  enum CoroutineStep<DeferredRegistry>
+    Completed(value: DeferredRegistry)
+    Suspended()
+  enum CoroutineSlot<DeferredRegistry>
+    Empty()
+    Value(value: DeferredRegistry)
+  enum CoroutineStep<ReadyRegistry>
+    Completed(value: ReadyRegistry)
+    Suspended()
+  enum CoroutineSlot<ReadyRegistry>
+    Empty()
+    Value(value: ReadyRegistry)
+  enum CoroutineStep<DeferredHost.ReadyFactory>
+    Completed(value: DeferredHost.ReadyFactory)
+    Suspended()
+  enum CoroutineSlot<DeferredHost.ReadyFactory>
+    Empty()
+    Value(value: DeferredHost.ReadyFactory)
+  enum CoroutineStep<Int>
+    Completed(value: Int)
+    Suspended()
+  class DeferredRegistry vtable=0 itables=1
+  class ReadyRegistry vtable=0 itables=0
+  class DeferredHost.ReadyFactory vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface DeferredSuspend
+  interface Continuation<Int>
+  interface SuspendTask<Int>
+  interface SuspendRegistration<Int>
+  interface Continuation<DeferredSuspend>
+  interface SuspendTask<DeferredSuspend>
+  interface SuspendRegistration<DeferredSuspend>
+  interface Continuation<DeferredRegistry>
+  interface SuspendTask<DeferredRegistry>
+  interface SuspendRegistration<DeferredRegistry>
+  interface Continuation<ReadyRegistry>
+  interface SuspendTask<ReadyRegistry>
+  interface SuspendRegistration<ReadyRegistry>
+  interface Continuation<DeferredHost.ReadyFactory>
+  interface SuspendTask<DeferredHost.ReadyFactory>
+  interface SuspendRegistration<DeferredHost.ReadyFactory>
+  generated_exact_type get0 location=enum6 nominal_id=24eb89e43cdb705d705772a65d49955fc639fb3af670a67cde2884cbbb75ad6d exact_id=16c124b6b28967f4abb16dbe60a7f1be5f7ec5d92394a6e99d0351615fc6e07e
+  generated_exact_type get1 location=enum3 nominal_id=809183f6c6ae2c776c2fa9d853c8d33dbca5319c5914e7908f402c20196753e5 exact_id=42f45fee94a72b8c75a6f482a150d28657a3d945ee4497728f184d8ea376aaca
+  generated_exact_type get2 location=enum1 nominal_id=f05a8d9f0d3d552adfa36f059841dd203b39ae2bd0242da8f0bb467ed95f1c6f exact_id=7c12c5e42a637c34811ac3a37fdcf3c138b33fe3f9206f8252565eb2f8966ef1
+  generated_exact_type get3 location=enum2 nominal_id=2b307f603fdf179d57611cf1942c29ca2a2ab7634c2febe077a5bff26d512c85 exact_id=a835e7af2449c8188650f46035b6e1f58b070d0e34a2210c1eef12ad40cee10e
+  generated_exact_type get4 location=enum9 nominal_id=16eb07fc5cc4c97ad08fbf6b69c7e65ac7075bc2f68c9d9ef2fdd2eec3e71bc0 exact_id=b8eb707f2b7f406c2e94e35b5e0a093ac125351c5c71418d9a2850df324d7483
+  generated_exact_type get5 location=enum8 nominal_id=60745410a69ab8c3172bce1608cf435f83b38b78ad1d558f522ce6e4186d06bb exact_id=ba48e0d43232e084e60b8ac7d23cc5644feafd7f6e9c9ac4268c112b7f215916
+  generated_exact_type get6 location=enum5 nominal_id=f7f0b0dc5bcd6331f83088bc91e0410128a246684f53a85706de7950978a45e6 exact_id=bfda6a71d73e4467ad550015b4e6b79d6bee0a34a138d8de2ea73ff3e2616b1b
+  generated_exact_type get7 location=enum4 nominal_id=d1f0b611e1b0789de2e98c56da69a14bdd4b4e1c63bfd189b119d7c9caa84edb exact_id=c38f21816fe00b9d943f41132cb26fd583c19b14e2db989ebe9006293bb55f01
+  generated_exact_type get8 location=enum7 nominal_id=dd4056c46f6a26679f782d0d852ae38c08c82fb336d613c250c4e62fd4146979 exact_id=d23f96fe229d643f44f428b41e6a43d34d650b9906b53d6dd3dd4a100b292c73
+  generated_callable gc0 function=@fn40 id=549f2dfb92dd30367a68569dc78bd7a93559f72f6259eb1b6f6e6546d36dbb29
+  generated_callable gc1 function=@fn38 id=962662872d1a913d3fed754ac0e5863e8b1024cfdf80c44dbe5d9f156ff12a98
+  generated_callable gc2 function=@fn39 id=cd4f50a102a2b835de96b7a4170d806eb335953d0bd9eb44cb26c0745b283732
+  generated_callable gc3 function=@fn41 id=e7effb7477014a5314381ad78848bc2ae7c0515647cb80115a4137aa67551fbf
+  fun DeferredRegistry.fetch @fn0(this: DeferredRegistry, $completion: Continuation<Int>) -> CoroutineStep<Int>
+    bb0 entry
+      return
+        Type CoroutineStep<Int>
+        VariantConstruct CoroutineStep<Int> v0
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+  fun ReadyRegistry.read @fn1(this: ReadyRegistry) -> Int
+    bb0 entry
+      call $call.1: Int = @fn2 direct
+        Type ReadyRegistry
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun ReadyRegistry.$get$count @fn2(this: ReadyRegistry) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type ReadyRegistry
+          Local this
+  fun DeferredHost.ReadyFactory.read @fn3(this: DeferredHost.ReadyFactory) -> Int
+    bb0 entry
+      call $call.1: Int = @fn4 direct
+        Type DeferredHost.ReadyFactory
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun DeferredHost.ReadyFactory.$get$seed @fn4(this: DeferredHost.ReadyFactory) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type DeferredHost.ReadyFactory
+          Local this
+  fun $init$body$0 @fn5() -> Unit
+    bb0 entry
+      assign $new.1
+        Type DeferredRegistry
+        ClassAlloc DeferredRegistry
+      call @fn35 direct
+        Type DeferredRegistry
+        Local $new.1
+      global_assign $singleton$DeferredRegistry
+        Type DeferredRegistry
+        Local $new.1
+      return
+  fun $init$ensure$0 @fn6() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:DeferredRegistry
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn5 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:DeferredRegistry
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:DeferredRegistry
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:DeferredRegistry
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:DeferredRegistry
+      call external0 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun $init$body$1 @fn7() -> Unit
+    bb0 entry
+      assign $new.1
+        Type ReadyRegistry
+        ClassAlloc ReadyRegistry
+      call @fn36 direct
+        Type ReadyRegistry
+        Local $new.1
+      global_assign $singleton$ReadyRegistry
+        Type ReadyRegistry
+        Local $new.1
+      return
+  fun $init$ensure$1 @fn8() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 object:ReadyRegistry
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn7 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 object:ReadyRegistry
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 object:ReadyRegistry
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 object:ReadyRegistry
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 object:ReadyRegistry
+      call external0 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun $init$body$2 @fn9() -> Unit
+    bb0 entry
+      assign $new.1
+        Type DeferredHost.ReadyFactory
+        ClassAlloc DeferredHost.ReadyFactory
+      call @fn37 direct
+        Type DeferredHost.ReadyFactory
+        Local $new.1
+      global_assign $singleton$ReadyFactory
+        Type DeferredHost.ReadyFactory
+        Local $new.1
+      return
+  fun $init$ensure$2 @fn10() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 companion:DeferredHost.ReadyFactory
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn9 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 companion:DeferredHost.ReadyFactory
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 companion:DeferredHost.ReadyFactory
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 companion:DeferredHost.ReadyFactory
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 companion:DeferredHost.ReadyFactory
+      call external0 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun $init$body$3 @fn11() -> Unit
+    bb0 entry
+      call @fn8 direct
+      val $receiver: ReadyRegistry
+        Type ReadyRegistry
+        GlobalRead $singleton$ReadyRegistry
+      call $call.1: Int = @fn1 direct
+        Type ReadyRegistry
+        Local $receiver
+      global_assign eager
+        Type Int
+        Local $call.1
+      return
+  fun $init$ensure$3 @fn12() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:eager
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn11 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:eager
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:eager
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:eager
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:eager
+      call external0 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun $get$eager @fn13() -> Int
+    bb0 entry
+      call @fn12 direct
+      return
+        Type Int
+        GlobalRead eager
+  fun Continuation.resume @fn14(this: Continuation<Int>, value: Int) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn15(this: Continuation<Int>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn16(this: SuspendTask<Int>, $completion: Continuation<Int>) -> CoroutineStep<Int>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn17(this: SuspendRegistration<Int>, continuation: Continuation<Int>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn18(this: Continuation<DeferredSuspend>, value: DeferredSuspend) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn19(this: Continuation<DeferredSuspend>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn20(this: SuspendTask<DeferredSuspend>, $completion: Continuation<DeferredSuspend>) -> CoroutineStep<DeferredSuspend>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn21(this: SuspendRegistration<DeferredSuspend>, continuation: Continuation<DeferredSuspend>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn22(this: Continuation<DeferredRegistry>, value: DeferredRegistry) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn23(this: Continuation<DeferredRegistry>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn24(this: SuspendTask<DeferredRegistry>, $completion: Continuation<DeferredRegistry>) -> CoroutineStep<DeferredRegistry>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn25(this: SuspendRegistration<DeferredRegistry>, continuation: Continuation<DeferredRegistry>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn26(this: Continuation<ReadyRegistry>, value: ReadyRegistry) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn27(this: Continuation<ReadyRegistry>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn28(this: SuspendTask<ReadyRegistry>, $completion: Continuation<ReadyRegistry>) -> CoroutineStep<ReadyRegistry>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn29(this: SuspendRegistration<ReadyRegistry>, continuation: Continuation<ReadyRegistry>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn30(this: Continuation<DeferredHost.ReadyFactory>, value: DeferredHost.ReadyFactory) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn31(this: Continuation<DeferredHost.ReadyFactory>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn32(this: SuspendTask<DeferredHost.ReadyFactory>, $completion: Continuation<DeferredHost.ReadyFactory>) -> CoroutineStep<DeferredHost.ReadyFactory>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn33(this: SuspendRegistration<DeferredHost.ReadyFactory>, continuation: Continuation<DeferredHost.ReadyFactory>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun DeferredSuspend.fetch @fn34(this: DeferredSuspend, $completion: Continuation<Int>) -> CoroutineStep<Int>
+    bb0 entry
+      trap "call to abstract method `DeferredSuspend.fetch`"
+  fun init.DeferredRegistry.$c1 @fn35(this: DeferredRegistry) -> Unit
+    bb0 entry
+      return
+  fun init.ReadyRegistry.$c2 @fn36(this: ReadyRegistry) -> Unit
+    bb0 entry
+      call @fn10 direct
+      val $receiver: DeferredHost.ReadyFactory
+        Type DeferredHost.ReadyFactory
+        GlobalRead $singleton$ReadyFactory
+      call $dependency.receiver: Int = @fn3 direct
+        Type DeferredHost.ReadyFactory
+        Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      field_set 0
+        Type ReadyRegistry
+        Local this
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      return
+  fun init.DeferredHost.ReadyFactory.$c3 @fn37(this: DeferredHost.ReadyFactory) -> Unit
+    bb0 entry
+      field_set 0
+        Type DeferredHost.ReadyFactory
+        Local this
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      return
+  fun startCoroutine<DeferredSuspend> @fn38(task: SuspendTask<DeferredSuspend>, completion: Continuation<DeferredSuspend>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn18 interface Continuation<DeferredSuspend>[0]
+        Type Continuation<DeferredSuspend>
+        Local completion
+        Type DeferredSuspend
+        EnumField v0 f0
+          Type CoroutineStep<DeferredSuspend>
+          Local $step
+      return
+    bb2 failed
+      call @fn19 interface Continuation<DeferredSuspend>[1]
+        Type Continuation<DeferredSuspend>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<DeferredSuspend> = @fn20 interface SuspendTask<DeferredSuspend>[0]
+        Type SuspendTask<DeferredSuspend>
+        Local task
+        Type Continuation<DeferredSuspend>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<DeferredSuspend>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<DeferredRegistry> @fn39(task: SuspendTask<DeferredRegistry>, completion: Continuation<DeferredRegistry>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn22 interface Continuation<DeferredRegistry>[0]
+        Type Continuation<DeferredRegistry>
+        Local completion
+        Type DeferredRegistry
+        EnumField v0 f0
+          Type CoroutineStep<DeferredRegistry>
+          Local $step
+      return
+    bb2 failed
+      call @fn23 interface Continuation<DeferredRegistry>[1]
+        Type Continuation<DeferredRegistry>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<DeferredRegistry> = @fn24 interface SuspendTask<DeferredRegistry>[0]
+        Type SuspendTask<DeferredRegistry>
+        Local task
+        Type Continuation<DeferredRegistry>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<DeferredRegistry>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<ReadyRegistry> @fn40(task: SuspendTask<ReadyRegistry>, completion: Continuation<ReadyRegistry>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn26 interface Continuation<ReadyRegistry>[0]
+        Type Continuation<ReadyRegistry>
+        Local completion
+        Type ReadyRegistry
+        EnumField v0 f0
+          Type CoroutineStep<ReadyRegistry>
+          Local $step
+      return
+    bb2 failed
+      call @fn27 interface Continuation<ReadyRegistry>[1]
+        Type Continuation<ReadyRegistry>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<ReadyRegistry> = @fn28 interface SuspendTask<ReadyRegistry>[0]
+        Type SuspendTask<ReadyRegistry>
+        Local task
+        Type Continuation<ReadyRegistry>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<ReadyRegistry>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<DeferredHost.ReadyFactory> @fn41(task: SuspendTask<DeferredHost.ReadyFactory>, completion: Continuation<DeferredHost.ReadyFactory>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn30 interface Continuation<DeferredHost.ReadyFactory>[0]
+        Type Continuation<DeferredHost.ReadyFactory>
+        Local completion
+        Type DeferredHost.ReadyFactory
+        EnumField v0 f0
+          Type CoroutineStep<DeferredHost.ReadyFactory>
+          Local $step
+      return
+    bb2 failed
+      call @fn31 interface Continuation<DeferredHost.ReadyFactory>[1]
+        Type Continuation<DeferredHost.ReadyFactory>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<DeferredHost.ReadyFactory> = @fn32 interface SuspendTask<DeferredHost.ReadyFactory>[0]
+        Type SuspendTask<DeferredHost.ReadyFactory>
+        Local task
+        Type Continuation<DeferredHost.ReadyFactory>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<DeferredHost.ReadyFactory>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<DeferredSuspend> result=DeferredSuspend
+  coroutine_step cs1 CoroutineStep<DeferredRegistry> result=DeferredRegistry
+  coroutine_step cs2 CoroutineStep<ReadyRegistry> result=ReadyRegistry
+  coroutine_step cs3 CoroutineStep<DeferredHost.ReadyFactory> result=DeferredHost.ReadyFactory
+  coroutine_step cs4 CoroutineStep<Int> result=Int
+  coroutine_slot cl0 CoroutineSlot<DeferredSuspend> value=DeferredSuspend
+  coroutine_slot cl1 CoroutineSlot<DeferredRegistry> value=DeferredRegistry
+  coroutine_slot cl2 CoroutineSlot<ReadyRegistry> value=ReadyRegistry
+  coroutine_slot cl3 CoroutineSlot<DeferredHost.ReadyFactory> value=DeferredHost.ReadyFactory
+  coroutine_start ct0 result=DeferredSuspend function=fn38
+  coroutine_start ct1 result=DeferredRegistry function=fn39
+  coroutine_start ct2 result=ReadyRegistry function=fn40
+  coroutine_start ct3 result=DeferredHost.ReadyFactory function=fn41
+  coroutine_fn cf0 @fn0 source_return=Int step=cs4 immediate
+  coroutine_fn cf1 @fn16 source_return=Int step=cs4 immediate
+  coroutine_fn cf2 @fn20 source_return=DeferredSuspend step=cs0 immediate
+  coroutine_fn cf3 @fn24 source_return=DeferredRegistry step=cs1 immediate
+  coroutine_fn cf4 @fn28 source_return=ReadyRegistry step=cs2 immediate
+  coroutine_fn cf5 @fn32 source_return=DeferredHost.ReadyFactory step=cs3 immediate
+  coroutine_fn cf6 @fn34 source_return=Int step=cs4 immediate
+  instance mi0 function=@fn14 <- Continuation.resume
+  instance mi1 function=@fn15 <- Continuation.resumeWithException
+  instance mi2 function=@fn16 <- SuspendTask.run
+  instance mi3 function=@fn17 <- SuspendRegistration.register
+  instance mi4 function=@fn18 <- Continuation.resume
+  instance mi5 function=@fn19 <- Continuation.resumeWithException
+  instance mi6 function=@fn20 <- SuspendTask.run
+  instance mi7 function=@fn21 <- SuspendRegistration.register
+  instance mi8 function=@fn22 <- Continuation.resume
+  instance mi9 function=@fn23 <- Continuation.resumeWithException
+  instance mi10 function=@fn24 <- SuspendTask.run
+  instance mi11 function=@fn25 <- SuspendRegistration.register
+  instance mi12 function=@fn26 <- Continuation.resume
+  instance mi13 function=@fn27 <- Continuation.resumeWithException
+  instance mi14 function=@fn28 <- SuspendTask.run
+  instance mi15 function=@fn29 <- SuspendRegistration.register
+  instance mi16 function=@fn30 <- Continuation.resume
+  instance mi17 function=@fn31 <- Continuation.resumeWithException
+  instance mi18 function=@fn32 <- SuspendTask.run
+  instance mi19 function=@fn33 <- SuspendRegistration.register
+  output library

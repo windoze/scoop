@@ -1,0 +1,308 @@
+Module
+  extern ef0 trace @m23_trace(Long) -> Unit <abi=c no-gc lib=m23_runtime_images>
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Box vtable=0 itables=0
+  fun trace @fn0(arg0: Long) -> Unit
+    bb0 entry
+      call extern0 @m23_trace direct
+        Type Long
+        Local arg0
+      return
+  fun failure @fn1() -> IllegalStateException
+    bb0 entry
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb9 bb10
+        Type Boolean
+        IsInstance IllegalStateException
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      return
+        Type IllegalStateException
+        Local $result.0
+    bb8 try.body.8 unwind bb1
+      call $call.1: Long = external0 direct
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.2
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external1 direct
+        Type IllegalStateException
+        Local $new.2
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw unwind bb1
+        Type IllegalStateException
+        Local $new.2
+    bb9 try.catch.9
+      call $catch.3: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: IllegalStateException
+        Type IllegalStateException
+        Retype IllegalStateException
+          Type Any
+          Local $catch.3
+      goto bb11
+    bb10 try.next.10
+      rethrow unwind bb5
+    bb11 scope.11 unwind bb3
+      assign $result.0
+        Type IllegalStateException
+        Local error
+      end_catch
+      goto bb12
+    bb12 scope.12
+      goto bb7
+  fun main @fn2() -> Unit
+    bb0 entry
+      call first: IllegalStateException = @fn1 direct
+      call $when.1: Option<String> = external2 direct
+        Type Exception
+        Retype Exception
+          Type IllegalStateException
+          Local first
+      val $pattern.subject.2: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<String> v0
+          Type Option<String>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val value: String
+        Type String
+        VariantPayloadProject Option<String> v0 f0
+          Type Option<String>
+          Local $pattern.subject.2
+      assign $result.1
+        Type String
+        Local value
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<String> v1
+          Type Option<String>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val firstMessage: String
+        Type String
+        Local $result.1
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=42 bits=0x000000000000002a
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Box
+        ClassAlloc Box
+      call external3 direct
+        Type Box
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      val allocated: Box
+        Type Box
+        Local $new.2
+      call second: IllegalStateException = @fn1 direct
+      call $when.4: Option<String> = external2 direct
+        Type Exception
+        Retype Exception
+          Type IllegalStateException
+          Local second
+      val $pattern.subject.5: Option<String>
+        Type Option<String>
+        Local $when.4
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Option<String> v0
+          Type Option<String>
+          Local $pattern.subject.5
+    bb4 pattern.pass.4
+      val $default.local.0: String
+        Type String
+        StringConst @str1
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external1 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val value: String
+        Type String
+        VariantPayloadProject Option<String> v0 f0
+          Type Option<String>
+          Local $pattern.subject.5
+      assign $result.2
+        Type String
+        Local value
+      goto bb9
+    bb8 pattern.else.8
+      val $pattern.subject.6: Option<String>
+        Type Option<String>
+        Local $when.4
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Option<String> v1
+          Type Option<String>
+          Local $pattern.subject.6
+    bb9 pattern.merge.9
+      val secondMessage: String
+        Type String
+        Local $result.2
+      call $dependency.receiver: Int = external4 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb14 bb13
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb10 pattern.pass.10
+      val $default.local.0: String
+        Type String
+        StringConst @str2
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.3
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external1 direct
+        Type IllegalStateException
+        Local $new.3
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.3
+    bb11 pattern.else.11
+      unreachable
+    bb12 pattern.merge.12
+      unreachable
+    bb13 logic.rhs.13
+      assign $logic.4
+        Type Boolean
+        Binary RefNe
+          Type String
+          Local firstMessage
+          Type String
+          Local secondMessage
+      goto bb15
+    bb14 logic.short.14
+      assign $logic.4
+        Type Boolean
+        BoolLiteral true
+      goto bb15
+    bb15 logic.merge.15
+      branch bb16 bb17
+        Type Boolean
+        Local $logic.4
+    bb16 if.then.16
+      val $default.local.0: String
+        Type String
+        StringConst @str3
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.5
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external1 direct
+        Type IllegalStateException
+        Local $new.5
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.5
+    bb17 if.merge.17
+      call $argument.0: Long = external5 direct
+        Type Box
+        Local allocated
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call extern0 @m23_trace direct
+        Type Long
+        Local $parameter.value
+      return
+  str @str0 "illegal state"
+  str @str1 "illegal state"
+  str @str2 "illegal state"
+  str @str3 "illegal state"
+  output executable @fn2

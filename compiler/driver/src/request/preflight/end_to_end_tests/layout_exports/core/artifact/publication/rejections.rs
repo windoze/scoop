@@ -7,7 +7,6 @@ pub(super) fn check(
     provider: &slib::AssembledCrossConeLayoutArtifactV1,
     artifact: &slib::AssembledCrossConeLayoutArtifactV1,
     profile: &lir::CBridgeToolchainProfileV1,
-    dump: &mut String,
 ) {
     let current = reader::open(artifact).identity();
     let direct = [reader::open(provider).identity()];
@@ -41,7 +40,6 @@ pub(super) fn check(
         matches!(*error, slib::CrossConeHirCallSiteOriginError::Signature { position, .. }
         if position == expected)
     );
-    dump.push_str("reader SourceSignature\n");
 
     let Error::Semantic { source } = reject(artifact.as_bytes(), &[]) else {
         panic!("expected missing dependency rejection")
@@ -51,7 +49,6 @@ pub(super) fn check(
         if matches!(*error, slib::CrossConeClosureGraphError::MissingDirectArtifact { identity }
             if identity == direct[0]))
     );
-    dump.push_str("reader MissingDependency\n");
 
     for (owner, source_artifact) in [(current, artifact), (direct[0], provider)] {
         let bytes = corrupt_code(source_artifact);
@@ -69,14 +66,6 @@ pub(super) fn check(
             if matches!(*error, slib::LayoutLinkSymbolUseError::CodeProjection(
                 slib::CodeProductionProjectionError::FieldMismatch { field: 7 })))
         );
-        dump.push_str(&format!(
-            "reader {}Code\n",
-            if owner == current {
-                "Current"
-            } else {
-                "Dependency"
-            }
-        ));
     }
     let mut removed = false;
     let bytes = link_archive::rewrite(artifact, |record, _| {
@@ -91,7 +80,6 @@ pub(super) fn check(
         panic!("expected actual Link object rejection")
     };
     assert_eq!(source.provider, current);
-    dump.push_str("reader MissingObject\n");
 
     let blocked = destination.parent().unwrap().join("blocked.slib");
     std::fs::create_dir(&blocked).unwrap();
@@ -107,7 +95,6 @@ pub(super) fn check(
     std::fs::remove_dir(&blocked).unwrap();
     assert_eq!(std::fs::read(destination).unwrap(), artifact.as_bytes());
     assert_no_temporary(destination.parent().unwrap(), destination);
-    dump.push_str("reject RenameDirectory; destination-preserved=true\n");
 }
 
 fn corrupt_code(artifact: &slib::AssembledCrossConeLayoutArtifactV1) -> Vec<u8> {

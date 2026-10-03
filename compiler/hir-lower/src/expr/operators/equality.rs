@@ -50,6 +50,28 @@ impl Lowerer {
         let mut derivation_failure = None;
         if self.types_equal(lhs.ty, rhs.ty) {
             match self.derived_equality_candidate(lhs.ty, span) {
+                Ok(Some(crate::derived::DerivedEqualityCandidate::Imported(target))) => {
+                    if self.requires_unsafe_use(lhs.ty) {
+                        self.require_unsafe_operation(
+                            span,
+                            "calling an unsafe dependency function",
+                        );
+                    }
+                    let call = self.imported_equality_call(target, lhs, rhs, span);
+                    return Some(if negate {
+                        hir::Expr {
+                            kind: ExprKind::Unary {
+                                op: hir::UnOp::Not,
+                                operand: Box::new(call),
+                            },
+                            ty: self.boolean,
+                            span,
+                            origin: self.expression_origin(span),
+                        }
+                    } else {
+                        call
+                    });
+                }
                 Ok(Some(crate::derived::DerivedEqualityCandidate::Nominal {
                     overload,
                     application,

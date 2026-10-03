@@ -1,0 +1,8 @@
+Module
+  global0 marker: Int managed initial=encoded(Int:0x7)
+  fun $get$marker @fn0() -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        GlobalRead marker
+  output library

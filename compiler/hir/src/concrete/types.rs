@@ -6,6 +6,7 @@ pub type LambdaId = Idx<Lambda>;
 pub type AnonymousFunctionId = Idx<AnonymousFunction>;
 pub type LocalFunctionId = Idx<LocalFunction>;
 pub type CallableReferenceId = Idx<CallableReference>;
+pub type ImportedDerivedEqualityUseId = Idx<ImportedDerivedEqualityUse>;
 pub type ImportedDependencyCallableUseId = Idx<ImportedDependencyCallableUse>;
 pub type FunctionCoercionId = Idx<FunctionCoercion>;
 pub type ForeignCallbackRegistrationId = Idx<ForeignCallbackRegistration>;

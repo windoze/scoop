@@ -1,0 +1,93 @@
+SourceFile
+  RootPackage
+  struct Label
+    field text: String
+  struct Snapshot
+    field value: Int
+    fun getter
+  class Counter(var value: Int)
+    fun incrementer
+  fun makeAdder(base: Int): (Int) -> Int
+    =
+      Lambda 2 suspend=false
+        param value: Int
+        Binary Add
+          Var value
+          Var base
+  fun makeNested(base: Int): () -> () -> Int
+    =
+      Lambda 4 suspend=false
+        parameters omitted
+        Lambda 3 suspend=false
+          parameters omitted
+          Var base
+  fun labelReader(label: Label): () -> String
+    =
+      Lambda 5 suspend=false
+        parameters omitted
+        FieldAccess text
+          Var label
+  fun snapshot(): () -> Int
+    var value
+      IntLiteral 41
+    val captured
+      Var value
+    val result
+      Lambda 6 suspend=false
+        parameters omitted
+        Binary Add
+          Var captured
+          IntLiteral 1
+    assign value
+      IntLiteral 0
+    return
+      Var result
+  fun main()
+    val adder
+      Call makeAdder
+        IntLiteral 2
+    val outer
+      Call makeNested
+        IntLiteral 41
+    val inner
+      Call outer
+    val reader
+      Call labelReader
+        Call Label
+          StringLiteral "alive"
+    var source
+      Call Snapshot
+        IntLiteral 1
+    val getter
+      MethodCall getter
+        Var source
+    assign source
+      Call Snapshot
+        IntLiteral 2
+    val counter
+      Call Counter
+        IntLiteral 40
+    val increment
+      MethodCall incrementer
+        Var counter
+    Call gcCollect
+    Call println
+      Call adder
+        IntLiteral 40
+    Call println
+      Call inner
+    Call println
+      Call reader
+    Call println
+      Call getter
+    Call println
+      FieldAccess value
+        Var source
+    Call println
+      Call increment
+    Call println
+      FieldAccess value
+        Var counter
+    Call println
+      Invoke
+        Call snapshot

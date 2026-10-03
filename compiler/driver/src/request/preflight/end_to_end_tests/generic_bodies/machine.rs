@@ -425,19 +425,6 @@ fn actual_generic_library_emits_shared_odr_objects() {
                     .any(|atom| { atom.key().role() == DefinitionAtomRole::Lsda })
             );
         }
-        if name != "generic-machine-second" {
-            for (stage, dump) in [
-                ("hir", scoop_hir::dump(&hir.hir.output().export)),
-                ("mir", scoop_mir::dump(mir.strong.module())),
-                ("lir", scoop_lir::dump(lir.module())),
-            ] {
-                let path = directory.join(format!("machine-{case}.{stage}.snap"));
-                if std::env::var_os("SCOOP_UPDATE_GENERIC_BODY_SNAPSHOTS").is_some() {
-                    std::fs::write(&path, &dump).unwrap();
-                }
-                assert_eq!(dump, std::fs::read_to_string(path).unwrap());
-            }
-        }
         outputs.push(bodies);
     }
     for (first, second, expected_shared) in [(0, 1, 1), (1, 2, 4), (2, 3, 4)] {

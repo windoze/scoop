@@ -1,0 +1,3 @@
+public fun child(text: String, value: Int): Child = Child(text, value)
+public fun observeChild(value: Child): (Int, String, Int) = (value.inherited, value.own, value.number)
+public fun inherited(value: Base): Int = value.inherited

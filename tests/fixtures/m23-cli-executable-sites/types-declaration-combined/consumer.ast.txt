@@ -1,0 +1,25 @@
+SourceFile
+  RootPackage
+  private fun declarationPrivate(unused: Any)
+  public fun String.declarationReceiver(unused: Int)
+    val retained: Any
+      This
+    Call declarationPrivate
+      Var retained
+  public class DeclarationHolder(val value: String)
+    constructor(unused: Any) : this(<1 args>)
+  public var declarationStorage: String = <expr>
+  public var declarationAlias: String <computed>
+  private operator fun String.getValue(thisRef: Unit): String
+    =
+      This
+  public val declarationDelegated: String by <expr>
+  public fun declarationRead(): String
+    val unused: Any
+      Call DeclarationHolder
+        StringLiteral "value"
+    MethodCall declarationReceiver
+      Var declarationStorage
+      IntLiteral 1
+    return
+      Var declarationStorage

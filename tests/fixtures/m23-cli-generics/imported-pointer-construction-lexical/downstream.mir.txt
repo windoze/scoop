@@ -1,0 +1,502 @@
+Module
+  struct Number (value: Int)
+  class Later vtable=0 itables=0
+  class box<Number> vtable=0 itables=0
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn3 captures=2
+    bridge function_type1 -> @fn11 id=4bb63dbfe8865c264ac918dd79b89a88cc9842c8368b3c8e27fc2a9ad925013a
+  closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn6 captures=2
+    bridge function_type1 -> @fn12 id=db55e25198a559adf5b87034cc0f91aa14912355f9ac96e4bbe1f979d7d84f63
+  closure cc2 $Closure$lambda2 type=function_type0 invoke=@fn9 captures=2
+    bridge function_type1 -> @fn13 id=1f53fc30c05b81253f5d4fdfc2d747efb0ee06e375ac289902e7aade7c1a6272
+  generated_exact_type get0 location=closure1 nominal_id=0727ea57833a60c8e85a1e462dca6ef0c6062322d97bafbac9454feac447ef1f exact_id=3f9150cdb7cd5d659e69b4669f388facd44c438dcac1f0702c8ade0cf0386ac2
+  generated_exact_type get1 location=closure2 nominal_id=31955c72f72d01c54f504fcfe5354dbe29eeca1c1b788d2231ee13dea09270bd exact_id=5a85839cbd89129f2246cd8694ff207eefd2577e283a4c78e4dbbd94e2dc50ce
+  generated_exact_type get2 location=class1 nominal_id=7e1dea6262c147a81964fbbd0557697f61786d87080117fbd29b01aa2cad9ea0 exact_id=cf0c97e2c1639bda7a3dfbce9c88116358ea468018d4df1f6e88f0289b3138bc
+  generated_exact_type get3 location=closure0 nominal_id=3da045cb37e395eafae683bc12222670ad69ccfd2ce893428e22a9de98cdf2a6 exact_id=ed12bba0d25e2edc42c0e439e25349b4ff7ef48882713f191804afcd491f2894
+  generated_callable gc0 function=@fn13 id=1f53fc30c05b81253f5d4fdfc2d747efb0ee06e375ac289902e7aade7c1a6272
+  generated_callable gc1 function=@fn11 id=4bb63dbfe8865c264ac918dd79b89a88cc9842c8368b3c8e27fc2a9ad925013a
+  generated_callable gc2 function=@fn12 id=db55e25198a559adf5b87034cc0f91aa14912355f9ac96e4bbe1f979d7d84f63
+  fun check @fn0() -> Int
+    bb0 entry
+      call $argument.0: Int = external0 direct
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Later
+        ClassAlloc Later
+      call @fn10 direct
+        Type Later
+        Local $new.1
+        Type Int
+        Local $parameter.number
+      val value: Later
+        Type Later
+        Local $new.1
+      val $dependency.argument.0: Later
+        Type Later
+        Local value
+      val $dependency.parameter.value: Later
+        Type Later
+        Local $dependency.argument.0
+      call answer: Int = @fn1 direct
+        Type Later
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      assign $result.1
+        Type Int
+        Local answer
+      goto bb6
+    bb5 if.else.5
+      assign $result.1
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb6
+    bb6 if.merge.6
+      return
+        Type Int
+        Local $result.1
+  fun exercise @fn1(value: Later) -> Int
+    bb0 entry
+      val $dependency.local.4: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.4
+      call $dependency.local.1: Number = external1 direct
+        Type Int
+        Local $dependency.local.5
+      val $dependency.local.6: Ptr<Number>
+        Type Ptr<Number>
+        AddressOf $dependency.local.1 : Ptr<Number>
+      val $dependency.local.2: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Number>
+          Local $dependency.local.6
+      val $dependency.local.3: () -> Number
+        Type () -> Number
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=1
+            Type Number
+            Local $dependency.local.1
+          CaptureInit field=0
+            Type ULong
+            Local $dependency.local.2
+      call $call.1: Number = @fn4 direct
+        Type ULong
+        Local $dependency.local.2
+      val $dependency.local.7: Int
+        Type Int
+        FieldAccess 0
+          Type Number
+          Local $call.1
+      val $dependency.local.8: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.9: Int
+        Type Int
+        Local $dependency.local.8
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.7
+            Type Int
+            Local $dependency.local.9
+    bb1 if.then.1
+      val $dependency.local.13: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      call $call.2: Number = <closure:function_type0> closure[function_type0]
+        Type () -> Number
+        Local $dependency.local.3
+      val $dependency.local.10: Int
+        Type Int
+        FieldAccess 0
+          Type Number
+          Local $call.2
+      val $dependency.local.11: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.12: Int
+        Type Int
+        Local $dependency.local.11
+      val $dependency.local.13: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.10
+            Type Int
+            Local $dependency.local.12
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $dependency.local.13
+    bb4 if.then.4
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb5 if.merge.5
+      val $dependency.local.14: Number
+        Type Number
+        Local $dependency.local.1
+      val $dependency.local.15: Number
+        Type Number
+        Local $dependency.local.14
+      call $call.3: Number = @fn5 direct
+        Type Number
+        Local $dependency.local.15
+      return
+        Type Int
+        FieldAccess 0
+          Type Number
+          Local $call.3
+  fun exercise @fn2(value: Int) -> Int
+    bb0 entry
+      val $dependency.local.4: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.4
+      call $dependency.local.1: Number = external1 direct
+        Type Int
+        Local $dependency.local.5
+      val $dependency.local.6: Ptr<Number>
+        Type Ptr<Number>
+        AddressOf $dependency.local.1 : Ptr<Number>
+      val $dependency.local.2: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Number>
+          Local $dependency.local.6
+      val $dependency.local.3: () -> Number
+        Type () -> Number
+        ClosureAlloc cc1 $Closure$lambda1
+          CaptureInit field=1
+            Type Number
+            Local $dependency.local.1
+          CaptureInit field=0
+            Type ULong
+            Local $dependency.local.2
+      call $call.1: Number = @fn7 direct
+        Type ULong
+        Local $dependency.local.2
+      val $dependency.local.7: Int
+        Type Int
+        FieldAccess 0
+          Type Number
+          Local $call.1
+      val $dependency.local.8: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.9: Int
+        Type Int
+        Local $dependency.local.8
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.7
+            Type Int
+            Local $dependency.local.9
+    bb1 if.then.1
+      val $dependency.local.13: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      call $call.2: Number = <closure:function_type0> closure[function_type0]
+        Type () -> Number
+        Local $dependency.local.3
+      val $dependency.local.10: Int
+        Type Int
+        FieldAccess 0
+          Type Number
+          Local $call.2
+      val $dependency.local.11: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.12: Int
+        Type Int
+        Local $dependency.local.11
+      val $dependency.local.13: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.10
+            Type Int
+            Local $dependency.local.12
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $dependency.local.13
+    bb4 if.then.4
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb5 if.merge.5
+      val $dependency.local.14: Number
+        Type Number
+        Local $dependency.local.1
+      val $dependency.local.15: Number
+        Type Number
+        Local $dependency.local.14
+      call $call.3: Number = @fn5 direct
+        Type Number
+        Local $dependency.local.15
+      return
+        Type Int
+        FieldAccess 0
+          Type Number
+          Local $call.3
+  fun $lambda @fn3($argument.0: () -> Number) -> Number
+    bb0 entry
+      var $dependency.local.0: Number
+        Type Number
+        ClosureCapture cc0 1
+          Type () -> Number
+          Local $argument.0
+      val $dependency.local.1: Ptr<Number>
+        Type Ptr<Number>
+        PtrFromNonZeroULong Number
+          Type ULong
+          ClosureCapture cc0 0
+            Type () -> Number
+            Local $argument.0
+      assign $dependency.local.0
+        Type Number
+        PtrLoad Number
+          Type Ptr<Number>
+          Local $dependency.local.1
+      return
+        Type Number
+        Local $dependency.local.0
+  fun read @fn4($capture.0: ULong) -> Number
+    bb0 entry
+      val $dependency.local.0: Ptr<Number>
+        Type Ptr<Number>
+        PtrFromNonZeroULong Number
+          Type ULong
+          Local $capture.0
+      return
+        Type Number
+        PtrLoad Number
+          Type Ptr<Number>
+          Local $dependency.local.0
+  fun lexicalCopy @fn5(value: Number) -> Number
+    bb0 entry
+      val $dependency.local.5: Ptr<Number>
+        Type Ptr<Number>
+        AddressOf value : Ptr<Number>
+      val $dependency.local.1: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Number>
+          Local $dependency.local.5
+      call $dependency.local.2: Number = @fn8 direct
+        Type ULong
+        Local $dependency.local.1
+      val $dependency.local.6: Ptr<Number>
+        Type Ptr<Number>
+        AddressOf $dependency.local.2 : Ptr<Number>
+      val $dependency.local.3: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Number>
+          Local $dependency.local.6
+      val $dependency.local.4: () -> Number
+        Type () -> Number
+        ClosureAlloc cc2 $Closure$lambda2
+          CaptureInit field=0
+            Type Number
+            Local $dependency.local.2
+          CaptureInit field=1
+            Type ULong
+            Local $dependency.local.3
+      call $call.1: Number = <closure:function_type0> closure[function_type0]
+        Type () -> Number
+        Local $dependency.local.4
+      return
+        Type Number
+        Local $call.1
+  fun $lambda @fn6($argument.0: () -> Number) -> Number
+    bb0 entry
+      var $dependency.local.0: Number
+        Type Number
+        ClosureCapture cc1 1
+          Type () -> Number
+          Local $argument.0
+      val $dependency.local.1: Ptr<Number>
+        Type Ptr<Number>
+        PtrFromNonZeroULong Number
+          Type ULong
+          ClosureCapture cc1 0
+            Type () -> Number
+            Local $argument.0
+      assign $dependency.local.0
+        Type Number
+        PtrLoad Number
+          Type Ptr<Number>
+          Local $dependency.local.1
+      return
+        Type Number
+        Local $dependency.local.0
+  fun read @fn7($capture.0: ULong) -> Number
+    bb0 entry
+      val $dependency.local.0: Ptr<Number>
+        Type Ptr<Number>
+        PtrFromNonZeroULong Number
+          Type ULong
+          Local $capture.0
+      return
+        Type Number
+        PtrLoad Number
+          Type Ptr<Number>
+          Local $dependency.local.0
+  fun read @fn8($capture.0: ULong) -> Number
+    bb0 entry
+      val $dependency.local.0: Ptr<Number>
+        Type Ptr<Number>
+        PtrFromNonZeroULong Number
+          Type ULong
+          Local $capture.0
+      return
+        Type Number
+        PtrLoad Number
+          Type Ptr<Number>
+          Local $dependency.local.0
+  fun $lambda @fn9($argument.0: () -> Number) -> Number
+    bb0 entry
+      var $dependency.local.0: Number
+        Type Number
+        ClosureCapture cc2 0
+          Type () -> Number
+          Local $argument.0
+      val $dependency.local.1: Ptr<Number>
+        Type Ptr<Number>
+        PtrFromNonZeroULong Number
+          Type ULong
+          ClosureCapture cc2 1
+            Type () -> Number
+            Local $argument.0
+      assign $dependency.local.0
+        Type Number
+        PtrLoad Number
+          Type Ptr<Number>
+          Local $dependency.local.1
+      return
+        Type Number
+        Local $dependency.local.0
+  fun init.Later.$c0 @fn10(this: Later, number: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Later
+        Local this
+        Type Int
+        Local number
+      return
+  fun function_bridge.$Closure$lambda0.() -> Any @fn11($source: () -> Number) -> Any
+    bb0 entry
+      call $call.1: Number = <closure:function_type0> closure[function_type0]
+        Type () -> Number
+        Local $source
+      return
+        Type Any
+        Box
+          Type Number
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.() -> Any @fn12($source: () -> Number) -> Any
+    bb0 entry
+      call $call.1: Number = <closure:function_type0> closure[function_type0]
+        Type () -> Number
+        Local $source
+      return
+        Type Any
+        Box
+          Type Number
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.() -> Any @fn13($source: () -> Number) -> Any
+    bb0 entry
+      call $call.1: Number = <closure:function_type0> closure[function_type0]
+        Type () -> Number
+        Local $source
+      return
+        Type Any
+        Box
+          Type Number
+          Local $call.1
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- exercise
+  instance mi2 function=@fn3 <- $lambda
+  instance mi3 function=@fn4 <- read
+  instance mi4 function=@fn5 <- lexicalCopy
+  instance mi5 function=@fn6 <- $lambda
+  instance mi6 function=@fn7 <- read
+  instance mi7 function=@fn8 <- read
+  instance mi8 function=@fn9 <- $lambda
+  output library

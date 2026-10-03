@@ -1,0 +1,14 @@
+SourceFile
+  RootPackage
+  public class Reference(val value: Int)
+  public class Owner<T>(val value: T)
+  public struct Pair<T>
+    field first: T
+    field second: T
+  public enum Maybe<T>
+    Empty
+    Full(T)
+  public struct Combined
+    field reference: Owner<Reference>
+    field values: Maybe<Pair<Reference>>
+    field array: Array<Pair<Reference>>

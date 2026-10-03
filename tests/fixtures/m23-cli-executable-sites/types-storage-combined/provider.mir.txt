@@ -1,0 +1,13 @@
+Module
+  fun label @fn0() -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str0
+  fun withDefault @fn1(value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  str @str0 "remote"
+  output library

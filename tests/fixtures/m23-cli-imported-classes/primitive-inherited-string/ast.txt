@@ -1,0 +1,14 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  public fun primary(): Counter
+    val value: String
+      StringLiteral "downstream"
+    return
+      Call Counter
+        Binary Sub
+          Binary Add
+            Call rebuiltStringDefault
+            MethodCall score
+              Var value
+          IntLiteral 21

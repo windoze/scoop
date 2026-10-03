@@ -1,0 +1,19 @@
+SourceFile
+  RootPackage
+    @Extern(name = "verify_finished", lib = "m23_native_boundary")
+  fun verifyFinished()
+  public fun perform()
+    @Unsafe block
+      if
+        Binary Ne
+          Call nativeNarrow
+            IntLiteral 17
+          IntLiteral 18
+        throw
+          Call IllegalStateException
+    @Unsafe block
+      Call verifyFinished
+SourceFile
+  RootPackage
+    @Extern(name = "native_narrow", abi = "scoop", lib = "m23_native_boundary")
+  fun nativeNarrow(value: Int8): Int8

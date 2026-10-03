@@ -1,0 +1,244 @@
+schema = 1
+name = "program-link-artifact-graph"
+inputs = ["cone", "../../m23-program-link/basic-root.scoop", "library", "../../m23-program-link/basic-library.scoop", "extra", "other", "../../m23-program-link/empty.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["program-link", "stage-golden", "artifact-graph", "multi-cone", "negative", "moving-gc"]
+
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${fixture}/cone", "to" = "${work}/sources/root"}}, {"copy" = {"from" = "${fixture}/../../m23-program-link/basic-root.scoop", "to" = "${work}/sources/root/src/main.scoop"}}, {"mkdir" = {"path" = "${work}/native"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "prepare_library"
+files = [{"copy" = {"from" = "${fixture}/library", "to" = "${work}/sources/library"}}, {"copy" = {"from" = "${fixture}/../../m23-program-link/basic-library.scoop", "to" = "${work}/sources/library/src/main.scoop"}}]
+checks = []
+
+[[steps]]
+name = "declare_dependencies"
+files = [{"copy" = {"from" = "${fixture}/cone/Cone.toml", "to" = "${work}/sources/root/Cone.toml"}}]
+checks = []
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-build", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-build", "--dump-scope", "sources"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"file" = "${work}/dump-build/${build.result.root.identity}/ast.txt", "snapshot" = "build.ast.txt"}, {"file" = "${work}/dump-build/${build.result.root.identity}/hir.txt", "snapshot" = "build.hir.txt"}, {"file" = "${work}/dump-build/${build.result.root.identity}/mir.txt", "snapshot" = "build.mir.txt"}, {"file" = "${work}/dump-build/${build.result.root.identity}/lir.txt", "snapshot" = "build.lir.txt"}]
+
+[[steps]]
+name = "build_dependencies"
+checks = [{"file" = "${work}/dump-build/${build.result.dependencies.1.identity}/ast.txt", "snapshot" = "library.ast.txt"}, {"file" = "${work}/dump-build/${build.result.dependencies.1.identity}/hir.txt", "snapshot" = "library.hir.txt"}, {"file" = "${work}/dump-build/${build.result.dependencies.1.identity}/mir.txt", "snapshot" = "library.mir.txt"}, {"file" = "${work}/dump-build/${build.result.dependencies.1.identity}/lir.txt", "snapshot" = "library.lir.txt"}]
+
+[[steps]]
+name = "prepare_extra"
+files = [{"copy" = {"from" = "${fixture}/extra", "to" = "${work}/sources/extra"}}, {"copy" = {"from" = "${fixture}/../../m23-program-link/basic-library.scoop", "to" = "${work}/sources/extra/src/main.scoop"}}]
+checks = []
+
+[[steps]]
+name = "extra"
+argv = ["${scoop}", "build", "${work}/sources/extra", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-extra", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-extra", "--dump-scope", "sources"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"file" = "${work}/dump-extra/${extra.result.root.identity}/ast.txt", "snapshot" = "extra.ast.txt"}, {"file" = "${work}/dump-extra/${extra.result.root.identity}/hir.txt", "snapshot" = "extra.hir.txt"}, {"file" = "${work}/dump-extra/${extra.result.root.identity}/mir.txt", "snapshot" = "extra.mir.txt"}, {"file" = "${work}/dump-extra/${extra.result.root.identity}/lir.txt", "snapshot" = "extra.lir.txt"}]
+
+[[steps]]
+name = "prepare_other"
+files = [{"copy" = {"from" = "${fixture}/other", "to" = "${work}/sources/other"}}, {"copy" = {"from" = "${fixture}/../../m23-program-link/empty.scoop", "to" = "${work}/sources/other/src/main.scoop"}}]
+checks = []
+
+[[steps]]
+name = "other"
+argv = ["${scoop}", "build", "${work}/sources/other", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-other", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-other", "--dump-scope", "sources"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"file" = "${work}/dump-other/${other.result.root.identity}/ast.txt", "snapshot" = "other.ast.txt"}, {"file" = "${work}/dump-other/${other.result.root.identity}/hir.txt", "snapshot" = "other.hir.txt"}, {"file" = "${work}/dump-other/${other.result.root.identity}/mir.txt", "snapshot" = "other.mir.txt"}, {"file" = "${work}/dump-other/${other.result.root.identity}/lir.txt", "snapshot" = "other.lir.txt"}]
+
+[[steps]]
+name = "version_sources"
+files = [{"copy" = {"from" = "${work}/sources/library", "to" = "${work}/sources/version"}}, {"replace" = {"path" = "${work}/sources/version/Cone.toml", "old" = "0.1.0", "new" = "0.2.0"}}]
+checks = []
+
+[[steps]]
+name = "version"
+argv = ["${scoop}", "build", "${work}/sources/version", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-version", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-version", "--dump-scope", "sources"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"file" = "${work}/dump-version/${version.result.root.identity}/ast.txt", "snapshot" = "version.ast.txt"}, {"file" = "${work}/dump-version/${version.result.root.identity}/hir.txt", "snapshot" = "version.hir.txt"}, {"file" = "${work}/dump-version/${version.result.root.identity}/mir.txt", "snapshot" = "version.mir.txt"}, {"file" = "${work}/dump-version/${version.result.root.identity}/lir.txt", "snapshot" = "version.lir.txt"}]
+
+[[steps]]
+name = "changed_sources"
+files = [{"replace" = {"path" = "${work}/sources/library/src/main.scoop", "old" = "40", "new" = "41"}}]
+checks = []
+
+[[steps]]
+name = "changed"
+argv = ["${scoop}", "build", "${work}/sources/library", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-changed", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-changed", "--dump-scope", "sources"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"file" = "${work}/dump-changed/${changed.result.root.identity}/ast.txt", "snapshot" = "changed.ast.txt"}, {"file" = "${work}/dump-changed/${changed.result.root.identity}/hir.txt", "snapshot" = "changed.hir.txt"}, {"file" = "${work}/dump-changed/${changed.result.root.identity}/mir.txt", "snapshot" = "changed.mir.txt"}, {"file" = "${work}/dump-changed/${changed.result.root.identity}/lir.txt", "snapshot" = "changed.lir.txt"}]
+
+[[steps]]
+name = "original_main"
+await_file = "${work}/sources/root/src/main.scoop"
+
+[[steps]]
+name = "unresolved_source"
+files = [{"write" = {"path" = "${work}/sources/root/src/main.scoop", "data" = "${original_main.bytes}\n@Extern(name = \"m23_missing_native\")\nprivate fun missing(): Int\n"}}]
+checks = []
+
+[[steps]]
+name = "compile_unresolved"
+argv = ["${scoopc}", "build", "${work}/sources/root", "--target", "${target}", "--sysroot", "${sysroot}", "--direct-slib", "${build.result.dependencies.0.path}", "--direct-slib", "${build.result.dependencies.1.path}", "--out-slib", "${work}/unresolved.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "isolate"
+files = [{"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}}, {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}}, {"mkdir" = {"path" = "${work}/empty-sysroot"}}, {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}}, {"copy" = {"from" = "${build.result.dependencies.1.path}", "to" = "${work}/artifacts/1.slib"}}, {"remove" = {"path" = "${work}/sources"}}]
+checks = []
+
+[[steps]]
+name = "other_artifacts"
+files = [{"copy" = {"from" = "${extra.result.root.path}", "to" = "${work}/artifacts/extra.slib"}}, {"copy" = {"from" = "${other.result.root.path}", "to" = "${work}/artifacts/other.slib"}}, {"copy" = {"from" = "${version.result.root.path}", "to" = "${work}/artifacts/version.slib"}}, {"copy" = {"from" = "${changed.result.root.path}", "to" = "${work}/artifacts/changed.slib"}}]
+checks = []
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--dump-plan"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}, {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan", "normalize" = ["paths"]}]
+
+[[steps]]
+name = "keep_program"
+files = [{"copy" = {"from" = "${work}/program", "to" = "${work}/previous-program"}}]
+checks = []
+
+[[steps]]
+name = "library_root"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "library_root.json"}
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"file" = "${work}/program", "same_as" = "${work}/previous-program"}]
+
+[[steps]]
+name = "missing_library"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "missing_library.json"}
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"file" = "${work}/program", "same_as" = "${work}/previous-program"}]
+
+[[steps]]
+name = "stale_library"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/changed.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "stale_library.json"}
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"file" = "${work}/program", "same_as" = "${work}/previous-program"}]
+
+[[steps]]
+name = "conflicting_library"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/changed.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "conflicting_library.json"}
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"file" = "${work}/program", "same_as" = "${work}/previous-program"}]
+
+[[steps]]
+name = "unreachable_extra"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/extra.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "unreachable_extra.json"}
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"file" = "${work}/program", "same_as" = "${work}/previous-program"}]
+
+[[steps]]
+name = "executable_provider"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/other.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "executable_provider.json"}
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"file" = "${work}/program", "same_as" = "${work}/previous-program"}]
+
+[[steps]]
+name = "multiple_versions"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/version.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "multiple_versions.json"}
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"file" = "${work}/program", "same_as" = "${work}/previous-program"}]
+
+[[steps]]
+name = "stale_before_native"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/unresolved.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/changed.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "stale_before_native.json"}
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"file" = "${work}/program", "same_as" = "${work}/previous-program"}]
+
+[[steps]]
+name = "stale_precedes_native_lookup"
+checks = [{"actual" = "${stale_before_native.diagnostics.0.message}", "not_contains" = "unresolved native symbol"}]
+
+[[steps]]
+name = "run_preserved"
+argv = ["${work}/program"]
+exit = 0
+stdout = "42\n"
+stderr = ""
+
+[[steps]]
+name = "run_preserved_moving"
+argv = ["${work}/program"]
+exit = 0
+stdout = "42\n"
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}

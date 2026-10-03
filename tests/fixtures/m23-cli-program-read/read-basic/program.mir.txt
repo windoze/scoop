@@ -1,0 +1,10 @@
+Module
+  fun main @fn0() -> Unit
+    bb0 entry
+      val message: String
+        Type String
+        StringConst @str0
+      call answer: Long = external0 direct
+      return
+  str @str0 "program-link"
+  output executable @fn0

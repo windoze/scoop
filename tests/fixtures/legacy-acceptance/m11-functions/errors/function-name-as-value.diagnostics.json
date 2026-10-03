@@ -1,0 +1,26 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "function `increment` is not a value; use `::increment` to create a callable reference",
+    "notes": [
+      {
+        "message": "candidate declared here",
+        "origin": {
+          "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+          "end": 13,
+          "kind": "source",
+          "path": "main.scoop",
+          "start": 4
+        }
+      }
+    ],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 100,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 91
+    },
+    "severity": "error"
+  }
+]

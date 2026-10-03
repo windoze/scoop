@@ -1,0 +1,37 @@
+Module
+  extern ef0 handleRoundTrip @handle_round_trip(GcHandle<Any>) -> GcHandle<Any> <abi=c no-gc>
+  struct GcHandle<Any> (raw: ULong) <c-abi uint64-field>
+  fun handleRoundTrip @fn0(arg0: GcHandle<Any>) -> GcHandle<Any>
+    bb0 entry
+      call $call.1: GcHandle<Any> = extern0 @handle_round_trip direct
+        Type GcHandle<Any>
+        Local arg0
+      return
+        Type GcHandle<Any>
+        Local $call.1
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=42 bits=0x000000000000002a
+      val $dependency.parameter.raw: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call $argument.0: GcHandle<Any> = @fn2 direct
+        Type ULong
+        Local $dependency.parameter.raw
+      val $parameter.value: GcHandle<Any>
+        Type GcHandle<Any>
+        Local $argument.0
+      call result: GcHandle<Any> = extern0 @handle_round_trip direct
+        Type GcHandle<Any>
+        Local $parameter.value
+      return
+  fun ctor.GcHandle.$c0 @fn2(raw: ULong) -> GcHandle<Any> <no-gc>
+    bb0 entry
+      return
+        Type GcHandle<Any>
+        StructInit GcHandle<Any>
+          Type ULong
+          Local raw
+  output library

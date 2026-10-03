@@ -1,0 +1,25 @@
+SourceFile
+  QualifiedPackage dependency.paths
+  public struct Point
+    field number: Int
+  public struct Box<T>
+    field value: T
+  public typealias IntBox = Box<Int>
+  public typealias IntPointer = Ptr<Int>
+  public class Outer()
+    public nested struct Nested
+    public nested struct Generic
+    public nested struct ValueOnly
+    public nested class Middle
+    private nested struct Hidden
+  public class GenericOuter<T>()
+    public nested struct Nested
+  public typealias IntOuter = GenericOuter<Int>
+  public interface Read
+    fun read
+  public fun make<T>(value: T): Box<T>
+    =
+      Call Box<T>
+        Var value
+  private struct Hidden
+    field number: Int

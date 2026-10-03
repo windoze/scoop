@@ -1,0 +1,1364 @@
+Module
+  global0 $singleton$Companion: Surface.Nested.Companion managed initial=zeroed-for-runtime-unit
+  global1 $singleton$Companion: Surface.Generic.Companion managed initial=zeroed-for-runtime-unit
+  global2 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  global3 $init$failure$1: Any managed initial=zeroed-for-runtime-unit
+  init0 companion:Surface.Nested.Companion singleton lazy global0 initializer=@fn11 ensure=@fn12 failure=2 deps=[]
+  init1 companion:Surface.Generic.Companion singleton lazy global1 initializer=@fn13 ensure=@fn14 failure=3 deps=[]
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Surface.Choice<Int>
+    Empty()
+    Some(value: Int)
+  enum CoroutineStep<PublishedSurface>
+    Completed(value: PublishedSurface)
+    Suspended()
+  enum CoroutineSlot<PublishedSurface>
+    Empty()
+    Value(value: PublishedSurface)
+  enum CoroutineStep<Surface.Generic.Companion>
+    Completed(value: Surface.Generic.Companion)
+    Suspended()
+  enum CoroutineSlot<Surface.Generic.Companion>
+    Empty()
+    Value(value: Surface.Generic.Companion)
+  enum CoroutineStep<Surface>
+    Completed(value: Surface)
+    Suspended()
+  enum CoroutineSlot<Surface>
+    Empty()
+    Value(value: Surface)
+  enum CoroutineStep<Surface.Nested.Companion>
+    Completed(value: Surface.Nested.Companion)
+    Suspended()
+  enum CoroutineSlot<Surface.Nested.Companion>
+    Empty()
+    Value(value: Surface.Nested.Companion)
+  enum CoroutineStep<Surface.Nested.Child>
+    Completed(value: Surface.Nested.Child)
+    Suspended()
+  enum CoroutineSlot<Surface.Nested.Child>
+    Empty()
+    Value(value: Surface.Nested.Child)
+  enum CoroutineStep<Surface.Unrelated>
+    Completed(value: Surface.Unrelated)
+    Suspended()
+  enum CoroutineSlot<Surface.Unrelated>
+    Empty()
+    Value(value: Surface.Unrelated)
+  enum CoroutineStep<Surface.Nested>
+    Completed(value: Surface.Nested)
+    Suspended()
+  enum CoroutineSlot<Surface.Nested>
+    Empty()
+    Value(value: Surface.Nested)
+  enum CoroutineStep<Surface.Nested.Hidden>
+    Completed(value: Surface.Nested.Hidden)
+    Suspended()
+  enum CoroutineSlot<Surface.Nested.Hidden>
+    Empty()
+    Value(value: Surface.Nested.Hidden)
+  class PublishedSurface vtable=0 itables=0
+  class Surface vtable=0 itables=0
+  class UnrelatedTop vtable=0 itables=0
+  class Surface.Nested vtable=0 itables=0
+  class Surface.Nested.Companion vtable=0 itables=0
+  class Surface.Nested.Hidden vtable=0 itables=0
+  class Surface.Nested.Child vtable=0 itables=0
+  class Surface.Generic.Companion vtable=0 itables=0
+  class Surface.Unrelated vtable=0 itables=0
+  class UnrelatedTop.Ignored vtable=0 itables=0
+  class Surface.Generic<Int> vtable=0 itables=0
+  class Surface.Generic<String> vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<PublishedSurface>
+  interface SuspendTask<PublishedSurface>
+  interface SuspendRegistration<PublishedSurface>
+  interface Continuation<Surface>
+  interface SuspendTask<Surface>
+  interface SuspendRegistration<Surface>
+  interface Continuation<Surface.Nested>
+  interface SuspendTask<Surface.Nested>
+  interface SuspendRegistration<Surface.Nested>
+  interface Continuation<Surface.Nested.Companion>
+  interface SuspendTask<Surface.Nested.Companion>
+  interface SuspendRegistration<Surface.Nested.Companion>
+  interface Continuation<Surface.Nested.Hidden>
+  interface SuspendTask<Surface.Nested.Hidden>
+  interface SuspendRegistration<Surface.Nested.Hidden>
+  interface Continuation<Surface.Nested.Child>
+  interface SuspendTask<Surface.Nested.Child>
+  interface SuspendRegistration<Surface.Nested.Child>
+  interface Continuation<Surface.Generic.Companion>
+  interface SuspendTask<Surface.Generic.Companion>
+  interface SuspendRegistration<Surface.Generic.Companion>
+  interface Continuation<Surface.Unrelated>
+  interface SuspendTask<Surface.Unrelated>
+  interface SuspendRegistration<Surface.Unrelated>
+  generated_exact_type get0 location=enum8 nominal_id=73d8eca0c4571bb15d20c7cd4596fd37b7497fcd482f11948bc20d9069691d1f exact_id=02cec06606b89057135d4f1f0998a7a94c32520a141b0a3a5ac16b0f83d73875
+  generated_exact_type get1 location=enum6 nominal_id=6edc7c05bdb9f75cb2f2b9d9298d6e65973e1faee011bb07380678a7fd33d70f exact_id=06ba46575b3042509be90e969a867095e2beeaac5f3b0a028de686a70245c6fe
+  generated_exact_type get2 location=enum14 nominal_id=b01b06ce498db703caf13bc38554833bb6e7b7a499d81b2d6ef363e1ae342be6 exact_id=0f9f7c7028d4e0320ac54f86a0448637bdae87af404d2f4bcb0c3a1272b6d0c1
+  generated_exact_type get3 location=enum4 nominal_id=1db93aae949dd841faa291de246728646336b509ac18fbe94b49a8db369ec045 exact_id=113019e494b142838b8b71fa8843885f865d40249f78ece033fc339b41bbc4dd
+  generated_exact_type get4 location=enum13 nominal_id=cc2c7c80a84310fd675fdbd7d048dfef7efcdbcbe210b7878fa9f557561fd48c exact_id=116286d6491ba64557658a8a350fe5302fcee99d9934ff23b1ecc4705480a919
+  generated_exact_type get5 location=enum5 nominal_id=0f4f4c8213d89542f79d18b0c39fa6e55a0d47b955bf78a33b44a7bb2f40f23f exact_id=1b127b8a42ef9aac1ad14ebb429b940db3706ee9594ccf4d6978b104eac1112f
+  generated_exact_type get6 location=enum3 nominal_id=a06154e5d50cedb2eed4203ed0fb357e2e838676fc34579d2af3d8c5a870ff10 exact_id=321674f70fab7333ac5db6d3c2d2b81ce31e92ad637d85af3aa5da020b7ff7e6
+  generated_exact_type get7 location=enum17 nominal_id=5a2dacea236def91034a68bb79dd4fae105c4882c79d57329bb265bdb05468df exact_id=37c94577f9bc964ef378f2d67df774a2bdb811bf1b63489b8d088db0f6cdd0a8
+  generated_exact_type get8 location=enum9 nominal_id=765a232bd6260207c059cfa4d1272fa3dd4c25da6bf38fd7e454cd0c7621e4dc exact_id=3b3b831b82a50cf550a841f72e2accfaa7027b9d64a41730eff0715e93146113
+  generated_exact_type get9 location=enum10 nominal_id=7c3a23bd4b35c30c1aece046c1b8a587993930be0890533bba1604ecd2924e12 exact_id=5e45f6bba81031a3bbedcd867a6ed4eb50e4e4e73b954534c1f168cdcaf38ef3
+  generated_exact_type get10 location=enum12 nominal_id=1a1fb86a1e2661cf683c3e0e85b166c0dd6035d93b61358c3d4f68174cad158e exact_id=baf2d386939a10d43a1e3111444e452083d092cc74223620321a03caeb7bb230
+  generated_exact_type get11 location=enum2 nominal_id=b2e813ad28e129c9188546dabf1fc2fa9520f84f6b79fab84eade10620b5553e exact_id=c56a79b96d28f3b618a373396466d76e37dbbe8b7215c524b468a1003e49f8fb
+  generated_exact_type get12 location=enum11 nominal_id=e13fbee402e438374c85f174ee1146cb081835e0be267197e15eb367d8883634 exact_id=ca81de8291baa8aaa306e74d3e5d1c0778d2a0128254634a9948263a2d2d37e1
+  generated_exact_type get13 location=enum15 nominal_id=ab3bc61a8a8e3c83ab17253922b4cea9a9a67088770c379e3901f9b5d05c4c20 exact_id=d5e2152d8af7d437a9b7cee52001c71b70ede7d6f761ec0d5fdd7fc91bd77ced
+  generated_exact_type get14 location=enum16 nominal_id=9bd437a7f502f9d13476369081aa03d95eb801536b1a82eeaffa82af21a71fc5 exact_id=dc74f45f948e8da431ab96e0c946ec1d2d0d97a0ad57703744025108c5220a82
+  generated_exact_type get15 location=enum7 nominal_id=ecf1a7e05a2c3d828bae264701ebb2bc9159c7d50ef2ccd09ee741f574f8161b exact_id=ed998314c6dcc323568bd5cc797a2bb149a8aa31f89c3e386d5b54bbb5485d9f
+  generated_callable gc0 function=@fn69 id=324041c894e3e5f6b3f610deb35a1b3cd89d8e2919c8fb926ac78418315ef901
+  generated_callable gc1 function=@fn64 id=856e09050d1311e7f4c55cbcf09414909c772c1c4b8caf88839f3056403e0a85
+  generated_callable gc2 function=@fn66 id=9c5248d7922ca40c9b8c0f87f6c610d3df7df0d0272cd890fc6b11b8a849328d
+  generated_callable gc3 function=@fn70 id=b07ecbe1524885df3e5764de4852587d89ab16a7c41836ffcb3a7d6391904186
+  generated_callable gc4 function=@fn68 id=bd77498a8d102983660ea8fb5c824bbc158a783de02504c0c91f92778515d69e
+  generated_callable gc5 function=@fn65 id=c655013685a6cf914a96cf68f57b383d293818d144130683d7b1601ca39ead71
+  generated_callable gc6 function=@fn67 id=ce247efb4c594d34ae93b56b8cddcd3af151ea94abbf34d992bf6eb19813a155
+  generated_callable gc7 function=@fn71 id=e49ae79196122745bc3eb27793d0fd4e272d5ee8bb9d0f52073b0f78785de5b3
+  fun Surface.inspect @fn0(this: Surface) -> Boolean
+    bb0 entry
+      call @fn2 direct
+        Type Surface
+        Local this
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      call @fn14 direct
+      val $receiver: Surface.Generic.Companion
+        Type Surface.Generic.Companion
+        GlobalRead $singleton$Companion
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=13 bits=0x0000000d
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call first: Surface.Generic<Int> = @fn15 direct
+        Type Surface.Generic.Companion
+        Local $receiver
+        Type Int
+        Local $parameter.value
+      call @fn14 direct
+      val $receiver: Surface.Generic.Companion
+        Type Surface.Generic.Companion
+        GlobalRead $singleton$Companion
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call second: Surface.Generic<String> = @fn16 direct
+        Type Surface.Generic.Companion
+        Local $receiver
+        Type String
+        Local $parameter.value
+      call $dependency.receiver: Int = @fn1 direct
+        Type Surface
+        Local this
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      val $receiver: Surface
+        Type Surface
+        Local this
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.receiver: Int = @fn17 direct
+        Type Surface
+        Local $receiver
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      val $receiver: Surface
+        Type Surface
+        Local this
+      val $argument.0: String
+        Type String
+        StringConst @str1
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call $dependency.receiver: String = @fn18 direct
+        Type Surface
+        Local $receiver
+        Type String
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $shortCircuit.1: Boolean = external0 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      goto bb6
+    bb5 if.else.5
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 if.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $shortCircuit.1
+    bb7 if.then.7
+      call @fn12 direct
+      val $receiver: Surface.Nested.Companion
+        Type Surface.Nested.Companion
+        GlobalRead $singleton$Companion
+      call $receiver: Surface.Nested = @fn6 direct
+        Type Surface.Nested.Companion
+        Local $receiver
+      call $dependency.receiver: Int = @fn4 direct
+        Type Surface.Nested
+        Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=16 bits=0x00000010
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb9
+    bb8 if.else.8
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 if.merge.9
+      branch bb10 bb11
+        Type Boolean
+        Local $shortCircuit.2
+    bb10 logic.rhs.10
+      assign $logic.1
+        Type Boolean
+        Binary RefEq
+          Type Surface.Generic<Int>
+          Local first
+          Type Surface.Generic<Int>
+          Local first
+      goto bb12
+    bb11 logic.short.11
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb12 logic.merge.12
+      branch bb13 bb14
+        Type Boolean
+        Local $logic.1
+    bb13 logic.rhs.13
+      assign $logic.2
+        Type Boolean
+        Binary RefEq
+          Type Surface.Generic<String>
+          Local second
+          Type Surface.Generic<String>
+          Local second
+      goto bb15
+    bb14 logic.short.14
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb15
+    bb15 logic.merge.15
+      branch bb16 bb17
+        Type Boolean
+        Local $logic.2
+    bb16 if.then.16
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $equality.lhs: Surface.Choice<Int>
+        Type Surface.Choice<Int>
+        VariantConstruct Surface.Choice<Int> v1
+          Type Int
+          Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $shortCircuit.3: Boolean = @fn19 direct
+        Type Surface.Choice<Int>
+        Local $equality.lhs
+        Type Surface.Choice<Int>
+        VariantConstruct Surface.Choice<Int> v1
+          Type Int
+          Local $parameter.value
+      goto bb18
+    bb17 if.else.17
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb18
+    bb18 if.merge.18
+      return
+        Type Boolean
+        Local $shortCircuit.3
+  fun Surface.$get$state @fn1(this: Surface) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+  fun Surface.$set$state @fn2(this: Surface, value: Int) -> Unit
+    bb0 entry
+      return
+  fun UnrelatedTop.excluded @fn3(this: UnrelatedTop) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+  fun Surface.Nested.inspect @fn4(this: Surface.Nested) -> Int
+    bb0 entry
+      val $receiver: Surface.Nested
+        Type Surface.Nested
+        Local this
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.receiver: Int = @fn5 direct
+        Type Surface.Nested
+        Local $receiver
+        Type Int
+        Local $parameter.value
+      assign $new.1
+        Type Surface.Nested.Hidden
+        ClassAlloc Surface.Nested.Hidden
+      call @fn57 direct
+        Type Surface.Nested.Hidden
+        Local $new.1
+      val $receiver: Surface.Nested.Hidden
+        Type Surface.Nested.Hidden
+        Local $new.1
+      call $dependency.argument.0: Int = @fn7 direct
+        Type Surface.Nested.Hidden
+        Local $receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun Surface.Nested.call @fn5(this: Surface.Nested, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun Surface.Nested.Companion.create @fn6(this: Surface.Nested.Companion) -> Surface.Nested
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Surface.Nested
+        ClassAlloc Surface.Nested
+      call @fn55 direct
+        Type Surface.Nested
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      return
+        Type Surface.Nested
+        Local $new.1
+  fun Surface.Nested.Hidden.inspect @fn7(this: Surface.Nested.Hidden) -> Int
+    bb0 entry
+      val $receiver: Surface.Nested.Hidden
+        Type Surface.Nested.Hidden
+        Local this
+      call $call.1: Int = @fn8 direct
+        Type Surface.Nested.Hidden
+        Local $receiver
+      return
+        Type Int
+        Local $call.1
+  fun Surface.Nested.Hidden.buried @fn8(this: Surface.Nested.Hidden) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+  fun Surface.Unrelated.excluded @fn9(this: Surface.Unrelated) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+  fun surface @fn10() -> Surface
+    bb0 entry
+      assign $new.1
+        Type PublishedSurface
+        ClassAlloc PublishedSurface
+      call @fn53 direct
+        Type PublishedSurface
+        Local $new.1
+      return
+        Type Surface
+        Retype Surface
+          Type PublishedSurface
+          Local $new.1
+  fun $init$body$0 @fn11() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Surface.Nested.Companion
+        ClassAlloc Surface.Nested.Companion
+      call @fn56 direct
+        Type Surface.Nested.Companion
+        Local $new.1
+      global_assign $singleton$Companion
+        Type Surface.Nested.Companion
+        Local $new.1
+      return
+  fun $init$ensure$0 @fn12() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 companion:Surface.Nested.Companion
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn11 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 companion:Surface.Nested.Companion
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 companion:Surface.Nested.Companion
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 companion:Surface.Nested.Companion
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 companion:Surface.Nested.Companion
+      call external1 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun $init$body$1 @fn13() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Surface.Generic.Companion
+        ClassAlloc Surface.Generic.Companion
+      call @fn59 direct
+        Type Surface.Generic.Companion
+        Local $new.1
+      global_assign $singleton$Companion
+        Type Surface.Generic.Companion
+        Local $new.1
+      return
+  fun $init$ensure$1 @fn14() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 companion:Surface.Generic.Companion
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn13 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 companion:Surface.Generic.Companion
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 companion:Surface.Generic.Companion
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 companion:Surface.Generic.Companion
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 companion:Surface.Generic.Companion
+      call external1 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun Surface.Generic.Companion.create @fn15(this: Surface.Generic.Companion, value: Int) -> Surface.Generic<Int>
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Surface.Generic<Int>
+        ClassAlloc Surface.Generic<Int>
+      call @fn62 direct
+        Type Surface.Generic<Int>
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      return
+        Type Surface.Generic<Int>
+        Local $new.1
+  fun Surface.Generic.Companion.create @fn16(this: Surface.Generic.Companion, value: String) -> Surface.Generic<String>
+    bb0 entry
+      val $argument.0: String
+        Type String
+        Local value
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      assign $new.1
+        Type Surface.Generic<String>
+        ClassAlloc Surface.Generic<String>
+      call @fn63 direct
+        Type Surface.Generic<String>
+        Local $new.1
+        Type String
+        Local $parameter.value
+      return
+        Type Surface.Generic<String>
+        Local $new.1
+  fun Surface.identity @fn17(this: Surface, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun Surface.identity @fn18(this: Surface, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun Surface.Choice.equals @fn19(this: Surface.Choice<Int>, other: Surface.Choice<Int>) -> Boolean
+    bb0 entry
+      val $when.1: Surface.Choice<Int>
+        Type Surface.Choice<Int>
+        Local this
+      val $pattern.subject.2: Surface.Choice<Int>
+        Type Surface.Choice<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Surface.Choice<Int> v0
+          Type Surface.Choice<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $when.3: Surface.Choice<Int>
+        Type Surface.Choice<Int>
+        Local other
+      val $pattern.subject.4: Surface.Choice<Int>
+        Type Surface.Choice<Int>
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Surface.Choice<Int> v0
+          Type Surface.Choice<Int>
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Surface.Choice<Int>
+        Type Surface.Choice<Int>
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Surface.Choice<Int> v1
+          Type Surface.Choice<Int>
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      return
+        Type Boolean
+        BoolLiteral true
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $left.1.0: Int
+        Type Int
+        VariantPayloadProject Surface.Choice<Int> v1 f0
+          Type Surface.Choice<Int>
+          Local $pattern.subject.5
+      val $when.6: Surface.Choice<Int>
+        Type Surface.Choice<Int>
+        Local other
+      val $pattern.subject.7: Surface.Choice<Int>
+        Type Surface.Choice<Int>
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Surface.Choice<Int> v1
+          Type Surface.Choice<Int>
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      val $right.1.0: Int
+        Type Int
+        VariantPayloadProject Surface.Choice<Int> v1 f0
+          Type Surface.Choice<Int>
+          Local $pattern.subject.7
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $left.1.0
+          Type Int
+          Local $right.1.0
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+  fun Continuation.resume @fn20(this: Continuation<PublishedSurface>, value: PublishedSurface) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn21(this: Continuation<PublishedSurface>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn22(this: SuspendTask<PublishedSurface>, $completion: Continuation<PublishedSurface>) -> CoroutineStep<PublishedSurface>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn23(this: SuspendRegistration<PublishedSurface>, continuation: Continuation<PublishedSurface>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn24(this: Continuation<Surface>, value: Surface) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn25(this: Continuation<Surface>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn26(this: SuspendTask<Surface>, $completion: Continuation<Surface>) -> CoroutineStep<Surface>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn27(this: SuspendRegistration<Surface>, continuation: Continuation<Surface>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn28(this: Continuation<Surface.Nested>, value: Surface.Nested) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn29(this: Continuation<Surface.Nested>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn30(this: SuspendTask<Surface.Nested>, $completion: Continuation<Surface.Nested>) -> CoroutineStep<Surface.Nested>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn31(this: SuspendRegistration<Surface.Nested>, continuation: Continuation<Surface.Nested>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn32(this: Continuation<Surface.Nested.Companion>, value: Surface.Nested.Companion) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn33(this: Continuation<Surface.Nested.Companion>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn34(this: SuspendTask<Surface.Nested.Companion>, $completion: Continuation<Surface.Nested.Companion>) -> CoroutineStep<Surface.Nested.Companion>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn35(this: SuspendRegistration<Surface.Nested.Companion>, continuation: Continuation<Surface.Nested.Companion>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn36(this: Continuation<Surface.Nested.Hidden>, value: Surface.Nested.Hidden) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn37(this: Continuation<Surface.Nested.Hidden>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn38(this: SuspendTask<Surface.Nested.Hidden>, $completion: Continuation<Surface.Nested.Hidden>) -> CoroutineStep<Surface.Nested.Hidden>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn39(this: SuspendRegistration<Surface.Nested.Hidden>, continuation: Continuation<Surface.Nested.Hidden>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn40(this: Continuation<Surface.Nested.Child>, value: Surface.Nested.Child) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn41(this: Continuation<Surface.Nested.Child>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn42(this: SuspendTask<Surface.Nested.Child>, $completion: Continuation<Surface.Nested.Child>) -> CoroutineStep<Surface.Nested.Child>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn43(this: SuspendRegistration<Surface.Nested.Child>, continuation: Continuation<Surface.Nested.Child>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn44(this: Continuation<Surface.Generic.Companion>, value: Surface.Generic.Companion) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn45(this: Continuation<Surface.Generic.Companion>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn46(this: SuspendTask<Surface.Generic.Companion>, $completion: Continuation<Surface.Generic.Companion>) -> CoroutineStep<Surface.Generic.Companion>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn47(this: SuspendRegistration<Surface.Generic.Companion>, continuation: Continuation<Surface.Generic.Companion>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn48(this: Continuation<Surface.Unrelated>, value: Surface.Unrelated) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn49(this: Continuation<Surface.Unrelated>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn50(this: SuspendTask<Surface.Unrelated>, $completion: Continuation<Surface.Unrelated>) -> CoroutineStep<Surface.Unrelated>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn51(this: SuspendRegistration<Surface.Unrelated>, continuation: Continuation<Surface.Unrelated>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Surface.$c1 @fn52(this: Surface) -> Unit
+    bb0 entry
+      return
+  fun init.PublishedSurface.$c0 @fn53(this: PublishedSurface) -> Unit
+    bb0 entry
+      call @fn52 direct
+        Type Surface
+        Retype Surface
+          Type PublishedSurface
+          Local this
+      return
+  fun init.UnrelatedTop.$c2 @fn54(this: UnrelatedTop) -> Unit
+    bb0 entry
+      return
+  fun init.Surface.Nested.$c3 @fn55(this: Surface.Nested, value: Int) -> Unit
+    bb0 entry
+      return
+  fun init.Surface.Nested.Companion.$c9 @fn56(this: Surface.Nested.Companion) -> Unit
+    bb0 entry
+      return
+  fun init.Surface.Nested.Hidden.$c4 @fn57(this: Surface.Nested.Hidden) -> Unit
+    bb0 entry
+      return
+  fun init.Surface.Nested.Child.$c5 @fn58(this: Surface.Nested.Child) -> Unit
+    bb0 entry
+      return
+  fun init.Surface.Generic.Companion.$c10 @fn59(this: Surface.Generic.Companion) -> Unit
+    bb0 entry
+      return
+  fun init.Surface.Unrelated.$c7 @fn60(this: Surface.Unrelated) -> Unit
+    bb0 entry
+      return
+  fun init.UnrelatedTop.Ignored.$c8 @fn61(this: UnrelatedTop.Ignored) -> Unit
+    bb0 entry
+      return
+  fun init.Surface.Generic.$c6 @fn62(this: Surface.Generic<Int>, value: Int) -> Unit
+    bb0 entry
+      return
+  fun init.Surface.Generic.$c6 @fn63(this: Surface.Generic<String>, value: String) -> Unit
+    bb0 entry
+      return
+  fun startCoroutine<PublishedSurface> @fn64(task: SuspendTask<PublishedSurface>, completion: Continuation<PublishedSurface>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn20 interface Continuation<PublishedSurface>[0]
+        Type Continuation<PublishedSurface>
+        Local completion
+        Type PublishedSurface
+        EnumField v0 f0
+          Type CoroutineStep<PublishedSurface>
+          Local $step
+      return
+    bb2 failed
+      call @fn21 interface Continuation<PublishedSurface>[1]
+        Type Continuation<PublishedSurface>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<PublishedSurface> = @fn22 interface SuspendTask<PublishedSurface>[0]
+        Type SuspendTask<PublishedSurface>
+        Local task
+        Type Continuation<PublishedSurface>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<PublishedSurface>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Surface.Generic.Companion> @fn65(task: SuspendTask<Surface.Generic.Companion>, completion: Continuation<Surface.Generic.Companion>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn44 interface Continuation<Surface.Generic.Companion>[0]
+        Type Continuation<Surface.Generic.Companion>
+        Local completion
+        Type Surface.Generic.Companion
+        EnumField v0 f0
+          Type CoroutineStep<Surface.Generic.Companion>
+          Local $step
+      return
+    bb2 failed
+      call @fn45 interface Continuation<Surface.Generic.Companion>[1]
+        Type Continuation<Surface.Generic.Companion>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Surface.Generic.Companion> = @fn46 interface SuspendTask<Surface.Generic.Companion>[0]
+        Type SuspendTask<Surface.Generic.Companion>
+        Local task
+        Type Continuation<Surface.Generic.Companion>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Surface.Generic.Companion>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Surface> @fn66(task: SuspendTask<Surface>, completion: Continuation<Surface>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn24 interface Continuation<Surface>[0]
+        Type Continuation<Surface>
+        Local completion
+        Type Surface
+        EnumField v0 f0
+          Type CoroutineStep<Surface>
+          Local $step
+      return
+    bb2 failed
+      call @fn25 interface Continuation<Surface>[1]
+        Type Continuation<Surface>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Surface> = @fn26 interface SuspendTask<Surface>[0]
+        Type SuspendTask<Surface>
+        Local task
+        Type Continuation<Surface>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Surface>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Surface.Nested.Companion> @fn67(task: SuspendTask<Surface.Nested.Companion>, completion: Continuation<Surface.Nested.Companion>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn32 interface Continuation<Surface.Nested.Companion>[0]
+        Type Continuation<Surface.Nested.Companion>
+        Local completion
+        Type Surface.Nested.Companion
+        EnumField v0 f0
+          Type CoroutineStep<Surface.Nested.Companion>
+          Local $step
+      return
+    bb2 failed
+      call @fn33 interface Continuation<Surface.Nested.Companion>[1]
+        Type Continuation<Surface.Nested.Companion>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Surface.Nested.Companion> = @fn34 interface SuspendTask<Surface.Nested.Companion>[0]
+        Type SuspendTask<Surface.Nested.Companion>
+        Local task
+        Type Continuation<Surface.Nested.Companion>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Surface.Nested.Companion>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Surface.Nested.Child> @fn68(task: SuspendTask<Surface.Nested.Child>, completion: Continuation<Surface.Nested.Child>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn40 interface Continuation<Surface.Nested.Child>[0]
+        Type Continuation<Surface.Nested.Child>
+        Local completion
+        Type Surface.Nested.Child
+        EnumField v0 f0
+          Type CoroutineStep<Surface.Nested.Child>
+          Local $step
+      return
+    bb2 failed
+      call @fn41 interface Continuation<Surface.Nested.Child>[1]
+        Type Continuation<Surface.Nested.Child>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Surface.Nested.Child> = @fn42 interface SuspendTask<Surface.Nested.Child>[0]
+        Type SuspendTask<Surface.Nested.Child>
+        Local task
+        Type Continuation<Surface.Nested.Child>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Surface.Nested.Child>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Surface.Unrelated> @fn69(task: SuspendTask<Surface.Unrelated>, completion: Continuation<Surface.Unrelated>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn48 interface Continuation<Surface.Unrelated>[0]
+        Type Continuation<Surface.Unrelated>
+        Local completion
+        Type Surface.Unrelated
+        EnumField v0 f0
+          Type CoroutineStep<Surface.Unrelated>
+          Local $step
+      return
+    bb2 failed
+      call @fn49 interface Continuation<Surface.Unrelated>[1]
+        Type Continuation<Surface.Unrelated>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Surface.Unrelated> = @fn50 interface SuspendTask<Surface.Unrelated>[0]
+        Type SuspendTask<Surface.Unrelated>
+        Local task
+        Type Continuation<Surface.Unrelated>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Surface.Unrelated>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Surface.Nested> @fn70(task: SuspendTask<Surface.Nested>, completion: Continuation<Surface.Nested>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn28 interface Continuation<Surface.Nested>[0]
+        Type Continuation<Surface.Nested>
+        Local completion
+        Type Surface.Nested
+        EnumField v0 f0
+          Type CoroutineStep<Surface.Nested>
+          Local $step
+      return
+    bb2 failed
+      call @fn29 interface Continuation<Surface.Nested>[1]
+        Type Continuation<Surface.Nested>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Surface.Nested> = @fn30 interface SuspendTask<Surface.Nested>[0]
+        Type SuspendTask<Surface.Nested>
+        Local task
+        Type Continuation<Surface.Nested>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Surface.Nested>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Surface.Nested.Hidden> @fn71(task: SuspendTask<Surface.Nested.Hidden>, completion: Continuation<Surface.Nested.Hidden>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn36 interface Continuation<Surface.Nested.Hidden>[0]
+        Type Continuation<Surface.Nested.Hidden>
+        Local completion
+        Type Surface.Nested.Hidden
+        EnumField v0 f0
+          Type CoroutineStep<Surface.Nested.Hidden>
+          Local $step
+      return
+    bb2 failed
+      call @fn37 interface Continuation<Surface.Nested.Hidden>[1]
+        Type Continuation<Surface.Nested.Hidden>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Surface.Nested.Hidden> = @fn38 interface SuspendTask<Surface.Nested.Hidden>[0]
+        Type SuspendTask<Surface.Nested.Hidden>
+        Local task
+        Type Continuation<Surface.Nested.Hidden>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Surface.Nested.Hidden>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<PublishedSurface> result=PublishedSurface
+  coroutine_step cs1 CoroutineStep<Surface.Generic.Companion> result=Surface.Generic.Companion
+  coroutine_step cs2 CoroutineStep<Surface> result=Surface
+  coroutine_step cs3 CoroutineStep<Surface.Nested.Companion> result=Surface.Nested.Companion
+  coroutine_step cs4 CoroutineStep<Surface.Nested.Child> result=Surface.Nested.Child
+  coroutine_step cs5 CoroutineStep<Surface.Unrelated> result=Surface.Unrelated
+  coroutine_step cs6 CoroutineStep<Surface.Nested> result=Surface.Nested
+  coroutine_step cs7 CoroutineStep<Surface.Nested.Hidden> result=Surface.Nested.Hidden
+  coroutine_slot cl0 CoroutineSlot<PublishedSurface> value=PublishedSurface
+  coroutine_slot cl1 CoroutineSlot<Surface.Generic.Companion> value=Surface.Generic.Companion
+  coroutine_slot cl2 CoroutineSlot<Surface> value=Surface
+  coroutine_slot cl3 CoroutineSlot<Surface.Nested.Companion> value=Surface.Nested.Companion
+  coroutine_slot cl4 CoroutineSlot<Surface.Nested.Child> value=Surface.Nested.Child
+  coroutine_slot cl5 CoroutineSlot<Surface.Unrelated> value=Surface.Unrelated
+  coroutine_slot cl6 CoroutineSlot<Surface.Nested> value=Surface.Nested
+  coroutine_slot cl7 CoroutineSlot<Surface.Nested.Hidden> value=Surface.Nested.Hidden
+  coroutine_start ct0 result=PublishedSurface function=fn64
+  coroutine_start ct1 result=Surface.Generic.Companion function=fn65
+  coroutine_start ct2 result=Surface function=fn66
+  coroutine_start ct3 result=Surface.Nested.Companion function=fn67
+  coroutine_start ct4 result=Surface.Nested.Child function=fn68
+  coroutine_start ct5 result=Surface.Unrelated function=fn69
+  coroutine_start ct6 result=Surface.Nested function=fn70
+  coroutine_start ct7 result=Surface.Nested.Hidden function=fn71
+  coroutine_fn cf0 @fn22 source_return=PublishedSurface step=cs0 immediate
+  coroutine_fn cf1 @fn26 source_return=Surface step=cs2 immediate
+  coroutine_fn cf2 @fn30 source_return=Surface.Nested step=cs6 immediate
+  coroutine_fn cf3 @fn34 source_return=Surface.Nested.Companion step=cs3 immediate
+  coroutine_fn cf4 @fn38 source_return=Surface.Nested.Hidden step=cs7 immediate
+  coroutine_fn cf5 @fn42 source_return=Surface.Nested.Child step=cs4 immediate
+  coroutine_fn cf6 @fn46 source_return=Surface.Generic.Companion step=cs1 immediate
+  coroutine_fn cf7 @fn50 source_return=Surface.Unrelated step=cs5 immediate
+  instance mi0 function=@fn15 <- Surface.Generic.Companion.create
+  instance mi1 function=@fn16 <- Surface.Generic.Companion.create
+  instance mi2 function=@fn17 <- Surface.identity
+  instance mi3 function=@fn18 <- Surface.identity
+  instance mi4 function=@fn20 <- Continuation.resume
+  instance mi5 function=@fn21 <- Continuation.resumeWithException
+  instance mi6 function=@fn22 <- SuspendTask.run
+  instance mi7 function=@fn23 <- SuspendRegistration.register
+  instance mi8 function=@fn24 <- Continuation.resume
+  instance mi9 function=@fn25 <- Continuation.resumeWithException
+  instance mi10 function=@fn26 <- SuspendTask.run
+  instance mi11 function=@fn27 <- SuspendRegistration.register
+  instance mi12 function=@fn28 <- Continuation.resume
+  instance mi13 function=@fn29 <- Continuation.resumeWithException
+  instance mi14 function=@fn30 <- SuspendTask.run
+  instance mi15 function=@fn31 <- SuspendRegistration.register
+  instance mi16 function=@fn32 <- Continuation.resume
+  instance mi17 function=@fn33 <- Continuation.resumeWithException
+  instance mi18 function=@fn34 <- SuspendTask.run
+  instance mi19 function=@fn35 <- SuspendRegistration.register
+  instance mi20 function=@fn36 <- Continuation.resume
+  instance mi21 function=@fn37 <- Continuation.resumeWithException
+  instance mi22 function=@fn38 <- SuspendTask.run
+  instance mi23 function=@fn39 <- SuspendRegistration.register
+  instance mi24 function=@fn40 <- Continuation.resume
+  instance mi25 function=@fn41 <- Continuation.resumeWithException
+  instance mi26 function=@fn42 <- SuspendTask.run
+  instance mi27 function=@fn43 <- SuspendRegistration.register
+  instance mi28 function=@fn44 <- Continuation.resume
+  instance mi29 function=@fn45 <- Continuation.resumeWithException
+  instance mi30 function=@fn46 <- SuspendTask.run
+  instance mi31 function=@fn47 <- SuspendRegistration.register
+  instance mi32 function=@fn48 <- Continuation.resume
+  instance mi33 function=@fn49 <- Continuation.resumeWithException
+  instance mi34 function=@fn50 <- SuspendTask.run
+  instance mi35 function=@fn51 <- SuspendRegistration.register
+  str @str0 "nested"
+  str @str1 "kept"
+  str @str2 "kept"
+  output library

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `read` in lexical local candidate layer:\n  - fun read(value: Int): Int — expects 1 argument(s), but 0 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "6364323c2c3701ba342109ba3601cf7bcbc30d1019cf895c57b4e7f1a5c1f320",
+      "end": 111,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 105
+    },
+    "severity": "error"
+  }
+]

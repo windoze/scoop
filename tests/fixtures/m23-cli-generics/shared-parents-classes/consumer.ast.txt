@@ -1,0 +1,66 @@
+SourceFile
+  QualifiedPackage consumer.parents
+  ImportExact Local dependency.parents.Base
+  public class Child(value: Int) : Base<Int>(<1 args>)
+    public fun read
+  public open class LocalBase<T>(val value: T)
+    public fun read
+  public class LocalChild(value: Int) : LocalBase<Int>(<1 args>)
+    public fun read
+  public class InheritedLocalChild(value: Int) : LocalBase<Int>(<1 args>)
+  private class PrivateChild(value: Int) : Base<Int>(<1 args>)
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val local
+      Call InheritedLocalChild
+        Call read
+          Var seed
+    if
+      Binary Ne
+        MethodCall read
+          Call LocalChild
+            Binary Sub
+              Call read
+                Var seed
+              IntLiteral 1
+        MethodCall read
+          Var local
+      return
+        IntLiteral 1
+    return
+      MethodCall read
+        Call Child
+          Binary Sub
+            Call read
+              Var seed
+            IntLiteral 1
+  public fun result(): Int
+    val local: LocalBase<Int>
+      Call LocalChild
+        IntLiteral 41
+    val external: Base<Int>
+      Call Child
+        IntLiteral 41
+    if
+      Binary Or
+        Binary Ne
+          MethodCall read
+            Var local
+          IntLiteral 42
+        Binary Ne
+          MethodCall read
+            Var external
+          IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        FieldAccess value
+          Call Child
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 2
+    return
+      MethodCall read
+        Call PrivateChild
+          IntLiteral 42

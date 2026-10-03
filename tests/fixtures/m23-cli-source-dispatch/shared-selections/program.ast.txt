@@ -1,0 +1,49 @@
+SourceFile
+  RootPackage
+  fun verifyDispatch(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val integer
+      Call leaf<Int>
+    val base: Base<Int>
+      Var integer
+    val generic: Generic<Int>
+      Var integer
+    Call verifyDispatch
+      Binary And
+        Binary And
+          Binary Eq
+            MethodCall compute
+              Var integer
+              IntLiteral 17
+            IntLiteral 17
+          Binary Eq
+            MethodCall compute
+              Var base
+              IntLiteral 19
+            IntLiteral 19
+        Binary Eq
+          MethodCall value
+            Var generic
+            IntLiteral 23
+          IntLiteral 23
+    val text
+      Call leaf<String>
+    val refined: Refined<String>
+      Var text
+    Call verifyDispatch
+      Binary And
+        Binary Eq
+          MethodCall compute
+            Var text
+            StringLiteral "method"
+          StringLiteral "method"
+        Binary Eq
+          MethodCall value
+            Var refined
+            StringLiteral "default"
+          StringLiteral "default"

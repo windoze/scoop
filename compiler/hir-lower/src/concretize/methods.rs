@@ -14,11 +14,18 @@ impl Concretizer<'_> {
             export::MethodCallee::DerivedEquality(application) => concrete::CallableTarget::Local(
                 self.lower_derived_equality_application(application, substitution),
             ),
+            export::MethodCallee::ImportedDerivedEquality { target, .. } => {
+                let value = self.source.imported_derived_equalities[target];
+                let target = self
+                    .imported_derived_equalities
+                    .alloc(concrete::ImportedDerivedEqualityUse(value));
+                concrete::CallableTarget::DerivedEquality(target)
+            }
             export::MethodCallee::Bound(bound) => {
                 self.resolve_bound_callee(bound, receiver, substitution)
             }
         };
-        let receiver = self.method_target_receiver(callee);
+        let receiver = self.method_target_receiver(callee, receiver);
         (callee, receiver)
     }
 
@@ -84,8 +91,13 @@ impl Concretizer<'_> {
         self.lower_callable_target(declared, substitution)
     }
 
-    fn method_target_receiver(&mut self, target: concrete::CallableTarget) -> concrete::TypeId {
+    fn method_target_receiver(
+        &mut self,
+        target: concrete::CallableTarget,
+        receiver: concrete::TypeId,
+    ) -> concrete::TypeId {
         match target {
+            concrete::CallableTarget::DerivedEquality(_) => receiver,
             concrete::CallableTarget::Local(concrete::Callable::Function(function)) => {
                 let owner = self.function_keys[function.into_raw().into_u32() as usize]
                     .owner
@@ -176,6 +188,15 @@ impl Concretizer<'_> {
             .map(|arg| self.lower_expr(arg, substitution, locals))
             .collect::<Vec<_>>();
         match callee {
+            concrete::CallableTarget::DerivedEquality(target) => {
+                args.insert(0, receiver);
+                concrete::ExprKind::Call {
+                    callee: concrete::CallableTarget::DerivedEquality(target),
+                    binding: None,
+                    args,
+                    receiver: export::SourceCallReceiver::Receiver { static_type },
+                }
+            }
             concrete::CallableTarget::Local(callee) => {
                 let receiver = Box::new(receiver);
                 if direct_super {

@@ -1,0 +1,17 @@
+SourceFile
+  RootPackage
+    @Global
+  public var ACCESS_GLOBAL: Int = <expr>
+  public struct AccessPacket<T>
+    field first: T
+  public class AccessCell<T>(val stored: T)
+    public fun read
+  public enum AccessChoice<T>
+    Present <ctor>
+      value: T
+  public object AccessRegistry
+    public val seed: Int = <expr>
+      IntLiteral 3
+  public fun accessValues<T>(seed: T, cell: AccessCell<T> = <expr>, choice: AccessChoice<T> = <expr>, packet: AccessPacket<T> = <expr>, field: T = <expr>, pair: (T, T) = <expr>, tuple: T = <expr>, singleton: AccessRegistry = <expr>, sum: Int = <expr>): T
+    =
+      Var field

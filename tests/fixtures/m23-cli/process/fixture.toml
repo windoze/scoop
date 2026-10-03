@@ -1,0 +1,142 @@
+schema = 1
+name = "cli-run-process-contract"
+root = "process.scoop"
+inputs = ["process.scoop", "replacement.scoop", "native.c"]
+tools = ["scoop", "scoopc", "cc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["cli", "native", "signal", "concurrency"]
+
+[vars]
+options = ["--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}/native", "--message-format", "json"]
+
+[[steps]]
+name = "directories"
+files = [{mkdir = {path = "${work}/native"}}]
+
+[[steps]]
+name = "native"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-c", "${fixture}/native.c", "-o", "${work}/native/fixture_native.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "arguments"
+argv = ["${scoop}", "run", "${root}", {each = "${options}"}, "--", "", "two words", "--", "-o", {hex = "ff"}]
+env = {CLI_PAYLOAD = "inherited value"}
+stdin = "stdin bytes\n"
+exit = 0
+stdout = "argv0=${work}/target/${target}/debug/process\ncwd=${work}\nenv=inherited value\narg1=\narg2=74776f20776f726473\narg3=2d2d\narg4=2d6f\narg5=ff\nstdin bytes\n"
+stderr = "program stderr\n"
+json = "stderr"
+diagnostics = []
+checks = [{glob = "${work}/target/${target}/debug/.scoop-run-*", equals = []}]
+
+[[steps]]
+name = "exit37"
+argv = ["${scoop}", "run", "${root}", {each = "${options}"}]
+env = {CLI_MODE = "exit"}
+exit = 37
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "abort"
+argv = ["${scoop}", "run", "${root}", {each = "${options}"}]
+env = {CLI_MODE = "abort"}
+signal = "SIGABRT"
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "term"
+argv = ["${scoop}", "run", "${root}", {each = "${options}"}]
+env = {CLI_MODE = "term"}
+signal = "SIGTERM"
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "interrupted"
+argv = ["${scoop}", "run", "${root}", {each = "${options}"}]
+env = {CLI_MODE = "interrupt", CLI_READY = "${work}/ready"}
+background = true
+signal = "SIGTERM"
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "ready"
+await_file = "${work}/ready"
+checks = [{glob = "${work}/target/${target}/debug/.scoop-run-*", not_equals = []}]
+
+[[steps]]
+name = "cancel"
+send_signal = {process = "interrupted", signal = "SIGTERM"}
+
+[[steps]]
+name = "reaped"
+wait = "interrupted"
+checks = [
+  {glob = "${work}/target/${target}/debug/.scoop-run-*", equals = []},
+  {file = "${work}/target/${target}/debug/process", type = "file"},
+]
+
+[[steps]]
+name = "no_orphan"
+argv = ["/bin/ps", "-p", "${ready.bytes}", "-o", "pid="]
+exit = 1
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "held"
+argv = ["${scoop}", "run", "${root}", {each = "${options}"}]
+env = {CLI_MODE = "hold", CLI_READY = "${work}/held-ready", CLI_RELEASE = "${work}/release"}
+background = true
+exit = 0
+stdout = "original\n"
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "held_ready"
+await_file = "${work}/held-ready"
+
+[[steps]]
+name = "replacement_source"
+files = [{copy = {from = "${fixture}/replacement.scoop", to = "${work}/other/process.scoop"}}]
+
+[[steps]]
+name = "replacement"
+argv = ["${scoop}", "run", "${work}/other/process.scoop", {each = "${options}"}]
+exit = 0
+stdout = "replacement\n"
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "release_original"
+files = [{write = {path = "${work}/release", data = "ready"}}]
+
+[[steps]]
+name = "joined"
+wait = "held"
+checks = [{glob = "${work}/target/${target}/debug/.scoop-run-*", equals = []}]
+
+[[steps]]
+name = "stable"
+argv = ["${work}/target/${target}/debug/process"]
+exit = 0
+stdout = "replacement\n"
+stderr = ""

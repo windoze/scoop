@@ -1,3 +1,0 @@
-span=151..166
-expression=value = "wrong"
-dependency function `Named`: String is not a subtype of Int

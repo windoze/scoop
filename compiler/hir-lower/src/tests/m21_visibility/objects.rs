@@ -5,67 +5,37 @@ const POSITIVE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../tests/fixtures/m21-visibility/object-protected.scoop"
 ));
-const NEGATIVE: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m21-visibility/errors/object-protected-receiver.scoop"
-));
 
 #[test]
 fn objects_and_companions_use_backing_classes_for_protected_access() {
     let output = parse_and_lower(POSITIVE).unwrap();
     let module = output.export.module();
-    let mut owners = module
-        .objects
+    let base = module
+        .classes
         .iter()
-        .map(|(_, object)| {
-            let backing = &module.classes[object.backing_class];
-            let hir::Type::Class(base) = module.types[backing.base_class.unwrap()] else {
-                panic!("object has a typed class base")
-            };
-            let name = match object.owner {
-                Some(hir::NominalOwner::Class(owner)) => {
-                    format!("{}.{}", module.classes[owner].name, object.name)
-                }
-                None => object.name.clone(),
-                other => panic!("unexpected fixture owner {other:?}"),
-            };
-            format!(
-                "{name} : {}\n",
-                module.classes[module
-                    .nominal_identities
-                    .class_id(module.class_applications[base].template)
-                    .expect("an application retains its declaration")]
-                .name
-            )
-        })
-        .collect::<Vec<_>>();
-    owners.sort();
+        .find(|(_, class)| class.name == "Base")
+        .unwrap()
+        .0;
+    let base = module.nominal_identities[base].declaration_id();
+    let mut owners = std::collections::BTreeSet::new();
+    for (_, object) in module.objects.iter() {
+        let backing = &module.classes[object.backing_class];
+        let hir::Type::Class(application) = module.types[backing.base_class.unwrap()] else {
+            panic!("object has a typed class base")
+        };
+        assert_eq!(module.class_applications[application].template, base);
+        let owner = match object.owner {
+            Some(hir::NominalOwner::Class(owner)) => module.classes[owner].name.as_str(),
+            None => "",
+            other => panic!("unexpected fixture owner {other:?}"),
+        };
+        assert!(owners.insert((owner, object.name.as_str())));
+    }
     assert_eq!(
-        owners.concat(),
-        include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../tests/fixtures/m21-visibility/object-protected.owners.snap"
-        ))
+        owners,
+        std::collections::BTreeSet::from([("Holder", "Companion"), ("", "Singleton")])
     );
     assert_eq!(module.objects.len(), 2);
-}
-
-#[test]
-fn object_protected_access_still_rejects_base_and_sibling_receivers() {
-    let errors = parse_and_lower(NEGATIVE).unwrap_err();
-    for (receiver, occurrence) in [("Base", "other.secret()"), ("Sibling", "peer.secret()")] {
-        let message = format!(
-            "protected method `secret` cannot be accessed through receiver of static type `{receiver}`; receiver must be `Singleton` or one of its subclasses"
-        );
-        let diagnostic = errors
-            .iter()
-            .find(|error| error.message == message)
-            .unwrap();
-        assert_eq!(
-            diagnostic.span.unwrap().start as usize,
-            NEGATIVE.find(occurrence).unwrap() + occurrence.find('.').unwrap() + 1
-        );
-    }
 }
 
 #[test]

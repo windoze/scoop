@@ -1,3 +1,0 @@
-span=122..127
-expression=value
-`addressOf` requires a GC-free value type, found Managed

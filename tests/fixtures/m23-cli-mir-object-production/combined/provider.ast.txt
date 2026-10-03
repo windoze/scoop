@@ -1,0 +1,21 @@
+SourceFile
+  RootPackage
+  public object First
+    public val number: Int = <expr>
+      IntLiteral 1
+  public object Second
+    public val number: Int = <expr>
+      FieldAccess number
+        Var First
+  public class Host()
+    public companion object
+      public val word: String = <expr>
+        StringLiteral "nested"
+  private object Hidden
+    public val number: Int = <expr>
+      IntLiteral 2
+  public fun hidden(): Int
+    =
+      FieldAccess number
+        Var Hidden
+  public val top: Int = <expr>

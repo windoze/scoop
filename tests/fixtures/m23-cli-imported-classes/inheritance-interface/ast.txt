@@ -1,0 +1,16 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.InterfaceParent
+  ImportExact Local dependency.classes.Readable
+  public class Derived() : InterfaceParent(<0 args>)
+    public fun read
+  public fun primary(): Counter
+    val value: Readable
+      Call Derived
+    return
+      Call Counter
+        Binary Sub
+          MethodCall answer
+            Var value
+          IntLiteral 1

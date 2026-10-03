@@ -1,0 +1,134 @@
+Module
+  struct HeapEmpty ()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class HeapCell vtable=0 itables=0
+  class box<HeapEmpty> vtable=0 itables=0
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn2 captures=1
+    bridge function_type1 -> @fn3 id=9644a48d26cce4309b6023f6bebcb605473307634586d7fcf23c39f683fbe558
+  generated_exact_type get0 location=closure0 nominal_id=2529a61d8ef72ef513ebee62627a2293cdc89914525517cdba4d69eecaed281c exact_id=4f05f0e138566a263e11ee1bc4866a150582d1bc2ccf1c478486be77acc0223c
+  generated_exact_type get1 location=class4 nominal_id=fffde6270412d52196774a1c507eb3992d6c71265caa71f23e5f8c8cc8ddea85 exact_id=b828c2b2c1f9a7b8f939219f1d04ebb658fe88ee1ce9887c0eb88e6c3d4ba58e
+  generated_callable gc0 function=@fn3 id=9644a48d26cce4309b6023f6bebcb605473307634586d7fcf23c39f683fbe558
+  fun verifyType @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call $call.1: HeapEmpty = external1 direct
+      call $call.2: HeapEmpty = external2 direct
+      call $argument.0: Boolean = external7 direct
+        Type HeapEmpty
+        Local $call.1
+        Type HeapEmpty
+        Local $call.2
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call cell: HeapCell = external3 direct
+      val $place.0: HeapCell
+        Type HeapCell
+        Local cell
+      call $call.3: HeapEmpty = external4 direct
+      call external5 direct
+        Type HeapCell
+        Local $place.0
+        Type HeapEmpty
+        Local $call.3
+      call $call.4: HeapEmpty = external6 direct
+        Type HeapCell
+        Local cell
+      call $call.5: HeapEmpty = external2 direct
+      call $argument.0: Boolean = external7 direct
+        Type HeapEmpty
+        Local $call.4
+        Type HeapEmpty
+        Local $call.5
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val captured: () -> HeapEmpty
+        Type () -> HeapEmpty
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type HeapCell
+            Local cell
+      call $call.6: HeapEmpty = <closure:function_type0> closure[function_type0]
+        Type () -> HeapEmpty
+        Local captured
+      call $call.7: HeapEmpty = external2 direct
+      call $argument.0: Boolean = external7 direct
+        Type HeapEmpty
+        Local $call.6
+        Type HeapEmpty
+        Local $call.7
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun $lambda.0 @fn2($closure: () -> HeapEmpty) -> HeapEmpty
+    bb0 entry
+      call $call.1: HeapEmpty = external6 direct
+        Type HeapCell
+        ClosureCapture cc0 0
+          Type () -> HeapEmpty
+          Local $closure
+      return
+        Type HeapEmpty
+        Local $call.1
+  fun function_bridge.$Closure$lambda0.() -> Any @fn3($source: () -> HeapEmpty) -> Any
+    bb0 entry
+      call $call.1: HeapEmpty = <closure:function_type0> closure[function_type0]
+        Type () -> HeapEmpty
+        Local $source
+      return
+        Type Any
+        Box
+          Type HeapEmpty
+          Local $call.1
+  str @str0 "illegal state"
+  output executable @fn1

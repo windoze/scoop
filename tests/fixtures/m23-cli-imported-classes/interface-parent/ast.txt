@@ -1,0 +1,16 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.ChildReader
+  ImportExact Local dependency.classes.childReader
+  public fun retainChild(value: ChildReader): ChildReader
+    =
+      Var value
+  public fun primary(): Counter
+    =
+      Call Counter
+        Binary Add
+          MethodCall parent
+            Call retainChild
+              Call childReader
+          IntLiteral 1

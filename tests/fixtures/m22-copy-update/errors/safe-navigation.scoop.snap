@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m22-copy-update/errors/safe-navigation.scoop:7:24: error: copy update does not support safe navigation; unwrap the Option with `when` first

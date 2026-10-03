@@ -1,0 +1,77 @@
+SourceFile
+  QualifiedPackage consumer.options
+  ImportExact Local dependency.options.wrap
+  private class Cell(val number: Int)
+  private var stored: Int?
+  private var referenced: Cell? = <expr>
+  private val qualified: Int? = <expr>
+    @NoGC
+  private fun leaf(): Int
+    assign stored
+      Call Some
+        IntLiteral 40
+    return
+      Elvis
+        Var stored
+        IntLiteral 0
+  public fun exercise<T>(value: T): Int
+    val held
+      Call wrap
+        Var value
+    assign stored
+      Var None
+    assign referenced
+      Var None
+    if
+      Binary Or
+        Binary Ne
+          Elvis
+            Var qualified
+            IntLiteral 2
+          IntLiteral 2
+        Binary Ne
+          Elvis
+            FieldAccess ?number
+              Var referenced
+            IntLiteral 0
+          IntLiteral 0
+      return
+        IntLiteral 1
+    val first
+      Call leaf
+    assign referenced
+      Call Some
+        Call Cell
+          IntLiteral 2
+    val allocated
+      Call Cell
+        IntLiteral 0
+    return
+      Binary Add
+        Binary Add
+          Var first
+          Elvis
+            FieldAccess ?number
+              Var referenced
+            IntLiteral 0
+        FieldAccess number
+          Var allocated
+  public fun result(): Int
+    if
+      Binary Or
+        Binary Ne
+          Elvis
+            Var stored
+            IntLiteral 0
+          IntLiteral 0
+        Binary Ne
+          Elvis
+            FieldAccess ?number
+              Var referenced
+            IntLiteral 0
+          IntLiteral 0
+      return
+        IntLiteral 3
+    return
+      Call exercise<Int>
+        IntLiteral 1

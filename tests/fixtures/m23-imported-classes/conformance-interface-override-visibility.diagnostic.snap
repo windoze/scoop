@@ -1,6 +1,0 @@
-span=102..106
-expression=read
-member `read` of public interface `LocalReader` must be explicitly public
-span=102..106
-expression=read
-visibility of `read` does not cover inherited slot `Readable.read`

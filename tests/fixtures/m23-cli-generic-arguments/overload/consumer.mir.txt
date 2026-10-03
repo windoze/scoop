@@ -1,0 +1,26 @@
+Module
+  fun selected @fn0() -> Int
+    bb0 entry
+      val $dependency.argument.0: (Int, Boolean)
+        Type (Int, Boolean)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+          Type Boolean
+          BoolLiteral true
+      val $dependency.parameter.value: (Int, Boolean)
+        Type (Int, Boolean)
+        Local $dependency.argument.0
+      call $call.1: Int = @fn1 direct
+        Type (Int, Boolean)
+        Local $dependency.parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun select @fn1(value: (Int, Boolean)) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+  instance mi0 function=@fn1 <- select
+  output library

@@ -5,6 +5,7 @@
 //! coordinates, source identities, source text, and content digests.
 
 mod discovery;
+mod input;
 mod root;
 mod semantic;
 mod single_file;
@@ -13,6 +14,10 @@ mod stable_file;
 pub use discovery::{
     DiscoveredManifestSources, DiscoveredSource, DiscoveryIoOperation, SourceDiscoveryError,
     SourceDiscoveryErrorKind, SourceDisplayLocator, discover_manifest_sources,
+};
+pub use input::{
+    CurrentConeInput, CurrentConeOperandError, CurrentConeOperandErrorKind,
+    classify_current_cone_operand,
 };
 pub use root::{
     LoadedConeManifest, ManifestRootError, ManifestRootErrorKind, ManifestRootIoOperation,

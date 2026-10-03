@@ -1,0 +1,128 @@
+schema = 1
+name = "program-link-rebuilt-core"
+inputs = ["cone", "../../m23-program-link/read-println.scoop", "relocated-string.scoop", "../../m23-program-link/rebuilt-core-native.scoop", "ordinary-string", "../../m23-program-link/shadow-string-library.scoop", "root", "../../m23-program-link/rebuilt-core-root.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["program-link", "stage-golden", "core", "multi-cone", "moving-gc"]
+
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${fixture}/cone", "to" = "${work}/sources/root"}}, {"copy" = {"from" = "${fixture}/../../m23-program-link/read-println.scoop", "to" = "${work}/sources/root/src/main.scoop"}}, {"mkdir" = {"path" = "${work}/native"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-build", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-build", "--dump-scope", "sources"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"file" = "${work}/dump-build/${build.result.root.identity}/ast.txt", "snapshot" = "build.ast.txt"}, {"file" = "${work}/dump-build/${build.result.root.identity}/hir.txt", "snapshot" = "build.hir.txt"}, {"file" = "${work}/dump-build/${build.result.root.identity}/mir.txt", "snapshot" = "build.mir.txt"}, {"file" = "${work}/dump-build/${build.result.root.identity}/lir.txt", "snapshot" = "build.lir.txt"}]
+
+[[steps]]
+name = "isolate"
+files = [{"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}}, {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}}, {"mkdir" = {"path" = "${work}/empty-sysroot"}}, {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}}, {"remove" = {"path" = "${work}/sources"}}]
+checks = []
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--dump-plan"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"actual" = "${link.result.link_plan}", "snapshot" = "link.plan", "normalize" = ["paths"]}]
+
+[[steps]]
+name = "prepare_core"
+files = [{"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}}, {"replace" = {"path" = "${work}/core-source/src/types.scoop", "old" = "@Intrinsic(\"core_string\")\npublic class String : ToString, Hash {\n    public operator fun equals(other: String): Boolean = coreStringEquals(this, other)\n\n    @Intrinsic(\"string_concat\")\n    public operator fun plus(other: String): String\n\n    @Intrinsic(\"string_compare_to\")\n    public operator fun compareTo(other: String): Long\n\n    public override fun toString(): String = this\n\n    public override fun hash(): Long = coreStringHash(this)\n}\n\n", "new" = "public typealias String = relocated.String\n\n"}}, {"copy" = {"from" = "${fixture}/relocated-string.scoop", "to" = "${work}/core-source/src/relocated-string.scoop"}}, {"copy" = {"from" = "${fixture}/../../m23-program-link/rebuilt-core-native.scoop", "to" = "${work}/core-source/src/rebuilt-native.scoop"}}]
+checks = []
+
+[[steps]]
+name = "compile_core"
+argv = ["${scoopc}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--out-slib", "${work}/rebuilt-core.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "remove_core_sources"
+files = [{"remove" = {"path" = "${work}/core-source"}}]
+checks = []
+
+[[steps]]
+name = "prepare_ordinary-string"
+files = [{"copy" = {"from" = "${fixture}/ordinary-string", "to" = "${work}/sources/ordinary-string"}}, {"copy" = {"from" = "${fixture}/../../m23-program-link/shadow-string-library.scoop", "to" = "${work}/sources/ordinary-string/src/main.scoop"}}]
+checks = []
+
+[[steps]]
+name = "prepare_root"
+files = [{"copy" = {"from" = "${fixture}/root", "to" = "${work}/sources/root"}}, {"copy" = {"from" = "${fixture}/../../m23-program-link/rebuilt-core-root.scoop", "to" = "${work}/sources/root/src/main.scoop"}}]
+checks = []
+
+[[steps]]
+name = "rebuilt"
+argv = ["${scoop}", "build", "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-rebuilt", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-rebuilt", "--dump-scope", "sources"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"file" = "${work}/dump-rebuilt/${rebuilt.result.root.identity}/ast.txt", "snapshot" = "rebuilt.ast.txt"}, {"file" = "${work}/dump-rebuilt/${rebuilt.result.root.identity}/hir.txt", "snapshot" = "rebuilt.hir.txt"}, {"file" = "${work}/dump-rebuilt/${rebuilt.result.root.identity}/mir.txt", "snapshot" = "rebuilt.mir.txt"}, {"file" = "${work}/dump-rebuilt/${rebuilt.result.root.identity}/lir.txt", "snapshot" = "rebuilt.lir.txt"}]
+
+[[steps]]
+name = "rebuilt_dependencies"
+checks = [{"file" = "${work}/dump-rebuilt/${rebuilt.result.dependencies.1.identity}/ast.txt", "snapshot" = "ordinary-string.ast.txt"}, {"file" = "${work}/dump-rebuilt/${rebuilt.result.dependencies.1.identity}/hir.txt", "snapshot" = "ordinary-string.hir.txt"}, {"file" = "${work}/dump-rebuilt/${rebuilt.result.dependencies.1.identity}/mir.txt", "snapshot" = "ordinary-string.mir.txt"}, {"file" = "${work}/dump-rebuilt/${rebuilt.result.dependencies.1.identity}/lir.txt", "snapshot" = "ordinary-string.lir.txt"}]
+
+[[steps]]
+name = "run_rebuilt"
+argv = ["${rebuilt.result.output}"]
+exit = 0
+stdout = "rebuilt\nroot\n42\n42\n"
+stderr = ""
+
+[[steps]]
+name = "run_rebuilt_moving"
+argv = ["${rebuilt.result.output}"]
+exit = 0
+stdout = "rebuilt\nroot\n42\n42\n"
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}
+
+[[steps]]
+name = "isolate_rebuilt"
+files = [{"copy" = {"from" = "${rebuilt.result.root.path}", "to" = "${work}/rebuilt-artifacts/root.slib"}}, {"copy" = {"from" = "${rebuilt.result.dependencies.0.path}", "to" = "${work}/rebuilt-artifacts/0.slib"}}, {"copy" = {"from" = "${rebuilt.result.dependencies.1.path}", "to" = "${work}/rebuilt-artifacts/1.slib"}}, {"remove" = {"path" = "${work}/sources"}}, {"remove" = {"path" = "${work}/rebuilt-core.slib"}}, {"remove" = {"path" = "${work}/artifacts"}}]
+checks = []
+
+[[steps]]
+name = "rebuilt_link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/rebuilt-artifacts/root.slib", "--dependency-slib", "${work}/rebuilt-artifacts/1.slib", "--dependency-slib", "${work}/rebuilt-artifacts/0.slib", "--runtime-objects", "${rebuilt.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"actual" = "${rebuilt_link.result.link_plan_fingerprint}", "equals" = "${rebuilt.result.link_plan_fingerprint}"}, {"actual" = "${rebuilt_link.result.link_plan}", "snapshot" = "rebuilt.plan"}, {"actual" = "${rebuilt_link.result.link_plan}", "not_contains" = "alias _scoop_td_String -> _scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868"}]
+
+[[steps]]
+name = "actual_string_owner"
+checks = [{"actual" = "${rebuilt_link.result.link_plan}", "contains" = "alias _scoop_td_String -> _scoop$1$td$0245432d5c318ba49a6d2061c5c93ed1a5ba0828b5207170631cc670db031b91"}]
+
+[[steps]]
+name = "run_linked"
+argv = ["${work}/program"]
+exit = 0
+stdout = "rebuilt\nroot\n42\n42\n"
+stderr = ""
+
+[[steps]]
+name = "run_linked_moving"
+argv = ["${work}/program"]
+exit = 0
+stdout = "rebuilt\nroot\n42\n42\n"
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}

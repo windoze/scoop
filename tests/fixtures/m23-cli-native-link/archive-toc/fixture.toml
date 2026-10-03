@@ -1,0 +1,98 @@
+schema = 1
+name = "native-link-archive-toc"
+inputs = ["cone", "../../m23-native-link/direct/root.scoop", "../../m23-native-link/direct/native.c"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin"]
+tags = ["native-link", "program-link", "stage-golden"]
+
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${fixture}/cone", "to" = "${work}/sources/toc"}}, {"copy" = {"from" = "${fixture}/../../m23-native-link/direct/root.scoop", "to" = "${work}/sources/toc/src/main.scoop"}}, {"mkdir" = {"path" = "${work}/native"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "prepare_compile_a_long_native_member_name"
+files = [{"copy" = {"from" = "${fixture}/../../m23-native-link/direct/native.c", "to" = "${work}/sources/native/a_long_native_member_name.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "compile_a_long_native_member_name"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/a_long_native_member_name.c", "-o", "${work}/objects/a_long_native_member_name.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "archive_m23_math"
+argv = ["${ar}", "qcS", "${work}/native/libm23_math.a", "${work}/objects/a_long_native_member_name.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"ZERO_AR_DATE" = "1"}
+
+[[steps]]
+name = "ranlib"
+argv = ["/usr/bin/ranlib", "${work}/native/libm23_math.a"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"ZERO_AR_DATE" = "1"}
+
+[[steps]]
+name = "original_archive"
+checks = [{"file" = "${work}/native/libm23_math.a", "sha256" = "f3d31636dd507a4fe0512a9c0797aeaba605579f9bb52883f47b8538003d0af9"}]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${work}/sources/toc", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "lir.txt"}]
+
+[[steps]]
+name = "isolate"
+files = [{"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}}, {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}}, {"mkdir" = {"path" = "${work}/empty-sysroot"}}, {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}}, {"remove" = {"path" = "${work}/sources"}}]
+checks = []
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--dump-plan"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"actual" = "${link.result.link_plan}", "snapshot" = "link.plan", "normalize" = ["paths"]}]
+
+[[steps]]
+name = "run_linked"
+argv = ["${link.result.output}"]
+exit = 0
+stdout = "42\n"
+stderr = ""
+
+[[steps]]
+name = "corrupt_toc"
+files = [{"patch" = {"path" = "${work}/native/libm23_math.a", "offset" = 104, "hex" = "5f6d32335f626164"}}]
+checks = []
+
+[[steps]]
+name = "previous_reject_toc"
+files = [{"write" = {"path" = "${work}/program", "data" = "previous executable"}}]
+checks = []
+
+[[steps]]
+name = "reject_toc"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "reject_toc.json"}
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"file" = "${work}/program", "equals" = "previous executable"}]

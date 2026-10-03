@@ -1,0 +1,135 @@
+SourceFile
+  RootPackage
+  fun markDefault(label: String, value: Int): Int
+    Call println
+      Var label
+    return
+      Var value
+  fun preserve(value: Int, copy: Int = <expr>): Int
+    =
+      Var copy
+  fun sum(left: Int, right: Int = <expr>): Int
+    =
+      Binary Add
+        Var left
+        Var right
+  fun empty<T>(values: Array<T> = <expr>): Array<T>
+    =
+      Var values
+  fun select(value: Int): String
+    =
+      StringLiteral "exact"
+  fun select(value: Int, extra: Int = <expr>): String
+    =
+      StringLiteral "defaulted"
+  struct Settings
+    field value: Int = <expr>
+  class Holder(val value: Int = <expr>)
+  enum Choice
+    Value <ctor>
+      value: Int = <expr>
+  interface Drawable
+    fun draw
+  class Shape(), Drawable
+    fun draw
+  class Scale(val base: Int)
+    fun apply
+  fun localDefault(): Int
+    val seed
+      Call markDefault
+        StringLiteral "local-seed"
+        IntLiteral 50
+    fun read(value: Int): Int
+      Var value
+    return
+      Call read
+  fun failBeforeDefault(): Int
+    Call println
+      StringLiteral "explicit-throws"
+    throw
+      Call UnwrapException
+  fun neverEntered(first: Int, second: Int = <expr>): Int
+    Call println
+      StringLiteral "unreachable-body"
+    return
+      Binary Add
+        Var first
+        Var second
+  fun main()
+    Call println
+      Call preserve
+        Call markDefault
+          StringLiteral "prior-once"
+          IntLiteral 7
+    Call println
+      FieldAccess value
+        Call Settings
+    Call println
+      FieldAccess value
+        Call Settings
+          IntLiteral 11
+    Call println
+      FieldAccess value
+        Call Holder
+    Call println
+      FieldAccess value
+        Call Holder
+          IntLiteral 21
+    val choice
+      MethodCall Value
+        Var Choice
+    when
+      Var choice
+      arm Value(value)
+        Call println
+          Var value
+    val supplied
+      MethodCall Value
+        Var Choice
+        IntLiteral 31
+    when
+      Var supplied
+      arm Value(value)
+        Call println
+          Var value
+    val values: Array<Int>
+      Call empty
+    Call println
+      FieldAccess size
+        Var values
+    Call println
+      Call select
+        IntLiteral 1
+    val complete: (Int, Int) -> Int
+      CallableReference 0 sum
+    Call println
+      Call complete
+        IntLiteral 40
+        IntLiteral 2
+    val drawable: Drawable
+      Call Shape
+    Call println
+      MethodCall draw
+        Var drawable
+    val shape
+      Call Shape
+    Call println
+      MethodCall draw
+        Var shape
+    Call println
+      MethodCall draw
+        Var shape
+        Argument size=
+          IntLiteral 41
+    Call println
+      MethodCall apply
+        Call Scale
+          IntLiteral 42
+    Call println
+      Call localDefault
+    try
+      Call neverEntered
+        Call failBeforeDefault
+    catch exception: UnwrapException
+      Call println
+        StringLiteral "caught"

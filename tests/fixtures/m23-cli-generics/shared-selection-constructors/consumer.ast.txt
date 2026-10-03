@@ -1,0 +1,93 @@
+SourceFile
+  QualifiedPackage consumer.selection
+  ImportExact Local dependency.selection.Base
+  ImportExact Local dependency.selection.Variadic
+  private open class LocalBase(val number: Int, ready: Boolean = <expr>)
+    constructor(value: Int) : this(<2 args>)
+    constructor(label: String) : this(<1 args>)
+  private class LocalDerived() : LocalBase(<1 args>)
+  private class ExternalDerived() : Base(<1 args>)
+  private class LocalVariadic(val number: Int)
+    constructor(vararg values: Int) : this(<1 args>)
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val value
+      Call read
+        Var seed
+    val local
+      Call LocalBase
+        Binary Sub
+          Var value
+          IntLiteral 1
+    val external
+      Call Base
+        Binary Sub
+          Var value
+          IntLiteral 1
+    return
+      IfExpression
+        Binary Eq
+          FieldAccess number
+            Var local
+          FieldAccess number
+            Var external
+        FieldAccess number
+          Var external
+        else
+        IntLiteral 1
+  public fun result(): Int
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess number
+            Call LocalBase
+              IntLiteral 41
+          IntLiteral 42
+        Binary Ne
+          FieldAccess number
+            Call Base
+              IntLiteral 41
+          IntLiteral 42
+      return
+        IntLiteral 2
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess number
+            Call LocalBase
+              StringLiteral "value"
+          IntLiteral 42
+        Binary Ne
+          FieldAccess number
+            Call Base
+              StringLiteral "value"
+          IntLiteral 42
+      return
+        IntLiteral 3
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess number
+            Call LocalDerived
+          IntLiteral 42
+        Binary Ne
+          FieldAccess number
+            Call ExternalDerived
+          IntLiteral 42
+      return
+        IntLiteral 4
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess number
+            Call LocalVariadic
+              IntLiteral 42
+          IntLiteral 42
+        Binary Ne
+          FieldAccess number
+            Call Variadic
+              IntLiteral 42
+          IntLiteral 42
+      return
+        IntLiteral 5
+    return
+      IntLiteral 42

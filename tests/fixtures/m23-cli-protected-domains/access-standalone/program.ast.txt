@@ -1,0 +1,14 @@
+SourceFile
+  RootPackage
+  fun verifyDomain(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call verifyDomain
+      Binary Eq
+        MethodCall inspect
+          Call domainBase
+        IntLiteral 3

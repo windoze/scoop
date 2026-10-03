@@ -258,13 +258,14 @@ impl Lowerer {
                     initializer,
                 } => mir::GlobalStorage::Local {
                     thread_local: *thread_local,
-                    initial_state: lower_encoded_static_state(
+                    initializer: lower_global_constant(
                         initializer,
                         &ty,
                         &self.structs.defs,
                         &self.enums,
                         &mut self.strings,
                         property_owner,
+                        &mut 0,
                     ),
                 },
                 hir::GlobalStorage::Extern {

@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m17-vararg/errors/override-vararg-mismatch.scoop:6:32: error: parameter `values` of `collect` must have the same `vararg` shape as `Base.collect`

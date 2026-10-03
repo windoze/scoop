@@ -1,0 +1,14 @@
+Module
+  global0 staticValue: Long managed initial=encoded(Long:0x1)
+  fun $get$staticValue @fn0() -> Long <no-gc>
+    bb0 entry
+      return
+        Type Long
+        GlobalRead staticValue
+  fun $set$staticValue @fn1(value: Long) -> Unit <no-gc>
+    bb0 entry
+      global_assign staticValue
+        Type Long
+        Local value
+      return
+  output library

@@ -1,0 +1,121 @@
+@Intrinsic("core_int")
+public struct Int : ToString, Hash {
+    @NoGC
+    @Intrinsic("int_equals")
+    public operator fun equals(other: Int): Boolean
+
+    @NoGC
+    @Intrinsic("int_unary_plus")
+    public operator fun unaryPlus(): Int
+
+    @NoGC
+    @Intrinsic("int_unary_minus")
+    public operator fun unaryMinus(): Int
+
+    @NoGC
+    @Intrinsic("int_inc")
+    public operator fun inc(): Int
+
+    @NoGC
+    @Intrinsic("int_dec")
+    public operator fun dec(): Int
+
+    @NoGC
+    @Intrinsic("int_add")
+    public operator fun plus(other: Int): Int
+
+    @NoGC
+    @Intrinsic("int_sub")
+    public operator fun minus(other: Int): Int
+
+    @NoGC
+    @Intrinsic("int_mul")
+    public operator fun times(other: Int): Int
+
+    @Intrinsic("int_div")
+    public operator fun div(other: Int): Int
+
+    @Intrinsic("int_rem")
+    public operator fun rem(other: Int): Int
+
+    @NoGC
+    @Intrinsic("int_compare_to")
+    public operator fun compareTo(other: Int): Long
+
+    @NoGC
+    @Intrinsic("int_and")
+    public infix fun and(other: Int): Int
+
+    @NoGC
+    @Intrinsic("int_or")
+    public infix fun or(other: Int): Int
+
+    @NoGC
+    @Intrinsic("int_xor")
+    public infix fun xor(other: Int): Int
+
+    @NoGC
+    @Intrinsic("int_inv")
+    public fun inv(): Int
+
+    @NoGC
+    @Intrinsic("int_shl")
+    public infix fun shl(count: Long): Int
+
+    @NoGC
+    @Intrinsic("int_shr")
+    public infix fun shr(count: Long): Int
+
+    @NoGC
+    @Intrinsic("int_ushr")
+    public infix fun ushr(count: Long): Int
+
+    @NoGC
+    @Intrinsic("int_to_int8")
+    public fun toInt8(): Int8
+
+    @NoGC
+    @Intrinsic("int_to_int16")
+    public fun toInt16(): Int16
+
+    @NoGC
+    @Intrinsic("int_to_int")
+    public fun toInt32(): Int
+
+    @NoGC
+    @Intrinsic("int_to_long")
+    public fun toInt64(): Long
+
+    @NoGC
+    @Intrinsic("int_to_uint8")
+    public fun toUInt8(): UInt8
+
+    @NoGC
+    @Intrinsic("int_to_uint16")
+    public fun toUInt16(): UInt16
+
+    @NoGC
+    @Intrinsic("int_to_uint")
+    public fun toUInt32(): UInt
+
+    @NoGC
+    @Intrinsic("int_to_ulong")
+    public fun toUInt64(): ULong
+
+    public operator fun rangeTo(endpoint: Int): IntRange =
+        IntRange(this, endpoint, 1, false, true)
+
+    public operator fun rangeUntil(endpoint: Int): IntRange =
+        IntRange(this, endpoint, 1, false, false)
+
+    public infix fun until(endpoint: Int): IntRange =
+        IntRange(this, endpoint, 1, false, false)
+
+    public infix fun downTo(endpoint: Int): IntRange =
+        IntRange(this, endpoint, 1, true, true)
+
+    public override fun toString(): String = coreLongToString(this.toInt64())
+
+    public override fun hash(): Long = coreLongHash(this.toInt64())
+}
+

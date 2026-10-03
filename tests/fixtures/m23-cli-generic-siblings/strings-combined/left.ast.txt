@@ -1,0 +1,26 @@
+SourceFile
+  QualifiedPackage sibling.left
+  ImportStar Local dependency.odr.*
+  public fun left(): String
+    =
+      FieldAccess label
+        Call Named<Int>
+          IntLiteral 20
+  public fun leftMethod(): String
+    =
+      MethodCall text
+        Call Named<Int>
+          IntLiteral 20
+  public fun leftExtension(): String
+    =
+      FieldAccess constantText
+        IntLiteral 20
+  public fun leftNested(): String
+    =
+      Call nestedConstant<Int>
+        IntLiteral 20
+  public fun forwarded<T>(value: T): String
+    =
+      MethodCall text
+        Call Named<T>
+          Var value

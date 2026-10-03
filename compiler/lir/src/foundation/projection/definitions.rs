@@ -109,6 +109,30 @@ impl CanonicalLirFoundation {
             )?;
         }
 
+        for (_, global) in module.globals.iter() {
+            if let crate::GlobalInit::RawStorage {
+                identity,
+                thread_local,
+                ..
+            } = &global.init
+            {
+                let storage = identity.identity_record().id();
+                let associated = if *thread_local {
+                    vec![(
+                        DefinitionAtomRole::AddressTakenConstant,
+                        DefinitionAtomSubkey::StaticStorage(storage),
+                    )]
+                } else {
+                    Vec::new()
+                };
+                writer.define(
+                    StrongDefinitionEntity::static_storage(storage),
+                    StrongDefinitionRole::StaticStorage,
+                    associated,
+                )?;
+            }
+        }
+
         let storage_semantics = crate::StrongStaticStorageSemanticPlanSetV1::from_module(module)
             .map_err(LirFoundationBuildError::StaticStorageSemantics)?;
         for storage in storage_semantics.storages() {

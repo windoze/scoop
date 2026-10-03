@@ -1,0 +1,54 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "default expression references a type outside the callable's complete call domain",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 82,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 76
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "default expression references a type outside the callable's complete call domain",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 97,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 85
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "default expression references a type outside the callable's complete call domain",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 97,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 85
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "default expression references a constructor outside the callable's complete call domain",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 97,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 85
+    },
+    "severity": "error"
+  }
+]

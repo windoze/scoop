@@ -1,0 +1,56 @@
+SourceFile
+  RootPackage
+  ImportExact Local consumer.ranges.result
+  ImportExact Local consumer.ranges.exercise
+  private class Later(val number: Int)
+  private fun readLater(value: Later): Int
+    =
+      FieldAccess number
+        Var value
+  private fun readInt(value: Int): Int
+    =
+      Var value
+  private fun readUnit(value: Unit): Int
+    =
+      IntLiteral 42
+  public fun check(): Int
+    val value
+      Call Later
+        Call result
+    if
+      Binary Ne
+        Call exercise<Later>
+          Var value
+          CallableReference 0 readLater
+        IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call exercise<Int>
+          IntLiteral 42
+          CallableReference 1 readInt
+        IntLiteral 42
+      return
+        IntLiteral 2
+    if
+      Binary Ne
+        Call exercise<Unit>
+          UnitLiteral
+          CallableReference 2 readUnit
+        IntLiteral 42
+      return
+        IntLiteral 3
+    val allocated
+      Call Later
+        IntLiteral 0
+    return
+      IfExpression
+        Binary Eq
+          FieldAccess number
+            Var allocated
+          IntLiteral 0
+        FieldAccess number
+          Var value
+        else
+        IntLiteral 4

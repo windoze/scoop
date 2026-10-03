@@ -1,9 +1,0 @@
-concrete class DeferredHolder/1
-concrete struct DeferredData/1
-mir ctor.DeferredData/1: NoGc
-mir init.DeferredHolder/2: Managed
-source class DeferredHolder/1
-source class DeferredHolder/2
-source class DeferredTypeOnly/0
-source struct DeferredData/1
-source struct DeferredData/2

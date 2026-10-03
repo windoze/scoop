@@ -26,7 +26,6 @@ pub(super) struct Provider<'a, 'p> {
 
 pub(super) fn check(
     name: &str,
-    fixtures: &Path,
     input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
     callables: &lir::SelectedExternalLirSet,
     shapes: &[(ConeIdentity, PersistentTypeId)],
@@ -112,15 +111,7 @@ pub(super) fn check(
             ))
             .count()
     );
-    snapshot(
-        &fixtures.join(format!("{name}.machine.mir.snap")),
-        &mir::dump(input.mir.module()),
-    );
-    snapshot(
-        &fixtures.join(format!("{name}.machine.lir.snap")),
-        &lir::dump(output.module()),
-    );
-    let (production, section, relations) = publication::check(
+    let (production, section) = publication::check(
         input,
         &output,
         &selected,
@@ -128,7 +119,6 @@ pub(super) fn check(
         publication_input,
         &coordinates,
     );
-    snapshot(&fixtures.join(format!("{name}.lir.snap")), &relations);
     if name == "combined" {
         assert!(
             !production
@@ -156,7 +146,6 @@ pub(super) fn check(
         artifact::Destination {
             directory: directory.path(),
             coordinate: &coordinate,
-            fixtures,
             name,
         },
     );

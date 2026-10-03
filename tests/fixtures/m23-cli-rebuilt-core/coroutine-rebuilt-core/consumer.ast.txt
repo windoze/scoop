@@ -1,0 +1,106 @@
+SourceFile
+  QualifiedPackage consumer.coroutines
+  private class Result<T>(), Continuation<T>
+    var value: T? =
+      Var None
+    var failure: Throwable? =
+      Var None
+    var calls: Int =
+      IntLiteral 0
+    public fun resume
+    public fun resumeWithException
+  private class Pending<T>()
+    var continuation: Continuation<T>? =
+      Var None
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val pending
+      Call Pending<T>
+    val result
+      Call Result<T>
+    Call startCoroutine
+      Lambda 1 suspend=true
+        parameters omitted
+        Call rebuiltAwait<T>
+          Lambda 0 suspend=false
+            param continuation: Continuation<T>
+            assign .continuation
+              Var pending
+              Call Some
+                Var continuation
+      Var result
+    if
+      Binary Ne
+        FieldAccess calls
+          Var result
+        IntLiteral 0
+      return
+        IntLiteral 2
+    MethodCall resume
+      NullAssert
+        FieldAccess continuation
+          Var pending
+      Var seed
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess calls
+            Var result
+          IntLiteral 1
+        Binary Ne
+          Call read
+            NullAssert
+              FieldAccess value
+                Var result
+          IntLiteral 42
+      return
+        IntLiteral 3
+    val failedPending
+      Call Pending<T>
+    val failed
+      Call Result<T>
+    Call startCoroutine
+      Lambda 3 suspend=true
+        parameters omitted
+        Call rebuiltAwait<T>
+          Lambda 2 suspend=false
+            param continuation: Continuation<T>
+            assign .continuation
+              Var failedPending
+              Call Some
+                Var continuation
+      Var failed
+    if
+      Binary Ne
+        FieldAccess calls
+          Var failed
+        IntLiteral 0
+      return
+        IntLiteral 4
+    MethodCall resumeWithException
+      NullAssert
+        FieldAccess continuation
+          Var failedPending
+      Call UnwrapException
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess calls
+            Var failed
+          IntLiteral 1
+        Unary Not
+          Is UnwrapException false
+            NullAssert
+              FieldAccess failure
+                Var failed
+      return
+        IntLiteral 5
+    return
+      Call read
+        Var seed
+  public fun result(): Int
+    =
+      Call exercise
+        IntLiteral 42
+        Lambda 4 suspend=false
+          param value: Int
+          Var value

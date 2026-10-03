@@ -1,0 +1,141 @@
+SourceFile
+  RootPackage
+  open class Animal(val name: String)
+  class Cat() : Animal(<1 args>)
+  class Dog() : Animal(<1 args>)
+  class RefBox<T>(val value: T)
+  struct ValueBox<T>
+    field value: T
+  enum Choice<T>
+    Item(T)
+    Empty
+  enum Switch
+    On
+    Off
+  fun returned(): Option<Animal>
+    =
+      Call Some
+        Call Cat
+  fun branched(flag: Boolean): Option<Animal>
+    =
+      IfExpression
+        Var flag
+        Call Some
+          Call Cat
+        else
+        Var None
+  fun selected(switch: Switch): Choice<Animal>
+    =
+      WhenExpression
+        Var switch
+        arm Switch.On()
+          MethodCall Item
+            Var Choice
+            Call Cat
+        arm Switch.Off()
+          FieldAccess Empty
+            Var Choice
+  fun recovered(): Option<Animal>
+    =
+      TryExpression
+        Call Some
+          Call Cat
+        catch e: UnwrapException
+          Var None
+  fun choose<T>(first: T, second: T): T
+    =
+      IfExpression
+        BoolLiteral true
+        Var first
+        else
+        Var second
+  fun main()
+    val option: Option<Animal>
+      Call Some
+        Call Cat
+    val reference: RefBox<Animal>
+      Call RefBox
+        Call Cat
+    val value: ValueBox<Animal>
+      Call ValueBox
+        Call Cat
+    val choice: Choice<Animal>
+      MethodCall Item
+        Var Choice
+        Call Cat
+    val referenceLUB
+      IfExpression
+        BoolLiteral true
+        Call RefBox
+          Call Cat
+        else
+        Call RefBox
+          Call Dog
+    val valueLUB
+      IfExpression
+        BoolLiteral false
+        Call ValueBox
+          Call Cat
+        else
+        Call ValueBox
+          Call Dog
+    val solverLUB
+      Call choose
+        Call RefBox
+          Call Cat
+        Call RefBox
+          Call Dog
+    Call println
+      FieldAccess name
+        NullAssert
+          Var option
+    Call println
+      FieldAccess name
+        FieldAccess value
+          Var reference
+    Call println
+      FieldAccess name
+        FieldAccess value
+          Var value
+    when
+      Var choice
+      arm Choice.Item(animal)
+        Call println
+          FieldAccess name
+            Var animal
+      arm Choice.Empty()
+        Call println
+          StringLiteral "empty"
+    Call println
+      FieldAccess name
+        NullAssert
+          Call returned
+    Call println
+      FieldAccess name
+        NullAssert
+          Call branched
+            BoolLiteral true
+    when
+      Call selected
+        FieldAccess On
+          Var Switch
+      arm Choice.Item(animal)
+        Call println
+          FieldAccess name
+            Var animal
+      arm Choice.Empty()
+        Call println
+          StringLiteral "empty"
+    Call println
+      FieldAccess name
+        NullAssert
+          Call recovered
+    Call println
+      Is RefBox<Cat> false
+        Var referenceLUB
+    Call println
+      Is ValueBox<Dog> false
+        Var valueLUB
+    Call println
+      Is RefBox<Cat> false
+        Var solverLUB

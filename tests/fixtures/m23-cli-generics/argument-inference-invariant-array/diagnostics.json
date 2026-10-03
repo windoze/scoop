@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `arrayOrSeed`: Base is not a subtype of Child",
+    "notes": [],
+    "origin": {
+      "cone": "a3cfd3f78c141e8e9cde3bcd47a38a596be767eec347745c407336880b88eb6c",
+      "end": 276,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 272
+    },
+    "severity": "error"
+  }
+]

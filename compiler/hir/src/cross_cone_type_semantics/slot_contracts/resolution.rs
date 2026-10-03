@@ -79,6 +79,10 @@ impl DecodedInheritanceSlotContractV1 {
         self,
         resolver: &mut R,
     ) -> Result<InheritanceSlotContractV1, InheritanceSlotResolutionError<E>> {
+        let role = self
+            .role
+            .resolve(resolver)
+            .map_err(InheritanceSlotResolutionError::Identity)?;
         let slot = resolver
             .resolve(self.slot)
             .map_err(InheritanceSlotResolutionError::Identity)?;
@@ -95,8 +99,15 @@ impl DecodedInheritanceSlotContractV1 {
             .declaration_access
             .resolve(resolver)
             .map_err(InheritanceSlotResolutionError::Source)?;
-        InheritanceSlotContractV1::try_new(slot, declaration, signature, implementation, access)
-            .map_err(InheritanceSlotResolutionError::Contract)
+        InheritanceSlotContractV1::try_new(
+            role,
+            slot,
+            declaration,
+            signature,
+            implementation,
+            access,
+        )
+        .map_err(InheritanceSlotResolutionError::Contract)
     }
 }
 

@@ -1,6 +1,5 @@
 use super::*;
 use std::collections::BTreeSet;
-use std::fmt::Write;
 
 pub(super) fn materializations(
     input: &scoop_mir::ConeMirInput,
@@ -96,12 +95,12 @@ pub(super) fn materializations(
     }
 }
 
-pub(super) fn projection(
+pub(super) fn role_count(
     input: &scoop_mir::ConeMirInput,
     records: &CanonicalParamFreeMirTypeExportsV1,
     count: usize,
-) -> String {
-    let mut rows = Vec::new();
+) {
+    let mut selected = 0;
     for root in input.materialization().shape_support() {
         let name = scoop_mir::type_name(input.module(), root.shape().ty());
         if !name.starts_with("Finite") {
@@ -111,34 +110,16 @@ pub(super) fn projection(
             let MirTypeOriginV1::GeneratedNominal { role, .. } = record.origin() else {
                 panic!("generated export")
             };
-            let (role, subject) = match role {
-                GeneratedNominalKey::BoxedValue { payload } => ("box", payload),
-                GeneratedNominalKey::CoroutineStep { result } => ("step", result),
-                GeneratedNominalKey::CoroutineSlot { value } => ("slot", value),
+            let subject = match role {
+                GeneratedNominalKey::BoxedValue { payload } => payload,
+                GeneratedNominalKey::CoroutineStep { result } => result,
+                GeneratedNominalKey::CoroutineSlot { value } => value,
                 _ => panic!("finite role"),
             };
-            if *subject != root.shape().exact() {
-                continue;
-            }
-            let mut row = format!("{name} {role}: {} {:?}\n", record.exact(), record.facts());
-            for field in record.representation().fields() {
-                writeln!(row, "  field {}: {}", field.field, field.value).unwrap();
-            }
-            for variant in record.representation().variants() {
-                writeln!(row, "  variant {} {:?}", variant.variant, variant.gc).unwrap();
-                for field in &variant.fields {
-                    writeln!(row, "    field {}: {}", field.field, field.value).unwrap();
-                }
-            }
-            for interface in &record.base_and_interfaces().interfaces {
-                writeln!(row, "  interface {interface}").unwrap();
-            }
-            rows.push(row);
+            selected += usize::from(*subject == root.shape().exact());
         }
     }
-    assert_eq!(rows.len(), count);
-    rows.sort();
-    rows.concat()
+    assert_eq!(selected, count);
 }
 
 pub(super) fn hidden_box(

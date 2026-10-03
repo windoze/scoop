@@ -1,0 +1,39 @@
+SourceFile
+  RootPackage
+  struct S
+    field v: Int
+  open class A(val n: Int)
+  class B(val m: Int) : A(<1 args>)
+  fun main()
+    val a: Any
+      Call S
+        IntLiteral 1
+    Call println
+      Is S false
+        Var a
+    Call println
+      Is Int false
+        Var a
+    val s
+      Cast S optional=false
+        Var a
+    Call println
+      FieldAccess v
+        Var s
+    val i
+      Cast Int optional=true
+        Var a
+    Call println
+      Binary Eq
+        Var i
+        Var None
+    val b: A
+      Call B
+        IntLiteral 2
+    Call println
+      Is B false
+        Var b
+    Call println
+      Binary RefEq
+        Var b
+        Var b

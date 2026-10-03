@@ -1,0 +1,60 @@
+SourceFile
+  QualifiedPackage consumer.enums
+  ImportStar Local upstream.enums.*
+  ImportExact Local upstream.enums.IntChoice as Renamed
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    =
+      Call score<T>
+        Call pack<T>
+          Var seed
+        Var read
+  public fun result(): Int
+    val left: IntChoice
+      MethodCall Named
+        Var Choice
+        Argument payload=
+          IntLiteral 40
+        Argument amount=
+          IntLiteral 2
+    val right: Renamed
+      MethodCall Named
+        Var Choice
+        Argument amount=
+          IntLiteral 2
+        Argument payload=
+          IntLiteral 40
+    if
+      Binary Ne
+        Var left
+        Var right
+      return
+        IntLiteral 1
+    if
+      Binary Eq
+        Var left
+        MethodCall Item
+          Var Choice
+          IntLiteral 40
+      return
+        IntLiteral 2
+    val score
+      WhenExpression
+        Var left
+        arm Renamed.Empty()
+          IntLiteral 3
+        arm Renamed.Item(payload)
+          Var payload
+        arm Renamed.Named{amount, payload}
+          Binary Add
+            Var payload
+            Var amount
+        arm Renamed.Defaults{payload, amount}
+          Binary Add
+            Var payload
+            Var amount
+    return
+      Call exercise<Int>
+        Var score
+        Lambda 0 suspend=false
+          param value: _
+          Var value

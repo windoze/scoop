@@ -1,0 +1,7 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.nativeAddresses.echo
+  public fun check(): Int
+    =
+      Call echo
+        IntLiteral 42

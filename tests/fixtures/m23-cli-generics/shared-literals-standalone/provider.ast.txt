@@ -1,0 +1,21 @@
+SourceFile
+  QualifiedPackage upstream.literals
+  public struct Tagged<T>
+    field enabled: Boolean
+    field label: String
+    field value: T
+  public fun inspect<T>(value: Tagged<T>, read: (T) -> Int): Int
+    =
+      WhenExpression
+        Var value
+        arm Tagged(true, "hit", item)
+          Call read
+            Var item
+        arm Tagged(false, _, _)
+          IntLiteral 0
+        else
+          Unary Neg
+            IntLiteral 1
+  public fun defaulted<T>(value: T, read: (T) -> Int, score: Int = <expr>): Int
+    =
+      Var score

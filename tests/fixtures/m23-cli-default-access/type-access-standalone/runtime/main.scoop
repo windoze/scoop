@@ -1,0 +1,6 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    verifyDefault(accessToken() == AccessToken())
+}

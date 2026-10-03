@@ -1,3 +1,0 @@
-span=167..180
-expression=left == right
-cannot derive `equals` for `Choice<Missing>`: field `Choice.Value._0` of type `Missing` has no applicable member operator `equals`

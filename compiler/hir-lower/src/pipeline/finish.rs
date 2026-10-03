@@ -340,6 +340,7 @@ impl Lowerer {
             anonymous_functions: self.anonymous_functions,
             local_functions: self.local_functions,
             callable_references: self.callable_references,
+            imported_derived_equalities: self.imported_derived_equalities,
             imported_dependency_callables: self.imported_dependency_callables,
             imported_constructor_templates: self.imported_constructor_templates.into_completed(),
             imported_generic_templates: self.imported_generic_templates.into_completed(),

@@ -24,7 +24,7 @@ fn reference_source_fields_preserve_private_storage_binders_and_declaration_orde
             table
                 .validate_declared_field_inventory(&foundation)
                 .unwrap();
-            let mut dump = Vec::new();
+            let mut declarations = std::collections::BTreeSet::new();
             for (class, declaration) in export.classes.iter() {
                 let identity = &export.nominal_identities[class];
                 let owner = if let Some(source) = identity.source() {
@@ -60,19 +60,30 @@ fn reference_source_fields_preserve_private_storage_binders_and_declaration_orde
                     assert!(fields.iter().all(|field| *field.value_type()
                         == scoop_identity::SignatureTypeKey::Binder { depth: 0, index: 0 }));
                 }
-                dump.push(format!(
-                    "{} {:?} binders={}\n{}",
-                    declaration.name,
-                    record.kind(),
-                    record.type_parameters().len_u32(),
-                    fields
-                        .iter()
-                        .map(|field| format!("  {} {:?}\n", field.field(), field.value_type()))
-                        .collect::<String>()
-                ));
+                let expected_kind = if identity.source().is_some() {
+                    hir::PublicNominalKindV1::Class
+                } else {
+                    hir::PublicNominalKindV1::Object
+                };
+                assert_eq!(record.kind(), expected_kind);
+                assert_eq!(
+                    record.type_parameters().len_u32() as usize,
+                    declaration.type_params.len()
+                );
+                declarations.insert(declaration.name.as_str());
             }
-            dump.sort();
-            assert_snapshot(case, &dump.concat());
+            let expected = if case == "standalone" {
+                vec![
+                    "FieldBase",
+                    "FieldBox",
+                    "FieldChild",
+                    "FieldPrivateOwner",
+                    "FieldSingleton",
+                ]
+            } else {
+                vec!["FieldCombined", "FieldCombinedSingleton"]
+            };
+            assert_eq!(declarations.into_iter().collect::<Vec<_>>(), expected);
             let bytes = encode(table).unwrap();
             let decoded: hir::DecodedCanonicalNominalInterfacesV1 =
                 decode_canonical(&bytes).unwrap();
@@ -97,14 +108,4 @@ fn reference_source_field_bytes_ignore_unrelated_arena_allocation() {
         project(STANDALONE),
         project(&format!("private class Unrelated {{}}\n{STANDALONE}"))
     );
-}
-
-fn assert_snapshot(case: &str, actual: &str) {
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
-        "../../tests/fixtures/m23-reference-source-fields/{case}.snap"
-    ));
-    if std::env::var_os("SCOOP_UPDATE_SOURCE_FIELDS_SNAPSHOTS").is_some() {
-        std::fs::write(&path, actual).unwrap();
-    }
-    assert_eq!(actual, std::fs::read_to_string(path).unwrap());
 }

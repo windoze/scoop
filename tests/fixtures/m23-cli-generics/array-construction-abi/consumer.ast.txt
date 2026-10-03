@@ -1,0 +1,170 @@
+SourceFile
+  QualifiedPackage consumer.arrayconstruction
+  ImportStar Local dependency.arrayconstruction.*
+  ImportExact Local dependency.arrayconstruction.exercise as providerExercise
+  private class Reference(val number: Int)
+  private struct Large
+    field first: Reference
+    field second: Reference
+    field third: Reference
+  private enum Payload<T>
+    Data <ctor>
+      value: T
+    Empty
+  private fun readLarge(value: Large): Int
+    =
+      Binary Add
+        Binary Add
+          FieldAccess number
+            FieldAccess first
+              Var value
+          FieldAccess number
+            FieldAccess second
+              Var value
+        FieldAccess number
+          FieldAccess third
+            Var value
+  private fun readPayload(value: Payload<Large>): Int
+    =
+      WhenExpression
+        Var value
+        arm Data(inner)
+          Call readLarge
+            Var inner
+        arm Empty
+          IntLiteral 0
+  private fun readUnit(value: Unit): Int
+    =
+      IntLiteral 42
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    =
+      Call providerExercise<T>
+        Var seed
+        Var read
+  public fun result(): Int
+    val large
+      Call Large
+        Call Reference
+          IntLiteral 10
+        Call Reference
+          IntLiteral 12
+        Call Reference
+          IntLiteral 20
+    if
+      Binary Ne
+        Call exercise<Large>
+          Var large
+          CallableReference 0 readLarge
+        IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call exercise<Payload<Large>>
+          MethodCall Data
+            Var Payload
+            Var large
+          CallableReference 1 readPayload
+        IntLiteral 42
+      return
+        IntLiteral 2
+    if
+      Binary Ne
+        Call exercise<Unit>
+          UnitLiteral
+          CallableReference 2 readUnit
+        IntLiteral 42
+      return
+        IntLiteral 3
+    val source: MutableArray<Large>
+      ArrayLiteral
+        Var large
+    val copied
+      Call Array
+        Var source
+    val original: Array<Large>
+      Call Array
+        Var source
+    assign []
+      Var source
+      IntLiteral 0L
+      Call Large
+        Call Reference
+          IntLiteral 1
+        Call Reference
+          IntLiteral 2
+        Call Reference
+          IntLiteral 3
+    if
+      Binary Or
+        Binary Ne
+          Call readLarge
+            Index
+              Var copied
+              IntLiteral 0L
+          IntLiteral 42
+        Binary Ne
+          Call readLarge
+            Index
+              Var original
+              IntLiteral 0L
+          IntLiteral 42
+      return
+        IntLiteral 4
+    if
+      Binary Or
+        Binary Ne
+          Call readLarge
+            Index
+              Var source
+              IntLiteral 0L
+          IntLiteral 6
+        Binary RefEq
+          Var copied
+          Var original
+      return
+        IntLiteral 5
+    val units: MutableArray<Unit>
+      ArrayLiteral
+        UnitLiteral
+        UnitLiteral
+    val emptyPayload
+      Call Array
+        Var units
+    val another
+      Call Array
+        Var units
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess size
+            Var emptyPayload
+          IntLiteral 2L
+        Binary RefEq
+          Var emptyPayload
+          Var another
+      return
+        IntLiteral 6
+    val nested: Array<Array<Large>>
+      ArrayLiteral
+        Var copied
+        Var original
+    val mutableNested
+      Call MutableArray
+        Var nested
+    val copyNested
+      Call Array
+        Var mutableNested
+    val allocation
+      Call Reference
+        IntLiteral 0
+    return
+      Binary Add
+        Call readLarge
+          Index
+            Index
+              Var copyNested
+              IntLiteral 1L
+            IntLiteral 0L
+        FieldAccess number
+          Var allocation

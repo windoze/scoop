@@ -94,7 +94,10 @@ pub(super) fn check(
                 Ok(())
             } else if instruction & 0x1f00_0000 == 0x1100_0000 {
                 if target.address(image)? != address {
-                    return Err(error("relaxed GOT use resolves to another owner"));
+                    return Err(error(format!(
+                        "relaxed GOT use at {place:#x} resolves to {address:#x}, expected {target:?} at {:#x}",
+                        target.address(image)?
+                    )));
                 }
                 Ok(())
             } else {

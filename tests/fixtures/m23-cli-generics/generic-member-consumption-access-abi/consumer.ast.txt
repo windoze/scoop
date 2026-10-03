@@ -1,0 +1,59 @@
+SourceFile
+  QualifiedPackage consumer.members
+  ImportStar Local templates.members.*
+  private class Reference(val value: Int)
+  private struct Large
+    field first: Reference
+    field second: Reference
+    field third: Reference
+  public class Derived<T>(value: T) : ProtectedMiddle<T>(<1 args>)
+    public fun replace
+  public fun result(): Int
+    val holder
+      Call Derived<Large>
+        Call Large
+          Call Reference
+            IntLiteral 10
+          Call Reference
+            IntLiteral 12
+          Call Reference
+            IntLiteral 20
+    val token
+      MethodCall replace
+        Call Derived<Unit>
+          UnitLiteral
+        UnitLiteral
+    val value
+      MethodCall replace
+        Var holder
+        Call Large
+          Call Reference
+            IntLiteral 1
+          Call Reference
+            IntLiteral 2
+          Call Reference
+            IntLiteral 3
+    val allocated
+      Call Reference
+        IntLiteral 0
+    return
+      Binary Add
+        Binary Add
+          Binary Add
+            FieldAccess value
+              FieldAccess first
+                Var value
+            FieldAccess value
+              FieldAccess second
+                Var value
+          FieldAccess value
+            FieldAccess third
+              Var value
+        FieldAccess value
+          Var allocated
+  public fun make<T>(value: T): T
+    =
+      MethodCall replace
+        Call Derived<T>
+          Var value
+        Var value

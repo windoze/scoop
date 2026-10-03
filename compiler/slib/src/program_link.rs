@@ -3,8 +3,11 @@ use crate::{BootstrapManifest, MergedOdrDefinitions, ReplayedLayoutLinkSymbolUse
 use scoop_identity::{ConeIdentity, ValidatedIdentityGraph};
 use scoop_lir as lir;
 
+mod error;
 mod graph;
 mod read;
+pub use error::ProgramLinkReadError;
+use error::error;
 pub use read::read_program_link_closure;
 
 pub struct ProgramLinkArtifact {
@@ -57,16 +60,4 @@ impl ProgramLinkClosure {
     pub fn odr_definitions(&self) -> &MergedOdrDefinitions {
         &self.odr
     }
-}
-
-#[derive(Debug)]
-pub struct ProgramLinkReadError(pub String);
-impl std::fmt::Display for ProgramLinkReadError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-impl std::error::Error for ProgramLinkReadError {}
-fn error(value: impl std::fmt::Display) -> ProgramLinkReadError {
-    ProgramLinkReadError(value.to_string())
 }

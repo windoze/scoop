@@ -1,0 +1,7 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val value = envelope()
+    verifyType(value.storageValue() !is String)
+    verifyType(Envelope.Cache.read() == 8 && Envelope.Cache === Envelope.Cache)
+}

@@ -110,15 +110,7 @@ impl ResolvedTargetProfile {
 
     /// Resolves the current host through the same closed registry.
     pub fn resolve_host() -> Result<Self, ToolchainError> {
-        let host = match (std::env::consts::ARCH, std::env::consts::OS) {
-            ("aarch64", "macos") => "aarch64-apple-darwin",
-            (arch, os) => {
-                return Err(ToolchainError(format!(
-                    "unsupported host {arch}-{os}; M23 supports only macOS/AArch64"
-                )));
-            }
-        };
-        Self::resolve(host)
+        Self::resolve(host_target_triple()?)
     }
 
     pub const fn id(&self) -> TargetProfileId {
@@ -152,6 +144,15 @@ impl ResolvedTargetProfile {
 
     pub const fn final_link(&self) -> &ValidatedFinalLinkProfile {
         &self.final_link
+    }
+}
+
+pub fn host_target_triple() -> Result<&'static str, ToolchainError> {
+    match (std::env::consts::ARCH, std::env::consts::OS) {
+        ("aarch64", "macos") => Ok("aarch64-apple-darwin"),
+        (arch, os) => Err(ToolchainError(format!(
+            "unsupported host {arch}-{os}; M23 supports only macOS/AArch64"
+        ))),
     }
 }
 

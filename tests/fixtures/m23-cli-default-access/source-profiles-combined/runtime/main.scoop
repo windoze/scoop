@@ -1,0 +1,11 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    verifyDefault(defaultChild().inherited() == 9)
+    val base: Base = defaultChild()
+    verifyDefault(base.inherited() == 9)
+    verifyDefault(defaultPublicStatic().exposed() == 9)
+    verifyDefault(defaultEnvelope<Int>().checkConfined() == 9)
+    verifyDefault(Envelope.Choice.Item(7) == Envelope.Choice.Item(7, 7))
+}

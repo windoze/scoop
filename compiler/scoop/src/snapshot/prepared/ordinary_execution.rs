@@ -15,6 +15,8 @@ use crate::{
     SingleConeCompilerRunner, SnapshotFileError, validate_child_success_artifact,
 };
 
+mod diagnostics;
+
 impl PreparedBuildGraph {
     /// Resolves one ordinary source node through the content-addressed cache
     /// or exactly one paired compiler child while the exclusive key lock is
@@ -36,7 +38,8 @@ impl PreparedBuildGraph {
             .compile_cache_key(identity, completed)
             .map_err(|source| OrdinarySourceExecutionError::CacheKey(Box::new(source)))?;
         let store = CompileCacheStoreV1::new(&self.context.cache_root);
-        {
+        let observed = self.is_observed(identity);
+        if !observed {
             let lock = store
                 .acquire_shared(key)
                 .map_err(OrdinarySourceExecutionError::CacheStore)?;
@@ -57,9 +60,12 @@ impl PreparedBuildGraph {
             .lookup(&lock)
             .map_err(OrdinarySourceExecutionError::CacheStore)?
         {
-            return self
+            let hit = self
                 .complete_cache_hit(identity, *entry, completed)
-                .map_err(OrdinarySourceExecutionError::CacheCompletion);
+                .map_err(OrdinarySourceExecutionError::CacheCompletion)?;
+            if !observed {
+                return Ok(hit);
+            }
         }
 
         let invocation = self
@@ -75,10 +81,37 @@ impl PreparedBuildGraph {
 
         let success = match response {
             ScoopcResponseEnvelopeV1::Success { result, .. } => result,
-            ScoopcResponseEnvelopeV1::Failure { diagnostics, .. } => {
+            ScoopcResponseEnvelopeV1::Failure {
+                mut diagnostics, ..
+            } => {
+                diagnostics::restore_artifact_locations(&mut diagnostics, completed)
+                    .map_err(OrdinarySourceExecutionError::DiagnosticPath)?;
                 return Err(OrdinarySourceExecutionError::ChildFailure(diagnostics));
             }
         };
+        self.finish_source_output(identity, completed, &invocation, &lock, &success)
+            .map_err(|source| {
+                if success.warnings().is_empty() {
+                    source
+                } else {
+                    OrdinarySourceExecutionError::ProducedOutput {
+                        source: Box::new(source),
+                        warnings: success.warnings().to_vec(),
+                    }
+                }
+            })
+    }
+
+    fn finish_source_output(
+        &self,
+        identity: ConeIdentity,
+        completed: &[&CompletedNode],
+        invocation: &super::model::child_request::ChildInvocationPlanV1,
+        lock: &crate::CompileCacheKeyLockV1,
+        success: &scoop_protocol::ScoopcSuccessV1,
+    ) -> Result<CompletedNode, OrdinarySourceExecutionError> {
+        let key = lock.key();
+        let store = CompileCacheStoreV1::new(&self.context.cache_root);
         self.staging
             .validate_completed_output(invocation.output_path())
             .map_err(OrdinarySourceExecutionError::OutputLayout)?;
@@ -95,9 +128,11 @@ impl PreparedBuildGraph {
             success.warnings().to_vec(),
         )
         .map_err(OrdinarySourceExecutionError::Completion)?;
-        validate_child_success_artifact(&success, completed_node.artifact())
+        validate_child_success_artifact(success, completed_node.artifact())
             .map_err(OrdinarySourceExecutionError::ChildResult)?;
 
+        self.publish_dumps(identity, success.emitted_dump_descriptors())
+            .map_err(OrdinarySourceExecutionError::Observation)?;
         let summary = completed_node.artifact().summary();
         let receipt = CacheReceiptV1::new(
             CacheReceiptBodyV1::new(
@@ -114,9 +149,12 @@ impl PreparedBuildGraph {
         )
         .map_err(OrdinarySourceExecutionError::ReceiptHash)?;
         completed_node.replace_warnings(receipt.body().structured_warnings().to_vec());
-        store
-            .publish(&lock, &output, &receipt)
+        let published = store
+            .publish(lock, &output, &receipt)
             .map_err(OrdinarySourceExecutionError::CacheStore)?;
+        let (crate::CompileCachePublishV1::Published(entry)
+        | crate::CompileCachePublishV1::ExistingEquivalent(entry)) = published;
+        completed_node.replace_artifact_locator(entry.artifact().source_locator().to_path_buf());
 
         Ok(completed_node)
     }
@@ -124,6 +162,11 @@ impl PreparedBuildGraph {
 
 #[derive(Debug)]
 pub enum OrdinarySourceExecutionError {
+    ProducedOutput {
+        source: Box<OrdinarySourceExecutionError>,
+        warnings: Vec<StructuredDiagnosticV1>,
+    },
+    Observation(std::io::Error),
     NotOrdinarySource(ConeIdentity),
     CacheKey(Box<CompileCacheKeyError>),
     CacheStore(CompileCacheStoreError),
@@ -132,6 +175,7 @@ pub enum OrdinarySourceExecutionError {
 
     ChildTransport(ChildTransportError),
     ChildFailure(Vec<StructuredDiagnosticV1>),
+    DiagnosticPath(scoop_protocol::HostPathError),
     OutputLayout(crate::StagingError),
     OutputSnapshot(SnapshotFileError),
     Completion(CompiledCompletionError),
@@ -143,6 +187,10 @@ pub enum OrdinarySourceExecutionError {
 impl fmt::Display for OrdinarySourceExecutionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::ProducedOutput { source, .. } => source.fmt(formatter),
+            Self::Observation(source) => {
+                write!(formatter, "cannot observe compiler stages: {source}")
+            }
             Self::NotOrdinarySource(identity) => {
                 write!(formatter, "Cone {identity} is not an ordinary source node")
             }
@@ -156,6 +204,10 @@ impl fmt::Display for OrdinarySourceExecutionError {
                 formatter,
                 "compiler child reported {} diagnostic(s)",
                 diagnostics.len()
+            ),
+            Self::DiagnosticPath(source) => write!(
+                formatter,
+                "cannot retain artifact diagnostic locator: {source}"
             ),
             Self::OutputLayout(source) => {
                 write!(formatter, "invalid private child output layout: {source}")
@@ -178,12 +230,15 @@ impl fmt::Display for OrdinarySourceExecutionError {
 impl std::error::Error for OrdinarySourceExecutionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::ProducedOutput { source, .. } => Some(source.as_ref()),
+            Self::Observation(source) => Some(source),
             Self::CacheKey(source) => Some(source.as_ref()),
             Self::CacheStore(source) => Some(source),
             Self::CacheCompletion(source) => Some(source),
             Self::RequestPlan(source) => Some(source),
 
             Self::ChildTransport(source) => Some(source),
+            Self::DiagnosticPath(source) => Some(source),
             Self::OutputLayout(source) => Some(source),
             Self::OutputSnapshot(source) => Some(source),
             Self::Completion(source) => Some(source),

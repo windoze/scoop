@@ -1,4 +1,4 @@
-; Symbols come from the completed provider and consumer artifacts.
+; Explicit fixture bindings come from the completed artifact callables.
 %Wide = type { i64, i64, i64 }
 %Nested = type { %Wide }
 @input = private constant %Wide { i64 17, i64 -29, i64 53 }, align 8
@@ -17,7 +17,7 @@ declare i64 @f17(ptr byval(%Wide) align 8)
 declare void @f18(ptr byval(%Nested) align 8)
 declare i64 @f19(ptr byval(%Wide) align 8)
 
-define i32 @main() {
+define i32 @m23_member_abi_check() {
 entry:
   %value = alloca %Wide, align 8
   call void @f7()

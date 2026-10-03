@@ -1,0 +1,5 @@
+fun main() {
+    if (declarationRead() != "storage") { throw IllegalStateException() }
+    declarationStorage = "changed"
+    if (declarationRead() != "changed") { throw IllegalStateException() }
+}

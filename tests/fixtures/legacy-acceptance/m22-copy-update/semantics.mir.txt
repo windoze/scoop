@@ -1,0 +1,597 @@
+Module
+  struct Point (x: Int, y: Int)
+  struct Stamped (value: Int, marker: String)
+  struct NamedEvent (code: Int, text: String)
+  struct ConstructorEvent (count: Int, label: String)
+  struct ManagedValue (token: Token)
+  class Token vtable=0 itables=0
+  interface ToString
+  interface Hash
+  fun traceInt @fn0(label: String, value: Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        Local label
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type Int
+        Local value
+  fun traceText @fn1(label: String, value: String) -> String
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        Local label
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type String
+        Local value
+  fun tracePoint @fn2(value: Point) -> Point
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type Point
+        Local value
+  fun defaultMarker @fn3() -> String
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type String
+        StringConst @str2
+  fun printNamed @fn4(value: NamedEvent) -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type NamedEvent
+          Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 1
+          Type NamedEvent
+          Local value
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun printConstructor @fn5(value: ConstructorEvent) -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type ConstructorEvent
+          Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 1
+          Type ConstructorEvent
+          Local value
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun main @fn6() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.x: Int
+        Type Int
+        Local $argument.0
+      val $parameter.y: Int
+        Type Int
+        Local $argument.1
+      call original: Point = @fn10 direct
+        Type Int
+        Local $parameter.x
+        Type Int
+        Local $parameter.y
+      val $argument.0: Point
+        Type Point
+        Local original
+      val $parameter.value: Point
+        Type Point
+        Local $argument.0
+      call $copy.base.0: Point = @fn2 direct
+        Type Point
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str3
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $copy.update.1: Int = @fn0 direct
+        Type String
+        Local $parameter.label
+        Type Int
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str4
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $copy.update.2: Int = @fn0 direct
+        Type String
+        Local $parameter.label
+        Type Int
+        Local $parameter.value
+      val changed: Point
+        Type Point
+        StructConstruct Point
+          Type Int
+          Local $copy.update.2
+          Type Int
+          Local $copy.update.1
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Point
+          Local original
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 1
+          Type Point
+          Local original
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Point
+          Local changed
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 1
+          Type Point
+          Local changed
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $parameter.marker: String = @fn3 direct
+      call stamped: Stamped = @fn11 direct
+        Type Int
+        Local $parameter.value
+        Type String
+        Local $parameter.marker
+      val $copy.base.3: Stamped
+        Type Stamped
+        Local stamped
+      val $copy.update.4: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val restamped: Stamped
+        Type Stamped
+        StructConstruct Stamped
+          Type Int
+          Local $copy.update.4
+          Type String
+          FieldAccess 1
+            Type Stamped
+            Local $copy.base.3
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 1
+          Type Stamped
+          Local stamped
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 1
+          Type Stamped
+          Local restamped
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $argument.1: String
+        Type String
+        StringConst @str5
+      val $parameter.code: Int
+        Type Int
+        Local $argument.0
+      val $parameter.text: String
+        Type String
+        Local $argument.1
+      call named: NamedEvent = @fn12 direct
+        Type Int
+        Local $parameter.code
+        Type String
+        Local $parameter.text
+      val $copy.base.5: NamedEvent
+        Type NamedEvent
+        Local named
+      val $argument.0: String
+        Type String
+        StringConst @str6
+      val $argument.1: String
+        Type String
+        StringConst @str7
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: String
+        Type String
+        Local $argument.1
+      call $copy.update.6: String = @fn1 direct
+        Type String
+        Local $parameter.label
+        Type String
+        Local $parameter.value
+      val namedChanged: NamedEvent
+        Type NamedEvent
+        StructConstruct NamedEvent
+          Type Int
+          FieldAccess 0
+            Type NamedEvent
+            Local $copy.base.5
+          Type String
+          Local $copy.update.6
+      val $argument.0: NamedEvent
+        Type NamedEvent
+        Local named
+      val $parameter.value: NamedEvent
+        Type NamedEvent
+        Local $argument.0
+      call @fn4 direct
+        Type NamedEvent
+        Local $parameter.value
+      val $argument.0: NamedEvent
+        Type NamedEvent
+        Local namedChanged
+      val $parameter.value: NamedEvent
+        Type NamedEvent
+        Local $argument.0
+      call @fn4 direct
+        Type NamedEvent
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $argument.1: String
+        Type String
+        StringConst @str8
+      val $parameter.count: Int
+        Type Int
+        Local $argument.0
+      val $parameter.label: String
+        Type String
+        Local $argument.1
+      call constructor: ConstructorEvent = @fn13 direct
+        Type Int
+        Local $parameter.count
+        Type String
+        Local $parameter.label
+      val $copy.base.7: ConstructorEvent
+        Type ConstructorEvent
+        Local constructor
+      val $argument.0: String
+        Type String
+        StringConst @str9
+      val $argument.1: String
+        Type String
+        StringConst @str10
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: String
+        Type String
+        Local $argument.1
+      call $copy.update.8: String = @fn1 direct
+        Type String
+        Local $parameter.label
+        Type String
+        Local $parameter.value
+      val constructorChanged: ConstructorEvent
+        Type ConstructorEvent
+        StructConstruct ConstructorEvent
+          Type Int
+          FieldAccess 0
+            Type ConstructorEvent
+            Local $copy.base.7
+          Type String
+          Local $copy.update.8
+      val $argument.0: ConstructorEvent
+        Type ConstructorEvent
+        Local constructor
+      val $parameter.value: ConstructorEvent
+        Type ConstructorEvent
+        Local $argument.0
+      call @fn5 direct
+        Type ConstructorEvent
+        Local $parameter.value
+      val $argument.0: ConstructorEvent
+        Type ConstructorEvent
+        Local constructorChanged
+      val $parameter.value: ConstructorEvent
+        Type ConstructorEvent
+        Local $argument.0
+      call @fn5 direct
+        Type ConstructorEvent
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str11
+      val $parameter.text: String
+        Type String
+        Local $argument.0
+      assign $new.1
+        Type Token
+        ClassAlloc Token
+      call @fn9 direct
+        Type Token
+        Local $new.1
+        Type String
+        Local $parameter.text
+      val $argument.0: Token
+        Type Token
+        Local $new.1
+      val $parameter.token: Token
+        Type Token
+        Local $argument.0
+      call managed: ManagedValue = @fn14 direct
+        Type Token
+        Local $parameter.token
+      val $copy.base.9: ManagedValue
+        Type ManagedValue
+        Local managed
+      val $argument.0: String
+        Type String
+        StringConst @str12
+      val $parameter.text: String
+        Type String
+        Local $argument.0
+      assign $new.2
+        Type Token
+        ClassAlloc Token
+      call @fn9 direct
+        Type Token
+        Local $new.2
+        Type String
+        Local $parameter.text
+      val $copy.update.10: Token
+        Type Token
+        Local $new.2
+      val managedChanged: ManagedValue
+        Type ManagedValue
+        StructConstruct ManagedValue
+          Type Token
+          Local $copy.update.10
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type Token
+          FieldAccess 0
+            Type ManagedValue
+            Local managed
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type Token
+          FieldAccess 0
+            Type ManagedValue
+            Local managedChanged
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun println @fn7(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str13
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn8(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str14
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun init.Token.$c0 @fn9(this: Token, text: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type Token
+        Local this
+        Type String
+        Local text
+      return
+  fun ctor.Point.$c0 @fn10(x: Int, y: Int) -> Point <no-gc>
+    bb0 entry
+      return
+        Type Point
+        StructInit Point
+          Type Int
+          Local x
+          Type Int
+          Local y
+  fun ctor.Stamped.$c1 @fn11(value: Int, marker: String) -> Stamped <no-gc>
+    bb0 entry
+      return
+        Type Stamped
+        StructInit Stamped
+          Type Int
+          Local value
+          Type String
+          Local marker
+  fun ctor.NamedEvent.$c2 @fn12(code: Int, text: String) -> NamedEvent <no-gc>
+    bb0 entry
+      return
+        Type NamedEvent
+        StructInit NamedEvent
+          Type Int
+          Local code
+          Type String
+          Local text
+  fun ctor.ConstructorEvent.$c3 @fn13(count: Int, label: String) -> ConstructorEvent <no-gc>
+    bb0 entry
+      return
+        Type ConstructorEvent
+        StructInit ConstructorEvent
+          Type Int
+          Local count
+          Type String
+          Local label
+  fun ctor.ManagedValue.$c4 @fn14(token: Token) -> ManagedValue <no-gc>
+    bb0 entry
+      return
+        Type ManagedValue
+        StructInit ManagedValue
+          Type Token
+          Local token
+  instance mi0 function=@fn7 <- println
+  instance mi1 function=@fn8 <- println
+  str @str0 "base"
+  str @str1 "default-marker"
+  str @str2 "marker"
+  str @str3 "rhs-y"
+  str @str4 "rhs-x"
+  str @str5 "old"
+  str @str6 "named-rhs"
+  str @str7 "new"
+  str @str8 "before"
+  str @str9 "constructor-rhs"
+  str @str10 "after"
+  str @str11 "managed-before"
+  str @str12 "managed-after"
+  str @str13 "\n"
+  str @str14 "\n"
+  output executable @fn6

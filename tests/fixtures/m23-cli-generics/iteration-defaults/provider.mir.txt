@@ -1,0 +1,50 @@
+Module
+  global0 sourceCalls: Int managed initial=encoded(Int:0x0)
+  global1 iteratorCalls: Int managed initial=encoded(Int:0x0)
+  global2 nextCalls: Int managed initial=encoded(Int:0x0)
+  fun resetCalls @fn0() -> Unit
+    bb0 entry
+      call @fn2 direct
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      call @fn4 direct
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      call @fn6 direct
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      return
+  fun $get$sourceCalls @fn1() -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        GlobalRead sourceCalls
+  fun $set$sourceCalls @fn2(value: Int) -> Unit <no-gc>
+    bb0 entry
+      global_assign sourceCalls
+        Type Int
+        Local value
+      return
+  fun $get$iteratorCalls @fn3() -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        GlobalRead iteratorCalls
+  fun $set$iteratorCalls @fn4(value: Int) -> Unit <no-gc>
+    bb0 entry
+      global_assign iteratorCalls
+        Type Int
+        Local value
+      return
+  fun $get$nextCalls @fn5() -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        GlobalRead nextCalls
+  fun $set$nextCalls @fn6(value: Int) -> Unit <no-gc>
+    bb0 entry
+      global_assign nextCalls
+        Type Int
+        Local value
+      return
+  output library

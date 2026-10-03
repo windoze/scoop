@@ -1,0 +1,75 @@
+SourceFile
+  RootPackage
+  ImportStar Local defaults.*
+  fun check(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call check
+      Call localCheck
+    val reader
+      Call Reader
+        IntLiteral 19
+    val view: Reading<Int>
+      Var reader
+    Call check
+      Binary And
+        Binary And
+          Binary Eq
+            FieldAccess fallback
+              Var reader
+            IntLiteral 19
+          Binary Eq
+            FieldAccess size
+              Var reader
+            IntLiteral 2
+        Binary Eq
+          FieldAccess fallback
+            Var view
+          IntLiteral 19
+    Call check
+      Binary Eq
+        FieldAccess fallback
+          Call Packet
+            StringLiteral "remote"
+        StringLiteral "remote"
+    val choice
+      MethodCall Item
+        Var Choice
+        IntLiteral 23
+    Call check
+      Binary And
+        Binary Eq
+          FieldAccess fallback
+            Var choice
+          IntLiteral 23
+        Binary Eq
+          FieldAccess size
+            Var choice
+          IntLiteral 1
+    Call check
+      Binary And
+        Binary Eq
+          FieldAccess size
+            Call Child
+          IntLiteral 3
+        Binary Eq
+          FieldAccess fallback
+            Var Singleton
+          IntLiteral 7
+    val store
+      Call Store
+    assign .value
+      Var store
+      IntLiteral 29
+    compound-assign Add
+      Var store
+      IntLiteral 2
+    Call check
+      Binary Eq
+        FieldAccess value
+          Var store
+        IntLiteral 31

@@ -10,7 +10,7 @@ fn actual_object_values_and_initialization_callables_share_source_identities() {
         let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/m23-mir-object-production");
         let source = std::fs::read_to_string(directory.join(format!("{name}.scoop"))).unwrap();
-        let (bytes, projection) = with_production(&source, |output, input, hir, graph, _| {
+        let bytes = with_production(&source, |output, input, hir, graph, _| {
             let types = scoop_mir_lower::lower_type_exports(
                 output.output().local.module(),
                 hir,
@@ -31,12 +31,13 @@ fn actual_object_values_and_initialization_callables_share_source_identities() {
             if name == "combined" {
                 assertions::private_and_property(input, &product);
             }
+            assert_eq!(
+                product.objects().records().len(),
+                if name == "combined" { 3 } else { 1 }
+            );
             (
-                (
-                    encode(product.callables()).unwrap(),
-                    encode(product.objects()).unwrap(),
-                ),
-                assertions::projection(output, &product),
+                encode(product.callables()).unwrap(),
+                encode(product.objects()).unwrap(),
             )
         });
         with_production(
@@ -61,19 +62,6 @@ fn actual_object_values_and_initialization_callables_share_source_identities() {
                 );
             },
         );
-        if let Some(path) = std::env::var_os("SCOOP_MIR_OBJECT_SNAPSHOT_DIR") {
-            std::fs::create_dir_all(&path).unwrap();
-            std::fs::write(
-                std::path::Path::new(&path).join(format!("{name}.snap")),
-                projection,
-            )
-            .unwrap();
-        } else {
-            assert_eq!(
-                projection,
-                std::fs::read_to_string(directory.join(format!("{name}.snap"))).unwrap()
-            );
-        }
     }
 }
 

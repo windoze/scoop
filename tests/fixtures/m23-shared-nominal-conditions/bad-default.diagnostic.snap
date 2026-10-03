@@ -1,3 +1,0 @@
-span=114..129
-expression=pack("managed")
-`@NoGC` struct specialization `Scalar<String>` is not GC-free because it directly or indirectly contains a ref type

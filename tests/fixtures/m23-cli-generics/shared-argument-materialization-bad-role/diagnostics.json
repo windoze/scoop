@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `invoke`: Ordinary is not a subtype of ExtensionCalculator<T>",
+    "notes": [],
+    "origin": {
+      "cone": "e8e2ad0d1d3cc432ea25cfc8c15c6178a43f6f7b33b86261c861ed96399dfd7b",
+      "end": 160,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 150
+    },
+    "severity": "error"
+  }
+]

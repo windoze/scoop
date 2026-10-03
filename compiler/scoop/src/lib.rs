@@ -5,6 +5,8 @@
 //! implementation pipeline.
 
 mod artifact;
+mod artifact_link;
+mod build;
 mod cache;
 mod child;
 mod compiler;
@@ -12,6 +14,7 @@ mod diagnostic;
 mod discovery;
 mod graph;
 mod locator;
+mod materialize;
 mod program_link;
 mod request;
 mod runtime_build;
@@ -19,6 +22,8 @@ mod schedule;
 mod snapshot;
 
 pub use artifact::*;
+pub use artifact_link::*;
+pub use build::*;
 pub use cache::*;
 pub use child::*;
 pub(crate) use child::{ChildIoPlan, ProductionSingleConeCompilerRunner, SingleConeCompilerRunner};

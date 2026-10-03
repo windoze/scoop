@@ -16,11 +16,6 @@ impl Collector<'_> {
         if let ExprKind::CallableCall { function_type, .. } = &expression.kind {
             self.function_type(*function_type)?;
         }
-        if let Some(ty) = expression.shared_representation_type(&self.module.types) {
-            // Fixed dynamic invokes publish every concrete signature operand,
-            // including private nominals nested inside tuple/function values.
-            self.shared_types.insert(ty);
-        }
         Ok(())
     }
 }

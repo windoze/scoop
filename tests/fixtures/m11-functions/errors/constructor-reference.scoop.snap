@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m11-functions/errors/constructor-reference.scoop:4:23: error: constructor reference `::Mapper` is not supported; construct the value in a lambda

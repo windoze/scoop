@@ -105,6 +105,9 @@ impl Lowerer {
             Type::Struct(_) | Type::Enum(_)
                 if self.dependency_nominal_application(ty).is_some() =>
             {
+                if let Some(target) = self.imported_derived_equality(ty) {
+                    return Ok(self.imported_equality_call(target, lhs, rhs, span));
+                }
                 let (_, arguments) = self
                     .dependency_nominal_application(ty)
                     .expect("an imported equality field retains its declaration");

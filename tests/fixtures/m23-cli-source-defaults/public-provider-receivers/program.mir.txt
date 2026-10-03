@@ -1,0 +1,470 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class ProviderChild vtable=1 itables=0
+  class ProviderBase vtable=1 itables=0
+  class ProviderApplied<Int> vtable=1 itables=0
+  class ProviderGeneric<(Int, Int)> vtable=1 itables=0
+  class ProviderApplied<String> vtable=1 itables=0
+  class ProviderGeneric<(String, String)> vtable=1 itables=0
+  class ProviderGeneric<String> vtable=1 itables=0
+  class Static vtable=0 itables=0
+  fun verifyDefault @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call $dependency.receiver: ProviderChild = external3 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.seed: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.parameter.seed
+      call $dependency.receiver: Int = external2 direct
+        Type ProviderChild
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.seed
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $call.1: ProviderChild = external3 direct
+      val base: ProviderBase
+        Type ProviderBase
+        Retype ProviderBase
+          Type ProviderChild
+          Local $call.1
+      val $dependency.receiver: ProviderBase
+        Type ProviderBase
+        Local base
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.seed: Int
+        Type Int
+        Local $dependency.argument.1
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = external1 virtual[0]
+        Type ProviderBase
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.seed
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.receiver: ProviderApplied<Int> = @fn7 direct
+      val $dependency.argument.0: (Int, Int)
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.seed: (Int, Int)
+        Type (Int, Int)
+        Local $dependency.argument.0
+      val $dependency.parameter.value: (Int, Int)
+        Type (Int, Int)
+        Local $dependency.parameter.seed
+      call $call.2: (Int, Int) = @fn3 direct
+        Type ProviderApplied<Int>
+        Local $dependency.receiver
+        Type (Int, Int)
+        Local $dependency.parameter.seed
+        Type (Int, Int)
+        Local $dependency.parameter.value
+      call $argument.0: Boolean = @fn8 direct
+        Type (Int, Int)
+        Local $call.2
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.receiver: ProviderApplied<String> = @fn9 direct
+      val $dependency.argument.0: (String, String)
+        Type (String, String)
+        TupleLiteral
+          Type String
+          StringConst @str1
+          Type String
+          StringConst @str2
+      val $dependency.parameter.seed: (String, String)
+        Type (String, String)
+        Local $dependency.argument.0
+      val $dependency.parameter.value: (String, String)
+        Type (String, String)
+        Local $dependency.parameter.seed
+      call $call.3: (String, String) = @fn5 direct
+        Type ProviderApplied<String>
+        Local $dependency.receiver
+        Type (String, String)
+        Local $dependency.parameter.seed
+        Type (String, String)
+        Local $dependency.parameter.value
+      call $argument.0: Boolean = @fn10 direct
+        Type (String, String)
+        Local $call.3
+        Type (String, String)
+        TupleLiteral
+          Type String
+          StringConst @str3
+          Type String
+          StringConst @str4
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.receiver: ProviderGeneric<String> = @fn11 direct
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str5
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.parameter.first: String
+        Type String
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Int
+        Type Int
+        Local $dependency.argument.1
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.parameter.second
+      call $dependency.receiver: Int = @fn12 direct
+        Type ProviderGeneric<String>
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.first
+        Type Int
+        Local $dependency.parameter.second
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.receiver: Static = external5 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.parameter.seed: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.parameter.seed
+      call $dependency.receiver: Int = @fn13 direct
+        Type Static
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.seed
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun pick @fn2(this: ProviderGeneric<(Int, Int)>, seed: (Int, Int), value: (Int, Int)) -> (Int, Int)
+    bb0 entry
+      return
+        Type (Int, Int)
+        Local value
+  fun pick @fn3(this: ProviderApplied<Int>, seed: (Int, Int), value: (Int, Int)) -> (Int, Int)
+    bb0 entry
+      return
+        Type (Int, Int)
+        Local value
+  fun pick @fn4(this: ProviderGeneric<(String, String)>, seed: (String, String), value: (String, String)) -> (String, String)
+    bb0 entry
+      return
+        Type (String, String)
+        Local value
+  fun pick @fn5(this: ProviderApplied<String>, seed: (String, String), value: (String, String)) -> (String, String)
+    bb0 entry
+      return
+        Type (String, String)
+        Local value
+  fun pick @fn6(this: ProviderGeneric<String>, seed: String, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun defaultProviderApplied @fn7() -> ProviderApplied<Int>
+    bb0 entry
+      assign $new.1
+        Type ProviderApplied<Int>
+        ClassAlloc ProviderApplied<Int>
+      call @fn14 direct
+        Type ProviderApplied<Int>
+        Local $new.1
+      return
+        Type ProviderApplied<Int>
+        Local $new.1
+  fun $derived.equals.0 @fn8(this: (Int, Int), other: (Int, Int)) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type (Int, Int)
+            Local this
+          Type Int
+          FieldAccess 0
+            Type (Int, Int)
+            Local other
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 1
+            Type (Int, Int)
+            Local this
+          Type Int
+          FieldAccess 1
+            Type (Int, Int)
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.1
+  fun defaultProviderApplied @fn9() -> ProviderApplied<String>
+    bb0 entry
+      assign $new.1
+        Type ProviderApplied<String>
+        ClassAlloc ProviderApplied<String>
+      call @fn15 direct
+        Type ProviderApplied<String>
+        Local $new.1
+      return
+        Type ProviderApplied<String>
+        Local $new.1
+  fun $derived.equals.1 @fn10(this: (String, String), other: (String, String)) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = external4 direct
+        Type String
+        FieldAccess 0
+          Type (String, String)
+          Local this
+        Type String
+        FieldAccess 0
+          Type (String, String)
+          Local other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 logic.rhs.1
+      call $call.3: Boolean = external4 direct
+        Type String
+        FieldAccess 1
+          Type (String, String)
+          Local this
+        Type String
+        FieldAccess 1
+          Type (String, String)
+          Local other
+      assign $logic.2
+        Type Boolean
+        Local $call.3
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.2
+  fun defaultProviderGeneric @fn11() -> ProviderGeneric<String>
+    bb0 entry
+      assign $new.1
+        Type ProviderGeneric<String>
+        ClassAlloc ProviderGeneric<String>
+      call @fn16 direct
+        Type ProviderGeneric<String>
+        Local $new.1
+      return
+        Type ProviderGeneric<String>
+        Local $new.1
+  fun copy @fn12(this: ProviderGeneric<String>, first: String, second: Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun copy @fn13(this: Static, seed: Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun init.ProviderApplied.$c0 @fn14(this: ProviderApplied<Int>) -> Unit
+    bb0 entry
+      call @fn17 direct
+        Type ProviderGeneric<(Int, Int)>
+        Retype ProviderGeneric<(Int, Int)>
+          Type ProviderApplied<Int>
+          Local this
+      return
+  fun init.ProviderApplied.$c0 @fn15(this: ProviderApplied<String>) -> Unit
+    bb0 entry
+      call @fn18 direct
+        Type ProviderGeneric<(String, String)>
+        Retype ProviderGeneric<(String, String)>
+          Type ProviderApplied<String>
+          Local this
+      return
+  fun init.ProviderGeneric.$c1 @fn16(this: ProviderGeneric<String>) -> Unit
+    bb0 entry
+      return
+  fun init.ProviderGeneric.$c1 @fn17(this: ProviderGeneric<(Int, Int)>) -> Unit
+    bb0 entry
+      return
+  fun init.ProviderGeneric.$c1 @fn18(this: ProviderGeneric<(String, String)>) -> Unit
+    bb0 entry
+      return
+  instance mi0 function=@fn2 <- pick
+  instance mi1 function=@fn3 <- pick
+  instance mi2 function=@fn4 <- pick
+  instance mi3 function=@fn5 <- pick
+  instance mi4 function=@fn6 <- pick
+  instance mi5 function=@fn7 <- defaultProviderApplied
+  instance mi6 function=@fn9 <- defaultProviderApplied
+  instance mi7 function=@fn11 <- defaultProviderGeneric
+  instance mi8 function=@fn12 <- copy
+  instance mi9 function=@fn13 <- copy
+  str @str0 "illegal state"
+  str @str1 "a"
+  str @str2 "b"
+  str @str3 "a"
+  str @str4 "b"
+  str @str5 "source"
+  output executable @fn1

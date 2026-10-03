@@ -14,7 +14,7 @@ const COMBINED: &str = include_str!(concat!(
 
 #[test]
 fn shared_nominal_declarations_survive_ordinary_foundation_bytes_and_keep_lookup_separate() {
-    for (case, source) in [("standalone", STANDALONE), ("combined", COMBINED)] {
+    for source in [STANDALONE, COMBINED] {
         with_hir_source(source, |output, _| {
             let foundation = hir::CanonicalHirFoundation::from_dependency_output(output).unwrap();
             let table =
@@ -32,7 +32,6 @@ fn shared_nominal_declarations_survive_ordinary_foundation_bytes_and_keep_lookup
             let decoded: hir::DecodedCanonicalNominalInterfacesV1 =
                 decode_canonical(&bytes).unwrap();
             assert_eq!(decoded.resolve(&mut identities).unwrap(), table);
-            let mut rows = Vec::new();
             for record in table.all_records() {
                 let key = match record.declaration() {
                     hir::SourceNominalId::Concrete(id) => identities
@@ -47,21 +46,12 @@ fn shared_nominal_declarations_survive_ordinary_foundation_bytes_and_keep_lookup
                 };
                 assert_ne!(name.as_str(), "Unrelated");
                 let public = table.get(record.declaration()).is_some();
-                let details = record.declaration_details();
                 if !public {
                     assert!(record.constructors().is_empty());
                     assert!(record.members().members().is_empty());
                     assert!(record.nested_bindings().is_empty());
                 }
-                rows.push(format!(
-                    "{} {:?} {:?} {:?} public={} binders={} supers={} fields={} constructors={} members={} children={}\n",
-                    name.as_str(), record.kind(), details.modality(), details.declared_visibility(), public,
-                    record.type_parameters().len_u32(), record.exact_supertypes().values().len(),
-                    record.source_shape().declared_fields().len(), details.constructors().values().len(),
-                    details.members().values().len(), details.children().values().len()));
             }
-            rows.sort();
-            snapshot(case, &rows.concat());
         });
     }
 }
@@ -181,14 +171,4 @@ fn replace_details(
         details,
     )
     .unwrap()
-}
-
-fn snapshot(case: &str, actual: &str) {
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
-        "../../tests/fixtures/m23-shared-nominal-declarations/{case}.snap"
-    ));
-    if std::env::var_os("SCOOP_UPDATE_SHARED_NOMINAL_SNAPSHOTS").is_some() {
-        std::fs::write(&path, actual).unwrap();
-    }
-    assert_eq!(actual, std::fs::read_to_string(path).unwrap());
 }

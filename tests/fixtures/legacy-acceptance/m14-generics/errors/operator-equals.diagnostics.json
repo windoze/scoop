@@ -1,0 +1,119 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`operator` requires a member or extension receiver",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 550,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 542
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown operator role `compare`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 32,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 24
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "operator `equals` must have exactly one parameter, found 2",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 126,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 120
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "operator `equals` must return Boolean, found Int",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 230,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 224
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "operator `equals` must not declare type parameters",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 314,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 308
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "operator `equals` must not be suspend",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 411,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 405
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `Plain` has no member operator `equals` for `==`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 650,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 634
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `Any` has no member operator `equals` for `==`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 700,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 684
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `println`: type argument `MerelyNamed` for `T` must satisfy upper bound `ToString`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 728,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 706
+    },
+    "severity": "error"
+  }
+]

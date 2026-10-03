@@ -1,3 +1,0 @@
-span=117..121
-expression=zero
-dependency function `zero`: Any is not a subtype of Receiver<T>

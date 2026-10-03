@@ -1,3 +1,0 @@
-span=88..99
-expression=Counter(21)
-cannot assign value of type Counter to property `value` of type Long

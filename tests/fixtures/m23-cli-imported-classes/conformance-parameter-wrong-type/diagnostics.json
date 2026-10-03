@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `Counter` in star import layer:\n  - no applicable candidate for `answer` in member candidate layer:\n  - fun LocalDefaults.answer(value: Long): Long — argument for `value` has type Token, which is not a subtype of Long\n  - no applicable candidate for `answer` in member candidate layer:\n  - fun LocalDefaults.answer(value: Long): Long — argument for `value` has type Token, which is not a subtype of Long",
+    "notes": [],
+    "origin": {
+      "cone": "7562c3d3169ae2557d8d1f157f8b44659e8bd15bb37904a073986dfe85066b10",
+      "end": 270,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 230
+    },
+    "severity": "error"
+  }
+]

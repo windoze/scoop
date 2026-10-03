@@ -1,0 +1,382 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Counter>
+    Some(_0: Counter)
+    None()
+  enum Option<Int>
+    Some(_0: Int)
+    None()
+  enum CoroutineStep<Counter>
+    Completed(value: Counter)
+    Suspended()
+  enum CoroutineSlot<Counter>
+    Empty()
+    Value(value: Counter)
+  class Counter vtable=0 itables=0
+  class Action vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Continuation<Counter>
+  interface SuspendTask<Counter>
+  interface SuspendRegistration<Counter>
+  generated_exact_type get0 location=enum4 nominal_id=9c8bd6ffaea0c4343727faa83c9fe48a57d7b6b1d2096c34955bbed561692a70 exact_id=1bdfa7cf1945711677de0d425a23b9c60fdd041e2be8e34fee386b0b65c67450
+  generated_exact_type get1 location=enum3 nominal_id=f17737fd9e41824ab69ae515cfdaf380e98a4c1b72f1b8ed3c466f29a12c3cb1 exact_id=8b792e8a1c35b64e3269fac3d27e3afd19be9ba5097a378a02f26817a4b22904
+  generated_callable gc0 function=@fn12 id=902a4d7f2eb27e43efc3d8066d0f140d4f8d97e97e409ffce4feb9e0c124206e
+  fun Action.invoke @fn0(this: Action, value: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Counter
+        ClassAlloc Counter
+      call @fn10 direct
+        Type Counter
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val counter: Counter
+        Type Counter
+        Local $new.1
+      val $receiver: Counter
+        Type Counter
+        Local counter
+      call $dependency.argument.0: Int = @fn2 direct
+        Type Counter
+        Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $receiver: Counter
+        Type Counter
+        Local counter
+      call @fn3 direct
+        Type Counter
+        Local $receiver
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $place.0: Counter
+        Type Counter
+        Local counter
+      val $receiver: Counter
+        Type Counter
+        Local $place.0
+      call $old.1: Int = @fn2 direct
+        Type Counter
+        Local $receiver
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Counter
+        Local $receiver
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $place.2: Counter
+        Type Counter
+        Local counter
+      val $receiver: Counter
+        Type Counter
+        Local $place.2
+      call $old.3: Int = @fn2 direct
+        Type Counter
+        Local $receiver
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.3
+      val $new.4: Int
+        Type Int
+        IntegerUnary increment kind=Int
+          Type Int
+          Local $dependency.receiver
+      call @fn3 direct
+        Type Counter
+        Local $receiver
+        Type Int
+        Local $new.4
+      val $dependency.argument.0: Int
+        Type Int
+        Local $old.3
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $receiver: Counter
+        Type Counter
+        Local counter
+      call $dependency.argument.0: Int = @fn2 direct
+        Type Counter
+        Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $receiver: Counter
+        Type Counter
+        Local counter
+      call $receiver: Action = @fn4 direct
+        Type Counter
+        Local $receiver
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn0 direct
+        Type Action
+        Local $receiver
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Counter
+        Type Counter
+        Local counter
+      val $dependency.parameter._1: Counter
+        Type Counter
+        Local $dependency.argument.0
+      val optional: Option<Counter>
+        Type Option<Counter>
+        VariantConstruct Option<Counter> v0
+          Type Counter
+          Local $dependency.parameter._1
+      val $opt.5: Option<Counter>
+        Type Option<Counter>
+        Local optional
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Counter> v0
+          Type Option<Counter>
+          Local $opt.5
+    bb1 if.then.1
+      val $receiver: Counter
+        Type Counter
+        VariantPayloadProject Option<Counter> v0 f0
+          Type Option<Counter>
+          Local $opt.5
+      call $call.2: Int = @fn2 direct
+        Type Counter
+        Local $receiver
+      val $res.6: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+          Type Int
+          Local $call.2
+      goto bb3
+    bb2 if.else.2
+      val $res.6: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+      goto bb3
+    bb3 if.merge.3
+      val $opt.1: Option<Int>
+        Type Option<Int>
+        Local $res.6
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $opt.1
+    bb4 if.then.4
+      val $uw.2: Int
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local $opt.1
+      goto bb6
+    bb5 if.else.5
+      assign $new.3
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external2 direct
+        Type UnwrapException
+        Local $new.3
+      throw
+        Type UnwrapException
+        Local $new.3
+    bb6 if.merge.6
+      val $dependency.argument.0: Int
+        Type Int
+        Local $uw.2
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun $extension.$get$current @fn2(this: Counter) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Counter
+          Local this
+  fun $extension.$set$current @fn3(this: Counter, next: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Counter
+        Local this
+        Type Int
+        Local next
+      return
+  fun $extension.$get$action @fn4(this: Counter) -> Action
+    bb0 entry
+      assign $new.1
+        Type Action
+        ClassAlloc Action
+      call @fn11 direct
+        Type Action
+        Local $new.1
+      return
+        Type Action
+        Local $new.1
+  fun println @fn5(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Continuation.resume @fn6(this: Continuation<Counter>, value: Counter) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn7(this: Continuation<Counter>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn8(this: SuspendTask<Counter>, $completion: Continuation<Counter>) -> CoroutineStep<Counter>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn9(this: SuspendRegistration<Counter>, continuation: Continuation<Counter>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Counter.$c0 @fn10(this: Counter, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Counter
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Action.$c1 @fn11(this: Action) -> Unit
+    bb0 entry
+      return
+  fun startCoroutine<Counter> @fn12(task: SuspendTask<Counter>, completion: Continuation<Counter>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn6 interface Continuation<Counter>[0]
+        Type Continuation<Counter>
+        Local completion
+        Type Counter
+        EnumField v0 f0
+          Type CoroutineStep<Counter>
+          Local $step
+      return
+    bb2 failed
+      call @fn7 interface Continuation<Counter>[1]
+        Type Continuation<Counter>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Counter> = @fn8 interface SuspendTask<Counter>[0]
+        Type SuspendTask<Counter>
+        Local task
+        Type Continuation<Counter>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Counter>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Counter> result=Counter
+  coroutine_slot cl0 CoroutineSlot<Counter> value=Counter
+  coroutine_start ct0 result=Counter function=fn12
+  coroutine_fn cf0 @fn8 source_return=Counter step=cs0 immediate
+  instance mi0 function=@fn5 <- println
+  instance mi1 function=@fn6 <- Continuation.resume
+  instance mi2 function=@fn7 <- Continuation.resumeWithException
+  instance mi3 function=@fn8 <- SuspendTask.run
+  instance mi4 function=@fn9 <- SuspendRegistration.register
+  str @str0 "\n"
+  output executable @fn1

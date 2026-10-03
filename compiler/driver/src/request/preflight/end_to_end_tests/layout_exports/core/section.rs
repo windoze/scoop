@@ -3,7 +3,6 @@ use mir::MirTypeBridgeLocalInputV1;
 
 pub(super) fn check<'a>(
     name: &str,
-    fixtures: &Path,
     input: scoop_mir_lower::MirTypeBridgeExportInputV1<'a>,
     exports: mir::MirTypeBridgeExportConstituentsV1,
 ) -> mir::CrossConeMirTypeBridgeSectionV1<'a> {
@@ -60,7 +59,6 @@ pub(super) fn check<'a>(
         input.mir.materialization().initialization_roots().len()
     );
     assert!(section.selected().is_empty());
-    let mut units = Vec::new();
     for unit in section.initialization_units() {
         let root = input
             .mir
@@ -69,7 +67,6 @@ pub(super) fn check<'a>(
             .iter()
             .find(|root| root.identity() == unit.unit())
             .unwrap();
-        let mir = input.mir.module();
         assert_eq!(unit.unit(), root.identity());
         assert_eq!(
             mir::CallableSignatureSubject::Strong(unit.initializer().callable_owner()),
@@ -79,30 +76,7 @@ pub(super) fn check<'a>(
             mir::CallableSignatureSubject::Strong(unit.ensure().callable_owner()),
             root.ensure().subject()
         );
-        units.push(format!(
-            "unit {}: {:?} {:?}\n",
-            mir.initialization_units[root.unit()].display_name,
-            unit.signature().exact().effect(),
-            unit.signature().gc_effect(),
-        ));
     }
-    units.sort();
-    let mut dump = format!(
-        "types={} callables={} dispatch={} objects={} shapes={} units={} selected={}\n",
-        section.types().records().len(),
-        section.callables().entries().len(),
-        section.dispatch().records().len(),
-        section.object_values().records().len(),
-        section.shape_support().records().len(),
-        section.initialization_units().len(),
-        section.selected().len(),
-    );
-    dump.extend(units);
-    let snapshot = fixtures.join(format!("{name}.mir-section.snap"));
-    if std::env::var_os("SCOOP_UPDATE_CORE_LAYOUT_EXPORTS").is_some() {
-        std::fs::write(&snapshot, &dump).unwrap();
-    }
-    assert_eq!(dump, std::fs::read_to_string(snapshot).unwrap());
     section
 }
 

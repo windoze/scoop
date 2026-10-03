@@ -1,0 +1,23 @@
+SourceFile
+  RootPackage
+  public struct Token
+  public open class Base()
+    public fun first
+    protected open val copy: Token <computed>
+      get()
+        Call Token
+    public fun second
+  public class Child() : Base(<0 args>)
+    public fun first
+    protected final override val copy: Token <computed>
+      get()
+        Call Token
+  public abstract class Again() : Base(<0 args>)
+    public fun first
+    protected abstract override val copy: Token <abstract>
+  public abstract class Inherited() : Again(<0 args>)
+  public object Unique
+    public fun first
+    public open override val copy: Token <computed>
+      get()
+        Call Token

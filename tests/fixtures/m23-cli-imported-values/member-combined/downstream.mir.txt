@@ -1,0 +1,94 @@
+Module
+  struct Token ()
+  struct Wide (first: Long, second: Long, third: Long)
+  fun token @fn0(value: Token) -> Token <no-gc>
+    bb0 entry
+      val $dependency.argument.0: Token
+        Type Token
+        Local value
+      val $dependency.parameter.value: Token
+        Type Token
+        Local $dependency.argument.0
+      call $dependency.receiver: Token = external0 direct
+        Type Token
+        Local $dependency.parameter.value
+      val $dependency.parameter.other: Token
+        Type Token
+        Local $dependency.receiver
+      call $call.1: Token = external1 direct
+        Type Token
+        Local $dependency.receiver
+        Type Token
+        Local $dependency.parameter.other
+      return
+        Type Token
+        Local $call.1
+  fun wide @fn1(value: Wide) -> Wide <no-gc>
+    bb0 entry
+      val $dependency.argument.0: Wide
+        Type Wide
+        Local value
+      val $dependency.parameter.value: Wide
+        Type Wide
+        Local $dependency.argument.0
+      call $dependency.receiver: Wide = external2 direct
+        Type Wide
+        Local $dependency.parameter.value
+      val $dependency.parameter.other: Wide
+        Type Wide
+        Local $dependency.receiver
+      call $call.1: Wide = external3 direct
+        Type Wide
+        Local $dependency.receiver
+        Type Wide
+        Local $dependency.parameter.other
+      return
+        Type Wide
+        Local $call.1
+  fun sum @fn2(value: Wide) -> Long <no-gc>
+    bb0 entry
+      val $dependency.argument.0: Wide
+        Type Wide
+        Local value
+      val $dependency.parameter.value: Wide
+        Type Wide
+        Local $dependency.argument.0
+      call $call.1: Long = external4 direct
+        Type Wide
+        Local $dependency.parameter.value
+      return
+        Type Long
+        Local $call.1
+  fun fromRepublished @fn3(value: Wide) -> Long <no-gc>
+    bb0 entry
+      val $dependency.argument.0: Wide
+        Type Wide
+        Local value
+      val $dependency.parameter.value: Wide
+        Type Wide
+        Local $dependency.argument.0
+      val $default.local.1: Wide
+        Type Wide
+        Local $dependency.parameter.value
+      val $default.local.2: Wide
+        Type Wide
+        Local $default.local.1
+      call $call.1: Wide = external3 direct
+        Type Wide
+        Local $default.local.1
+        Type Wide
+        Local $default.local.2
+      val $dependency.parameter.selected: Long
+        Type Long
+        FieldAccess 0
+          Type Wide
+          Local $call.1
+      call $call.2: Long = external5 direct
+        Type Wide
+        Local $dependency.parameter.value
+        Type Long
+        Local $dependency.parameter.selected
+      return
+        Type Long
+        Local $call.2
+  output library

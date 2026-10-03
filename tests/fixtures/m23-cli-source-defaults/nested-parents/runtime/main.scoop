@@ -1,0 +1,26 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun invokeChoice(value: NestedParentChoice): String = when (value) {
+    NestedParentChoice.First(callback) -> callback()
+    NestedParentChoice.Second(callback) -> callback()
+}
+
+fun main() {
+    val host = NestedParentHost()
+    verifyDefault(host.lambdaA()() == "first")
+    verifyDefault(host.lambdaB()() == "second")
+    verifyDefault(host.anonymousA()() == "first")
+    verifyDefault(host.anonymousB()() == "second")
+    verifyDefault(host.referenceA()() == "parent")
+    verifyDefault(host.referenceB()() == "parent")
+    verifyDefault(host.localA() == "first")
+    verifyDefault(host.localB() == "second")
+    verifyDefault(host.expanded() == "source")
+    verifyDefault(host.generic(11)() == 11)
+    verifyDefault(host.generic("generic")() == "generic")
+    verifyDefault(NestedParentConstructor().callback() == "constructor")
+    verifyDefault(NestedParentGeneric(13).callback() == 13)
+    verifyDefault(NestedParentGeneric("kept").callback() == "kept")
+    verifyDefault(invokeChoice(NestedParentChoice.First()) == "first")
+    verifyDefault(invokeChoice(NestedParentChoice.Second()) == "second")
+}

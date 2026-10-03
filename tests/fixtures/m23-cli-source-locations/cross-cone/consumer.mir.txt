@@ -1,0 +1,588 @@
+Module
+  struct SourceLocation (file: String, line: Long, column: Long, functionName: String, typeName: String)
+  class Reporter vtable=0 itables=0
+  class GenericReporter<String> vtable=0 itables=0
+  class box<SourceLocation> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn10 captures=0
+    bridge function_type1 -> @fn13 id=4525a398d45d100a31b38f7fab90497a68ab3eabe4c57176e7bd6485473accfe
+  closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn11 captures=0
+    bridge function_type1 -> @fn14 id=8ea2777dac845f970a08877c06d9156b011a9547e6d8c7e007a7c736eddaa382
+  generated_exact_type get0 location=closure0 nominal_id=d0409f224489fdfb5fd8bc4c3d07c489806071e44045716c9e7301229e47f4b7 exact_id=2b9f2eeffaf6351e0d866f5bb862268f0458e9725c5cd688ea2d205ecad74328
+  generated_exact_type get1 location=class2 nominal_id=cd3b5441540c9cd09bc8f5d9575f5c4094e1de010b3b80dc4cb542d1f60e1310 exact_id=5143b27543e675b1d27fe70ea91ad71e45f8c62f62f4e2cefa5b58a022da44a6
+  generated_exact_type get2 location=closure1 nominal_id=929f33073e29e93a09694087d1ca1cb14bfec8428f38006b3394e0af9461a2db exact_id=9ebcab15de8e05672ff944660c7338d9542e32b7dc4804adadfb5d654db6d593
+  generated_callable gc0 function=@fn13 id=4525a398d45d100a31b38f7fab90497a68ab3eabe4c57176e7bd6485473accfe
+  generated_callable gc1 function=@fn14 id=8ea2777dac845f970a08877c06d9156b011a9547e6d8c7e007a7c736eddaa382
+  fun show @fn0(label: String, location: SourceLocation) -> Unit
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        Local label
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type SourceLocation
+          Local location
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 1
+          Type SourceLocation
+          Local location
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 2
+          Type SourceLocation
+          Local location
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 3
+          Type SourceLocation
+          Local location
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 4
+          Type SourceLocation
+          Local location
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $argument.1: SourceLocation
+        Type SourceLocation
+        StructInit SourceLocation
+          Type String
+          StringConst @str1
+          Type Long
+          IntegerLiteral Long value=19 bits=0x0000000000000013
+          Type Long
+          IntegerLiteral Long value=16 bits=0x0000000000000010
+          Type String
+          StringConst @str2
+          Type String
+          StringConst @str3
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.location: SourceLocation
+        Type SourceLocation
+        Local $argument.1
+      call @fn0 direct
+        Type String
+        Local $parameter.label
+        Type SourceLocation
+        Local $parameter.location
+      val $argument.0: String
+        Type String
+        StringConst @str4
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.location: SourceLocation
+        Type SourceLocation
+        StructInit SourceLocation
+          Type String
+          StringConst @str5
+          Type Long
+          IntegerLiteral Long value=20 bits=0x0000000000000014
+          Type Long
+          IntegerLiteral Long value=21 bits=0x0000000000000015
+          Type String
+          StringConst @str6
+          Type String
+          StringConst @str7
+      call $argument.1: SourceLocation = @fn4 direct
+        Type Int
+        Local $dependency.parameter.value
+        Type SourceLocation
+        Local $dependency.parameter.location
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.location: SourceLocation
+        Type SourceLocation
+        Local $argument.1
+      call @fn0 direct
+        Type String
+        Local $parameter.label
+        Type SourceLocation
+        Local $parameter.location
+      val $argument.0: String
+        Type String
+        StringConst @str8
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $default.local.1: SourceLocation
+        Type SourceLocation
+        StructInit SourceLocation
+          Type String
+          StringConst @str9
+          Type Long
+          IntegerLiteral Long value=21 bits=0x0000000000000015
+          Type Long
+          IntegerLiteral Long value=23 bits=0x0000000000000017
+          Type String
+          StringConst @str10
+          Type String
+          StringConst @str11
+      call $dependency.parameter.location: SourceLocation = external0 direct
+        Type SourceLocation
+        Local $default.local.1
+      call $argument.1: SourceLocation = @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+        Type SourceLocation
+        Local $dependency.parameter.location
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.location: SourceLocation
+        Type SourceLocation
+        Local $argument.1
+      call @fn0 direct
+        Type String
+        Local $parameter.label
+        Type SourceLocation
+        Local $parameter.location
+      val $argument.0: String
+        Type String
+        StringConst @str12
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str13
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.1: SourceLocation = @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.location: SourceLocation
+        Type SourceLocation
+        Local $argument.1
+      call @fn0 direct
+        Type String
+        Local $parameter.label
+        Type SourceLocation
+        Local $parameter.location
+      assign $new.1
+        Type Reporter
+        ClassAlloc Reporter
+      call external1 direct
+        Type Reporter
+        Local $new.1
+      val reporter: Reporter
+        Type Reporter
+        Local $new.1
+      val $argument.0: String
+        Type String
+        StringConst @str14
+      val $dependency.receiver: Reporter
+        Type Reporter
+        Local reporter
+      call $argument.1: SourceLocation = external2 direct
+        Type Reporter
+        Local $dependency.receiver
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.location: SourceLocation
+        Type SourceLocation
+        Local $argument.1
+      call @fn0 direct
+        Type String
+        Local $parameter.label
+        Type SourceLocation
+        Local $parameter.location
+      val $argument.0: String
+        Type String
+        StringConst @str15
+      val $dependency.receiver: Reporter
+        Type Reporter
+        Local reporter
+      val $dependency.parameter.location: SourceLocation
+        Type SourceLocation
+        StructInit SourceLocation
+          Type String
+          StringConst @str16
+          Type Long
+          IntegerLiteral Long value=25 bits=0x0000000000000019
+          Type Long
+          IntegerLiteral Long value=28 bits=0x000000000000001c
+          Type String
+          StringConst @str17
+          Type String
+          StringConst @str18
+      call $argument.1: SourceLocation = external3 direct
+        Type Reporter
+        Local $dependency.receiver
+        Type SourceLocation
+        Local $dependency.parameter.location
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.location: SourceLocation
+        Type SourceLocation
+        Local $argument.1
+      call @fn0 direct
+        Type String
+        Local $parameter.label
+        Type SourceLocation
+        Local $parameter.location
+      val $argument.0: String
+        Type String
+        StringConst @str19
+      call $argument.1: SourceLocation = external4 direct
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.location: SourceLocation
+        Type SourceLocation
+        Local $argument.1
+      call @fn0 direct
+        Type String
+        Local $parameter.label
+        Type SourceLocation
+        Local $parameter.location
+      val $argument.0: String
+        Type String
+        StringConst @str20
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $argument.1: SourceLocation = @fn7 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.location: SourceLocation
+        Type SourceLocation
+        Local $argument.1
+      call @fn0 direct
+        Type String
+        Local $parameter.label
+        Type SourceLocation
+        Local $parameter.location
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str21
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      assign $new.2
+        Type GenericReporter<String>
+        ClassAlloc GenericReporter<String>
+      call @fn12 direct
+        Type GenericReporter<String>
+        Local $new.2
+        Type String
+        Local $dependency.parameter.value
+      val generic: GenericReporter<String>
+        Type GenericReporter<String>
+        Local $new.2
+      val $argument.0: String
+        Type String
+        StringConst @str22
+      val $dependency.receiver: GenericReporter<String>
+        Type GenericReporter<String>
+        Local generic
+      call $argument.1: SourceLocation = @fn8 direct
+        Type GenericReporter<String>
+        Local $dependency.receiver
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.location: SourceLocation
+        Type SourceLocation
+        Local $argument.1
+      call @fn0 direct
+        Type String
+        Local $parameter.label
+        Type SourceLocation
+        Local $parameter.location
+      val $argument.0: String
+        Type String
+        StringConst @str23
+      val $dependency.receiver: GenericReporter<String>
+        Type GenericReporter<String>
+        Local generic
+      call $call.3: () -> SourceLocation = @fn9 direct
+        Type GenericReporter<String>
+        Local $dependency.receiver
+      call $argument.1: SourceLocation = <closure:function_type0> closure[function_type0]
+        Type () -> SourceLocation
+        Local $call.3
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.location: SourceLocation
+        Type SourceLocation
+        Local $argument.1
+      call @fn0 direct
+        Type String
+        Local $parameter.label
+        Type SourceLocation
+        Local $parameter.location
+      return
+  fun println @fn2(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external6 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external7 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str24
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external7 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn3(value: Long) -> Unit
+    bb0 entry
+      val $dependency.local.1: Long
+        Type Long
+        Local value
+      call $dependency.local.2: String = external5 direct
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external7 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str25
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external7 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun defaultBody @fn4(value: Int, location: SourceLocation) -> SourceLocation
+    bb0 entry
+      return
+        Type SourceLocation
+        Local location
+  fun relay @fn5(value: Int, location: SourceLocation) -> SourceLocation
+    bb0 entry
+      return
+        Type SourceLocation
+        Local location
+  fun body @fn6(value: String) -> SourceLocation
+    bb0 entry
+      return
+        Type SourceLocation
+        StructInit SourceLocation
+          Type String
+          StringConst @str26
+          Type Long
+          IntegerLiteral Long value=5 bits=0x0000000000000005
+          Type Long
+          IntegerLiteral Long value=49 bits=0x0000000000000031
+          Type String
+          StringConst @str27
+          Type String
+          StringConst @str28
+  fun closureBody @fn7(value: Int) -> SourceLocation
+    bb0 entry
+      val $dependency.local.1: () -> SourceLocation
+        Type () -> SourceLocation
+        ClosureAlloc cc0 $Closure$lambda0
+      call $call.1: SourceLocation = <closure:function_type0> closure[function_type0]
+        Type () -> SourceLocation
+        Local $dependency.local.1
+      return
+        Type SourceLocation
+        Local $call.1
+  fun body @fn8(this: GenericReporter<String>) -> SourceLocation
+    bb0 entry
+      return
+        Type SourceLocation
+        StructInit SourceLocation
+          Type String
+          StringConst @str29
+          Type Long
+          IntegerLiteral Long value=21 bits=0x0000000000000015
+          Type Long
+          IntegerLiteral Long value=47 bits=0x000000000000002f
+          Type String
+          StringConst @str30
+          Type String
+          StringConst @str31
+  fun closure @fn9(this: GenericReporter<String>) -> () -> SourceLocation
+    bb0 entry
+      return
+        Type () -> SourceLocation
+        ClosureAlloc cc1 $Closure$lambda1
+  fun $lambda @fn10($argument.0: () -> SourceLocation) -> SourceLocation
+    bb0 entry
+      return
+        Type SourceLocation
+        StructInit SourceLocation
+          Type String
+          StringConst @str32
+          Type Long
+          IntegerLiteral Long value=16 bits=0x0000000000000010
+          Type Long
+          IntegerLiteral Long value=44 bits=0x000000000000002c
+          Type String
+          StringConst @str33
+          Type String
+          StringConst @str34
+  fun $lambda @fn11($argument.0: () -> SourceLocation) -> SourceLocation
+    bb0 entry
+      return
+        Type SourceLocation
+        StructInit SourceLocation
+          Type String
+          StringConst @str35
+          Type Long
+          IntegerLiteral Long value=23 bits=0x0000000000000017
+          Type Long
+          IntegerLiteral Long value=58 bits=0x000000000000003a
+          Type String
+          StringConst @str36
+          Type String
+          StringConst @str37
+  fun init.GenericReporter.$c0 @fn12(this: GenericReporter<String>, value: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type GenericReporter<String>
+        Local this
+        Type String
+        Local value
+      return
+  fun function_bridge.$Closure$lambda0.() -> Any @fn13($source: () -> SourceLocation) -> Any
+    bb0 entry
+      call $call.1: SourceLocation = <closure:function_type0> closure[function_type0]
+        Type () -> SourceLocation
+        Local $source
+      return
+        Type Any
+        Box
+          Type SourceLocation
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.() -> Any @fn14($source: () -> SourceLocation) -> Any
+    bb0 entry
+      call $call.1: SourceLocation = <closure:function_type0> closure[function_type0]
+        Type () -> SourceLocation
+        Local $source
+      return
+        Type Any
+        Box
+          Type SourceLocation
+          Local $call.1
+  instance mi0 function=@fn2 <- println
+  instance mi1 function=@fn3 <- println
+  instance mi2 function=@fn4 <- defaultBody
+  instance mi3 function=@fn5 <- relay
+  instance mi4 function=@fn6 <- body
+  instance mi5 function=@fn7 <- closureBody
+  instance mi6 function=@fn8 <- body
+  instance mi7 function=@fn9 <- closure
+  instance mi8 function=@fn10 <- $lambda
+  instance mi9 function=@fn11 <- $lambda
+  str @str0 "直接"
+  str @str1 "dev.locations:consumer:0.1.0/src/main.scoop"
+  str @str2 "main"
+  str @str3 ""
+  str @str4 "default"
+  str @str5 "dev.locations:consumer:0.1.0/src/main.scoop"
+  str @str6 "main"
+  str @str7 ""
+  str @str8 "forwarded"
+  str @str9 "dev.locations:consumer:0.1.0/src/main.scoop"
+  str @str10 "main"
+  str @str11 ""
+  str @str12 "generic-body"
+  str @str13 "value"
+  str @str14 "member-body"
+  str @str15 "member-default"
+  str @str16 "dev.locations:consumer:0.1.0/src/main.scoop"
+  str @str17 "main"
+  str @str18 ""
+  str @str19 "facade-body"
+  str @str20 "closure-body"
+  str @str21 "value"
+  str @str22 "generic-member"
+  str @str23 "member-closure"
+  str @str24 "\n"
+  str @str25 "\n"
+  str @str26 "dev.locations:provider:0.1.0/src/api.scoop"
+  str @str27 "body"
+  str @str28 ""
+  str @str29 "dev.locations:provider:0.1.0/src/api.scoop"
+  str @str30 "body"
+  str @str31 "GenericReporter"
+  str @str32 "dev.locations:provider:0.1.0/src/api.scoop"
+  str @str33 "<lambda>"
+  str @str34 ""
+  str @str35 "dev.locations:provider:0.1.0/src/api.scoop"
+  str @str36 "<lambda>"
+  str @str37 "GenericReporter"
+  output executable @fn1

@@ -1,0 +1,54 @@
+SourceFile
+  RootPackage
+  public struct FlowPair<T>
+    field first: T
+    field second: T
+  public struct FlowOther
+    field first: Int
+    field second: Int
+  public class FlowHost()
+    public fun check
+    internal fun scoped
+    protected fun loop
+    internal fun generic
+SourceFile
+  RootPackage
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val host
+      Call FlowHost
+    Call verifyDefault
+      Binary Eq
+        MethodCall scoped
+          Var host
+          IntLiteral 7
+        IntLiteral 7
+    Call verifyDefault
+      Binary Eq
+        MethodCall check
+          Var host
+          Call FlowPair
+            IntLiteral 11
+            IntLiteral 12
+        IntLiteral 11
+    Call verifyDefault
+      Binary Eq
+        MethodCall generic
+          Var host
+          Call FlowPair
+            StringLiteral "left"
+            StringLiteral "right"
+        StringLiteral "right"
+    Call verifyDefault
+      Binary Eq
+        MethodCall generic
+          Var host
+          Call FlowPair
+            IntLiteral 13
+            IntLiteral 14
+        IntLiteral 14

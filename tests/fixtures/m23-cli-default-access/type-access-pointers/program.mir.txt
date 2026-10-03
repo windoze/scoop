@@ -1,0 +1,276 @@
+Module
+  callback cb0 @fn1 -> @fn6 function_type0 id=0030b4c0d5697d8de10e2d4d3c545db3d16b5eb75aa3bf10b8c1e5d3b67a3cf8
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  generated_callable gc0 function=@fn6 id=0030b4c0d5697d8de10e2d4d3c545db3d16b5eb75aa3bf10b8c1e5d3b67a3cf8
+  fun verifyDefault @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun increment @fn1(value: Int) -> Int <no-gc>
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun main @fn2() -> Unit
+    bb0 entry
+      var value: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val callback: FunPtr<(Int) -> Int>
+        Type FunPtr<(Int) -> Int>
+        FunctionAddress cb0
+      val pointer: Ptr<Int>
+        Type Ptr<Int>
+        AddressOf value : Ptr<Int>
+      val $dependency.argument.0: Ptr<Int>
+        Type Ptr<Int>
+        Local pointer
+      val $dependency.parameter.pointer: Ptr<Int>
+        Type Ptr<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.copy: Ptr<Int>
+        Type Ptr<Int>
+        Local $dependency.parameter.pointer
+      call $dependency.receiver: Ptr<Int> = @fn3 direct
+        Type Ptr<Int>
+        Local $dependency.parameter.pointer
+        Type Ptr<Int>
+        Local $dependency.parameter.copy
+      val $dependency.receiver: Int
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Ptr<Int>
+        Type Ptr<Int>
+        Local pointer
+      val $dependency.parameter.pointer: Ptr<Int>
+        Type Ptr<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.copy: Ptr<Int>
+        Type Ptr<Int>
+        Local $dependency.parameter.pointer
+      call $dependency.receiver: Ptr<Int> = @fn3 direct
+        Type Ptr<Int>
+        Local $dependency.parameter.pointer
+        Type Ptr<Int>
+        Local $dependency.parameter.copy
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=13 bits=0x0000000d
+      val $dependency.argument.1: FunPtr<(Int) -> Int>
+        Type FunPtr<(Int) -> Int>
+        Local callback
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.pointer: FunPtr<(Int) -> Int>
+        Type FunPtr<(Int) -> Int>
+        Local $dependency.argument.1
+      val $dependency.parameter.copy: FunPtr<(Int) -> Int>
+        Type FunPtr<(Int) -> Int>
+        Local $dependency.parameter.pointer
+      call $dependency.receiver: Int = @fn4 direct
+        Type Int
+        Local $dependency.parameter.value
+        Type FunPtr<(Int) -> Int>
+        Local $dependency.parameter.pointer
+        Type FunPtr<(Int) -> Int>
+        Local $dependency.parameter.copy
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=13 bits=0x0000000d
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.argument.1: FunPtr<(Int) -> Int>
+        Type FunPtr<(Int) -> Int>
+        Local callback
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      val $dependency.parameter.pointer: FunPtr<(Int) -> Int>
+        Type FunPtr<(Int) -> Int>
+        Local $dependency.argument.1
+      val $dependency.parameter.copy: FunPtr<(Int) -> Int>
+        Type FunPtr<(Int) -> Int>
+        Local $dependency.parameter.pointer
+      call $dependency.receiver: String = @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+        Type FunPtr<(Int) -> Int>
+        Local $dependency.parameter.pointer
+        Type FunPtr<(Int) -> Int>
+        Local $dependency.parameter.copy
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external1 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun accessPointer @fn3(pointer: Ptr<Int>, copy: Ptr<Int>) -> Ptr<Int>
+    bb0 entry
+      return
+        Type Ptr<Int>
+        Local copy
+  fun accessFunctionPointer @fn4(value: Int, pointer: FunPtr<(Int) -> Int>, copy: FunPtr<(Int) -> Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun accessFunctionPointer @fn5(value: String, pointer: FunPtr<(Int) -> Int>, copy: FunPtr<(Int) -> Int>) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun callback bridge for increment @fn6($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Int = @fn1 direct
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $arg0
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $result
+        Type Int
+        Local $value
+      return
+  instance mi0 function=@fn3 <- accessPointer
+  instance mi1 function=@fn4 <- accessFunctionPointer
+  instance mi2 function=@fn5 <- accessFunctionPointer
+  str @str0 "illegal state"
+  str @str1 "pointer"
+  str @str2 "pointer"
+  output executable @fn2

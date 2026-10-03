@@ -1,0 +1,11 @@
+SourceFile
+  RootPackage
+  fun foreignCallback(value: Int): Int
+    =
+      Binary Add
+        Var value
+        IntLiteral 1
+  fun main()
+    Call println
+      Call foreignCallback
+        IntLiteral 41

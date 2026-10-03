@@ -108,6 +108,7 @@ fn signature(checked: CheckedSharedTypeFoundationV1<'_>, core: CheckedSharedType
         target.declaration_access().clone(),
     );
     let replacement = InheritanceSlotContractV1::try_new(
+        slot.role(),
         slot.slot(),
         slot.declaration(),
         changed(slot.signature()),

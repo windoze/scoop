@@ -139,7 +139,11 @@ pub(super) fn validate_native_contracts(
     scoop_wire::allocation::try_reserve_set(&mut seen, contracts.len(), &path)
         .map_err(LirFoundationValidationError::Resource)?;
     for contract in contracts {
-        if !sources.contains(&contract.source()) {
+        if !sources.contains(&contract.source())
+            && identities
+                .canonical_key::<_, SourceNativeExternalContractKey>(contract.source())
+                .is_err()
+        {
             return Err(NativeContractRelationError::UnexpectedRecord {
                 source: contract.source(),
             }

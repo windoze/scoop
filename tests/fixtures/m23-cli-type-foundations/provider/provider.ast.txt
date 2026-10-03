@@ -1,0 +1,7 @@
+SourceFile
+  QualifiedPackage dependency.types
+  public struct Empty
+  public struct Cell
+    field count: Int
+    field text: String
+  public class Ref(val cell: Cell)

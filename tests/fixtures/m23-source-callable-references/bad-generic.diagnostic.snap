@@ -1,4 +1,0 @@
-span=80..90
-expression=::identity
-no applicable candidate for callable reference `::identity` in dependency top-level candidate layer:
-  - fun identity<T>(value: T): T — generic callable references require an expected function type

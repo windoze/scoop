@@ -1,0 +1,25 @@
+Module
+  struct Flag (enabled: Boolean)
+  fun read @fn0() -> Boolean
+    bb0 entry
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.parameter.enabled: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call $dependency.argument.0: Flag = external0 direct
+        Type Boolean
+        Local $dependency.parameter.enabled
+      val $dependency.parameter.value: Flag
+        Type Flag
+        Local $dependency.argument.0
+      call $call.1: Flag = external1 direct
+        Type Flag
+        Local $dependency.parameter.value
+      return
+        Type Boolean
+        FieldAccess 0
+          Type Flag
+          Local $call.1
+  output library

@@ -1,0 +1,15 @@
+[
+  {
+    "severity": "error",
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "integer literal `2` is not representable as UInt8; primitive integer operands require one exact type; convert this operand explicitly with `toUInt8()`",
+    "origin": {
+      "kind": "source",
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "path": "main.scoop",
+      "start": 59,
+      "end": 60
+    },
+    "notes": []
+  }
+]

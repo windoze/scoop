@@ -1,0 +1,307 @@
+Module
+  global0 runtimeValue: Int managed initial=zeroed-for-runtime-unit
+  global1 otherValue: Int managed initial=zeroed-for-runtime-unit
+  global2 imageValue: Int managed initial=encoded(Int:0x4)
+  global3 imageMutable: Int managed initial=encoded(Int:0x5)
+  global4 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  global5 $init$failure$1: Any managed initial=zeroed-for-runtime-unit
+  init0 top-level:runtimeValue eager global0 initializer=@fn11 ensure=@fn12 failure=4 deps=[]
+  init1 top-level:otherValue eager global1 initializer=@fn15 ensure=@fn16 failure=5 deps=[]
+  fun seedValue @fn0() -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+  fun $extension.receiverAnswer @fn1(this: String) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+  fun receiverDefault @fn2(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun relayAny @fn3(value: Any) -> Any
+    bb0 entry
+      return
+        Type Any
+        Local value
+  fun $extension.acceptAny @fn4(this: Any) -> Any
+    bb0 entry
+      return
+        Type Any
+        Local this
+  fun anyDefault @fn5(value: Any) -> Any
+    bb0 entry
+      return
+        Type Any
+        Local value
+  fun $get$computedValue @fn6() -> Int
+    bb0 entry
+      call $call.1: Int = @fn13 direct
+      return
+        Type Int
+        Local $call.1
+  fun $extension.$get$receiverScore @fn7(this: String) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+  fun $extension.$set$receiverScore @fn8(this: String, value: Int) -> Unit
+    bb0 entry
+      return
+  fun $extension.$get$anyValue @fn9(this: Any) -> Any
+    bb0 entry
+      return
+        Type Any
+        Local this
+  fun $extension.$set$anyValue @fn10(this: Any, value: Any) -> Unit
+    bb0 entry
+      return
+  fun $init$body$0 @fn11() -> Unit
+    bb0 entry
+      call $call.1: Int = @fn0 direct
+      global_assign runtimeValue
+        Type Int
+        Local $call.1
+      return
+  fun $init$ensure$0 @fn12() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:runtimeValue
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn11 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:runtimeValue
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:runtimeValue
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:runtimeValue
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:runtimeValue
+      call external0 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun $get$runtimeValue @fn13() -> Int
+    bb0 entry
+      call @fn12 direct
+      return
+        Type Int
+        GlobalRead runtimeValue
+  fun $set$runtimeValue @fn14(value: Int) -> Unit
+    bb0 entry
+      call @fn12 direct
+      global_assign runtimeValue
+        Type Int
+        Local value
+      return
+  fun $init$body$1 @fn15() -> Unit
+    bb0 entry
+      call $call.1: Int = @fn0 direct
+      global_assign otherValue
+        Type Int
+        Local $call.1
+      return
+  fun $init$ensure$1 @fn16() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 top-level:otherValue
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn15 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 top-level:otherValue
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 top-level:otherValue
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 top-level:otherValue
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 top-level:otherValue
+      call external0 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun $get$otherValue @fn17() -> Int
+    bb0 entry
+      call @fn16 direct
+      return
+        Type Int
+        GlobalRead otherValue
+  fun $get$imageValue @fn18() -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        GlobalRead imageValue
+  fun $get$imageMutable @fn19() -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        GlobalRead imageMutable
+  fun $set$imageMutable @fn20(value: Int) -> Unit <no-gc>
+    bb0 entry
+      global_assign imageMutable
+        Type Int
+        Local value
+      return
+  output library

@@ -1,0 +1,13 @@
+SourceFile
+  RootPackage
+  struct S
+    field v: Int
+  fun main()
+    val a: Any
+      Call S
+        IntLiteral 1
+    val i
+      Cast Int optional=false
+        Var a
+    Call println
+      Var i

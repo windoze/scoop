@@ -1,0 +1,15 @@
+package suspended
+
+public interface Source {
+    public suspend fun read(value: Int): Int
+    public suspend fun defaulted(value: Int): Int = read(value) + 2
+}
+public open class Worker public constructor() : Source {
+    protected suspend fun hidden(value: Int): Int = value + 1
+    public open override suspend fun read(value: Int): Int = hidden(value)
+}
+public class Child public constructor() : Worker() {
+    public final override suspend fun read(value: Int): Int = hidden(value) + 3
+}
+public fun source(): Source = Worker()
+public fun child(): Worker = Child()

@@ -1,0 +1,75 @@
+Module
+  class MutableDelegate vtable=0 itables=0
+  class Ordinary vtable=0 itables=0
+  interface ToString
+  interface Hash
+  fun MutableDelegate.getValue @fn0(this: MutableDelegate, thisRef: Unit) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type MutableDelegate
+          Local this
+  fun MutableDelegate.setValue @fn1(this: MutableDelegate, thisRef: Unit, next: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type MutableDelegate
+        Local this
+        Type Int
+        Local next
+      return
+  fun Ordinary.getValue @fn2(this: Ordinary, thisRef: Unit) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+  fun main @fn3() -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun println @fn4(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun init.MutableDelegate.$c1 @fn5(this: MutableDelegate, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type MutableDelegate
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Ordinary.$c2 @fn6(this: Ordinary) -> Unit
+    bb0 entry
+      return
+  instance mi0 function=@fn4 <- println
+  str @str0 "\n"
+  output executable @fn3

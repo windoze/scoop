@@ -1,0 +1,15 @@
+Module
+  struct ReadyEmpty ()
+  class DeferredRoot vtable=0 itables=1
+  interface DeferredGeneric<Int>
+  fun pass @fn0(value: DeferredRoot) -> DeferredRoot
+    bb0 entry
+      return
+        Type DeferredRoot
+        Local value
+  fun passValue @fn1(value: ReadyEmpty) -> ReadyEmpty
+    bb0 entry
+      return
+        Type ReadyEmpty
+        Local value
+  output library

@@ -1,0 +1,11 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  public fun primary(): Counter
+    val value: RebuiltReadable
+      Call RebuiltValueReader
+        IntLiteral 21
+    return
+      Call Counter
+        MethodCall read
+          Var value

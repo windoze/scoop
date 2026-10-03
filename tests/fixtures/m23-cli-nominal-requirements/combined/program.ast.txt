@@ -1,0 +1,83 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val factory
+      Call Factory
+        StringLiteral "factory"
+    val child
+      Call Child
+        StringLiteral "child"
+    Call verifyType
+      Binary And
+        Binary Eq
+          MethodCall evaluate
+            Var factory
+          IntLiteral 1
+        Binary Eq
+          MethodCall evaluate
+            Var child
+          IntLiteral 1
+    assign .count
+      Var factory
+      IntLiteral 99
+    val root: Root
+      Var child
+    assign .count
+      Var root
+      IntLiteral 13
+    Call verifyType
+      Binary And
+        Binary Eq
+          FieldAccess count
+            Var factory
+          IntLiteral 2
+        Binary Eq
+          FieldAccess count
+            Var root
+          IntLiteral 2
+    Call verifyType
+      Binary Eq
+        MethodCall observe
+          Var factory
+        TupleLiteral
+          IntLiteral 7
+          StringLiteral "protected"
+    Call verifyType
+      Binary Eq
+        MethodCall ordinary
+          Var factory
+          BoolLiteral true
+        StringLiteral "ordinary"
+    val value: Readable
+      Call Value
+        IntLiteral 17
+    Call verifyType
+      Binary And
+        Binary Eq
+          MethodCall evaluate
+            Var value
+          IntLiteral 4
+        Binary Eq
+          MethodCall evaluate
+            Call FinalReader
+          IntLiteral 5
+    Call verifyType
+      Binary Eq
+        FieldAccess value
+          Call Generic
+            StringLiteral "value"
+        StringLiteral "value"
+    val storage
+      Call deferred
+    Call verifyType
+      Binary RefEq
+        FieldAccess root
+          Var storage
+        FieldAccess root
+          Var storage

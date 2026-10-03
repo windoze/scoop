@@ -1,0 +1,719 @@
+Module
+  callback cb0 @fn11 -> @fn12 function_type0 id=3d4be98856a95e8518ae7e7922290ae119f1e8a16796880ba86b547e1cc78c48
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  generated_callable gc0 function=@fn12 id=3d4be98856a95e8518ae7e7922290ae119f1e8a16796880ba86b547e1cc78c48
+  fun main @fn0() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.receiver: Long = @fn1 direct
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=4294967301 bits=0x0000000100000005
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call $dependency.receiver: Int = @fn2 direct
+        Type Long
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb5 if.else.5
+      val $argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=3 bits=0x00000003
+      val $parameter.value: UInt
+        Type UInt
+        Local $argument.0
+      call $dependency.receiver: UInt = @fn3 direct
+        Type UInt
+        Local $parameter.value
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=12 bits=0x0000000c
+      val $dependency.parameter.other: UInt
+        Type UInt
+        Local $dependency.argument.0
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=UInt result=Boolean
+            Type UInt
+            Local $dependency.receiver
+            Type UInt
+            Local $dependency.parameter.other
+      goto bb6
+    bb6 if.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $shortCircuit.1
+    bb7 if.then.7
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb8 if.merge.8
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.receiver: Long = @fn4 direct
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb9 bb10
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            Local $dependency.parameter.other
+    bb9 if.then.9
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb11
+    bb10 if.else.10
+      call $dependency.receiver: Long = @fn5 direct
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            Local $dependency.parameter.other
+      goto bb11
+    bb11 if.merge.11
+      branch bb12 bb13
+        Type Boolean
+        Local $shortCircuit.2
+    bb12 if.then.12
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb14
+    bb13 if.else.13
+      call $dependency.receiver: Int8 = @fn6 direct
+      val $dependency.argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=-126 bits=0x82
+      val $dependency.parameter.other: Int8
+        Type Int8
+        Local $dependency.argument.0
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int8 result=Boolean
+            Type Int8
+            Local $dependency.receiver
+            Type Int8
+            Local $dependency.parameter.other
+      goto bb14
+    bb14 if.merge.14
+      branch bb15 bb16
+        Type Boolean
+        Local $shortCircuit.3
+    bb15 if.then.15
+      val $default.local.0: String
+        Type String
+        StringConst @str1
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.2
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.2
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.2
+    bb16 if.merge.16
+      val $argument.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call $call.3: Boolean = @fn7 direct
+        Type Boolean
+        Local $parameter.value
+      branch bb17 bb18
+        Type Boolean
+        Local $call.3
+    bb17 if.then.17
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb19
+    bb18 if.else.18
+      val $argument.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call $dependency.receiver: Boolean = @fn7 direct
+        Type Boolean
+        Local $parameter.value
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+      goto bb19
+    bb19 if.merge.19
+      branch bb20 bb21
+        Type Boolean
+        Local $shortCircuit.4
+    bb20 if.then.20
+      val $shortCircuit.5: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb22
+    bb21 if.else.21
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.receiver: Boolean = @fn8 direct
+        Type Int
+        Local $parameter.value
+      val $shortCircuit.5: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+      goto bb22
+    bb22 if.merge.22
+      branch bb23 bb24
+        Type Boolean
+        Local $shortCircuit.5
+    bb23 if.then.23
+      val $shortCircuit.6: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb25
+    bb24 if.else.24
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $shortCircuit.6: Boolean = @fn8 direct
+        Type Int
+        Local $parameter.value
+      goto bb25
+    bb25 if.merge.25
+      branch bb26 bb27
+        Type Boolean
+        Local $shortCircuit.6
+    bb26 if.then.26
+      val $default.local.0: String
+        Type String
+        StringConst @str2
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.4
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.4
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.4
+    bb27 if.merge.27
+      val $argument.0: String
+        Type String
+        StringConst @str3
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call $dependency.receiver: String = @fn9 direct
+        Type String
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str4
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.5: Boolean = external1 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      branch bb28 bb29
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.5
+    bb28 if.then.28
+      val $shortCircuit.7: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb30
+    bb29 if.else.29
+      val $argument.0: String
+        Type String
+        StringConst @str5
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call $dependency.receiver: Long = @fn10 direct
+        Type String
+        Local $parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $shortCircuit.7: Boolean
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            Local $dependency.parameter.other
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb30
+    bb30 if.merge.30
+      branch bb31 bb32
+        Type Boolean
+        Local $shortCircuit.7
+    bb31 if.then.31
+      val $shortCircuit.8: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb33
+    bb32 if.else.32
+      val $argument.0: String
+        Type String
+        StringConst @str6
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call $dependency.receiver: Long = @fn10 direct
+        Type String
+        Local $parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $shortCircuit.8: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            Local $dependency.parameter.other
+      goto bb33
+    bb33 if.merge.33
+      branch bb34 bb35
+        Type Boolean
+        Local $shortCircuit.8
+    bb34 if.then.34
+      val $shortCircuit.9: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb36
+    bb35 if.else.35
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.receiver: Int = @fn11 direct
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.9: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb36
+    bb36 if.merge.36
+      branch bb37 bb38
+        Type Boolean
+        Local $shortCircuit.9
+    bb37 if.then.37
+      val $default.local.0: String
+        Type String
+        StringConst @str7
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.6
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.6
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.6
+    bb38 if.merge.38
+      return
+  fun compare @fn1(value: Int) -> Long
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerCompareTo operands=Int result=Long
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun convert @fn2(value: Long) -> Int
+    bb0 entry
+      val $dependency.receiver: Long
+        Type Long
+        Local value
+      return
+        Type Int
+        IntegerConversion Long -> Int
+          Type Long
+          Local $dependency.receiver
+  fun shift @fn3(value: UInt) -> UInt
+    bb0 entry
+      val $dependency.receiver: UInt
+        Type UInt
+        Local value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.parameter.count: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type UInt
+        IntegerShift left value=UInt count=UInt
+          Type UInt
+          Local $dependency.receiver
+          Type UInt
+          IntegerConversion Long -> UInt
+            Type Long
+            IntegerBinary bit-and kind=Long
+              Type Long
+              Local $dependency.parameter.count
+              Type Long
+              IntegerLiteral Long value=31 bits=0x000000000000001f
+  fun combined @fn4(value: Int) -> Long
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.receiver: Int
+        Type Int
+        IntegerUnary increment kind=Int
+          Type Int
+          Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerCompareTo operands=Int result=Long
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun inferred @fn5() -> Long
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerCompareTo operands=Int result=Long
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun narrow @fn6() -> Int8
+    bb0 entry
+      val $dependency.receiver: Int8
+        Type Int8
+        IntegerLiteral Int8 value=120 bits=0x78
+      val $dependency.argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=10 bits=0x0a
+      val $dependency.parameter.other: Int8
+        Type Int8
+        Local $dependency.argument.0
+      return
+        Type Int8
+        IntegerBinary add kind=Int8
+          Type Int8
+          Local $dependency.receiver
+          Type Int8
+          Local $dependency.parameter.other
+  fun negate @fn7(value: Boolean) -> Boolean
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      return
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+  fun equality @fn8(value: Int) -> Boolean
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun concatenate @fn9(value: String) -> String
+    bb0 entry
+      val $dependency.receiver: String
+        Type String
+        Local value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str8
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      return
+        Type String
+        Local $call.1
+  fun order @fn10(value: String) -> Long
+    bb0 entry
+      val $dependency.receiver: String
+        Type String
+        Local value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str9
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: Long = @scoop_rt_string_compare direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      return
+        Type Long
+        Local $call.1
+  fun pure @fn11(value: Int) -> Int <no-gc>
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      return
+        Type Int
+        IntegerUnary increment kind=Int
+          Type Int
+          Local $dependency.receiver
+  fun callback bridge for pure @fn12($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Int = @fn11 direct
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $arg0
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $result
+        Type Int
+        Local $value
+      return
+  str @str0 "illegal state"
+  str @str1 "illegal state"
+  str @str2 "illegal state"
+  str @str3 "core"
+  str @str4 "core!"
+  str @str5 "a"
+  str @str6 "z"
+  str @str7 "illegal state"
+  str @str8 "!"
+  str @str9 "z"
+  output executable @fn0

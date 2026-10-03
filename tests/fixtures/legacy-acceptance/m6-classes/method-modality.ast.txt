@@ -1,0 +1,34 @@
+SourceFile
+  RootPackage
+  open class Base()
+    fun dynamic
+    fun fixed
+    fun closedLater
+  open class Middle() : Base(<0 args>)
+    fun dynamic
+    fun closedLater
+  class Leaf() : Middle(<0 args>)
+    fun dynamic
+  fun main()
+    val base: Base
+      Call Leaf
+    Call println
+      MethodCall dynamic
+        Var base
+    Call println
+      MethodCall fixed
+        Var base
+    Call println
+      MethodCall closedLater
+        Var base
+    val leaf
+      Call Leaf
+    Call println
+      MethodCall dynamic
+        Var leaf
+    Call println
+      MethodCall fixed
+        Var leaf
+    Call println
+      MethodCall closedLater
+        Var leaf

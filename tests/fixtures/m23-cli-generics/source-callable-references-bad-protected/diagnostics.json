@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `Protected<Int>` has no method `read`",
+    "notes": [],
+    "origin": {
+      "cone": "1f03b14415f2b4b034ffb0c90fac16a000993ef1ce74765ee5a5e966b1ba79f0",
+      "end": 112,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 108
+    },
+    "severity": "error"
+  }
+]

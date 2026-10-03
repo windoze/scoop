@@ -1,0 +1,19 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class UnwrapException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  fun main @fn0() -> Unit
+    bb0 entry
+      assign $new.1
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external0 direct
+        Type UnwrapException
+        Local $new.1
+      throw
+        Type UnwrapException
+        Local $new.1
+  output executable @fn0

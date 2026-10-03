@@ -2,6 +2,7 @@ use super::*;
 mod abstract_methods;
 mod imported;
 mod interfaces;
+mod order;
 mod overrides;
 mod properties;
 mod signatures;
@@ -32,33 +33,46 @@ impl Lowerer {
                 source.description(),
             );
         }
-        for (id, _) in self.interfaces.clone().iter() {
-            self.current_file = self.interface_files[&id];
-            self.current_owner = Some(Owner::Interface(id));
-            self.check_owner_properties(Owner::Interface(id));
-        }
-        for &(id, _, file_index) in pending_classes {
-            self.current_file = file_index;
-            self.current_owner = Some(Owner::Class(id));
-            self.check_owner_properties(Owner::Class(id));
-        }
-        for &(id, _, file_index) in pending_objects {
-            self.current_file = file_index;
-            self.current_owner = Some(Owner::Object(id));
-            self.check_owner_properties(Owner::Object(id));
-        }
-        for &(id, _, file_index) in pending_structs {
-            self.current_file = file_index;
-            self.current_owner = Some(Owner::Struct(id));
-            self.check_owner_properties(Owner::Struct(id));
-        }
-        for &(id, _, file_index) in pending_enums {
-            self.current_file = file_index;
-            self.current_owner = Some(Owner::Enum(id));
-            self.check_owner_properties(Owner::Enum(id));
+        let owners = self
+            .interfaces
+            .iter()
+            .map(|(id, _)| (Owner::Interface(id), self.interface_files[&id]))
+            .chain(
+                pending_classes
+                    .iter()
+                    .map(|&(id, _, file)| (Owner::Class(id), file)),
+            )
+            .chain(
+                pending_objects
+                    .iter()
+                    .map(|&(id, _, file)| (Owner::Object(id), file)),
+            )
+            .chain(
+                pending_structs
+                    .iter()
+                    .map(|&(id, _, file)| (Owner::Struct(id), file)),
+            )
+            .chain(
+                pending_enums
+                    .iter()
+                    .map(|&(id, _, file)| (Owner::Enum(id), file)),
+            )
+            .collect::<Vec<_>>();
+        let owners = self.source_inheritance_order(owners);
+        let order = owners
+            .iter()
+            .enumerate()
+            .map(|(index, &(owner, _))| (owner, index))
+            .collect::<std::collections::HashMap<_, _>>();
+        for &(owner, file) in &owners {
+            self.current_file = file;
+            self.current_owner = Some(owner);
+            self.check_owner_properties(owner);
         }
         self.current_owner = None;
-        for source in self.property_accessor_sources.clone() {
+        let mut accessors = self.property_accessor_sources.clone();
+        accessors.sort_by_key(|source| source.owner.map(|owner| order[&owner]));
+        for source in accessors {
             let Some(owner) = source.owner else {
                 continue;
             };
@@ -85,7 +99,9 @@ impl Lowerer {
             self.check_override_rules(source.function, &declaration, owner);
         }
         self.current_owner = None;
-        for &(id, decl, file_index, owner) in pending_methods {
+        let mut methods = pending_methods.to_vec();
+        methods.sort_by_key(|&(_, _, _, owner)| order[&owner]);
+        for (id, decl, file_index, owner) in methods {
             self.current_file = file_index;
             self.current_owner = Some(owner);
             self.check_member_access_contract(id, decl, owner);

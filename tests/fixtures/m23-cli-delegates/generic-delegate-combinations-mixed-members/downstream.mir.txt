@@ -1,0 +1,580 @@
+Module
+  global0 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:inheritedSpecific$delegate: LocalBroad<Later> managed initial=zeroed-for-runtime-unit
+  global1 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:localSpecific$delegate: LocalSpecific<Later> managed initial=zeroed-for-runtime-unit
+  global2 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  global3 $init$failure$1: Any managed initial=zeroed-for-runtime-unit
+  init0 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:inheritedSpecific generic-delegate lazy global0 initializer=@fn5 ensure=@fn6 failure=2 deps=[]
+  init1 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:localSpecific generic-delegate lazy global1 initializer=@fn8 ensure=@fn9 failure=3 deps=[]
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Later>
+    Completed(value: Later)
+    Suspended()
+  enum CoroutineSlot<Later>
+    Empty()
+    Value(value: Later)
+  class Later vtable=0 itables=0
+  class Receiver<Later> vtable=0 itables=0
+  class Payload vtable=0 itables=0
+  class LocalBroad<Later> vtable=0 itables=0
+  class SpecificBase<Later> vtable=0 itables=0
+  class LocalSpecific<Later> vtable=0 itables=0
+  class BroadBase vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<Later>
+  interface SuspendTask<Later>
+  interface SuspendRegistration<Later>
+  generated_exact_type get0 location=enum2 nominal_id=caad0651980a283f49314136161a1b9007d3660e1b4c29e2581b696e3ea42357 exact_id=ded057e4907c2749718df04ffd930ed65cd619abc6f204b32e7b2185e0616c81
+  generated_exact_type get1 location=enum1 nominal_id=9193df55a593591b64158746c99f122ab5b96ce7cb74276f860ca1c2f55c9c0b exact_id=fad7058cfc46f878510d22ff0451bfdd4abae4acf091f9de96b5efc3cd18d738
+  generated_callable gc0 function=@fn19 id=16b32b09049726b85a499e6ecf767802834fea003ecdee59c53fc1f09c71de29
+  fun check @fn0() -> Int
+    bb0 entry
+      call $dependency.receiver: Int = external0 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Later
+        ClassAlloc Later
+      call @fn14 direct
+        Type Later
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val value: Later
+        Type Later
+        Local $new.1
+      val $dependency.argument.0: Later
+        Type Later
+        Local value
+      val $dependency.parameter.value: Later
+        Type Later
+        Local $dependency.argument.0
+      call answer: Int = @fn1 direct
+        Type Later
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Later
+        ClassAlloc Later
+      call @fn14 direct
+        Type Later
+        Local $new.2
+        Type Int
+        Local $parameter.value
+      val allocated: Later
+        Type Later
+        Local $new.2
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb3 if.then.3
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local allocated
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb5
+    bb4 if.else.4
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb5
+    bb5 if.merge.5
+      branch bb6 bb7
+        Type Boolean
+        Local $shortCircuit.0
+    bb6 if.then.6
+      assign $result.1
+        Type Int
+        Local answer
+      goto bb8
+    bb7 if.else.7
+      assign $result.1
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      goto bb8
+    bb8 if.merge.8
+      return
+        Type Int
+        Local $result.1
+  fun exercise @fn1(value: Later) -> Int
+    bb0 entry
+      val $dependency.local.3: Later
+        Type Later
+        Local value
+      val $dependency.local.4: Later
+        Type Later
+        Local $dependency.local.3
+      assign $new.1
+        Type Receiver<Later>
+        ClassAlloc Receiver<Later>
+      call @fn15 direct
+        Type Receiver<Later>
+        Local $new.1
+        Type Later
+        Local $dependency.local.4
+      val $dependency.local.1: Receiver<Later>
+        Type Receiver<Later>
+        Local $new.1
+      val $dependency.local.5: Receiver<Later>
+        Type Receiver<Later>
+        Local $dependency.local.1
+      call $dependency.local.2: Int = @fn2 direct
+        Type Receiver<Later>
+        Local $dependency.local.5
+      val $dependency.local.6: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.7: Int
+        Type Int
+        Local $dependency.local.6
+      assign $new.2
+        Type Payload
+        ClassAlloc Payload
+      call external1 direct
+        Type Payload
+        Local $new.2
+        Type Int
+        Local $dependency.local.7
+      Type Payload
+      Local $new.2
+      val $dependency.local.9: Int
+        Type Int
+        Local $dependency.local.2
+      val $dependency.local.8: Receiver<Later>
+        Type Receiver<Later>
+        Local $dependency.local.1
+      call $dependency.local.10: Int = @fn3 direct
+        Type Receiver<Later>
+        Local $dependency.local.8
+      val $dependency.local.11: Int
+        Type Int
+        Local $dependency.local.10
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.9
+          Type Int
+          Local $dependency.local.11
+  fun $extension.inheritedSpecific @fn2(this: Receiver<Later>) -> Int
+    bb0 entry
+      call @fn6 direct
+      call $call.1: Int = @fn4 direct
+        Type SpecificBase<Later>
+        Retype SpecificBase<Later>
+          Type LocalBroad<Later>
+          GlobalRead extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:inheritedSpecific$delegate
+        Type Receiver<Later>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun $extension.localSpecific @fn3(this: Receiver<Later>) -> Int
+    bb0 entry
+      call @fn9 direct
+      call $call.1: Int = @fn7 direct
+        Type LocalSpecific<Later>
+        GlobalRead extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:localSpecific$delegate
+        Type Receiver<Later>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun getValue @fn4(this: SpecificBase<Later>, thisRef: Receiver<Later>) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+  fun extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:inheritedSpecific$initialize @fn5() -> Unit
+    bb0 entry
+      assign $new.1
+        Type LocalBroad<Later>
+        ClassAlloc LocalBroad<Later>
+      call @fn16 direct
+        Type LocalBroad<Later>
+        Local $new.1
+      global_assign extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:inheritedSpecific$delegate
+        Type LocalBroad<Later>
+        Local $new.1
+      return
+  fun extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:inheritedSpecific$ensure @fn6() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:inheritedSpecific
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn5 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:inheritedSpecific
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:inheritedSpecific
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:inheritedSpecific
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:inheritedSpecific
+      call external3 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun getValue @fn7(this: LocalSpecific<Later>, thisRef: Receiver<Later>) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+  fun extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:localSpecific$initialize @fn8() -> Unit
+    bb0 entry
+      assign $new.1
+        Type LocalSpecific<Later>
+        ClassAlloc LocalSpecific<Later>
+      call @fn17 direct
+        Type LocalSpecific<Later>
+        Local $new.1
+      global_assign extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:localSpecific$delegate
+        Type LocalSpecific<Later>
+        Local $new.1
+      return
+  fun extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:localSpecific$ensure @fn9() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:localSpecific
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn8 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:localSpecific
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:localSpecific
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:localSpecific
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:localSpecific
+      call external3 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun Continuation.resume @fn10(this: Continuation<Later>, value: Later) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn11(this: Continuation<Later>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn12(this: SuspendTask<Later>, $completion: Continuation<Later>) -> CoroutineStep<Later>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn13(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Later.$c0 @fn14(this: Later, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Later
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Receiver.$c0 @fn15(this: Receiver<Later>, value: Later) -> Unit
+    bb0 entry
+      field_set 0
+        Type Receiver<Later>
+        Local this
+        Type Later
+        Local value
+      return
+  fun init.LocalBroad.$c1 @fn16(this: LocalBroad<Later>) -> Unit
+    bb0 entry
+      call @fn18 direct
+        Type SpecificBase<Later>
+        Retype SpecificBase<Later>
+          Type LocalBroad<Later>
+          Local this
+      return
+  fun init.LocalSpecific.$c2 @fn17(this: LocalSpecific<Later>) -> Unit
+    bb0 entry
+      call external2 direct
+        Type BroadBase
+        Retype BroadBase
+          Type LocalSpecific<Later>
+          Local this
+      return
+  fun init.SpecificBase.$c3 @fn18(this: SpecificBase<Later>) -> Unit
+    bb0 entry
+      return
+  fun startCoroutine<Later> @fn19(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn10 interface Continuation<Later>[0]
+        Type Continuation<Later>
+        Local completion
+        Type Later
+        EnumField v0 f0
+          Type CoroutineStep<Later>
+          Local $step
+      return
+    bb2 failed
+      call @fn11 interface Continuation<Later>[1]
+        Type Continuation<Later>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Later> = @fn12 interface SuspendTask<Later>[0]
+        Type SuspendTask<Later>
+        Local task
+        Type Continuation<Later>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Later>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Later> result=Later
+  coroutine_slot cl0 CoroutineSlot<Later> value=Later
+  coroutine_start ct0 result=Later function=fn19
+  coroutine_fn cf0 @fn12 source_return=Later step=cs0 immediate
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- $extension.inheritedSpecific
+  instance mi2 function=@fn3 <- $extension.localSpecific
+  instance mi3 function=@fn4 <- getValue
+  instance mi4 function=@fn5 <- extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:inheritedSpecific$initialize
+  instance mi5 function=@fn6 <- extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:inheritedSpecific$ensure
+  instance mi6 function=@fn7 <- getValue
+  instance mi7 function=@fn8 <- extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:localSpecific$initialize
+  instance mi8 function=@fn9 <- extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:localSpecific$ensure
+  instance mi9 function=@fn10 <- Continuation.resume
+  instance mi10 function=@fn11 <- Continuation.resumeWithException
+  instance mi11 function=@fn12 <- SuspendTask.run
+  instance mi12 function=@fn13 <- SuspendRegistration.register
+  output library

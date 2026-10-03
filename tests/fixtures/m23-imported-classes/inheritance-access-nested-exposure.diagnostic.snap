@@ -1,3 +1,0 @@
-span=90..154
-expression=public fun leak(): Outer.Hidden.Exposed = Outer.Hidden.Exposed()
-signature of function `Derived.leak` exposes type `Exposed` outside its access domain

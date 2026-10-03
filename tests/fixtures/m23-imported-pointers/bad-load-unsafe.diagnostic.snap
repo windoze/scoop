@@ -1,3 +1,0 @@
-span=41..55
-expression=pointer.load()
-calling an unsafe dependency function requires an unsafe context

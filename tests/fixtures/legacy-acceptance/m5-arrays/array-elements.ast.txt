@@ -1,0 +1,69 @@
+SourceFile
+  RootPackage
+  struct Point
+    field x: Int
+    field y: Int
+  enum E
+    Empty
+    One(Int)
+  fun main()
+    val ps
+      ArrayLiteral
+        Call Point
+          IntLiteral 1
+          IntLiteral 2
+        Call Point
+          IntLiteral 3
+          IntLiteral 4
+    Call println
+      FieldAccess x
+        Index
+          Var ps
+          IntLiteral 1
+    val nested
+      ArrayLiteral
+        ArrayLiteral
+          IntLiteral 1
+          IntLiteral 2
+        ArrayLiteral
+          IntLiteral 3
+    Call println
+      Index
+        Index
+          Var nested
+          IntLiteral 0
+        IntLiteral 1
+    val es
+      ArrayLiteral
+        MethodCall One
+          Var E
+          IntLiteral 1
+        FieldAccess Empty
+          Var E
+    when
+      Index
+        Var es
+        IntLiteral 0
+      arm One(v)
+        Call println
+          Var v
+      arm Empty
+        Call println
+          StringLiteral "empty"
+    val opts: Array<Int?>
+      ArrayLiteral
+        Call Some
+          IntLiteral 1
+        Var None
+    Call println
+      Elvis
+        Index
+          Var opts
+          IntLiteral 0
+        IntLiteral 9
+    Call println
+      Elvis
+        Index
+          Var opts
+          IntLiteral 1
+        IntLiteral 8

@@ -35,11 +35,11 @@ fn current_core_and_ordinary_callables_share_the_complete_machine_pipeline() {
         &parsed,
         scoop_hir_lower::CoreProtocolInput::CurrentDeclarations,
         &world,
+        Default::default(),
     )
     .unwrap();
     let input = hir.machine_input();
     assert_eq!(input.output.imported_dependencies().callable_count(), 1);
-    sources::snapshot("hir", &scoop_hir::dump(&input.output.output().export));
     let dependencies = selection::mir(&input);
     let mir = input.lower_selected_mir(dependencies).unwrap();
     assert_eq!(mir.strong.selected_callables().len(), 1);
@@ -47,7 +47,6 @@ fn current_core_and_ordinary_callables_share_the_complete_machine_pipeline() {
         mir.strong.materialization().external_callable_roots().len(),
         1
     );
-    sources::snapshot("mir", &scoop_mir::dump(mir.strong.module()));
     let selected = selection::lir(mir.strong.selected_callables());
     let mut pending = scoop_identity::PendingIdentityValidation::new();
     pending.register_authority(ConeIdentity::CORE).unwrap();
@@ -118,5 +117,4 @@ fn current_core_and_ordinary_callables_share_the_complete_machine_pipeline() {
     );
     let dump = scoop_lir::dump(lir.module());
     assert_eq!(dump.matches("external-fn0").count(), 3);
-    sources::snapshot("lir", &dump);
 }

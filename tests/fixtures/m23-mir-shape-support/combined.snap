@@ -1,5 +1,0 @@
-Holder: box=unneeded step=ContainsManagedReferences slot=ContainsManagedReferences
-Marker: box=unneeded step=ContainsManagedReferences slot=ContainsManagedReferences
-Message: box=available step=ContainsManagedReferences slot=ContainsManagedReferences
-Payload: box=available step=ContainsManagedReferences slot=ContainsManagedReferences
-Singleton: box=unneeded step=ContainsManagedReferences slot=ContainsManagedReferences

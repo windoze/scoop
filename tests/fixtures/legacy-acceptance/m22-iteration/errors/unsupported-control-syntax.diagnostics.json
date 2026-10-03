@@ -1,0 +1,106 @@
+[
+  {
+    "code": "SCOOPC_PARSE_ERROR",
+    "message": "`break` labels are not supported in M22",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 60,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 49
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_PARSE_ERROR",
+    "message": "`continue` labels are not supported in M22",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 107,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 93
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_PARSE_ERROR",
+    "message": "`return` labels are not supported in M22",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 150,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 138
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_PARSE_ERROR",
+    "message": "loop labels are not supported in M22",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 186,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 180
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_PARSE_ERROR",
+    "message": "loop labels are not supported in M22",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 254,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 248
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_PARSE_ERROR",
+    "message": "`break` jump expressions are not supported in M22",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 351,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 346
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_PARSE_ERROR",
+    "message": "`continue` jump expressions are not supported in M22",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 402,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 394
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_PARSE_ERROR",
+    "message": "`do-while` loops are not supported in M22",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 429,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 427
+    },
+    "severity": "error"
+  }
+]

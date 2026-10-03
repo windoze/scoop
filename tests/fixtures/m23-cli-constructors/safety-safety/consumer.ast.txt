@@ -1,0 +1,21 @@
+SourceFile
+  RootPackage
+  fun main()
+    @Unsafe block
+      val base: Base
+        Call Base
+      val child: Child
+        Call Child
+      val secondary: Secondary
+        Call Secondary
+      if
+        Binary Ne
+          FieldAccess value
+            Call Value
+          IntLiteral 1
+        throw
+          Call IllegalStateException
+    val safe: Secondary
+      Call Secondary
+        BoolLiteral true
+    Call gcCollect

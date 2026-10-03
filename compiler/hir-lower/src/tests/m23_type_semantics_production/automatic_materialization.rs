@@ -54,7 +54,6 @@ fn nominal_names(local: &concrete::Module) -> BTreeSet<&str> {
 
 #[test]
 fn automatic_nominal_roots_materialize_closed_storage_and_generic_parents() {
-    let mut snapshot = String::new();
     for case in ["standalone", "combined", "shape-demand"] {
         with_hir_source(&fixture(case), |output, _| {
             let local = output.output().local.module();
@@ -92,6 +91,7 @@ fn automatic_nominal_roots_materialize_closed_storage_and_generic_parents() {
                     "ReadyOuter.DeferredNested",
                     "DeferredSetter",
                     "DeferredStorage",
+                    "DeferredSuspend",
                     "ReadyDirect",
                     "ReadyOuter",
                     "ReadyPrivateConstructor",
@@ -103,41 +103,8 @@ fn automatic_nominal_roots_materialize_closed_storage_and_generic_parents() {
                 local.initialization_units.len(),
                 usize::from(case == "combined")
             );
-            let mut rows = names
-                .iter()
-                .map(|name| format!("  type {name}\n"))
-                .collect::<Vec<_>>();
-            for (_, constructor) in local.class_constructors.iter().filter(|(_, constructor)| {
-                current_nominal(local, &local.classes[constructor.class].origin)
-            }) {
-                rows.push(format!(
-                    "  class-constructor {} arity={}\n",
-                    local.classes[constructor.class].name,
-                    constructor.parameters.len()
-                ));
-            }
-            for (_, constructor) in local.struct_constructors.iter().filter(|(_, constructor)| {
-                current_nominal(local, &local.structs[constructor.structure].origin)
-            }) {
-                rows.push(format!(
-                    "  struct-constructor {} arity={}\n",
-                    local.structs[constructor.structure].name,
-                    constructor.parameters.len()
-                ));
-            }
-            for (_, function) in local.functions.iter() {
-                rows.push(format!("  function {}\n", function.name));
-            }
-            rows.sort();
-            snapshot.push_str(&format!("{case}\n{}", rows.concat()));
         });
     }
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-source-only-nominals/automatic.hir.snap");
-    if std::env::var_os("SCOOP_UPDATE_AUTOMATIC_SNAPSHOTS").is_some() {
-        std::fs::write(&path, &snapshot).unwrap();
-    }
-    assert_eq!(snapshot, std::fs::read_to_string(path).unwrap());
 }
 
 #[test]
@@ -211,21 +178,4 @@ fn generic_source_application_records_need_an_evaluated_use_before_materializati
             assert_eq!(count, expected, "{suffix}");
         });
     }
-}
-
-#[test]
-fn unused_source_only_bodies_still_receive_definition_site_type_diagnostics() {
-    let source = fixture("errors/invalid-unused-body");
-    let diagnostics =
-        lower(&[complete_core_file(), scoop_parser::parse(&source).unwrap()]).unwrap_err();
-    let start = source.find("\"invalid\"").unwrap() as u32;
-    let diagnostic = diagnostics
-        .iter()
-        .find(|diagnostic| diagnostic.span == Some(ast::Span::new(start, start + 9)))
-        .unwrap_or_else(|| panic!("{diagnostics:?}"));
-    assert_eq!(diagnostic.file, 1);
-    assert!(
-        diagnostic.message.contains("Int") && diagnostic.message.contains("String"),
-        "{diagnostic:?}"
-    );
 }

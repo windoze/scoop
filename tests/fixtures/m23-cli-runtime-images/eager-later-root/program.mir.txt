@@ -1,0 +1,21 @@
+Module
+  extern ef0 trace @m23_trace(Long) -> Unit <abi=c no-gc lib=m23_runtime_images>
+  fun trace @fn0(arg0: Long) -> Unit
+    bb0 entry
+      call extern0 @m23_trace direct
+        Type Long
+        Local arg0
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=100 bits=0x0000000000000064
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call extern0 @m23_trace direct
+        Type Long
+        Local $parameter.value
+      return
+  output executable @fn1

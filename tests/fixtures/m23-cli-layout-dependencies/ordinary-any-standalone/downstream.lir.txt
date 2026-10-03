@@ -1,0 +1,13 @@
+Module
+  fun @scoop$1$cb$ada455b9a594ffebca2ccc44c866597cb6e16ac902be07a1f5941d3bd891103d(ptr<managed>) -> ptr<managed>
+    local %0 $dependency.argument.0: ptr<managed>
+    local %1 $dependency.parameter.value: ptr<managed>
+    local %2 $call.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    store param0 -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[local1:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> ptr<managed> external-fn0(local1)
+    store t0 -> local2
+    ret local2
+  output library

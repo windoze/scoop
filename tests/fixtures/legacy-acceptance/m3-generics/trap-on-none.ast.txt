@@ -1,0 +1,8 @@
+SourceFile
+  RootPackage
+  fun main()
+    val x: Int?
+      Var None
+    Call println
+      NullAssert
+        Var x

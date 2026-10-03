@@ -1,0 +1,208 @@
+Module
+  class Point vtable=0 itables=0
+  interface ToString
+  interface Hash
+  fun Point.sum @fn0(this: Point) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Point
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 1
+          Type Point
+          Local this
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun Point.moveTo @fn1(this: Point, ny: Int) -> Unit
+    bb0 entry
+      field_set 1
+        Type Point
+        Local this
+        Type Int
+        Local ny
+      return
+  fun main @fn2() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.x: Int
+        Type Int
+        Local $argument.0
+      val $parameter.y: Int
+        Type Int
+        Local $argument.1
+      assign $new.1
+        Type Point
+        ClassAlloc Point
+      call @fn5 direct
+        Type Point
+        Local $new.1
+        Type Int
+        Local $parameter.x
+        Type Int
+        Local $parameter.y
+      val p: Point
+        Type Point
+        Local $new.1
+      val $receiver: Point
+        Type Point
+        Local p
+      call $dependency.argument.0: Int = @fn0 direct
+        Type Point
+        Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 1
+          Type Point
+          Local p
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $receiver: Point
+        Type Point
+        Local p
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $parameter.ny: Int
+        Type Int
+        Local $argument.0
+      call @fn1 direct
+        Type Point
+        Local $receiver
+        Type Int
+        Local $parameter.ny
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 1
+          Type Point
+          Local p
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      field_set 1
+        Type Point
+        Local p
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 1
+          Type Point
+          Local p
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val q: Point
+        Type Point
+        Local p
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Point
+          Local p
+          Type Point
+          Local q
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      return
+  fun println @fn3(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn4(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str1
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun init.Point.$c0 @fn5(this: Point, x: Int, y: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Point
+        Local this
+        Type Int
+        Local x
+      field_set 1
+        Type Point
+        Local this
+        Type Int
+        Local y
+      return
+  instance mi0 function=@fn3 <- println
+  instance mi1 function=@fn4 <- println
+  str @str0 "\n"
+  str @str1 "\n"
+  output executable @fn2

@@ -1,3 +1,0 @@
-span=60..69
-expression=Link<Int>
-class `Link` is final and cannot be inherited

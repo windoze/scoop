@@ -1,0 +1,110 @@
+SourceFile
+  QualifiedPackage consumer.selection
+  ImportExact Local dependency.selection.Host
+  ImportExact Local dependency.selection.GenericHost
+  private class LocalHost()
+    public fun choose
+    public fun choose
+    public fun prefer
+    public fun prefer
+    public fun fewer
+    public fun fewer
+    public fun rest
+    public fun rest
+    public fun relay
+  private class LocalGenericHost<T>(val value: T)
+    public fun fewer
+    public fun fewer
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    if
+      Binary Ne
+        MethodCall fewer
+          Call LocalGenericHost<T>
+            Var seed
+          Var seed
+        IntLiteral 42
+      return
+        IntLiteral 1
+    return
+      IfExpression
+        Binary Eq
+          Call read
+            Var seed
+          IntLiteral 42
+        MethodCall fewer
+          Call GenericHost<T>
+            Var seed
+          Var seed
+        else
+        IntLiteral 2
+  public fun result(): Int
+    val local
+      Call LocalHost
+    val external
+      Call Host
+    if
+      Binary Or
+        Binary Ne
+          MethodCall choose
+            Var local
+            IntLiteral 42
+          IntLiteral 42
+        Binary Ne
+          MethodCall choose
+            Var external
+            IntLiteral 42
+          IntLiteral 42
+      return
+        IntLiteral 3
+    if
+      Binary Or
+        Binary Ne
+          MethodCall prefer
+            Var local
+            IntLiteral 42
+          IntLiteral 42
+        Binary Ne
+          MethodCall prefer
+            Var external
+            IntLiteral 42
+          IntLiteral 42
+      return
+        IntLiteral 4
+    if
+      Binary Or
+        Binary Ne
+          MethodCall fewer
+            Var local
+            IntLiteral 42
+          IntLiteral 42
+        Binary Ne
+          MethodCall fewer
+            Var external
+            IntLiteral 42
+          IntLiteral 42
+      return
+        IntLiteral 5
+    if
+      Binary Or
+        Binary Ne
+          MethodCall rest
+            Var local
+            IntLiteral 42
+          IntLiteral 42
+        Binary Ne
+          MethodCall rest
+            Var external
+            IntLiteral 42
+          IntLiteral 42
+      return
+        IntLiteral 6
+    return
+      IfExpression
+        Binary Eq
+          MethodCall relay
+            Var local
+          IntLiteral 42
+        MethodCall relay
+          Var external
+        else
+        IntLiteral 7

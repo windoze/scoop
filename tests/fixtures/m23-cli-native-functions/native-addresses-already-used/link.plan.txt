@@ -1,0 +1,49 @@
+program-link v2
+cone scoop:scoop.core:0.1.0 kind=Library objects=271
+cone dev.example:generic-member-provider:0.1.0 kind=Library objects=25
+cone dev.example:generic-member-already-used:0.1.0 kind=Library objects=7
+cone dev.example:generic-member-downstream-already-used:0.1.0 kind=Library objects=5
+cone dev.example:runtime-fixture:0.1.0 kind=Executable objects=5
+runtime objects=54
+images=5 root=_scoop$1$re$697a194f371e65fbbfe0f2ae0a577df915ae0fdee6758d312df7b2c864602bc7
+alias _scoop_td_String -> _scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
+link inputs: startup, cone/member order, runtime/object order, libSystem
+native library m23_native_calls requirement=28ed7be9deee5582acc38420e56a4999813e4a2f03c32f661c06f027e747ffc5 input=ef94f3f54e63911181fd39c26954d858953eee4bca50dd10bf41ad727f7622b0 origins=dev.example:generic-member-already-used:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([162, 198, 20, 71, 172, 83, 125, 12, 219, 171, 242, 177, 193, 36, 227, 174, 211, 104, 38, 65, 173, 78, 83, 196, 48, 66, 83, 189, 17, 44, 161, 47])])
+native library m23_class_gc requirement=9ede61f3579eac4299a31d76fa89c5b213db378df8eade8779290638fe092d16 input=3baee1a3f79788fb8bcda1801e3ddc213f56be488b345383cbf607cc98fbe1df origins=dev.example:runtime-fixture:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([74, 55, 136, 3, 74, 84, 175, 107, 103, 122, 254, 162, 36, 99, 247, 226, 38, 56, 106, 64, 127, 109, 190, 109, 63, 18, 129, 69, 30, 153, 198, 15])])
+native archive ef94f3f54e63911181fd39c26954d858953eee4bca50dd10bf41ad727f7622b0 members=1
+  member 0 header=8 payload=68..1108 name="callbacks.o" digest=35a1a42d8abbf26e1ca3ce96a3d9068b3d7253246ff6985c0204203144ecc73b selected=true
+native archive 3baee1a3f79788fb8bcda1801e3ddc213f56be488b345383cbf607cc98fbe1df members=1
+  member 0 header=8 payload=68..924 name="gc.o" digest=2e92b02784e14922ad56b19b68874d04550dd831b08648a904d151eb84c2af68 selected=true
+startup object references:
+  _scoop$1$im$51528abb22f645eaa0d4b9a6d183b4a57f0b12c4ab4648367fc94858a56d32b5
+  _scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d
+  _scoop$1$im$697a194f371e65fbbfe0f2ae0a577df915ae0fdee6758d312df7b2c864602bc7
+  _scoop$1$im$eaeca906e755a91ee77a3fca932280b6b5e1b0ff760a9341dc80069101cab2d1
+  _scoop$1$im$f511870437f5ef8d4ceb23132e5d8a41cc1ea292dfff42c36149c0ba1e300fc8
+  _scoop$1$re$697a194f371e65fbbfe0f2ae0a577df915ae0fdee6758d312df7b2c864602bc7
+  _scoop_rt_run_program
+#include <stdint.h>
+
+typedef struct ScoopImageDescriptorV1 ScoopImageDescriptorV1;
+typedef struct ScoopRootEntryDescriptorV1 ScoopRootEntryDescriptorV1;
+
+extern const ScoopImageDescriptorV1 image_0 __asm__("_scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d");
+extern const ScoopImageDescriptorV1 image_1 __asm__("_scoop$1$im$51528abb22f645eaa0d4b9a6d183b4a57f0b12c4ab4648367fc94858a56d32b5");
+extern const ScoopImageDescriptorV1 image_2 __asm__("_scoop$1$im$eaeca906e755a91ee77a3fca932280b6b5e1b0ff760a9341dc80069101cab2d1");
+extern const ScoopImageDescriptorV1 image_3 __asm__("_scoop$1$im$f511870437f5ef8d4ceb23132e5d8a41cc1ea292dfff42c36149c0ba1e300fc8");
+extern const ScoopImageDescriptorV1 image_4 __asm__("_scoop$1$im$697a194f371e65fbbfe0f2ae0a577df915ae0fdee6758d312df7b2c864602bc7");
+extern const ScoopRootEntryDescriptorV1 root_entry __asm__("_scoop$1$re$697a194f371e65fbbfe0f2ae0a577df915ae0fdee6758d312df7b2c864602bc7");
+extern int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *, uint64_t, const ScoopRootEntryDescriptorV1 *);
+
+__attribute__((used, section("__DATA_CONST,__const")))
+static const ScoopImageDescriptorV1 *const scoop_program_images[] = {
+    &image_0,
+    &image_1,
+    &image_2,
+    &image_3,
+    &image_4,
+};
+
+int main(void) {
+    return scoop_rt_run_program(scoop_program_images, sizeof(scoop_program_images) / sizeof(scoop_program_images[0]), &root_entry);
+}

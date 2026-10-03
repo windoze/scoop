@@ -1,3 +1,0 @@
-span=89..94
-expression=First
-typealias cycle: First -> Second -> First

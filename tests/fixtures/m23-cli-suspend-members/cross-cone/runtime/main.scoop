@@ -1,0 +1,20 @@
+import suspended.*
+
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+class Task(val source: Source) : SuspendTask<Int> {
+    public override suspend fun run(): Int = source.defaulted(17)
+}
+class Completion : Continuation<Int> {
+    public var result: Int = 0
+    public var finished: Boolean = false
+    public override fun resume(value: Int) { result = value; finished = true }
+    public override fun resumeWithException(exception: Throwable) { throw exception }
+}
+fun main() {
+    val ordinary = Completion()
+    startCoroutine(Task(source()), ordinary)
+    check(ordinary.finished && ordinary.result == 20)
+    val virtual = Completion()
+    startCoroutine(Task(child()), virtual)
+    check(virtual.finished && virtual.result == 23)
+}

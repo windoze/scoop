@@ -1,0 +1,48 @@
+SourceFile
+  QualifiedPackage consumer.options
+  ImportExact Local dependency.options.Holder
+  ImportExact Local dependency.options.optionalDefault
+  ImportExact Local dependency.options.noneDefault
+  ImportExact Local dependency.options.nestedDefault
+  ImportExact Local dependency.options.safeDefault
+  public fun exercise<T>(value: T): Int
+    val first
+      Call optionalDefault
+        Var value
+    val second
+      Call nestedDefault
+        Var value
+    val third
+      Call safeDefault
+        Var value
+        Call Some
+          Call Holder
+            Var value
+    if
+      Binary Ne
+        Call safeDefault
+          IntLiteral 0
+          Call Some
+            Call Holder
+              IntLiteral 20
+        IntLiteral 20
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call safeDefault
+          IntLiteral 22
+          Var None
+        IntLiteral 22
+      return
+        IntLiteral 2
+    return
+      Binary Add
+        Call optionalDefault
+          IntLiteral 20
+        Call noneDefault
+          IntLiteral 22
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 1

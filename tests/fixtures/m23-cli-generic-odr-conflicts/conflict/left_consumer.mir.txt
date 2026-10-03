@@ -1,0 +1,43 @@
+Module
+  fun probe @fn0() -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.delta: Int
+        Type Int
+        Local $dependency.argument.1
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $dependency.parameter.value
+        Type Int
+        Local $dependency.parameter.delta
+      return
+        Type Int
+        Local $call.1
+  fun adjusted @fn1(value: Int, delta: Int) -> Int
+    bb0 entry
+      val $dependency.local.2: Int
+        Type Int
+        Local delta
+      val $dependency.local.3: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          Local $dependency.local.4
+  instance mi0 function=@fn1 <- adjusted
+  output library

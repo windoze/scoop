@@ -1,0 +1,32 @@
+SourceFile
+  QualifiedPackage consumer.adapters
+  private class LocalResult(val value: Int)
+  private class UnusedResult(val value: Int)
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val result
+      Call LocalResult
+        Call read
+          Var seed
+    val source: ((LocalResult, T)) -> LocalResult
+      Lambda 0 suspend=false
+        param pair: _
+        Var result
+    val erased: Any
+      Var source
+    val adapted
+      Cast ((LocalResult, T)) -> Any optional=false
+        Var erased
+    return
+      FieldAccess value
+        Cast LocalResult optional=false
+          Call adapted
+            TupleLiteral
+              Var result
+              Var seed
+  public fun result(): Int
+    =
+      Call exercise
+        IntLiteral 42
+        Lambda 1 suspend=false
+          param value: Int
+          Var value

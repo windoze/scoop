@@ -1,0 +1,164 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  fun main @fn0() -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call value: Int = external0 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.argument.0: (Int, Boolean)
+        Type (Int, Boolean)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=41 bits=0x00000029
+          Type Boolean
+          BoolLiteral true
+      val $dependency.parameter.value: (Int, Boolean)
+        Type (Int, Boolean)
+        Local $dependency.argument.0
+      call $call.1: (Int, Boolean) = external1 direct
+        Type (Int, Boolean)
+        Local $dependency.parameter.value
+      call $call.2: Boolean = @fn1 direct
+        Type (Int, Boolean)
+        Local $call.1
+        Type (Int, Boolean)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=41 bits=0x00000029
+          Type Boolean
+          BoolLiteral true
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.2
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb5 if.else.5
+      call $dependency.receiver: Int = external3 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb6
+    bb6 if.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $shortCircuit.1
+    bb7 if.then.7
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.3
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external4 direct
+        Type IllegalStateException
+        Local $new.3
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.3
+    bb8 if.merge.8
+      return
+  fun $derived.equals.0 @fn1(this: (Int, Boolean), other: (Int, Boolean)) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type (Int, Boolean)
+            Local this
+          Type Int
+          FieldAccess 0
+            Type (Int, Boolean)
+            Local other
+    bb1 logic.rhs.1
+      call $call.2: Boolean = external2 direct
+        Type Boolean
+        FieldAccess 1
+          Type (Int, Boolean)
+          Local this
+        Type Boolean
+        FieldAccess 1
+          Type (Int, Boolean)
+          Local other
+      assign $logic.1
+        Type Boolean
+        Local $call.2
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.1
+  str @str0 "illegal state"
+  output executable @fn0

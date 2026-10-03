@@ -1,0 +1,292 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Parcel<String>
+    Empty()
+    Item(_0: String)
+  enum Parcel<Int>
+    Empty()
+    Item(_0: Int)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  fun verifyType @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call $dependency.receiver: Int = external1 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter._1: String
+        Type String
+        Local $dependency.argument.0
+      val $equality.lhs: Parcel<String>
+        Type Parcel<String>
+        VariantConstruct Parcel<String> v1
+          Type String
+          Local $dependency.parameter._1
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter._1: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: Boolean = @fn2 direct
+        Type Parcel<String>
+        Local $equality.lhs
+        Type Parcel<String>
+        VariantConstruct Parcel<String> v1
+          Type String
+          Local $dependency.parameter._1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val empty: Parcel<Int>
+        Type Parcel<Int>
+        VariantConstruct Parcel<Int> v0
+      call $argument.0: Boolean = @fn3 direct
+        Type Parcel<Int>
+        Local empty
+        Type Parcel<Int>
+        VariantConstruct Parcel<Int> v0
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun $derived.equals.0 @fn2(this: Parcel<String>, other: Parcel<String>) -> Boolean
+    bb0 entry
+      val $when.1: Parcel<String>
+        Type Parcel<String>
+        Local this
+      val $pattern.subject.2: Parcel<String>
+        Type Parcel<String>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Parcel<String> v0
+          Type Parcel<String>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $when.3: Parcel<String>
+        Type Parcel<String>
+        Local other
+      val $pattern.subject.4: Parcel<String>
+        Type Parcel<String>
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Parcel<String> v0
+          Type Parcel<String>
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Parcel<String>
+        Type Parcel<String>
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Parcel<String> v1
+          Type Parcel<String>
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      return
+        Type Boolean
+        BoolLiteral true
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $left.1.0: String
+        Type String
+        VariantPayloadProject Parcel<String> v1 f0
+          Type Parcel<String>
+          Local $pattern.subject.5
+      val $when.6: Parcel<String>
+        Type Parcel<String>
+        Local other
+      val $pattern.subject.7: Parcel<String>
+        Type Parcel<String>
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Parcel<String> v1
+          Type Parcel<String>
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      val $right.1.0: String
+        Type String
+        VariantPayloadProject Parcel<String> v1 f0
+          Type Parcel<String>
+          Local $pattern.subject.7
+      call $call.1: Boolean = external2 direct
+        Type String
+        Local $left.1.0
+        Type String
+        Local $right.1.0
+      return
+        Type Boolean
+        Local $call.1
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+  fun $derived.equals.1 @fn3(this: Parcel<Int>, other: Parcel<Int>) -> Boolean
+    bb0 entry
+      val $when.1: Parcel<Int>
+        Type Parcel<Int>
+        Local this
+      val $pattern.subject.2: Parcel<Int>
+        Type Parcel<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Parcel<Int> v0
+          Type Parcel<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $when.3: Parcel<Int>
+        Type Parcel<Int>
+        Local other
+      val $pattern.subject.4: Parcel<Int>
+        Type Parcel<Int>
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Parcel<Int> v0
+          Type Parcel<Int>
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Parcel<Int>
+        Type Parcel<Int>
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Parcel<Int> v1
+          Type Parcel<Int>
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      return
+        Type Boolean
+        BoolLiteral true
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $left.1.0: Int
+        Type Int
+        VariantPayloadProject Parcel<Int> v1 f0
+          Type Parcel<Int>
+          Local $pattern.subject.5
+      val $when.6: Parcel<Int>
+        Type Parcel<Int>
+        Local other
+      val $pattern.subject.7: Parcel<Int>
+        Type Parcel<Int>
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Parcel<Int> v1
+          Type Parcel<Int>
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      val $right.1.0: Int
+        Type Int
+        VariantPayloadProject Parcel<Int> v1 f0
+          Type Parcel<Int>
+          Local $pattern.subject.7
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $left.1.0
+          Type Int
+          Local $right.1.0
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+  str @str0 "illegal state"
+  str @str1 "value"
+  str @str2 "value"
+  output executable @fn1

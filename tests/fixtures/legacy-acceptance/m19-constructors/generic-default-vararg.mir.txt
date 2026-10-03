@@ -1,0 +1,455 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class GenericBox<String> vtable=0 itables=0
+  class ArrayIterator<String> vtable=0 itables=1
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Iterable<String>
+  interface Iterator<String>
+  interface ToString
+  interface Hash
+  fun constructorDefault @fn0() -> Int
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str1
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      call $parameter.marker: Int = @fn0 direct
+      val $parameter.rest: Array<String>
+        Type Array<String>
+        ArrayAssembly Array<String>
+      assign $new.1
+        Type GenericBox<String>
+        ClassAlloc GenericBox<String>
+      call @fn7 direct
+        Type GenericBox<String>
+        Local $new.1
+        Type String
+        Local $parameter.seed
+        Type Int
+        Local $parameter.marker
+        Type Array<String>
+        Local $parameter.rest
+      val inferred: GenericBox<String>
+        Type GenericBox<String>
+        Local $new.1
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 1
+          Type GenericBox<String>
+          Local inferred
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        ArrayLen Array<String>
+          Type Array<String>
+          FieldAccess 0
+            Type GenericBox<String>
+            Local inferred
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str2
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $argument.2: String
+        Type String
+        StringConst @str3
+      val $argument.3: String
+        Type String
+        StringConst @str4
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      val $parameter.marker: Int
+        Type Int
+        Local $argument.1
+      val $parameter.rest: Array<String>
+        Type Array<String>
+        ArrayAssembly Array<String>
+          Element
+            Type String
+            Local $argument.2
+          Element
+            Type String
+            Local $argument.3
+      assign $new.2
+        Type GenericBox<String>
+        ClassAlloc GenericBox<String>
+      call @fn7 direct
+        Type GenericBox<String>
+        Local $new.2
+        Type String
+        Local $parameter.seed
+        Type Int
+        Local $parameter.marker
+        Type Array<String>
+        Local $parameter.rest
+      val explicit: GenericBox<String>
+        Type GenericBox<String>
+        Local $new.2
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 1
+          Type GenericBox<String>
+          Local explicit
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        ArrayLen Array<String>
+          Type Array<String>
+          FieldAccess 0
+            Type GenericBox<String>
+            Local explicit
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Long
+        Local $dependency.parameter.value
+      return
+  fun println @fn2(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str5
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun iterator @fn3(this: Array<String>) -> Iterator<String>
+    bb0 entry
+      val $dependency.local.1: Array<String>
+        Type Array<String>
+        Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Array<String>
+        Type Array<String>
+        Local $dependency.local.1
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.2
+      assign $new.1
+        Type ArrayIterator<String>
+        ClassAlloc ArrayIterator<String>
+      call @fn8 direct
+        Type ArrayIterator<String>
+        Local $new.1
+        Type Array<String>
+        Local $dependency.local.3
+        Type Long
+        Local $dependency.local.4
+      return
+        Type Iterator<String>
+        Retype Iterator<String>
+          Type ArrayIterator<String>
+          Local $new.1
+  fun println @fn4(value: Long) -> Unit
+    bb0 entry
+      val $dependency.local.1: Long
+        Type Long
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str6
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun next @fn5(this: ArrayIterator<String>) -> Option<String>
+    bb0 entry
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayIterator<String>
+          Local this
+      val $dependency.local.3: Long
+        Type Long
+        ArrayLen Array<String>
+          Type Array<String>
+          FieldAccess 0
+            Type ArrayIterator<String>
+            Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      val $dependency.local.5: Array<String>
+        Type Array<String>
+        FieldAccess 0
+          Type ArrayIterator<String>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayIterator<String>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      val $arr.1: Array<String>
+        Type Array<String>
+        Local $dependency.local.5
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.7
+      branch bb4 bb3
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb2 if.merge.2
+      return
+        Type Option<String>
+        VariantConstruct Option<String> v1
+    bb3 logic.rhs.3
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen Array<String>
+            Type Array<String>
+            Local $arr.1
+      goto bb5
+    bb4 logic.short.4
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb5
+    bb5 logic.merge.5
+      branch bb6 bb7
+        Type Boolean
+        Local $logic.1
+    bb6 if.then.6
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external4 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb7 if.merge.7
+      val $dependency.local.1: String
+        Type String
+        ArrayGet Array<String>
+          Type Array<String>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayIterator<String>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.9
+      field_set 1
+        Type ArrayIterator<String>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.8
+          Type Long
+          Local $dependency.local.10
+      val $dependency.local.11: String
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.12: String
+        Type String
+        Local $dependency.local.11
+      return
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $dependency.local.12
+  fun println @fn6(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str7
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun init.GenericBox.$c1 @fn7(this: GenericBox<String>, seed: String, marker: Int, rest: Array<String>) -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        Local seed
+      val $argument.1: Array<String>
+        Type Array<String>
+        Local rest
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      val $parameter.values: Array<String>
+        Type Array<String>
+        Local $argument.1
+      call @fn9 direct
+        Type GenericBox<String>
+        Local this
+        Type String
+        Local $parameter.seed
+        Type Array<String>
+        Local $parameter.values
+      val $dependency.argument.0: Int
+        Type Int
+        Local marker
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str8
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun init.ArrayIterator.$c0 @fn8(this: ArrayIterator<String>, source: Array<String>, index: Long) -> Unit
+    bb0 entry
+      field_set 0
+        Type ArrayIterator<String>
+        Local this
+        Type Array<String>
+        Local source
+      field_set 1
+        Type ArrayIterator<String>
+        Local this
+        Type Long
+        Local index
+      return
+  fun init.GenericBox.$c0 @fn9(this: GenericBox<String>, seed: String, values: Array<String>) -> Unit
+    bb0 entry
+      field_set 0
+        Type GenericBox<String>
+        Local this
+        Type Array<String>
+        Local values
+      field_set 1
+        Type GenericBox<String>
+        Local this
+        Type String
+        Local seed
+      return
+  instance mi0 function=@fn2 <- println
+  instance mi1 function=@fn3 <- iterator
+  instance mi2 function=@fn4 <- println
+  instance mi3 function=@fn5 <- next
+  instance mi4 function=@fn6 <- println
+  str @str0 "constructor-default"
+  str @str1 "first"
+  str @str2 "head"
+  str @str3 "tail-one"
+  str @str4 "tail-two"
+  str @str5 "\n"
+  str @str6 "\n"
+  str @str7 "\n"
+  str @str8 "generic-secondary"
+  output executable @fn1

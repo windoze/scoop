@@ -1,3 +1,0 @@
-span=78..85
-expression=Counter
-class `Counter` is final and cannot be inherited

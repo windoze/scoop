@@ -1,0 +1,60 @@
+SourceFile
+  QualifiedPackage consumer.constructors
+  ImportExact Local dependency.constructors.Token
+  ImportExact Local dependency.constructors.Wide
+  ImportExact Local dependency.constructors.defaultWide
+  ImportExact Local dependency.constructors.TupleBox
+  ImportExact Local dependency.constructors.TupleMarker
+    @NoGC
+  public fun token(): Token
+    =
+      Call Token
+    @NoGC
+  public fun primary(): Wide
+    val box
+      Call TupleBox
+        TupleLiteral
+          Call Token
+          TupleLiteral
+            IntLiteral 17
+            Unary Neg
+              IntLiteral 29
+            IntLiteral 53
+          Call Token
+    return
+      Call Wide
+        FieldAccess elements
+          Var box
+    @NoGC
+  public fun secondary(): Wide
+    val marker
+      Call TupleMarker
+        TupleLiteral
+          Call Token
+          Call Token
+    val box
+      Call TupleBox
+        TupleLiteral
+          FieldAccess _1
+            FieldAccess elements
+              Var marker
+          TupleLiteral
+            IntLiteral 5
+            IntLiteral 8
+            IntLiteral 11
+          FieldAccess _2
+            FieldAccess elements
+              Var marker
+    return
+      Call Wide
+        FieldAccess elements
+          Var box
+    @NoGC
+  public fun defaults(): Long
+    =
+      Call defaultWide
+    @NoGC
+  public fun republished(value: Wide = <expr>): Long
+    =
+      MethodCall sum
+        Var value

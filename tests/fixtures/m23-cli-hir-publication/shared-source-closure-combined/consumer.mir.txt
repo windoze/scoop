@@ -1,0 +1,665 @@
+Module
+  global0 $singleton$26a59dcdf8be1003c3f7ab6c8ee44ae86a1dde102a7f55009f0243ee0da34597: SourceRegistry imported provider=8319641fa62985fa3a4ae99a66c751b8ad0dfe0b1ef13367917bc68b200f9dcf storage=7e9f52a796d95c80bfa3d907f0485dd664a5bc0d521741e7f04a87a4409adf30
+  struct SourcePacket (value: Int)
+  class SourceHost<Int> vtable=0 itables=0
+  class SourceHost<String> vtable=0 itables=0
+  class SourceRegistry vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn7 captures=1
+    bridge function_type3 -> @fn21 id=edd89a33b05568e4744564553e35fb6100e43046c81ce065ec05982e553625dd
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn9 captures=0
+    bridge function_type3 -> @fn22 id=9e20ac05318eaafdf8aeda3d896a6fa6053e01fd9950c3a6243b476861603b10
+  closure cc2 $Closure$lambda2 type=function_type2 invoke=@fn15 captures=1
+    bridge function_type3 -> @fn23 id=e07e68f50f5ec17b19ae76d1cd48e73cca6f1cb5f8222f21264e9ed4dae84b06
+  closure cc3 $Closure$lambda3 type=function_type2 invoke=@fn17 captures=0
+    bridge function_type3 -> @fn24 id=8a10a7a275b6dea706606154e02025bc1d2a3196dfb65a90d9322e24498b5f12
+  closure cc4 $Closure$reference0 type=function_type0 invoke=@fn19 captures=0
+    bridge function_type1 -> @fn25 id=ee72569e50dcb702de38313dffcd773c4ac8fb3b0e47117e256e03f39b132032
+  closure cc5 $Closure$reference1 type=function_type0 invoke=@fn20 captures=0
+    bridge function_type1 -> @fn26 id=0cf5e49bc96fd6babffc58383b81d1fc9603e8bacd8fc31cd6b50b2e8791fea6
+  generated_exact_type get0 location=closure3 nominal_id=a215aeefb31b13f4917061612ee7e719632d533c5a9a4922fc7cb70670f7a40d exact_id=1a0b7684eb974e0e00b616afb69994d786450eda9c6c41d896dad04482b62f28
+  generated_exact_type get1 location=closure4 nominal_id=ec723748ae76d0d89aad2d4c1feed7e3e7842d483a3189a5b214330b83a40e1e exact_id=220e5f5f33126dc10f3eca0b3340b1bba78fdfe30357a70fb8b3a3cb6c81933e
+  generated_exact_type get2 location=closure2 nominal_id=c30804c05f89cbea564cb24ad4eff28034b81d4cf0e97840c693496e4c69fdef exact_id=75a9c0ca72b66bfe9270695b4fab35c179ecf5b484ea3954033299bfa86fc121
+  generated_exact_type get3 location=closure0 nominal_id=d5bd3312791fa078cf9d7181adf43577ab14304a78a536f912b35a9fd6c76ba6 exact_id=a75e63c0ae441b7cc99dc4fc87a5fee9a80b70d92474759b9b73579658d83051
+  generated_exact_type get4 location=closure1 nominal_id=cb74dcaa2f4a64c6f3d06ab192637dd48367c501c682ac885586ebbe3d634c1c exact_id=d7aaa5f57d26b7c4701f0c7918f9269a758d7b56ac4021f532fbf9052ff9ca40
+  generated_exact_type get5 location=class3 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get6 location=closure5 nominal_id=b8375d26472bb9fa0aa6d36b6c949293284dae9e2818cd84d908d96ced88c1df exact_id=fcb2bb93ba9ee0d1869baba5a6a5fd21b7301b83e9e400722f8c728ce4e1cae4
+  generated_callable gc0 function=@fn26 id=0cf5e49bc96fd6babffc58383b81d1fc9603e8bacd8fc31cd6b50b2e8791fea6
+  generated_callable gc1 function=@fn24 id=8a10a7a275b6dea706606154e02025bc1d2a3196dfb65a90d9322e24498b5f12
+  generated_callable gc2 function=@fn22 id=9e20ac05318eaafdf8aeda3d896a6fa6053e01fd9950c3a6243b476861603b10
+  generated_callable gc3 function=@fn23 id=e07e68f50f5ec17b19ae76d1cd48e73cca6f1cb5f8222f21264e9ed4dae84b06
+  generated_callable gc4 function=@fn21 id=edd89a33b05568e4744564553e35fb6100e43046c81ce065ec05982e553625dd
+  generated_callable gc5 function=@fn25 id=ee72569e50dcb702de38313dffcd773c4ac8fb3b0e47117e256e03f39b132032
+  fun check @fn0() -> Int
+    bb0 entry
+      call $dependency.receiver: SourceHost<Int> = external0 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.seed: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn1 direct
+        Type SourceHost<Int>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.seed
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=55 bits=0x00000037
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      call $dependency.receiver: SourceHost<String> = external1 direct
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.seed: String
+        Type String
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn2 direct
+        Type SourceHost<String>
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.seed
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=55 bits=0x00000037
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun run @fn1(this: SourceHost<Int>, seed: Int) -> Int
+    bb0 entry
+      val $dependency.local.2: SourceHost<Int>
+        Type SourceHost<Int>
+        Local this
+      val $dependency.local.3: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      call $dependency.local.4: Int = external2 direct
+        Type Int
+        Local $dependency.local.3
+      call $call.1: SourcePacket = external3 direct
+        Type Int
+        Local $dependency.local.4
+      val $dependency.local.5: Int
+        Type Int
+        FieldAccess 0
+          Type SourcePacket
+          Local $call.1
+      call $dependency.local.6: Int = external4 direct
+      val $dependency.local.7: Int
+        Type Int
+        Local $dependency.local.6
+      val $dependency.local.8: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.5
+          Type Int
+          Local $dependency.local.7
+      call $dependency.local.14: Int = @fn3 direct
+        Type SourceHost<Int>
+        Local $dependency.local.2
+        Type Int
+        Local $dependency.local.8
+      val $dependency.local.9: SourceHost<Int>
+        Type SourceHost<Int>
+        Local this
+      call external7 direct
+      val $dependency.local.10: SourceRegistry
+        Type SourceRegistry
+        GlobalRead $singleton$26a59dcdf8be1003c3f7ab6c8ee44ae86a1dde102a7f55009f0243ee0da34597
+      val $dependency.local.11: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      call $dependency.local.12: Int = external2 direct
+        Type Int
+        Local $dependency.local.11
+      call $dependency.local.13: Int = external5 direct
+        Type SourceRegistry
+        Local $dependency.local.10
+        Type Int
+        Local $dependency.local.12
+      call $dependency.local.15: Int = @fn4 direct
+        Type SourceHost<Int>
+        Local $dependency.local.9
+        Type Int
+        Local $dependency.local.13
+      val $dependency.local.16: Int
+        Type Int
+        Local $dependency.local.15
+      val $dependency.local.22: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.14
+          Type Int
+          Local $dependency.local.16
+      val $dependency.local.17: SourceHost<Int>
+        Type SourceHost<Int>
+        Local this
+      val $dependency.local.18: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.19: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      call $dependency.local.20: Int = external2 direct
+        Type Int
+        Local $dependency.local.19
+      call $dependency.local.21: Int = external6 direct
+        Type Int
+        Local $dependency.local.18
+        Type Int
+        Local $dependency.local.20
+      call $dependency.local.23: Int = @fn5 direct
+        Type SourceHost<Int>
+        Local $dependency.local.17
+        Type Int
+        Local $dependency.local.21
+      val $dependency.local.24: Int
+        Type Int
+        Local $dependency.local.23
+      val $dependency.local.27: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.22
+          Type Int
+          Local $dependency.local.24
+      val $dependency.local.25: SourceHost<Int>
+        Type SourceHost<Int>
+        Local this
+      val $dependency.local.26: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc4 $Closure$reference0
+      call $call.2: (Int) -> Int = @fn6 direct
+        Type SourceHost<Int>
+        Local $dependency.local.25
+        Type (Int) -> Int
+        Local $dependency.local.26
+      call $dependency.local.28: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $call.2
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.29: Int
+        Type Int
+        Local $dependency.local.28
+      val $dependency.local.35: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.27
+          Type Int
+          Local $dependency.local.29
+      val $dependency.local.30: SourceHost<Int>
+        Type SourceHost<Int>
+        Local this
+      branch bb1 bb2
+        Type Boolean
+        BoolLiteral true
+    bb1 if.then.1
+      val $dependency.local.31: () -> Int
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type SourceHost<Int>
+            Local $dependency.local.30
+      call $call.3: () -> Int = @fn8 direct
+        Type () -> Int
+        Local $dependency.local.31
+      assign $dependency.local.33
+        Type () -> Int
+        Local $call.3
+      goto bb3
+    bb2 if.else.2
+      val $dependency.local.32: () -> Int
+        Type () -> Int
+        ClosureAlloc cc1 $Closure$lambda1
+      assign $dependency.local.33
+        Type () -> Int
+        Local $dependency.local.32
+      goto bb3
+    bb3 if.merge.3
+      val $dependency.local.34: () -> Int
+        Type () -> Int
+        Local $dependency.local.33
+      call $call.4: () -> Int = @fn10 direct
+        Type SourceHost<Int>
+        Local $dependency.local.30
+        Type () -> Int
+        Local $dependency.local.34
+      call $dependency.local.36: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $call.4
+      val $dependency.local.37: Int
+        Type Int
+        Local $dependency.local.36
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.35
+          Type Int
+          Local $dependency.local.37
+  fun run @fn2(this: SourceHost<String>, seed: String) -> Int
+    bb0 entry
+      val $dependency.local.2: SourceHost<String>
+        Type SourceHost<String>
+        Local this
+      val $dependency.local.3: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      call $dependency.local.4: Int = external2 direct
+        Type Int
+        Local $dependency.local.3
+      call $call.1: SourcePacket = external3 direct
+        Type Int
+        Local $dependency.local.4
+      val $dependency.local.5: Int
+        Type Int
+        FieldAccess 0
+          Type SourcePacket
+          Local $call.1
+      call $dependency.local.6: Int = external4 direct
+      val $dependency.local.7: Int
+        Type Int
+        Local $dependency.local.6
+      val $dependency.local.8: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.5
+          Type Int
+          Local $dependency.local.7
+      call $dependency.local.14: Int = @fn11 direct
+        Type SourceHost<String>
+        Local $dependency.local.2
+        Type Int
+        Local $dependency.local.8
+      val $dependency.local.9: SourceHost<String>
+        Type SourceHost<String>
+        Local this
+      call external7 direct
+      val $dependency.local.10: SourceRegistry
+        Type SourceRegistry
+        GlobalRead $singleton$26a59dcdf8be1003c3f7ab6c8ee44ae86a1dde102a7f55009f0243ee0da34597
+      val $dependency.local.11: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      call $dependency.local.12: Int = external2 direct
+        Type Int
+        Local $dependency.local.11
+      call $dependency.local.13: Int = external5 direct
+        Type SourceRegistry
+        Local $dependency.local.10
+        Type Int
+        Local $dependency.local.12
+      call $dependency.local.15: Int = @fn12 direct
+        Type SourceHost<String>
+        Local $dependency.local.9
+        Type Int
+        Local $dependency.local.13
+      val $dependency.local.16: Int
+        Type Int
+        Local $dependency.local.15
+      val $dependency.local.22: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.14
+          Type Int
+          Local $dependency.local.16
+      val $dependency.local.17: SourceHost<String>
+        Type SourceHost<String>
+        Local this
+      val $dependency.local.18: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.19: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      call $dependency.local.20: Int = external2 direct
+        Type Int
+        Local $dependency.local.19
+      call $dependency.local.21: Int = external6 direct
+        Type Int
+        Local $dependency.local.18
+        Type Int
+        Local $dependency.local.20
+      call $dependency.local.23: Int = @fn13 direct
+        Type SourceHost<String>
+        Local $dependency.local.17
+        Type Int
+        Local $dependency.local.21
+      val $dependency.local.24: Int
+        Type Int
+        Local $dependency.local.23
+      val $dependency.local.27: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.22
+          Type Int
+          Local $dependency.local.24
+      val $dependency.local.25: SourceHost<String>
+        Type SourceHost<String>
+        Local this
+      val $dependency.local.26: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc5 $Closure$reference1
+      call $call.2: (Int) -> Int = @fn14 direct
+        Type SourceHost<String>
+        Local $dependency.local.25
+        Type (Int) -> Int
+        Local $dependency.local.26
+      call $dependency.local.28: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $call.2
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.29: Int
+        Type Int
+        Local $dependency.local.28
+      val $dependency.local.35: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.27
+          Type Int
+          Local $dependency.local.29
+      val $dependency.local.30: SourceHost<String>
+        Type SourceHost<String>
+        Local this
+      branch bb1 bb2
+        Type Boolean
+        BoolLiteral true
+    bb1 if.then.1
+      val $dependency.local.31: () -> Int
+        Type () -> Int
+        ClosureAlloc cc2 $Closure$lambda2
+          CaptureInit field=0
+            Type SourceHost<String>
+            Local $dependency.local.30
+      call $call.3: () -> Int = @fn16 direct
+        Type () -> Int
+        Local $dependency.local.31
+      assign $dependency.local.33
+        Type () -> Int
+        Local $call.3
+      goto bb3
+    bb2 if.else.2
+      val $dependency.local.32: () -> Int
+        Type () -> Int
+        ClosureAlloc cc3 $Closure$lambda3
+      assign $dependency.local.33
+        Type () -> Int
+        Local $dependency.local.32
+      goto bb3
+    bb3 if.merge.3
+      val $dependency.local.34: () -> Int
+        Type () -> Int
+        Local $dependency.local.33
+      call $call.4: () -> Int = @fn18 direct
+        Type SourceHost<String>
+        Local $dependency.local.30
+        Type () -> Int
+        Local $dependency.local.34
+      call $dependency.local.36: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $call.4
+      val $dependency.local.37: Int
+        Type Int
+        Local $dependency.local.36
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.35
+          Type Int
+          Local $dependency.local.37
+  fun packet @fn3(this: SourceHost<Int>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun singleton @fn4(this: SourceHost<Int>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun extension @fn5(this: SourceHost<Int>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun reference @fn6(this: SourceHost<Int>, value: (Int) -> Int) -> (Int) -> Int
+    bb0 entry
+      return
+        Type (Int) -> Int
+        Local value
+  fun $lambda @fn7($argument.0: () -> Int) -> Int
+    bb0 entry
+      val $dependency.local.0: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      call $dependency.local.1: Int = external2 direct
+        Type Int
+        Local $dependency.local.0
+      call $dependency.local.2: Int = external4 direct
+      val $dependency.local.3: Int
+        Type Int
+        Local $dependency.local.2
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.1
+          Type Int
+          Local $dependency.local.3
+  fun nested @fn8($argument.0: () -> Int) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        Local $argument.0
+  fun $lambda @fn9($argument.0: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+  fun local @fn10(this: SourceHost<Int>, value: () -> Int) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        Local value
+  fun packet @fn11(this: SourceHost<String>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun singleton @fn12(this: SourceHost<String>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun extension @fn13(this: SourceHost<String>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun reference @fn14(this: SourceHost<String>, value: (Int) -> Int) -> (Int) -> Int
+    bb0 entry
+      return
+        Type (Int) -> Int
+        Local value
+  fun $lambda @fn15($argument.0: () -> Int) -> Int
+    bb0 entry
+      val $dependency.local.0: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      call $dependency.local.1: Int = external2 direct
+        Type Int
+        Local $dependency.local.0
+      call $dependency.local.2: Int = external4 direct
+      val $dependency.local.3: Int
+        Type Int
+        Local $dependency.local.2
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.1
+          Type Int
+          Local $dependency.local.3
+  fun nested @fn16($argument.0: () -> Int) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        Local $argument.0
+  fun $lambda @fn17($argument.0: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+  fun local @fn18(this: SourceHost<String>, value: () -> Int) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        Local value
+  fun $reference.0 @fn19($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = external2 direct
+        Type Int
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun $reference.1 @fn20($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = external2 direct
+        Type Int
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun function_bridge.$Closure$lambda0.() -> Any @fn21($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.() -> Any @fn22($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.() -> Any @fn23($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda3.() -> Any @fn24($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn25($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference1.(Any) -> Any @fn26($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  instance mi0 function=@fn1 <- run
+  instance mi1 function=@fn2 <- run
+  instance mi2 function=@fn3 <- packet
+  instance mi3 function=@fn4 <- singleton
+  instance mi4 function=@fn5 <- extension
+  instance mi5 function=@fn6 <- reference
+  instance mi6 function=@fn7 <- $lambda
+  instance mi7 function=@fn8 <- nested
+  instance mi8 function=@fn9 <- $lambda
+  instance mi9 function=@fn10 <- local
+  instance mi10 function=@fn11 <- packet
+  instance mi11 function=@fn12 <- singleton
+  instance mi12 function=@fn13 <- extension
+  instance mi13 function=@fn14 <- reference
+  instance mi14 function=@fn15 <- $lambda
+  instance mi15 function=@fn16 <- nested
+  instance mi16 function=@fn17 <- $lambda
+  instance mi17 function=@fn18 <- local
+  str @str0 "payload"
+  output library

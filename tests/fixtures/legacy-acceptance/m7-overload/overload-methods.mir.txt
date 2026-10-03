@@ -1,0 +1,113 @@
+Module
+  class A vtable=1 itables=0
+  class B vtable=1 itables=0
+  interface ToString
+  interface Hash
+  fun A.s @fn0(this: A, v: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+  fun A.s @fn1(this: A, v: String) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+  fun B.s @fn2(this: B, v: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+  fun main @fn3() -> Unit
+    bb0 entry
+      assign $new.1
+        Type B
+        ClassAlloc B
+      call @fn6 direct
+        Type B
+        Local $new.1
+      val a: A
+        Type A
+        Retype A
+          Type B
+          Local $new.1
+      val $receiver: A
+        Type A
+        Local a
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.v: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn0 virtual[0]
+        Type A
+        Local $receiver
+        Type Int
+        Local $parameter.v
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $receiver: A
+        Type A
+        Local a
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $parameter.v: String
+        Type String
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn1 direct
+        Type A
+        Local $receiver
+        Type String
+        Local $parameter.v
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun println @fn4(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str1
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun init.A.$c0 @fn5(this: A) -> Unit
+    bb0 entry
+      return
+  fun init.B.$c1 @fn6(this: B) -> Unit
+    bb0 entry
+      call @fn5 direct
+        Type A
+        Retype A
+          Type B
+          Local this
+      return
+  instance mi0 function=@fn4 <- println
+  str @str0 "x"
+  str @str1 "\n"
+  output executable @fn3

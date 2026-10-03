@@ -1,0 +1,15 @@
+SourceFile
+  RootPackage
+  fun main()
+    val kept: Any
+      Call storageValue
+    if
+      Binary Or
+        Unary Not
+          Var storageReady
+        Binary Ne
+          FieldAccess text
+            Var StorageSingleton
+          StringLiteral "singleton"
+      throw
+        Call IllegalStateException

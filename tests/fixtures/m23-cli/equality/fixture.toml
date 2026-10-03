@@ -1,0 +1,146 @@
+schema = 1
+name = "cli-derived-equality-provider-reexport"
+inputs = ["local.scoop", "provider", "facade", "direct", "reexport", "bad-field.scoop", "bad-no-gc.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["cli", "equality", "reexport", "generics", "moving-gc", "stage-golden"]
+
+[vars]
+options = ["--sysroot", "${work}/sysroot", "--runtime-root", "${work}/runtime", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+
+[[variants]]
+name = "normal"
+[[variants]]
+name = "moving"
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+
+[[steps]]
+name = "prepare"
+files = [
+  {copy = {from = "${fixture}/provider", to = "${work}/source/provider"}},
+  {copy = {from = "${fixture}/facade", to = "${work}/source/facade"}},
+  {copy = {from = "${fixture}/direct", to = "${work}/source/direct"}},
+  {copy = {from = "${fixture}/reexport", to = "${work}/source/reexport"}},
+  {copy = {from = "${sysroot}", to = "${work}/sysroot"}},
+  {copy = {from = "${runtime}", to = "${work}/runtime"}},
+]
+
+[[steps]]
+name = "local"
+argv = ["${scoop}", "build", "${fixture}/local.scoop", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dump-local"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump-local/${local.result.root.identity}/ast.txt", snapshot = "local.ast.txt"},
+  {file = "${work}/dump-local/${local.result.root.identity}/hir.txt", snapshot = "local.hir.txt"},
+  {file = "${work}/dump-local/${local.result.root.identity}/mir.txt", snapshot = "local.mir.txt"},
+  {file = "${work}/dump-local/${local.result.root.identity}/lir.txt", snapshot = "local.lir.txt"},
+]
+
+[[steps]]
+name = "run_local"
+argv = ["${local.result.output}"]
+exit = 0
+stdout = {file = "expected.stdout"}
+stderr = ""
+
+[[steps]]
+name = "direct"
+argv = ["${scoop}", "build", "${work}/source/direct", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dump-direct"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump-direct/${direct.result.root.identity}/ast.txt", snapshot = "direct.ast.txt"},
+  {file = "${work}/dump-direct/${direct.result.root.identity}/hir.txt", snapshot = "direct.hir.txt"},
+  {file = "${work}/dump-direct/${direct.result.root.identity}/mir.txt", snapshot = "direct.mir.txt"},
+  {file = "${work}/dump-direct/${direct.result.root.identity}/lir.txt", snapshot = "direct.lir.txt"},
+]
+
+[[steps]]
+name = "run_direct"
+argv = ["${direct.result.output}"]
+exit = 0
+stdout = {file = "expected.stdout"}
+stderr = ""
+
+[[steps]]
+name = "reexport"
+argv = ["${scoop}", "build", "${work}/source/reexport", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dump-reexport"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump-reexport/${reexport.result.root.identity}/ast.txt", snapshot = "reexport.ast.txt"},
+  {file = "${work}/dump-reexport/${reexport.result.root.identity}/hir.txt", snapshot = "reexport.hir.txt"},
+  {file = "${work}/dump-reexport/${reexport.result.root.identity}/mir.txt", snapshot = "reexport.mir.txt"},
+  {file = "${work}/dump-reexport/${reexport.result.root.identity}/lir.txt", snapshot = "reexport.lir.txt"},
+]
+
+[[steps]]
+name = "run_reexport"
+argv = ["${reexport.result.output}"]
+exit = 0
+stdout = {file = "expected.stdout"}
+stderr = ""
+
+[[steps]]
+name = "prepare_bad_field"
+files = [{copy = {from = "${fixture}/bad-field.scoop", to = "${work}/source/direct/src/main.scoop"}}]
+
+[[steps]]
+name = "bad_field"
+argv = ["${scoop}", "build", "${work}/source/direct", {each = "${options}"}]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = [{severity = "error", code = "SCOOPC_HIR_ERROR", message = "cannot derive `equals` for `Broken`: field `Broken.Value._0` of type `Missing` has no applicable member operator `equals`", origin = {kind = "source", cone = "${direct.result.root.identity}", path = "src/main.scoop", start = 80, end = 93}, notes = []}]
+
+[[steps]]
+name = "prepare_bad_no_gc"
+files = [{copy = {from = "${fixture}/bad-no-gc.scoop", to = "${work}/source/direct/src/main.scoop"}}]
+
+[[steps]]
+name = "bad_no_gc"
+argv = ["${scoop}", "build", "${work}/source/direct", {each = "${options}"}]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = [{severity = "error", code = "SCOOPC_HIR_ERROR", message = "`@NoGC` code may not call managed function `Flag.equals`", origin = {kind = "source", cone = "${direct.result.root.identity}", path = "src/main.scoop", start = 80, end = 93}, notes = []}]
+
+[[steps]]
+name = "isolate"
+files = [
+  {copy = {from = "${scoop}", to = "${work}/standalone/scoop"}},
+  {move = {from = "${work}/source", to = "${work}/source-removed"}},
+  {remove = {path = "${work}/sysroot"}},
+  {remove = {path = "${work}/runtime"}},
+  {mkdir = {path = "${work}/sysroot"}},
+]
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${reexport.result.root.path}", {each = "${reexport.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--runtime-objects", "${reexport.result.runtime_index}", "--sysroot", "${work}/sysroot", "-o", "${work}/relinked", "--message-format", "json"]
+env = {LLVM_CONFIG_PATH = "/absent/llvm-config", LLVM_SYS_221_PREFIX = "/absent/llvm"}
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${link.result.link_plan_fingerprint}", equals = "${reexport.result.link_plan_fingerprint}"}]
+
+[[steps]]
+name = "run_link"
+argv = ["${link.result.output}"]
+exit = 0
+stdout = {file = "expected.stdout"}
+stderr = ""

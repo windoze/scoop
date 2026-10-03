@@ -1,3 +1,0 @@
-span=96..104
-expression=::secret
-default expression references a callable outside the callable's complete call domain

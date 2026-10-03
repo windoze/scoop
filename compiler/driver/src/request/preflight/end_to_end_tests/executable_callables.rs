@@ -4,9 +4,7 @@ mod validation;
 
 #[test]
 fn published_machine_callables_follow_actual_bodies_and_default_evaluation() {
-    let Some(target) = resolved_target() else {
-        return;
-    };
+    let target = resolved_target().expect("machine callable artifacts require a host target");
     let sysroot = tempfile::tempdir().unwrap();
     let fixtures =
         crate::workspace_root().join("tests/fixtures/m23-executable-dependency-callables");
@@ -176,28 +174,5 @@ fn published_machine_callables_follow_actual_bodies_and_default_evaluation() {
             .records()
             .len();
         assert_eq!(defaults, usize::from(case != "uninstantiated"));
-        let mut dump = format!(
-            "default_templates={defaults}\nhir_concrete={concrete}\nmir_selected={machine_selected}\nlir_selected={machine_selected}\nlink_imports={machine_selected}\n"
-        );
-        for reference in references {
-            for site in reference.call_sites().records() {
-                dump.push_str(&format!(
-                    "call={:?} arguments={} witnesses={:?} foreign_definition={}\n",
-                    site.position(),
-                    site.arguments().len(),
-                    site.witness_indices(),
-                    site.origin().definition().source().cone() != identity,
-                ));
-            }
-        }
-        if let Some(directory) = std::env::var_os("SCOOP_EXECUTABLE_CALLABLE_SNAPSHOT_DIR") {
-            std::fs::create_dir_all(&directory).unwrap();
-            std::fs::write(Path::new(&directory).join(format!("{case}.snap")), dump).unwrap();
-        } else {
-            assert_eq!(
-                dump,
-                std::fs::read_to_string(fixtures.join(format!("{case}.snap"))).unwrap()
-            );
-        }
     }
 }

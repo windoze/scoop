@@ -1,0 +1,236 @@
+schema = 1
+name = "runtime-images-schedule-root"
+inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "schedule-a-base", "../../m23-runtime-images/schedule-a-base.scoop", "schedule-b-next", "../../m23-runtime-images/schedule-b-next.scoop", "schedule-c-peer", "../../m23-runtime-images/schedule-c-peer.scoop", "schedule-d-join", "../../m23-runtime-images/schedule-d-join.scoop", "../support/trace.c", "schedule-root", "../../m23-runtime-images/schedule-root.scoop"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin"]
+tags = ["runtime-images", "schedule", "stage-golden"]
+
+[[steps]]
+name = "prepare_core"
+files = [
+  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"copy" = {"from" = "${fixture}/../../m23-cli-imported-classes/support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
+  {"mkdir" = {"path" = "${work}/empty-sysroot"}},
+]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "remove_core_source"
+files = [
+  {"remove" = {"path" = "${work}/core-source"}},
+]
+
+[[steps]]
+name = "prepare_schedule-a-base"
+files = [
+  {"copy" = {"from" = "${fixture}/schedule-a-base", "to" = "${work}/sources/schedule-a-base"}},
+  {"copy" = {"from" = "${fixture}/../../m23-runtime-images/schedule-a-base.scoop", "to" = "${work}/sources/schedule-a-base/src/main.scoop"}},
+]
+
+[[steps]]
+name = "schedule-a-base"
+argv = ["${scoop}", "build", "${work}/sources/schedule-a-base", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-schedule-a-base", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/schedule-a-base/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/schedule-a-base"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${schedule-a-base.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/schedule-a-base/${schedule-a-base.result.root.identity}/ast.txt", "snapshot" = "schedule-a-base.ast.txt"},
+  {"file" = "${work}/dump/schedule-a-base/${schedule-a-base.result.root.identity}/hir.txt", "snapshot" = "schedule-a-base.hir.txt"},
+  {"file" = "${work}/dump/schedule-a-base/${schedule-a-base.result.root.identity}/mir.txt", "snapshot" = "schedule-a-base.mir.txt"},
+  {"file" = "${work}/dump/schedule-a-base/${schedule-a-base.result.root.identity}/lir.txt", "snapshot" = "schedule-a-base.lir.txt"},
+]
+
+[[steps]]
+name = "remove_schedule-a-base"
+files = [
+  {"remove" = {"path" = "${work}/sources/schedule-a-base"}},
+]
+
+[[steps]]
+name = "prepare_schedule-b-next"
+files = [
+  {"copy" = {"from" = "${fixture}/schedule-b-next", "to" = "${work}/sources/schedule-b-next"}},
+  {"copy" = {"from" = "${fixture}/../../m23-runtime-images/schedule-b-next.scoop", "to" = "${work}/sources/schedule-b-next/src/main.scoop"}},
+]
+
+[[steps]]
+name = "schedule-b-next"
+argv = ["${scoop}", "build", "${work}/sources/schedule-b-next", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-schedule-b-next", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/schedule-b-next/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/schedule-b-next"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${schedule-b-next.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/schedule-b-next/${schedule-b-next.result.root.identity}/ast.txt", "snapshot" = "schedule-b-next.ast.txt"},
+  {"file" = "${work}/dump/schedule-b-next/${schedule-b-next.result.root.identity}/hir.txt", "snapshot" = "schedule-b-next.hir.txt"},
+  {"file" = "${work}/dump/schedule-b-next/${schedule-b-next.result.root.identity}/mir.txt", "snapshot" = "schedule-b-next.mir.txt"},
+  {"file" = "${work}/dump/schedule-b-next/${schedule-b-next.result.root.identity}/lir.txt", "snapshot" = "schedule-b-next.lir.txt"},
+]
+
+[[steps]]
+name = "remove_schedule-b-next"
+files = [
+  {"remove" = {"path" = "${work}/sources/schedule-b-next"}},
+]
+
+[[steps]]
+name = "prepare_schedule-c-peer"
+files = [
+  {"copy" = {"from" = "${fixture}/schedule-c-peer", "to" = "${work}/sources/schedule-c-peer"}},
+  {"copy" = {"from" = "${fixture}/../../m23-runtime-images/schedule-c-peer.scoop", "to" = "${work}/sources/schedule-c-peer/src/main.scoop"}},
+]
+
+[[steps]]
+name = "schedule-c-peer"
+argv = ["${scoop}", "build", "${work}/sources/schedule-c-peer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-schedule-c-peer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/schedule-c-peer/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/schedule-c-peer"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${schedule-c-peer.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/schedule-c-peer/${schedule-c-peer.result.root.identity}/ast.txt", "snapshot" = "schedule-c-peer.ast.txt"},
+  {"file" = "${work}/dump/schedule-c-peer/${schedule-c-peer.result.root.identity}/hir.txt", "snapshot" = "schedule-c-peer.hir.txt"},
+  {"file" = "${work}/dump/schedule-c-peer/${schedule-c-peer.result.root.identity}/mir.txt", "snapshot" = "schedule-c-peer.mir.txt"},
+  {"file" = "${work}/dump/schedule-c-peer/${schedule-c-peer.result.root.identity}/lir.txt", "snapshot" = "schedule-c-peer.lir.txt"},
+]
+
+[[steps]]
+name = "remove_schedule-c-peer"
+files = [
+  {"remove" = {"path" = "${work}/sources/schedule-c-peer"}},
+]
+
+[[steps]]
+name = "prepare_schedule-d-join"
+files = [
+  {"copy" = {"from" = "${fixture}/schedule-d-join", "to" = "${work}/sources/schedule-d-join"}},
+  {"copy" = {"from" = "${fixture}/../../m23-runtime-images/schedule-d-join.scoop", "to" = "${work}/sources/schedule-d-join/src/main.scoop"}},
+]
+
+[[steps]]
+name = "schedule-d-join"
+argv = ["${scoop}", "build", "${work}/sources/schedule-d-join", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-schedule-d-join", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/schedule-d-join/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/schedule-d-join"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${schedule-d-join.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/schedule-d-join/${schedule-d-join.result.root.identity}/ast.txt", "snapshot" = "schedule-d-join.ast.txt"},
+  {"file" = "${work}/dump/schedule-d-join/${schedule-d-join.result.root.identity}/hir.txt", "snapshot" = "schedule-d-join.hir.txt"},
+  {"file" = "${work}/dump/schedule-d-join/${schedule-d-join.result.root.identity}/mir.txt", "snapshot" = "schedule-d-join.mir.txt"},
+  {"file" = "${work}/dump/schedule-d-join/${schedule-d-join.result.root.identity}/lir.txt", "snapshot" = "schedule-d-join.lir.txt"},
+]
+
+[[steps]]
+name = "remove_schedule-d-join"
+files = [
+  {"remove" = {"path" = "${work}/sources/schedule-d-join"}},
+]
+
+[[steps]]
+name = "prepare_native"
+files = [
+  {"copy" = {"from" = "${fixture}/../support/trace.c", "to" = "${work}/native/trace.c"}},
+]
+
+[[steps]]
+name = "compile_native"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/native/trace.c", "-o", "${work}/native/trace.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive_native"
+argv = ["${ar}", "qcS", "${work}/native/libm23_runtime_images.a", "${work}/native/trace.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"ZERO_AR_DATE" = "1"}
+
+[[steps]]
+name = "remove_native_source"
+files = [
+  {"remove" = {"path" = "${work}/native/trace.c"}},
+  {"remove" = {"path" = "${work}/native/trace.o"}},
+]
+
+[[steps]]
+name = "prepare_schedule-root"
+files = [
+  {"copy" = {"from" = "${fixture}/schedule-root", "to" = "${work}/sources/schedule-root"}},
+  {"copy" = {"from" = "${fixture}/../../m23-runtime-images/schedule-root.scoop", "to" = "${work}/sources/schedule-root/src/main.scoop"}},
+]
+
+[[steps]]
+name = "program"
+argv = ["${scoop}", "build", "${work}/sources/schedule-root", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/built-program", "--emit", "all", "--dump-dir", "${work}/dump/program", "--runtime-root", "${runtime}", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${program.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/ast.txt", "snapshot" = "program.ast.txt"},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/hir.txt", "snapshot" = "program.hir.txt"},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/mir.txt", "snapshot" = "program.mir.txt"},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/lir.txt", "snapshot" = "program.lir.txt"},
+]
+
+[[steps]]
+name = "isolate"
+files = [
+  {"copy" = {"from" = "${program.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
+  {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}},
+  {"remove" = {"path" = "${work}/sources"}},
+]
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--cone-path", "${work}/artifacts", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--library-path", "${work}/native", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [
+  {"actual" = "${link.result.dependencies.length}", "equals" = 5},
+  {"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
+  {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan.txt", "normalize" = ["paths"]},
+]
+
+[[steps]]
+name = "run"
+argv = ["${work}/program"]
+exit = 0
+stdout = "10\n20\n30\n40\n50\n"
+stderr = ""
+env = {}
+
+[[steps]]
+name = "run_moving"
+argv = ["${work}/program"]
+exit = 0
+stdout = "10\n20\n30\n40\n50\n"
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}

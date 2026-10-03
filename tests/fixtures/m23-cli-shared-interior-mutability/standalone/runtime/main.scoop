@@ -1,0 +1,10 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    @Unsafe {
+    val cell = Cell(17)
+    verifyType(cell.value == 17 && Plain(23).value == 23)
+    val erased: Any = cell
+    verifyType((erased as Cell).value == 17)
+    }
+}

@@ -1,0 +1,156 @@
+Module
+  struct LocalValue ()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<LocalValue>
+    Completed(value: LocalValue)
+    Suspended()
+  enum CoroutineSlot<LocalValue>
+    Empty()
+    Value(value: LocalValue)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<(UInt16, UInt)> vtable=0 itables=0
+  class box<Unit> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  class box<LocalValue> vtable=0 itables=0
+  interface Continuation<LocalValue>
+  interface SuspendTask<LocalValue>
+  interface SuspendRegistration<LocalValue>
+  generated_exact_type get0 location=enum2 nominal_id=4760e36286b4821f383815173eb54e919dc3191eb0870504a9f89d3bc828df70 exact_id=1faed68473af6bf04cd1e01c594a57677c7eb8c571d19a72bd4378b87b7f282e
+  generated_exact_type get1 location=class3 nominal_id=54cfda9881e0daa56b85e29a05d577a57fed2854171b31520c9c5bdd54a8234d exact_id=3f5c06e2b7c1d896041ded19127bfe37f21461d5540078ffc2080197e9ee960f
+  generated_exact_type get2 location=class4 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get3 location=enum1 nominal_id=270ba46492563eb8bc5891d5098cd23514fb8b0f0992869bdbb7bd0ec2e07e64 exact_id=4000056a7e5f1cd0cf834d54c088aaf9f242f983f12722711766d4e2ad850535
+  generated_exact_type get4 location=class6 nominal_id=a025737b357d302eadecc503bd0b4356f5caf262804a753960dd771b726282bb exact_id=65ea45f046a5e4db0db9c0a826690269c95e02a8b58dfaf0ab36e356e10c47dc
+  generated_exact_type get5 location=class5 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn12 id=4b10733a204a8b0d5a56740a152ef5eed5f0444fca2d3ae67fab0eb11c79b3c7
+  fun LocalValue.equals @fn0(this: LocalValue, other: LocalValue) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun boxPair @fn1(value: (UInt16, UInt)) -> Any
+    bb0 entry
+      return
+        Type Any
+        Box
+          Type (UInt16, UInt)
+          Local value
+  fun testPair @fn2(value: Any) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        IsInstance (UInt16, UInt)
+          Type Any
+          Local value
+  fun testString @fn3(value: Any) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        IsInstance String
+          Type Any
+          Local value
+  fun boxUnit @fn4(value: Unit) -> Any
+    bb0 entry
+      return
+        Type Any
+        Box
+          Type Unit
+          Local value
+  fun smartInteger @fn5(value: Any) -> Int
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IsInstance Int
+          Type Any
+          Local value
+    bb1 if.then.1
+      val $ub.1: Int
+        Type Int
+        Unbox
+          Type Any
+          Local value
+      return
+        Type Int
+        Local $ub.1
+    bb2 if.merge.2
+      return
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+  fun boxLocal @fn6(value: LocalValue) -> Any
+    bb0 entry
+      return
+        Type Any
+        Box
+          Type LocalValue
+          Local value
+  fun Continuation.resume @fn7(this: Continuation<LocalValue>, value: LocalValue) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn8(this: Continuation<LocalValue>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn9(this: SuspendTask<LocalValue>, $completion: Continuation<LocalValue>) -> CoroutineStep<LocalValue>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn10(this: SuspendRegistration<LocalValue>, continuation: Continuation<LocalValue>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.LocalValue.$c0 @fn11() -> LocalValue <no-gc>
+    bb0 entry
+      return
+        Type LocalValue
+        StructInit LocalValue
+  fun startCoroutine<LocalValue> @fn12(task: SuspendTask<LocalValue>, completion: Continuation<LocalValue>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn7 interface Continuation<LocalValue>[0]
+        Type Continuation<LocalValue>
+        Local completion
+        Type LocalValue
+        EnumField v0 f0
+          Type CoroutineStep<LocalValue>
+          Local $step
+      return
+    bb2 failed
+      call @fn8 interface Continuation<LocalValue>[1]
+        Type Continuation<LocalValue>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<LocalValue> = @fn9 interface SuspendTask<LocalValue>[0]
+        Type SuspendTask<LocalValue>
+        Local task
+        Type Continuation<LocalValue>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<LocalValue>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<LocalValue> result=LocalValue
+  coroutine_slot cl0 CoroutineSlot<LocalValue> value=LocalValue
+  coroutine_start ct0 result=LocalValue function=fn12
+  coroutine_fn cf0 @fn9 source_return=LocalValue step=cs0 immediate
+  instance mi0 function=@fn7 <- Continuation.resume
+  instance mi1 function=@fn8 <- Continuation.resumeWithException
+  instance mi2 function=@fn9 <- SuspendTask.run
+  instance mi3 function=@fn10 <- SuspendRegistration.register
+  output library

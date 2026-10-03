@@ -1,0 +1,10 @@
+SourceFile
+  RootPackage
+  ImportExact Local checkCoreDependencyCalls
+  fun main()
+    if
+      Binary Ne
+        Call checkCoreDependencyCalls
+        IntLiteral 3
+      throw
+        Call IllegalStateException

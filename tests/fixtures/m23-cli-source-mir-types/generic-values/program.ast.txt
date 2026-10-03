@@ -1,0 +1,53 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val numbers
+      Call Numbers
+        Call Box
+          IntLiteral 17
+        MethodCall Full
+          Var Maybe
+          Call Box
+            Call Marker
+    Call verifyType
+      Binary Eq
+        FieldAccess value
+          FieldAccess one
+            Var numbers
+        IntLiteral 17
+    Call verifyType
+      WhenExpression
+        FieldAccess nested
+          Var numbers
+        arm Empty
+          BoolLiteral false
+        arm Full(value)
+          Binary Eq
+            FieldAccess value
+              Var value
+            Call Marker
+    val text
+      Call Box
+        StringLiteral "text"
+    val erased: Any
+      Var text
+    Call verifyType
+      Binary Eq
+        FieldAccess value
+          Cast Box<String> optional=false
+            Var erased
+        StringLiteral "text"
+    val empty: Maybe<Box<Marker>>
+      FieldAccess Empty
+        Var Maybe
+    Call verifyType
+      Binary Eq
+        Var empty
+        FieldAccess Empty
+          Var Maybe

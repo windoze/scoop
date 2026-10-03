@@ -1,0 +1,6 @@
+SourceFile
+  QualifiedPackage consumer.initialization
+  ImportExact Local templates.initialization.result
+  public fun answer(): Int
+    =
+      Call result

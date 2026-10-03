@@ -1,0 +1,12 @@
+SourceFile
+  RootPackage
+  public fun requested<T>(value: T): T
+    =
+      Var value
+  public fun dormant(value: Int = <expr>): Int
+    =
+      Var value
+  public fun dormantBody<T>(seed: T): Int
+    =
+      Call requested<Int>
+        IntLiteral 7

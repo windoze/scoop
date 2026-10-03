@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m3-generics/errors/safe-on-non-option.scoop:5:13: error: `?.` requires an Option receiver, found Point

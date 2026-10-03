@@ -1,3 +1,0 @@
-span=85..111
-expression=Choice.Pair(1, Token(), 2)
-dependency constructor `Pair` named-field variants require every argument to be named

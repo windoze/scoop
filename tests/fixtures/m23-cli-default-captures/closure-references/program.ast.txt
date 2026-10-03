@@ -1,0 +1,55 @@
+SourceFile
+  RootPackage
+  fun enabled(): Boolean
+    =
+      BoolLiteral true
+  fun disabled(): Boolean
+    =
+      BoolLiteral false
+  fun main()
+    if
+      Binary Ne
+        Invoke
+          Call choose
+            IntLiteral 7
+            Call enabled
+        IntLiteral 7
+      throw
+        Call IllegalStateException
+    if
+      Binary Ne
+        Invoke
+          Call choose
+            IntLiteral 11
+            Call disabled
+        IntLiteral 11
+      throw
+        Call IllegalStateException
+    if
+      Binary Ne
+        Invoke
+          Call choose
+            IntLiteral 17
+            BoolLiteral true
+            Lambda 0 suspend=false
+              parameters omitted
+              IntLiteral 13
+        IntLiteral 13
+      throw
+        Call IllegalStateException
+    if
+      Binary Ne
+        Invoke
+          Call lambda
+            IntLiteral 19
+        IntLiteral 19
+      throw
+        Call IllegalStateException
+    if
+      Binary Ne
+        Invoke
+          Call anonymous
+            IntLiteral 23
+        IntLiteral 23
+      throw
+        Call IllegalStateException

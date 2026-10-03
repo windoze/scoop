@@ -21,7 +21,7 @@ use crate::graph::{ResolvedDependencyEdge, ResolvedDependencyProjection};
 
 mod cache_completion;
 mod cache_key;
-mod child_request;
+pub(super) mod child_request;
 
 pub use cache_key::CompileCacheKeyError;
 pub use child_request::ChildRequestPlanError;
@@ -227,6 +227,7 @@ pub struct PreparedBuildGraph {
 
     pub(super) staging: PreparedStaging,
     pub(super) compiler: ResolvedPairedScoopc,
+    pub(super) dumps: BTreeMap<ConeIdentity, super::observation::PreparedDump>,
 }
 
 impl PreparedBuildGraph {

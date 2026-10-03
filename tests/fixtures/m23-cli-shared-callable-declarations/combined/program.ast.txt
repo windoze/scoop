@@ -1,0 +1,31 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val value
+      Call service
+    val contract: Contract
+      Var value
+    Call verifyType
+      Binary And
+        Binary Eq
+          MethodCall compute
+            Var contract
+            IntLiteral 17
+          IntLiteral 17
+        Binary Eq
+          MethodCall observe
+            Var value
+            IntLiteral 23
+          IntLiteral 23
+    Call verifyType
+      Binary RefEq
+        FieldAccess Cache
+          Var Service
+        FieldAccess Cache
+          Var Service

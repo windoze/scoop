@@ -1,0 +1,7 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val value = FlagValue(true, 17)
+    verifyType(value.enabled && value.count == 17)
+    verifyType(value == FlagValue(true, 17))
+}

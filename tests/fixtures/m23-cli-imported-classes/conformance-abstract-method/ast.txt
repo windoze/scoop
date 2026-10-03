@@ -1,0 +1,18 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.Readable
+  ImportExact Local dependency.classes.retainReadable
+  public abstract class LocalBase(), Readable
+    public fun read
+  public class LocalReader() : LocalBase(<0 args>)
+    public fun read
+  public fun localReader(): LocalBase
+    =
+      Call LocalReader
+  public fun primary(): Counter
+    =
+      Call Counter
+        MethodCall answer
+          Call retainReadable
+            Call localReader

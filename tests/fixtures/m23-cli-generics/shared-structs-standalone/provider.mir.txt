@@ -1,0 +1,129 @@
+Module
+  struct NativePair (left: Int, right: Int) <c-layout aligned=natural packed=natural>
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<NativePair>
+    Completed(value: NativePair)
+    Suspended()
+  enum CoroutineSlot<NativePair>
+    Empty()
+    Value(value: NativePair)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<NativePair> vtable=0 itables=0
+  interface Continuation<NativePair>
+  interface SuspendTask<NativePair>
+  interface SuspendRegistration<NativePair>
+  generated_exact_type get0 location=enum2 nominal_id=6fdcad6a82e1a0023c93d20073523cd7ad2fdee6101e03ab1901df61d5bcf50d exact_id=4fd30211f8b17eb5265c84e0039243a2b5fb64426679e507a5b9f73530fec142
+  generated_exact_type get1 location=enum1 nominal_id=8c45f1682a2df1a9e5f1618e27c606dc85d2bc5d5ade27866f924fc24edf15e5 exact_id=7f2e7702ae7a6085d08c423231d40408de99058635157e3a6a026a8b10d516eb
+  generated_exact_type get2 location=class3 nominal_id=b61dfb4b7cf557cb76588f3a7d733a5f78e39d674a461a8de1454655a6f8fe38 exact_id=fb8e7e2d8842e9e5027a5fdf88c0265e5cd0b7ca35f41a30fb1271acf86a16c5
+  generated_callable gc0 function=@fn6 id=1cded5d2d74dfc5fa4bd13cf568413d4bfffb86ea3ce4545b40cca332caf131a
+  fun NativePair.equals @fn0(this: NativePair, other: NativePair) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type NativePair
+            Local this
+          Type Int
+          FieldAccess 0
+            Type NativePair
+            Local other
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 1
+            Type NativePair
+            Local this
+          Type Int
+          FieldAccess 1
+            Type NativePair
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.1
+  fun Continuation.resume @fn1(this: Continuation<NativePair>, value: NativePair) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn2(this: Continuation<NativePair>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn3(this: SuspendTask<NativePair>, $completion: Continuation<NativePair>) -> CoroutineStep<NativePair>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn4(this: SuspendRegistration<NativePair>, continuation: Continuation<NativePair>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.NativePair.$c1 @fn5(left: Int, right: Int) -> NativePair <no-gc>
+    bb0 entry
+      return
+        Type NativePair
+        StructInit NativePair
+          Type Int
+          Local left
+          Type Int
+          Local right
+  fun startCoroutine<NativePair> @fn6(task: SuspendTask<NativePair>, completion: Continuation<NativePair>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn1 interface Continuation<NativePair>[0]
+        Type Continuation<NativePair>
+        Local completion
+        Type NativePair
+        EnumField v0 f0
+          Type CoroutineStep<NativePair>
+          Local $step
+      return
+    bb2 failed
+      call @fn2 interface Continuation<NativePair>[1]
+        Type Continuation<NativePair>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<NativePair> = @fn3 interface SuspendTask<NativePair>[0]
+        Type SuspendTask<NativePair>
+        Local task
+        Type Continuation<NativePair>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<NativePair>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<NativePair> result=NativePair
+  coroutine_slot cl0 CoroutineSlot<NativePair> value=NativePair
+  coroutine_start ct0 result=NativePair function=fn6
+  coroutine_fn cf0 @fn3 source_return=NativePair step=cs0 immediate
+  instance mi0 function=@fn1 <- Continuation.resume
+  instance mi1 function=@fn2 <- Continuation.resumeWithException
+  instance mi2 function=@fn3 <- SuspendTask.run
+  instance mi3 function=@fn4 <- SuspendRegistration.register
+  output library

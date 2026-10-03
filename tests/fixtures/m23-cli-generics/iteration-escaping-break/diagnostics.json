@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`break` is only allowed inside a loop",
+    "notes": [],
+    "origin": {
+      "cone": "d3dd692804a7c570b048504f4e6ffba3447d0266435e830be9d2a19435e37483",
+      "end": 130,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 125
+    },
+    "severity": "error"
+  }
+]

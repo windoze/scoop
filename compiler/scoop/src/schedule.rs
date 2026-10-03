@@ -14,6 +14,9 @@ use crate::{
 };
 use crate::{CompletedNode, CompletedNodeOrigin};
 
+mod failure;
+pub use failure::BuildGraphExecutionFailure;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BuildNodeObservation {
     identity: ConeIdentity,
@@ -84,14 +87,21 @@ impl ExecutedBuildGraph {
             .iter()
             .flat_map(|identity| self.completed[identity].warnings().iter().cloned())
             .collect();
+        let artifacts = self
+            .dependency_first
+            .iter()
+            .map(|identity| self.completed[identity].clone())
+            .collect();
         match root.artifact().summary().cone().kind() {
             ConeKind::Library => BuildGraphOutcome::Library {
                 root,
+                artifacts,
                 warnings,
                 observations: self.observations,
             },
             ConeKind::Executable => BuildGraphOutcome::ExecutableArtifact {
                 root,
+                artifacts,
                 warnings,
                 observations: self.observations,
             },
@@ -103,11 +113,13 @@ impl ExecutedBuildGraph {
 pub enum BuildGraphOutcome {
     Library {
         root: CompletedNode,
+        artifacts: Vec<CompletedNode>,
         warnings: Vec<StructuredDiagnosticV1>,
         observations: BuildObservations,
     },
     ExecutableArtifact {
         root: CompletedNode,
+        artifacts: Vec<CompletedNode>,
         warnings: Vec<StructuredDiagnosticV1>,
         observations: BuildObservations,
     },
@@ -117,6 +129,14 @@ impl BuildGraphOutcome {
     pub const fn root(&self) -> &CompletedNode {
         match self {
             Self::Library { root, .. } | Self::ExecutableArtifact { root, .. } => root,
+        }
+    }
+
+    pub fn artifacts(&self) -> &[CompletedNode] {
+        match self {
+            Self::Library { artifacts, .. } | Self::ExecutableArtifact { artifacts, .. } => {
+                artifacts
+            }
         }
     }
 
@@ -140,14 +160,14 @@ impl BuildGraphOutcome {
 }
 
 impl PreparedBuildGraph {
-    pub fn execute(self) -> Result<ExecutedBuildGraph, BuildGraphExecutionError> {
+    pub fn execute(self) -> Result<ExecutedBuildGraph, BuildGraphExecutionFailure> {
         self.execute_with_runner(&mut ProductionSingleConeCompilerRunner)
     }
 
     pub(crate) fn execute_with_runner(
         mut self,
         runner: &mut impl SingleConeCompilerRunner,
-    ) -> Result<ExecutedBuildGraph, BuildGraphExecutionError> {
+    ) -> Result<ExecutedBuildGraph, BuildGraphExecutionFailure> {
         let order = self.dependency_first().to_vec();
         let mut completed = BTreeMap::new();
         let mut observations = Vec::with_capacity(order.len());
@@ -158,39 +178,40 @@ impl PreparedBuildGraph {
                 .iter()
                 .map(|completed_identity| &completed[completed_identity])
                 .collect::<Vec<_>>();
-            let representation = self
-                .node_representation(identity)
-                .ok_or(BuildGraphExecutionError::MissingPreparedNode(identity))?;
-            let cache_key = match representation {
-                PreparedNodeRepresentation::ManifestSource
-                | PreparedNodeRepresentation::SingleFile => Some(
-                    self.compile_cache_key(identity, &completed_refs)
+            let result = (|| {
+                let representation = self
+                    .node_representation(identity)
+                    .ok_or(BuildGraphExecutionError::MissingPreparedNode(identity))?;
+                let cache_key = match representation {
+                    PreparedNodeRepresentation::ManifestSource
+                    | PreparedNodeRepresentation::SingleFile => {
+                        Some(self.compile_cache_key(identity, &completed_refs).map_err(
+                            |source| BuildGraphExecutionError::CacheKey(identity, Box::new(source)),
+                        )?)
+                    }
+                    PreparedNodeRepresentation::PrebuiltArtifact => None,
+                };
+                let request_id = request_id(position)?;
+                let node = match representation {
+                    PreparedNodeRepresentation::PrebuiltArtifact => self
+                        .complete_prebuilt_node(identity, &completed_refs)
                         .map_err(|source| {
-                            BuildGraphExecutionError::CacheKey(identity, Box::new(source))
+                            BuildGraphExecutionError::Prebuilt(identity, Box::new(source))
                         })?,
-                ),
-                PreparedNodeRepresentation::PrebuiltArtifact => None,
-            };
-            let request_id = request_id(position)?;
-            let node = match representation {
-                PreparedNodeRepresentation::PrebuiltArtifact => self
-                    .complete_prebuilt_node(identity, &completed_refs)
-                    .map_err(|source| {
-                        BuildGraphExecutionError::Prebuilt(identity, Box::new(source))
-                    })?,
-                PreparedNodeRepresentation::ManifestSource
-                | PreparedNodeRepresentation::SingleFile => {
-                    let node = self
+                    PreparedNodeRepresentation::ManifestSource
+                    | PreparedNodeRepresentation::SingleFile => self
                         .execute_ordinary_source(identity, &completed_refs, runner, request_id)
                         .map_err(|source| {
                             BuildGraphExecutionError::Ordinary(identity, Box::new(source))
-                        })?;
-                    if node.origin() == CompletedNodeOrigin::Compiled {
-                        child_invocations.push(identity);
-                    }
-                    node
-                }
-            };
+                        })?,
+                };
+                Ok((cache_key, node))
+            })();
+            let (cache_key, node) =
+                result.map_err(|cause| BuildGraphExecutionFailure::new(cause, &completed_refs))?;
+            if node.origin() == CompletedNodeOrigin::Compiled {
+                child_invocations.push(identity);
+            }
             observations.push(BuildNodeObservation {
                 identity,
                 origin: node.origin(),

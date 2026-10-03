@@ -1,0 +1,16 @@
+SourceFile
+  RootPackage
+    @CLayout(aligned = 16, packed = 2)
+    @InteriorMutable
+  public struct Packet
+    field value: Int
+    field extra: Long
+    @InteriorMutable
+  public struct GenericCell<T>
+    field value: T
+  public class Container()
+    public companion object
+      public fun observe
+    private nested struct Hidden
+    protected nested struct Guarded
+    public nested struct Plain

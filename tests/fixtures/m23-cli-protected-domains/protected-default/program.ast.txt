@@ -1,0 +1,24 @@
+SourceFile
+  RootPackage
+  fun verifyDomain(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  class ConsumerChild() : Base(<0 args>)
+  fun main()
+    val first
+      Call ConsumerChild
+    val second
+      Call ConsumerChild
+    val base: Base
+      Var first
+    Call verifyDomain
+      Binary RefNe
+        Var first
+        Var second
+    Call verifyDomain
+      Binary RefEq
+        Var base
+        Var first

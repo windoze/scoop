@@ -1,0 +1,7 @@
+import checkPublicationWarning
+
+fun main() {
+    if (checkPublicationWarning() != 3) {
+        throw IllegalStateException()
+    }
+}

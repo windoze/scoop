@@ -1,0 +1,96 @@
+SourceFile
+  RootPackage
+  fun compare(value: Int): Long
+    =
+      MethodCall compareTo
+        Var value
+        Argument other=
+          IntLiteral 3
+  fun convert(value: Long): Int
+    =
+      MethodCall toInt32
+        Var value
+  fun shift(value: UInt): UInt
+    =
+      InfixCall shl
+        Var value
+        IntLiteral 2L
+  fun combined(value: Int): Long
+    =
+      MethodCall compareTo
+        MethodCall inc
+          Binary Add
+            Var value
+            IntLiteral 2
+        IntLiteral 7
+  fun inferred(): Long
+    =
+      MethodCall compareTo
+        IntLiteral 7
+        IntLiteral 3
+  fun narrow(): Int8
+    =
+      MethodCall plus
+        IntLiteral 120
+        IntLiteral 10
+  fun negate(value: Boolean): Boolean
+    =
+      MethodCall not
+        Var value
+  fun equality(value: Int): Boolean
+    =
+      MethodCall equals
+        Var value
+        Argument other=
+          IntLiteral 3
+  fun concatenate(value: String): String
+    =
+      MethodCall plus
+        Var value
+        StringLiteral "!"
+  fun order(value: String): Long
+    =
+      MethodCall compareTo
+        Var value
+        StringLiteral "z"
+    @NoGC
+  fun pure(value: Int): Int
+    =
+      MethodCall inc
+        Var value
+  typealias Small = Int8
+  fun Int.compareTo(other: Int): Long
+    =
+      IntLiteral 99L
+  fun combined(value: Small): Long
+    =
+      MethodCall compareTo
+        MethodCall inc
+          Binary Add
+            Var value
+            IntLiteral 2
+        IntLiteral 7
+  fun aliasLiteral(): Small
+    =
+      MethodCall plus
+        IntLiteral 120
+        IntLiteral 10
+  fun main()
+    val compared
+      MethodCall compareTo
+        IntLiteral 7
+        Argument other=
+          IntLiteral 3
+    val converted
+      MethodCall toInt32
+        Var compared
+    val shifted
+      InfixCall shl
+        Var converted
+        IntLiteral 2L
+    val nested
+      Call combined
+        Call aliasLiteral
+    val normal
+      Call userCoreOffset
+        Var shifted

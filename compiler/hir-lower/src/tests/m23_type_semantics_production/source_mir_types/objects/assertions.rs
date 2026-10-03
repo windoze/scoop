@@ -1,6 +1,5 @@
 use super::*;
 use scoop_mir::{MirCallableLoweringRoleV1 as Role, MirTypeBridgeTypeLookupV1};
-use std::fmt::Write;
 
 pub(super) fn actual(
     output: &hir::DependencyHirOutput,
@@ -110,35 +109,6 @@ pub(super) fn wire(
         objects.validate(graph, types, &callables).unwrap(),
         *product.objects()
     );
-}
-
-pub(super) fn projection(output: &hir::DependencyHirOutput, product: &Production) -> String {
-    let export = output.output().export.module();
-    let mut rows = Vec::new();
-    for (_, object) in export.objects.iter() {
-        let Some(record) = product
-            .objects()
-            .get(export.object_value_identities[object.singleton_value].id())
-        else {
-            continue;
-        };
-        let ensure = product.callables().get(record.ensure()).unwrap();
-        rows.push(format!(
-            "{}: {} initializer+ensure={:?} published-root\n",
-            object.name,
-            match object.kind {
-                hir::ObjectKind::Standalone => "standalone",
-                hir::ObjectKind::Companion(_) => "companion",
-            },
-            ensure.lowered_signature().gc_effect()
-        ));
-    }
-    rows.sort();
-    let mut text = String::new();
-    for row in rows {
-        write!(text, "{row}").unwrap();
-    }
-    text
 }
 
 pub(super) fn private_and_property(input: &scoop_mir::ConeMirInput, product: &Production) {

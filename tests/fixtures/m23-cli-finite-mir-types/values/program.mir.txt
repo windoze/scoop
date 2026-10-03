@@ -1,0 +1,195 @@
+Module
+  struct FiniteEmpty ()
+  struct FiniteScalar (number: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum FiniteState
+    Off()
+    On(_0: Int)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class box<FiniteScalar> vtable=0 itables=0
+  generated_exact_type get0 location=class4 nominal_id=0a7b024a44b86466dee932c22db08b2ded1f54663daef16193f64a0b7c4a38db exact_id=b2be563f1f0634b4cb16b940e5a9f57e9f8c7082f751cf6cba2445de0e2d0afc
+  fun verifyType @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call $call.1: FiniteEmpty = external1 direct
+      call $call.2: FiniteEmpty = external1 direct
+      call $argument.0: Boolean = external4 direct
+        Type FiniteEmpty
+        Local $call.1
+        Type FiniteEmpty
+        Local $call.2
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.3: FiniteScalar = external2 direct
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type FiniteScalar
+          Local $call.3
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=23 bits=0x00000017
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      val $equality.lhs: FiniteState
+        Type FiniteState
+        VariantConstruct FiniteState v1
+          Type Int
+          Local $dependency.parameter._1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=23 bits=0x00000017
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external5 direct
+        Type FiniteState
+        Local $equality.lhs
+        Type FiniteState
+        VariantConstruct FiniteState v1
+          Type Int
+          Local $dependency.parameter._1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=29 bits=0x0000001d
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.4: FiniteScalar = external2 direct
+        Type Int
+        Local $dependency.parameter.number
+      val erased: Any
+        Type Any
+        Box
+          Type FiniteScalar
+          Local $call.4
+      val $cast.1: Any
+        Type Any
+        Local erased
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance FiniteScalar
+            Type Any
+            Local $cast.1
+    bb1 if.then.1
+      assign $new.5
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external3 direct
+        Type ClassCastException
+        Local $new.5
+      throw
+        Type ClassCastException
+        Local $new.5
+    bb2 if.merge.2
+      val $ub.2: FiniteScalar
+        Type FiniteScalar
+        Unbox
+          Type Any
+          Local $cast.1
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type FiniteScalar
+          Local $ub.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=29 bits=0x0000001d
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  str @str0 "illegal state"
+  output executable @fn1

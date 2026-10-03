@@ -1,3 +1,0 @@
-span=80..96
-expression=readBound(value)
-dependency function `readBound`: T0 is not a subtype of BothReader<T>

@@ -1,0 +1,26 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  public fun primary(): Counter
+    val number: ToString
+      IntLiteral 21
+    val text: String
+      StringLiteral "21"
+    val reference: ToString
+      Var text
+    return
+      Call Counter
+        IfExpression
+          Binary And
+            Binary Eq
+              MethodCall toString
+                Var number
+              MethodCall toString
+                Var reference
+            Binary RefEq
+              Var text
+              MethodCall toString
+                Var reference
+          IntLiteral 21
+          else
+          IntLiteral 0

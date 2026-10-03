@@ -1,0 +1,114 @@
+SourceFile
+  QualifiedPackage consumer.methods
+  ImportStar Local upstream.methods.*
+  private class Derived<T>(item: T) : Box<T>(<1 args>)
+    public fun read
+    public fun localChoose
+  private interface LocalNumber
+    fun number
+  private open class LocalNumbered() : RemoteNumber(<0 args>), LocalNumber
+  private class NarrowNumber() : LocalNumbered(<0 args>)
+    public fun number
+  private fun localNumber<R : LocalNumber>(value: R): Int
+    =
+      MethodCall number
+        Var value
+  private fun localNumberReference<R : LocalNumber>(value: R): () -> Int
+    =
+      CallableReference 0 number
+        Var value
+  private fun localNumberDefault<R : LocalNumber>(value: R, chosen: Int = <expr>): Int
+    =
+      Var chosen
+  private fun localRead<T, R : Reader<T>>(value: R, chosen: T = <expr>): T
+    =
+      Var chosen
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val box
+      Call Derived<T>
+        Var seed
+    if
+      Binary Ne
+        Call label<Derived<T>>
+          Var box
+        IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call localNumber<LocalNumbered>
+          Call LocalNumbered
+        IntLiteral 42
+      return
+        IntLiteral 2
+    if
+      Binary Ne
+        Call number<Number>
+          Call Number
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 3
+    if
+      Binary Ne
+        Call localNumber<LocalNumbered>
+          Call NarrowNumber
+        IntLiteral 43
+      return
+        IntLiteral 6
+    if
+      Binary Ne
+        Invoke
+          Call localNumberReference<LocalNumbered>
+            Call NarrowNumber
+        IntLiteral 43
+      return
+        IntLiteral 7
+    if
+      Binary Ne
+        Call localNumberDefault<LocalNumbered>
+          Call NarrowNumber
+        IntLiteral 43
+      return
+        IntLiteral 8
+    val callback
+      Call reference<T, Derived<T>>
+        Var box
+    val chosen
+      MethodCall localChoose<Int>
+        Var box
+        IntLiteral 0
+    val remote
+      MethodCall choose<Unit>
+        Var box
+        UnitLiteral
+    val base
+      Call classRead<T, Derived<T>>
+        Var box
+    if
+      Binary Ne
+        Call read
+          Var chosen
+        Call read
+          Var remote
+      return
+        IntLiteral 4
+    if
+      Binary Ne
+        Call read
+          Var base
+        Call read
+          Call localRead<T, Derived<T>>
+            Var box
+      return
+        IntLiteral 5
+    return
+      Call read
+        Call callback
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 0 suspend=false
+          param value: _
+          Var value

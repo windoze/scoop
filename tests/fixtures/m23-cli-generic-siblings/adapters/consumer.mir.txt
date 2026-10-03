@@ -1,0 +1,209 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class Payload vtable=0 itables=0
+  class Other vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Readable
+  fun check @fn0() -> Int
+    bb0 entry
+      call $callable.receiver: (Payload) -> Any = external0 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.1
+        Type Payload
+        ClassAlloc Payload
+      call external1 direct
+        Type Payload
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.number
+      call $cast.1: Any = <closure:function_type0> closure[function_type0]
+        Type (Payload) -> Any
+        Local $callable.receiver
+        Type Payload
+        Local $new.1
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Payload
+            Type Any
+            Local $cast.1
+    bb1 if.then.1
+      assign $new.2
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external8 direct
+        Type ClassCastException
+        Local $new.2
+      throw
+        Type ClassCastException
+        Local $new.2
+    bb2 if.merge.2
+      val left: Payload
+        Type Payload
+        Retype Payload
+          Type Any
+          Local $cast.1
+      call $callable.receiver: (Payload) -> Any = external2 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.3
+        Type Payload
+        ClassAlloc Payload
+      call external1 direct
+        Type Payload
+        Local $new.3
+        Type Int
+        Local $dependency.parameter.number
+      call $cast.2: Any = <closure:function_type0> closure[function_type0]
+        Type (Payload) -> Any
+        Local $callable.receiver
+        Type Payload
+        Local $new.3
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Other
+            Type Any
+            Local $cast.2
+    bb3 if.then.3
+      assign $new.4
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external8 direct
+        Type ClassCastException
+        Local $new.4
+      throw
+        Type ClassCastException
+        Local $new.4
+    bb4 if.merge.4
+      val right: Other
+        Type Other
+        Retype Other
+          Type Any
+          Local $cast.2
+      call $cast.3: Any = external3 direct
+      branch bb5 bb6
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Readable
+            Type Any
+            Local $cast.3
+    bb5 if.then.5
+      assign $new.5
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external8 direct
+        Type ClassCastException
+        Local $new.5
+      throw
+        Type ClassCastException
+        Local $new.5
+    bb6 if.merge.6
+      val $dependency.receiver: Readable
+        Type Readable
+        Retype Readable
+          Type Any
+          Local $cast.3
+      call $dependency.receiver: Int = external4 interface Readable[0]
+        Type Readable
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb7 bb8
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb7 if.then.7
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb8 if.merge.8
+      call $cast.4: Any = external5 direct
+      branch bb9 bb10
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Readable
+            Type Any
+            Local $cast.4
+    bb9 if.then.9
+      assign $new.6
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external8 direct
+        Type ClassCastException
+        Local $new.6
+      throw
+        Type ClassCastException
+        Local $new.6
+    bb10 if.merge.10
+      val $dependency.receiver: Readable
+        Type Readable
+        Retype Readable
+          Type Any
+          Local $cast.4
+      call $dependency.receiver: Int = external4 interface Readable[0]
+        Type Readable
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb11 bb12
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb11 if.then.11
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb12 if.merge.12
+      call $dependency.receiver: Int = external6 direct
+        Type Payload
+        Local left
+      call $dependency.argument.0: Int = external7 direct
+        Type Other
+        Local right
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  output library

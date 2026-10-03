@@ -1,0 +1,336 @@
+Module
+  extern ef0 nativeSum @m17_native_sum(Array<Int>) -> Int <abi=scoop managed lib=fixture_native>
+  extern ef1 nativeAdd @m17_native_add(Int, Int) -> Int <abi=scoop managed lib=fixture_native>
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Int>
+    Some(_0: Int)
+    None()
+  class ArrayIterator<Int> vtable=0 itables=1
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Iterable<Int>
+  interface Iterator<Int>
+  interface ToString
+  interface Hash
+  fun iterator @fn0(this: Array<Int>) -> Iterator<Int>
+    bb0 entry
+      val $dependency.local.1: Array<Int>
+        Type Array<Int>
+        Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Array<Int>
+        Type Array<Int>
+        Local $dependency.local.1
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.2
+      assign $new.1
+        Type ArrayIterator<Int>
+        ClassAlloc ArrayIterator<Int>
+      call @fn6 direct
+        Type ArrayIterator<Int>
+        Local $new.1
+        Type Array<Int>
+        Local $dependency.local.3
+        Type Long
+        Local $dependency.local.4
+      return
+        Type Iterator<Int>
+        Retype Iterator<Int>
+          Type ArrayIterator<Int>
+          Local $new.1
+  fun nativeSum @fn1(arg0: Array<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = extern0 @m17_native_sum direct
+        Type Array<Int>
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun nativeAdd @fn2(arg0: Int, arg1: Int) -> Int
+    bb0 entry
+      call $call.1: Int = extern1 @m17_native_add direct
+        Type Int
+        Local arg0
+        Type Int
+        Local arg1
+      return
+        Type Int
+        Local $call.1
+  fun main @fn3() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: Array<Int>
+        Type Array<Int>
+        ArrayLiteral Array<Int>
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      val $argument.2: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter.values: Array<Int>
+        Type Array<Int>
+        ArrayAssembly Array<Int>
+          Element
+            Type Int
+            Local $argument.0
+          CopyArray
+            Type Array<Int>
+            Local $argument.1
+          Element
+            Type Int
+            Local $argument.2
+      call $dependency.argument.0: Int = extern0 @m17_native_sum direct
+        Type Array<Int>
+        Local $parameter.values
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      val values: Array<Int>
+        Type Array<Int>
+        ArrayLiteral Array<Int>
+          Type Int
+          IntegerLiteral Int value=5 bits=0x00000005
+          Type Int
+          IntegerLiteral Int value=6 bits=0x00000006
+      val $argument.0: Array<Int>
+        Type Array<Int>
+        Local values
+      val $parameter.values: Array<Int>
+        Type Array<Int>
+        Local $argument.0
+      call $dependency.argument.0: Int = extern0 @m17_native_sum direct
+        Type Array<Int>
+        Local $parameter.values
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.delta: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      call $dependency.argument.0: Int = extern1 @m17_native_add direct
+        Type Int
+        Local $parameter.value
+        Type Int
+        Local $parameter.delta
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.delta: Int
+        Type Int
+        Local $argument.1
+      call $dependency.argument.0: Int = extern1 @m17_native_add direct
+        Type Int
+        Local $parameter.value
+        Type Int
+        Local $parameter.delta
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun next @fn4(this: ArrayIterator<Int>) -> Option<Int>
+    bb0 entry
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayIterator<Int>
+          Local this
+      val $dependency.local.3: Long
+        Type Long
+        ArrayLen Array<Int>
+          Type Array<Int>
+          FieldAccess 0
+            Type ArrayIterator<Int>
+            Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      val $dependency.local.5: Array<Int>
+        Type Array<Int>
+        FieldAccess 0
+          Type ArrayIterator<Int>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayIterator<Int>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      val $arr.1: Array<Int>
+        Type Array<Int>
+        Local $dependency.local.5
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.7
+      branch bb4 bb3
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb2 if.merge.2
+      return
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+    bb3 logic.rhs.3
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen Array<Int>
+            Type Array<Int>
+            Local $arr.1
+      goto bb5
+    bb4 logic.short.4
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb5
+    bb5 logic.merge.5
+      branch bb6 bb7
+        Type Boolean
+        Local $logic.1
+    bb6 if.then.6
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external2 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb7 if.merge.7
+      val $dependency.local.1: Int
+        Type Int
+        ArrayGet Array<Int>
+          Type Array<Int>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayIterator<Int>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.9
+      field_set 1
+        Type ArrayIterator<Int>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.8
+          Type Long
+          Local $dependency.local.10
+      val $dependency.local.11: Int
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.12: Int
+        Type Int
+        Local $dependency.local.11
+      return
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+          Type Int
+          Local $dependency.local.12
+  fun println @fn5(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun init.ArrayIterator.$c0 @fn6(this: ArrayIterator<Int>, source: Array<Int>, index: Long) -> Unit
+    bb0 entry
+      field_set 0
+        Type ArrayIterator<Int>
+        Local this
+        Type Array<Int>
+        Local source
+      field_set 1
+        Type ArrayIterator<Int>
+        Local this
+        Type Long
+        Local index
+      return
+  instance mi0 function=@fn0 <- iterator
+  instance mi1 function=@fn4 <- next
+  instance mi2 function=@fn5 <- println
+  str @str0 "\n"
+  output executable @fn3

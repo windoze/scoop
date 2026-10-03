@@ -1,0 +1,1887 @@
+Module
+  struct Score (value: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class Bag vtable=0 itables=0
+  class Cell vtable=0 itables=0
+  class Coordinates vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface ToString
+  interface Hash
+  fun Score.unaryPlus @fn0(this: Score) -> Score
+    bb0 entry
+      return
+        Type Score
+        Local this
+  fun Score.unaryMinus @fn1(this: Score) -> Score
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local this
+      val $argument.0: Int
+        Type Int
+        IntegerUnary negate kind=Int
+          Type Int
+          Local $dependency.receiver
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Score
+        Local $call.1
+  fun Score.inc @fn2(this: Score) -> Score
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Score
+        Local $call.1
+  fun Score.dec @fn3(this: Score) -> Score
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Int
+        Type Int
+        IntegerBinary subtract kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Score
+        Local $call.1
+  fun Score.plus @fn4(this: Score, other: Score) -> Score
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local other
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Score
+        Local $call.1
+  fun Score.minus @fn5(this: Score, other: Score) -> Score
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local other
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Int
+        Type Int
+        IntegerBinary subtract kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Score
+        Local $call.1
+  fun Score.times @fn6(this: Score, other: Score) -> Score
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local other
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Score
+        Local $call.1
+  fun Score.div @fn7(this: Score, other: Score) -> Score
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local other
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $div.1: Int
+        Type Int
+        Local $dependency.receiver
+      val $div.2: Int
+        Type Int
+        Local $dependency.parameter.other
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $div.2
+          Type Int
+          IntegerLiteral Int value=0 bits=0x00000000
+    bb1 if.then.1
+      assign $new.1
+        Type ArithmeticException
+        ClassAlloc ArithmeticException
+      call external4 direct
+        Type ArithmeticException
+        Local $new.1
+      throw
+        Type ArithmeticException
+        Local $new.1
+    bb2 if.merge.2
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $div.1
+          Type Int
+          IntegerLiteral Int value=-2147483648 bits=0x80000000
+    bb3 logic.rhs.3
+      assign $logic.2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $div.2
+          Type Int
+          IntegerLiteral Int value=-1 bits=0xffffffff
+      goto bb5
+    bb4 logic.short.4
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb5
+    bb5 logic.merge.5
+      branch bb6 bb7
+        Type Boolean
+        Local $logic.2
+    bb6 if.then.6
+      assign $div.result.3
+        Type Int
+        IntegerLiteral Int value=-2147483648 bits=0x80000000
+      goto bb8
+    bb7 if.else.7
+      assign $div.result.3
+        Type Int
+        SafeIntegerDivRem divide kind=Int
+          Type Int
+          Local $div.1
+          Type Int
+          Local $div.2
+      goto bb8
+    bb8 if.merge.8
+      val $argument.0: Int
+        Type Int
+        Local $div.result.3
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.3: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Score
+        Local $call.3
+  fun Score.rem @fn8(this: Score, other: Score) -> Score
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local other
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $div.1: Int
+        Type Int
+        Local $dependency.receiver
+      val $div.2: Int
+        Type Int
+        Local $dependency.parameter.other
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $div.2
+          Type Int
+          IntegerLiteral Int value=0 bits=0x00000000
+    bb1 if.then.1
+      assign $new.1
+        Type ArithmeticException
+        ClassAlloc ArithmeticException
+      call external4 direct
+        Type ArithmeticException
+        Local $new.1
+      throw
+        Type ArithmeticException
+        Local $new.1
+    bb2 if.merge.2
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $div.1
+          Type Int
+          IntegerLiteral Int value=-2147483648 bits=0x80000000
+    bb3 logic.rhs.3
+      assign $logic.2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $div.2
+          Type Int
+          IntegerLiteral Int value=-1 bits=0xffffffff
+      goto bb5
+    bb4 logic.short.4
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb5
+    bb5 logic.merge.5
+      branch bb6 bb7
+        Type Boolean
+        Local $logic.2
+    bb6 if.then.6
+      assign $div.result.3
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb8
+    bb7 if.else.7
+      assign $div.result.3
+        Type Int
+        SafeIntegerDivRem remainder kind=Int
+          Type Int
+          Local $div.1
+          Type Int
+          Local $div.2
+      goto bb8
+    bb8 if.merge.8
+      val $argument.0: Int
+        Type Int
+        Local $div.result.3
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.3: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Score
+        Local $call.3
+  fun Score.rangeTo @fn9(this: Score, other: Score) -> Score
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local other
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local this
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Int
+        Type Int
+        IntegerBinary subtract kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Score
+        Local $call.1
+  fun Score.rangeUntil @fn10(this: Score, other: Score) -> Score
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local other
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local this
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary subtract kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Int
+        Type Int
+        IntegerBinary subtract kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Score
+        Local $call.1
+  fun Score.compareTo @fn11(this: Score, other: Score) -> Long
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local this
+      val $dependency.receiver: Long
+        Type Long
+        IntegerConversion Int -> Long
+          Type Int
+          Local $dependency.receiver
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local other
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerConversion Int -> Long
+          Type Int
+          Local $dependency.receiver
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+  fun Bag.contains @fn12(this: Bag, item: Score) -> Boolean
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local item
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Bag
+          Local this
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun Cell.get @fn13(this: Cell, row: Int, column: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Cell
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        Local row
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        Local column
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun Cell.set @fn14(this: Cell, row: Int, column: Int, newValue: Int) -> Unit
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local newValue
+      val $dependency.argument.0: Int
+        Type Int
+        Local row
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        Local column
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      field_set 0
+        Type Cell
+        Local this
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      return
+  fun Cell.plusAssign @fn15(this: Cell, delta: Int) -> Unit
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Cell
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        Local delta
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      field_set 0
+        Type Cell
+        Local this
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      return
+  fun Coordinates.component1 @fn16(this: Coordinates) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Coordinates
+          Local this
+  fun Coordinates.component2 @fn17(this: Coordinates) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 1
+          Type Coordinates
+          Local this
+  fun $extension.times @fn18(this: Score, scale: Int) -> Score
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        Local scale
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Score
+        Local $call.1
+  fun $extension.merge @fn19(this: Score, other: Score) -> Score
+    bb0 entry
+      val $receiver: Score
+        Type Score
+        Local this
+      val $argument.0: Score
+        Type Score
+        Local other
+      val $parameter.other: Score
+        Type Score
+        Local $argument.0
+      call $call.1: Score = @fn4 direct
+        Type Score
+        Local $receiver
+        Type Score
+        Local $parameter.other
+      return
+        Type Score
+        Local $call.1
+  fun markScore @fn20(label: String, value: Int) -> Score
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        Local label
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn25 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Score
+        Local $call.1
+  fun markBag @fn21(label: String, expected: Int) -> Bag
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        Local label
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn25 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        Local expected
+      val $parameter.expected: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Bag
+        ClassAlloc Bag
+      call @fn28 direct
+        Type Bag
+        Local $new.1
+        Type Int
+        Local $parameter.expected
+      return
+        Type Bag
+        Local $new.1
+  fun makeCell @fn22() -> Cell
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn25 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Cell
+        ClassAlloc Cell
+      call @fn29 direct
+        Type Cell
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      return
+        Type Cell
+        Local $new.1
+  fun markIndex @fn23(label: String, value: Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        Local label
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn25 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type Int
+        Local value
+  fun main @fn24() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $receiver: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      call positive: Score = @fn0 direct
+        Type Score
+        Local $receiver
+      val $receiver: Score
+        Type Score
+        Local positive
+      call negative: Score = @fn1 direct
+        Type Score
+        Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local positive
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn26 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local negative
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn26 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call updated: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      val $old.0: Score
+        Type Score
+        Local updated
+      val $receiver: Score
+        Type Score
+        Local $old.0
+      call $new.1: Score = @fn2 direct
+        Type Score
+        Local $receiver
+      assign updated
+        Type Score
+        Local $new.1
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local $old.0
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn26 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local updated
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn26 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $old.2: Score
+        Type Score
+        Local updated
+      val $receiver: Score
+        Type Score
+        Local $old.2
+      call $new.3: Score = @fn2 direct
+        Type Score
+        Local $receiver
+      assign updated
+        Type Score
+        Local $new.3
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local $new.3
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn26 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $old.4: Score
+        Type Score
+        Local updated
+      val $receiver: Score
+        Type Score
+        Local $old.4
+      call $new.5: Score = @fn3 direct
+        Type Score
+        Local $receiver
+      assign updated
+        Type Score
+        Local $new.5
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local $old.4
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn26 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local updated
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn26 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $receiver: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $argument.0: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      val $parameter.other: Score
+        Type Score
+        Local $argument.0
+      call $call.1: Score = @fn5 direct
+        Type Score
+        Local $receiver
+        Type Score
+        Local $parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local $call.1
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn26 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $receiver: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $argument.0: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      val $parameter.other: Score
+        Type Score
+        Local $argument.0
+      call $call.2: Score = @fn6 direct
+        Type Score
+        Local $receiver
+        Type Score
+        Local $parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local $call.2
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn26 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $receiver: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $argument.0: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      val $parameter.other: Score
+        Type Score
+        Local $argument.0
+      call $call.3: Score = @fn7 direct
+        Type Score
+        Local $receiver
+        Type Score
+        Local $parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local $call.3
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn26 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=14 bits=0x0000000e
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $receiver: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $argument.0: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      val $parameter.other: Score
+        Type Score
+        Local $argument.0
+      call $call.4: Score = @fn8 direct
+        Type Score
+        Local $receiver
+        Type Score
+        Local $parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local $call.4
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn26 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $receiver: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $parameter.scale: Int
+        Type Int
+        Local $argument.0
+      call $call.5: Score = @fn18 direct
+        Type Score
+        Local $receiver
+        Type Int
+        Local $parameter.scale
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local $call.5
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn26 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $receiver: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $argument.0: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      val $parameter.other: Score
+        Type Score
+        Local $argument.0
+      call $call.6: Score = @fn9 direct
+        Type Score
+        Local $receiver
+        Type Score
+        Local $parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local $call.6
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn26 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $receiver: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $argument.0: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      val $parameter.other: Score
+        Type Score
+        Local $argument.0
+      call $call.7: Score = @fn10 direct
+        Type Score
+        Local $receiver
+        Type Score
+        Local $parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local $call.7
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn26 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $receiver: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $argument.0: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      val $parameter.other: Score
+        Type Score
+        Local $argument.0
+      call $call.8: Long = @fn11 direct
+        Type Score
+        Local $receiver
+        Type Score
+        Local $parameter.other
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $call.8
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn27 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $receiver: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $argument.0: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      val $parameter.other: Score
+        Type Score
+        Local $argument.0
+      call $call.9: Long = @fn11 direct
+        Type Score
+        Local $receiver
+        Type Score
+        Local $parameter.other
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $call.9
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn27 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.expected: Int
+        Type Int
+        Local $argument.0
+      assign $new.10
+        Type Bag
+        ClassAlloc Bag
+      call @fn28 direct
+        Type Bag
+        Local $new.10
+        Type Int
+        Local $parameter.expected
+      val $receiver: Bag
+        Type Bag
+        Local $new.10
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $argument.0: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      val $parameter.item: Score
+        Type Score
+        Local $argument.0
+      call $dependency.argument.0: Boolean = @fn12 direct
+        Type Bag
+        Local $receiver
+        Type Score
+        Local $parameter.item
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn27 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.expected: Int
+        Type Int
+        Local $argument.0
+      assign $new.11
+        Type Bag
+        ClassAlloc Bag
+      call @fn28 direct
+        Type Bag
+        Local $new.11
+        Type Int
+        Local $parameter.expected
+      val $receiver: Bag
+        Type Bag
+        Local $new.11
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $argument.0: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      val $parameter.item: Score
+        Type Score
+        Local $argument.0
+      call $call.12: Boolean = @fn12 direct
+        Type Bag
+        Local $receiver
+        Type Score
+        Local $parameter.item
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.12
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn27 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $receiver: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $argument.0: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      val $parameter.other: Score
+        Type Score
+        Local $argument.0
+      call $receiver: Score = @fn19 direct
+        Type Score
+        Local $receiver
+        Type Score
+        Local $parameter.other
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $argument.0: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      val $parameter.other: Score
+        Type Score
+        Local $argument.0
+      call $call.13: Score = @fn19 direct
+        Type Score
+        Local $receiver
+        Type Score
+        Local $parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local $call.13
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn26 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str1
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $receiver: Score = @fn20 direct
+        Type String
+        Local $parameter.label
+        Type Int
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str2
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $argument.0: Score = @fn20 direct
+        Type String
+        Local $parameter.label
+        Type Int
+        Local $parameter.value
+      val $parameter.other: Score
+        Type Score
+        Local $argument.0
+      call $call.14: Score = @fn4 direct
+        Type Score
+        Local $receiver
+        Type Score
+        Local $parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local $call.14
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn26 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str3
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.expected: Int
+        Type Int
+        Local $argument.1
+      call $receiver: Bag = @fn21 direct
+        Type String
+        Local $parameter.label
+        Type Int
+        Local $parameter.expected
+      val $argument.0: String
+        Type String
+        StringConst @str4
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $argument.0: Score = @fn20 direct
+        Type String
+        Local $parameter.label
+        Type Int
+        Local $parameter.value
+      val $parameter.item: Score
+        Type Score
+        Local $argument.0
+      call $dependency.argument.0: Boolean = @fn12 direct
+        Type Bag
+        Local $receiver
+        Type Score
+        Local $parameter.item
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn27 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $old.6: Score
+        Type Score
+        Local updated
+      val $receiver: Score
+        Type Score
+        Local $old.6
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $argument.0: Score = @fn31 direct
+        Type Int
+        Local $parameter.value
+      val $parameter.other: Score
+        Type Score
+        Local $argument.0
+      call $call.15: Score = @fn4 direct
+        Type Score
+        Local $receiver
+        Type Score
+        Local $parameter.other
+      assign updated
+        Type Score
+        Local $call.15
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Score
+          Local updated
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn26 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.16
+        Type Cell
+        ClassAlloc Cell
+      call @fn29 direct
+        Type Cell
+        Local $new.16
+        Type Int
+        Local $parameter.value
+      val cell: Cell
+        Type Cell
+        Local $new.16
+      val $old.7: Cell
+        Type Cell
+        Local cell
+      val $receiver: Cell
+        Type Cell
+        Local $old.7
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter.delta: Int
+        Type Int
+        Local $argument.0
+      call @fn15 direct
+        Type Cell
+        Local $receiver
+        Type Int
+        Local $parameter.delta
+      val $receiver: Cell
+        Type Cell
+        Local cell
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $argument.2: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $parameter.row: Int
+        Type Int
+        Local $argument.0
+      val $parameter.column: Int
+        Type Int
+        Local $argument.1
+      val $parameter.newValue: Int
+        Type Int
+        Local $argument.2
+      call @fn14 direct
+        Type Cell
+        Local $receiver
+        Type Int
+        Local $parameter.row
+        Type Int
+        Local $parameter.column
+        Type Int
+        Local $parameter.newValue
+      val $receiver: Cell
+        Type Cell
+        Local cell
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.row: Int
+        Type Int
+        Local $argument.0
+      val $parameter.column: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      call $dependency.argument.0: Int = @fn13 direct
+        Type Cell
+        Local $receiver
+        Type Int
+        Local $parameter.row
+        Type Int
+        Local $parameter.column
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn26 direct
+        Type Int
+        Local $dependency.parameter.value
+      call $receiver: Cell = @fn22 direct
+      val $argument.0: String
+        Type String
+        StringConst @str5
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $argument.0: Int = @fn23 direct
+        Type String
+        Local $parameter.label
+        Type Int
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str6
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $argument.1: Int = @fn23 direct
+        Type String
+        Local $parameter.label
+        Type Int
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str7
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $argument.2: Int = @fn23 direct
+        Type String
+        Local $parameter.label
+        Type Int
+        Local $parameter.value
+      val $parameter.row: Int
+        Type Int
+        Local $argument.0
+      val $parameter.column: Int
+        Type Int
+        Local $argument.1
+      val $parameter.newValue: Int
+        Type Int
+        Local $argument.2
+      call @fn14 direct
+        Type Cell
+        Local $receiver
+        Type Int
+        Local $parameter.row
+        Type Int
+        Local $parameter.column
+        Type Int
+        Local $parameter.newValue
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=22 bits=0x00000016
+      val $parameter.x: Int
+        Type Int
+        Local $argument.0
+      val $parameter.y: Int
+        Type Int
+        Local $argument.1
+      assign $new.17
+        Type Coordinates
+        ClassAlloc Coordinates
+      call @fn30 direct
+        Type Coordinates
+        Local $new.17
+        Type Int
+        Local $parameter.x
+        Type Int
+        Local $parameter.y
+      val $binding.subject.8: Coordinates
+        Type Coordinates
+        Local $new.17
+      val $receiver: Coordinates
+        Type Coordinates
+        Local $binding.subject.8
+      call $binding.component.9: Int = @fn16 direct
+        Type Coordinates
+        Local $receiver
+      val x: Int
+        Type Int
+        Local $binding.component.9
+      val $receiver: Coordinates
+        Type Coordinates
+        Local $binding.subject.8
+      call $binding.component.10: Int = @fn17 direct
+        Type Coordinates
+        Local $receiver
+      val y: Int
+        Type Int
+        Local $binding.component.10
+      val $dependency.receiver: Int
+        Type Int
+        Local x
+      val $dependency.argument.0: Int
+        Type Int
+        Local y
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn26 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: String
+        Type String
+        StringConst @str8
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str9
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.18: Long = @scoop_rt_string_compare direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $call.18
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn27 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.receiver: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn27 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      return
+  fun println @fn25(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str10
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn26(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str11
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn27(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str12
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun init.Bag.$c0 @fn28(this: Bag, expected: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Bag
+        Local this
+        Type Int
+        Local expected
+      return
+  fun init.Cell.$c1 @fn29(this: Cell, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Cell
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Coordinates.$c2 @fn30(this: Coordinates, x: Int, y: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Coordinates
+        Local this
+        Type Int
+        Local x
+      field_set 1
+        Type Coordinates
+        Local this
+        Type Int
+        Local y
+      return
+  fun ctor.Score.$c0 @fn31(value: Int) -> Score <no-gc>
+    bb0 entry
+      return
+        Type Score
+        StructInit Score
+          Type Int
+          Local value
+  instance mi0 function=@fn25 <- println
+  instance mi1 function=@fn26 <- println
+  instance mi2 function=@fn27 <- println
+  str @str0 "cell-receiver"
+  str @str1 "left"
+  str @str2 "right"
+  str @str3 "container"
+  str @str4 "item"
+  str @str5 "row"
+  str @str6 "column"
+  str @str7 "set-value"
+  str @str8 "alpha"
+  str @str9 "beta"
+  str @str10 "\n"
+  str @str11 "\n"
+  str @str12 "\n"
+  output executable @fn24

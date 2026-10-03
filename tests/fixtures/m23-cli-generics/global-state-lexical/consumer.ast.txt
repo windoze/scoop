@@ -1,0 +1,35 @@
+SourceFile
+  QualifiedPackage consumer.globals
+  ImportStar Local templates.globals.*
+  public fun exercise<T>(value: T): Int
+    Call reset
+    val step
+      Call makeStep<T>
+        Var value
+    val other
+      Call makeStep<Int>
+        IntLiteral 0
+    if
+      Binary Or
+        Binary Or
+          Binary Or
+            Binary Ne
+              Call step
+              IntLiteral 1
+            Binary Ne
+              Call other
+              IntLiteral 2
+          Binary Ne
+            Call step
+            IntLiteral 3
+        Binary Ne
+          Call count
+          IntLiteral 3
+      return
+        IntLiteral 1
+    return
+      IntLiteral 42
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0

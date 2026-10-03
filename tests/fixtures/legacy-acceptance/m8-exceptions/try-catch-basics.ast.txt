@@ -1,0 +1,22 @@
+SourceFile
+  RootPackage
+  fun boom(): Int
+    val x: Int?
+      Var None
+    return
+      NullAssert
+        Var x
+  fun main()
+    try
+      Call boom
+      Call println
+        StringLiteral "unreachable"
+    catch e: UnwrapException
+      Call println
+        StringLiteral "caught unwrap"
+    catch e: Exception
+      Call println
+        StringLiteral "caught other"
+    finally
+      Call println
+        StringLiteral "finally"

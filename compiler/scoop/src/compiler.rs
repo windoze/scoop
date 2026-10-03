@@ -1,3 +1,4 @@
+use scoop_process::CommandExt;
 use std::fmt;
 use std::io::Read;
 use std::path::Path;
@@ -173,7 +174,7 @@ fn invoke_capability(executable: &Path) -> Result<CapabilityOutput, PairedCompil
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .spawn()
+        .scoop_spawn()
         .map_err(|source| PairedCompilerError::Spawn {
             path: executable.to_path_buf(),
             source,

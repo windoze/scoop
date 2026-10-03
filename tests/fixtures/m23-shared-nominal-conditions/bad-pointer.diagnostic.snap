@@ -1,3 +1,0 @@
-span=72..126
-expression=public fun wrong(value: Pointer<Managed>): Unit = Unit
-type Pointer<Managed> requires a GC-free `Ptr` pointee argument

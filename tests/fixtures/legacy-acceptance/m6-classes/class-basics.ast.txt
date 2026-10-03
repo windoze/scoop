@@ -1,0 +1,34 @@
+SourceFile
+  RootPackage
+  class Point(val x: Int, var y: Int)
+    fun sum
+    fun moveTo
+  fun main()
+    val p
+      Call Point
+        IntLiteral 1
+        IntLiteral 2
+    Call println
+      MethodCall sum
+        Var p
+    Call println
+      FieldAccess y
+        Var p
+    MethodCall moveTo
+      Var p
+      IntLiteral 10
+    Call println
+      FieldAccess y
+        Var p
+    assign .y
+      Var p
+      IntLiteral 20
+    Call println
+      FieldAccess y
+        Var p
+    val q
+      Var p
+    Call println
+      Binary RefEq
+        Var p
+        Var q

@@ -1,0 +1,54 @@
+SourceFile
+  RootPackage
+  enum E
+    Num(Int)
+    Pair(Int, Int)
+    Empty
+  fun main()
+    val v
+      MethodCall Num
+        Var E
+        IntLiteral 42
+    when
+      Var v
+      arm Num(n) if <guard>
+        Call println
+          StringLiteral "big"
+      arm Num(n)
+        Call println
+          Var n
+      arm Pair(a, b)
+        Call println
+          Binary Add
+            Var a
+            Var b
+      arm Empty
+        Call println
+          StringLiteral "empty"
+    val w
+      MethodCall Pair
+        Var E
+        IntLiteral 3
+        IntLiteral 4
+    when
+      Var w
+      arm Num(n)
+        Call println
+          Var n
+      arm Pair(a, _) if <guard>
+        Call println
+          StringLiteral "big pair"
+      else
+        Call println
+          StringLiteral "other"
+    val e
+      FieldAccess Empty
+        Var E
+    when
+      Var e
+      arm Empty
+        Call println
+          StringLiteral "empty"
+      else
+        Call println
+          StringLiteral "not empty"

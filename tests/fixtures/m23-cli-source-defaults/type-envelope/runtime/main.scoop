@@ -1,0 +1,10 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    val host = TypeEnvelopeHost()
+    verifyDefault(host.scoped(17) == 17)
+    verifyDefault(host.check("capture") == "capture")
+    verifyDefault(host.genericCapture(19)() == 19)
+    verifyDefault(host.genericCapture("generic")() == "generic")
+}

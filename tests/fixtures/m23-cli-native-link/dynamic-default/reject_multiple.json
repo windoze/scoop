@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "ambiguous native providers for _m23_shared: 2 candidates; origins: dev.programlink:default:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([244, 189, 226, 126, 214, 5, 121, 235, 6, 159, 150, 246, 191, 127, 110, 246, 172, 14, 0, 66, 50, 86, 13, 128, 55, 195, 89, 84, 9, 69, 167, 149])])",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

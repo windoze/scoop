@@ -1,0 +1,52 @@
+Module
+  fun @scoop$1$cb$df9ae1b8cb5585e02dcbb803c271f29bcc72efacdd2bcc5b252f0d21131b36e2() -> i32
+    local %0 $dependency.argument.0: i32
+    local %1 $dependency.parameter.value: i32
+    local %2 $dependency.receiver: i32
+    local %3 $dependency.argument.0: i32
+    local %4 $dependency.parameter.other: i32
+    local %5 $dependency.argument.0: i32
+    local %6 $dependency.parameter.value: i32
+    local %7 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x0000002a) -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn1(local1)
+    store t0 -> local2
+    store integer<Int>(0x0000002a) -> local3
+    store local3 -> local4
+    t1 = integer_compare_Equal<Int> local2, local4 : i1
+    t2 = Not t1 : i1
+    cbr t2 then @if.then.1 else @if.merge.2
+  block if.then.1
+    ret integer<Int>(0x00000001)
+  block if.merge.2
+    store integer<Int>(0x0000002a) -> local5
+    store local5 -> local6
+    call managed-direct-target1 sp<managed-call:1> live=[] t3 = sig=direct1 (i32) -> i32 local-fn2(local6)
+    store t3 -> local7
+    ret local7
+  fun @scoop$1$cb$023a7adbd0784e57f0c3a02a1726f54ff85cc70b1e37d1eed258c2278d872e88(i32) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret param0
+  fun @scoop$1$cb$6dee173c78d368a9be3c8314b545b7133565294ef1e26e016791f9abfa5e0488(i32) -> i32
+    local %0 $dependency.local.1: i32
+    local %1 $dependency.local.2: i32
+    local %2 $dependency.local.3: i32
+    local %3 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local1
+    store local1 -> local2
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn3(local2)
+    store t0 -> local0
+    call managed-direct-target1 sp<managed-call:1> live=[] t1 = sig=direct1 () -> i32 external-fn0()
+    store t1 -> local3
+    ret local0
+  fun @scoop$1$cb$1ca28c0e267e6f23372e626449fe2ede514486e6b214ae2c94fb0cdc5925e60d(i32) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret param0
+  output library

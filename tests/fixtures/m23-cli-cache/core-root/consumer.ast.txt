@@ -1,0 +1,17 @@
+SourceFile
+  RootPackage
+  fun main()
+    val named
+      Call userCoreOffset
+        Argument value=
+          IntLiteral 41
+    val defaulted
+      Call userCoreWithDefault
+    val explicit
+      Call userCoreWithDefault
+        Argument value=
+          IntLiteral 9
+    val constant
+      Var USER_CORE_DEFAULT
+    val chained
+      Call userCoreDefaultChain

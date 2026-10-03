@@ -1,0 +1,18 @@
+SourceFile
+  RootPackage
+  public interface Contract
+    fun apply
+    public open val token: Token <computed>
+  public struct Token : Contract
+    public fun apply
+    public final override val token: Token <computed>
+      get()
+        This
+  private struct Hidden : Contract
+    public fun apply
+    public final override val token: Token <computed>
+      get()
+        Call Token
+  private fun internalBox(value: Hidden): Contract
+    =
+      Var value

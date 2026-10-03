@@ -1,0 +1,580 @@
+schema = 1
+name = "cli-generic-cache-input-changes"
+inputs = ["dependency", "root", "runner", "../../m23-generic-cache/provider.scoop", "../../m23-generic-cache/consumer.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["cli", "cache", "generics", "stage-golden"]
+
+[vars]
+options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [
+  {"copy" = {"from" = "${fixture}/dependency", "to" = "${work}/sources/dependency"}},
+  {"copy" = {"from" = "${fixture}/root", "to" = "${work}/sources/root"}},
+  {"copy" = {"from" = "${fixture}/runner", "to" = "${work}/sources/runner"}},
+  {"copy" = {"from" = "${fixture}/../../m23-generic-cache/provider.scoop", "to" = "${work}/sources/dependency/src/main.scoop"}},
+  {"copy" = {"from" = "${fixture}/../../m23-generic-cache/consumer.scoop", "to" = "${work}/sources/root/src/main.scoop"}},
+]
+
+[[steps]]
+name = "cold"
+argv = ["${scoop}", "build", "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib", "--emit", "all", "--dump-dir", "${work}/dumps/cold"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${cold.result.kind}", "equals" = "library"},
+  {"actual" = "${cold.result.dependencies.length}", "equals" = 2},
+  {"actual" = "${cold.result.observations.child_invocations}", "equals" = ["${cold.result.dependencies.0.identity}", "${cold.result.dependencies.1.identity}", "${cold.result.root.identity}"]},
+  {"actual" = "${cold.result.observations.nodes.0.identity}", "equals" = "${cold.result.dependencies.0.identity}"},
+  {"actual" = "${cold.result.observations.nodes.0.origin}", "equals" = "compiled"},
+  {"actual" = "${cold.result.observations.nodes.1.identity}", "equals" = "${cold.result.dependencies.1.identity}"},
+  {"actual" = "${cold.result.observations.nodes.1.origin}", "equals" = "compiled"},
+  {"actual" = "${cold.result.observations.nodes.2.identity}", "equals" = "${cold.result.root.identity}"},
+  {"actual" = "${cold.result.observations.nodes.2.origin}", "equals" = "compiled"},
+  {"file" = "${work}/library.slib", "same_as" = "${cold.result.root.path}"},
+  {"actual" = "${cold.result.dependencies.0.coordinate}", "equals" = {"group" = "scoop", "name" = "scoop.core", "version" = "0.1.0"}},
+  {"actual" = "${cold.result.dependencies.1.coordinate}", "equals" = {"group" = "test", "name" = "dependency", "version" = "1.0.0"}},
+  {"actual" = "${cold.result.root.coordinate}", "equals" = {"group" = "test", "name" = "root", "version" = "1.0.0"}},
+  {"file" = "${work}/dumps/cold/${cold.result.root.identity}/ast.txt", "snapshot" = "cold.ast.txt"},
+  {"file" = "${work}/dumps/cold/${cold.result.root.identity}/hir.txt", "snapshot" = "cold.hir.txt"},
+  {"file" = "${work}/dumps/cold/${cold.result.root.identity}/mir.txt", "snapshot" = "cold.mir.txt"},
+  {"file" = "${work}/dumps/cold/${cold.result.root.identity}/lir.txt", "snapshot" = "cold.lir.txt"},
+]
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${warm.result.kind}", "equals" = "library"},
+  {"actual" = "${warm.result.dependencies.length}", "equals" = 2},
+  {"actual" = "${warm.result.observations.child_invocations}", "equals" = []},
+  {"actual" = "${warm.result.observations.nodes.0.identity}", "equals" = "${warm.result.dependencies.0.identity}"},
+  {"actual" = "${warm.result.observations.nodes.0.origin}", "equals" = "cache"},
+  {"actual" = "${warm.result.dependencies.0.artifact_fingerprint}", "equals" = "${cold.result.dependencies.0.artifact_fingerprint}"},
+  {"actual" = "${warm.result.observations.nodes.0.cache_key}", "equals" = "${cold.result.observations.nodes.0.cache_key}"},
+  {"file" = "${warm.result.dependencies.0.path}", "same_as" = "${cold.result.dependencies.0.path}"},
+  {"actual" = "${warm.result.observations.nodes.1.identity}", "equals" = "${warm.result.dependencies.1.identity}"},
+  {"actual" = "${warm.result.observations.nodes.1.origin}", "equals" = "cache"},
+  {"actual" = "${warm.result.dependencies.1.artifact_fingerprint}", "equals" = "${cold.result.dependencies.1.artifact_fingerprint}"},
+  {"actual" = "${warm.result.observations.nodes.1.cache_key}", "equals" = "${cold.result.observations.nodes.1.cache_key}"},
+  {"file" = "${warm.result.dependencies.1.path}", "same_as" = "${cold.result.dependencies.1.path}"},
+  {"actual" = "${warm.result.observations.nodes.2.identity}", "equals" = "${warm.result.root.identity}"},
+  {"actual" = "${warm.result.observations.nodes.2.origin}", "equals" = "cache"},
+  {"actual" = "${warm.result.root.artifact_fingerprint}", "equals" = "${cold.result.root.artifact_fingerprint}"},
+  {"actual" = "${warm.result.observations.nodes.2.cache_key}", "equals" = "${cold.result.observations.nodes.2.cache_key}"},
+  {"file" = "${warm.result.root.path}", "same_as" = "${cold.result.root.path}"},
+  {"file" = "${work}/library.slib", "same_as" = "${warm.result.root.path}"},
+]
+
+[[steps]]
+name = "cold_program"
+argv = ["${scoop}", "build", "${work}/sources/runner", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${cold_program.result.kind}", "equals" = "executable"},
+]
+
+[[steps]]
+name = "cold_run"
+argv = ["${work}/program"]
+exit = 0
+stdout = "42\n"
+stderr = ""
+
+[[steps]]
+name = "cold_moving"
+argv = ["${work}/program"]
+exit = 0
+stdout = "42\n"
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}
+
+[[steps]]
+name = "edit_body"
+files = [
+  {"replace" = {"path" = "${work}/sources/dependency/src/main.scoop", "old" = "= hidden(value, amount)", "new" = "= hidden(value, amount) + 1"}},
+]
+
+[[steps]]
+name = "body"
+argv = ["${scoop}", "build", "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib", "--emit", "all", "--dump-dir", "${work}/dumps/body"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${body.result.kind}", "equals" = "library"},
+  {"actual" = "${body.result.dependencies.length}", "equals" = 2},
+  {"actual" = "${body.result.observations.child_invocations}", "equals" = ["${body.result.dependencies.1.identity}", "${body.result.root.identity}"]},
+  {"actual" = "${body.result.observations.nodes.0.identity}", "equals" = "${body.result.dependencies.0.identity}"},
+  {"actual" = "${body.result.observations.nodes.0.origin}", "equals" = "cache"},
+  {"actual" = "${body.result.dependencies.0.artifact_fingerprint}", "equals" = "${cold.result.dependencies.0.artifact_fingerprint}"},
+  {"actual" = "${body.result.observations.nodes.0.cache_key}", "equals" = "${cold.result.observations.nodes.0.cache_key}"},
+  {"file" = "${body.result.dependencies.0.path}", "same_as" = "${cold.result.dependencies.0.path}"},
+  {"actual" = "${body.result.observations.nodes.1.identity}", "equals" = "${body.result.dependencies.1.identity}"},
+  {"actual" = "${body.result.observations.nodes.1.origin}", "equals" = "compiled"},
+  {"actual" = "${body.result.dependencies.1.artifact_fingerprint}", "not_equals" = "${cold.result.dependencies.1.artifact_fingerprint}"},
+  {"actual" = "${body.result.observations.nodes.1.cache_key}", "not_equals" = "${cold.result.observations.nodes.1.cache_key}"},
+  {"actual" = "${body.result.observations.nodes.2.identity}", "equals" = "${body.result.root.identity}"},
+  {"actual" = "${body.result.observations.nodes.2.origin}", "equals" = "compiled"},
+  {"actual" = "${body.result.root.artifact_fingerprint}", "not_equals" = "${cold.result.root.artifact_fingerprint}"},
+  {"actual" = "${body.result.observations.nodes.2.cache_key}", "not_equals" = "${cold.result.observations.nodes.2.cache_key}"},
+  {"file" = "${work}/library.slib", "same_as" = "${body.result.root.path}"},
+  {"file" = "${work}/dumps/body/${body.result.root.identity}/ast.txt", "snapshot" = "body.ast.txt"},
+  {"file" = "${work}/dumps/body/${body.result.root.identity}/hir.txt", "snapshot" = "body.hir.txt"},
+  {"file" = "${work}/dumps/body/${body.result.root.identity}/mir.txt", "snapshot" = "body.mir.txt"},
+  {"file" = "${work}/dumps/body/${body.result.root.identity}/lir.txt", "snapshot" = "body.lir.txt"},
+]
+
+[[steps]]
+name = "body_warm"
+argv = ["${scoop}", "build", "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${body_warm.result.kind}", "equals" = "library"},
+  {"actual" = "${body_warm.result.dependencies.length}", "equals" = 2},
+  {"actual" = "${body_warm.result.observations.child_invocations}", "equals" = []},
+  {"actual" = "${body_warm.result.observations.nodes.0.identity}", "equals" = "${body_warm.result.dependencies.0.identity}"},
+  {"actual" = "${body_warm.result.observations.nodes.0.origin}", "equals" = "cache"},
+  {"actual" = "${body_warm.result.dependencies.0.artifact_fingerprint}", "equals" = "${body.result.dependencies.0.artifact_fingerprint}"},
+  {"actual" = "${body_warm.result.observations.nodes.0.cache_key}", "equals" = "${body.result.observations.nodes.0.cache_key}"},
+  {"file" = "${body_warm.result.dependencies.0.path}", "same_as" = "${body.result.dependencies.0.path}"},
+  {"actual" = "${body_warm.result.observations.nodes.1.identity}", "equals" = "${body_warm.result.dependencies.1.identity}"},
+  {"actual" = "${body_warm.result.observations.nodes.1.origin}", "equals" = "cache"},
+  {"actual" = "${body_warm.result.dependencies.1.artifact_fingerprint}", "equals" = "${body.result.dependencies.1.artifact_fingerprint}"},
+  {"actual" = "${body_warm.result.observations.nodes.1.cache_key}", "equals" = "${body.result.observations.nodes.1.cache_key}"},
+  {"file" = "${body_warm.result.dependencies.1.path}", "same_as" = "${body.result.dependencies.1.path}"},
+  {"actual" = "${body_warm.result.observations.nodes.2.identity}", "equals" = "${body_warm.result.root.identity}"},
+  {"actual" = "${body_warm.result.observations.nodes.2.origin}", "equals" = "cache"},
+  {"actual" = "${body_warm.result.root.artifact_fingerprint}", "equals" = "${body.result.root.artifact_fingerprint}"},
+  {"actual" = "${body_warm.result.observations.nodes.2.cache_key}", "equals" = "${body.result.observations.nodes.2.cache_key}"},
+  {"file" = "${body_warm.result.root.path}", "same_as" = "${body.result.root.path}"},
+  {"file" = "${work}/library.slib", "same_as" = "${body_warm.result.root.path}"},
+]
+
+[[steps]]
+name = "body_program"
+argv = ["${scoop}", "build", "${work}/sources/runner", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${body_program.result.kind}", "equals" = "executable"},
+]
+
+[[steps]]
+name = "body_run"
+argv = ["${work}/program"]
+exit = 0
+stdout = "43\n"
+stderr = ""
+
+[[steps]]
+name = "body_moving"
+argv = ["${work}/program"]
+exit = 0
+stdout = "43\n"
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}
+
+[[steps]]
+name = "edit_helper"
+files = [
+  {"replace" = {"path" = "${work}/sources/dependency/src/main.scoop", "old" = "= amount + 1", "new" = "= amount + 2"}},
+]
+
+[[steps]]
+name = "helper"
+argv = ["${scoop}", "build", "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib", "--emit", "all", "--dump-dir", "${work}/dumps/helper"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${helper.result.kind}", "equals" = "library"},
+  {"actual" = "${helper.result.dependencies.length}", "equals" = 2},
+  {"actual" = "${helper.result.observations.child_invocations}", "equals" = ["${helper.result.dependencies.1.identity}", "${helper.result.root.identity}"]},
+  {"actual" = "${helper.result.observations.nodes.0.identity}", "equals" = "${helper.result.dependencies.0.identity}"},
+  {"actual" = "${helper.result.observations.nodes.0.origin}", "equals" = "cache"},
+  {"actual" = "${helper.result.dependencies.0.artifact_fingerprint}", "equals" = "${body.result.dependencies.0.artifact_fingerprint}"},
+  {"actual" = "${helper.result.observations.nodes.0.cache_key}", "equals" = "${body.result.observations.nodes.0.cache_key}"},
+  {"file" = "${helper.result.dependencies.0.path}", "same_as" = "${body.result.dependencies.0.path}"},
+  {"actual" = "${helper.result.observations.nodes.1.identity}", "equals" = "${helper.result.dependencies.1.identity}"},
+  {"actual" = "${helper.result.observations.nodes.1.origin}", "equals" = "compiled"},
+  {"actual" = "${helper.result.dependencies.1.artifact_fingerprint}", "not_equals" = "${body.result.dependencies.1.artifact_fingerprint}"},
+  {"actual" = "${helper.result.observations.nodes.1.cache_key}", "not_equals" = "${body.result.observations.nodes.1.cache_key}"},
+  {"actual" = "${helper.result.observations.nodes.2.identity}", "equals" = "${helper.result.root.identity}"},
+  {"actual" = "${helper.result.observations.nodes.2.origin}", "equals" = "compiled"},
+  {"actual" = "${helper.result.root.artifact_fingerprint}", "not_equals" = "${body.result.root.artifact_fingerprint}"},
+  {"actual" = "${helper.result.observations.nodes.2.cache_key}", "not_equals" = "${body.result.observations.nodes.2.cache_key}"},
+  {"file" = "${work}/library.slib", "same_as" = "${helper.result.root.path}"},
+  {"file" = "${work}/dumps/helper/${helper.result.root.identity}/ast.txt", "snapshot" = "helper.ast.txt"},
+  {"file" = "${work}/dumps/helper/${helper.result.root.identity}/hir.txt", "snapshot" = "helper.hir.txt"},
+  {"file" = "${work}/dumps/helper/${helper.result.root.identity}/mir.txt", "snapshot" = "helper.mir.txt"},
+  {"file" = "${work}/dumps/helper/${helper.result.root.identity}/lir.txt", "snapshot" = "helper.lir.txt"},
+]
+
+[[steps]]
+name = "helper_warm"
+argv = ["${scoop}", "build", "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${helper_warm.result.kind}", "equals" = "library"},
+  {"actual" = "${helper_warm.result.dependencies.length}", "equals" = 2},
+  {"actual" = "${helper_warm.result.observations.child_invocations}", "equals" = []},
+  {"actual" = "${helper_warm.result.observations.nodes.0.identity}", "equals" = "${helper_warm.result.dependencies.0.identity}"},
+  {"actual" = "${helper_warm.result.observations.nodes.0.origin}", "equals" = "cache"},
+  {"actual" = "${helper_warm.result.dependencies.0.artifact_fingerprint}", "equals" = "${helper.result.dependencies.0.artifact_fingerprint}"},
+  {"actual" = "${helper_warm.result.observations.nodes.0.cache_key}", "equals" = "${helper.result.observations.nodes.0.cache_key}"},
+  {"file" = "${helper_warm.result.dependencies.0.path}", "same_as" = "${helper.result.dependencies.0.path}"},
+  {"actual" = "${helper_warm.result.observations.nodes.1.identity}", "equals" = "${helper_warm.result.dependencies.1.identity}"},
+  {"actual" = "${helper_warm.result.observations.nodes.1.origin}", "equals" = "cache"},
+  {"actual" = "${helper_warm.result.dependencies.1.artifact_fingerprint}", "equals" = "${helper.result.dependencies.1.artifact_fingerprint}"},
+  {"actual" = "${helper_warm.result.observations.nodes.1.cache_key}", "equals" = "${helper.result.observations.nodes.1.cache_key}"},
+  {"file" = "${helper_warm.result.dependencies.1.path}", "same_as" = "${helper.result.dependencies.1.path}"},
+  {"actual" = "${helper_warm.result.observations.nodes.2.identity}", "equals" = "${helper_warm.result.root.identity}"},
+  {"actual" = "${helper_warm.result.observations.nodes.2.origin}", "equals" = "cache"},
+  {"actual" = "${helper_warm.result.root.artifact_fingerprint}", "equals" = "${helper.result.root.artifact_fingerprint}"},
+  {"actual" = "${helper_warm.result.observations.nodes.2.cache_key}", "equals" = "${helper.result.observations.nodes.2.cache_key}"},
+  {"file" = "${helper_warm.result.root.path}", "same_as" = "${helper.result.root.path}"},
+  {"file" = "${work}/library.slib", "same_as" = "${helper_warm.result.root.path}"},
+]
+
+[[steps]]
+name = "helper_program"
+argv = ["${scoop}", "build", "${work}/sources/runner", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${helper_program.result.kind}", "equals" = "executable"},
+]
+
+[[steps]]
+name = "helper_run"
+argv = ["${work}/program"]
+exit = 0
+stdout = "44\n"
+stderr = ""
+
+[[steps]]
+name = "helper_moving"
+argv = ["${work}/program"]
+exit = 0
+stdout = "44\n"
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}
+
+[[steps]]
+name = "edit_default"
+files = [
+  {"replace" = {"path" = "${work}/sources/dependency/src/main.scoop", "old" = "amount: Int = 41", "new" = "amount: Int = 42"}},
+]
+
+[[steps]]
+name = "default"
+argv = ["${scoop}", "build", "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib", "--emit", "all", "--dump-dir", "${work}/dumps/default"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${default.result.kind}", "equals" = "library"},
+  {"actual" = "${default.result.dependencies.length}", "equals" = 2},
+  {"actual" = "${default.result.observations.child_invocations}", "equals" = ["${default.result.dependencies.1.identity}", "${default.result.root.identity}"]},
+  {"actual" = "${default.result.observations.nodes.0.identity}", "equals" = "${default.result.dependencies.0.identity}"},
+  {"actual" = "${default.result.observations.nodes.0.origin}", "equals" = "cache"},
+  {"actual" = "${default.result.dependencies.0.artifact_fingerprint}", "equals" = "${helper.result.dependencies.0.artifact_fingerprint}"},
+  {"actual" = "${default.result.observations.nodes.0.cache_key}", "equals" = "${helper.result.observations.nodes.0.cache_key}"},
+  {"file" = "${default.result.dependencies.0.path}", "same_as" = "${helper.result.dependencies.0.path}"},
+  {"actual" = "${default.result.observations.nodes.1.identity}", "equals" = "${default.result.dependencies.1.identity}"},
+  {"actual" = "${default.result.observations.nodes.1.origin}", "equals" = "compiled"},
+  {"actual" = "${default.result.dependencies.1.artifact_fingerprint}", "not_equals" = "${helper.result.dependencies.1.artifact_fingerprint}"},
+  {"actual" = "${default.result.observations.nodes.1.cache_key}", "not_equals" = "${helper.result.observations.nodes.1.cache_key}"},
+  {"actual" = "${default.result.observations.nodes.2.identity}", "equals" = "${default.result.root.identity}"},
+  {"actual" = "${default.result.observations.nodes.2.origin}", "equals" = "compiled"},
+  {"actual" = "${default.result.root.artifact_fingerprint}", "not_equals" = "${helper.result.root.artifact_fingerprint}"},
+  {"actual" = "${default.result.observations.nodes.2.cache_key}", "not_equals" = "${helper.result.observations.nodes.2.cache_key}"},
+  {"file" = "${work}/library.slib", "same_as" = "${default.result.root.path}"},
+  {"file" = "${work}/dumps/default/${default.result.root.identity}/ast.txt", "snapshot" = "default.ast.txt"},
+  {"file" = "${work}/dumps/default/${default.result.root.identity}/hir.txt", "snapshot" = "default.hir.txt"},
+  {"file" = "${work}/dumps/default/${default.result.root.identity}/mir.txt", "snapshot" = "default.mir.txt"},
+  {"file" = "${work}/dumps/default/${default.result.root.identity}/lir.txt", "snapshot" = "default.lir.txt"},
+]
+
+[[steps]]
+name = "default_warm"
+argv = ["${scoop}", "build", "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${default_warm.result.kind}", "equals" = "library"},
+  {"actual" = "${default_warm.result.dependencies.length}", "equals" = 2},
+  {"actual" = "${default_warm.result.observations.child_invocations}", "equals" = []},
+  {"actual" = "${default_warm.result.observations.nodes.0.identity}", "equals" = "${default_warm.result.dependencies.0.identity}"},
+  {"actual" = "${default_warm.result.observations.nodes.0.origin}", "equals" = "cache"},
+  {"actual" = "${default_warm.result.dependencies.0.artifact_fingerprint}", "equals" = "${default.result.dependencies.0.artifact_fingerprint}"},
+  {"actual" = "${default_warm.result.observations.nodes.0.cache_key}", "equals" = "${default.result.observations.nodes.0.cache_key}"},
+  {"file" = "${default_warm.result.dependencies.0.path}", "same_as" = "${default.result.dependencies.0.path}"},
+  {"actual" = "${default_warm.result.observations.nodes.1.identity}", "equals" = "${default_warm.result.dependencies.1.identity}"},
+  {"actual" = "${default_warm.result.observations.nodes.1.origin}", "equals" = "cache"},
+  {"actual" = "${default_warm.result.dependencies.1.artifact_fingerprint}", "equals" = "${default.result.dependencies.1.artifact_fingerprint}"},
+  {"actual" = "${default_warm.result.observations.nodes.1.cache_key}", "equals" = "${default.result.observations.nodes.1.cache_key}"},
+  {"file" = "${default_warm.result.dependencies.1.path}", "same_as" = "${default.result.dependencies.1.path}"},
+  {"actual" = "${default_warm.result.observations.nodes.2.identity}", "equals" = "${default_warm.result.root.identity}"},
+  {"actual" = "${default_warm.result.observations.nodes.2.origin}", "equals" = "cache"},
+  {"actual" = "${default_warm.result.root.artifact_fingerprint}", "equals" = "${default.result.root.artifact_fingerprint}"},
+  {"actual" = "${default_warm.result.observations.nodes.2.cache_key}", "equals" = "${default.result.observations.nodes.2.cache_key}"},
+  {"file" = "${default_warm.result.root.path}", "same_as" = "${default.result.root.path}"},
+  {"file" = "${work}/library.slib", "same_as" = "${default_warm.result.root.path}"},
+]
+
+[[steps]]
+name = "default_program"
+argv = ["${scoop}", "build", "${work}/sources/runner", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${default_program.result.kind}", "equals" = "executable"},
+]
+
+[[steps]]
+name = "default_run"
+argv = ["${work}/program"]
+exit = 0
+stdout = "45\n"
+stderr = ""
+
+[[steps]]
+name = "default_moving"
+argv = ["${work}/program"]
+exit = 0
+stdout = "45\n"
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}
+
+[[steps]]
+name = "edit_condition"
+files = [
+  {"replace" = {"path" = "${work}/sources/dependency/src/main.scoop", "old" = "fun <T> calculate", "new" = "fun <T : ref> calculate"}},
+]
+
+[[steps]]
+name = "condition"
+argv = ["${scoop}", "build", "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib", "--emit", "all", "--dump-dir", "${work}/dumps/condition"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${condition.result.kind}", "equals" = "library"},
+  {"actual" = "${condition.result.dependencies.length}", "equals" = 2},
+  {"actual" = "${condition.result.observations.child_invocations}", "equals" = ["${condition.result.dependencies.1.identity}", "${condition.result.root.identity}"]},
+  {"actual" = "${condition.result.observations.nodes.0.identity}", "equals" = "${condition.result.dependencies.0.identity}"},
+  {"actual" = "${condition.result.observations.nodes.0.origin}", "equals" = "cache"},
+  {"actual" = "${condition.result.dependencies.0.artifact_fingerprint}", "equals" = "${default.result.dependencies.0.artifact_fingerprint}"},
+  {"actual" = "${condition.result.observations.nodes.0.cache_key}", "equals" = "${default.result.observations.nodes.0.cache_key}"},
+  {"file" = "${condition.result.dependencies.0.path}", "same_as" = "${default.result.dependencies.0.path}"},
+  {"actual" = "${condition.result.observations.nodes.1.identity}", "equals" = "${condition.result.dependencies.1.identity}"},
+  {"actual" = "${condition.result.observations.nodes.1.origin}", "equals" = "compiled"},
+  {"actual" = "${condition.result.dependencies.1.artifact_fingerprint}", "not_equals" = "${default.result.dependencies.1.artifact_fingerprint}"},
+  {"actual" = "${condition.result.observations.nodes.1.cache_key}", "not_equals" = "${default.result.observations.nodes.1.cache_key}"},
+  {"actual" = "${condition.result.observations.nodes.2.identity}", "equals" = "${condition.result.root.identity}"},
+  {"actual" = "${condition.result.observations.nodes.2.origin}", "equals" = "compiled"},
+  {"actual" = "${condition.result.root.artifact_fingerprint}", "not_equals" = "${default.result.root.artifact_fingerprint}"},
+  {"actual" = "${condition.result.observations.nodes.2.cache_key}", "not_equals" = "${default.result.observations.nodes.2.cache_key}"},
+  {"file" = "${work}/library.slib", "same_as" = "${condition.result.root.path}"},
+  {"file" = "${work}/dumps/condition/${condition.result.root.identity}/ast.txt", "snapshot" = "condition.ast.txt"},
+  {"file" = "${work}/dumps/condition/${condition.result.root.identity}/hir.txt", "snapshot" = "condition.hir.txt"},
+  {"file" = "${work}/dumps/condition/${condition.result.root.identity}/mir.txt", "snapshot" = "condition.mir.txt"},
+  {"file" = "${work}/dumps/condition/${condition.result.root.identity}/lir.txt", "snapshot" = "condition.lir.txt"},
+]
+
+[[steps]]
+name = "condition_warm"
+argv = ["${scoop}", "build", "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${condition_warm.result.kind}", "equals" = "library"},
+  {"actual" = "${condition_warm.result.dependencies.length}", "equals" = 2},
+  {"actual" = "${condition_warm.result.observations.child_invocations}", "equals" = []},
+  {"actual" = "${condition_warm.result.observations.nodes.0.identity}", "equals" = "${condition_warm.result.dependencies.0.identity}"},
+  {"actual" = "${condition_warm.result.observations.nodes.0.origin}", "equals" = "cache"},
+  {"actual" = "${condition_warm.result.dependencies.0.artifact_fingerprint}", "equals" = "${condition.result.dependencies.0.artifact_fingerprint}"},
+  {"actual" = "${condition_warm.result.observations.nodes.0.cache_key}", "equals" = "${condition.result.observations.nodes.0.cache_key}"},
+  {"file" = "${condition_warm.result.dependencies.0.path}", "same_as" = "${condition.result.dependencies.0.path}"},
+  {"actual" = "${condition_warm.result.observations.nodes.1.identity}", "equals" = "${condition_warm.result.dependencies.1.identity}"},
+  {"actual" = "${condition_warm.result.observations.nodes.1.origin}", "equals" = "cache"},
+  {"actual" = "${condition_warm.result.dependencies.1.artifact_fingerprint}", "equals" = "${condition.result.dependencies.1.artifact_fingerprint}"},
+  {"actual" = "${condition_warm.result.observations.nodes.1.cache_key}", "equals" = "${condition.result.observations.nodes.1.cache_key}"},
+  {"file" = "${condition_warm.result.dependencies.1.path}", "same_as" = "${condition.result.dependencies.1.path}"},
+  {"actual" = "${condition_warm.result.observations.nodes.2.identity}", "equals" = "${condition_warm.result.root.identity}"},
+  {"actual" = "${condition_warm.result.observations.nodes.2.origin}", "equals" = "cache"},
+  {"actual" = "${condition_warm.result.root.artifact_fingerprint}", "equals" = "${condition.result.root.artifact_fingerprint}"},
+  {"actual" = "${condition_warm.result.observations.nodes.2.cache_key}", "equals" = "${condition.result.observations.nodes.2.cache_key}"},
+  {"file" = "${condition_warm.result.root.path}", "same_as" = "${condition.result.root.path}"},
+  {"file" = "${work}/library.slib", "same_as" = "${condition_warm.result.root.path}"},
+]
+
+[[steps]]
+name = "condition_program"
+argv = ["${scoop}", "build", "${work}/sources/runner", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${condition_program.result.kind}", "equals" = "executable"},
+]
+
+[[steps]]
+name = "condition_run"
+argv = ["${work}/program"]
+exit = 0
+stdout = "45\n"
+stderr = ""
+
+[[steps]]
+name = "condition_moving"
+argv = ["${work}/program"]
+exit = 0
+stdout = "45\n"
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}
+
+[[steps]]
+name = "edit_arguments"
+files = [
+  {"replace" = {"path" = "${work}/sources/root/src/main.scoop", "old" = "calculate(\"seed\")", "new" = "calculate(Payload(1))"}},
+]
+
+[[steps]]
+name = "arguments"
+argv = ["${scoop}", "build", "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib", "--emit", "all", "--dump-dir", "${work}/dumps/arguments"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${arguments.result.kind}", "equals" = "library"},
+  {"actual" = "${arguments.result.dependencies.length}", "equals" = 2},
+  {"actual" = "${arguments.result.observations.child_invocations}", "equals" = ["${arguments.result.root.identity}"]},
+  {"actual" = "${arguments.result.observations.nodes.0.identity}", "equals" = "${arguments.result.dependencies.0.identity}"},
+  {"actual" = "${arguments.result.observations.nodes.0.origin}", "equals" = "cache"},
+  {"actual" = "${arguments.result.dependencies.0.artifact_fingerprint}", "equals" = "${condition.result.dependencies.0.artifact_fingerprint}"},
+  {"actual" = "${arguments.result.observations.nodes.0.cache_key}", "equals" = "${condition.result.observations.nodes.0.cache_key}"},
+  {"file" = "${arguments.result.dependencies.0.path}", "same_as" = "${condition.result.dependencies.0.path}"},
+  {"actual" = "${arguments.result.observations.nodes.1.identity}", "equals" = "${arguments.result.dependencies.1.identity}"},
+  {"actual" = "${arguments.result.observations.nodes.1.origin}", "equals" = "cache"},
+  {"actual" = "${arguments.result.dependencies.1.artifact_fingerprint}", "equals" = "${condition.result.dependencies.1.artifact_fingerprint}"},
+  {"actual" = "${arguments.result.observations.nodes.1.cache_key}", "equals" = "${condition.result.observations.nodes.1.cache_key}"},
+  {"file" = "${arguments.result.dependencies.1.path}", "same_as" = "${condition.result.dependencies.1.path}"},
+  {"actual" = "${arguments.result.observations.nodes.2.identity}", "equals" = "${arguments.result.root.identity}"},
+  {"actual" = "${arguments.result.observations.nodes.2.origin}", "equals" = "compiled"},
+  {"actual" = "${arguments.result.root.artifact_fingerprint}", "not_equals" = "${condition.result.root.artifact_fingerprint}"},
+  {"actual" = "${arguments.result.observations.nodes.2.cache_key}", "not_equals" = "${condition.result.observations.nodes.2.cache_key}"},
+  {"file" = "${work}/library.slib", "same_as" = "${arguments.result.root.path}"},
+  {"file" = "${work}/dumps/arguments/${arguments.result.root.identity}/ast.txt", "snapshot" = "arguments.ast.txt"},
+  {"file" = "${work}/dumps/arguments/${arguments.result.root.identity}/hir.txt", "snapshot" = "arguments.hir.txt"},
+  {"file" = "${work}/dumps/arguments/${arguments.result.root.identity}/mir.txt", "snapshot" = "arguments.mir.txt"},
+  {"file" = "${work}/dumps/arguments/${arguments.result.root.identity}/lir.txt", "snapshot" = "arguments.lir.txt"},
+]
+
+[[steps]]
+name = "arguments_warm"
+argv = ["${scoop}", "build", "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${arguments_warm.result.kind}", "equals" = "library"},
+  {"actual" = "${arguments_warm.result.dependencies.length}", "equals" = 2},
+  {"actual" = "${arguments_warm.result.observations.child_invocations}", "equals" = []},
+  {"actual" = "${arguments_warm.result.observations.nodes.0.identity}", "equals" = "${arguments_warm.result.dependencies.0.identity}"},
+  {"actual" = "${arguments_warm.result.observations.nodes.0.origin}", "equals" = "cache"},
+  {"actual" = "${arguments_warm.result.dependencies.0.artifact_fingerprint}", "equals" = "${arguments.result.dependencies.0.artifact_fingerprint}"},
+  {"actual" = "${arguments_warm.result.observations.nodes.0.cache_key}", "equals" = "${arguments.result.observations.nodes.0.cache_key}"},
+  {"file" = "${arguments_warm.result.dependencies.0.path}", "same_as" = "${arguments.result.dependencies.0.path}"},
+  {"actual" = "${arguments_warm.result.observations.nodes.1.identity}", "equals" = "${arguments_warm.result.dependencies.1.identity}"},
+  {"actual" = "${arguments_warm.result.observations.nodes.1.origin}", "equals" = "cache"},
+  {"actual" = "${arguments_warm.result.dependencies.1.artifact_fingerprint}", "equals" = "${arguments.result.dependencies.1.artifact_fingerprint}"},
+  {"actual" = "${arguments_warm.result.observations.nodes.1.cache_key}", "equals" = "${arguments.result.observations.nodes.1.cache_key}"},
+  {"file" = "${arguments_warm.result.dependencies.1.path}", "same_as" = "${arguments.result.dependencies.1.path}"},
+  {"actual" = "${arguments_warm.result.observations.nodes.2.identity}", "equals" = "${arguments_warm.result.root.identity}"},
+  {"actual" = "${arguments_warm.result.observations.nodes.2.origin}", "equals" = "cache"},
+  {"actual" = "${arguments_warm.result.root.artifact_fingerprint}", "equals" = "${arguments.result.root.artifact_fingerprint}"},
+  {"actual" = "${arguments_warm.result.observations.nodes.2.cache_key}", "equals" = "${arguments.result.observations.nodes.2.cache_key}"},
+  {"file" = "${arguments_warm.result.root.path}", "same_as" = "${arguments.result.root.path}"},
+  {"file" = "${work}/library.slib", "same_as" = "${arguments_warm.result.root.path}"},
+]
+
+[[steps]]
+name = "arguments_program"
+argv = ["${scoop}", "build", "${work}/sources/runner", {"each" = "${options}"}, "--runtime-root", "${runtime}", "-o", "${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${arguments_program.result.kind}", "equals" = "executable"},
+]
+
+[[steps]]
+name = "arguments_run"
+argv = ["${work}/program"]
+exit = 0
+stdout = "45\n"
+stderr = ""
+
+[[steps]]
+name = "arguments_moving"
+argv = ["${work}/program"]
+exit = 0
+stdout = "45\n"
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}

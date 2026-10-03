@@ -1,0 +1,38 @@
+SourceFile
+  RootPackage
+  class FailureGate(var waiter: Continuation<Int>?)
+    fun fail
+  class FailureRegistration(val gate: FailureGate), SuspendRegistration<Int>
+    public fun register
+  class CaughtTask(val gate: FailureGate), SuspendTask<Int>
+    public suspend fun run
+  class UncaughtTask(val gate: FailureGate), SuspendTask<Int>
+    public suspend fun run
+  class RecordingCompletion(), Continuation<Int>
+    public fun resume
+    public fun resumeWithException
+  fun launch(task: SuspendTask<Int>, completion: Continuation<Int>)
+    Call startCoroutine
+      Var task
+      Var completion
+  fun main()
+    val caught
+      Call FailureGate
+        Var None
+    val uncaught
+      Call FailureGate
+        Var None
+    Call launch
+      Call CaughtTask
+        Var caught
+      Call RecordingCompletion
+    Call launch
+      Call UncaughtTask
+        Var uncaught
+      Call RecordingCompletion
+    Call println
+      StringLiteral "returned"
+    MethodCall fail
+      Var caught
+    MethodCall fail
+      Var uncaught

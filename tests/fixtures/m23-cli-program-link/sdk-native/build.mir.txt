@@ -1,0 +1,23 @@
+Module
+  extern ef0 rootWrite @scoop_rt_write(String) -> Unit <abi=scoop managed>
+  fun rootWrite @fn0(arg0: String) -> Unit
+    bb0 entry
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local arg0
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call external0 direct
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $parameter.value
+      return
+  str @str0 "root\n"
+  output executable @fn1

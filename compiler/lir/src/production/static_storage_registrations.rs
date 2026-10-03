@@ -223,7 +223,6 @@ impl StrongStaticStorageSemanticPlanSetV1 {
                 layout,
                 ty,
                 initial_state,
-                thread_local,
             } = &global.init
             else {
                 continue;
@@ -234,11 +233,6 @@ impl StrongStaticStorageSemanticPlanSetV1 {
                     storage,
                     actual: global.address_kind,
                 });
-            }
-            if *thread_local {
-                return Err(StrongStaticStorageSemanticPlanBuildError::ThreadLocal(
-                    storage,
-                ));
             }
             if !matches!(
                 identity.symbol_request().linkage(),
@@ -793,7 +787,6 @@ pub enum StrongStaticStorageSemanticPlanBuildError {
         storage: PersistentStaticStorageId,
         actual: PointerKind,
     },
-    ThreadLocal(PersistentStaticStorageId),
     Linkage {
         storage: PersistentStaticStorageId,
         actual: LinkageClass,

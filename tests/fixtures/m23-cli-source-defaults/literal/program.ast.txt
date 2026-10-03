@@ -1,0 +1,21 @@
+SourceFile
+  RootPackage
+  private fun hidden(value: String = <expr>): String
+    =
+      Var value
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call verifyDefault
+      Binary Eq
+        Call hidden
+        StringLiteral "isolated"
+    Call verifyDefault
+      Binary Eq
+        Call hidden
+          StringLiteral "explicit"
+        StringLiteral "explicit"

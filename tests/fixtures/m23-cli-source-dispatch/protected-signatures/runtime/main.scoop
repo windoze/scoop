@@ -1,0 +1,6 @@
+fun verifyDispatch(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    verifyDispatch(shape().observe() == ((1, 2L), (3, 4L)))
+}

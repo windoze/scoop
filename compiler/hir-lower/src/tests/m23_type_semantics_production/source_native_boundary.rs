@@ -1,5 +1,7 @@
 use super::*;
 
+mod imported_handles;
+
 #[test]
 fn native_boundary_producer_uses_shared_core_metadata_for_a_narrow_integer() {
     source_dispatch::with_hir_source(
@@ -77,41 +79,64 @@ fn native_boundary_producer_closes_local_struct_enum_and_all_imported_primitives
             }
             let records = output.output().native_boundary_types.records();
             assert_eq!(records.len(), 14);
-            let mut dump = records
-                .iter()
-                .map(|record| match record.shape() {
-                    hir::NativeBoundaryNominalShape::Intrinsic(representation) => format!(
-                        "{} intrinsic {}\n",
-                        names[&record.owner()],
-                        representation.family().name()
-                    ),
-                    hir::NativeBoundaryNominalShape::Struct { c_layout, fields } => format!(
-                        "{} struct {c_layout:?} fields={}\n",
-                        names[&record.owner()],
-                        fields.len()
-                    ),
-                    hir::NativeBoundaryNominalShape::Enum { variants } => format!(
-                        "{} enum fields={:?}\n",
-                        names[&record.owner()],
-                        variants
-                            .iter()
-                            .map(|v| v.fields().len())
-                            .collect::<Vec<_>>()
-                    ),
-                    hir::NativeBoundaryNominalShape::Reference => {
-                        format!("{} reference\n", names[&record.owner()])
+            for record in records {
+                assert_eq!(
+                    record.c_abi(),
+                    hir::NativeBoundaryCAbiV1::SourceRepresentation
+                );
+                let name = names[&record.owner()].as_str();
+                match record.shape() {
+                    hir::NativeBoundaryNominalShape::Intrinsic(representation) => {
+                        let family = representation.family();
+                        assert_eq!(family.source_name(), name);
+                        assert!(matches!(
+                            family,
+                            hir::IntrinsicTypeKind::Integer(_)
+                                | hir::IntrinsicTypeKind::Boolean
+                                | hir::IntrinsicTypeKind::String
+                        ));
                     }
-                })
-                .collect::<Vec<_>>();
-            dump.sort();
-            assert_eq!(
-                dump.concat(),
-                include_str!(concat!(
-                    env!("CARGO_MANIFEST_DIR"),
-                    "/../../tests/fixtures/m23-native-boundary/combined.snap"
-                ))
-            );
-            assert!(!dump.concat().contains("Unused"));
+                    hir::NativeBoundaryNominalShape::Struct { c_layout, fields } => {
+                        let count = match name {
+                            "Packed" => {
+                                assert_eq!(
+                                    *c_layout,
+                                    hir::NativeBoundaryCLayoutPolicy::CLayout {
+                                        aligned: scoop_identity::CLayoutOverride::Bytes(
+                                            scoop_identity::CLayoutByteAlignment::Bytes8
+                                        ),
+                                        packed: scoop_identity::CLayoutOverride::Bytes(
+                                            scoop_identity::CLayoutByteAlignment::Bytes1
+                                        ),
+                                    }
+                                );
+                                2
+                            }
+                            "Unit" => 0,
+                            "Wrapper" => 1,
+                            other => panic!("unexpected native struct {other}"),
+                        };
+                        assert_eq!(fields.len(), count);
+                        if name != "Packed" {
+                            assert_eq!(*c_layout, hir::NativeBoundaryCLayoutPolicy::NotCLayout);
+                        }
+                    }
+                    hir::NativeBoundaryNominalShape::Enum { variants } => {
+                        assert_eq!(name, "Choice");
+                        assert_eq!(
+                            variants
+                                .iter()
+                                .map(|v| v.fields().len())
+                                .collect::<Vec<_>>(),
+                            [1, 1, 0]
+                        );
+                    }
+                    hir::NativeBoundaryNominalShape::Reference => {
+                        panic!("the native closure has no opaque references");
+                    }
+                }
+                assert_ne!(name, "Unused");
+            }
         },
     );
 }

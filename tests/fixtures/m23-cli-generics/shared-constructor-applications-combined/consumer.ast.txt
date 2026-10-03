@@ -1,0 +1,99 @@
+SourceFile
+  QualifiedPackage consumer.constructors
+  ImportStar Local upstream.constructors.*
+  private struct CurrentPair<T, U>
+    field value: T
+  private class CurrentChild<T, U>(value: T) : Box<T, U>(<2 args>)
+    @NoGC
+  private fun plain(value: Int): Int
+    =
+      FieldAccess value
+        Call Pair<Int, Unit>
+          Var value
+  public fun exercise<T>(seed: T, inspect: (T) -> Int): Int
+    val first
+      Call Pair<T, Unit>
+        Var seed
+    val repeated
+      Call Pair<T, Unit>
+        Var seed
+    val secondary
+      Call Pair<T, String>
+        Var seed
+        BoolLiteral false
+    val box
+      Call Box<T, Int>
+        Var seed
+    val child
+      Call CurrentChild<T, Unit>
+        Var seed
+    if
+      Binary Or
+        Binary Ne
+          Call inspect
+            FieldAccess value
+              Var first
+          IntLiteral 42
+        Binary Ne
+          Call inspect
+            FieldAccess value
+              Var repeated
+          IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Or
+        Binary Ne
+          Call inspect
+            FieldAccess value
+              Var secondary
+          IntLiteral 42
+        Binary Ne
+          Call inspect
+            FieldAccess copied
+              Var box
+          IntLiteral 42
+      return
+        IntLiteral 2
+    if
+      Binary Or
+        Binary Ne
+          Call inspect
+            FieldAccess value
+              Var child
+          IntLiteral 42
+        Binary Ne
+          Call inspect
+            Call selected<T, Unit>
+              Var seed
+          IntLiteral 42
+      return
+        IntLiteral 3
+    if
+      Binary Ne
+        Call plain
+          IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 4
+    val source
+      Call CurrentPair<Box<T, Int>, Unit>
+        Var box
+    val closure: () -> T
+      Lambda 0 suspend=false
+        parameters omitted
+        FieldAccess value
+          Call Pair<T, Unit>
+            FieldAccess value
+              FieldAccess value
+                Var source
+    return
+      Call inspect
+        Call closure
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 1 suspend=false
+          param value: _
+          Var value

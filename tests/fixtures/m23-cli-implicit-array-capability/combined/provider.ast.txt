@@ -1,0 +1,10 @@
+SourceFile
+  RootPackage
+  public class Values<T>(vararg values: T = <expr>)
+    public fun count
+  public enum Batches<T>
+    Items <ctor>
+      vararg values: T
+  public fun count<T>(vararg values: T): Int
+    =
+      IntLiteral 1

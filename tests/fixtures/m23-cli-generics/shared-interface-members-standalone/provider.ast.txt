@@ -1,0 +1,12 @@
+SourceFile
+  QualifiedPackage dependency.readers
+  public interface Reader<T>
+    fun read
+    fun again
+  public class NumberReader(), Reader<Int>
+    public fun read
+    public fun read
+  public struct ValueReader<T> : Reader<T>
+    field value: T
+    public fun read
+    public fun read

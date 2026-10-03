@@ -1,0 +1,49 @@
+SourceFile
+  QualifiedPackage consumer.parents
+  ImportExact Local dependency.parents.Reader
+  public interface IntReader : Reader<Int>
+  public class NumberReader(val number: Int), IntReader
+    public fun read
+  public interface LocalReader<T>
+    fun read
+    fun again
+  public interface LocalIntReader : LocalReader<Int>
+  public class LocalNumberReader(val number: Int), LocalIntReader
+    public fun read
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val reader: IntReader
+      Call NumberReader
+        Call read
+          Var seed
+    val local: LocalIntReader
+      Call LocalNumberReader
+        Call read
+          Var seed
+    return
+      IfExpression
+        Binary Eq
+          MethodCall again
+            Var local
+          MethodCall again
+            Var reader
+        MethodCall again
+          Var reader
+        else
+        IntLiteral 1
+  public fun result(): Int
+    val local: LocalIntReader
+      Call LocalNumberReader
+        IntLiteral 42
+    val external: IntReader
+      Call NumberReader
+        IntLiteral 42
+    return
+      IfExpression
+        Binary Eq
+          MethodCall again
+            Var local
+          IntLiteral 42
+        MethodCall again
+          Var external
+        else
+        IntLiteral 1

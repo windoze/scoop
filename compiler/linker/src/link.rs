@@ -1,3 +1,4 @@
+use scoop_process::CommandExt;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -25,6 +26,8 @@ pub struct ProgramLinkOutput {
     pub path: PathBuf,
     pub fingerprint: ResolvedLinkPlanFingerprint,
     pub plan_dump: String,
+    /// Actual native files used by this link, for destination alias checks.
+    pub input_paths: Vec<PathBuf>,
 }
 
 pub fn link_program(
@@ -85,7 +88,7 @@ fn link_inputs(
     }
     command.args(stubs.keys());
     let result = command
-        .output()
+        .scoop_output()
         .map_err(|err| error(format!("cannot start system linker: {err}")))?;
     if !result.status.success() {
         return Err(error(format!(
@@ -93,20 +96,17 @@ fn link_inputs(
             String::from_utf8_lossy(&result.stderr)
         )));
     }
-    let native_paths = inputs
+    let object_origins = inputs
         .objects
         .iter()
         .zip(&paths[1..])
-        .filter_map(|(input, path)| match input.origin {
-            crate::program::ObjectOrigin::Native(id) => Some((path.clone(), id)),
-            _ => None,
-        })
+        .map(|(input, path)| (path.clone(), input.origin))
         .collect();
     let map = map::check(
         &std::fs::read_to_string(link_map).map_err(error)?,
         &paths,
         &stubs,
-        &native_paths,
+        &object_origins,
     )?;
     map::trace(
         std::str::from_utf8(&result.stdout).map_err(error)?,
@@ -144,6 +144,19 @@ fn link_inputs(
         path: output,
         fingerprint,
         plan_dump,
+        input_paths: inputs
+            .native
+            .files
+            .values()
+            .map(|file| file.locator.clone())
+            .chain(
+                inputs
+                    .providers
+                    .providers
+                    .values()
+                    .map(|provider| provider.locator.clone()),
+            )
+            .collect(),
     })
 }
 

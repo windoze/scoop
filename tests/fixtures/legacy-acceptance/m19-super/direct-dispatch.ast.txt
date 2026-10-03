@@ -1,0 +1,32 @@
+SourceFile
+  RootPackage
+  open class Grand()
+    fun inherited
+  open class Base() : Grand(<0 args>)
+    fun value
+    fun total
+    fun identity
+  fun Base.value(value: Int): Int
+    =
+      IntLiteral 1000
+  class Derived() : Base(<0 args>)
+    fun value
+    fun inheritedDirect
+    fun totalDirect
+    fun genericDirect
+  fun main()
+    val derived
+      Call Derived
+    Call println
+      MethodCall value
+        Var derived
+        IntLiteral 1
+    Call println
+      MethodCall inheritedDirect
+        Var derived
+    Call println
+      MethodCall totalDirect
+        Var derived
+    Call println
+      MethodCall genericDirect
+        Var derived

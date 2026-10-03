@@ -1,0 +1,353 @@
+Module
+  struct S (v: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Int>
+    Some(_0: Int)
+    None()
+  class A vtable=0 itables=0
+  class B vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<S> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  generated_exact_type get0 location=class5 nominal_id=f43c7c5d9f4153728b36a9086ef2884a6374395f5c568b71ed35578c42571ba6 exact_id=9d50e433dbe8bb745ff3db8d7f7f2b38e16509d73219567a1896134c800ac607
+  generated_exact_type get1 location=class6 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  fun main @fn0() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.v: Int
+        Type Int
+        Local $argument.0
+      call $call.1: S = @fn6 direct
+        Type Int
+        Local $parameter.v
+      val a: Any
+        Type Any
+        Box
+          Type S
+          Local $call.1
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IsInstance S
+          Type Any
+          Local a
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IsInstance Int
+          Type Any
+          Local a
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $cast.1: Any
+        Type Any
+        Local a
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance S
+            Type Any
+            Local $cast.1
+    bb1 if.then.1
+      assign $new.2
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external3 direct
+        Type ClassCastException
+        Local $new.2
+      throw
+        Type ClassCastException
+        Local $new.2
+    bb2 if.merge.2
+      val $ub.2: S
+        Type S
+        Unbox
+          Type Any
+          Local $cast.1
+      val s: S
+        Type S
+        Local $ub.2
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type S
+          Local s
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $cast.3: Any
+        Type Any
+        Local a
+      branch bb3 bb4
+        Type Boolean
+        IsInstance Int
+          Type Any
+          Local $cast.3
+    bb3 if.then.3
+      assign $cast.4
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+          Type Int
+          Unbox
+            Type Any
+            Local $cast.3
+      goto bb5
+    bb4 if.else.4
+      assign $cast.4
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+      goto bb5
+    bb5 if.merge.5
+      val i: Option<Int>
+        Type Option<Int>
+        Local $cast.4
+      call $dependency.argument.0: Boolean = @fn3 direct
+        Type Option<Int>
+        Local i
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.m: Int
+        Type Int
+        Local $argument.0
+      assign $new.3
+        Type B
+        ClassAlloc B
+      call @fn5 direct
+        Type B
+        Local $new.3
+        Type Int
+        Local $parameter.m
+      val b: A
+        Type A
+        Retype A
+          Type B
+          Local $new.3
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IsInstance B
+          Type A
+          Local b
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type A
+          Local b
+          Type A
+          Local b
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      return
+  fun println @fn1(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn2(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str1
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun $derived.equals.0 @fn3(this: Option<Int>, other: Option<Int>) -> Boolean
+    bb0 entry
+      val $when.1: Option<Int>
+        Type Option<Int>
+        Local this
+      val $pattern.subject.2: Option<Int>
+        Type Option<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $left.0.0: Int
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local $pattern.subject.2
+      val $when.3: Option<Int>
+        Type Option<Int>
+        Local other
+      val $pattern.subject.4: Option<Int>
+        Type Option<Int>
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Option<Int>
+        Type Option<Int>
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Option<Int> v1
+          Type Option<Int>
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      val $right.0.0: Int
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local $pattern.subject.4
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $left.0.0
+          Type Int
+          Local $right.0.0
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $when.6: Option<Int>
+        Type Option<Int>
+        Local other
+      val $pattern.subject.7: Option<Int>
+        Type Option<Int>
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Option<Int> v1
+          Type Option<Int>
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      return
+        Type Boolean
+        BoolLiteral true
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+  fun init.A.$c0 @fn4(this: A, n: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type A
+        Local this
+        Type Int
+        Local n
+      return
+  fun init.B.$c1 @fn5(this: B, m: Int) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.n: Int
+        Type Int
+        Local $argument.0
+      call @fn4 direct
+        Type A
+        Retype A
+          Type B
+          Local this
+        Type Int
+        Local $parameter.n
+      field_set 1
+        Type B
+        Local this
+        Type Int
+        Local m
+      return
+  fun ctor.S.$c0 @fn6(v: Int) -> S <no-gc>
+    bb0 entry
+      return
+        Type S
+        StructInit S
+          Type Int
+          Local v
+  instance mi0 function=@fn1 <- println
+  instance mi1 function=@fn2 <- println
+  str @str0 "\n"
+  str @str1 "\n"
+  output executable @fn0

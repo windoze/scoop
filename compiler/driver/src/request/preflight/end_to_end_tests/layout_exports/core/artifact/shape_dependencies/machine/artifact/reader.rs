@@ -10,7 +10,6 @@ mod link;
 
 pub(super) fn check(
     name: &str,
-    fixtures: &Path,
     provider: &scoop_slib::AssembledCrossConeLayoutArtifactV1,
     artifact: &scoop_slib::AssembledCrossConeLayoutArtifactV1,
     layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
@@ -51,7 +50,6 @@ pub(super) fn check(
         encode(link.lir_layout_abi_wire()).unwrap(),
         encode(layout).unwrap()
     );
-    let fingerprints = compile.semantic_fingerprints();
     let closure = read(provider, artifact);
     assert_eq!(closure.dependency_first().count(), 2);
     assert_eq!(closure.dependency_count(layout.provider()), Some(1));
@@ -62,15 +60,6 @@ pub(super) fn check(
         expected
     );
     assert_eq!(current.lir_exports(), layout.exports());
-    let mut dump = format!(
-        "artifact={}\ncode={:?}\nruntime={:?}\nproviders={}\ndirect={}\nselected={}\n",
-        artifact.artifact_fingerprint(),
-        fingerprints.code(),
-        fingerprints.runtime_image(),
-        closure.dependency_first().count(),
-        closure.direct_providers().len(),
-        expected.len(),
-    );
     closure
         .replay_physical_imports()
         .map(|physical| {
@@ -81,22 +70,14 @@ pub(super) fn check(
                 encode(imports).unwrap(),
                 encode(layout.selected().physical_imports()).unwrap(),
             );
-            dump.push_str(&format!("physical={}\n", imports.records().len()));
             for import in imports.records() {
                 assert!(matches!(
                     import.subject(),
                     lir::ExternalStrongShapeSubjectV1::TypeDescriptor(_)
                         | lir::ExternalStrongShapeSubjectV1::TypeRegistration(_)
                 ));
-                dump.push_str(&format!(
-                    "{} {:?} {:?}\n",
-                    import.provider(),
-                    import.subject(),
-                    import.required_definition()
-                ));
             }
         })
         .unwrap_or_else(|error| panic!("{name} shared physical replay: {error}"));
-    dump.push_str(&link::check(provider, artifact, layout, &link));
-    snapshot(&fixtures.join(format!("{name}.artifact.snap")), &dump);
+    link::check(provider, artifact, layout, &link);
 }

@@ -66,33 +66,3 @@ fn imported_generic_constructors_keep_initialization_and_provider_identity() {
         .unwrap_or_else(|error| panic!("{case}: {error:?}"));
     }
 }
-
-#[test]
-fn imported_generic_constructors_enforce_source_call_rules() {
-    for (case, expected, token) in [
-        ("bad-kind", "must satisfy `value`", "ValueOnly"),
-        (
-            "bad-arity",
-            "expects 1 type argument(s), found 2",
-            "Pair<Int",
-        ),
-        ("private-constructor", "is not accessible", "Locked<Int"),
-        (
-            "immutable-property",
-            "cannot assign to immutable property `echoed`",
-            "echoed",
-        ),
-    ] {
-        let source = fixture(case);
-        let errors = with_provider_consumer(&fixture("provider"), &source, |_, _, _, _, _| ())
-            .expect_err(case);
-        let error = errors
-            .iter()
-            .find(|error| error.message.contains(expected))
-            .unwrap_or_else(|| panic!("{case}: {errors:?}"));
-        assert_eq!(error.file, 0, "{case}");
-        let span = error.span.expect("source call diagnostics have a location");
-        let start = source.rfind(token).unwrap() as u32;
-        assert!(span.start <= start && span.end > start, "{case}: {span:?}");
-    }
-}

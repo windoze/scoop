@@ -1,0 +1,20 @@
+SourceFile
+  RootPackage
+  suspend fun immediateValue(): Int
+    =
+      IntLiteral 41
+  class ImmediateTask(), SuspendTask<Int>
+    public suspend fun run
+  class RecordingCompletion(), Continuation<Int>
+    public fun resume
+    public fun resumeWithException
+  fun launch(task: SuspendTask<Int>, completion: Continuation<Int>)
+    Call startCoroutine
+      Var task
+      Var completion
+  fun main()
+    Call launch
+      Call ImmediateTask
+      Call RecordingCompletion
+    Call println
+      StringLiteral "returned"

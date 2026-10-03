@@ -1,0 +1,5 @@
+public object PreludeStore {
+    public var count: Int = 0
+    public var text: String = "initial"
+    public fun increment(): Int { count += 1; return count }
+}

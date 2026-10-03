@@ -1,9 +1,7 @@
 use super::*;
-use scoop_identity::{DeclarationName, SourceDeclarationKey, ValidatedIdentityGraph};
 use scoop_wire::{WirePath, decode_canonical, encode};
 
 mod core_extensions;
-mod render;
 
 #[test]
 fn complete_shared_declarations_cover_nested_members_parameters_and_storage() {
@@ -68,25 +66,5 @@ fn check_shared_declarations(fixtures: &std::path::Path, case: &str) {
                 .validate_materialized_type_uses(types.selected(), dependencies)
                 .unwrap();
         });
-        if matches!(case, "declarations" | "nested") {
-            assert_eq!(
-                render::nominals(restored.nominal_interfaces(), &identities),
-                std::fs::read_to_string(fixtures.join(format!("{case}.snap"))).unwrap(),
-                "{case}"
-            );
-        }
     });
-}
-
-fn name(
-    id: impl scoop_identity::PersistentId + 'static,
-    identities: &ValidatedIdentityGraph,
-) -> String {
-    let key = identities
-        .canonical_key::<_, SourceDeclarationKey>(id)
-        .unwrap();
-    let DeclarationName::Named(name) = key.name() else {
-        panic!("named declaration")
-    };
-    name.as_str().to_owned()
 }

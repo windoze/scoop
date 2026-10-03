@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m5-arrays/errors/write-immutable-array.scoop:3:5: error: type `Array<Int>` has no method `set`

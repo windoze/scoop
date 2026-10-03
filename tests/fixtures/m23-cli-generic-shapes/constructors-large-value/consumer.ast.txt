@@ -1,0 +1,42 @@
+SourceFile
+  QualifiedPackage consumer.constructors
+  ImportStar Local templates.constructors.*
+  private struct Triple
+    field first: Int
+    field second: Int
+    field third: Int
+  public fun result(): Int
+    val box
+      Call Box<Triple>
+        Call Triple
+          IntLiteral 10
+          IntLiteral 12
+          IntLiteral 15
+        IntLiteral 3
+    val empty
+      Call Box<Unit>
+        UnitLiteral
+    val payload
+      FieldAccess echoed
+        Var box
+    return
+      Binary Sub
+        Binary Add
+          Binary Add
+            Binary Add
+              Binary Add
+                FieldAccess first
+                  Var payload
+                FieldAccess second
+                  Var payload
+              FieldAccess third
+                Var payload
+            FieldAccess count
+              Var box
+          FieldAccess count
+            Var empty
+        IntLiteral 2
+  public fun make<T>(value: T): Box<T>
+    =
+      Call Box<T>
+        Var value

@@ -1,3 +1,0 @@
-span=100..106
-expression=nested
-`return` value of `result` must be of type Option<Int>, found Option<Option<Int>>; nominal application `Option` is invariant: first differing type argument 1 (`T`) is `Option<Int>` in `Option<Option<Int>>`, but `Int` in `Option<Int>`; construct the target application directly or convert explicitly

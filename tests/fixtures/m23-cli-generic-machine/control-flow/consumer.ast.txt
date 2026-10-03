@@ -1,0 +1,19 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.generics.checked
+  ImportExact Local dependency.generics.recover
+  ImportExact Local dependency.generics.defaulted
+  public fun guarded(): Int
+    =
+      Call checked
+        IntLiteral 42
+        IntLiteral 1
+  public fun recovery(): Int
+    =
+      Call recover
+        Call Throwable
+        IntLiteral 43
+  public fun defaultValue(): Int
+    =
+      Call defaulted
+        IntLiteral 44

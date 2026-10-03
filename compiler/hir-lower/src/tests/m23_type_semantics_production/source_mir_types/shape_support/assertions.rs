@@ -1,6 +1,5 @@
 use super::*;
 use scoop_mir::{GeneratedExactTypeLocation, StrongBoxedShapeSupportRoot};
-use std::fmt::Write;
 
 pub(super) fn bindings(input: &scoop_mir::ConeMirInput, families: &CanonicalMirShapeSupportsV1) {
     let module = input.module();
@@ -72,33 +71,23 @@ pub(super) fn bindings(input: &scoop_mir::ConeMirInput, families: &CanonicalMirS
     }
 }
 
-pub(super) fn projection(
+pub(super) fn source_families(
     output: &hir::DependencyHirOutput,
     families: &CanonicalMirShapeSupportsV1,
     types: &CanonicalParamFreeMirTypeExportsV1,
-) -> String {
+) {
     let names = source_dispatch::owners(output);
     assert_eq!(names.len(), families.records().len());
-    let mut text = String::new();
-    for (name, exact) in names {
+    for exact in names.values() {
         let family = families
             .records()
             .iter()
-            .find(|family| family.exact() == exact)
+            .find(|family| family.exact() == *exact)
             .unwrap();
-        let boxed = match family.boxed() {
-            MirBoxedShapeSupportV1::Available(_) => "available",
-            MirBoxedShapeSupportV1::ReferenceNominalRequiresNoBox => "unneeded",
-        };
-        writeln!(
-            text,
-            "{name}: box={boxed} step={:?} slot={:?}",
-            types.get(family.coroutine_step()).unwrap().facts().gc(),
-            types.get(family.coroutine_slot()).unwrap().facts().gc()
-        )
-        .unwrap();
+        let gc = types.get(*exact).unwrap().facts().gc();
+        assert_eq!(types.get(family.coroutine_step()).unwrap().facts().gc(), gc);
+        assert_eq!(types.get(family.coroutine_slot()).unwrap().facts().gc(), gc);
     }
-    text
 }
 
 pub(super) fn hidden_box(input: &scoop_mir::ConeMirInput, families: &CanonicalMirShapeSupportsV1) {

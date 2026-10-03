@@ -1,8 +1,0 @@
-span=109..131
-expression=Wide(1, 2, 3, Other())
-no applicable candidate for `Wide` in exact import layer:
-  - constructor `Wide` is not accessible here
-  - dependency constructor `Wide` expects 1 argument(s), but 4 were supplied
-  - dependency constructor `Wide` expects 1 argument(s), but 4 were supplied
-  - dependency constructor `Wide` expects 2 argument(s), but 4 were supplied
-  - dependency constructor argument must be of type Token, found Other

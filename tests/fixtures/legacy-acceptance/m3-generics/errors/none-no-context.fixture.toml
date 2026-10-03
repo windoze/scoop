@@ -1,0 +1,16 @@
+schema = 1
+name = "legacy-m3-generics-errors-none-no-context"
+root = "../../../m3-generics/errors/none-no-context.scoop"
+inputs = ["../../../m3-generics/errors/none-no-context.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["legacy", "m3-generics", "single-file", "negative"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "none-no-context.diagnostics.json"}

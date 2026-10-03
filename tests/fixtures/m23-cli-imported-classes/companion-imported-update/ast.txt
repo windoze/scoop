@@ -1,0 +1,28 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.CompanionHost.count as count
+  public fun primary(): Counter
+    assign count
+      IntLiteral 18
+    val first
+      Update Postfix Increment
+        Place count
+    val second
+      Update Prefix Increment
+        Place count
+    compound-assign Add
+      IntLiteral 1
+    return
+      Call Counter
+        IfExpression
+          Binary And
+            Binary Eq
+              Var first
+              IntLiteral 18
+            Binary Eq
+              Var second
+              IntLiteral 20
+          Var count
+          else
+          IntLiteral 0

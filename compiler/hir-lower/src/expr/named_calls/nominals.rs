@@ -228,6 +228,15 @@ impl Lowerer {
             );
         }
         if applicable.is_empty() {
+            if let Some(blocked) = failures
+                .iter()
+                .position(|failure| failure.diagnostics.len() == diagnostics_before)
+            {
+                // An argument can be blocked by a previously rejected
+                // declaration. Do not relabel that failure as an unknown name.
+                self.commit_layer_diagnostics(*failures.swap_remove(blocked));
+                return Err(());
+            }
             let functions = targets
                 .iter()
                 .filter_map(|binding| match binding.target {

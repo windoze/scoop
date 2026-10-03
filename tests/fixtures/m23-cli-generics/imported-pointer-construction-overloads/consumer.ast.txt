@@ -1,0 +1,42 @@
+SourceFile
+  QualifiedPackage consumer.construction
+  ImportExact Local Ptr as Make
+  ImportExact Local dependency.construction.safely as Make
+  ImportExact Local dependency.construction.IntPointer as Fixed
+  ImportExact Local dependency.construction.shifted as Fixed
+  public fun exercise<T>(value: T): Int
+    var number
+      IntLiteral 1
+    var raw
+      IntLiteral 1uL
+    @Unsafe block
+      assign raw
+        MethodCall toULong
+          Call addressOf
+            Var number
+    val ordinary: Ptr<Int>
+      Call Make
+        Var raw
+    @Unsafe block
+      val fixed: Ptr<Int>
+        Call Fixed
+          Var raw
+      if
+        Binary Or
+          Binary Ne
+            MethodCall toULong
+              Var fixed
+            Var raw
+          Binary Ne
+            MethodCall toULong
+              Var ordinary
+            Var raw
+        return
+          IntLiteral 1
+      return
+        MethodCall load
+          Var fixed
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0

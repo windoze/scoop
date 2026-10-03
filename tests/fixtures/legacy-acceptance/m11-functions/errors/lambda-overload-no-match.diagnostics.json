@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `select` in current-unit top-level candidate layer:\n  - fun select(operation: (Int) -> Int): Int — argument for `operation` (expected (Int) -> Int): lambda result must be of type Int, found Boolean\n  - fun select(operation: (String) -> String): String — argument for `operation` (expected (String) -> String): lambda result must be of type String, found Boolean",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 165,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 156
+    },
+    "severity": "error"
+  }
+]

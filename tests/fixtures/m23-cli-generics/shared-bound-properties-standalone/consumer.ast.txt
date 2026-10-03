@@ -1,0 +1,87 @@
+SourceFile
+  QualifiedPackage consumer.boundProperties
+  ImportStar Local upstream.boundProperties.*
+  public fun exercise<T>(value: T): Int
+    val box
+      Call Remote
+        Var value
+        Var value
+    val first: T
+      Call stored
+        Var box
+    val previous: T
+      Call exchange
+        Var box
+        Var value
+    val fallback: T
+      Call defaultRead
+        Var box
+    val present: T?
+      Call optional
+        Call Some
+          Var box
+    val absent
+      WhenExpression
+        Call optional<T, Remote<T>>
+          Var None
+        arm None
+          BoolLiteral true
+        arm Some(_)
+          BoolLiteral false
+    if
+      Unary Not
+        Var absent
+      return
+        IntLiteral 1
+    val integer
+      Call Remote
+        IntLiteral 1
+        IntLiteral 42
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Call exchange
+              Var integer
+              IntLiteral 0
+            IntLiteral 42
+          Binary Ne
+            FieldAccess value
+              Var integer
+            IntLiteral 1
+        Binary Ne
+          FieldAccess alternate
+            Var integer
+          IntLiteral 0
+      return
+        IntLiteral 2
+    if
+      Binary Ne
+        Call advance
+          Call Box
+            IntLiteral 40
+        IntLiteral 42
+      return
+        IntLiteral 3
+    return
+      Call invoke
+        Call Box<() -> Int>
+          AnonymousFunction 0 suspend=false return=Int
+            return
+              IntLiteral 42
+  public fun result(): Int
+    if
+      Binary Or
+        Binary Ne
+          Call exercise<String>
+            StringLiteral "text"
+          IntLiteral 42
+        Binary Ne
+          Call exercise<Unit>
+            UnitLiteral
+          IntLiteral 42
+      return
+        IntLiteral 4
+    return
+      Call exercise<Int>
+        IntLiteral 42

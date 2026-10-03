@@ -1,0 +1,53 @@
+SourceFile
+  QualifiedPackage consumer.paths
+  ImportExact Local dependency.paths.Outer.Nested
+  ImportExact Local dependency.paths.Outer.Generic
+  ImportExact Local dependency.paths.Outer.Middle.Deep
+  ImportExact Local dependency.paths.GenericOuter.Nested as Other
+  public typealias NestedAlias = dependency.paths.Outer.Nested
+  public typealias GenericNestedAlias = dependency.paths.Outer.Generic<Int>
+  public typealias FixedNestedAlias = dependency.paths.IntOuter.Nested
+  public typealias LocalOuter = dependency.paths.IntOuter
+  public typealias LocalNestedAlias = LocalOuter.Nested
+  public typealias DeepAlias = dependency.paths.Outer.Middle.Deep
+  public fun exercise<T>(value: T): Int
+    val first: dependency.paths.Outer.Nested
+      Call Nested
+        IntLiteral 40
+    val box: dependency.paths.Outer.Generic<T>
+      Call Generic<T>
+        Var value
+    val kept: T
+      FieldAccess value
+        Var box
+    val second: dependency.paths.GenericOuter.Nested
+      Call Other
+        IntLiteral 2
+    val fixed: dependency.paths.IntOuter.Nested
+      Var second
+    val copy: NestedAlias
+      Var first
+    val generic: GenericNestedAlias
+      Call Generic<Int>
+        FieldAccess number
+          Var copy
+    val fixedAlias: FixedNestedAlias
+      Var fixed
+    val localAlias: LocalNestedAlias
+      Var fixedAlias
+    val deep: dependency.paths.Outer.Middle.Deep
+      Call Deep
+        FieldAccess value
+          Var generic
+    val deepAlias: DeepAlias
+      Var deep
+    return
+      Binary Add
+        FieldAccess number
+          Var deepAlias
+        FieldAccess number
+          Var localAlias
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0

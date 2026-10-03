@@ -1,4 +1,0 @@
-span=85..106
-expression=Array(source, source)
-no applicable candidate for constructor `Array` in nominal constructor candidate layer:
-  - class Array<T>(source: MutableArray<T>) — expects 1 argument(s), but 2 were supplied

@@ -1,0 +1,64 @@
+schema = 1
+name = "native-link-callback-exception"
+inputs = ["callback-provider", "../../m23-native-link/callbacks/provider.scoop", "callback-exception", "../../m23-native-link/callbacks/exception.scoop", "../../m23-native-link/callbacks/native.c"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin"]
+tags = ["native-link", "program-link", "moving-gc", "stage-golden"]
+
+[[variants]]
+name = "normal"
+
+[[variants]]
+name = "moving"
+env = { SCOOP_GC_STRESS_MOVE = "1" }
+
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${fixture}/callback-provider", "to" = "${work}/sources/callback-provider"}}, {"copy" = {"from" = "${fixture}/../../m23-native-link/callbacks/provider.scoop", "to" = "${work}/sources/callback-provider/src/main.scoop"}}, {"copy" = {"from" = "${fixture}/callback-exception", "to" = "${work}/sources/callback-exception"}}, {"copy" = {"from" = "${fixture}/../../m23-native-link/callbacks/exception.scoop", "to" = "${work}/sources/callback-exception/src/main.scoop"}}, {"copy" = {"from" = "${fixture}/../../m23-native-link/callbacks/native.c", "to" = "${work}/sources/native/callbacks/native.c"}}, {"mkdir" = {"path" = "${work}/native"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+
+[[steps]]
+name = "compile_0"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/callbacks/native.c", "-o", "${work}/native/m23_callbacks.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${work}/sources/callback-exception", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump", "--dump-scope", "sources", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${build.result.dependencies.length}", "equals" = 2}, {"actual" = "${build.result.dependencies.0.coordinate.name}", "equals" = "scoop.core"}, {"actual" = "${build.result.dependencies.1.coordinate.name}", "equals" = "callback-provider"}, {"file" = "${work}/dump/${build.result.dependencies.1.identity}/ast.txt", "snapshot" = "../goldens/callbacks/provider.ast.txt"}, {"file" = "${work}/dump/${build.result.dependencies.1.identity}/hir.txt", "snapshot" = "../goldens/callbacks/provider.hir.txt"}, {"file" = "${work}/dump/${build.result.dependencies.1.identity}/mir.txt", "snapshot" = "../goldens/callbacks/provider.mir.txt"}, {"file" = "${work}/dump/${build.result.dependencies.1.identity}/lir.txt", "snapshot" = "../goldens/callbacks/provider.lir.txt"}, {"actual" = "${build.result.root.coordinate.name}", "equals" = "callback-exception"}, {"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "../goldens/callbacks/exception.ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "../goldens/callbacks/exception.hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "../goldens/callbacks/exception.mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "../goldens/callbacks/exception.lir.txt"}]
+
+[[steps]]
+name = "run_built"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "0\ntrue\nfailure-7\n1\ncaller-alive\n"
+stderr = ""
+
+[[steps]]
+name = "isolate"
+files = [{"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}}, {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}}, {"mkdir" = {"path" = "${work}/empty-sysroot"}}, {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}}, {"copy" = {"from" = "${build.result.dependencies.1.path}", "to" = "${work}/artifacts/1.slib"}}, {"remove" = {"path" = "${work}/sources"}}]
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "-o", "${work}/artifacts/program", "--message-format", "json", "--dump-plan", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}, {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan", "normalize" = ["paths"]}]
+
+[[steps]]
+name = "run_linked"
+argv = ["${link.result.output}"]
+exit = 0
+stdout = "0\ntrue\nfailure-7\n1\ncaller-alive\n"
+stderr = ""

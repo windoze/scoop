@@ -29,7 +29,7 @@ fn complete_slot_wire_round_trips_abstract_concrete_and_default_targets() {
     ];
     for record in records {
         let bytes = encode(&record).unwrap();
-        assert_eq!(bytes[0], 0xa5);
+        assert_eq!(bytes[0], 0xa6);
         let decoded: DecodedInheritanceSlotContractV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
         assert_eq!(decoded.clone().resolve(&mut fixture).unwrap(), record);

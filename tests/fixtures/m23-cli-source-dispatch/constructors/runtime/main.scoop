@@ -1,0 +1,15 @@
+fun verifyDispatch(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    verifyDispatch(Factory("text").seedValue == 1)
+    verifyDispatch(Factory.Companion.privateFactory().seedValue == 2)
+    verifyDispatch(internalFactory().seedValue == 3)
+    val product = Product(label = "label", count = 17)
+    verifyDispatch(product.seedValue == 17 && product.tag() == 1)
+    verifyDispatch(Pair("text") == Pair(1, 2L))
+    verifyDispatch(Defaults().observed == 5 && Defaults(23).observed == 23)
+    verifyDispatch(Singleton.seedValue == 1 && Singleton.tag() == 1)
+    val hidden = HiddenConstructors.Companion.create()
+    verifyDispatch(hidden !== HiddenConstructors.Companion.create())
+}

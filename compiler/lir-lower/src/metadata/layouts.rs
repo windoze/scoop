@@ -8,7 +8,7 @@ pub(crate) use shapes::*;
 pub(crate) use values::*;
 
 /// Persistent layouts selected by the sealed materialization plan and the
-/// actual inline payloads required by generated boxes and arrays.
+/// actual inline payloads required by boxes, arrays, and managed globals.
 pub(crate) fn layouts(
     context: &LoweringContext,
     identity_roots: &IdentityRoots<'_>,
@@ -171,6 +171,9 @@ pub(crate) fn layouts(
                 ) => Some(element),
                 _ => None,
             }
+        }))
+        .chain(module.globals.iter().filter_map(|(_, global)| {
+            matches!(global.storage, mir::GlobalStorage::Managed { .. }).then_some(&global.ty)
         }));
     for payload in inline_payloads {
         let Some(source) = module.meta.source_exact_types.get(payload) else {

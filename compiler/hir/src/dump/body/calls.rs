@@ -60,6 +60,12 @@ fn type_arguments(module: &Module, arguments: &[TypeId]) -> String {
 }
 
 pub(super) fn method_callee_name(module: &Module, callee: MethodCallee) -> String {
+    if let MethodCallee::ImportedDerivedEquality { target, .. } = callee {
+        return format!(
+            "external derived {}",
+            module.imported_derived_equalities[target].callable()
+        );
+    }
     match callee.declared_callable(&module.bound_callable_refs) {
         Some(CallableTarget::Local(callable)) => module.functions
             [callable_function(module, callable)]

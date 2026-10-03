@@ -1,0 +1,9 @@
+SourceFile
+  RootPackage
+  public fun sharedOrdinaryUse(value: String): String
+    =
+      Call sharedOrdinaryText
+        Var value
+  public fun sharedOrdinaryAvailable(): Boolean
+    =
+      Var sharedOrdinaryReady

@@ -1,0 +1,68 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val ints
+      Call Values<Int>
+    val strings
+      Call Values<String>
+        StringLiteral "constructor"
+    Call verifyType
+      Binary And
+        Binary Eq
+          MethodCall count
+            Var ints
+          IntLiteral 1
+        Binary Eq
+          MethodCall count
+            Var ints
+            IntLiteral 1
+            IntLiteral 2
+          IntLiteral 1
+    Call verifyType
+      Binary And
+        Binary Eq
+          MethodCall count
+            Var strings
+            StringLiteral "first"
+            StringLiteral "second"
+          IntLiteral 1
+        Binary Eq
+          Call count<Int>
+          IntLiteral 1
+    Call verifyType
+      Binary Eq
+        Call count
+          StringLiteral "one"
+          StringLiteral "two"
+        IntLiteral 1
+    val values
+      ArrayLiteral
+        IntLiteral 3
+        IntLiteral 4
+    val batch
+      MethodCall Items
+        Var Batches
+        IntLiteral 1
+        Argument *
+          Var values
+        IntLiteral 5
+    Call verifyType
+      WhenExpression
+        Var batch
+        arm Items(items)
+          Binary And
+            Binary Eq
+              FieldAccess size
+                Var items
+              IntLiteral 4L
+            Binary Eq
+              Index
+                Var items
+                IntLiteral 2
+              IntLiteral 4

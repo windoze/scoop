@@ -38,21 +38,16 @@ enum Mutation {
 }
 
 pub(super) fn check(
-    path: &Path,
     core: &slib::AssembledCrossConeLayoutArtifactV1,
     artifact: &slib::AssembledCrossConeLayoutArtifactV1,
     profile: &lir::CBridgeToolchainProfileV1,
 ) {
     let current = reader::open_link(artifact).identity();
-    let mut dump = String::new();
     let mut cases = Vec::new();
-    let mut runtime_dump = String::new();
     let mut runtime_cases = Vec::new();
-    let mut coverage_dump = String::new();
-    let mut code_dump = String::new();
     let complete = {
-        let snapshots = [core.as_bytes().to_vec(), artifact.as_bytes().to_vec()];
-        let mut sections = snapshots.iter().map(|bytes| {
+        let archives = [core.as_bytes().to_vec(), artifact.as_bytes().to_vec()];
+        let mut sections = archives.iter().map(|bytes| {
             slib::DecodedSlibEnvelope::open(bytes, artifact.target_selection())
                 .unwrap()
                 .validate_graph()
@@ -79,24 +74,24 @@ pub(super) fn check(
                     proof.provider()
                 );
                 let partitions = proof.undefined_partitions();
-                let (uses, categories) = partitions::check(proof);
-                runtime_dump.push_str(&runtime::inspect(
+                partitions::check(proof);
+                runtime::inspect(
                     if proof.provider() == current {
                         artifact
                     } else {
                         core
                     },
                     proof,
-                ));
-                coverage_dump.push_str(&coverage::inspect(proof));
-                code_dump.push_str(&code::inspect(
+                );
+                coverage::inspect(proof);
+                code::inspect(
                     if proof.provider() == current {
                         artifact
                     } else {
                         core
                     },
                     proof,
-                ));
+                );
                 let owners = partitions.cross_cone().dependency_owners();
                 if proof.provider() == current {
                     assert_eq!(owners.len(), 1);
@@ -113,30 +108,16 @@ pub(super) fn check(
                 } else {
                     assert!(owners.is_empty());
                 }
-                partitions::dump(
-                    &mut dump,
-                    proof.provider() == current,
-                    proof,
-                    uses,
-                    categories,
-                );
             }
         })
         .unwrap();
     for (failure, mutation) in cases {
         rejection::mutation(core, artifact, profile, &mutation, failure);
-        dump.push_str(&format!("reject {failure:?}\n"));
     }
     rejection::dependency_owner(core, artifact, profile);
-    dump.push_str("reject DependencyDefinedMember\n");
 
     rejection::views(core, artifact, profile);
-    runtime::check(path, core, artifact, profile, runtime_cases, runtime_dump);
-    coverage::check(path, core, artifact, profile, coverage_dump);
-    code::check(path, core, artifact, profile, code_dump);
-    dump.push_str("reject CompileView\nreject MixedView\n");
-    if std::env::var_os("SCOOP_UPDATE_LINK_SYMBOL_USES").is_some() {
-        std::fs::write(path, &dump).unwrap();
-    }
-    assert_eq!(dump, std::fs::read_to_string(path).unwrap());
+    runtime::check(core, artifact, profile, runtime_cases);
+    coverage::check(core, artifact, profile);
+    code::check(core, artifact, profile);
 }

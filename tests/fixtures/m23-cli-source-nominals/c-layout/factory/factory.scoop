@@ -1,0 +1,6 @@
+package sourcepolicy
+public fun packedValues(value: Packed): (Boolean, Int) = (value.flag, value.value)
+public fun outerValue(value: Outer): Int = value.packed.value
+public fun <T> boxValue(value: CBox<T>): T = value.value
+public fun ordinaryValue(value: Ordinary): Int = value.value
+public fun envelope(): Envelope = Envelope()

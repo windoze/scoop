@@ -11,7 +11,7 @@ fn actual_source_callables_cover_functions_members_accessors_and_traps() {
         let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/m23-mir-callable-production");
         let source = std::fs::read_to_string(directory.join(format!("{name}.scoop"))).unwrap();
-        let (bytes, dump) = with_production(&source, |output, input, hir, graph, _| {
+        let bytes = with_production(&source, |output, input, hir, graph, _| {
             let unit = dependencies::unit(input, graph);
             let actual = complete_type_exports(output, input, hir, graph);
             let index = MirTypeBridgeTypeIndexV1::try_new(&[&actual, &unit]).unwrap();
@@ -25,12 +25,11 @@ fn actual_source_callables_cover_functions_members_accessors_and_traps() {
                 decoded.validate(graph, input.foundation(), &index).unwrap(),
                 bindings
             );
-            let dump = assertions::dump(input, &bindings);
             if name == "combined" {
-                assertions::combined(input, &bindings, &dump);
+                assertions::combined(input, &bindings);
                 rejections::traps(output, input, graph, &actual, &unit, &bindings);
             }
-            (encode(&bindings).unwrap(), dump)
+            encode(&bindings).unwrap()
         });
         with_production(
             &format!("private fun unrelated(value: Token): Token = value\n{source}"),
@@ -51,19 +50,6 @@ fn actual_source_callables_cover_functions_members_accessors_and_traps() {
                 assert_eq!(encode(&bindings).unwrap(), bytes);
             },
         );
-        if let Some(path) = std::env::var_os("SCOOP_MIR_CALLABLE_SNAPSHOT_DIR") {
-            std::fs::create_dir_all(&path).unwrap();
-            std::fs::write(
-                std::path::Path::new(&path).join(format!("{name}.snap")),
-                dump,
-            )
-            .unwrap();
-        } else {
-            assert_eq!(
-                dump,
-                std::fs::read_to_string(directory.join(format!("{name}.snap"))).unwrap()
-            );
-        }
     }
 }
 

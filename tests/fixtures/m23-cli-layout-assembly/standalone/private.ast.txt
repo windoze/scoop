@@ -1,0 +1,30 @@
+SourceFile
+  RootPackage
+  public struct Token
+  public struct Payload
+    field marker: Token
+    field flag: Boolean
+  public fun pass(value: Token): Token
+    =
+      Var value
+  public fun same(left: Token, right: Token): Boolean
+    =
+      Binary Eq
+        Var left
+        Var right
+  public fun ready(): Boolean
+    =
+      BoolLiteral true
+SourceFile
+  RootPackage
+  private struct LocalOnly
+    field flag: Boolean
+  private fun makeLocal(): LocalOnly
+    =
+      Call LocalOnly
+        BoolLiteral true
+SourceFile
+  RootPackage
+  private fun unrelated(): Boolean
+    =
+      BoolLiteral true

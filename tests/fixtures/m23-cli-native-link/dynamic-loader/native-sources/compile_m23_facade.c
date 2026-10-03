@@ -1,0 +1,1 @@
+extern int m23_add(int, int); int m23_forward(int x, int y) { return m23_add(x,y); }

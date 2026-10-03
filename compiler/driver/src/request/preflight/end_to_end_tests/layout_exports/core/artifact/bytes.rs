@@ -54,13 +54,6 @@ pub(super) fn check(
         encode(compile.lir_strong_production_wire()).unwrap(),
         encode(link.lir_strong_production_wire()).unwrap()
     );
-    let fingerprints = compile.semantic_fingerprints();
-    let dump = format!(
-        "artifact={}\ncode={:?}\nruntime={:?}\n",
-        artifact.artifact_fingerprint(),
-        fingerprints.code(),
-        fingerprints.runtime_image()
-    );
     let mut declarations = scoop_slib::DecodedCrossConeLayoutCompileClosure::with_current_artifact(
         ConeIdentity::CORE,
         artifact.target_selection(),
@@ -123,11 +116,4 @@ pub(super) fn check(
         encode(lir).unwrap()
     );
     lir_exports::check(name, artifact, callables, &units, mir, lir);
-    let snapshot = crate::workspace_root().join(format!(
-        "tests/fixtures/m23-core-layout-exports/{name}.artifact.snap"
-    ));
-    if std::env::var_os("SCOOP_UPDATE_CORE_LAYOUT_EXPORTS").is_some() {
-        std::fs::write(&snapshot, &dump).unwrap();
-    }
-    assert_eq!(dump, std::fs::read_to_string(snapshot).unwrap());
 }

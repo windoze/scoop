@@ -1,0 +1,24 @@
+SourceFile
+  RootPackage
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call verifyDefault
+      Binary Eq
+        Call accessValue
+        IntLiteral 7
+    assign ACCESS_GLOBAL
+      IntLiteral 11
+    Call verifyDefault
+      Binary Eq
+        Call accessValue
+        IntLiteral 11
+    Call verifyDefault
+      Binary Eq
+        Call accessValue
+          IntLiteral 13
+        IntLiteral 13

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "managed dependency calls are not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "99bced2a4eda270ef150415f53a48e69d77eece358d51485cd48a5d13d1e5421",
+      "end": 87,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 76
+    },
+    "severity": "error"
+  }
+]

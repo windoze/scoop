@@ -1,0 +1,10 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    verifyType(heapFieldRoundtrip() == HeapEmpty())
+    val cell = heapCellSource()
+    cell.empty = heapEmptySource()
+    verifyType(cell.empty == HeapEmpty())
+    val captured = { cell.empty }
+    verifyType(captured() == HeapEmpty())
+}

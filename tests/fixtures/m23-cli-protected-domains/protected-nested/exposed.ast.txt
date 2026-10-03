@@ -1,0 +1,22 @@
+SourceFile
+  RootPackage
+  public class PublishedSurface() : Surface(<0 args>)
+  public fun surface(): Surface
+    =
+      Call PublishedSurface
+SourceFile
+  RootPackage
+  public open class Surface()
+    public fun inspect
+    protected fun identity
+    protected var state: Int <computed>
+      get()
+        IntLiteral 0
+      private set(value)
+    protected nested class Nested
+    protected nested class Generic
+    protected nested enum Choice
+    private nested class Unrelated
+  private open class UnrelatedTop()
+    protected fun excluded
+    protected nested class Ignored

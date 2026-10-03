@@ -1,0 +1,24 @@
+SourceFile
+  RootPackage
+  class Counter(var checks: Int)
+    fun next
+  fun main()
+    val counter
+      Call Counter
+        IntLiteral 0
+    var iterations
+      IntLiteral 0
+    while
+      Elvis
+        MethodCall next
+          Var counter
+        BoolLiteral false
+      assign iterations
+        Binary Add
+          Var iterations
+          IntLiteral 1
+    Call println
+      Var iterations
+    Call println
+      FieldAccess checks
+        Var counter

@@ -50,10 +50,14 @@ impl Lowerer {
     > {
         let provider = self.imported_source_provider(imported.record().identity().cone())?;
         let file = self.imported_source_file(provider, imported.record())?;
-        self.intern_imported_source_context(SourceContextKey::File {
-            source: imported.record().identity().clone(),
-        });
-        let context = self.intern_imported_source_context(imported.context().clone());
+        self.intern_imported_source_context(
+            SourceContextKey::File {
+                source: imported.record().identity().clone(),
+            },
+            hir::SourceContextNames::default(),
+        );
+        let context = self
+            .intern_imported_source_context(imported.context().clone(), imported.names().clone());
         let span = Span {
             start: u32::try_from(span.start_byte())
                 .map_err(|_| ImportedDefinitionOriginError::SpanOverflow)?,
@@ -105,10 +109,15 @@ impl Lowerer {
             .checked_add(self.imported_source_files.len())
             .and_then(|index| u32::try_from(index).ok())
             .ok_or(ImportedDefinitionOriginError::SourceIndexOverflow)?;
+        let logical_path = record.identity().logical_path().as_str();
+        let name = match self.source_names.get(&record.identity().cone()) {
+            Some(coordinate) => format!("{coordinate}/{logical_path}"),
+            None => logical_path.to_owned(),
+        };
         self.imported_source_files.push(hir::SourceFileMetadata {
             provider,
             identity: record.identity().clone(),
-            name: record.identity().logical_path().as_str().to_owned(),
+            name,
             source: String::new(),
             canonical_record: Some(record.clone()),
         });
@@ -120,10 +129,11 @@ impl Lowerer {
     pub(crate) fn intern_imported_source_context(
         &mut self,
         key: SourceContextKey,
+        names: hir::SourceContextNames,
     ) -> hir::SourceContextId {
         let context = hir::SourceContext::new(
             key.source().clone(),
-            hir::SourceContextSubject::Imported(key),
+            hir::SourceContextSubject::Imported { key, names },
         );
         self.source_context_by_value
             .get(&context)

@@ -1,0 +1,30 @@
+SourceFile
+  RootPackage
+  private fun noResult()
+  fun main()
+    val pair: Any
+      Call boxPair
+        TupleLiteral
+          IntLiteral 1u
+          IntLiteral 2u
+    val empty: Any
+      Call boxUnit
+        Call noResult
+    val local: Any
+      Call boxLocal
+        Call LocalValue
+    if
+      Binary Or
+        Binary Or
+          Unary Not
+            Call testPair
+              Var pair
+          Unary Not
+            Call testString
+              StringLiteral "ok"
+        Binary Ne
+          Call smartInteger
+            IntLiteral 42
+          IntLiteral 42
+      throw
+        Call IllegalStateException

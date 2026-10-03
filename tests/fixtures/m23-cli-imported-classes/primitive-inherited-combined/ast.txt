@@ -1,0 +1,24 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  public fun primary(): Counter
+    val integer: Long
+      IntLiteral 9
+    val boolean: Boolean
+      BoolLiteral true
+    val text: String
+      StringLiteral "mixed"
+    val selected: RebuiltDefaults
+      Var integer
+    return
+      Call Counter
+        Binary Sub
+          Binary Add
+            Binary Add
+              MethodCall score
+                Var selected
+              MethodCall score
+                Var boolean
+            MethodCall score
+              Var text
+          IntLiteral 42

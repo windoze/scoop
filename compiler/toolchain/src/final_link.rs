@@ -1,4 +1,5 @@
 //! Explicit Darwin executable toolchain; independent of the Scoop backend.
+use scoop_process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -173,7 +174,7 @@ fn linker_version(linker: &Path) -> Result<String, ToolchainError> {
         .env_clear()
         .env("LC_ALL", "C")
         .arg("-v")
-        .output()
+        .scoop_output()
         .map_err(error)?;
     if !output.status.success() {
         return Err(error(format!(

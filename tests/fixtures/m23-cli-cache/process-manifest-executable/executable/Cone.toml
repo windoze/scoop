@@ -1,0 +1,6 @@
+schema = 1
+[cone]
+group = "test"
+name = "executable"
+version = "1.0.0"
+kind = "executable"

@@ -439,13 +439,14 @@ checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 name = "scoop"
 version = "0.0.0"
 dependencies = [
+ "clap",
  "fs4",
- "object",
  "rustix",
  "scoop-identity",
  "scoop-linker",
  "scoop-lir",
  "scoop-manifest",
+ "scoop-process",
  "scoop-protocol",
  "scoop-slib",
  "scoop-toolchain",
@@ -472,6 +473,7 @@ dependencies = [
  "object",
  "scoop-identity",
  "scoop-lir",
+ "scoop-process",
  "tempfile",
 ]
 
@@ -516,6 +518,7 @@ dependencies = [
  "scoop",
  "scoop-identity",
  "scoop-lir",
+ "scoop-process",
  "scoop-slib",
  "scoop-toolchain",
  "scoop-wire",
@@ -585,6 +588,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "scoop-process"
+version = "0.0.0"
+dependencies = [
+ "rustix",
+ "signal-hook",
+]
+
+[[package]]
 name = "scoop-protocol"
 version = "0.0.0"
 dependencies = [
@@ -613,6 +624,7 @@ version = "0.0.0"
 dependencies = [
  "object",
  "scoop-lir",
+ "scoop-process",
  "scoop-protocol",
  "scoop-slib",
  "scoop-wire",
@@ -648,6 +660,7 @@ dependencies = [
  "scoop-mir",
  "scoop-mir-lower",
  "scoop-parser",
+ "scoop-process",
  "scoop-protocol",
  "scoop-slib",
  "scoop-toolchain",
@@ -742,6 +755,26 @@ name = "shlex"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
+
+[[package]]
+name = "signal-hook"
+version = "0.4.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b2a0c28ca5908dbdbcd52e6fdaa00358ab88637f8ab33e1f188dd510eb44b53d"
+dependencies = [
+ "libc",
+ "signal-hook-registry",
+]
+
+[[package]]
+name = "signal-hook-registry"
+version = "1.4.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c4db69cba1110affc0e9f7bcd48bbf87b3f4fc7c61fc9155afd4c469eb3d6c1b"
+dependencies = [
+ "errno",
+ "libc",
+]
 
 [[package]]
 name = "similar"

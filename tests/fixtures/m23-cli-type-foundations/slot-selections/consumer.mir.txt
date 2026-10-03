@@ -1,0 +1,32 @@
+Module
+  class Leaf vtable=1 itables=2
+  class Base vtable=1 itables=0
+  interface Specific : Root
+  interface Root
+  fun read @fn0(value: Leaf) -> Int
+    bb0 entry
+      val $dependency.receiver: Leaf
+        Type Leaf
+        Local value
+      call $dependency.receiver: Int = external1 direct
+        Type Leaf
+        Local $dependency.receiver
+      val $dependency.receiver: Specific
+        Type Specific
+        Retype Specific
+          Type Leaf
+          Local value
+      call $dependency.argument.0: Int = external2 interface Specific[0]
+        Type Specific
+        Local $dependency.receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  output library

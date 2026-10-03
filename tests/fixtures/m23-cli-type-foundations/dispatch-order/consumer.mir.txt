@@ -1,0 +1,63 @@
+Module
+  interface Joined : Right, Left
+  interface Right : Root
+  interface Root
+  interface Left : Root
+  fun read @fn0(value: Joined) -> Int
+    bb0 entry
+      val $dependency.receiver: Joined
+        Type Joined
+        Local value
+      call $dependency.receiver: Int = external0 interface Joined[2]
+        Type Joined
+        Local $dependency.receiver
+      val $dependency.receiver: Left
+        Type Left
+        Retype Left
+          Type Joined
+          Local value
+      call $dependency.argument.0: Int = external1 interface Left[1]
+        Type Left
+        Local $dependency.receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.receiver: Right
+        Type Right
+        Retype Right
+          Type Joined
+          Local value
+      call $dependency.argument.0: Int = external2 interface Right[1]
+        Type Right
+        Local $dependency.receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      call $dependency.argument.0: Int = external3 interface Joined[3]
+        Type Joined
+        Local value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  output library

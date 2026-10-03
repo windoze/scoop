@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `pack` parameter `values` is supplied more than once",
+    "notes": [],
+    "origin": {
+      "cone": "8e4c96c840153b774d5edc1bf9faeb4d94e7821b587577aa352179cdeab20195",
+      "end": 90,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 62
+    },
+    "severity": "error"
+  }
+]

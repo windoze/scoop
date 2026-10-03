@@ -1,0 +1,40 @@
+SourceFile
+  RootPackage
+  class Box<T>(val value: T)
+  interface Marker<T>
+  class Marked<T>(val value: T), Marker<T>
+  fun exact<T>(value: Any): Boolean
+    =
+      Is Box<T> false
+        Var value
+  fun main()
+    val boxedInt: Any
+      Call Box
+        IntLiteral 42
+    Call println
+      Is Box<Int> false
+        Var boxedInt
+    Call println
+      Is Box<String> false
+        Var boxedInt
+    val concrete
+      Cast Box<Int> optional=false
+        Var boxedInt
+    Call println
+      FieldAccess value
+        Var concrete
+    Call println
+      Call exact<Int>
+        Var boxedInt
+    Call println
+      Call exact<String>
+        Var boxedInt
+    val marker: Any
+      Call Marked
+        IntLiteral 1
+    Call println
+      Is Marker<Int> false
+        Var marker
+    Call println
+      Is Marker<String> false
+        Var marker

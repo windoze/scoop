@@ -1,0 +1,98 @@
+SourceFile
+  QualifiedPackage consumer.ranges
+  ImportExact Local dependency.ranges.ranged
+  public fun result(): Int
+    val longStart: Long
+      IntLiteral 0
+    val longEnd: Long
+      IntLiteral 7
+    val uintStart: UInt
+      IntLiteral 0u
+    val uintEnd: UInt
+      IntLiteral 7u
+    val ulongStart: ULong
+      IntLiteral 0uL
+    val ulongEnd: ULong
+      IntLiteral 7uL
+    var signed
+      IntLiteral 0
+    var unsigned
+      IntLiteral 0
+    var wideUnsigned
+      IntLiteral 0
+    for value
+      Binary RangeUntil
+        Var longStart
+        Var longEnd
+      assign signed
+        Binary Add
+          Var signed
+          MethodCall toInt32
+            Var value
+    for value
+      Binary RangeUntil
+        Var uintStart
+        Var uintEnd
+      assign unsigned
+        Binary Add
+          Var unsigned
+          MethodCall toInt32
+            Var value
+    for value
+      Binary RangeUntil
+        Var ulongStart
+        Var ulongEnd
+      assign wideUnsigned
+        Binary Add
+          Var wideUnsigned
+          MethodCall toInt32
+            Var value
+    return
+      IfExpression
+        Binary And
+          Binary And
+            Binary Eq
+              Var signed
+              IntLiteral 21
+            Binary Eq
+              Var unsigned
+              IntLiteral 21
+          Binary Eq
+            Var wideUnsigned
+            IntLiteral 21
+        IntLiteral 42
+        else
+        IntLiteral 0
+  public fun exercise<T>(value: T, read: (T) -> Int): Int
+    var last
+      IntLiteral 0
+    for index
+      Binary RangeUntil
+        IntLiteral 0
+        IntLiteral 7
+      if
+        Binary Eq
+          Var index
+          IntLiteral 0
+        continue
+      assign last
+        Var index
+      if
+        Binary Eq
+          Var index
+          IntLiteral 6
+        break
+    return
+      IfExpression
+        Binary And
+          Binary Eq
+            Var last
+            IntLiteral 6
+          Binary Eq
+            Call result
+            IntLiteral 42
+        Call ranged<T>
+          Var value
+          Var read
+        else
+        IntLiteral 0

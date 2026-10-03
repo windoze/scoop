@@ -1,0 +1,10 @@
+public fun choose(seed: Int, enabled: Boolean, value: () -> Int = if (enabled) {
+    fun copy(): Int { return seed }
+    ::copy
+} else {
+    val fallback: () -> Int = { seed }
+    fallback
+}): () -> Int = value
+
+public fun lambda(seed: Int, value: () -> Int = { seed }): () -> Int = value
+public fun anonymous(seed: Int, value: () -> Int = fun(): Int { return seed }): () -> Int = value

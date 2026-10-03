@@ -1,0 +1,5 @@
+import image.consumer.result
+
+fun main() {
+    if (result() != 42) { throw IllegalStateException() }
+}

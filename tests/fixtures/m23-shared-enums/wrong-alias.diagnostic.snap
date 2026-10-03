@@ -1,3 +1,0 @@
-span=127..151
-expression=TextChoice.Item(payload)
-pattern `TextChoice.Item` does not match a subject of type Choice<Int>

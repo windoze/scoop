@@ -1,0 +1,16 @@
+schema = 1
+name = "legacy-m18-operators-errors-resolution-and-place"
+root = "../../../m18-operators/errors/resolution-and-place.scoop"
+inputs = ["../../../m18-operators/errors/resolution-and-place.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["legacy", "m18-operators", "single-file", "negative"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "resolution-and-place.diagnostics.json"}

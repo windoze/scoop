@@ -1,0 +1,45 @@
+SourceFile
+  QualifiedPackage dependency.slotCombinations
+  public interface Root
+    fun evaluate
+    public open val value: Int <computed>
+      get()
+        IntLiteral 2
+  public interface Refined : Root
+    fun evaluate
+  public interface Obligation : Refined
+    fun evaluate
+  public abstract class Pending(), Obligation
+  public class Complete() : Pending(<0 args>)
+    public fun evaluate
+  public open class Winner(), Refined
+    public fun evaluate
+    public open override val value: Int <computed>
+      get()
+        IntLiteral 6
+  public object Singleton
+  public struct Value : Root
+    public fun evaluate
+  public enum Choice : Root
+    One
+  public open class Virtual()
+    public fun compute
+  public abstract class Reabstract() : Virtual(<0 args>)
+    public fun compute
+  public class Final() : Reabstract(<0 args>)
+    public fun compute
+  public interface MutableRoot
+    public open var size: Int <computed>
+      get()
+        IntLiteral 11
+      set(value)
+  public interface MutableSpecific : MutableRoot
+    public open override var size: Int <computed>
+      get()
+        IntLiteral 12
+      set(value)
+  public class MutableWinner(), MutableSpecific
+    public open override var size: Int <computed>
+      get()
+        IntLiteral 13
+      set(value)

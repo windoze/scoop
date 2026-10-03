@@ -1,0 +1,21 @@
+SourceFile
+  RootPackage
+  ImportExact Local programlink.shadow.String as OrdinaryString
+    @Extern(name = "scoop_rt_write", abi = "scoop")
+  private fun sameWrite(value: String)
+  fun main()
+    Call rebuiltWrite
+      StringLiteral "rebuilt\n"
+    Call sameWrite
+      StringLiteral "root\n"
+    Call println
+      MethodCall rebuiltAnswer
+        Binary Add
+          StringLiteral "te"
+          StringLiteral "xt"
+    Call println
+      Binary Add
+        FieldAccess value
+          Call OrdinaryString
+            IntLiteral 40
+        IntLiteral 2

@@ -1,0 +1,93 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@NoGC` function `invalid` has local `value` of non-GC-free type Counter",
+    "notes": [],
+    "origin": {
+      "cone": "7dd1a498f5cb0829548fd36c754b38c511c7385a4c4fac77498b2c7ec317ab34",
+      "end": 124,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 35
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@NoGC` function `invalid` has local `$dependency.receiver` of non-GC-free type Counter",
+    "notes": [],
+    "origin": {
+      "cone": "7dd1a498f5cb0829548fd36c754b38c511c7385a4c4fac77498b2c7ec317ab34",
+      "end": 124,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 35
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "value of non-GC-free type Counter is not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "7dd1a498f5cb0829548fd36c754b38c511c7385a4c4fac77498b2c7ec317ab34",
+      "end": 97,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 86
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "managed dependency calls are not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "7dd1a498f5cb0829548fd36c754b38c511c7385a4c4fac77498b2c7ec317ab34",
+      "end": 97,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 86
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "value of non-GC-free type Counter is not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "7dd1a498f5cb0829548fd36c754b38c511c7385a4c4fac77498b2c7ec317ab34",
+      "end": 114,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 109
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "managed dependency calls are not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "7dd1a498f5cb0829548fd36c754b38c511c7385a4c4fac77498b2c7ec317ab34",
+      "end": 122,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 109
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "value of non-GC-free type Counter is not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "7dd1a498f5cb0829548fd36c754b38c511c7385a4c4fac77498b2c7ec317ab34",
+      "end": 122,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 109
+    },
+    "severity": "error"
+  }
+]

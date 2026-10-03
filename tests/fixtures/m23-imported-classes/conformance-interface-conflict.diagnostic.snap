@@ -1,3 +1,0 @@
-span=136..175
-expression=public struct LocalValue(): LocalReader
-struct `LocalValue` inherits conflicting defaults for `choose` from FirstChoice.choose and SecondChoice.choose; declare an explicit override

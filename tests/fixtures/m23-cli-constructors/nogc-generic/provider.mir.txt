@@ -1,0 +1,319 @@
+Module
+  struct Native<Int> (value: Int)
+  struct Native<String> (value: String)
+  struct Recursive<Int> (value: Int)
+  struct Phantom<String> (code: Int)
+  struct WrapperValue<Int> (value: Int)
+  class Wrapper<Int> vtable=0 itables=0
+  class Wrapper<String> vtable=0 itables=0
+  fun main @fn0() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call native: Native<Int> = @fn1 direct
+        Type Int
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call ordinary: Native<String> = @fn7 direct
+        Type String
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.flag: Boolean
+        Type Boolean
+        Local $argument.1
+      call recursive: Recursive<Int> = @fn8 direct
+        Type Int
+        Local $parameter.value
+        Type Boolean
+        Local $parameter.flag
+      call phantom: Phantom<String> = @fn9 direct
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Wrapper<Int>
+        ClassAlloc Wrapper<Int>
+      call @fn5 direct
+        Type Wrapper<Int>
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val wrapper: Wrapper<Int>
+        Type Wrapper<Int>
+        Local $new.1
+      val $argument.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.flag: Boolean
+        Type Boolean
+        Local $argument.0
+      assign $new.2
+        Type Wrapper<String>
+        ClassAlloc Wrapper<String>
+      call @fn6 direct
+        Type Wrapper<String>
+        Local $new.2
+        Type Boolean
+        Local $parameter.flag
+      val unrelated: Wrapper<String>
+        Type Wrapper<String>
+        Local $new.2
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call value: WrapperValue<Int> = @fn2 direct
+        Type Int
+        Local $parameter.value
+      return
+  fun pure @fn1(value: Int) -> Native<Int> <no-gc>
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $argument.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.flag: Boolean
+        Type Boolean
+        Local $argument.1
+      call $call.1: Native<Int> = @fn10 direct
+        Type Int
+        Local $parameter.value
+        Type Boolean
+        Local $parameter.flag
+      return
+        Type Native<Int>
+        Local $call.1
+  fun forward @fn2(value: Int) -> WrapperValue<Int>
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $argument.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.flag: Boolean
+        Type Boolean
+        Local $argument.1
+      call $call.1: WrapperValue<Int> = @fn11 direct
+        Type Int
+        Local $parameter.value
+        Type Boolean
+        Local $parameter.flag
+      return
+        Type WrapperValue<Int>
+        Local $call.1
+  fun recurse @fn3(value: Int) -> Recursive<Int> <no-gc>
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $argument.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.flag: Boolean
+        Type Boolean
+        Local $argument.1
+      call $call.1: Recursive<Int> = @fn8 direct
+        Type Int
+        Local $parameter.value
+        Type Boolean
+        Local $parameter.flag
+      return
+        Type Recursive<Int>
+        Local $call.1
+  fun identity @fn4(value: Int) -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun init.Wrapper.$c0 @fn5(this: Wrapper<Int>, value: Int) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $argument.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.flag: Boolean
+        Type Boolean
+        Local $argument.1
+      call native: Native<Int> = @fn10 direct
+        Type Int
+        Local $parameter.value
+        Type Boolean
+        Local $parameter.flag
+      return
+  fun init.Wrapper.$c1 @fn6(this: Wrapper<String>, flag: Boolean) -> Unit
+    bb0 entry
+      return
+  fun ctor.Native.$c0 @fn7(value: String) -> Native<String> <no-gc>
+    bb0 entry
+      return
+        Type Native<String>
+        StructInit Native<String>
+          Type String
+          Local value
+  fun ctor.Recursive.$c7 @fn8(value: Int, flag: Boolean) -> Recursive<Int> <no-gc>
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $this: Recursive<Int> = @fn12 direct
+        Type Int
+        Local $parameter.value
+      branch bb1 bb2
+        Type Boolean
+        Local flag
+    bb1 if.then.1
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Recursive<Int> = @fn3 direct
+        Type Int
+        Local $parameter.value
+      goto bb2
+    bb2 if.merge.2
+      return
+        Type Recursive<Int>
+        Local $this
+  fun ctor.Phantom.$c3 @fn9() -> Phantom<String> <no-gc>
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.code: Int
+        Type Int
+        Local $argument.0
+      call $this: Phantom<String> = @fn13 direct
+        Type Int
+        Local $parameter.code
+      return
+        Type Phantom<String>
+        Local $this
+  fun ctor.Native.$c1 @fn10(value: Int, flag: Boolean) -> Native<Int> <no-gc>
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $argument.0: Int = @fn4 direct
+        Type Int
+        Local $parameter.value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $this: Native<Int> = @fn14 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Native<Int>
+        Local $this
+  fun ctor.WrapperValue.$c5 @fn11(value: Int, flag: Boolean) -> WrapperValue<Int>
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $this: WrapperValue<Int> = @fn15 direct
+        Type Int
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $argument.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.flag: Boolean
+        Type Boolean
+        Local $argument.1
+      call native: Native<Int> = @fn10 direct
+        Type Int
+        Local $parameter.value
+        Type Boolean
+        Local $parameter.flag
+      return
+        Type WrapperValue<Int>
+        Local $this
+  fun ctor.Recursive.$c6 @fn12(value: Int) -> Recursive<Int> <no-gc>
+    bb0 entry
+      return
+        Type Recursive<Int>
+        StructInit Recursive<Int>
+          Type Int
+          Local value
+  fun ctor.Phantom.$c2 @fn13(code: Int) -> Phantom<String> <no-gc>
+    bb0 entry
+      return
+        Type Phantom<String>
+        StructInit Phantom<String>
+          Type Int
+          Local code
+  fun ctor.Native.$c0 @fn14(value: Int) -> Native<Int> <no-gc>
+    bb0 entry
+      return
+        Type Native<Int>
+        StructInit Native<Int>
+          Type Int
+          Local value
+  fun ctor.WrapperValue.$c4 @fn15(value: Int) -> WrapperValue<Int> <no-gc>
+    bb0 entry
+      return
+        Type WrapperValue<Int>
+        StructInit WrapperValue<Int>
+          Type Int
+          Local value
+  instance mi0 function=@fn1 <- pure
+  instance mi1 function=@fn2 <- forward
+  instance mi2 function=@fn3 <- recurse
+  instance mi3 function=@fn4 <- identity
+  str @str0 "managed"
+  output library

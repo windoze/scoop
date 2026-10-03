@@ -1,0 +1,222 @@
+Module
+  enum LocalReader
+    Ready()
+    Empty()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<LocalReader>
+    Completed(value: LocalReader)
+    Suspended()
+  enum CoroutineSlot<LocalReader>
+    Empty()
+    Value(value: LocalReader)
+  class Counter vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<LocalReader> vtable=0 itables=1
+  interface Readable
+  interface Continuation<LocalReader>
+  interface SuspendTask<LocalReader>
+  interface SuspendRegistration<LocalReader>
+  generated_exact_type get0 location=enum2 nominal_id=fd567ae6b1ab22cf1e4bf8b4911047a32830f860ccf9ac976a7e4849bc5dfeb5 exact_id=3f97d83b8a5f4b1fd8b7027a31cfa28f4e70df3a9ba0058c6ad9199c621ce8f8
+  generated_exact_type get1 location=class4 nominal_id=467c12d4314b600cb6daf8d4b605c944f31292409e451d79550626d54743ac77 exact_id=d652d155561bbdfdd3f0a22bff30c9d7081eb57bd72cbd2ede9d468e2a9ef83c
+  generated_exact_type get2 location=enum3 nominal_id=79845ddb54a377a9244be335d579e4f98237191cba5549097a8b7d52ef5f30cc exact_id=ea64db7605ba4f181777a2d08c86c0b575b0edafad8522775a04e9969caafa3c
+  generated_callable gc0 function=@fn9 id=488c58489db59833260324aa10232e87f9e27164d107bae96e9c08cce942a127
+  generated_callable gc1 function=@fn7 id=a96d1779654f590b3f1f14797880f937a6e8f4a41f0cf3b6b674a9dbf5c53729
+  generated_callable gc2 function=@fn8 id=e783b713a74cd3c44d7028d1d5741ace24c02f5d5516f894a808bbf6f5b1255d
+  fun LocalReader.read @fn0(this: LocalReader) -> Long
+    bb0 entry
+      return
+        Type Long
+        IntegerLiteral Long value=20 bits=0x0000000000000014
+  fun LocalReader.equals @fn1(this: LocalReader, other: LocalReader) -> Boolean
+    bb0 entry
+      val $when.1: LocalReader
+        Type LocalReader
+        Local this
+      val $pattern.subject.2: LocalReader
+        Type LocalReader
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest LocalReader v0
+          Type LocalReader
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $when.3: LocalReader
+        Type LocalReader
+        Local other
+      val $pattern.subject.4: LocalReader
+        Type LocalReader
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest LocalReader v0
+          Type LocalReader
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: LocalReader
+        Type LocalReader
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest LocalReader v1
+          Type LocalReader
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      return
+        Type Boolean
+        BoolLiteral true
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $when.6: LocalReader
+        Type LocalReader
+        Local other
+      val $pattern.subject.7: LocalReader
+        Type LocalReader
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest LocalReader v1
+          Type LocalReader
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      return
+        Type Boolean
+        BoolLiteral true
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+  fun primary @fn2() -> Counter
+    bb0 entry
+      val reader: Readable
+        Type Readable
+        Box
+          Type LocalReader
+          VariantConstruct LocalReader v0
+      val $dependency.receiver: Readable
+        Type Readable
+        Local reader
+      val $dependency.parameter.extra: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      call $dependency.argument.0: Long = external0 interface Readable[1]
+        Type Readable
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.extra
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type Counter
+        ClassAlloc Counter
+      call external1 direct
+        Type Counter
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.1
+  fun Continuation.resume @fn3(this: Continuation<LocalReader>, value: LocalReader) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn4(this: Continuation<LocalReader>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn5(this: SuspendTask<LocalReader>, $completion: Continuation<LocalReader>) -> CoroutineStep<LocalReader>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn6(this: SuspendRegistration<LocalReader>, continuation: Continuation<LocalReader>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun startCoroutine<LocalReader> @fn7(task: SuspendTask<LocalReader>, completion: Continuation<LocalReader>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn3 interface Continuation<LocalReader>[0]
+        Type Continuation<LocalReader>
+        Local completion
+        Type LocalReader
+        EnumField v0 f0
+          Type CoroutineStep<LocalReader>
+          Local $step
+      return
+    bb2 failed
+      call @fn4 interface Continuation<LocalReader>[1]
+        Type Continuation<LocalReader>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<LocalReader> = @fn5 interface SuspendTask<LocalReader>[0]
+        Type SuspendTask<LocalReader>
+        Local task
+        Type Continuation<LocalReader>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<LocalReader>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun thunk<LocalReader> Readable.read() @fn8(this: Readable) -> Long
+    bb0 entry
+      call $call.1: Long = @fn0 direct
+        Type LocalReader
+        Unbox
+          Type Readable
+          Local this
+      return
+        Type Long
+        Local $call.1
+  fun thunk<LocalReader> Readable.answer(Long) @fn9(this: Readable, extra: Long) -> Long
+    bb0 entry
+      call $call.1: Long = external0 direct
+        Type Readable
+        Retype Readable
+          Type Readable
+          Local this
+        Type Long
+        Local extra
+      return
+        Type Long
+        Local $call.1
+  coroutine_step cs0 CoroutineStep<LocalReader> result=LocalReader
+  coroutine_slot cl0 CoroutineSlot<LocalReader> value=LocalReader
+  coroutine_start ct0 result=LocalReader function=fn7
+  coroutine_fn cf0 @fn5 source_return=LocalReader step=cs0 immediate
+  instance mi0 function=@fn3 <- Continuation.resume
+  instance mi1 function=@fn4 <- Continuation.resumeWithException
+  instance mi2 function=@fn5 <- SuspendTask.run
+  instance mi3 function=@fn6 <- SuspendRegistration.register
+  output library

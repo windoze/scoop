@@ -1,0 +1,479 @@
+Module
+  struct Container (marker: Token, payload: Wide)
+  struct Token ()
+  struct Wide (first: Long, second: Long, third: Long)
+  struct Managed (text: String, token: Token)
+  struct Nested (value: Wide, marker: Token)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Container>
+    Completed(value: Container)
+    Suspended()
+  enum CoroutineSlot<Container>
+    Empty()
+    Value(value: Container)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Container> vtable=0 itables=0
+  interface Continuation<Container>
+  interface SuspendTask<Container>
+  interface SuspendRegistration<Container>
+  generated_exact_type get0 location=class3 nominal_id=7ce5eafa037f6bbe48e6c66b781227452ae10dec0a4fe7238210109ddb6368a7 exact_id=6e9fc0b55d0036205d4764185969e9f3b7a0525b358d497e63cf7de755f51fd3
+  generated_exact_type get1 location=enum1 nominal_id=1b4e6980ac9d708daea26f90bb4c17f7887fe9917b449fd6bd6a2f6aaf9859b6 exact_id=b58fe1ae7e24c35c433788e97bdf18b41b5b051e86fd77d59743c1b02687a4c6
+  generated_exact_type get2 location=enum2 nominal_id=de86e488f18e0fdc0a8ad03b84786e4f61b41bc7966a3fc6f96c461a64af010d exact_id=cb9609ffe154eabcb49be9213c93f090e4a203f24ba3c85720d5f2f8ef7d33ad
+  generated_callable gc0 function=@fn22 id=5f37041776f5308f793a2a7daeb44ee5fc820fffb296981ea281c4c0bc0a4c77
+  fun Container.equals @fn0(this: Container, other: Container) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = external10 direct
+        Type Token
+        FieldAccess 0
+          Type Container
+          Local this
+        Type Token
+        FieldAccess 0
+          Type Container
+          Local other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 logic.rhs.1
+      call $call.3: Boolean = external11 direct
+        Type Wide
+        FieldAccess 1
+          Type Container
+          Local this
+        Type Wide
+        FieldAccess 1
+          Type Container
+          Local other
+      assign $logic.2
+        Type Boolean
+        Local $call.3
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.2
+  fun keepToken @fn1(value: Token) -> Token <no-gc>
+    bb0 entry
+      val $dependency.receiver: Token
+        Type Token
+        Local value
+      val $dependency.parameter.other: Token
+        Type Token
+        Local $dependency.receiver
+      call $call.1: Token = external1 direct
+        Type Token
+        Local $dependency.receiver
+        Type Token
+        Local $dependency.parameter.other
+      return
+        Type Token
+        Local $call.1
+  fun keepWide @fn2(value: Wide) -> Wide <no-gc>
+    bb0 entry
+      val $dependency.receiver: Wide
+        Type Wide
+        Local value
+      val $dependency.argument.0: Wide
+        Type Wide
+        Local value
+      val $dependency.parameter.other: Wide
+        Type Wide
+        Local $dependency.argument.0
+      call copy: Wide = external0 direct
+        Type Wide
+        Local $dependency.receiver
+        Type Wide
+        Local $dependency.parameter.other
+      val $dependency.receiver: Wide
+        Type Wide
+        Local value
+      val $dependency.receiver: Wide
+        Type Wide
+        Local copy
+      val $dependency.parameter.other: Wide
+        Type Wide
+        Local $dependency.receiver
+      call $dependency.argument.0: Wide = external0 direct
+        Type Wide
+        Local $dependency.receiver
+        Type Wide
+        Local $dependency.parameter.other
+      val $dependency.parameter.other: Wide
+        Type Wide
+        Local $dependency.argument.0
+      call $call.1: Wide = external2 direct
+        Type Wide
+        Local $dependency.receiver
+        Type Wide
+        Local $dependency.parameter.other
+      return
+        Type Wide
+        Local $call.1
+  fun total @fn3(value: Wide) -> Long <no-gc>
+    bb0 entry
+      val $dependency.receiver: Wide
+        Type Wide
+        Local value
+      val $dependency.parameter.delta: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      call $dependency.receiver: Long = external3 direct
+        Type Wide
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.delta
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=7 bits=0x0000000000000007
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+  fun fieldSum @fn4(value: Wide) -> Long <no-gc>
+    bb0 entry
+      val $dependency.receiver: Wide
+        Type Wide
+        Local value
+      val $dependency.parameter.other: Wide
+        Type Wide
+        Local $dependency.receiver
+      call $call.1: Wide = external0 direct
+        Type Wide
+        Local $dependency.receiver
+        Type Wide
+        Local $dependency.parameter.other
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 0
+          Type Wide
+          Local $call.1
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 1
+          Type Wide
+          Local value
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 2
+          Type Wide
+          Local value
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=7 bits=0x0000000000000007
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+  fun computedTotal @fn5(value: Wide) -> Long <no-gc>
+    bb0 entry
+      val $dependency.receiver: Wide
+        Type Wide
+        Local value
+      val $dependency.parameter.other: Wide
+        Type Wide
+        Local $dependency.receiver
+      call $call.1: Wide = external0 direct
+        Type Wide
+        Local $dependency.receiver
+        Type Wide
+        Local $dependency.parameter.other
+      call $dependency.receiver: Long = external4 direct
+        Type Wide
+        Local $call.1
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=7 bits=0x0000000000000007
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+  fun keepManaged @fn6(value: Managed) -> Managed
+    bb0 entry
+      val $dependency.receiver: Managed
+        Type Managed
+        Local value
+      val $dependency.parameter.other: Managed
+        Type Managed
+        Local $dependency.receiver
+      call $call.1: Managed = external5 direct
+        Type Managed
+        Local $dependency.receiver
+        Type Managed
+        Local $dependency.parameter.other
+      return
+        Type Managed
+        Local $call.1
+  fun text @fn7(value: Managed) -> String
+    bb0 entry
+      return
+        Type String
+        FieldAccess 0
+          Type Managed
+          Local value
+  fun marker @fn8(value: Nested) -> Token <no-gc>
+    bb0 entry
+      return
+        Type Token
+        FieldAccess 1
+          Type Nested
+          Local value
+  fun nestedFirst @fn9(value: Nested) -> Long <no-gc>
+    bb0 entry
+      return
+        Type Long
+        FieldAccess 0
+          Type Wide
+          FieldAccess 0
+            Type Nested
+            Local value
+  fun first @fn10(value: Wide) -> Long <no-gc>
+    bb0 entry
+      return
+        Type Long
+        FieldAccess 0
+          Type Wide
+          Local value
+  fun fromField @fn11(value: Wide) -> Long <no-gc>
+    bb0 entry
+      val $dependency.receiver: Wide
+        Type Wide
+        Local value
+      val $dependency.parameter.other: Wide
+        Type Wide
+        Local $dependency.receiver
+      call $dependency.argument.0: Wide = external0 direct
+        Type Wide
+        Local $dependency.receiver
+        Type Wide
+        Local $dependency.parameter.other
+      val $dependency.parameter.value: Wide
+        Type Wide
+        Local $dependency.argument.0
+      val $dependency.parameter.selected: Long
+        Type Long
+        FieldAccess 0
+          Type Wide
+          Local $dependency.parameter.value
+      call $call.1: Long = external6 direct
+        Type Wide
+        Local $dependency.parameter.value
+        Type Long
+        Local $dependency.parameter.selected
+      return
+        Type Long
+        Local $call.1
+  fun fromMember @fn12(value: Wide) -> Long <no-gc>
+    bb0 entry
+      val $dependency.receiver: Wide
+        Type Wide
+        Local value
+      val $dependency.parameter.other: Wide
+        Type Wide
+        Local $dependency.receiver
+      call $dependency.argument.0: Wide = external0 direct
+        Type Wide
+        Local $dependency.receiver
+        Type Wide
+        Local $dependency.parameter.other
+      val $dependency.parameter.value: Wide
+        Type Wide
+        Local $dependency.argument.0
+      val $default.local.1: Wide
+        Type Wide
+        Local $dependency.parameter.value
+      val $default.local.2: Long
+        Type Long
+        IntegerLiteral Long value=7 bits=0x0000000000000007
+      val $default.local.3: Long
+        Type Long
+        Local $default.local.2
+      call $dependency.parameter.selected: Long = external3 direct
+        Type Wide
+        Local $default.local.1
+        Type Long
+        Local $default.local.3
+      call $call.1: Long = external7 direct
+        Type Wide
+        Local $dependency.parameter.value
+        Type Long
+        Local $dependency.parameter.selected
+      return
+        Type Long
+        Local $call.1
+  fun fromProperty @fn13(value: Wide) -> Long <no-gc>
+    bb0 entry
+      val $dependency.receiver: Wide
+        Type Wide
+        Local value
+      val $dependency.parameter.other: Wide
+        Type Wide
+        Local $dependency.receiver
+      call $dependency.argument.0: Wide = external0 direct
+        Type Wide
+        Local $dependency.receiver
+        Type Wide
+        Local $dependency.parameter.other
+      val $dependency.parameter.value: Wide
+        Type Wide
+        Local $dependency.argument.0
+      call $dependency.parameter.selected: Long = external4 direct
+        Type Wide
+        Local $dependency.parameter.value
+      call $call.1: Long = external8 direct
+        Type Wide
+        Local $dependency.parameter.value
+        Type Long
+        Local $dependency.parameter.selected
+      return
+        Type Long
+        Local $call.1
+  fun fromMarker @fn14(value: Nested) -> Token <no-gc>
+    bb0 entry
+      val $dependency.argument.0: Nested
+        Type Nested
+        Local value
+      val $dependency.parameter.value: Nested
+        Type Nested
+        Local $dependency.argument.0
+      val $dependency.parameter.marker: Token
+        Type Token
+        FieldAccess 1
+          Type Nested
+          Local $dependency.parameter.value
+      call $call.1: Token = external9 direct
+        Type Nested
+        Local $dependency.parameter.value
+        Type Token
+        Local $dependency.parameter.marker
+      return
+        Type Token
+        Local $call.1
+  fun republished @fn15(value: Wide, selected: Long) -> Long <no-gc>
+    bb0 entry
+      return
+        Type Long
+        Local selected
+  fun $extension.$get$first @fn16(this: Wide) -> Long <no-gc>
+    bb0 entry
+      return
+        Type Long
+        IntegerLiteral Long value=999 bits=0x00000000000003e7
+  fun Continuation.resume @fn17(this: Continuation<Container>, value: Container) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn18(this: Continuation<Container>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn19(this: SuspendTask<Container>, $completion: Continuation<Container>) -> CoroutineStep<Container>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn20(this: SuspendRegistration<Container>, continuation: Continuation<Container>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.Container.$c0 @fn21(marker: Token, payload: Wide) -> Container <no-gc>
+    bb0 entry
+      return
+        Type Container
+        StructInit Container
+          Type Token
+          Local marker
+          Type Wide
+          Local payload
+  fun startCoroutine<Container> @fn22(task: SuspendTask<Container>, completion: Continuation<Container>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn17 interface Continuation<Container>[0]
+        Type Continuation<Container>
+        Local completion
+        Type Container
+        EnumField v0 f0
+          Type CoroutineStep<Container>
+          Local $step
+      return
+    bb2 failed
+      call @fn18 interface Continuation<Container>[1]
+        Type Continuation<Container>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Container> = @fn19 interface SuspendTask<Container>[0]
+        Type SuspendTask<Container>
+        Local task
+        Type Continuation<Container>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Container>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Container> result=Container
+  coroutine_slot cl0 CoroutineSlot<Container> value=Container
+  coroutine_start ct0 result=Container function=fn22
+  coroutine_fn cf0 @fn19 source_return=Container step=cs0 immediate
+  instance mi0 function=@fn17 <- Continuation.resume
+  instance mi1 function=@fn18 <- Continuation.resumeWithException
+  instance mi2 function=@fn19 <- SuspendTask.run
+  instance mi3 function=@fn20 <- SuspendRegistration.register
+  output library

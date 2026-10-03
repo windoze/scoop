@@ -1,0 +1,62 @@
+SourceFile
+  QualifiedPackage dependency.selection
+  public fun choose(value: Any): Int
+    =
+      IntLiteral 1
+  public fun choose(value: Int): Int
+    =
+      Var value
+  public fun prefer<T>(value: T): Int
+    =
+      IntLiteral 1
+  public fun prefer(value: Any): Int
+    =
+      IntLiteral 42
+  public fun fewer(value: Int, extra: Int = <expr>): Int
+    =
+      IntLiteral 1
+  public fun fewer(value: Int): Int
+    =
+      Var value
+  public fun rest(vararg values: Int): Int
+    =
+      IntLiteral 1
+  public fun rest(value: Int): Int
+    =
+      Var value
+  public fun ambiguous(first: Int, second: Any, extra: Int = <expr>): Int
+    =
+      IntLiteral 1
+  public fun ambiguous(first: Any, second: Int): Int
+    =
+      IntLiteral 2
+  public class Choice(val number: Int)
+  public fun Choice(value: Any): Int
+    =
+      IntLiteral 1
+  public class Holder<T>(val value: T)
+  public fun Holder(value: Any): Int
+    =
+      IntLiteral 42
+  public class Host()
+    public fun choose
+    public fun choose
+    public fun prefer
+    public fun prefer
+    public fun fewer
+    public fun fewer
+    public fun rest
+    public fun rest
+    public fun relay
+    public fun ambiguous
+    public fun ambiguous
+  public class GenericHost<T>(val value: T)
+    public fun fewer
+    public fun fewer
+  public open class Base(val number: Int, ready: Boolean = <expr>)
+    constructor(value: Int) : this(<2 args>)
+    constructor(label: String) : this(<1 args>)
+  public class Variadic(val number: Int)
+    constructor(vararg values: Int) : this(<1 args>)
+  public class Ambiguous(first: Int, second: Any, extra: Int = <expr>)
+    constructor(first: Any, second: Int) : this(<3 args>)

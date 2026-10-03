@@ -1,0 +1,51 @@
+SourceFile
+  QualifiedPackage consumer.defaults
+  ImportStar Local upstream.defaults.*
+  public class Local<T>(val value: T)
+    public fun select
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val first
+      Call Box<T>
+        Var seed
+    val second
+      Call Box<T>
+        Var seed
+    if
+      Binary Ne
+        Call read
+          MethodCall read
+            Var first
+        Call read
+          Var seed
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call read
+          MethodCall read
+            Var second
+        Call read
+          Var seed
+      return
+        IntLiteral 2
+    if
+      Binary Ne
+        Call read
+          MethodCall select
+            Call Local<T>
+              Var seed
+        Call read
+          Var seed
+      return
+        IntLiteral 3
+    return
+      Call read
+        MethodCall select
+          Var first
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 1 suspend=false
+          param value: _
+          Var value

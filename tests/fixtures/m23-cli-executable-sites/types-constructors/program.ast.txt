@@ -1,0 +1,20 @@
+SourceFile
+  RootPackage
+  fun read(cell: Cell): Int
+    =
+      Binary Add
+        FieldAccess stored
+          Var cell
+        FieldAccess added
+          Var cell
+  fun main()
+    assign .value
+      Var Registry
+      IntLiteral 42
+    if
+      Binary Ne
+        FieldAccess value
+          Var Registry
+        IntLiteral 42
+      throw
+        Call IllegalStateException

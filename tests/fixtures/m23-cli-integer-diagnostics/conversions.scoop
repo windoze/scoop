@@ -1,0 +1,15 @@
+fun <T> choose(value: T, fallback: T = value): T = fallback
+
+fun main() {
+    val narrow: Int8 = 1
+    val wide: Int16 = 2
+    println((narrow + wide.toInt8()).toInt32())
+    val signed: Int = 1
+    val unsigned: UInt = 2u
+    println(signed + unsigned.toInt32())
+    val distance: Int = 1
+    println(signed shl distance.toInt64())
+    println(choose(3).toInt64())
+    val small: UInt8 = 1u
+    println(small + 2.toUInt8())
+}

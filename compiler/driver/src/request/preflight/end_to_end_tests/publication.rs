@@ -5,9 +5,7 @@ const WARNING_SOURCE: &str =
 
 #[test]
 fn publication_failure_retains_current_warnings_for_core_and_ordinary_libraries() {
-    let Some(target) = resolved_target() else {
-        return;
-    };
+    let target = resolved_target().expect("publication warning tests require a supported target");
     let temp = tempfile::tempdir().unwrap();
     copy_trusted_core_sources(temp.path());
     let core_root = temp.path().join("lib/scoop.core");

@@ -1,0 +1,638 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class UnwrapException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  interface ToString
+  interface Hash
+  fun returnFromCatch @fn0() -> Int
+    bb0 entry
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb9 bb10
+        Type Boolean
+        IsInstance UnwrapException
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      unreachable
+    bb8 try.body.8 unwind bb1
+      assign $new.1
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external0 direct
+        Type UnwrapException
+        Local $new.1
+      throw unwind bb1
+        Type UnwrapException
+        Local $new.1
+    bb9 try.catch.9
+      call $catch.2: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val e: UnwrapException
+        Type UnwrapException
+        Retype UnwrapException
+          Type Any
+          Local $catch.2
+      goto bb11
+    bb10 try.next.10 unwind bb5
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      rethrow unwind bb5
+    bb11 scope.11 unwind bb3
+      val $return.3: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      end_catch
+      goto bb12
+    bb12 scope.12
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type Int
+        Local $return.3
+  fun replaceInCatch @fn1() -> Unit
+    bb0 entry
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb20 bb21
+        Type Boolean
+        IsInstance ArithmeticException
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      return
+    bb8 try.body.8 unwind bb1
+      goto bb16
+    bb9 try.unwind.9 unwind bb1
+      landing_pad cleanup=false
+      goto bb10
+    bb10 try.dispatch.10 unwind bb1
+      begin_catch
+      branch bb17 bb18
+        Type Boolean
+        IsInstance UnwrapException
+          Type Any
+          CaughtException
+    bb11 try.handler_pad.11 unwind bb1
+      landing_pad cleanup=false
+      goto bb12
+    bb12 try.handler_cleanup.12 unwind bb1
+      end_catch
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb2
+    bb13 try.exit_pad.13 unwind bb1
+      landing_pad cleanup=false
+      goto bb14
+    bb14 try.exit_cleanup.14 unwind bb1
+      end_catch
+      goto bb2
+    bb15 try.end.15 unwind bb1
+      unreachable
+    bb16 try.body.16 unwind bb9
+      assign $new.1
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external0 direct
+        Type UnwrapException
+        Local $new.1
+      throw unwind bb9
+        Type UnwrapException
+        Local $new.1
+    bb17 try.catch.17 unwind bb1
+      call $catch.2: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val e: UnwrapException
+        Type UnwrapException
+        Retype UnwrapException
+          Type Any
+          Local $catch.2
+      goto bb19
+    bb18 try.next.18 unwind bb13
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      rethrow unwind bb13
+    bb19 scope.19 unwind bb11
+      assign $new.3
+        Type ArithmeticException
+        ClassAlloc ArithmeticException
+      call external1 direct
+        Type ArithmeticException
+        Local $new.3
+      throw unwind bb11
+        Type ArithmeticException
+        Local $new.3
+    bb20 try.catch.20
+      call $catch.4: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val e: ArithmeticException
+        Type ArithmeticException
+        Retype ArithmeticException
+          Type Any
+          Local $catch.4
+      goto bb22
+    bb21 try.next.21
+      rethrow unwind bb5
+    bb22 scope.22 unwind bb3
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb23
+    bb23 scope.23
+      goto bb7
+  fun noMatchRethrow @fn2() -> Unit
+    bb0 entry
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb21 bb22
+        Type Boolean
+        IsInstance ClassCastException
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      return
+    bb8 try.body.8 unwind bb1
+      goto bb16
+    bb9 try.unwind.9 unwind bb1
+      landing_pad cleanup=false
+      goto bb10
+    bb10 try.dispatch.10 unwind bb1
+      begin_catch
+      branch bb17 bb18
+        Type Boolean
+        IsInstance ArithmeticException
+          Type Any
+          CaughtException
+    bb11 try.handler_pad.11 unwind bb1
+      landing_pad cleanup=false
+      goto bb12
+    bb12 try.handler_cleanup.12 unwind bb1
+      end_catch
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str4
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb2
+    bb13 try.exit_pad.13 unwind bb1
+      landing_pad cleanup=false
+      goto bb14
+    bb14 try.exit_cleanup.14 unwind bb1
+      end_catch
+      goto bb2
+    bb15 try.end.15 unwind bb1
+      goto bb7
+    bb16 try.body.16 unwind bb9
+      assign $new.1
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external2 direct
+        Type ClassCastException
+        Local $new.1
+      throw unwind bb9
+        Type ClassCastException
+        Local $new.1
+    bb17 try.catch.17 unwind bb1
+      call $catch.2: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val e: ArithmeticException
+        Type ArithmeticException
+        Retype ArithmeticException
+          Type Any
+          Local $catch.2
+      goto bb19
+    bb18 try.next.18 unwind bb13
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str4
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      rethrow unwind bb13
+    bb19 scope.19 unwind bb11
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb20
+    bb20 scope.20 unwind bb1
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str4
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb15
+    bb21 try.catch.21
+      call $catch.3: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val e: ClassCastException
+        Type ClassCastException
+        Retype ClassCastException
+          Type Any
+          Local $catch.3
+      goto bb23
+    bb22 try.next.22
+      rethrow unwind bb5
+    bb23 scope.23 unwind bb3
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str5
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb24
+    bb24 scope.24
+      goto bb7
+  fun nestedTryInHandler @fn3() -> Unit
+    bb0 entry
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb9 bb10
+        Type Boolean
+        IsInstance UnwrapException
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str7
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      unreachable
+    bb8 try.body.8 unwind bb1
+      assign $new.1
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external0 direct
+        Type UnwrapException
+        Local $new.1
+      throw unwind bb1
+        Type UnwrapException
+        Local $new.1
+    bb9 try.catch.9
+      call $catch.2: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val e: UnwrapException
+        Type UnwrapException
+        Retype UnwrapException
+          Type Any
+          Local $catch.2
+      goto bb11
+    bb10 try.next.10 unwind bb5
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str7
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      rethrow unwind bb5
+    bb11 scope.11 unwind bb3
+      goto bb19
+    bb12 try.unwind.12 unwind bb3
+      landing_pad cleanup=false
+      goto bb13
+    bb13 try.dispatch.13 unwind bb3
+      begin_catch
+      branch bb20 bb21
+        Type Boolean
+        IsInstance ClassCastException
+          Type Any
+          CaughtException
+    bb14 try.handler_pad.14 unwind bb3
+      landing_pad cleanup=true
+      goto bb15
+    bb15 try.handler_cleanup.15 unwind bb3
+      end_catch
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str6
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb4
+    bb16 try.exit_pad.16 unwind bb3
+      landing_pad cleanup=true
+      goto bb17
+    bb17 try.exit_cleanup.17 unwind bb3
+      end_catch
+      goto bb4
+    bb18 try.end.18 unwind bb3
+      unreachable
+    bb19 try.body.19 unwind bb12
+      assign $new.3
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external2 direct
+        Type ClassCastException
+        Local $new.3
+      throw unwind bb12
+        Type ClassCastException
+        Local $new.3
+    bb20 try.catch.20 unwind bb3
+      call $catch.4: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val e: ClassCastException
+        Type ClassCastException
+        Retype ClassCastException
+          Type Any
+          Local $catch.4
+      goto bb22
+    bb21 try.next.21 unwind bb16
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str6
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      rethrow unwind bb16
+    bb22 scope.22 unwind bb14
+      assign $new.5
+        Type ArithmeticException
+        ClassAlloc ArithmeticException
+      call external1 direct
+        Type ArithmeticException
+        Local $new.5
+      throw unwind bb14
+        Type ArithmeticException
+        Local $new.5
+  fun main @fn4() -> Unit
+    bb0 entry
+      call $dependency.argument.0: Int = @fn0 direct
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Int
+        Local $dependency.parameter.value
+      call @fn1 direct
+      call @fn2 direct
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb9 bb10
+        Type Boolean
+        IsInstance ArithmeticException
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      return
+    bb8 try.body.8 unwind bb1
+      call @fn3 direct
+      goto bb7
+    bb9 try.catch.9
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val e: ArithmeticException
+        Type ArithmeticException
+        Retype ArithmeticException
+          Type Any
+          Local $catch.1
+      goto bb11
+    bb10 try.next.10
+      rethrow unwind bb5
+    bb11 scope.11 unwind bb3
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str8
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb12
+    bb12 scope.12
+      goto bb7
+  fun println @fn5(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external4 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external5 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str9
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external5 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn6(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external3 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external5 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str10
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external5 direct
+        Type String
+        Local $dependency.local.5
+      return
+  instance mi0 function=@fn5 <- println
+  instance mi1 function=@fn6 <- println
+  str @str0 "return-finally"
+  str @str1 "replace-finally"
+  str @str2 "replacement"
+  str @str3 "wrong"
+  str @str4 "rethrow-finally"
+  str @str5 "rethrown"
+  str @str6 "nested-finally"
+  str @str7 "handler-finally"
+  str @str8 "nested-out"
+  str @str9 "\n"
+  str @str10 "\n"
+  output executable @fn4

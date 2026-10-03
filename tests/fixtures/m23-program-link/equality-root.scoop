@@ -1,0 +1,13 @@
+import facadeEquality.*
+
+fun main() {
+    val first = parts()
+    val second = Parts(("left", "right"), 42)
+    println(first == second)
+    println(Container.Item(first) == Container.Item(second))
+    println(first != Parts(("right", "left"), 42))
+    println(sameSlots(slot(), Slot(("slot", 42))))
+    val compare: () -> Boolean = { Container.Item(first) == Container.Item(second) }
+    gcCollect()
+    println(compare())
+}

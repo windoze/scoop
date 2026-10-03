@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `ZeroSlot<T>` has no applicable property delegate operator `setValue`",
+    "notes": [],
+    "origin": {
+      "cone": "e5eab1b7577c30769eb67e1b34de4890d6a5cfb821874facfeef44b799932d53",
+      "end": 142,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 95
+    },
+    "severity": "error"
+  }
+]

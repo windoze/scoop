@@ -1,3 +1,0 @@
-span=51..80
-expression=dependency.paths.Outer.Hidden
-type `dependency.paths.Outer.Hidden` is not accessible from this source location

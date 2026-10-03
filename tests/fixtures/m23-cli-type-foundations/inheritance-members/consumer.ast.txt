@@ -1,0 +1,5 @@
+SourceFile
+  RootPackage
+  ImportStar Local dependency.members.*
+  public class Child() : Surface(<0 args>)
+    public fun readAll

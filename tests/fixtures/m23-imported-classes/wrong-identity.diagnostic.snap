@@ -1,3 +1,0 @@
-span=111..116
-expression=value
-body of `invalid` must be of type Counter, found Other

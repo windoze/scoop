@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "non-exhaustive when: missing pattern Pair { left: -9223372036854775808, marker: Token {  }, right: -9223372036854775808 }",
+    "notes": [],
+    "origin": {
+      "cone": "1aae5fa5e26a7bfcd4b640fa872756f29b829ff20ba010e1c13cee548bb7eadf",
+      "end": 130,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 103
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,9 @@
+SourceFile
+  RootPackage
+  public fun useBranchDefault(): Int
+    =
+      Call userCoreBranchDefault
+        IntLiteral 0
+  fun main()
+    val value
+      Call useBranchDefault

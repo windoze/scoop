@@ -1,8 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m18-invoke/errors/fun-ptr.scoop:2:19: error: intrinsic struct `FunPtr` has no source constructor
-m18-invoke/errors/fun-ptr.scoop:3:18: error: unknown function `pointer`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation
-m18-invoke/errors/fun-ptr.scoop:4:20: error: unknown variable `pointer`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation

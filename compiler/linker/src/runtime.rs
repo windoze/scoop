@@ -75,6 +75,7 @@ pub struct RuntimeObjectSet {
     objects: Vec<RuntimeObject>,
     merged: NativeObjectInfo,
     fingerprint: RuntimeArtifactFingerprint,
+    input_paths: Vec<std::path::PathBuf>,
 }
 
 impl RuntimeObjectSet {
@@ -180,11 +181,16 @@ impl RuntimeObjectSet {
             objects,
             merged,
             fingerprint,
+            input_paths: Vec::new(),
         })
     }
 
     pub fn target(&self) -> LirTargetProfile {
         self.target
+    }
+
+    pub fn input_paths(&self) -> &[std::path::PathBuf] {
+        &self.input_paths
     }
     pub fn configuration(&self) -> &RuntimeBuildConfiguration {
         &self.configuration

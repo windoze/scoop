@@ -1,0 +1,18 @@
+[
+  {
+    "code": "SCOOP_CLI_CONFIG",
+    "message": "invalid current Cone operand ${work}/raw-�.scoop: cannot inspect: No such file or directory (os error 2)",
+    "notes": [],
+    "origin": {
+      "end": null,
+      "kind": "host",
+      "path": {
+        "encoding": "unix-bytes",
+        "hex": "${work.hex}2f7261772dff2e73636f6f70"
+      },
+      "start": null
+    },
+    "phase": "Request",
+    "severity": "error"
+  }
+]

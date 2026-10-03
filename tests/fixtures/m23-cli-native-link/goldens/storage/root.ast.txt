@@ -1,0 +1,48 @@
+SourceFile
+  RootPackage
+    @Extern(lib = "m23_storage", name = "m23_counter")
+    @Global
+  var counter: Int
+    @Extern(lib = "m23_storage", name = "m23_limit")
+  val limit: Int
+    @Extern(lib = "m23_storage", name = "m23_tls_initial")
+    @ThreadLocal
+  var tlsInitial: Int
+    @Extern(lib = "m23_storage", name = "m23_tls_zero")
+    @ThreadLocal
+  var tlsZero: Int
+    @Extern(lib = "m23_storage", name = "m23_increment")
+  fun increment(pointer: Ptr<Int>): Int
+  fun main()
+    @Unsafe block
+      Call println
+        Var counter
+      compound-assign Add
+        IntLiteral 10
+      Call println
+        Update Postfix Increment
+          Place counter
+      MethodCall store
+        Call addressOf
+          Var counter
+        IntLiteral 42
+      Call println
+        Call increment
+          Call addressOf
+            Var counter
+      Call println
+        Var limit
+      Call println
+        Var tlsInitial
+      Call println
+        Var tlsZero
+      MethodCall store
+        Call addressOf
+          Var tlsInitial
+        IntLiteral 33
+      assign tlsZero
+        IntLiteral 34
+      Call println
+        Var tlsInitial
+      Call println
+        Var tlsZero

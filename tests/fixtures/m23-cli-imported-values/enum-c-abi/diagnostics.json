@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "extern parameter is not ABI-safe: cEcho.parameter1: enum types have no M12 C ABI representation",
+    "notes": [],
+    "origin": {
+      "cone": "8ec71221335af621417787b2dbf7f6f43860da0a518a21677b98896dadd4d735",
+      "end": 142,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 56
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "extern return type is not ABI-safe: cEcho.return: enum types have no M12 C ABI representation",
+    "notes": [],
+    "origin": {
+      "cone": "8ec71221335af621417787b2dbf7f6f43860da0a518a21677b98896dadd4d735",
+      "end": 142,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 56
+    },
+    "severity": "error"
+  }
+]

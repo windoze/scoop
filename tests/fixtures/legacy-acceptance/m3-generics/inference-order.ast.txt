@@ -1,0 +1,66 @@
+SourceFile
+  RootPackage
+  struct Pair<T>
+    field maybe: T?
+    field value: T
+  enum Duo<T>
+    Both(T?, T)
+  fun choose<T>(maybe: T?, value: T): T
+    =
+      Var value
+  fun nested<T>(maybe: T??, value: T): T
+    =
+      Var value
+  fun arrayValue<T>(values: Array<T>, value: T): T
+    =
+      Var value
+  fun tupleValue<T>(pair: (T?, T), value: T): T
+    =
+      Var value
+  fun pick(maybe: Int?, value: Int): Int
+    =
+      Var value
+  fun pick(maybe: String?, value: String): String
+    =
+      Var value
+  fun main()
+    Call println
+      Call choose
+        Var None
+        IntLiteral 7
+    val pair
+      Call Pair
+        Var None
+        IntLiteral 8
+    Call println
+      FieldAccess value
+        Var pair
+    val duo
+      MethodCall Both
+        Var Duo
+        Var None
+        IntLiteral 9
+    when
+      Var duo
+      arm Both(_, value)
+        Call println
+          Var value
+    Call println
+      Call pick
+        Var None
+        IntLiteral 10
+    Call println
+      Call nested
+        Call Some
+          Var None
+        IntLiteral 11
+    Call println
+      Call arrayValue
+        ArrayLiteral
+        IntLiteral 12
+    Call println
+      Call tupleValue
+        TupleLiteral
+          Var None
+          IntLiteral 13
+        IntLiteral 14

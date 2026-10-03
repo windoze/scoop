@@ -1,0 +1,6 @@
+schema = 1
+[cone]
+group = "dev.programlink"
+name = "lazy-cycle-provider"
+version = "0.1.0"
+kind = "library"

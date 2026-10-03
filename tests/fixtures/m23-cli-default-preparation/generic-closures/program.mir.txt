@@ -1,0 +1,1040 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<ReferenceBox>
+    Completed(value: ReferenceBox)
+    Suspended()
+  enum CoroutineSlot<ReferenceBox>
+    Empty()
+    Value(value: ReferenceBox)
+  class ReferenceBox vtable=0 itables=0
+  class ReferenceConstructor<Int> vtable=0 itables=0
+  class ReferenceConstructor<String> vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface Continuation<ReferenceBox>
+  interface SuspendTask<ReferenceBox>
+  interface SuspendRegistration<ReferenceBox>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn6 captures=1
+    bridge function_type1 -> @fn46 id=6de076ed51bbef8e1fe41a6a484004baa460a28e952b0534e4d27c7d417e05ec
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn11 captures=1
+    bridge function_type1 -> @fn47 id=f0108a75ae691c1389d3c34b6f0d995de521d020d986b470a2a68002bc676660
+  closure cc2 $Closure$lambda2 type=function_type0 invoke=@fn25 captures=1
+    bridge function_type1 -> @fn48 id=2fcdcf4d5d0372fce02bb04f6a561078bdbc7c176c2317836b31d42af18e4f6e
+  closure cc3 $Closure$lambda3 type=function_type2 invoke=@fn28 captures=1
+    bridge function_type1 -> @fn49 id=29c9066877cce7802901b8a7333d6c2268359afad1347d377ac41dd9af4159bd
+  closure cc4 $Closure$anonymous0 type=function_type0 invoke=@fn8 captures=1
+    bridge function_type1 -> @fn50 id=e0dca4b58948b80fa5c9e4d4258c245417ce7e3bd4d4453813225e7a8ebf43e0
+  closure cc5 $Closure$anonymous1 type=function_type2 invoke=@fn13 captures=1
+    bridge function_type1 -> @fn51 id=1574130801551eb8ff056053df290b332bee263ba8eb939c268cfe258968b92b
+  closure cc6 $Closure$reference0 type=function_type0 invoke=@fn34 captures=1
+    bridge function_type1 -> @fn52 id=a64569ecdd7fee9d4ac087001e51d3c6c12ca940c937c386a6e4f7862851aaef
+  closure cc7 $Closure$reference1 type=function_type0 invoke=@fn35 captures=1
+    bridge function_type1 -> @fn53 id=47b3c454299fd4405e1b1a5548deecc7dbfdb3e493e470b86cfae3480880bfdf
+  closure cc8 $Closure$reference2 type=function_type0 invoke=@fn36 captures=0
+    bridge function_type1 -> @fn54 id=5133572bb0e414e90400ffa09e2ce6d50fb603892ac600e6bb5b005b18bfc53f
+  closure cc9 $Closure$reference3 type=function_type0 invoke=@fn37 captures=0
+    bridge function_type1 -> @fn55 id=6ca2d632b913dc2ab0815093573f61c54d0fff4dd11cecb05bc0ae00039321d0
+  closure cc10 $Closure$reference4 type=function_type0 invoke=@fn38 captures=0
+    bridge function_type1 -> @fn56 id=b7819efa36f26c9523b194a6b1a369d98480c15e9e40c29920e7c084e6d883c2
+  closure cc11 $Closure$reference5 type=function_type0 invoke=@fn39 captures=0
+    bridge function_type1 -> @fn57 id=01079b1b29c163a1bd9f1dc30a494752dee8f412b6b7e8689b10ee241992b3aa
+  closure cc12 $Closure$reference6 type=function_type0 invoke=@fn40 captures=1
+    bridge function_type1 -> @fn58 id=8c8db14d2d9c162dcecd7e5ced9e209105fa080d8a650ee31d4c20bfdca47438
+  closure cc13 $Closure$reference7 type=function_type2 invoke=@fn41 captures=1
+    bridge function_type1 -> @fn59 id=1ac71500153615bc2309f98541a44c820a7aaeb8f03e4a7dcd356d852403b67b
+  generated_exact_type get0 location=closure3 nominal_id=b487ee58bac3f98979a1f9fcb42cde1f71fd62bd322c437070957a82cd139906 exact_id=0e4e83cfd26674250ce970d1c1432e1966587c3d0fa9487f42cde1e86b97fbca
+  generated_exact_type get1 location=closure2 nominal_id=d1b2581ab90810a8c4af054a71f02cc41fb48a2a3a48e953a62e2a94049ac389 exact_id=30bcee618e303a06612dc891447d4e22d67345d2069d577d8e7e77c9eb6ca0d4
+  generated_exact_type get2 location=enum2 nominal_id=431e9e9eff965d377045f2126f78e64fb5f95c313eb9e16c726d7143a00b6a70 exact_id=3638eb7d384e6c479ae512be503a8951c343e82d14e5b9814121dbb02611d480
+  generated_exact_type get3 location=closure8 nominal_id=59305a445c8fbe3ce35e8684439640fda59a923a1de015447c65fd7fddf96f1b exact_id=64ba6dc8e9a60eb45fb8b59b74cb55d31953cd35ce021e8f192fc3d92cdf2aff
+  generated_exact_type get4 location=closure7 nominal_id=56d5d19f267f41cb4849f87bfe826b618342b73ab75285c52ff834be6990b45a exact_id=741a25eb051e92e6db12dc1e0b2be64aee656f85941de30a5f56d645a46f8f71
+  generated_exact_type get5 location=closure1 nominal_id=2930b4734b6638975bfa58bcdabc7d399423ed3d85e2a6c0be1fc28b991ca9a4 exact_id=7c6b03b69f00ad3556cd34cf798f7a42efe73ada0c72511e03645bebf11ab288
+  generated_exact_type get6 location=closure5 nominal_id=acbdfa2a28cca32a32c3fe5c377ead2f9bed2943f9d2f834ddc7adb7fe84ffb5 exact_id=87819e506a48c32fb7aeea28872f1bc7ad97e84d5204f9add0329a81c59b2feb
+  generated_exact_type get7 location=closure9 nominal_id=1e353bde12d06bfe9d2633647a4a2571b86d5c95625e386f999c743cea1bcd8b exact_id=92a80349df8afbcce7cd921a95823cdcb53643e924bb53b81fbbfc75ad736aa2
+  generated_exact_type get8 location=closure4 nominal_id=8a687e49d4cb0f670705e98ed5394e5bf8e85556cc9ffe617c13061180923439 exact_id=9b1a3a1bac11de79a0067abda232143e5893a261b29e7450a90083f9c5cae0c6
+  generated_exact_type get9 location=enum1 nominal_id=29ccfb25af3b38a2d01eca2920ca03042f93368bec5a1c32fc1637f213cd9fca exact_id=b440a2db36e0a714bec8570d4fd2c2e121ff32757ba4e2157d04fd7989191eb0
+  generated_exact_type get10 location=closure13 nominal_id=5df37360b7baf52005bd23a265c3c07802698b87822a035d85945bb3d27b7f6d exact_id=c501fa20349ede0aa5fdadff270884d3a5f9dee797f0b6ff92f896465dc966a8
+  generated_exact_type get11 location=closure11 nominal_id=794657f01b881703b864c88118dfcc3e340201a86f4e8be2874b1f08923acc3b exact_id=c7a39195a20276f2f1374191f17801e9890b084313e85e3ff8ecc2d0b9193be9
+  generated_exact_type get12 location=closure6 nominal_id=f874136277b146368b5105d72074178ee40ec33e01f9439c28a2d7e1505cba93 exact_id=cb83ad14693bb4e9877fdfa2a03447b6878c94ccdd03acaa290b56769c654eba
+  generated_exact_type get13 location=class6 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get14 location=closure10 nominal_id=5e28555727ba706216d49299be7a57a0b1d64f196be8cb2fbfe2bdd1f64beb85 exact_id=eedad200a4f8fd33b1978b228ee951e2c4809646a3d38defc56f7e46eb57d3ac
+  generated_exact_type get15 location=closure0 nominal_id=b8355cbae0340a0338aa1356dab2bf871b79291f5ebeab9b27b1b2868667e0fe exact_id=f2fe9706caddbe9f1cdc2e606adc7efdaaf345f615bcc8990001ef300153144f
+  generated_exact_type get16 location=closure12 nominal_id=081c80550a1c9f87db003477b1261b9673d2c5562178db82bb20c5d69106f6c0 exact_id=fac0c1d2917407687f8c84535dccb6461db836fae1bfec52ab211fe8ab5014c0
+  generated_callable gc0 function=@fn57 id=01079b1b29c163a1bd9f1dc30a494752dee8f412b6b7e8689b10ee241992b3aa
+  generated_callable gc1 function=@fn51 id=1574130801551eb8ff056053df290b332bee263ba8eb939c268cfe258968b92b
+  generated_callable gc2 function=@fn59 id=1ac71500153615bc2309f98541a44c820a7aaeb8f03e4a7dcd356d852403b67b
+  generated_callable gc3 function=@fn49 id=29c9066877cce7802901b8a7333d6c2268359afad1347d377ac41dd9af4159bd
+  generated_callable gc4 function=@fn48 id=2fcdcf4d5d0372fce02bb04f6a561078bdbc7c176c2317836b31d42af18e4f6e
+  generated_callable gc5 function=@fn53 id=47b3c454299fd4405e1b1a5548deecc7dbfdb3e493e470b86cfae3480880bfdf
+  generated_callable gc6 function=@fn54 id=5133572bb0e414e90400ffa09e2ce6d50fb603892ac600e6bb5b005b18bfc53f
+  generated_callable gc7 function=@fn55 id=6ca2d632b913dc2ab0815093573f61c54d0fff4dd11cecb05bc0ae00039321d0
+  generated_callable gc8 function=@fn46 id=6de076ed51bbef8e1fe41a6a484004baa460a28e952b0534e4d27c7d417e05ec
+  generated_callable gc9 function=@fn58 id=8c8db14d2d9c162dcecd7e5ced9e209105fa080d8a650ee31d4c20bfdca47438
+  generated_callable gc10 function=@fn52 id=a64569ecdd7fee9d4ac087001e51d3c6c12ca940c937c386a6e4f7862851aaef
+  generated_callable gc11 function=@fn56 id=b7819efa36f26c9523b194a6b1a369d98480c15e9e40c29920e7c084e6d883c2
+  generated_callable gc12 function=@fn45 id=d64a45a1d3310f183e0bafa105d3aebd3d7b1dcedec4faabae5edbf479b3706c
+  generated_callable gc13 function=@fn50 id=e0dca4b58948b80fa5c9e4d4258c245417ce7e3bd4d4453813225e7a8ebf43e0
+  generated_callable gc14 function=@fn47 id=f0108a75ae691c1389d3c34b6f0d995de521d020d986b470a2a68002bc676660
+  fun ReferenceBox.read @fn0(this: ReferenceBox) -> String
+    bb0 entry
+      return
+        Type String
+        FieldAccess 0
+          Type ReferenceBox
+          Local this
+  fun ownerSeed @fn1() -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str0
+  fun $extension.ownerText @fn2(this: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local this
+  fun main @fn3() -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str1
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.first: String
+        Type String
+        Local $argument.0
+      val $parameter.second: Int
+        Type Int
+        Local $argument.1
+      call $call.1: () -> String = @fn4 direct
+        Type String
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+      call $call.2: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $call.1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $argument.1: String
+        Type String
+        StringConst @str2
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: String
+        Type String
+        Local $argument.1
+      call $call.3: () -> String = @fn5 direct
+        Type Int
+        Local $parameter.first
+        Type String
+        Local $parameter.second
+      call $call.4: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $call.3
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: String
+        Type String
+        StringConst @str3
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: String
+        Type String
+        Local $argument.1
+      val $argument.0: String
+        Type String
+        Local $parameter.second
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      val $parameter.value: () -> String
+        Type () -> String
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type String
+            Local $parameter.seed
+      call $parameter.left: () -> String = @fn7 direct
+        Type String
+        Local $parameter.seed
+        Type () -> String
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        Local $parameter.second
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      val $parameter.value: () -> String
+        Type () -> String
+        ClosureAlloc cc4 $Closure$anonymous0
+          CaptureInit field=0
+            Type String
+            Local $parameter.seed
+      call $parameter.right: () -> String = @fn9 direct
+        Type String
+        Local $parameter.seed
+        Type () -> String
+        Local $parameter.value
+      call $call.5: String = @fn10 direct
+        Type Int
+        Local $parameter.first
+        Type String
+        Local $parameter.second
+        Type () -> String
+        Local $parameter.left
+        Type () -> String
+        Local $parameter.right
+      val $argument.0: String
+        Type String
+        StringConst @str4
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.first: String
+        Type String
+        Local $argument.0
+      val $parameter.second: Int
+        Type Int
+        Local $argument.1
+      val $argument.0: Int
+        Type Int
+        Local $parameter.second
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      val $parameter.value: () -> Int
+        Type () -> Int
+        ClosureAlloc cc1 $Closure$lambda1
+          CaptureInit field=0
+            Type Int
+            Local $parameter.seed
+      call $parameter.left: () -> Int = @fn12 direct
+        Type Int
+        Local $parameter.seed
+        Type () -> Int
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        Local $parameter.second
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      val $parameter.value: () -> Int
+        Type () -> Int
+        ClosureAlloc cc5 $Closure$anonymous1
+          CaptureInit field=0
+            Type Int
+            Local $parameter.seed
+      call $parameter.right: () -> Int = @fn14 direct
+        Type Int
+        Local $parameter.seed
+        Type () -> Int
+        Local $parameter.value
+      call $call.6: Int = @fn15 direct
+        Type String
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+        Type () -> Int
+        Local $parameter.left
+        Type () -> Int
+        Local $parameter.right
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: String
+        Type String
+        StringConst @str5
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: String
+        Type String
+        Local $argument.1
+      call $call.7: () -> String = @fn16 direct
+        Type Int
+        Local $parameter.first
+        Type String
+        Local $parameter.second
+      call $call.8: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $call.7
+      val $argument.0: String
+        Type String
+        StringConst @str6
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.first: String
+        Type String
+        Local $argument.0
+      val $parameter.second: Int
+        Type Int
+        Local $argument.1
+      call $call.9: () -> Int = @fn17 direct
+        Type String
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+      call $call.10: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $call.9
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.0: String
+        Type String
+        StringConst @str7
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      assign $new.11
+        Type ReferenceBox
+        ClassAlloc ReferenceBox
+      call @fn42 direct
+        Type ReferenceBox
+        Local $new.11
+        Type String
+        Local $parameter.value
+      val $argument.1: ReferenceBox
+        Type ReferenceBox
+        Local $new.11
+      val $parameter.unused: Int
+        Type Int
+        Local $argument.0
+      val $parameter.receiver: ReferenceBox
+        Type ReferenceBox
+        Local $argument.1
+      val $parameter.value: () -> String
+        Type () -> String
+        ClosureAlloc cc6 $Closure$reference0
+          CaptureInit field=0
+            Type ReferenceBox
+            Local $parameter.receiver
+      call $call.12: () -> String = @fn18 direct
+        Type Int
+        Local $parameter.unused
+        Type ReferenceBox
+        Local $parameter.receiver
+        Type () -> String
+        Local $parameter.value
+      call $call.13: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $call.12
+      val $argument.0: String
+        Type String
+        StringConst @str8
+      val $argument.1: String
+        Type String
+        StringConst @str9
+      val $parameter.unused: String
+        Type String
+        Local $argument.0
+      val $parameter.receiver: String
+        Type String
+        Local $argument.1
+      val $parameter.value: () -> String
+        Type () -> String
+        ClosureAlloc cc7 $Closure$reference1
+          CaptureInit field=0
+            Type String
+            Local $parameter.receiver
+      call $call.14: () -> String = @fn19 direct
+        Type String
+        Local $parameter.unused
+        Type String
+        Local $parameter.receiver
+        Type () -> String
+        Local $parameter.value
+      call $call.15: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $call.14
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      val $parameter.callback: () -> String
+        Type () -> String
+        ClosureAlloc cc8 $Closure$reference2
+      assign $new.16
+        Type ReferenceConstructor<Int>
+        ClassAlloc ReferenceConstructor<Int>
+      call @fn43 direct
+        Type ReferenceConstructor<Int>
+        Local $new.16
+        Type Int
+        Local $parameter.seed
+        Type () -> String
+        Local $parameter.callback
+      call $call.17: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        FieldAccess 0
+          Type ReferenceConstructor<Int>
+          Local $new.16
+      val $argument.0: String
+        Type String
+        StringConst @str10
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      val $parameter.callback: () -> String
+        Type () -> String
+        ClosureAlloc cc9 $Closure$reference3
+      assign $new.18
+        Type ReferenceConstructor<String>
+        ClassAlloc ReferenceConstructor<String>
+      call @fn44 direct
+        Type ReferenceConstructor<String>
+        Local $new.18
+        Type String
+        Local $parameter.seed
+        Type () -> String
+        Local $parameter.callback
+      call $call.19: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        FieldAccess 0
+          Type ReferenceConstructor<String>
+          Local $new.18
+      return
+  fun forwardReference @fn4(first: String, second: Int) -> () -> String
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local second
+      val $argument.1: String
+        Type String
+        Local first
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: String
+        Type String
+        Local $argument.1
+      val $argument.0: String
+        Type String
+        Local $parameter.second
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      val $parameter.value: () -> String
+        Type () -> String
+        ClosureAlloc cc10 $Closure$reference4
+      call $parameter.value: () -> String = @fn20 direct
+        Type String
+        Local $parameter.seed
+        Type () -> String
+        Local $parameter.value
+      call $call.1: () -> String = @fn21 direct
+        Type Int
+        Local $parameter.first
+        Type String
+        Local $parameter.second
+        Type () -> String
+        Local $parameter.value
+      return
+        Type () -> String
+        Local $call.1
+  fun forwardReference @fn5(first: Int, second: String) -> () -> String
+    bb0 entry
+      val $argument.0: String
+        Type String
+        Local second
+      val $argument.1: Int
+        Type Int
+        Local first
+      val $parameter.first: String
+        Type String
+        Local $argument.0
+      val $parameter.second: Int
+        Type Int
+        Local $argument.1
+      val $argument.0: Int
+        Type Int
+        Local $parameter.second
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      val $parameter.value: () -> String
+        Type () -> String
+        ClosureAlloc cc11 $Closure$reference5
+      call $parameter.value: () -> String = @fn22 direct
+        Type Int
+        Local $parameter.seed
+        Type () -> String
+        Local $parameter.value
+      call $call.1: () -> String = @fn23 direct
+        Type String
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+        Type () -> String
+        Local $parameter.value
+      return
+        Type () -> String
+        Local $call.1
+  fun $lambda.0 @fn6($closure: () -> String) -> String
+    bb0 entry
+      return
+        Type String
+        ClosureCapture cc0 0
+          Type () -> String
+          Local $closure
+  fun lambdaProvider @fn7(seed: String, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun $anonymous.0 @fn8($closure: () -> String) -> String
+    bb0 entry
+      return
+        Type String
+        ClosureCapture cc4 0
+          Type () -> String
+          Local $closure
+  fun anonymousProvider @fn9(seed: String, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun closureBridge @fn10(first: Int, second: String, left: () -> String, right: () -> String) -> String
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local left
+      return
+        Type String
+        Local $call.1
+  fun $lambda.0 @fn11($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        ClosureCapture cc1 0
+          Type () -> Int
+          Local $closure
+  fun lambdaProvider @fn12(seed: Int, value: () -> Int) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        Local value
+  fun $anonymous.0 @fn13($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        ClosureCapture cc5 0
+          Type () -> Int
+          Local $closure
+  fun anonymousProvider @fn14(seed: Int, value: () -> Int) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        Local value
+  fun closureBridge @fn15(first: String, second: Int, left: () -> Int, right: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local left
+      return
+        Type Int
+        Local $call.1
+  fun forwardLocal @fn16(first: Int, second: String) -> () -> String
+    bb0 entry
+      val $argument.0: String
+        Type String
+        Local second
+      val $argument.1: Int
+        Type Int
+        Local first
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      val $parameter.ignored: Int
+        Type Int
+        Local $argument.1
+      branch bb1 bb2
+        Type Boolean
+        BoolLiteral true
+    bb1 if.then.1
+      assign $result.0
+        Type () -> String
+        ClosureAlloc cc12 $Closure$reference6
+          CaptureInit field=0
+            Type String
+            Local $parameter.seed
+      goto bb3
+    bb2 if.else.2
+      val fallback: () -> String
+        Type () -> String
+        ClosureAlloc cc2 $Closure$lambda2
+          CaptureInit field=0
+            Type String
+            Local $parameter.seed
+      assign $result.0
+        Type () -> String
+        Local fallback
+      goto bb3
+    bb3 if.merge.3
+      val $parameter.value: () -> String
+        Type () -> String
+        Local $result.0
+      call $call.1: () -> String = @fn26 direct
+        Type String
+        Local $parameter.seed
+        Type Int
+        Local $parameter.ignored
+        Type () -> String
+        Local $parameter.value
+      return
+        Type () -> String
+        Local $call.1
+  fun forwardLocal @fn17(first: String, second: Int) -> () -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local second
+      val $argument.1: String
+        Type String
+        Local first
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      val $parameter.ignored: String
+        Type String
+        Local $argument.1
+      branch bb1 bb2
+        Type Boolean
+        BoolLiteral true
+    bb1 if.then.1
+      assign $result.0
+        Type () -> Int
+        ClosureAlloc cc13 $Closure$reference7
+          CaptureInit field=0
+            Type Int
+            Local $parameter.seed
+      goto bb3
+    bb2 if.else.2
+      val fallback: () -> Int
+        Type () -> Int
+        ClosureAlloc cc3 $Closure$lambda3
+          CaptureInit field=0
+            Type Int
+            Local $parameter.seed
+      assign $result.0
+        Type () -> Int
+        Local fallback
+      goto bb3
+    bb3 if.merge.3
+      val $parameter.value: () -> Int
+        Type () -> Int
+        Local $result.0
+      call $call.1: () -> Int = @fn29 direct
+        Type Int
+        Local $parameter.seed
+        Type String
+        Local $parameter.ignored
+        Type () -> Int
+        Local $parameter.value
+      return
+        Type () -> Int
+        Local $call.1
+  fun boundMember @fn18(unused: Int, receiver: ReferenceBox, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun boundExtension @fn19(unused: String, receiver: String, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun referenceProvider @fn20(seed: String, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun referenceBridge @fn21(first: Int, second: String, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun referenceProvider @fn22(seed: Int, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun referenceBridge @fn23(first: String, second: Int, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun $local.0.read @fn24($capture.seed: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local $capture.seed
+  fun $lambda.1 @fn25($closure: () -> String) -> String
+    bb0 entry
+      return
+        Type String
+        ClosureCapture cc2 0
+          Type () -> String
+          Local $closure
+  fun localReference @fn26(seed: String, ignored: Int, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun $local.0.read @fn27($capture.seed: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local $capture.seed
+  fun $lambda.1 @fn28($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        ClosureCapture cc3 0
+          Type () -> Int
+          Local $closure
+  fun localReference @fn29(seed: Int, ignored: String, value: () -> Int) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        Local value
+  fun Continuation.resume @fn30(this: Continuation<ReferenceBox>, value: ReferenceBox) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn31(this: Continuation<ReferenceBox>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn32(this: SuspendTask<ReferenceBox>, $completion: Continuation<ReferenceBox>) -> CoroutineStep<ReferenceBox>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn33(this: SuspendRegistration<ReferenceBox>, continuation: Continuation<ReferenceBox>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun $reference.0 @fn34($closure: () -> String) -> String
+    bb0 entry
+      call $call.1: String = @fn0 direct
+        Type ReferenceBox
+        ClosureCapture cc6 0
+          Type () -> String
+          Local $closure
+      return
+        Type String
+        Local $call.1
+  fun $reference.1 @fn35($closure: () -> String) -> String
+    bb0 entry
+      call $call.1: String = @fn2 direct
+        Type String
+        ClosureCapture cc7 0
+          Type () -> String
+          Local $closure
+      return
+        Type String
+        Local $call.1
+  fun $reference.2 @fn36($closure: () -> String) -> String
+    bb0 entry
+      call $call.1: String = @fn1 direct
+      return
+        Type String
+        Local $call.1
+  fun $reference.3 @fn37($closure: () -> String) -> String
+    bb0 entry
+      call $call.1: String = @fn1 direct
+      return
+        Type String
+        Local $call.1
+  fun $reference.4 @fn38($closure: () -> String) -> String
+    bb0 entry
+      call $call.1: String = @fn1 direct
+      return
+        Type String
+        Local $call.1
+  fun $reference.5 @fn39($closure: () -> String) -> String
+    bb0 entry
+      call $call.1: String = @fn1 direct
+      return
+        Type String
+        Local $call.1
+  fun $reference.6 @fn40($closure: () -> String) -> String
+    bb0 entry
+      call $call.1: String = @fn24 direct
+        Type String
+        ClosureCapture cc12 0
+          Type () -> String
+          Local $closure
+      return
+        Type String
+        Local $call.1
+  fun $reference.7 @fn41($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn27 direct
+        Type Int
+        ClosureCapture cc13 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun init.ReferenceBox.$c0 @fn42(this: ReferenceBox, value: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type ReferenceBox
+        Local this
+        Type String
+        Local value
+      return
+  fun init.ReferenceConstructor.$c1 @fn43(this: ReferenceConstructor<Int>, seed: Int, callback: () -> String) -> Unit
+    bb0 entry
+      field_set 0
+        Type ReferenceConstructor<Int>
+        Local this
+        Type () -> String
+        Local callback
+      return
+  fun init.ReferenceConstructor.$c1 @fn44(this: ReferenceConstructor<String>, seed: String, callback: () -> String) -> Unit
+    bb0 entry
+      field_set 0
+        Type ReferenceConstructor<String>
+        Local this
+        Type () -> String
+        Local callback
+      return
+  fun startCoroutine<ReferenceBox> @fn45(task: SuspendTask<ReferenceBox>, completion: Continuation<ReferenceBox>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn30 interface Continuation<ReferenceBox>[0]
+        Type Continuation<ReferenceBox>
+        Local completion
+        Type ReferenceBox
+        EnumField v0 f0
+          Type CoroutineStep<ReferenceBox>
+          Local $step
+      return
+    bb2 failed
+      call @fn31 interface Continuation<ReferenceBox>[1]
+        Type Continuation<ReferenceBox>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<ReferenceBox> = @fn32 interface SuspendTask<ReferenceBox>[0]
+        Type SuspendTask<ReferenceBox>
+        Local task
+        Type Continuation<ReferenceBox>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<ReferenceBox>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$lambda0.() -> Any @fn46($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.() -> Any @fn47($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.() -> Any @fn48($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$lambda3.() -> Any @fn49($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$anonymous0.() -> Any @fn50($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$anonymous1.() -> Any @fn51($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference0.() -> Any @fn52($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$reference1.() -> Any @fn53($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$reference2.() -> Any @fn54($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$reference3.() -> Any @fn55($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$reference4.() -> Any @fn56($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$reference5.() -> Any @fn57($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$reference6.() -> Any @fn58($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$reference7.() -> Any @fn59($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<ReferenceBox> result=ReferenceBox
+  coroutine_slot cl0 CoroutineSlot<ReferenceBox> value=ReferenceBox
+  coroutine_start ct0 result=ReferenceBox function=fn45
+  coroutine_fn cf0 @fn32 source_return=ReferenceBox step=cs0 immediate
+  instance mi0 function=@fn4 <- forwardReference
+  instance mi1 function=@fn5 <- forwardReference
+  instance mi2 function=@fn6 <- $lambda.0
+  instance mi3 function=@fn7 <- lambdaProvider
+  instance mi4 function=@fn8 <- $anonymous.0
+  instance mi5 function=@fn9 <- anonymousProvider
+  instance mi6 function=@fn10 <- closureBridge
+  instance mi7 function=@fn11 <- $lambda.0
+  instance mi8 function=@fn12 <- lambdaProvider
+  instance mi9 function=@fn13 <- $anonymous.0
+  instance mi10 function=@fn14 <- anonymousProvider
+  instance mi11 function=@fn15 <- closureBridge
+  instance mi12 function=@fn16 <- forwardLocal
+  instance mi13 function=@fn17 <- forwardLocal
+  instance mi14 function=@fn18 <- boundMember
+  instance mi15 function=@fn19 <- boundExtension
+  instance mi16 function=@fn20 <- referenceProvider
+  instance mi17 function=@fn21 <- referenceBridge
+  instance mi18 function=@fn22 <- referenceProvider
+  instance mi19 function=@fn23 <- referenceBridge
+  instance mi20 function=@fn24 <- $local.0.read
+  instance mi21 function=@fn25 <- $lambda.1
+  instance mi22 function=@fn26 <- localReference
+  instance mi23 function=@fn27 <- $local.0.read
+  instance mi24 function=@fn28 <- $lambda.1
+  instance mi25 function=@fn29 <- localReference
+  instance mi26 function=@fn30 <- Continuation.resume
+  instance mi27 function=@fn31 <- Continuation.resumeWithException
+  instance mi28 function=@fn32 <- SuspendTask.run
+  instance mi29 function=@fn33 <- SuspendRegistration.register
+  str @str0 "source"
+  str @str1 "kept"
+  str @str2 "ignored"
+  str @str3 "lambda"
+  str @str4 "ignored"
+  str @str5 "local"
+  str @str6 "ignored"
+  str @str7 "member"
+  str @str8 "unused"
+  str @str9 "extension"
+  str @str10 "unused"
+  output executable @fn3

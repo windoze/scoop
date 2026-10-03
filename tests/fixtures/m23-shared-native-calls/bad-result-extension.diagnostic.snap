@@ -1,3 +1,0 @@
-span=121..141
-expression=42.chooseExtension()
-body of `result` must be of type Int, found (Int, Int)

@@ -1,3 +1,0 @@
-span=64..85
-expression=Receiver<Int>(1).zero
-body of `wrong` must be of type Boolean, found Int

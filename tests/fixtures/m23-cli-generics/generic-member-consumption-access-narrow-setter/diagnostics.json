@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "visibility of `$set$state` does not cover inherited slot `ProtectedBox<T0>.$set$state`",
+    "notes": [],
+    "origin": {
+      "cone": "beabe025f8659fb69eb66be22c01a69c29905300fd715e1fd605af604ecf4571",
+      "end": 162,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 157
+    },
+    "severity": "error"
+  }
+]

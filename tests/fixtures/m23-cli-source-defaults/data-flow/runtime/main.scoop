@@ -1,0 +1,10 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    val host = FlowHost()
+    verifyDefault(host.scoped(7) == 7)
+    verifyDefault(host.check(FlowPair(11, 12)) == 11)
+    verifyDefault(host.generic(FlowPair("left", "right")) == "right")
+    verifyDefault(host.generic(FlowPair(13, 14)) == 14)
+}

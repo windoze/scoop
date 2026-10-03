@@ -23,11 +23,11 @@ pub(super) fn validate<A: InheritanceSlotContractSemanticAuthority<E>, E>(
     let schemas = graph
         .validate_slot_schemas(owner, authority)
         .map_err(Error::Schema)?;
-    let mut member = false;
-    for schema in schemas.schemas().records() {
-        member |= schema.slots().contains(&record.slot());
-    }
-    if !member {
+    if !schemas
+        .schemas()
+        .get(record.role())
+        .is_some_and(|schema| schema.slots().contains(&record.slot()))
+    {
         return Err(Error::SlotIdentity);
     }
     let root = declarations::validate(

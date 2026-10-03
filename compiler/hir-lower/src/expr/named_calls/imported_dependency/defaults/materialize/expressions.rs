@@ -379,19 +379,24 @@ impl Lowerer {
                 } else {
                     MemberCallKind::Ordinary
                 };
-                let receiver = self.materialize_imported_default_expression(receiver, context)?;
-                let receiver_type = receiver.ty;
-                let mut args = vec![receiver];
-                args.extend(self.materialize_imported_default_expressions(arguments, context)?);
-                self.imported_template_call_kind(
-                    callee,
-                    args,
-                    hir::SourceCallReceiver::Receiver {
-                        static_type: receiver_type,
+                let receiver =
+                    Box::new(self.materialize_imported_default_expression(receiver, context)?);
+                let callee = hir::MethodCallee::Callable(
+                    self.materialize_imported_callable_target(callee, kind, context)?,
+                );
+                let args = self.materialize_imported_default_expressions(arguments, context)?;
+                match kind {
+                    MemberCallKind::Ordinary => hir::ExprKind::MethodCall {
+                        receiver,
+                        callee,
+                        args,
                     },
-                    kind,
-                    context,
-                )?
+                    MemberCallKind::DirectSuper => hir::ExprKind::DirectSuperMethodCall {
+                        receiver,
+                        callee,
+                        args,
+                    },
+                }
             }
             Kind::MethodCall {
                 receiver,
@@ -404,67 +409,15 @@ impl Lowerer {
                 callee: self.materialize_imported_method_callee(callee, origin, context)?,
                 args: self.materialize_imported_default_expressions(arguments, context)?,
             },
-            Kind::PrimitiveBinary { kind, lhs, rhs } => hir::ExprKind::PrimitiveBinary {
-                kind: (*kind).into(),
-                lhs: Box::new(self.materialize_imported_default_expression(lhs, context)?),
-                rhs: Box::new(self.materialize_imported_default_expression(rhs, context)?),
-            },
-            Kind::PrimitiveUnary { kind, operand } => hir::ExprKind::PrimitiveUnary {
-                kind: (*kind).into(),
-                operand: Box::new(self.materialize_imported_default_expression(operand, context)?),
-            },
-            Kind::IntegerOperation {
-                operation,
-                arguments,
-            } => {
-                if matches!(operation, hir::DefaultIntegerOperationV1::Managed { .. }) {
-                    self.prepare_arithmetic_exception_type().map_err(|error| {
-                        ImportedDefaultMaterializationError::Plan(
-                            error.diagnostic("integer division exception type"),
-                        )
-                    })?;
-                }
-                hir::ExprKind::IntegerOperation {
-                    operation: (*operation).into(),
-                    arguments: match arguments {
-                        hir::DefaultIntegerArgumentsV1::Unary(operand) => {
-                            hir::HirIntegerOperationArguments::Unary(Box::new(
-                                self.materialize_imported_default_expression(operand, context)?,
-                            ))
-                        }
-                        hir::DefaultIntegerArgumentsV1::Binary { lhs, rhs } => {
-                            hir::HirIntegerOperationArguments::Binary {
-                                lhs: Box::new(
-                                    self.materialize_imported_default_expression(lhs, context)?,
-                                ),
-                                rhs: Box::new(
-                                    self.materialize_imported_default_expression(rhs, context)?,
-                                ),
-                            }
-                        }
-                    },
-                }
+            Kind::GlobalRead(property) => {
+                self.materialize_imported_global_read(*property, ty, span, origin)?
             }
-            Kind::IntegerConversion {
-                source_kind,
-                target_kind,
-                operand,
-            } => hir::ExprKind::IntegerConversion {
-                conversion: hir::IntegerConversion {
-                    source: (*source_kind).into(),
-                    target_kind: (*target_kind).into(),
-                },
-                operand: Box::new(self.materialize_imported_default_expression(operand, context)?),
-            },
-            Kind::Binary { operator, lhs, rhs } => hir::ExprKind::Binary {
-                op: (*operator).into(),
-                lhs: Box::new(self.materialize_imported_default_expression(lhs, context)?),
-                rhs: Box::new(self.materialize_imported_default_expression(rhs, context)?),
-            },
-            Kind::Unary { operator, operand } => hir::ExprKind::Unary {
-                op: (*operator).into(),
-                operand: Box::new(self.materialize_imported_default_expression(operand, context)?),
-            },
+            kind @ (Kind::PrimitiveBinary { .. }
+            | Kind::PrimitiveUnary { .. }
+            | Kind::IntegerOperation { .. }
+            | Kind::IntegerConversion { .. }
+            | Kind::Binary { .. }
+            | Kind::Unary { .. }) => self.materialize_imported_default_operator(kind, context)?,
             Kind::StringLiteral {
                 owner: hir::DefaultStringOwnerV1::Property(_),
                 ..
@@ -473,7 +426,6 @@ impl Lowerer {
             | Kind::ClassInit { .. }
             | Kind::VariantTest { .. }
             | Kind::VariantPayloadProject { .. }
-            | Kind::GlobalRead(_)
             | Kind::ForeignCallbackRegister { .. }
             | Kind::ForeignCallbackOperation { .. }
             | Kind::DirectSuperMethodCall { .. } => {

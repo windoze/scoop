@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m9-gc/errors/interface-variance-position.scoop:1:19: error: nominal type parameters are invariant; declaration-site `in`/`out` is not supported

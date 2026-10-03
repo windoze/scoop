@@ -1,8 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m22-integers/errors/const-composite-receiver-context.scoop:4:40: error: const operator operands must have the same type, found Int and Int8
-m22-integers/errors/const-composite-receiver-context.scoop:5:37: error: const initializer of `INVALID_OPERATOR` must be of type Int8, found Int
-m22-integers/errors/const-composite-receiver-context.scoop:6:35: error: const initializer of `INVALID_METHOD` must be of type Int8, found Int

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "cannot throw value of type Throwable: not a subtype of Throwable",
+    "notes": [],
+    "origin": {
+      "cone": "1105f2cb8c8275d84843ec9b61e9ec9f4db531dd96ef43d30c6b3b6af0e115fd",
+      "end": 84,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 73
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,59 @@
+schema = 1
+name = "program-link-native-library-required"
+inputs = ["cone", "../../m23-program-link/native-library-required.scoop", "../../m23-program-link/empty.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["program-link", "stage-golden", "native-link", "negative"]
+
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${fixture}/cone", "to" = "${work}/sources/native-library-required"}}, {"copy" = {"from" = "${fixture}/../../m23-program-link/native-library-required.scoop", "to" = "${work}/sources/native-library-required/src/main.scoop"}}, {"mkdir" = {"path" = "${work}/native"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "control_source"
+files = [{"copy" = {"from" = "${fixture}/../../m23-program-link/empty.scoop", "to" = "${work}/sources/native-library-required/src/main.scoop"}}]
+checks = []
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${work}/sources/native-library-required", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-build", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-build", "--dump-scope", "sources"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"file" = "${work}/dump-build/${build.result.root.identity}/ast.txt", "snapshot" = "build.ast.txt"}, {"file" = "${work}/dump-build/${build.result.root.identity}/hir.txt", "snapshot" = "build.hir.txt"}, {"file" = "${work}/dump-build/${build.result.root.identity}/mir.txt", "snapshot" = "build.mir.txt"}, {"file" = "${work}/dump-build/${build.result.root.identity}/lir.txt", "snapshot" = "build.lir.txt"}]
+
+[[steps]]
+name = "restore_native_declaration"
+files = [{"copy" = {"from" = "${fixture}/../../m23-program-link/native-library-required.scoop", "to" = "${work}/sources/native-library-required/src/main.scoop"}}]
+checks = []
+
+[[steps]]
+name = "recompile"
+argv = ["${scoopc}", "build", "${work}/sources/native-library-required", "--target", "${target}", "--sysroot", "${sysroot}", "--direct-slib", "${build.result.dependencies.0.path}", "--out-slib", "${work}/replacement.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "isolate"
+files = [{"copy" = {"from" = "${work}/replacement.slib", "to" = "${work}/artifacts/root.slib"}}, {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}}, {"mkdir" = {"path" = "${work}/empty-sysroot"}}, {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}}, {"remove" = {"path" = "${work}/sources"}}]
+checks = []
+
+[[steps]]
+name = "previous_reject"
+files = [{"write" = {"path" = "${work}/program", "data" = "previous executable"}}]
+checks = []
+
+[[steps]]
+name = "reject"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "reject.json"}
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"file" = "${work}/program", "equals" = "previous executable"}]

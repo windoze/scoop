@@ -1,0 +1,1406 @@
+Module
+  struct Token ()
+  struct Other ()
+  struct Wide (first: Long, second: Long, third: Long, marker: Token)
+  struct TupleOps ()
+  struct TupleBox (elements: (Token, (Long, Long, Long), Token))
+  struct TupleMarker (elements: (Token, Token))
+  enum TupleChoice
+    Empty()
+    Full(_1: (Long, Token, Long))
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Token>
+    Completed(value: Token)
+    Suspended()
+  enum CoroutineSlot<Token>
+    Empty()
+    Value(value: Token)
+  enum CoroutineStep<TupleChoice>
+    Completed(value: TupleChoice)
+    Suspended()
+  enum CoroutineSlot<TupleChoice>
+    Empty()
+    Value(value: TupleChoice)
+  enum CoroutineStep<Wide>
+    Completed(value: Wide)
+    Suspended()
+  enum CoroutineSlot<Wide>
+    Empty()
+    Value(value: Wide)
+  enum CoroutineStep<TupleMarker>
+    Completed(value: TupleMarker)
+    Suspended()
+  enum CoroutineSlot<TupleMarker>
+    Empty()
+    Value(value: TupleMarker)
+  enum CoroutineStep<TupleOps>
+    Completed(value: TupleOps)
+    Suspended()
+  enum CoroutineSlot<TupleOps>
+    Empty()
+    Value(value: TupleOps)
+  enum CoroutineStep<TupleBox>
+    Completed(value: TupleBox)
+    Suspended()
+  enum CoroutineSlot<TupleBox>
+    Empty()
+    Value(value: TupleBox)
+  enum CoroutineStep<Other>
+    Completed(value: Other)
+    Suspended()
+  enum CoroutineSlot<Other>
+    Empty()
+    Value(value: Other)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Token> vtable=0 itables=0
+  class box<TupleChoice> vtable=0 itables=0
+  class box<Wide> vtable=0 itables=0
+  class box<TupleMarker> vtable=0 itables=0
+  class box<TupleOps> vtable=0 itables=0
+  class box<TupleBox> vtable=0 itables=0
+  class box<Other> vtable=0 itables=0
+  interface Continuation<Token>
+  interface SuspendTask<Token>
+  interface SuspendRegistration<Token>
+  interface Continuation<Other>
+  interface SuspendTask<Other>
+  interface SuspendRegistration<Other>
+  interface Continuation<Wide>
+  interface SuspendTask<Wide>
+  interface SuspendRegistration<Wide>
+  interface Continuation<TupleOps>
+  interface SuspendTask<TupleOps>
+  interface SuspendRegistration<TupleOps>
+  interface Continuation<TupleBox>
+  interface SuspendTask<TupleBox>
+  interface SuspendRegistration<TupleBox>
+  interface Continuation<TupleMarker>
+  interface SuspendTask<TupleMarker>
+  interface SuspendRegistration<TupleMarker>
+  interface Continuation<TupleChoice>
+  interface SuspendTask<TupleChoice>
+  interface SuspendRegistration<TupleChoice>
+  generated_exact_type get0 location=enum2 nominal_id=bad20a787acbd72422a65e84c349d3d3b9993b8e6ce83b042da8866275f19ee5 exact_id=106ca4cb50b8f7d7ef1c1974c76c953d6d0ac9190fe797d6b96bb0b809682215
+  generated_exact_type get1 location=enum12 nominal_id=cab0e190cd9c3ed22c3221df428e915595e65017db3d62f4bc0184d7a4030398 exact_id=10afae6c951ec27a98a82cf61a2674db05d5584121b3c218463b9a32be6f7d99
+  generated_exact_type get2 location=enum6 nominal_id=f00a5246168693b3d2d1f2c1ff808afa076a5af971d23c530cc7b090b337d4da exact_id=17496e82a96fe0b5abd9ca51db842c63c72543f013b40b9d911d9e0f5ab840eb
+  generated_exact_type get3 location=enum11 nominal_id=61d04bc7ad87788fa5df8f3d1816e2171b44feee2aead889e67188196bf25341 exact_id=38bf17c9e1b2a6cf500ea63d2f22c285e9e5c9f4be4514331f7ac34d30e3264c
+  generated_exact_type get4 location=class6 nominal_id=be970409ac08ab5c5626f52b1052ed18847db6d9c6294bfbd311012cc61c054d exact_id=43ef14d6eb69e283652f2fc06bfd38f404362e535d830d70f82e53e19ab02406
+  generated_exact_type get5 location=enum5 nominal_id=62df0fcf23a59735f2f94bda8a355f8f63f8e037e0b8058cfeeadc3088f69414 exact_id=49a97879815d67157733563311573bc8f5f843cbf8f3223eb14cea6f453cf48d
+  generated_exact_type get6 location=enum14 nominal_id=9313736a5c6104175626fef5513ed45e248f1f1cc77f9e24f0faae405b6c625c exact_id=5f51f553db17f59057a3f361103bdf617a1173d33f0b3d262e5d81d795b1130a
+  generated_exact_type get7 location=enum3 nominal_id=0ca04f88dadf9eb61ba3f291bb6110dace6bf03930efdfcb57bd82c61c1dcbca exact_id=64f1dff088488a154ada8587c4c9a29a4b8fe1013ed35e202342db539e53b5fb
+  generated_exact_type get8 location=class7 nominal_id=fa5a439bfca6b04d73f4125c9c66f41fed8630645a418be119af6248f6c0dbcf exact_id=6cf8bc08e0826db1b46421bae7f52e92963135119b64ba4ee6394c96197265a4
+  generated_exact_type get9 location=class5 nominal_id=de06d5275f188604f8fe7833936f93b29f6ccb0e517d38ff325dce3df1a22cb0 exact_id=6f7e29ce83af8554c5c6c9e50267048f2138ac73e8609f69da2ee02276bf9695
+  generated_exact_type get10 location=class3 nominal_id=2e4c1dad8b1c1995cc1e9d80cbf6c9aa249afb267cead034328e1b48084013e9 exact_id=7c33239c52ece9c4d01db823cbaccf7db014834b07108f45592cc19808b5b880
+  generated_exact_type get11 location=enum15 nominal_id=f2e6426661e35a5e5b9d77a1fccae460aab32fb27d1d59f319c803df7a617399 exact_id=86e66088e859d5aa1fd181de663a988d81ab3735ec1b4428890af1441730f38a
+  generated_exact_type get12 location=enum8 nominal_id=8550ed0fa6e7bb749d0c472f542aa23c7fa64b4f68089d52570e1fede92f6dd2 exact_id=9069490e6e7483796f15ba2692b4187f842e1e95194452ff6050fdd36f7c4916
+  generated_exact_type get13 location=class9 nominal_id=ba4ba3e62134b607cc6a57283b747c0d7bf43e7b3fb289f0884a8007487105c1 exact_id=9412788c9fafb8f1753985d4a5f9c29f85c42044e42fefe37f09feb6e4290acd
+  generated_exact_type get14 location=class4 nominal_id=476bc5f2061e26657fcc3e3aa194898cde4c1d0de01dd7ef01397db76d96308e exact_id=98663ad81fec1cf57dc2fea2832b896142d91b0746ef51a6b0b69c53c33ec487
+  generated_exact_type get15 location=class8 nominal_id=65edbee90b448135c62a719c1c1a95882f87778f5f9164c4e4be643b42f33740 exact_id=a5d8bdd2ab5c9a699c1766708e5250e0df24a0638af480eb897b7d02b5c8140f
+  generated_exact_type get16 location=enum9 nominal_id=b4d2fb8c55929e15b81b2533128435b8c42271d545339b03ec53d5ca51f9e43b exact_id=b2a9b3a5fb26e8f6abf809118a38ec037dcd2c9182e19bb15c611add11b08eb3
+  generated_exact_type get17 location=enum7 nominal_id=8452786b8f034676c57ca266dfc1d9ab80a983ad883d3784eab512cf386103b4 exact_id=d16001f327401f26a798c4adb0b86fba811f695e580058341ab542de2b67f729
+  generated_exact_type get18 location=enum10 nominal_id=2c277900b34def2ceea3cc99d8b98b3ade6c1842274d4f5fac79fb563d7b65b9 exact_id=d4a9a9892a173bbe5ab62f5d381496ceb11ad1b631209971c7d774bf310b3bc6
+  generated_exact_type get19 location=enum13 nominal_id=6c4b9a4f30b6c29db7fdcf428097d5f6419715eb2c0d53243f421daf3c0ea89d exact_id=dc24b643c6c359de67616dbf5916f099bc8deedac43097bd49f30173147cbd56
+  generated_exact_type get20 location=enum4 nominal_id=513c533b83d4d422fbc15ffb7ca6edc843e335d10033673e42410929574e7726 exact_id=f829fec63096df2731044d444c676f5acd4ff54752faf50650dd8b215f26af7d
+  generated_callable gc0 function=@fn59 id=00f5b0b5086bc1e1d00e21ea919f17fd8a0f6da612980f8a0f2862da56befa8b
+  generated_callable gc1 function=@fn58 id=51a2b8fe5ec8a5f580cac5a6e3e61c14303f39410c30ef94488c460c031b4353
+  generated_callable gc2 function=@fn60 id=569d9258447f89743dd3d9663d70525691a7679b5fcc26c2c5d5b95003cb6bfe
+  generated_callable gc3 function=@fn63 id=6f0262ed8995779bccd85820e24cbbf070aca97660edb3749b331783cf6cefbe
+  generated_callable gc4 function=@fn62 id=7e0d2d026cb85ed22e9f4792a242b346c7560fbda8cd9a526505c5f32afa9ce7
+  generated_callable gc5 function=@fn64 id=c559e1bcd2d51aad04c0f83cc9822a1e1acea7aa75be5b61795f78fb207fdad3
+  generated_callable gc6 function=@fn61 id=e53800ae4acb7f0acee1b505c4e25c7529a4d6a94118f4262e35864c227975f6
+  fun Token.equals @fn0(this: Token, other: Token) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun Other.equals @fn1(this: Other, other: Other) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun Wide.sum @fn2(this: Wide) -> Long <no-gc>
+    bb0 entry
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 0
+          Type Wide
+          Local this
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 1
+          Type Wide
+          Local this
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 2
+          Type Wide
+          Local this
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+  fun Wide.equals @fn3(this: Wide, other: Wide) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          FieldAccess 0
+            Type Wide
+            Local this
+          Type Long
+          FieldAccess 0
+            Type Wide
+            Local other
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          FieldAccess 1
+            Type Wide
+            Local this
+          Type Long
+          FieldAccess 1
+            Type Wide
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 logic.rhs.4
+      assign $logic.2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          FieldAccess 2
+            Type Wide
+            Local this
+          Type Long
+          FieldAccess 2
+            Type Wide
+            Local other
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 logic.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $logic.2
+    bb7 logic.rhs.7
+      call $call.4: Boolean = @fn0 direct
+        Type Token
+        FieldAccess 3
+          Type Wide
+          Local this
+        Type Token
+        FieldAccess 3
+          Type Wide
+          Local other
+      assign $logic.3
+        Type Boolean
+        Local $call.4
+      goto bb9
+    bb8 logic.short.8
+      assign $logic.3
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 logic.merge.9
+      return
+        Type Boolean
+        Local $logic.3
+  fun TupleOps.nested @fn4(this: TupleOps, value: (Token, (Long, Long, Long), Token)) -> (Token, (Long, Long, Long), Token) <no-gc>
+    bb0 entry
+      return
+        Type (Token, (Long, Long, Long), Token)
+        Local value
+  fun TupleOps.sum @fn5(this: TupleOps, value: (Long, Token, Long)) -> Long <no-gc>
+    bb0 entry
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 0
+          Type (Long, Token, Long)
+          Local value
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 2
+          Type (Long, Token, Long)
+          Local value
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+  fun TupleOps.$get$pair @fn6(this: TupleOps) -> (Long, Token, Long) <no-gc>
+    bb0 entry
+      call $call.1: Token = @fn48 direct
+      return
+        Type (Long, Token, Long)
+        TupleLiteral
+          Type Long
+          IntegerLiteral Long value=3 bits=0x0000000000000003
+          Type Token
+          Local $call.1
+          Type Long
+          IntegerLiteral Long value=9 bits=0x0000000000000009
+  fun TupleOps.equals @fn7(this: TupleOps, other: TupleOps) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun TupleBox.equals @fn8(this: TupleBox, other: TupleBox) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn10 direct
+        Type (Token, (Long, Long, Long), Token)
+        FieldAccess 0
+          Type TupleBox
+          Local this
+        Type (Token, (Long, Long, Long), Token)
+        FieldAccess 0
+          Type TupleBox
+          Local other
+      return
+        Type Boolean
+        Local $call.1
+  fun $derived.equals.4 @fn9(this: (Long, Long, Long), other: (Long, Long, Long)) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          FieldAccess 0
+            Type (Long, Long, Long)
+            Local this
+          Type Long
+          FieldAccess 0
+            Type (Long, Long, Long)
+            Local other
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          FieldAccess 1
+            Type (Long, Long, Long)
+            Local this
+          Type Long
+          FieldAccess 1
+            Type (Long, Long, Long)
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 logic.rhs.4
+      assign $logic.2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          FieldAccess 2
+            Type (Long, Long, Long)
+            Local this
+          Type Long
+          FieldAccess 2
+            Type (Long, Long, Long)
+            Local other
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 logic.merge.6
+      return
+        Type Boolean
+        Local $logic.2
+  fun $derived.equals.5 @fn10(this: (Token, (Long, Long, Long), Token), other: (Token, (Long, Long, Long), Token)) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn0 direct
+        Type Token
+        FieldAccess 0
+          Type (Token, (Long, Long, Long), Token)
+          Local this
+        Type Token
+        FieldAccess 0
+          Type (Token, (Long, Long, Long), Token)
+          Local other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 logic.rhs.1
+      call $call.3: Boolean = @fn9 direct
+        Type (Long, Long, Long)
+        FieldAccess 1
+          Type (Token, (Long, Long, Long), Token)
+          Local this
+        Type (Long, Long, Long)
+        FieldAccess 1
+          Type (Token, (Long, Long, Long), Token)
+          Local other
+      assign $logic.2
+        Type Boolean
+        Local $call.3
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.2
+    bb4 logic.rhs.4
+      call $call.5: Boolean = @fn0 direct
+        Type Token
+        FieldAccess 2
+          Type (Token, (Long, Long, Long), Token)
+          Local this
+        Type Token
+        FieldAccess 2
+          Type (Token, (Long, Long, Long), Token)
+          Local other
+      assign $logic.4
+        Type Boolean
+        Local $call.5
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.4
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 logic.merge.6
+      return
+        Type Boolean
+        Local $logic.4
+  fun TupleMarker.equals @fn11(this: TupleMarker, other: TupleMarker) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn12 direct
+        Type (Token, Token)
+        FieldAccess 0
+          Type TupleMarker
+          Local this
+        Type (Token, Token)
+        FieldAccess 0
+          Type TupleMarker
+          Local other
+      return
+        Type Boolean
+        Local $call.1
+  fun $derived.equals.7 @fn12(this: (Token, Token), other: (Token, Token)) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn0 direct
+        Type Token
+        FieldAccess 0
+          Type (Token, Token)
+          Local this
+        Type Token
+        FieldAccess 0
+          Type (Token, Token)
+          Local other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 logic.rhs.1
+      call $call.3: Boolean = @fn0 direct
+        Type Token
+        FieldAccess 1
+          Type (Token, Token)
+          Local this
+        Type Token
+        FieldAccess 1
+          Type (Token, Token)
+          Local other
+      assign $logic.2
+        Type Boolean
+        Local $call.3
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.2
+  fun TupleChoice.equals @fn13(this: TupleChoice, other: TupleChoice) -> Boolean
+    bb0 entry
+      val $when.1: TupleChoice
+        Type TupleChoice
+        Local this
+      val $pattern.subject.2: TupleChoice
+        Type TupleChoice
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest TupleChoice v0
+          Type TupleChoice
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $when.3: TupleChoice
+        Type TupleChoice
+        Local other
+      val $pattern.subject.4: TupleChoice
+        Type TupleChoice
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest TupleChoice v0
+          Type TupleChoice
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: TupleChoice
+        Type TupleChoice
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest TupleChoice v1
+          Type TupleChoice
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      return
+        Type Boolean
+        BoolLiteral true
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $left.1.0: (Long, Token, Long)
+        Type (Long, Token, Long)
+        VariantPayloadProject TupleChoice v1 f0
+          Type TupleChoice
+          Local $pattern.subject.5
+      val $when.6: TupleChoice
+        Type TupleChoice
+        Local other
+      val $pattern.subject.7: TupleChoice
+        Type TupleChoice
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest TupleChoice v1
+          Type TupleChoice
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      val $right.1.0: (Long, Token, Long)
+        Type (Long, Token, Long)
+        VariantPayloadProject TupleChoice v1 f0
+          Type TupleChoice
+          Local $pattern.subject.7
+      call $call.1: Boolean = @fn14 direct
+        Type (Long, Token, Long)
+        Local $left.1.0
+        Type (Long, Token, Long)
+        Local $right.1.0
+      return
+        Type Boolean
+        Local $call.1
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+  fun $derived.equals.9 @fn14(this: (Long, Token, Long), other: (Long, Token, Long)) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          FieldAccess 0
+            Type (Long, Token, Long)
+            Local this
+          Type Long
+          FieldAccess 0
+            Type (Long, Token, Long)
+            Local other
+    bb1 logic.rhs.1
+      call $call.2: Boolean = @fn0 direct
+        Type Token
+        FieldAccess 1
+          Type (Long, Token, Long)
+          Local this
+        Type Token
+        FieldAccess 1
+          Type (Long, Token, Long)
+          Local other
+      assign $logic.1
+        Type Boolean
+        Local $call.2
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 logic.rhs.4
+      assign $logic.3
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          FieldAccess 2
+            Type (Long, Token, Long)
+            Local this
+          Type Long
+          FieldAccess 2
+            Type (Long, Token, Long)
+            Local other
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.3
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 logic.merge.6
+      return
+        Type Boolean
+        Local $logic.3
+  fun defaultWide @fn15(value: Wide) -> Long <no-gc>
+    bb0 entry
+      val $receiver: Wide
+        Type Wide
+        Local value
+      call $call.1: Long = @fn2 direct
+        Type Wide
+        Local $receiver
+      return
+        Type Long
+        Local $call.1
+  fun tupleIdentity @fn16(value: (Long, Token, Long)) -> (Long, Token, Long) <no-gc>
+    bb0 entry
+      return
+        Type (Long, Token, Long)
+        Local value
+  fun tupleDefault @fn17(value: (Long, Token, Long)) -> Long <no-gc>
+    bb0 entry
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 0
+          Type (Long, Token, Long)
+          Local value
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 2
+          Type (Long, Token, Long)
+          Local value
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+  fun tupleProjection @fn18(value: (Long, Token, Long), selected: Long) -> Long <no-gc>
+    bb0 entry
+      return
+        Type Long
+        Local selected
+  fun tupleChoiceSum @fn19(value: (Long, Token, Long)) -> Long <no-gc>
+    bb0 entry
+      val $argument.0: (Long, Token, Long)
+        Type (Long, Token, Long)
+        Local value
+      val $parameter._1: (Long, Token, Long)
+        Type (Long, Token, Long)
+        Local $argument.0
+      val choice: TupleChoice
+        Type TupleChoice
+        VariantConstruct TupleChoice v1
+          Type (Long, Token, Long)
+          Local $parameter._1
+      val $when.1: TupleChoice
+        Type TupleChoice
+        Local choice
+      val $pattern.subject.2: TupleChoice
+        Type TupleChoice
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest TupleChoice v0
+          Type TupleChoice
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $result.0
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: TupleChoice
+        Type TupleChoice
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest TupleChoice v1
+          Type TupleChoice
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Long
+        Local $result.0
+    bb4 pattern.pass.4
+      val fields: (Long, Token, Long)
+        Type (Long, Token, Long)
+        VariantPayloadProject TupleChoice v1 f0
+          Type TupleChoice
+          Local $pattern.subject.3
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 0
+          Type (Long, Token, Long)
+          Local fields
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 2
+          Type (Long, Token, Long)
+          Local fields
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $result.0
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun Continuation.resume @fn20(this: Continuation<Token>, value: Token) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn21(this: Continuation<Token>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn22(this: SuspendTask<Token>, $completion: Continuation<Token>) -> CoroutineStep<Token>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn23(this: SuspendRegistration<Token>, continuation: Continuation<Token>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn24(this: Continuation<Other>, value: Other) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn25(this: Continuation<Other>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn26(this: SuspendTask<Other>, $completion: Continuation<Other>) -> CoroutineStep<Other>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn27(this: SuspendRegistration<Other>, continuation: Continuation<Other>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn28(this: Continuation<Wide>, value: Wide) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn29(this: Continuation<Wide>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn30(this: SuspendTask<Wide>, $completion: Continuation<Wide>) -> CoroutineStep<Wide>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn31(this: SuspendRegistration<Wide>, continuation: Continuation<Wide>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn32(this: Continuation<TupleOps>, value: TupleOps) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn33(this: Continuation<TupleOps>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn34(this: SuspendTask<TupleOps>, $completion: Continuation<TupleOps>) -> CoroutineStep<TupleOps>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn35(this: SuspendRegistration<TupleOps>, continuation: Continuation<TupleOps>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn36(this: Continuation<TupleBox>, value: TupleBox) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn37(this: Continuation<TupleBox>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn38(this: SuspendTask<TupleBox>, $completion: Continuation<TupleBox>) -> CoroutineStep<TupleBox>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn39(this: SuspendRegistration<TupleBox>, continuation: Continuation<TupleBox>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn40(this: Continuation<TupleMarker>, value: TupleMarker) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn41(this: Continuation<TupleMarker>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn42(this: SuspendTask<TupleMarker>, $completion: Continuation<TupleMarker>) -> CoroutineStep<TupleMarker>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn43(this: SuspendRegistration<TupleMarker>, continuation: Continuation<TupleMarker>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn44(this: Continuation<TupleChoice>, value: TupleChoice) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn45(this: Continuation<TupleChoice>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn46(this: SuspendTask<TupleChoice>, $completion: Continuation<TupleChoice>) -> CoroutineStep<TupleChoice>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn47(this: SuspendRegistration<TupleChoice>, continuation: Continuation<TupleChoice>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.Token.$c0 @fn48() -> Token <no-gc>
+    bb0 entry
+      return
+        Type Token
+        StructInit Token
+  fun ctor.Other.$c1 @fn49() -> Other <no-gc>
+    bb0 entry
+      return
+        Type Other
+        StructInit Other
+  fun ctor.Wide.$c2 @fn50(first: Long, second: Long, third: Long, marker: Token) -> Wide <no-gc>
+    bb0 entry
+      return
+        Type Wide
+        StructInit Wide
+          Type Long
+          Local first
+          Type Long
+          Local second
+          Type Long
+          Local third
+          Type Token
+          Local marker
+  fun ctor.Wide.$c3 @fn51(seed: Long, step: Long) -> Wide <no-gc>
+    bb0 entry
+      val $argument.0: Long
+        Type Long
+        Local seed
+      val $dependency.receiver: Long
+        Type Long
+        Local seed
+      val $dependency.argument.0: Long
+        Type Long
+        Local step
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $argument.1: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.receiver: Long
+        Type Long
+        Local seed
+      val $dependency.argument.0: Long
+        Type Long
+        Local step
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Long
+        Type Long
+        Local step
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $argument.2: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      call $argument.3: Token = @fn48 direct
+      val $parameter.first: Long
+        Type Long
+        Local $argument.0
+      val $parameter.second: Long
+        Type Long
+        Local $argument.1
+      val $parameter.third: Long
+        Type Long
+        Local $argument.2
+      val $parameter.marker: Token
+        Type Token
+        Local $argument.3
+      call $this: Wide = @fn50 direct
+        Type Long
+        Local $parameter.first
+        Type Long
+        Local $parameter.second
+        Type Long
+        Local $parameter.third
+        Type Token
+        Local $parameter.marker
+      return
+        Type Wide
+        Local $this
+  fun ctor.Wide.$c4 @fn52(values: (Token, (Long, Long, Long), Token)) -> Wide <no-gc>
+    bb0 entry
+      val $argument.0: Long
+        Type Long
+        FieldAccess 0
+          Type (Long, Long, Long)
+          FieldAccess 1
+            Type (Token, (Long, Long, Long), Token)
+            Local values
+      val $argument.1: Long
+        Type Long
+        FieldAccess 1
+          Type (Long, Long, Long)
+          FieldAccess 1
+            Type (Token, (Long, Long, Long), Token)
+            Local values
+      val $argument.2: Long
+        Type Long
+        FieldAccess 2
+          Type (Long, Long, Long)
+          FieldAccess 1
+            Type (Token, (Long, Long, Long), Token)
+            Local values
+      val $argument.3: Token
+        Type Token
+        FieldAccess 0
+          Type (Token, (Long, Long, Long), Token)
+          Local values
+      val $parameter.first: Long
+        Type Long
+        Local $argument.0
+      val $parameter.second: Long
+        Type Long
+        Local $argument.1
+      val $parameter.third: Long
+        Type Long
+        Local $argument.2
+      val $parameter.marker: Token
+        Type Token
+        Local $argument.3
+      call $this: Wide = @fn50 direct
+        Type Long
+        Local $parameter.first
+        Type Long
+        Local $parameter.second
+        Type Long
+        Local $parameter.third
+        Type Token
+        Local $parameter.marker
+      return
+        Type Wide
+        Local $this
+  fun ctor.Wide.$c5 @fn53(token: Token) -> Wide <no-gc>
+    bb0 entry
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $argument.1: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $argument.2: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      val $argument.3: Token
+        Type Token
+        Local token
+      val $parameter.first: Long
+        Type Long
+        Local $argument.0
+      val $parameter.second: Long
+        Type Long
+        Local $argument.1
+      val $parameter.third: Long
+        Type Long
+        Local $argument.2
+      val $parameter.marker: Token
+        Type Token
+        Local $argument.3
+      call $this: Wide = @fn50 direct
+        Type Long
+        Local $parameter.first
+        Type Long
+        Local $parameter.second
+        Type Long
+        Local $parameter.third
+        Type Token
+        Local $parameter.marker
+      return
+        Type Wide
+        Local $this
+  fun ctor.Wide.$c6 @fn54(flag: Boolean) -> Wide
+    bb0 entry
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $argument.1: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $argument.2: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      call $argument.3: Token = @fn48 direct
+      val $parameter.first: Long
+        Type Long
+        Local $argument.0
+      val $parameter.second: Long
+        Type Long
+        Local $argument.1
+      val $parameter.third: Long
+        Type Long
+        Local $argument.2
+      val $parameter.marker: Token
+        Type Token
+        Local $argument.3
+      call $this: Wide = @fn50 direct
+        Type Long
+        Local $parameter.first
+        Type Long
+        Local $parameter.second
+        Type Long
+        Local $parameter.third
+        Type Token
+        Local $parameter.marker
+      return
+        Type Wide
+        Local $this
+  fun ctor.TupleOps.$c7 @fn55() -> TupleOps <no-gc>
+    bb0 entry
+      return
+        Type TupleOps
+        StructInit TupleOps
+  fun ctor.TupleBox.$c8 @fn56(elements: (Token, (Long, Long, Long), Token)) -> TupleBox <no-gc>
+    bb0 entry
+      return
+        Type TupleBox
+        StructInit TupleBox
+          Type (Token, (Long, Long, Long), Token)
+          Local elements
+  fun ctor.TupleMarker.$c9 @fn57(elements: (Token, Token)) -> TupleMarker <no-gc>
+    bb0 entry
+      return
+        Type TupleMarker
+        StructInit TupleMarker
+          Type (Token, Token)
+          Local elements
+  fun startCoroutine<Token> @fn58(task: SuspendTask<Token>, completion: Continuation<Token>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn20 interface Continuation<Token>[0]
+        Type Continuation<Token>
+        Local completion
+        Type Token
+        EnumField v0 f0
+          Type CoroutineStep<Token>
+          Local $step
+      return
+    bb2 failed
+      call @fn21 interface Continuation<Token>[1]
+        Type Continuation<Token>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Token> = @fn22 interface SuspendTask<Token>[0]
+        Type SuspendTask<Token>
+        Local task
+        Type Continuation<Token>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Token>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<TupleChoice> @fn59(task: SuspendTask<TupleChoice>, completion: Continuation<TupleChoice>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn44 interface Continuation<TupleChoice>[0]
+        Type Continuation<TupleChoice>
+        Local completion
+        Type TupleChoice
+        EnumField v0 f0
+          Type CoroutineStep<TupleChoice>
+          Local $step
+      return
+    bb2 failed
+      call @fn45 interface Continuation<TupleChoice>[1]
+        Type Continuation<TupleChoice>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<TupleChoice> = @fn46 interface SuspendTask<TupleChoice>[0]
+        Type SuspendTask<TupleChoice>
+        Local task
+        Type Continuation<TupleChoice>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<TupleChoice>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Wide> @fn60(task: SuspendTask<Wide>, completion: Continuation<Wide>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn28 interface Continuation<Wide>[0]
+        Type Continuation<Wide>
+        Local completion
+        Type Wide
+        EnumField v0 f0
+          Type CoroutineStep<Wide>
+          Local $step
+      return
+    bb2 failed
+      call @fn29 interface Continuation<Wide>[1]
+        Type Continuation<Wide>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Wide> = @fn30 interface SuspendTask<Wide>[0]
+        Type SuspendTask<Wide>
+        Local task
+        Type Continuation<Wide>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Wide>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<TupleMarker> @fn61(task: SuspendTask<TupleMarker>, completion: Continuation<TupleMarker>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn40 interface Continuation<TupleMarker>[0]
+        Type Continuation<TupleMarker>
+        Local completion
+        Type TupleMarker
+        EnumField v0 f0
+          Type CoroutineStep<TupleMarker>
+          Local $step
+      return
+    bb2 failed
+      call @fn41 interface Continuation<TupleMarker>[1]
+        Type Continuation<TupleMarker>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<TupleMarker> = @fn42 interface SuspendTask<TupleMarker>[0]
+        Type SuspendTask<TupleMarker>
+        Local task
+        Type Continuation<TupleMarker>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<TupleMarker>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<TupleOps> @fn62(task: SuspendTask<TupleOps>, completion: Continuation<TupleOps>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn32 interface Continuation<TupleOps>[0]
+        Type Continuation<TupleOps>
+        Local completion
+        Type TupleOps
+        EnumField v0 f0
+          Type CoroutineStep<TupleOps>
+          Local $step
+      return
+    bb2 failed
+      call @fn33 interface Continuation<TupleOps>[1]
+        Type Continuation<TupleOps>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<TupleOps> = @fn34 interface SuspendTask<TupleOps>[0]
+        Type SuspendTask<TupleOps>
+        Local task
+        Type Continuation<TupleOps>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<TupleOps>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<TupleBox> @fn63(task: SuspendTask<TupleBox>, completion: Continuation<TupleBox>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn36 interface Continuation<TupleBox>[0]
+        Type Continuation<TupleBox>
+        Local completion
+        Type TupleBox
+        EnumField v0 f0
+          Type CoroutineStep<TupleBox>
+          Local $step
+      return
+    bb2 failed
+      call @fn37 interface Continuation<TupleBox>[1]
+        Type Continuation<TupleBox>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<TupleBox> = @fn38 interface SuspendTask<TupleBox>[0]
+        Type SuspendTask<TupleBox>
+        Local task
+        Type Continuation<TupleBox>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<TupleBox>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Other> @fn64(task: SuspendTask<Other>, completion: Continuation<Other>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn24 interface Continuation<Other>[0]
+        Type Continuation<Other>
+        Local completion
+        Type Other
+        EnumField v0 f0
+          Type CoroutineStep<Other>
+          Local $step
+      return
+    bb2 failed
+      call @fn25 interface Continuation<Other>[1]
+        Type Continuation<Other>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Other> = @fn26 interface SuspendTask<Other>[0]
+        Type SuspendTask<Other>
+        Local task
+        Type Continuation<Other>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Other>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Token> result=Token
+  coroutine_step cs1 CoroutineStep<TupleChoice> result=TupleChoice
+  coroutine_step cs2 CoroutineStep<Wide> result=Wide
+  coroutine_step cs3 CoroutineStep<TupleMarker> result=TupleMarker
+  coroutine_step cs4 CoroutineStep<TupleOps> result=TupleOps
+  coroutine_step cs5 CoroutineStep<TupleBox> result=TupleBox
+  coroutine_step cs6 CoroutineStep<Other> result=Other
+  coroutine_slot cl0 CoroutineSlot<Token> value=Token
+  coroutine_slot cl1 CoroutineSlot<TupleChoice> value=TupleChoice
+  coroutine_slot cl2 CoroutineSlot<Wide> value=Wide
+  coroutine_slot cl3 CoroutineSlot<TupleMarker> value=TupleMarker
+  coroutine_slot cl4 CoroutineSlot<TupleOps> value=TupleOps
+  coroutine_slot cl5 CoroutineSlot<TupleBox> value=TupleBox
+  coroutine_slot cl6 CoroutineSlot<Other> value=Other
+  coroutine_start ct0 result=Token function=fn58
+  coroutine_start ct1 result=TupleChoice function=fn59
+  coroutine_start ct2 result=Wide function=fn60
+  coroutine_start ct3 result=TupleMarker function=fn61
+  coroutine_start ct4 result=TupleOps function=fn62
+  coroutine_start ct5 result=TupleBox function=fn63
+  coroutine_start ct6 result=Other function=fn64
+  coroutine_fn cf0 @fn22 source_return=Token step=cs0 immediate
+  coroutine_fn cf1 @fn26 source_return=Other step=cs6 immediate
+  coroutine_fn cf2 @fn30 source_return=Wide step=cs2 immediate
+  coroutine_fn cf3 @fn34 source_return=TupleOps step=cs4 immediate
+  coroutine_fn cf4 @fn38 source_return=TupleBox step=cs5 immediate
+  coroutine_fn cf5 @fn42 source_return=TupleMarker step=cs3 immediate
+  coroutine_fn cf6 @fn46 source_return=TupleChoice step=cs1 immediate
+  instance mi0 function=@fn20 <- Continuation.resume
+  instance mi1 function=@fn21 <- Continuation.resumeWithException
+  instance mi2 function=@fn22 <- SuspendTask.run
+  instance mi3 function=@fn23 <- SuspendRegistration.register
+  instance mi4 function=@fn24 <- Continuation.resume
+  instance mi5 function=@fn25 <- Continuation.resumeWithException
+  instance mi6 function=@fn26 <- SuspendTask.run
+  instance mi7 function=@fn27 <- SuspendRegistration.register
+  instance mi8 function=@fn28 <- Continuation.resume
+  instance mi9 function=@fn29 <- Continuation.resumeWithException
+  instance mi10 function=@fn30 <- SuspendTask.run
+  instance mi11 function=@fn31 <- SuspendRegistration.register
+  instance mi12 function=@fn32 <- Continuation.resume
+  instance mi13 function=@fn33 <- Continuation.resumeWithException
+  instance mi14 function=@fn34 <- SuspendTask.run
+  instance mi15 function=@fn35 <- SuspendRegistration.register
+  instance mi16 function=@fn36 <- Continuation.resume
+  instance mi17 function=@fn37 <- Continuation.resumeWithException
+  instance mi18 function=@fn38 <- SuspendTask.run
+  instance mi19 function=@fn39 <- SuspendRegistration.register
+  instance mi20 function=@fn40 <- Continuation.resume
+  instance mi21 function=@fn41 <- Continuation.resumeWithException
+  instance mi22 function=@fn42 <- SuspendTask.run
+  instance mi23 function=@fn43 <- SuspendRegistration.register
+  instance mi24 function=@fn44 <- Continuation.resume
+  instance mi25 function=@fn45 <- Continuation.resumeWithException
+  instance mi26 function=@fn46 <- SuspendTask.run
+  instance mi27 function=@fn47 <- SuspendRegistration.register
+  output library

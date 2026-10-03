@@ -1,0 +1,93 @@
+SourceFile
+  RootPackage
+  enum Signal
+    Ready
+    Payload(Int)
+  struct Bundle
+    field optional: Int?
+    field signal: Signal
+  struct UnitBox
+    field Unit: Unit
+  fun classify(value: Signal): Int
+    =
+      WhenExpression
+        Var value
+        arm Ready
+          IntLiteral 1
+        arm Payload(number)
+          Var number
+  fun optionValue(value: Int?): Int
+    =
+      WhenExpression
+        Var value
+        arm None
+          IntLiteral 0
+        arm Some(number)
+          Var number
+  fun plainBinding(): Int
+    val source: Int?
+      Call Some
+        IntLiteral 7
+    val None
+      Var source
+    return
+      Call optionValue
+        Var None
+  fun nestedBinding()
+    val bundle
+      Call Bundle
+        Call Some
+          IntLiteral 3
+        FieldAccess Ready
+          Var Signal
+    val nested: (Signal, Int?)
+      TupleLiteral
+        MethodCall Payload
+          Var Signal
+          IntLiteral 4
+        Var None
+    val ({signal: Ready, optional: None}, (Payload, NestedNone))
+      TupleLiteral
+        Var bundle
+        Var nested
+    Call println
+      Call optionValue
+        Var None
+    Call println
+      Call classify
+        Var Ready
+    Call println
+      Call classify
+        Var Payload
+    Call println
+      Call optionValue
+        Var NestedNone
+  fun lambdaBinding(): Int
+    val unpack: ((Int?, Signal)) -> Int
+      Lambda 0 suspend=false
+        param (None, Ready): _
+        Binary Add
+          Call optionValue
+            Var None
+          Call classify
+            Var Ready
+    return
+      Call unpack
+        TupleLiteral
+          Call Some
+            IntLiteral 5
+          FieldAccess Ready
+            Var Signal
+  fun explicitUnitFieldBinding(): Unit
+    val {Unit: value}
+      Call UnitBox
+        UnitLiteral
+    return
+      Var value
+  fun main()
+    Call println
+      Call plainBinding
+    Call nestedBinding
+    Call println
+      Call lambdaBinding
+    Call explicitUnitFieldBinding

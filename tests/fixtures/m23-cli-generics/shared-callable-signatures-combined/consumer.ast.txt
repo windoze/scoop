@@ -1,0 +1,75 @@
+SourceFile
+  QualifiedPackage consumer.signatures
+  ImportStar Local upstream.signatures.*
+  public fun localIdentity<T>(value: T): T
+    =
+      Var value
+  public suspend fun suspended<T>(value: T): T
+    =
+      MethodCall suspendedGet
+        Call Box<T>
+          Call delayed<T>
+            Var value
+    @NoGC
+  private fun nativeNumber(value: Int): Int
+    =
+      Call scalar<Int>
+        Var value
+  private class Local<T>(val value: T), Source<T>
+    public fun get
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val box
+      Call Box<T>
+        Call localIdentity<T>
+          Var seed
+    val source: Source<T>
+      Var box
+    val local: Source<T>
+      Call Local<T>
+        MethodCall get
+          Var source
+    val callback
+      Call nested<T>
+        MethodCall get
+          Var local
+    val value
+      Call defaulted<T>
+        Call callback
+    val selected
+      MethodCall apply<Unit>
+        Var box
+        UnitLiteral
+        Lambda 0 suspend=false
+          param item: _
+          param unit: _
+          Call read
+            Call identity<T>
+              Var item
+    @Unsafe block
+      if
+        Binary Ne
+          Call read
+            Call unchecked<T>
+              Var value
+          Var selected
+        return
+          IntLiteral 1
+    return
+      MethodCall apply<Int>
+        Var box
+        IntLiteral 0
+        Lambda 1 suspend=false
+          param item: _
+          param extra: _
+          Binary Add
+            Call read
+              Var item
+            Var extra
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        Call nativeNumber
+          IntLiteral 42
+        Lambda 2 suspend=false
+          param value: _
+          Var value

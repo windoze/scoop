@@ -1,3 +1,0 @@
-span=7..36
-expression=facade.nesting.Outer.instance
-import target is not available in the current compilation unit

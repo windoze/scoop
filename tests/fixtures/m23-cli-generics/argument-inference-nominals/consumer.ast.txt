@@ -1,0 +1,80 @@
+SourceFile
+  QualifiedPackage consumer.inference
+  ImportStar Local dependency.inference.*
+  ImportExact Local dependency.inference.exercise as providerExercise
+  private typealias IntChoice = Choice<Int>
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    =
+      Call providerExercise<T>
+        Var seed
+        Var read
+  public fun result(): Int
+    val pair
+      Call Pair
+        Argument values=
+          ArrayLiteral
+        Argument seed=
+          IntLiteral 42
+    val choice
+      MethodCall Data
+        Var Choice
+        ArrayLiteral
+        IntLiteral 42
+    val empty
+      Call choiceOrSeed
+        FieldAccess Empty
+          Var Choice
+        IntLiteral 42
+    val fixed
+      Call choiceOrSeed
+        FieldAccess Empty
+          Var IntChoice
+        IntLiteral 42
+    val host
+      Call Host
+        StringLiteral "owner"
+    val selected
+      MethodCall select
+        Var host
+        ArrayLiteral
+        IntLiteral 42
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            FieldAccess size
+              FieldAccess values
+                Var pair
+            IntLiteral 0L
+          Binary Ne
+            FieldAccess seed
+              Var pair
+            IntLiteral 42
+        Binary Ne
+          Call choiceOrSeed
+            Var choice
+            IntLiteral 0
+          IntLiteral 42
+      return
+        IntLiteral 1
+    return
+      IfExpression
+        Binary And
+          Binary And
+            Binary And
+              Binary Eq
+                Var empty
+                IntLiteral 42
+              Binary Eq
+                Var fixed
+                IntLiteral 42
+            Binary Eq
+              Var selected
+              IntLiteral 42
+          Binary Eq
+            FieldAccess value
+              Var host
+            StringLiteral "owner"
+        IntLiteral 42
+        else
+        IntLiteral 2

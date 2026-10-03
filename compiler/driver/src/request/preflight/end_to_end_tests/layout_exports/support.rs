@@ -88,6 +88,7 @@ pub(super) fn with_pair(
         parsed.sources(),
         inputs.as_ref().clone().into(),
         &world,
+        Default::default(),
     )
     .unwrap();
     let selected = closure

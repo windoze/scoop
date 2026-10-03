@@ -19,6 +19,20 @@ struct Header {
 }
 
 impl Dependencies {
+    pub fn input_paths<'a>(
+        &'a self,
+        inputs: &'a inputs::Inputs,
+    ) -> impl Iterator<Item = PathBuf> + 'a {
+        self.headers.iter().filter_map(|header| {
+            let root = match header.kind {
+                1 => Some(&inputs.sdk),
+                2 => inputs.resource.as_ref(),
+                _ => None,
+            };
+            root.map(|root| root.join(&header.path))
+        })
+    }
+
     pub fn collect(inputs: &inputs::Inputs, runtime: &Path, depfiles: Vec<Option<String>>) -> Self {
         let mut headers = BTreeMap::new();
         let mut reusable = true;

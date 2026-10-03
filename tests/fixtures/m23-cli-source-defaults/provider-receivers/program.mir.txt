@@ -1,0 +1,794 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<ProviderGeneric.Static>
+    Completed(value: ProviderGeneric.Static)
+    Suspended()
+  enum CoroutineSlot<ProviderGeneric.Static>
+    Empty()
+    Value(value: ProviderGeneric.Static)
+  enum CoroutineStep<ProviderChild>
+    Completed(value: ProviderChild)
+    Suspended()
+  enum CoroutineSlot<ProviderChild>
+    Empty()
+    Value(value: ProviderChild)
+  enum CoroutineStep<ProviderBase>
+    Completed(value: ProviderBase)
+    Suspended()
+  enum CoroutineSlot<ProviderBase>
+    Empty()
+    Value(value: ProviderBase)
+  class ProviderBase vtable=1 itables=0
+  class ProviderChild vtable=1 itables=0
+  class ProviderGeneric.Static vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class ProviderApplied<Int> vtable=1 itables=0
+  class ProviderGeneric<(Int, Int)> vtable=1 itables=0
+  class ProviderApplied<String> vtable=1 itables=0
+  class ProviderGeneric<(String, String)> vtable=1 itables=0
+  class ProviderGeneric<String> vtable=1 itables=0
+  class ProviderGeneric<Int> vtable=1 itables=0
+  interface Continuation<ProviderBase>
+  interface SuspendTask<ProviderBase>
+  interface SuspendRegistration<ProviderBase>
+  interface Continuation<ProviderChild>
+  interface SuspendTask<ProviderChild>
+  interface SuspendRegistration<ProviderChild>
+  interface Continuation<ProviderGeneric.Static>
+  interface SuspendTask<ProviderGeneric.Static>
+  interface SuspendRegistration<ProviderGeneric.Static>
+  generated_exact_type get0 location=enum1 nominal_id=b10d6db11f638c44e7266908d41558e8f08ced8f072b6c8cd49c25b5a151a910 exact_id=14e1f69f7c04803988d071afd1441fc4de4c61a54508296fdd01601682978ef9
+  generated_exact_type get1 location=enum6 nominal_id=84e68535d3a565c273f64efe3b29196d4267ae78bcd7bea16d5177b9b4254738 exact_id=59ee88754ea16bdae4018eaf7fd3a5cff435b2f8aa72ca722b60ccaf1723d32a
+  generated_exact_type get2 location=enum2 nominal_id=a6031ef8863f882f1b61d9991d8d3f46f4cb72993fd06c8c19ce96f60731902a exact_id=a3ef7b2ddc1adf9c4d9bd0cf4bab9ca1420ae274b1c9e21290ecae53ed64cc19
+  generated_exact_type get3 location=enum3 nominal_id=dd75d570c20bd22003e67fdf288d9bb56eacda20372bf5a337bc19dad4cb27cc exact_id=a5a762451c9495c599a5602268fececdf1fbb8eaf919b81b77a2e7b1da27fdbc
+  generated_exact_type get4 location=enum5 nominal_id=a07b4a3b38ea5bcd5e470743724b5b83d603515b84eec097af0d0087430e8c3a exact_id=d8095aed5b23e7be908484275f95eadfa36b420437a7ab76a4024dc8f39338e1
+  generated_exact_type get5 location=enum4 nominal_id=7e2a2882c06d4045881ae8b10e869c0579b57a928fedf28db0ef3defa742a270 exact_id=df172d8b0ea2091920dd9b4df28f810aaa8b3d0e9fdc4016d36872daa21a9e17
+  generated_callable gc0 function=@fn40 id=72a46bdb0bf1e040c2a1e83af2f1cd5c024023b6ee15cdb8dfe3a5d8fe5f018b
+  generated_callable gc1 function=@fn42 id=b4e5ea21cdb04b0888cd42987d336a63c169cf021b2b45b13284fe5cfe0a1a59
+  generated_callable gc2 function=@fn41 id=d8a66f58c66aa519d55f8caa0a8630e70638c7d9bb663f7b3b4afd34b115a86d
+  fun ProviderBase.check @fn0(this: ProviderBase, seed: Int) -> Int
+    bb0 entry
+      val $receiver: ProviderBase
+        Type ProviderBase
+        Local this
+      val $argument.0: Int
+        Type Int
+        Local seed
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $parameter.seed
+      call $call.1: Int = @fn1 virtual[0]
+        Type ProviderBase
+        Local $receiver
+        Type Int
+        Local $parameter.seed
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun ProviderBase.pick @fn1(this: ProviderBase, seed: Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun ProviderChild.pick @fn2(this: ProviderChild, seed: Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun verifyDefault @fn3(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn4() -> Unit
+    bb0 entry
+      assign $new.1
+        Type ProviderChild
+        ClassAlloc ProviderChild
+      call @fn32 direct
+        Type ProviderChild
+        Local $new.1
+      val $receiver: ProviderChild
+        Type ProviderChild
+        Local $new.1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      call $dependency.receiver: Int = @fn0 direct
+        Type ProviderBase
+        Retype ProviderBase
+          Type ProviderChild
+          Local $receiver
+        Type Int
+        Local $parameter.seed
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn3 direct
+        Type Boolean
+        Local $parameter.value
+      assign $new.2
+        Type ProviderApplied<Int>
+        ClassAlloc ProviderApplied<Int>
+      call @fn34 direct
+        Type ProviderApplied<Int>
+        Local $new.2
+      val $receiver: ProviderApplied<Int>
+        Type ProviderApplied<Int>
+        Local $new.2
+      val $argument.0: (Int, Int)
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.seed: (Int, Int)
+        Type (Int, Int)
+        Local $argument.0
+      call $call.3: (Int, Int) = @fn11 direct
+        Type ProviderGeneric<(Int, Int)>
+        Retype ProviderGeneric<(Int, Int)>
+          Type ProviderApplied<Int>
+          Local $receiver
+        Type (Int, Int)
+        Local $parameter.seed
+      call $argument.0: Boolean = @fn12 direct
+        Type (Int, Int)
+        Local $call.3
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn3 direct
+        Type Boolean
+        Local $parameter.value
+      assign $new.4
+        Type ProviderApplied<String>
+        ClassAlloc ProviderApplied<String>
+      call @fn35 direct
+        Type ProviderApplied<String>
+        Local $new.4
+      val $receiver: ProviderApplied<String>
+        Type ProviderApplied<String>
+        Local $new.4
+      val $argument.0: (String, String)
+        Type (String, String)
+        TupleLiteral
+          Type String
+          StringConst @str1
+          Type String
+          StringConst @str2
+      val $parameter.seed: (String, String)
+        Type (String, String)
+        Local $argument.0
+      call $call.5: (String, String) = @fn13 direct
+        Type ProviderGeneric<(String, String)>
+        Retype ProviderGeneric<(String, String)>
+          Type ProviderApplied<String>
+          Local $receiver
+        Type (String, String)
+        Local $parameter.seed
+      call $argument.0: Boolean = @fn14 direct
+        Type (String, String)
+        Local $call.5
+        Type (String, String)
+        TupleLiteral
+          Type String
+          StringConst @str3
+          Type String
+          StringConst @str4
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn3 direct
+        Type Boolean
+        Local $parameter.value
+      assign $new.6
+        Type ProviderGeneric<String>
+        ClassAlloc ProviderGeneric<String>
+      call @fn36 direct
+        Type ProviderGeneric<String>
+        Local $new.6
+      val $receiver: ProviderGeneric<String>
+        Type ProviderGeneric<String>
+        Local $new.6
+      val $argument.0: String
+        Type String
+        StringConst @str5
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter.first: String
+        Type String
+        Local $argument.0
+      val $parameter.second: Int
+        Type Int
+        Local $argument.1
+      call $dependency.receiver: Int = @fn15 direct
+        Type ProviderGeneric<String>
+        Local $receiver
+        Type String
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn3 direct
+        Type Boolean
+        Local $parameter.value
+      assign $new.7
+        Type ProviderGeneric<Int>
+        ClassAlloc ProviderGeneric<Int>
+      call @fn37 direct
+        Type ProviderGeneric<Int>
+        Local $new.7
+      val $receiver: ProviderGeneric<Int>
+        Type ProviderGeneric<Int>
+        Local $new.7
+      call $dependency.receiver: Int = @fn16 direct
+        Type ProviderGeneric<Int>
+        Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn3 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun ProviderGeneric.pick @fn5(this: ProviderGeneric<(Int, Int)>, seed: (Int, Int), value: (Int, Int)) -> (Int, Int)
+    bb0 entry
+      return
+        Type (Int, Int)
+        Local value
+  fun ProviderApplied.pick @fn6(this: ProviderApplied<Int>, seed: (Int, Int), value: (Int, Int)) -> (Int, Int)
+    bb0 entry
+      return
+        Type (Int, Int)
+        Local value
+  fun ProviderGeneric.pick @fn7(this: ProviderGeneric<(String, String)>, seed: (String, String), value: (String, String)) -> (String, String)
+    bb0 entry
+      return
+        Type (String, String)
+        Local value
+  fun ProviderApplied.pick @fn8(this: ProviderApplied<String>, seed: (String, String), value: (String, String)) -> (String, String)
+    bb0 entry
+      return
+        Type (String, String)
+        Local value
+  fun ProviderGeneric.pick @fn9(this: ProviderGeneric<String>, seed: String, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun ProviderGeneric.pick @fn10(this: ProviderGeneric<Int>, seed: Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun ProviderGeneric.check @fn11(this: ProviderGeneric<(Int, Int)>, seed: (Int, Int)) -> (Int, Int)
+    bb0 entry
+      val $receiver: ProviderGeneric<(Int, Int)>
+        Type ProviderGeneric<(Int, Int)>
+        Local this
+      val $argument.0: (Int, Int)
+        Type (Int, Int)
+        Local seed
+      val $parameter.seed: (Int, Int)
+        Type (Int, Int)
+        Local $argument.0
+      val $parameter.value: (Int, Int)
+        Type (Int, Int)
+        Local $parameter.seed
+      call $call.1: (Int, Int) = @fn5 virtual[0]
+        Type ProviderGeneric<(Int, Int)>
+        Local $receiver
+        Type (Int, Int)
+        Local $parameter.seed
+        Type (Int, Int)
+        Local $parameter.value
+      return
+        Type (Int, Int)
+        Local $call.1
+  fun $derived.equals.0 @fn12(this: (Int, Int), other: (Int, Int)) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type (Int, Int)
+            Local this
+          Type Int
+          FieldAccess 0
+            Type (Int, Int)
+            Local other
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 1
+            Type (Int, Int)
+            Local this
+          Type Int
+          FieldAccess 1
+            Type (Int, Int)
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.1
+  fun ProviderGeneric.check @fn13(this: ProviderGeneric<(String, String)>, seed: (String, String)) -> (String, String)
+    bb0 entry
+      val $receiver: ProviderGeneric<(String, String)>
+        Type ProviderGeneric<(String, String)>
+        Local this
+      val $argument.0: (String, String)
+        Type (String, String)
+        Local seed
+      val $parameter.seed: (String, String)
+        Type (String, String)
+        Local $argument.0
+      val $parameter.value: (String, String)
+        Type (String, String)
+        Local $parameter.seed
+      call $call.1: (String, String) = @fn7 virtual[0]
+        Type ProviderGeneric<(String, String)>
+        Local $receiver
+        Type (String, String)
+        Local $parameter.seed
+        Type (String, String)
+        Local $parameter.value
+      return
+        Type (String, String)
+        Local $call.1
+  fun $derived.equals.1 @fn14(this: (String, String), other: (String, String)) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = external1 direct
+        Type String
+        FieldAccess 0
+          Type (String, String)
+          Local this
+        Type String
+        FieldAccess 0
+          Type (String, String)
+          Local other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 logic.rhs.1
+      call $call.3: Boolean = external1 direct
+        Type String
+        FieldAccess 1
+          Type (String, String)
+          Local this
+        Type String
+        FieldAccess 1
+          Type (String, String)
+          Local other
+      assign $logic.2
+        Type Boolean
+        Local $call.3
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.2
+  fun ProviderGeneric.checkCopy @fn15(this: ProviderGeneric<String>, first: String, second: Int) -> Int
+    bb0 entry
+      val $receiver: ProviderGeneric<String>
+        Type ProviderGeneric<String>
+        Local this
+      val $argument.0: String
+        Type String
+        Local first
+      val $argument.1: Int
+        Type Int
+        Local second
+      val $parameter.first: String
+        Type String
+        Local $argument.0
+      val $parameter.second: Int
+        Type Int
+        Local $argument.1
+      val $parameter.value: Int
+        Type Int
+        Local $parameter.second
+      call $call.1: Int = @fn17 direct
+        Type ProviderGeneric<String>
+        Local $receiver
+        Type String
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun ProviderGeneric.checkStatic @fn16(this: ProviderGeneric<Int>) -> Int
+    bb0 entry
+      assign $new.1
+        Type ProviderGeneric.Static
+        ClassAlloc ProviderGeneric.Static
+      call @fn33 direct
+        Type ProviderGeneric.Static
+        Local $new.1
+      val $receiver: ProviderGeneric.Static
+        Type ProviderGeneric.Static
+        Local $new.1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $parameter.seed
+      call $call.2: Int = @fn18 direct
+        Type ProviderGeneric.Static
+        Local $receiver
+        Type Int
+        Local $parameter.seed
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.2
+  fun ProviderGeneric.copy @fn17(this: ProviderGeneric<String>, first: String, second: Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun ProviderGeneric.Static.copy @fn18(this: ProviderGeneric.Static, seed: Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun Continuation.resume @fn19(this: Continuation<ProviderBase>, value: ProviderBase) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn20(this: Continuation<ProviderBase>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn21(this: SuspendTask<ProviderBase>, $completion: Continuation<ProviderBase>) -> CoroutineStep<ProviderBase>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn22(this: SuspendRegistration<ProviderBase>, continuation: Continuation<ProviderBase>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn23(this: Continuation<ProviderChild>, value: ProviderChild) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn24(this: Continuation<ProviderChild>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn25(this: SuspendTask<ProviderChild>, $completion: Continuation<ProviderChild>) -> CoroutineStep<ProviderChild>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn26(this: SuspendRegistration<ProviderChild>, continuation: Continuation<ProviderChild>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn27(this: Continuation<ProviderGeneric.Static>, value: ProviderGeneric.Static) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn28(this: Continuation<ProviderGeneric.Static>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn29(this: SuspendTask<ProviderGeneric.Static>, $completion: Continuation<ProviderGeneric.Static>) -> CoroutineStep<ProviderGeneric.Static>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn30(this: SuspendRegistration<ProviderGeneric.Static>, continuation: Continuation<ProviderGeneric.Static>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.ProviderBase.$c0 @fn31(this: ProviderBase) -> Unit
+    bb0 entry
+      return
+  fun init.ProviderChild.$c1 @fn32(this: ProviderChild) -> Unit
+    bb0 entry
+      call @fn31 direct
+        Type ProviderBase
+        Retype ProviderBase
+          Type ProviderChild
+          Local this
+      return
+  fun init.ProviderGeneric.Static.$c4 @fn33(this: ProviderGeneric.Static) -> Unit
+    bb0 entry
+      return
+  fun init.ProviderApplied.$c3 @fn34(this: ProviderApplied<Int>) -> Unit
+    bb0 entry
+      call @fn38 direct
+        Type ProviderGeneric<(Int, Int)>
+        Retype ProviderGeneric<(Int, Int)>
+          Type ProviderApplied<Int>
+          Local this
+      return
+  fun init.ProviderApplied.$c3 @fn35(this: ProviderApplied<String>) -> Unit
+    bb0 entry
+      call @fn39 direct
+        Type ProviderGeneric<(String, String)>
+        Retype ProviderGeneric<(String, String)>
+          Type ProviderApplied<String>
+          Local this
+      return
+  fun init.ProviderGeneric.$c2 @fn36(this: ProviderGeneric<String>) -> Unit
+    bb0 entry
+      return
+  fun init.ProviderGeneric.$c2 @fn37(this: ProviderGeneric<Int>) -> Unit
+    bb0 entry
+      return
+  fun init.ProviderGeneric.$c2 @fn38(this: ProviderGeneric<(Int, Int)>) -> Unit
+    bb0 entry
+      return
+  fun init.ProviderGeneric.$c2 @fn39(this: ProviderGeneric<(String, String)>) -> Unit
+    bb0 entry
+      return
+  fun startCoroutine<ProviderGeneric.Static> @fn40(task: SuspendTask<ProviderGeneric.Static>, completion: Continuation<ProviderGeneric.Static>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn27 interface Continuation<ProviderGeneric.Static>[0]
+        Type Continuation<ProviderGeneric.Static>
+        Local completion
+        Type ProviderGeneric.Static
+        EnumField v0 f0
+          Type CoroutineStep<ProviderGeneric.Static>
+          Local $step
+      return
+    bb2 failed
+      call @fn28 interface Continuation<ProviderGeneric.Static>[1]
+        Type Continuation<ProviderGeneric.Static>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<ProviderGeneric.Static> = @fn29 interface SuspendTask<ProviderGeneric.Static>[0]
+        Type SuspendTask<ProviderGeneric.Static>
+        Local task
+        Type Continuation<ProviderGeneric.Static>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<ProviderGeneric.Static>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<ProviderChild> @fn41(task: SuspendTask<ProviderChild>, completion: Continuation<ProviderChild>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn23 interface Continuation<ProviderChild>[0]
+        Type Continuation<ProviderChild>
+        Local completion
+        Type ProviderChild
+        EnumField v0 f0
+          Type CoroutineStep<ProviderChild>
+          Local $step
+      return
+    bb2 failed
+      call @fn24 interface Continuation<ProviderChild>[1]
+        Type Continuation<ProviderChild>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<ProviderChild> = @fn25 interface SuspendTask<ProviderChild>[0]
+        Type SuspendTask<ProviderChild>
+        Local task
+        Type Continuation<ProviderChild>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<ProviderChild>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<ProviderBase> @fn42(task: SuspendTask<ProviderBase>, completion: Continuation<ProviderBase>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn19 interface Continuation<ProviderBase>[0]
+        Type Continuation<ProviderBase>
+        Local completion
+        Type ProviderBase
+        EnumField v0 f0
+          Type CoroutineStep<ProviderBase>
+          Local $step
+      return
+    bb2 failed
+      call @fn20 interface Continuation<ProviderBase>[1]
+        Type Continuation<ProviderBase>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<ProviderBase> = @fn21 interface SuspendTask<ProviderBase>[0]
+        Type SuspendTask<ProviderBase>
+        Local task
+        Type Continuation<ProviderBase>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<ProviderBase>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<ProviderGeneric.Static> result=ProviderGeneric.Static
+  coroutine_step cs1 CoroutineStep<ProviderChild> result=ProviderChild
+  coroutine_step cs2 CoroutineStep<ProviderBase> result=ProviderBase
+  coroutine_slot cl0 CoroutineSlot<ProviderGeneric.Static> value=ProviderGeneric.Static
+  coroutine_slot cl1 CoroutineSlot<ProviderChild> value=ProviderChild
+  coroutine_slot cl2 CoroutineSlot<ProviderBase> value=ProviderBase
+  coroutine_start ct0 result=ProviderGeneric.Static function=fn40
+  coroutine_start ct1 result=ProviderChild function=fn41
+  coroutine_start ct2 result=ProviderBase function=fn42
+  coroutine_fn cf0 @fn21 source_return=ProviderBase step=cs2 immediate
+  coroutine_fn cf1 @fn25 source_return=ProviderChild step=cs1 immediate
+  coroutine_fn cf2 @fn29 source_return=ProviderGeneric.Static step=cs0 immediate
+  instance mi0 function=@fn5 <- ProviderGeneric.pick
+  instance mi1 function=@fn6 <- ProviderApplied.pick
+  instance mi2 function=@fn7 <- ProviderGeneric.pick
+  instance mi3 function=@fn8 <- ProviderApplied.pick
+  instance mi4 function=@fn9 <- ProviderGeneric.pick
+  instance mi5 function=@fn10 <- ProviderGeneric.pick
+  instance mi6 function=@fn11 <- ProviderGeneric.check
+  instance mi7 function=@fn13 <- ProviderGeneric.check
+  instance mi8 function=@fn15 <- ProviderGeneric.checkCopy
+  instance mi9 function=@fn16 <- ProviderGeneric.checkStatic
+  instance mi10 function=@fn17 <- ProviderGeneric.copy
+  instance mi11 function=@fn18 <- ProviderGeneric.Static.copy
+  instance mi12 function=@fn19 <- Continuation.resume
+  instance mi13 function=@fn20 <- Continuation.resumeWithException
+  instance mi14 function=@fn21 <- SuspendTask.run
+  instance mi15 function=@fn22 <- SuspendRegistration.register
+  instance mi16 function=@fn23 <- Continuation.resume
+  instance mi17 function=@fn24 <- Continuation.resumeWithException
+  instance mi18 function=@fn25 <- SuspendTask.run
+  instance mi19 function=@fn26 <- SuspendRegistration.register
+  instance mi20 function=@fn27 <- Continuation.resume
+  instance mi21 function=@fn28 <- Continuation.resumeWithException
+  instance mi22 function=@fn29 <- SuspendTask.run
+  instance mi23 function=@fn30 <- SuspendRegistration.register
+  str @str0 "illegal state"
+  str @str1 "a"
+  str @str2 "b"
+  str @str3 "a"
+  str @str4 "b"
+  str @str5 "source"
+  output executable @fn4

@@ -14,7 +14,7 @@ impl Context<'_> {
                 .source
                 .inheritance()
                 .get(owner)
-                .and_then(|record| record.slots().get(*slot))
+                .and_then(|record| record.slots().get(schema.role(), *slot))
                 .ok_or(Error::MissingSelection { owner, slot: *slot })?;
             let exact = contract.signature().exact_signature();
             let receiver = match schema.role() {

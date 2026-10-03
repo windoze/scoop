@@ -24,7 +24,6 @@ fn storage_codegen_uses_each_definition_owners_linkage() {
                 initial_state: LirStaticInitialState::EncodedStaticValue {
                     payload: LirConstantImage::Integer(scoop_lir::LirIntegerConstant::Signed64(0)),
                 },
-                thread_local: false,
             },
         });
     }
@@ -60,7 +59,6 @@ fn zero_sized_storage_uses_one_addressable_byte() {
             .into(),
             ty: LirType::Aggregate(Vec::new()),
             initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
-            thread_local: false,
         },
     });
 
@@ -93,7 +91,6 @@ fn encoded_storage_is_forced_out_of_the_common_section() {
             initial_state: LirStaticInitialState::EncodedStaticValue {
                 payload: LirConstantImage::Integer(scoop_lir::LirIntegerConstant::Signed64(0)),
             },
-            thread_local: false,
         },
     });
 
@@ -122,7 +119,6 @@ fn unsealed_initialization_units_have_no_codegen_path() {
             .into(),
             ty: LirType::I64,
             initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
-            thread_local: false,
         },
     });
     let failure = module.globals.alloc(Global {
@@ -137,7 +133,6 @@ fn unsealed_initialization_units_have_no_codegen_path() {
             .into(),
             ty: MANAGED_PTR,
             initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
-            thread_local: false,
         },
     });
     let mut functions = scoop_lir::LocalFunctionIdentities::default();
@@ -185,7 +180,6 @@ fn initialization_values_follow_typed_unit_ids_in_lir_arena_order() {
             .into(),
             ty: LirType::I64,
             initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
-            thread_local: false,
         },
     });
     let failure_root = module.globals.alloc(Global {
@@ -200,7 +194,6 @@ fn initialization_values_follow_typed_unit_ids_in_lir_arena_order() {
             .into(),
             ty: MANAGED_PTR,
             initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
-            thread_local: false,
         },
     });
     for (identity, display_name) in [
@@ -249,7 +242,6 @@ fn storage_global_rejects_machine_scalar_type() {
             .into(),
             ty: LirType::MachineScalar(MachineScalarKind::InitializationOutcome),
             initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
-            thread_local: false,
         },
     });
 

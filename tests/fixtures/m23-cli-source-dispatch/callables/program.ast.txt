@@ -1,0 +1,76 @@
+SourceFile
+  RootPackage
+  fun verifyDispatch(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  class Completion(), Continuation<Long>
+    public var result: Long = <expr>
+      IntLiteral 0L
+    public var finished: Boolean = <expr>
+      BoolLiteral false
+    public fun resume
+    public fun resumeWithException
+  class Task(val source: Await), SuspendTask<Long>
+    public suspend fun run
+  fun main()
+    val contract
+      Call user
+    Call verifyDispatch
+      Binary Eq
+        MethodCall combine
+          Var contract
+          Argument second=
+            IntLiteral 13L
+          Argument first=
+            IntLiteral 1
+        IntLiteral 13L
+    Call verifyDispatch
+      Binary And
+        Binary Eq
+          InfixCall joined
+            Var contract
+            IntLiteral 7
+          IntLiteral 7
+        Binary Contains
+          IntLiteral 5
+          Var contract
+    @Unsafe block
+      Call verifyDispatch
+        Binary Eq
+          MethodCall raw
+            Var contract
+            IntLiteral 17L
+          IntLiteral 17L
+    Call verifyDispatch
+      Binary And
+        Binary Eq
+          MethodCall inspect
+            Call base
+            IntLiteral 19L
+          TupleLiteral
+            IntLiteral 19L
+            IntLiteral 1
+        Binary Eq
+          MethodCall inspect
+            Call child
+            IntLiteral 23L
+          TupleLiteral
+            IntLiteral 23L
+            IntLiteral 1
+    val completion
+      Call Completion
+    Call startCoroutine
+      Call Task
+        Call awaited
+      Var completion
+    Call verifyDispatch
+      Binary And
+        FieldAccess finished
+          Var completion
+        Binary Eq
+          FieldAccess result
+            Var completion
+          IntLiteral 29L

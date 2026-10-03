@@ -1,0 +1,14 @@
+SourceFile
+  RootPackage
+  fun main()
+    if
+      Binary Or
+        Binary Or
+          Unary Not
+            Call inspect
+              StringLiteral "text"
+          Call inspect
+            IntLiteral 1
+        Call dormant
+      throw
+        Call IllegalStateException

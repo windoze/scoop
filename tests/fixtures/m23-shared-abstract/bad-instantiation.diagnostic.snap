@@ -1,3 +1,0 @@
-span=67..84
-expression=BaseReader<Int>()
-abstract class `BaseReader` cannot be instantiated

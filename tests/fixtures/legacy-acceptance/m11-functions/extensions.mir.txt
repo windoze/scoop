@@ -1,0 +1,1069 @@
+Module
+  struct Offset (amount: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class Named vtable=0 itables=0
+  class MutableName vtable=0 itables=0
+  class ReceiverFactory vtable=0 itables=0
+  class ThrowingExtension vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn14 captures=1
+    bridge function_type1 -> @fn32 id=cf58f0caf725ecc5576a734723aafd8facb2caef06e0d0a4d15ae5cf975054ac
+  closure cc1 $Closure$reference0 type=function_type2 invoke=@fn19 captures=1
+    bridge function_type3 -> @fn33 id=a64569ecdd7fee9d4ac087001e51d3c6c12ca940c937c386a6e4f7862851aaef
+  closure cc2 $Closure$reference1 type=function_type4 invoke=@fn20 captures=0
+    bridge function_type5 -> @fn34 id=3d79ac385a5545fd5d287c4821eae1b8f8753669c0875dc90eedef8fa114c962
+  closure cc3 $Closure$reference2 type=function_type0 invoke=@fn21 captures=1
+    bridge function_type1 -> @fn35 id=36a8241fd386358a1b9203a9260351ba78d4d890df61a3acebf8fbbd2c638148
+  closure cc4 $Closure$reference3 type=function_type4 invoke=@fn22 captures=0
+    bridge function_type5 -> @fn36 id=3a8f0f4782d597155accd0e83eb2b3104036394b7a3b071d4a96c14172ee4323
+  closure cc5 $Closure$reference4 type=function_type0 invoke=@fn23 captures=1
+    bridge function_type1 -> @fn37 id=d3dff9bf72827a01b702a58dabf34e9da3a3205b391a9afae8c83f4428b6e4cb
+  closure cc6 $Closure$reference5 type=function_type0 invoke=@fn24 captures=1
+    bridge function_type1 -> @fn38 id=93429161f970ef7862bb42902b96db10176ae1150851b6e8e1d42864b6c863a9
+  closure cc7 $Closure$reference6 type=function_type6 invoke=@fn25 captures=1
+    bridge function_type1 -> @fn39 id=d390c9e8caec2d8889d353b2972bdfbcf549ab03737fd84372a13ed64a9c7d1c
+  closure cc8 $Closure$reference7 type=function_type6 invoke=@fn26 captures=1
+    bridge function_type1 -> @fn40 id=6f645a60591360884d44e983a441259e53ac2f154738d144d5f770b0a6248ae0
+  generated_exact_type get0 location=closure7 nominal_id=021aefdb45795169eee5f61e3e2265a0c680ec2777d12bbf588f030d1f1131d1 exact_id=19276589522880797caae0c339c66b0aed7fca11656ae1ca728c9961de8f1030
+  generated_exact_type get1 location=closure3 nominal_id=59305a445c8fbe3ce35e8684439640fda59a923a1de015447c65fd7fddf96f1b exact_id=64ba6dc8e9a60eb45fb8b59b74cb55d31953cd35ce021e8f192fc3d92cdf2aff
+  generated_exact_type get2 location=closure0 nominal_id=b9646c907731a5a39ccc98ff44b6e123c5c0a738187a912b592b673e755cc9e8 exact_id=6c759f89e41205fee0949b0cc7f8a184adc3270687b25eb8810fd09e248d8eff
+  generated_exact_type get3 location=closure2 nominal_id=56d5d19f267f41cb4849f87bfe826b618342b73ab75285c52ff834be6990b45a exact_id=741a25eb051e92e6db12dc1e0b2be64aee656f85941de30a5f56d645a46f8f71
+  generated_exact_type get4 location=closure4 nominal_id=1e353bde12d06bfe9d2633647a4a2571b86d5c95625e386f999c743cea1bcd8b exact_id=92a80349df8afbcce7cd921a95823cdcb53643e924bb53b81fbbfc75ad736aa2
+  generated_exact_type get5 location=closure5 nominal_id=dad1aa8313a6f2b2f2c28d2cb92be40613bb93998a53c95ebfe7e3352494f032 exact_id=baf0aa42922913ccf82717ae3c6d4469276a08436b3838e1161047d957d6c5c3
+  generated_exact_type get6 location=closure8 nominal_id=5e0486b370bd417c3d5be0cae1e8f83c00f184f8fa781b92ee1e4bccb7bc2246 exact_id=c9b6ed9286f407d2076ee05ee0bdf296b2ec2350e77aef2ae4f2605657e0e4a4
+  generated_exact_type get7 location=closure1 nominal_id=f874136277b146368b5105d72074178ee40ec33e01f9439c28a2d7e1505cba93 exact_id=cb83ad14693bb4e9877fdfa2a03447b6878c94ccdd03acaa290b56769c654eba
+  generated_exact_type get8 location=closure6 nominal_id=ea4d883a297721288b80781ec0ce1a137273bb1c233c118e291ad302f83b054e exact_id=d73d1e4bf9ac0f1310e74b31b315b2b686778413eff8fcf89fe43a39c87ce352
+  generated_exact_type get9 location=class7 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn35 id=36a8241fd386358a1b9203a9260351ba78d4d890df61a3acebf8fbbd2c638148
+  generated_callable gc1 function=@fn36 id=3a8f0f4782d597155accd0e83eb2b3104036394b7a3b071d4a96c14172ee4323
+  generated_callable gc2 function=@fn34 id=3d79ac385a5545fd5d287c4821eae1b8f8753669c0875dc90eedef8fa114c962
+  generated_callable gc3 function=@fn40 id=6f645a60591360884d44e983a441259e53ac2f154738d144d5f770b0a6248ae0
+  generated_callable gc4 function=@fn38 id=93429161f970ef7862bb42902b96db10176ae1150851b6e8e1d42864b6c863a9
+  generated_callable gc5 function=@fn33 id=a64569ecdd7fee9d4ac087001e51d3c6c12ca940c937c386a6e4f7862851aaef
+  generated_callable gc6 function=@fn32 id=cf58f0caf725ecc5576a734723aafd8facb2caef06e0d0a4d15ae5cf975054ac
+  generated_callable gc7 function=@fn39 id=d390c9e8caec2d8889d353b2972bdfbcf549ab03737fd84372a13ed64a9c7d1c
+  generated_callable gc8 function=@fn37 id=d3dff9bf72827a01b702a58dabf34e9da3a3205b391a9afae8c83f4428b6e4cb
+  fun Named.label @fn0(this: Named) -> String
+    bb0 entry
+      val $dependency.receiver: String
+        Type String
+        StringConst @str0
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type Named
+          Local this
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      return
+        Type String
+        Local $call.1
+  fun ReceiverFactory.make @fn1(this: ReceiverFactory) -> String
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type ReceiverFactory
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      field_set 0
+        Type ReceiverFactory
+        Local this
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      return
+        Type String
+        StringConst @str1
+  fun $extension.bump @fn2(this: Int, delta: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local this
+      val $dependency.argument.0: Int
+        Type Int
+        Local delta
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun $extension.decorate @fn3(this: String, suffix: String) -> String
+    bb0 entry
+      val $dependency.receiver: String
+        Type String
+        Local this
+      val $dependency.argument.0: String
+        Type String
+        Local suffix
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      return
+        Type String
+        Local $call.1
+  fun $extension.suffixer @fn4(this: String) -> (String) -> String
+    bb0 entry
+      return
+        Type (String) -> String
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type String
+            Local this
+  fun $extension.kind @fn5(this: Any) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str2
+  fun $extension.kind @fn6(this: String) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str3
+  fun collide @fn7(value: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun $extension.collide @fn8(this: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local this
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun $extension.label @fn9(this: Named) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str4
+  fun $extension.rename @fn10(this: MutableName, next: String) -> String
+    bb0 entry
+      field_set 0
+        Type MutableName
+        Local this
+        Type String
+        Local next
+      return
+        Type String
+        FieldAccess 0
+          Type MutableName
+          Local this
+  fun $extension.apply @fn11(this: Offset, value: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Offset
+          Local this
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun $extension.run @fn12(this: ThrowingExtension, value: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      assign $new.1
+        Type ArithmeticException
+        ClassAlloc ArithmeticException
+      call external0 direct
+        Type ArithmeticException
+        Local $new.1
+      throw
+        Type ArithmeticException
+        Local $new.1
+    bb2 if.merge.2
+      return
+        Type Int
+        Local value
+  fun main @fn13() -> Unit
+    bb0 entry
+      val $receiver: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.delta: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn2 direct
+        Type Int
+        Local $receiver
+        Type Int
+        Local $parameter.delta
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn15 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $receiver: String
+        Type String
+        StringConst @str5
+      call $dependency.argument.0: String = @fn16 direct
+        Type String
+        Local $receiver
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn17 direct
+        Type String
+        Local $dependency.parameter.value
+      val $receiver: String
+        Type String
+        StringConst @str6
+      call $dependency.argument.0: String = @fn6 direct
+        Type String
+        Local $receiver
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn17 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=39 bits=0x00000027
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn7 direct
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn15 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $receiver: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      call $dependency.argument.0: Int = @fn8 direct
+        Type Int
+        Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn15 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str7
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      assign $new.1
+        Type Named
+        ClassAlloc Named
+      call @fn27 direct
+        Type Named
+        Local $new.1
+        Type String
+        Local $parameter.value
+      val named: Named
+        Type Named
+        Local $new.1
+      val $receiver: Named
+        Type Named
+        Local named
+      call $dependency.argument.0: String = @fn0 direct
+        Type Named
+        Local $receiver
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn17 direct
+        Type String
+        Local $dependency.parameter.value
+      val member: () -> String
+        Type () -> String
+        ClosureAlloc cc1 $Closure$reference0
+          CaptureInit field=0
+            Type Named
+            Local named
+      call $dependency.argument.0: String = <closure:function_type2> closure[function_type2]
+        Type () -> String
+        Local member
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn17 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str8
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      assign $new.2
+        Type MutableName
+        ClassAlloc MutableName
+      call @fn28 direct
+        Type MutableName
+        Local $new.2
+        Type String
+        Local $parameter.value
+      val mutable: MutableName
+        Type MutableName
+        Local $new.2
+      val $receiver: MutableName
+        Type MutableName
+        Local mutable
+      val $argument.0: String
+        Type String
+        StringConst @str9
+      val $parameter.next: String
+        Type String
+        Local $argument.0
+      call $dependency.argument.0: String = @fn10 direct
+        Type MutableName
+        Local $receiver
+        Type String
+        Local $parameter.next
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn17 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.amount: Int
+        Type Int
+        Local $argument.0
+      call $receiver: Offset = @fn31 direct
+        Type Int
+        Local $parameter.amount
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn11 direct
+        Type Offset
+        Local $receiver
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn15 direct
+        Type Int
+        Local $dependency.parameter.value
+      val unbound: (String, String) -> String
+        Type (String, String) -> String
+        ClosureAlloc cc2 $Closure$reference1
+      val bound: (String) -> String
+        Type (String) -> String
+        ClosureAlloc cc3 $Closure$reference2
+          CaptureInit field=0
+            Type String
+            StringConst @str10
+      val genericUnbound: (String, String) -> String
+        Type (String, String) -> String
+        ClosureAlloc cc4 $Closure$reference3
+      val genericBound: (String) -> String
+        Type (String) -> String
+        ClosureAlloc cc5 $Closure$reference4
+          CaptureInit field=0
+            Type String
+            StringConst @str11
+      val $receiver: String
+        Type String
+        StringConst @str12
+      call capturedReceiver: (String) -> String = @fn4 direct
+        Type String
+        Local $receiver
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.calls: Int
+        Type Int
+        Local $argument.0
+      assign $new.3
+        Type ReceiverFactory
+        ClassAlloc ReceiverFactory
+      call @fn29 direct
+        Type ReceiverFactory
+        Local $new.3
+        Type Int
+        Local $parameter.calls
+      val factory: ReceiverFactory
+        Type ReceiverFactory
+        Local $new.3
+      val $receiver: ReceiverFactory
+        Type ReceiverFactory
+        Local factory
+      call $call.4: String = @fn1 direct
+        Type ReceiverFactory
+        Local $receiver
+      val once: (String) -> String
+        Type (String) -> String
+        ClosureAlloc cc6 $Closure$reference5
+          CaptureInit field=0
+            Type String
+            Local $call.4
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type ReceiverFactory
+          Local factory
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn15 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.amount: Int
+        Type Int
+        Local $argument.0
+      call offset: Offset = @fn31 direct
+        Type Int
+        Local $parameter.amount
+      val snapshot: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc7 $Closure$reference6
+          CaptureInit field=0
+            Type Offset
+            Local offset
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=100 bits=0x00000064
+      val $parameter.amount: Int
+        Type Int
+        Local $argument.0
+      call $call.5: Offset = @fn31 direct
+        Type Int
+        Local $parameter.amount
+      assign offset
+        Type Offset
+        Local $call.5
+      assign $new.6
+        Type ThrowingExtension
+        ClassAlloc ThrowingExtension
+      call @fn30 direct
+        Type ThrowingExtension
+        Local $new.6
+      val throwing: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc8 $Closure$reference7
+          CaptureInit field=0
+            Type ThrowingExtension
+            Local $new.6
+      call @scoop_rt_gc_collect direct
+      call $dependency.argument.0: String = <closure:function_type4> closure[function_type4]
+        Type (String, String) -> String
+        Local unbound
+        Type String
+        StringConst @str13
+        Type String
+        StringConst @str14
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn17 direct
+        Type String
+        Local $dependency.parameter.value
+      call $dependency.argument.0: String = <closure:function_type0> closure[function_type0]
+        Type (String) -> String
+        Local bound
+        Type String
+        StringConst @str15
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn17 direct
+        Type String
+        Local $dependency.parameter.value
+      call $dependency.argument.0: String = <closure:function_type4> closure[function_type4]
+        Type (String, String) -> String
+        Local genericUnbound
+        Type String
+        StringConst @str16
+        Type String
+        StringConst @str17
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn17 direct
+        Type String
+        Local $dependency.parameter.value
+      call $dependency.argument.0: String = <closure:function_type0> closure[function_type0]
+        Type (String) -> String
+        Local genericBound
+        Type String
+        StringConst @str18
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn17 direct
+        Type String
+        Local $dependency.parameter.value
+      call $dependency.argument.0: String = <closure:function_type0> closure[function_type0]
+        Type (String) -> String
+        Local capturedReceiver
+        Type String
+        StringConst @str19
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn17 direct
+        Type String
+        Local $dependency.parameter.value
+      call $dependency.argument.0: String = <closure:function_type0> closure[function_type0]
+        Type (String) -> String
+        Local once
+        Type String
+        StringConst @str20
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn17 direct
+        Type String
+        Local $dependency.parameter.value
+      call $dependency.argument.0: Int = <closure:function_type6> closure[function_type6]
+        Type (Int) -> Int
+        Local snapshot
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn15 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $receiver: Offset
+        Type Offset
+        Local offset
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn11 direct
+        Type Offset
+        Local $receiver
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn15 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb9 bb10
+        Type Boolean
+        IsInstance ArithmeticException
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      return
+    bb8 try.body.8 unwind bb1
+      call $dependency.argument.0: Int = <closure:function_type6> closure[function_type6]
+        Type (Int) -> Int
+        Local throwing
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn15 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb7
+    bb9 try.catch.9
+      call $catch.7: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val exception: ArithmeticException
+        Type ArithmeticException
+        Retype ArithmeticException
+          Type Any
+          Local $catch.7
+      goto bb11
+    bb10 try.next.10
+      rethrow unwind bb5
+    bb11 scope.11 unwind bb3
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str21
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn17 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb12
+    bb12 scope.12
+      goto bb7
+  fun $lambda.0 @fn14($closure: (String) -> String, suffix: String) -> String
+    bb0 entry
+      val $dependency.receiver: String
+        Type String
+        ClosureCapture cc0 0
+          Type (String) -> String
+          Local $closure
+      val $dependency.argument.0: String
+        Type String
+        Local suffix
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      return
+        Type String
+        Local $call.1
+  fun println @fn15(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str22
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun $extension.keep @fn16(this: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local this
+  fun println @fn17(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str23
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun $extension.echo @fn18(this: String, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun $reference.0 @fn19($closure: () -> String) -> String
+    bb0 entry
+      call $call.1: String = @fn0 direct
+        Type Named
+        ClosureCapture cc1 0
+          Type () -> String
+          Local $closure
+      return
+        Type String
+        Local $call.1
+  fun $reference.1 @fn20($closure: (String, String) -> String, arg0: String, arg1: String) -> String
+    bb0 entry
+      call $call.1: String = @fn3 direct
+        Type String
+        Local arg0
+        Type String
+        Local arg1
+      return
+        Type String
+        Local $call.1
+  fun $reference.2 @fn21($closure: (String) -> String, arg0: String) -> String
+    bb0 entry
+      call $call.1: String = @fn3 direct
+        Type String
+        ClosureCapture cc3 0
+          Type (String) -> String
+          Local $closure
+        Type String
+        Local arg0
+      return
+        Type String
+        Local $call.1
+  fun $reference.3 @fn22($closure: (String, String) -> String, arg0: String, arg1: String) -> String
+    bb0 entry
+      call $call.1: String = @fn18 direct
+        Type String
+        Local arg0
+        Type String
+        Local arg1
+      return
+        Type String
+        Local $call.1
+  fun $reference.4 @fn23($closure: (String) -> String, arg0: String) -> String
+    bb0 entry
+      call $call.1: String = @fn18 direct
+        Type String
+        ClosureCapture cc5 0
+          Type (String) -> String
+          Local $closure
+        Type String
+        Local arg0
+      return
+        Type String
+        Local $call.1
+  fun $reference.5 @fn24($closure: (String) -> String, arg0: String) -> String
+    bb0 entry
+      call $call.1: String = @fn3 direct
+        Type String
+        ClosureCapture cc6 0
+          Type (String) -> String
+          Local $closure
+        Type String
+        Local arg0
+      return
+        Type String
+        Local $call.1
+  fun $reference.6 @fn25($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn11 direct
+        Type Offset
+        ClosureCapture cc7 0
+          Type (Int) -> Int
+          Local $closure
+        Type Int
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun $reference.7 @fn26($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn12 direct
+        Type ThrowingExtension
+        ClosureCapture cc8 0
+          Type (Int) -> Int
+          Local $closure
+        Type Int
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun init.Named.$c0 @fn27(this: Named, value: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type Named
+        Local this
+        Type String
+        Local value
+      return
+  fun init.MutableName.$c1 @fn28(this: MutableName, value: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type MutableName
+        Local this
+        Type String
+        Local value
+      return
+  fun init.ReceiverFactory.$c2 @fn29(this: ReceiverFactory, calls: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type ReceiverFactory
+        Local this
+        Type Int
+        Local calls
+      return
+  fun init.ThrowingExtension.$c3 @fn30(this: ThrowingExtension) -> Unit
+    bb0 entry
+      return
+  fun ctor.Offset.$c0 @fn31(amount: Int) -> Offset <no-gc>
+    bb0 entry
+      return
+        Type Offset
+        StructInit Offset
+          Type Int
+          Local amount
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn32($source: (String) -> String, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type (String) -> String
+        Local $source
+        Type String
+        Retype String
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$reference0.() -> Any @fn33($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type2> closure[function_type2]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$reference1.(Any, Any) -> Any @fn34($source: (String, String) -> String, arg0: Any, arg1: Any) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type4> closure[function_type4]
+        Type (String, String) -> String
+        Local $source
+        Type String
+        Retype String
+          Type Any
+          Local arg0
+        Type String
+        Retype String
+          Type Any
+          Local arg1
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$reference2.(Any) -> Any @fn35($source: (String) -> String, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type (String) -> String
+        Local $source
+        Type String
+        Retype String
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$reference3.(Any, Any) -> Any @fn36($source: (String, String) -> String, arg0: Any, arg1: Any) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type4> closure[function_type4]
+        Type (String, String) -> String
+        Local $source
+        Type String
+        Retype String
+          Type Any
+          Local arg0
+        Type String
+        Retype String
+          Type Any
+          Local arg1
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$reference4.(Any) -> Any @fn37($source: (String) -> String, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type (String) -> String
+        Local $source
+        Type String
+        Retype String
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$reference5.(Any) -> Any @fn38($source: (String) -> String, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type (String) -> String
+        Local $source
+        Type String
+        Retype String
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$reference6.(Any) -> Any @fn39($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type6> closure[function_type6]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference7.(Any) -> Any @fn40($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type6> closure[function_type6]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  instance mi0 function=@fn15 <- println
+  instance mi1 function=@fn16 <- $extension.keep
+  instance mi2 function=@fn17 <- println
+  instance mi3 function=@fn18 <- $extension.echo
+  str @str0 "member-"
+  str @str1 "once"
+  str @str2 "any"
+  str @str3 "string"
+  str @str4 "extension"
+  str @str5 "generic"
+  str @str6 "specific"
+  str @str7 "kept"
+  str @str8 "old"
+  str @str9 "new"
+  str @str10 "bound"
+  str @str11 "receiver"
+  str @str12 "capture"
+  str @str13 "unbound"
+  str @str14 "-ok"
+  str @str15 "-ok"
+  str @str16 "ignored"
+  str @str17 "generic-unbound"
+  str @str18 "generic-bound"
+  str @str19 "-this"
+  str @str20 "-only"
+  str @str21 "caught"
+  str @str22 "\n"
+  str @str23 "\n"
+  output executable @fn13

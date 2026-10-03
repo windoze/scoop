@@ -1,0 +1,16 @@
+Module
+  fun read @fn0(value: Any) -> Any
+    bb0 entry
+      val $dependency.argument.0: Any
+        Type Any
+        Local value
+      val $dependency.parameter.value: Any
+        Type Any
+        Local $dependency.argument.0
+      call $call.1: Any = external0 direct
+        Type Any
+        Local $dependency.parameter.value
+      return
+        Type Any
+        Local $call.1
+  output library

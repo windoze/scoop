@@ -1,0 +1,27 @@
+SourceFile
+  RootPackage
+  public fun holder(value: Combined): Holder
+    =
+      Call Holder
+        Var value
+  public fun held(value: Holder): Combined
+    =
+      FieldAccess value
+        Var value
+SourceFile
+  RootPackage
+  public interface Marker
+    public open val tag: Int <computed>
+      get()
+        IntLiteral 7
+  public struct Combined : Marker
+    field value: Int
+    field label: String
+  public enum Choice
+    None
+    Item <ctor>
+      payload: Combined
+  public class Holder(val value: Combined)
+  public typealias Again = Combined
+  private struct Hidden
+    field value: Int

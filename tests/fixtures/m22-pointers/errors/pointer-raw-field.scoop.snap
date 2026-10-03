@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m22-pointers/errors/pointer-raw-field.scoop:4:20: error: type `Ptr<Int>` has no fields

@@ -1,3 +1,0 @@
-span=120..130
-expression=this.value
-initializing receiver cannot escape before construction completes

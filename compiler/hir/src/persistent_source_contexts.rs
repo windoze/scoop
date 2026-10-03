@@ -150,7 +150,10 @@ fn validate_sources(
         if matches!(value.subject(), crate::SourceContextSubject::File)
             || matches!(
                 value.subject(),
-                crate::SourceContextSubject::Imported(SourceContextKey::File { .. })
+                crate::SourceContextSubject::Imported {
+                    key: SourceContextKey::File { .. },
+                    ..
+                }
             )
         {
             file_contexts[source] = true;

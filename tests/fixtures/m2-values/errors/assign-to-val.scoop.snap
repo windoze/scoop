@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m2-values/errors/assign-to-val.scoop:3:5: error: cannot assign to immutable variable `x`

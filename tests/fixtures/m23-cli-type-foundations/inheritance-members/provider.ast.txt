@@ -1,0 +1,22 @@
+SourceFile
+  QualifiedPackage dependency.members
+  public interface Contract
+    fun read
+  public open class Surface(seed: Int = <expr>), Contract
+    protected fun execute
+    protected fun identity
+    public fun read
+    protected var state: Int <computed>
+      get()
+        IntLiteral 0
+      private set(value)
+    public var visible: Int <computed>
+      get()
+        IntLiteral 1
+      protected set(value)
+    protected nested class Nested
+    protected nested class Generic
+    protected nested enum Choice
+    public nested object Constants
+  public class Derived() : Surface(<1 args>)
+    protected fun execute

@@ -1,0 +1,46 @@
+SourceFile
+  RootPackage
+  struct Empty
+  struct References
+    field first: String
+    field nested: (String, Long)
+    field empty: Empty
+  fun payload(): References
+    =
+      Call References
+        Binary Add
+          StringLiteral "le"
+          StringLiteral "ft"
+        TupleLiteral
+          Binary Add
+            StringLiteral "ri"
+            StringLiteral "ght"
+          IntLiteral 42
+        Call Empty
+  fun identity(value: References): References
+    =
+      Var value
+  fun main()
+    val boxed: Any
+      Call identity
+        Call payload
+    Call gcCollect
+    val restored
+      Cast References optional=false
+        Var boxed
+    Call println
+      FieldAccess first
+        Var restored
+    Call println
+      FieldAccess _1
+        FieldAccess nested
+          Var restored
+    Call println
+      FieldAccess _2
+        FieldAccess nested
+          Var restored
+    Call println
+      Binary Eq
+        FieldAccess empty
+          Var restored
+        Call Empty

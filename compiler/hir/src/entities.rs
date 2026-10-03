@@ -99,6 +99,7 @@ pub struct Module {
     pub callable_references: Arena<CallableReference>,
     /// Dependency callables committed by this HIR graph. Handles retain the
     /// selected declaration; each expression also keeps its winning binding.
+    pub imported_derived_equalities: Arena<ImportedDerivedEquality>,
     pub imported_dependency_callables: Arena<ImportedDependencyCallableUse>,
     pub imported_generic_templates: Arena<ImportedGenericCallableTemplate>,
     pub imported_generic_delegate_templates: Arena<ImportedGenericDelegateTemplate>,

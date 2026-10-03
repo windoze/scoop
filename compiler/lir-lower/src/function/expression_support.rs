@@ -72,8 +72,18 @@ impl FunctionLowerer<'_> {
     pub(super) fn make_aggregate(
         &mut self,
         ty: &mir::Type,
-        elements: Vec<lir::Value>,
+        mut elements: Vec<lir::Value>,
     ) -> lir::Value {
+        if let mir::Type::Struct(id) = ty
+            && self.structs[struct_def_id(*id)].is_c_layout()
+        {
+            let fields = self.module.structs[*id].declared_fields();
+            elements = elements
+                .into_iter()
+                .zip(fields)
+                .map(|(value, field)| self.project_c_value(&field.ty, value))
+                .collect();
+        }
         let ty = self.value_type(ty);
         let out = self.new_temp(ty);
         self.push(lir::Instruction::MakeAggregate { out, elements });

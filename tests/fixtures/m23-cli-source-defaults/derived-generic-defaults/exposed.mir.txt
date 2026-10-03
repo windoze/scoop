@@ -1,0 +1,237 @@
+Module
+  struct Token<Unit> ()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<DerivedHost>
+    Completed(value: DerivedHost)
+    Suspended()
+  enum CoroutineSlot<DerivedHost>
+    Empty()
+    Value(value: DerivedHost)
+  class DerivedHost vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<DerivedHost>
+  interface SuspendTask<DerivedHost>
+  interface SuspendRegistration<DerivedHost>
+  generated_exact_type get0 location=enum1 nominal_id=fc71d094eebe3980b53fc7754cde300548e2984fe0c6520271734e7ce08d0533 exact_id=2c11870224e353b51524fbf80ef145554ad7f8294e98ee0ea96d21e760e90aec
+  generated_exact_type get1 location=enum2 nominal_id=13bfe31ef4692538315f14e6830531c8c54f86c68cf94da6a2a47082be17b7da exact_id=c8654f4eb2970521050a04ebd225433bf3721832728701d9130162d8b4617efa
+  generated_callable gc0 function=@fn12 id=8ff4736e408c0dad7eec6cd83bbc55100825e824d4c2e27782daab1251df3d7c
+  fun defaultDerivedHost @fn0() -> DerivedHost
+    bb0 entry
+      assign $new.1
+        Type DerivedHost
+        ClassAlloc DerivedHost
+      call @fn11 direct
+        Type DerivedHost
+        Local $new.1
+      return
+        Type DerivedHost
+        Local $new.1
+  fun concrete @fn1(left: Token<Unit>, right: Token<Unit>, unit: Unit) -> Boolean
+    bb0 entry
+      assign $new.1
+        Type DerivedHost
+        ClassAlloc DerivedHost
+      call @fn11 direct
+        Type DerivedHost
+        Local $new.1
+      val host: DerivedHost
+        Type DerivedHost
+        Local $new.1
+      val $receiver: DerivedHost
+        Type DerivedHost
+        Local host
+      val $argument.0: Token<Unit>
+        Type Token<Unit>
+        Local left
+      val $argument.1: Token<Unit>
+        Type Token<Unit>
+        Local right
+      val $parameter.left: Token<Unit>
+        Type Token<Unit>
+        Local $argument.0
+      val $parameter.right: Token<Unit>
+        Type Token<Unit>
+        Local $argument.1
+      call $parameter.value: Boolean = @fn2 direct
+        Type Token<Unit>
+        Local $parameter.left
+        Type Token<Unit>
+        Local $parameter.right
+      call $call.2: Boolean = @fn3 direct
+        Type DerivedHost
+        Local $receiver
+        Type Token<Unit>
+        Local $parameter.left
+        Type Token<Unit>
+        Local $parameter.right
+        Type Boolean
+        Local $parameter.value
+      val $receiver: DerivedHost
+        Type DerivedHost
+        Local host
+      val $argument.0: (Token<Unit>, Unit)
+        Type (Token<Unit>, Unit)
+        TupleLiteral
+          Type Token<Unit>
+          Local left
+          Type Unit
+          Local unit
+      val $argument.1: (Token<Unit>, Unit)
+        Type (Token<Unit>, Unit)
+        TupleLiteral
+          Type Token<Unit>
+          Local right
+          Type Unit
+          Local unit
+      val $parameter.left: (Token<Unit>, Unit)
+        Type (Token<Unit>, Unit)
+        Local $argument.0
+      val $parameter.right: (Token<Unit>, Unit)
+        Type (Token<Unit>, Unit)
+        Local $argument.1
+      call $parameter.value: Boolean = @fn5 direct
+        Type (Token<Unit>, Unit)
+        Local $parameter.left
+        Type (Token<Unit>, Unit)
+        Local $parameter.right
+      call $call.3: Boolean = @fn6 direct
+        Type DerivedHost
+        Local $receiver
+        Type (Token<Unit>, Unit)
+        Local $parameter.left
+        Type (Token<Unit>, Unit)
+        Local $parameter.right
+        Type Boolean
+        Local $parameter.value
+      return
+        Type Boolean
+        Local $call.3
+  fun Token.equals @fn2(this: Token<Unit>, other: Token<Unit>) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun DerivedHost.nominal @fn3(this: DerivedHost, left: Token<Unit>, right: Token<Unit>, value: Boolean) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        Local value
+  fun $derived.equals.2 @fn4(this: Unit, other: Unit) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun $derived.equals.5 @fn5(this: (Token<Unit>, Unit), other: (Token<Unit>, Unit)) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn2 direct
+        Type Token<Unit>
+        FieldAccess 0
+          Type (Token<Unit>, Unit)
+          Local this
+        Type Token<Unit>
+        FieldAccess 0
+          Type (Token<Unit>, Unit)
+          Local other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 logic.rhs.1
+      call $call.3: Boolean = @fn4 direct
+        Type Unit
+        FieldAccess 1
+          Type (Token<Unit>, Unit)
+          Local this
+        Type Unit
+        FieldAccess 1
+          Type (Token<Unit>, Unit)
+          Local other
+      assign $logic.2
+        Type Boolean
+        Local $call.3
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.2
+  fun DerivedHost.tuple @fn6(this: DerivedHost, left: (Token<Unit>, Unit), right: (Token<Unit>, Unit), value: Boolean) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        Local value
+  fun Continuation.resume @fn7(this: Continuation<DerivedHost>, value: DerivedHost) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn8(this: Continuation<DerivedHost>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn9(this: SuspendTask<DerivedHost>, $completion: Continuation<DerivedHost>) -> CoroutineStep<DerivedHost>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn10(this: SuspendRegistration<DerivedHost>, continuation: Continuation<DerivedHost>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.DerivedHost.$c0 @fn11(this: DerivedHost) -> Unit
+    bb0 entry
+      return
+  fun startCoroutine<DerivedHost> @fn12(task: SuspendTask<DerivedHost>, completion: Continuation<DerivedHost>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn7 interface Continuation<DerivedHost>[0]
+        Type Continuation<DerivedHost>
+        Local completion
+        Type DerivedHost
+        EnumField v0 f0
+          Type CoroutineStep<DerivedHost>
+          Local $step
+      return
+    bb2 failed
+      call @fn8 interface Continuation<DerivedHost>[1]
+        Type Continuation<DerivedHost>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<DerivedHost> = @fn9 interface SuspendTask<DerivedHost>[0]
+        Type SuspendTask<DerivedHost>
+        Local task
+        Type Continuation<DerivedHost>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<DerivedHost>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<DerivedHost> result=DerivedHost
+  coroutine_slot cl0 CoroutineSlot<DerivedHost> value=DerivedHost
+  coroutine_start ct0 result=DerivedHost function=fn12
+  coroutine_fn cf0 @fn9 source_return=DerivedHost step=cs0 immediate
+  instance mi0 function=@fn3 <- DerivedHost.nominal
+  instance mi1 function=@fn6 <- DerivedHost.tuple
+  instance mi2 function=@fn7 <- Continuation.resume
+  instance mi3 function=@fn8 <- Continuation.resumeWithException
+  instance mi4 function=@fn9 <- SuspendTask.run
+  instance mi5 function=@fn10 <- SuspendRegistration.register
+  output library

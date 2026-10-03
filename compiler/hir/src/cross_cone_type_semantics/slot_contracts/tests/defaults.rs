@@ -21,6 +21,9 @@ fn interface_default_target_requires_transitive_conformance_even_without_a_paren
         slot,
         InheritanceSlotImplementationV1::InterfaceDefault(target),
     );
+    record.role = InheritanceSlotSchemaRoleV1::Interface {
+        interface_exact: child.exact,
+    };
     let graph =
         CheckedNominalInheritanceGraphV1::validate(fixture.inheritance.records.values(), &fixture)
             .unwrap();
@@ -75,6 +78,7 @@ fn interface_default_targets_keep_provider_identity_and_conformance() {
         .unwrap();
     assert!(matches!(
         InheritanceSlotContractV1::try_new(
+            record.role,
             record.slot,
             record.declaration,
             record.signature.clone(),
@@ -99,6 +103,7 @@ fn targets_match_implementation_modality_and_callable_roles() {
     assert_eq!(record.implementation().target(), &target);
     assert!(matches!(
         InheritanceSlotContractV1::try_new(
+            record.role,
             record.slot,
             record.declaration,
             record.signature.clone(),
@@ -111,6 +116,7 @@ fn targets_match_implementation_modality_and_callable_roles() {
     let target = fixture.concrete(owner, getter);
     assert!(matches!(
         InheritanceSlotContractV1::try_new(
+            InheritanceSlotSchemaRoleV1::ClassVtable,
             slot,
             fixture.declaration(slot),
             fixture.signature(owner, vec![]),

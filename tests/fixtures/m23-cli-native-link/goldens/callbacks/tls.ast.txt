@@ -1,0 +1,152 @@
+SourceFile
+  RootPackage
+  ImportStar Local nativelink.storagefacade.*
+    @Extern(name = "scoop_rt_thread_debug_count")
+  fun threadCount(): ULong
+  struct Marker
+    field text: String
+  fun main()
+    val marker
+      Call Marker
+        Binary Add
+          StringLiteral "caller-"
+          StringLiteral "alive"
+    @Unsafe block
+      Call println
+        Call update
+          Var marker
+      Call println
+        Update Postfix Increment
+          Place counter
+      MethodCall store
+        Call addressOf
+          Var counter
+        IntLiteral 40
+      Call println
+        Call increment
+          Call addressOf
+            Var counter
+      Call println
+        Var limit
+      assign pair
+        Call Pair
+          IntLiteral 50
+          IntLiteral 51
+      MethodCall store
+        Call addressOf
+          Var pair
+        Call Pair
+          IntLiteral 52
+          IntLiteral 53
+      Call println
+        Binary Add
+          FieldAccess left
+            Var pair
+          FieldAccess right
+            MethodCall load
+              Call addressOf
+                Var pair
+      assign tlsInitial
+        IntLiteral 33
+      MethodCall store
+        Call addressOf
+          Var tlsZero
+        IntLiteral 34
+      val callerAddress
+        MethodCall toULong
+          Call addressOf
+            Var tlsInitial
+      assign counter
+        IntLiteral 70
+      val callback
+        Call foreignCallback<(Int, Ptr<Unit>) -> Int>
+          Lambda 0 suspend=false
+            param value: Int
+            val live
+              Binary Add
+                FieldAccess text
+                  Var marker
+                MethodCall toString
+                  Var value
+            var checked
+              Unary Neg
+                IntLiteral 1000
+            @Unsafe block
+              val independent
+                Binary And
+                  Binary And
+                    Binary Eq
+                      Var tlsInitial
+                      IntLiteral 31
+                    Binary Eq
+                      Var tlsZero
+                      IntLiteral 0
+                  Binary Ne
+                    MethodCall toULong
+                      Call addressOf
+                        Var tlsInitial
+                    Var callerAddress
+              assign tlsInitial
+                Var value
+              assign tlsZero
+                Binary Add
+                  Var value
+                  IntLiteral 100
+              Call gcCollect
+              assign checked
+                IfExpression
+                  Binary And
+                    Binary And
+                      Var independent
+                      Binary Eq
+                        Var counter
+                        IntLiteral 70
+                    Binary Eq
+                      Var live
+                      Binary Add
+                        FieldAccess text
+                          Var marker
+                        MethodCall toString
+                          Var value
+                  Var value
+                  else
+                  Unary Neg
+                    IntLiteral 1000
+            Var checked
+          IntLiteral 1L
+          FieldAccess Reusable
+            Var ForeignCallbackMode
+      Call println
+        Call storageThreads
+          FieldAccess function
+            Var callback
+          FieldAccess context
+            Var callback
+          Var callerAddress
+      Call println
+        Binary And
+          Binary And
+            Binary Eq
+              Var tlsInitial
+              IntLiteral 33
+            Binary Eq
+              Var tlsZero
+              IntLiteral 34
+          Binary Eq
+            Var counter
+            IntLiteral 70
+      Call println
+        WhenExpression
+          Call foreignCallbackState
+            Var callback
+          arm ForeignCallbackState.Registered()
+            BoolLiteral true
+          else
+            BoolLiteral false
+      Call releaseForeignCallback
+        Var callback
+      Call println
+        Call threadCount
+      Call println
+        FieldAccess text
+          Var marker

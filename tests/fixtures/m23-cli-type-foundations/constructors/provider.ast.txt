@@ -1,0 +1,14 @@
+SourceFile
+  QualifiedPackage dependency.constructors
+  public open class Factory(seed: Int = <expr>)
+    constructor(text: String) : this(<1 args>)
+    constructor(flag: Boolean) : this(<1 args>)
+    constructor(value: Long) : this(<1 args>)
+  public class Product(count: Int, label: String) : Factory(<1 args>)
+  public struct Pair
+    field left: Int
+    field right: Long
+    constructor(text: String) : this(<2 args>)
+  public class Defaults(value: Int = <expr>)
+  public class HiddenConstructors()
+  public object Singleton

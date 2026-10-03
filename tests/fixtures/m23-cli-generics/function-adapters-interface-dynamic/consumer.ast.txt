@@ -1,0 +1,55 @@
+SourceFile
+  QualifiedPackage consumer.adapters
+  ImportStar Local templates.adapters.*
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val erased
+      Call erasedReadable
+        Call read
+          Var seed
+    if
+      Unary Not
+        Is (T) -> Readable false
+          Var erased
+      return
+        IntLiteral 11
+    if
+      Unary Not
+        Is (T) -> Tagged false
+          Var erased
+      return
+        IntLiteral 12
+    if
+      Is () -> Readable false
+        Var erased
+      return
+        IntLiteral 13
+    if
+      Is (T) -> Failure false
+        Var erased
+      return
+        IntLiteral 14
+    val first
+      Cast (T) -> Readable optional=false
+        Var erased
+    val second
+      Cast (T) -> Tagged optional=false
+        Var erased
+    if
+      Binary Ne
+        MethodCall read
+          Call first
+            Var seed
+        IntLiteral 42
+      return
+        IntLiteral 15
+    return
+      MethodCall tag
+        Call second
+          Var seed
+  public fun result(): Int
+    =
+      Call exercise
+        IntLiteral 42
+        Lambda 0 suspend=false
+          param value: Int
+          Var value

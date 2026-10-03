@@ -1,3 +1,0 @@
-span=75..81
-expression=number
-`addressOf` argument must be an addressable local, parameter, global, or value-type `this`

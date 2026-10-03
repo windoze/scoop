@@ -3,13 +3,12 @@ use std::path::Path;
 
 use scoop_protocol::{
     CurrentConeRequestV1, DiagnosticOriginV1, DiagnosticOutputPolicyV1, DiagnosticSeverityV1,
-    EmittedDumpDescriptorV1, EmittedDumpDestinationV1, HostPathCarrier,
-    ProtocolArtifactFingerprint, ProtocolCodeFingerprint, ProtocolConeIdentity,
-    ProtocolDumpContentDigest, ProtocolHirFingerprint, ProtocolLirFingerprint,
-    ProtocolMirFingerprint, ProtocolRuntimeImageFingerprint, RequestCorrelationId,
-    ScoopcBuildRequestV1, ScoopcRequestEnvelopeV1, ScoopcResponseEnvelopeV1, ScoopcSuccessV1,
-    StageDumpKindV1, StageDumpPolicyV1, StructuredDiagnosticV1, TargetSelectionRequestV1,
-    TrustedCoreRequestV1, encode_machine_capability_frame, encode_response_frame,
+    HostPathCarrier, ProtocolArtifactFingerprint, ProtocolCodeFingerprint, ProtocolConeIdentity,
+    ProtocolHirFingerprint, ProtocolLirFingerprint, ProtocolMirFingerprint,
+    ProtocolRuntimeImageFingerprint, RequestCorrelationId, ScoopcBuildRequestV1,
+    ScoopcRequestEnvelopeV1, ScoopcResponseEnvelopeV1, ScoopcSuccessV1, StageDumpPolicyV1,
+    StructuredDiagnosticV1, TargetSelectionRequestV1, TrustedCoreRequestV1,
+    encode_machine_capability_frame, encode_response_frame,
 };
 
 use super::*;
@@ -92,15 +91,6 @@ fn success_payload_with_mismatch(field: ChildSuccessArtifactField) -> ScoopcSucc
             expected
         }
     };
-    let emitted_dumps = if field == ChildSuccessArtifactField::EmittedDumpDescriptors {
-        vec![EmittedDumpDescriptorV1::new(
-            StageDumpKindV1::Hir,
-            EmittedDumpDestinationV1::Stdout,
-            ProtocolDumpContentDigest::from_array([8; 32]),
-        )]
-    } else {
-        Vec::new()
-    };
     ScoopcSuccessV1::new(
         ProtocolArtifactFingerprint::from_array(value(
             ChildSuccessArtifactField::ArtifactFingerprint,
@@ -128,7 +118,7 @@ fn success_payload_with_mismatch(field: ChildSuccessArtifactField) -> ScoopcSucc
             [7; 32],
         )),
         Vec::new(),
-        emitted_dumps,
+        Vec::new(),
     )
     .unwrap()
 }
@@ -204,7 +194,6 @@ fn child_success_artifact_validation_rejects_every_mismatched_field() {
         ChildSuccessArtifactField::LirFingerprint,
         ChildSuccessArtifactField::CodeFingerprint,
         ChildSuccessArtifactField::RuntimeImageFingerprint,
-        ChildSuccessArtifactField::EmittedDumpDescriptors,
     ] {
         let error = validate_child_success_fields(&success_payload_with_mismatch(field), expected)
             .unwrap_err();

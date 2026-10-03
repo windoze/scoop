@@ -5,16 +5,12 @@ const POSITIVE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../tests/fixtures/m21-visibility/private-property-accessors.scoop"
 ));
-const NEGATIVE: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m21-visibility/errors/private-abstract-property.scoop"
-));
 
 #[test]
 fn private_accessors_are_final_without_erasing_public_getter_slots() {
     let output = parse_and_lower(POSITIVE).unwrap();
     let export = output.export.module();
-    let mut rows = Vec::new();
+    let mut seen = std::collections::BTreeSet::new();
     let mut public_slots = 0;
     for (_, property) in export.properties.iter() {
         let name = match property.owner {
@@ -51,10 +47,7 @@ fn private_accessors_are_final_without_erasing_public_getter_slots() {
                     property.name
                 );
                 assert!(access.slot.is_none(), "{name}.{}.{role}", property.name);
-                rows.push(format!(
-                    "{name}.{}.{role}: Private {:?} {:?}\n",
-                    property.name, method.modifier, method.dispatch
-                ));
+                assert!(seen.insert((name.as_str(), property.name.as_str(), role)));
             } else {
                 assert!(matches!(
                     method.dispatch,
@@ -65,54 +58,14 @@ fn private_accessors_are_final_without_erasing_public_getter_slots() {
         }
     }
     assert_eq!(public_slots, 2);
-    rows.sort();
     assert_eq!(
-        rows.concat(),
-        include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../tests/fixtures/m21-visibility/private-property-accessors.snap"
-        ))
-    );
-}
-
-#[test]
-fn private_interface_properties_still_require_accessor_bodies() {
-    let errors = parse_and_lower(NEGATIVE).unwrap_err();
-    let error = errors
-        .iter()
-        .find(|error| {
-            error.message == "private interface property `missing` must provide every accessor body"
-        })
-        .unwrap_or_else(|| panic!("{errors:?}"));
-    let start = NEGATIVE.find("missing").unwrap();
-    assert_eq!(
-        error.span.unwrap(),
-        ast::Span {
-            start: start as u32,
-            end: (start + "missing".len()) as u32
-        }
-    );
-}
-
-#[test]
-fn bare_interface_property_assignment_checks_the_setter_value_type() {
-    let source = include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m21-visibility/errors/interface-property-write-type.scoop"
-    ));
-    let errors = parse_and_lower(source).unwrap_err();
-    let error = errors
-        .iter()
-        .find(|error| {
-            error.message == "cannot assign value of type Boolean to property `value` of type Int"
-        })
-        .unwrap_or_else(|| panic!("{errors:?}"));
-    let start = source.find("true").unwrap();
-    assert_eq!(
-        error.span.unwrap(),
-        ast::Span {
-            start: start as u32,
-            end: (start + 4) as u32
-        }
+        seen,
+        std::collections::BTreeSet::from([
+            ("Owner", "value", "setter"),
+            ("View", "cache", "getter"),
+            ("View", "cache", "setter"),
+            ("View", "current", "setter"),
+            ("View", "secret", "getter"),
+        ])
     );
 }

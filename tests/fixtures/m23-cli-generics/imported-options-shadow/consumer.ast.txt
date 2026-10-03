@@ -1,0 +1,86 @@
+SourceFile
+  QualifiedPackage consumer.options
+  ImportExact Local dependency.options.force
+  private enum Option<T>
+    Other(T)
+  private enum LocalOption
+    Some(Int, Int)
+    None
+  private enum ReverseShape
+    Some
+    None(Int)
+  public fun exercise<T>(value: T): Int
+    val saved: T?
+      Call Some
+        Var value
+    val inferred
+      Call Some
+        Var value
+    val local: Option<T>
+      Call Other
+        Var value
+    val pair: LocalOption
+      Call Some
+        IntLiteral 20
+        IntLiteral 22
+    val missing: LocalOption
+      Var None
+    val unit: ReverseShape
+      Var Some
+    val reversed: ReverseShape
+      Call None
+        IntLiteral 42
+    val restored
+      Call force
+        Var inferred
+    if
+      WhenExpression
+        Var saved
+        arm Some(payload)
+          BoolLiteral false
+        arm None
+          BoolLiteral true
+      return
+        IntLiteral 1
+    if
+      WhenExpression
+        Var missing
+        arm Some(a, b)
+          BoolLiteral true
+        arm None
+          BoolLiteral false
+      return
+        IntLiteral 2
+    if
+      WhenExpression
+        Var unit
+        arm Some
+          BoolLiteral false
+        arm None(number)
+          BoolLiteral true
+      return
+        IntLiteral 3
+    if
+      WhenExpression
+        Var reversed
+        arm Some
+          BoolLiteral true
+        arm None(number)
+          Binary Ne
+            Var number
+            IntLiteral 42
+      return
+        IntLiteral 4
+    return
+      WhenExpression
+        Var pair
+        arm Some(a, b)
+          Binary Add
+            Var a
+            Var b
+        arm None
+          IntLiteral 5
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 1

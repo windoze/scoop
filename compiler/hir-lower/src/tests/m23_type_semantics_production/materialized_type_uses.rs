@@ -54,16 +54,33 @@ fn materialized_types_include_parents_and_exclude_unevaluated_defaults() {
                 .any(|(_, ty)| matches!(ty.kind, TypeKind::Integer(_)))
         );
         let materialized = names(local);
-        for name in ["Boolean", "Deferred", "Long", "SourceOnly", "Unit"] {
-            assert!(materialized.contains(name), "missing {name}");
-        }
+        assert_eq!(
+            materialized,
+            BTreeSet::from(
+                [
+                    "Boolean",
+                    "Continuation",
+                    "Deferred",
+                    "Exception",
+                    "IllegalStateException",
+                    "Long",
+                    "Option",
+                    "SourceOnly",
+                    "String",
+                    "SuspendRegistration",
+                    "SuspendTask",
+                    "Throwable",
+                    "Unit"
+                ]
+                .map(str::to_owned)
+            )
+        );
         assert!(
             !local
                 .functions
                 .iter()
                 .any(|(_, function)| function.name == "unexpanded")
         );
-        snapshot("standalone", local);
     });
 }
 
@@ -72,14 +89,17 @@ fn materialized_types_include_shapes_signatures_captures_and_type_tests() {
     with_hir_source(&fixture("combined"), |output, _| {
         let local = &output.output().local;
         let used = names(local);
-        for name in [
-            "Boolean", "String", "Any", "Packet", "Envelope", "Cell", "Reader",
-        ] {
-            assert!(used.contains(name), "missing {name}: {used:?}");
-        }
+        assert_eq!(
+            used,
+            BTreeSet::from(
+                [
+                    "Any", "Boolean", "Cell", "Envelope", "Packet", "Reader", "String", "Unit"
+                ]
+                .map(str::to_owned)
+            )
+        );
         assert!(!local.lambdas.is_empty());
         assert!(!local.class_constructors.is_empty());
-        snapshot("combined", local);
     });
 }
 
@@ -106,7 +126,6 @@ fn materialized_types_include_explicit_non_result_type_operands() {
             })
             .unwrap();
         assert_eq!(operations, [true; 3]);
-        snapshot("type-operands", &local);
     });
 }
 
@@ -128,20 +147,5 @@ fn materialized_initialization_adds_its_implicit_string_type() {
             names(local),
             BTreeSet::from(["Boolean", "String", "Unit"].map(str::to_owned))
         );
-        snapshot("initialization", local);
     });
-}
-
-fn snapshot(name: &str, output: &hir::LocalConcreteHirOutput) {
-    let dump = names(output)
-        .into_iter()
-        .map(|name| format!("{name}\n"))
-        .collect::<String>();
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-materialized-type-uses")
-        .join(format!("{name}.types.snap"));
-    if std::env::var_os("SCOOP_UPDATE_MATERIALIZED_TYPES").is_some() {
-        std::fs::write(&path, &dump).unwrap();
-    }
-    assert_eq!(dump, std::fs::read_to_string(path).unwrap());
 }

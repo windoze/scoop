@@ -1,3 +1,4 @@
+use scoop_process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -114,7 +115,7 @@ fn probe_build_tools(
     .map_err(|error| ToolchainError(format!("invalid C bridge probe invocation: {error}")))?;
     let output = invocation
         .object_compilation_command(&source, &object)
-        .output()
+        .scoop_output()
         .map_err(|error| {
             ToolchainError(format!("failed to run C bridge probe compiler: {error}"))
         })?;
@@ -247,7 +248,7 @@ pub(crate) fn command_text_from_path(
         .env("LANG", "C")
         .env("TZ", "UTC")
         .args(args)
-        .output()
+        .scoop_output()
         .map_err(|error| {
             ToolchainError(format!(
                 "failed to query C bridge toolchain with `{}`: {error}",

@@ -41,9 +41,10 @@ impl Lowerer {
                             .interface
                             .declaration_details()
                             .dispatch_selections()
-                            .records()
-                            .iter()
-                            .find(|selection| selection.slot() == method.slot)
+                            .get(
+                                &hir::NominalDispatchSelectionRoleV1::ClassVtable,
+                                method.slot,
+                            )
                             .expect("dependency virtual family has a complete selection");
                         if matches!(
                             selection.selection(),

@@ -1,7 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m17-arguments/errors/spread-non-vararg.scoop:4:5: error: no applicable candidate for `one` in current-unit top-level candidate layer:
-  - fun one(value: Array<Int>): Long — spread is only allowed for vararg parameter `value`

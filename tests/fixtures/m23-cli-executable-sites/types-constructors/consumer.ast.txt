@@ -1,0 +1,8 @@
+SourceFile
+  RootPackage
+  public class Cell(var stored: Int)
+    public var added: Int = <expr>
+      IntLiteral 1
+  public object Registry
+    public var value: Int = <expr>
+      IntLiteral 2

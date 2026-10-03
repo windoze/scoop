@@ -222,7 +222,7 @@ impl Projection<'_> {
         }
     }
 
-    fn declaration_type(&self, owner: NominalOwner) -> TypeId {
+    pub(super) fn declaration_type(&self, owner: NominalOwner) -> TypeId {
         match owner {
             NominalOwner::Class(id) => {
                 self.export.class_applications[self.export.classes[id].self_application]

@@ -1,3 +1,0 @@
-span=72..135
-expression=public fun wrong(value: Phantom<Pointer<Managed>>): Unit = Unit
-type Phantom<Pointer<Managed>> requires a GC-free `Ptr` pointee argument

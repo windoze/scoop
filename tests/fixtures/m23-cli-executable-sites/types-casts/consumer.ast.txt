@@ -1,0 +1,29 @@
+SourceFile
+  RootPackage
+  public fun prepOptionalInteger(value: Any): Option<Int>
+    =
+      Cast Int optional=true
+        Var value
+  public fun prepWithCast<T>(value: Any, result: T = <expr>): T
+    =
+      Var result
+  public fun prepUseCast(value: Any): Int
+    =
+      Call prepWithCast<Int>
+        Var value
+  public fun prepWithOptionalCast<T>(value: Any, result: Option<T> = <expr>): Option<T>
+    =
+      Var result
+  public fun prepUseOptionalCast(value: Any): Option<Int>
+    =
+      Call prepWithOptionalCast<Int>
+        Var value
+  fun main()
+    val value: Any
+      IntLiteral 42
+    Call prepUseCast
+      Var value
+    Call prepUseOptionalCast
+      Var value
+    Call prepOptionalInteger
+      Var value

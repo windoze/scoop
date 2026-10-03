@@ -1,0 +1,10 @@
+fun verifyDomain(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    verifyDomain(domainBase().inspect() == 3)
+    verifyDomain(domainBase().inspectPrivate() == 4)
+    verifyDomain(domainChild().inspect() == 3)
+    verifyDomain(domainChild().inspectPrivate() == 4)
+    verifyDomain(domainCases().inspect() == 9)
+}

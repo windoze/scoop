@@ -73,7 +73,9 @@ fn lowers_hello_world() {
             lir::GlobalInit::StringConst { value, .. } | lir::GlobalInit::CString { value, .. } => {
                 Some((g.symbol(), value.as_str()))
             }
-            lir::GlobalInit::Storage { .. } | lir::GlobalInit::ImportedStorage { .. } => None,
+            lir::GlobalInit::Storage { .. }
+            | lir::GlobalInit::RawStorage { .. }
+            | lir::GlobalInit::ImportedStorage { .. } => None,
         })
         .collect();
     assert_eq!(
@@ -90,6 +92,7 @@ fn lowers_hello_world() {
             lir::GlobalInit::StringConst { identity, .. } => Some(identity.identity_record()),
             lir::GlobalInit::CString { .. }
             | lir::GlobalInit::Storage { .. }
+            | lir::GlobalInit::RawStorage { .. }
             | lir::GlobalInit::ImportedStorage { .. } => None,
         })
         .collect::<Vec<_>>();
@@ -108,6 +111,7 @@ fn lowers_hello_world() {
                 Some(global)
             }
             lir::GlobalInit::Storage { .. }
+            | lir::GlobalInit::RawStorage { .. }
             | lir::GlobalInit::StringConst { .. }
             | lir::GlobalInit::CString { .. }
             | lir::GlobalInit::ImportedStorage { .. } => None,
@@ -303,8 +307,7 @@ fn globals_carry_complete_scans_from_their_concrete_storage_types() {
         storage_owner: mir::StaticStorageOwner::PropertyBacking(backing_owner),
         ty: mir::Type::String,
         mutable: true,
-        storage: mir::GlobalStorage::Local {
-            thread_local: false,
+        storage: mir::GlobalStorage::Managed {
             initial_state: mir::MirStaticInitialState::EncodedStaticValue {
                 payload: mir::MirConstantImage::String(initial_string),
             },

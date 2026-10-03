@@ -1,0 +1,19 @@
+SourceFile
+  QualifiedPackage consumer.paths
+  private class Reader(val number: Int), dependency.paths.Read
+    public fun read
+  private fun read<R : dependency.paths.Read>(value: R): Int
+    =
+      MethodCall read
+        Var value
+  public fun exercise<T>(value: T): Int
+    val reader: dependency.paths.Read
+      Call Reader
+        IntLiteral 42
+    return
+      Call read<dependency.paths.Read>
+        Var reader
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0

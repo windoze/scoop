@@ -1,0 +1,92 @@
+SourceFile
+  QualifiedPackage consumer.bounds
+  ImportStar Local templates.bounds.*
+  public fun exercise<T>(value: T): Int
+    if
+      Binary Ne
+        Call stringBound<Int8>
+          Unary Neg
+            IntLiteral 128
+        StringLiteral "-128"
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call stringBound<Int16>
+          Unary Neg
+            IntLiteral 32768
+        StringLiteral "-32768"
+      return
+        IntLiteral 2
+    if
+      Binary Ne
+        Call stringBound<Int>
+          Unary Neg
+            IntLiteral 2147483648
+        StringLiteral "-2147483648"
+      return
+        IntLiteral 3
+    if
+      Binary Ne
+        Call stringBound<Long>
+          Unary Neg
+            IntLiteral 9223372036854775808L
+        StringLiteral "-9223372036854775808"
+      return
+        IntLiteral 4
+    if
+      Binary Ne
+        Call stringBound<UInt8>
+          IntLiteral 255u
+        StringLiteral "255"
+      return
+        IntLiteral 5
+    if
+      Binary Ne
+        Call stringBound<UInt16>
+          IntLiteral 65535u
+        StringLiteral "65535"
+      return
+        IntLiteral 6
+    if
+      Binary Ne
+        Call stringBound<UInt>
+          IntLiteral 4294967295u
+        StringLiteral "4294967295"
+      return
+        IntLiteral 7
+    if
+      Binary Ne
+        Call stringBound<ULong>
+          IntLiteral 18446744073709551615uL
+        StringLiteral "18446744073709551615"
+      return
+        IntLiteral 8
+    if
+      Binary Or
+        Binary Ne
+          Call stringBound
+            BoolLiteral true
+          StringLiteral "true"
+        Binary Ne
+          Call stringBound
+            StringLiteral "bound"
+          StringLiteral "bound"
+      return
+        IntLiteral 9
+    val number
+      IntLiteral 42
+    if
+      Binary Ne
+        Call hashBound
+          Var number
+        MethodCall hash
+          Var number
+      return
+        IntLiteral 10
+    return
+      IntLiteral 42
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 1

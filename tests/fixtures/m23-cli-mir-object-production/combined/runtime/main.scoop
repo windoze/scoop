@@ -1,0 +1,10 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    verifyType(First.number == 1 && Second.number == 1)
+    verifyType(Host.word == "nested" && Host.Companion.word == "nested")
+    verifyType(hidden() == 2 && top == 4)
+    verifyType(First === First && Second === Second)
+    val captured = { Host.word }
+    verifyType(captured() == "nested")
+}

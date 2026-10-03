@@ -1,0 +1,8 @@
+SourceFile
+  RootPackage
+  public fun withDefault(value: Long = <expr>): Long
+    =
+      Var value
+  public fun primary(): Long
+    =
+      Call withDefault

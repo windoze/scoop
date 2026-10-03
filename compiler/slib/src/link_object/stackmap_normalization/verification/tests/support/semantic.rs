@@ -297,7 +297,6 @@ fn semantic_module(
             .into(),
             ty: LirType::Ptr(PointerKind::Managed),
             initial_state,
-            thread_local: false,
         },
     });
     let module = Module {
@@ -370,6 +369,7 @@ fn foundation(
             GlobalInit::StringConst { identity, .. } => Some(identity.identity_record().clone()),
             GlobalInit::CString { .. }
             | GlobalInit::Storage { .. }
+            | GlobalInit::RawStorage { .. }
             | GlobalInit::ImportedStorage { .. } => None,
         })
         .unwrap();
@@ -595,6 +595,7 @@ fn static_storage_artifacts(module: &Module) -> StaticStorageArtifacts {
             } => Some((identity, layout, initial_state)),
             GlobalInit::CString { .. }
             | GlobalInit::StringConst { .. }
+            | GlobalInit::RawStorage { .. }
             | GlobalInit::ImportedStorage { .. } => None,
         })
         .unwrap();

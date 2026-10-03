@@ -1,0 +1,181 @@
+SourceFile
+  QualifiedPackage consumer.callableorder
+  public class Tape()
+    public var log: Int = <expr>
+      IntLiteral 0
+    public fun mark
+    public fun reset
+  public fun prepare<T>(tape: Tape, seed: T): (Int, Int) -> T
+    MethodCall mark
+      Var tape
+      IntLiteral 1
+    return
+      Lambda 0 suspend=false
+        param first: _
+        param second: _
+        MethodCall mark
+          Var tape
+          IntLiteral 4
+        Var seed
+  public fun argument(tape: Tape, value: Int = <expr>): Int
+    =
+      Var value
+  public fun fail(tape: Tape, value: Int = <expr>): Int
+    throw
+      Call ArithmeticException
+  public fun exercise<T>(seed: T, inspect: (T) -> Int): Int
+    val tape
+      Call Tape
+    val first
+      MethodCall invoke
+        Call prepare
+          Var tape
+          Var seed
+        MethodCall mark
+          Var tape
+          IntLiteral 2
+        Call argument
+          Var tape
+    if
+      Binary Or
+        Binary Ne
+          Call inspect
+            Var first
+          IntLiteral 42
+        Binary Ne
+          FieldAccess log
+            Var tape
+          IntLiteral 1234
+      return
+        IntLiteral 1
+    MethodCall reset
+      Var tape
+    val operation
+      Call prepare
+        Var tape
+        Var seed
+    val second
+      Call operation
+        MethodCall mark
+          Var tape
+          IntLiteral 2
+        Call argument
+          Var tape
+    if
+      Binary Or
+        Binary Ne
+          Call inspect
+            Var second
+          IntLiteral 42
+        Binary Ne
+          FieldAccess log
+            Var tape
+          IntLiteral 1234
+      return
+        IntLiteral 2
+    MethodCall reset
+      Var tape
+    try
+      MethodCall invoke
+        Call prepare
+          Var tape
+          Var seed
+        MethodCall mark
+          Var tape
+          IntLiteral 2
+        Call fail
+          Var tape
+      return
+        IntLiteral 3
+    catch error: ArithmeticException
+      if
+        Binary Ne
+          FieldAccess log
+            Var tape
+          IntLiteral 123
+        return
+          IntLiteral 4
+    MethodCall reset
+      Var tape
+    var selected: (Int, Int) -> Int
+      Lambda 1 suspend=false
+        param left: _
+        param right: _
+        IntLiteral 42
+    val preserved
+      Call selected
+        MethodCall mark
+          Var tape
+          IntLiteral 2
+        IfExpression
+          BoolLiteral true
+          assign selected
+            Lambda 2 suspend=false
+              param left: _
+              param right: _
+              IntLiteral 0
+          Call argument
+            Var tape
+          else
+          IntLiteral 0
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Var preserved
+            IntLiteral 42
+          Binary Ne
+            FieldAccess log
+              Var tape
+            IntLiteral 23
+        Binary Ne
+          Call selected
+            IntLiteral 0
+            IntLiteral 0
+          IntLiteral 0
+      return
+        IntLiteral 5
+    var earlier
+      IntLiteral 20
+    val sum: (Int, Int) -> Int
+      Lambda 3 suspend=false
+        param left: _
+        param right: _
+        Binary Add
+          Var left
+          Var right
+    val saved
+      Call sum
+        Var earlier
+        IfExpression
+          BoolLiteral true
+          assign earlier
+            IntLiteral 0
+          IntLiteral 22
+          else
+          IntLiteral 0
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Var saved
+            IntLiteral 42
+          Binary Ne
+            Var earlier
+            IntLiteral 0
+        Binary Ne
+          Call sum
+            IntLiteral 20
+            IntLiteral 22
+          IntLiteral 42
+      return
+        IntLiteral 6
+    return
+      IntLiteral 42
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 4 suspend=false
+          param value: _
+          Var value

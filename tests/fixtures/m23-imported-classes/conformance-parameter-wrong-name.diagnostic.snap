@@ -1,7 +1,0 @@
-span=234..277
-expression=Counter(LocalDefaults().answer(value = 21))
-no applicable candidate for `Counter` in star import layer:
-  - no applicable candidate for `answer` in member candidate layer:
-  - fun LocalDefaults.answer(renamed: Long): Long — has no parameter named `value`
-  - no applicable candidate for `answer` in member candidate layer:
-  - fun LocalDefaults.answer(renamed: Long): Long — has no parameter named `value`

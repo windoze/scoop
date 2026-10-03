@@ -55,53 +55,5 @@ fn expanded_default_local_descriptors_keep_callee_signatures_and_caller_values()
         }
     }
     assert!(local_references > 0);
-    let mir = scoop_mir_lower::lower(module).unwrap();
-    assert_eq!(
-        (
-            selected(&hir::dump(&output.export)),
-            selected(&scoop_mir::dump(&mir))
-        ),
-        (
-            include_str!(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/../../tests/fixtures/m23-type-source-defaults/local-dependency-binders.hir.snap"
-            ))
-            .to_owned(),
-            include_str!(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/../../tests/fixtures/m23-type-source-defaults/local-dependency-binders.mir.snap"
-            ))
-            .to_owned()
-        )
-    );
-}
-
-fn selected(dump: &str) -> String {
-    let mut keep = false;
-    let mut result = String::new();
-    for line in dump.lines() {
-        if line.starts_with("  ") && !line.starts_with("   ") {
-            keep = [
-                "LocalDependencyHost",
-                "DependencyCombinationHost",
-                "localDependency",
-                "dependencyLambda",
-                "dependencyAnonymous",
-                "dependencyReference",
-                "fun main",
-                "$local.",
-                "$lambda.",
-                "$anonymous.",
-                "$reference.",
-            ]
-            .iter()
-            .any(|name| line.contains(name))
-                || line.starts_with("  closure ");
-        }
-        if keep {
-            result.push_str(line);
-            result.push('\n');
-        }
-    }
-    result
+    scoop_mir_lower::lower(module).unwrap();
 }

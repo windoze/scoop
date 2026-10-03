@@ -1,0 +1,333 @@
+Module
+  struct Point ()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Base vtable=1 itables=0
+  class Child vtable=1 itables=0
+  class Holder vtable=0 itables=0
+  fun verifyDefault @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun defaultUnit @fn1() -> Unit
+    bb0 entry
+      return
+  fun main @fn2() -> Unit
+    bb0 entry
+      call $call.1: Point = external1 direct
+      call @fn1 direct
+      call @fn1 direct
+      val $dependency.argument.0: (Point, (Unit, Unit))
+        Type (Point, (Unit, Unit))
+        TupleLiteral
+          Type Point
+          Local $call.1
+          Type (Unit, Unit)
+          TupleLiteral
+            Type Unit
+            UnitLiteral
+            Type Unit
+            UnitLiteral
+      call $call.2: Point = external1 direct
+      call @fn1 direct
+      call @fn1 direct
+      val $dependency.argument.1: (Point, (Unit, Unit))
+        Type (Point, (Unit, Unit))
+        TupleLiteral
+          Type Point
+          Local $call.2
+          Type (Unit, Unit)
+          TupleLiteral
+            Type Unit
+            UnitLiteral
+            Type Unit
+            UnitLiteral
+      val $dependency.parameter.left: (Point, (Unit, Unit))
+        Type (Point, (Unit, Unit))
+        Local $dependency.argument.0
+      val $dependency.parameter.right: (Point, (Unit, Unit))
+        Type (Point, (Unit, Unit))
+        Local $dependency.argument.1
+      call $dependency.parameter.equal: Boolean = @fn5 direct
+        Type (Point, (Unit, Unit))
+        Local $dependency.parameter.left
+        Type (Point, (Unit, Unit))
+        Local $dependency.parameter.right
+      call $argument.0: Boolean = external2 direct
+        Type (Point, (Unit, Unit))
+        Local $dependency.parameter.left
+        Type (Point, (Unit, Unit))
+        Local $dependency.parameter.right
+        Type Boolean
+        Local $dependency.parameter.equal
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $call.3: Child = external5 direct
+      val base: Base
+        Type Base
+        Retype Base
+          Type Child
+          Local $call.3
+      val $dependency.receiver: Base
+        Type Base
+        Local base
+      call $call.4: Point = external1 direct
+      call $call.5: Point = external1 direct
+      val $dependency.argument.0: (Point, Point)
+        Type (Point, Point)
+        TupleLiteral
+          Type Point
+          Local $call.4
+          Type Point
+          Local $call.5
+      call $call.6: Point = external1 direct
+      call $call.7: Point = external1 direct
+      val $dependency.argument.1: (Point, Point)
+        Type (Point, Point)
+        TupleLiteral
+          Type Point
+          Local $call.6
+          Type Point
+          Local $call.7
+      val $dependency.parameter.left: (Point, Point)
+        Type (Point, Point)
+        Local $dependency.argument.0
+      val $dependency.parameter.right: (Point, Point)
+        Type (Point, Point)
+        Local $dependency.argument.1
+      call $dependency.parameter.equal: Boolean = @fn6 direct
+        Type (Point, Point)
+        Local $dependency.parameter.left
+        Type (Point, Point)
+        Local $dependency.parameter.right
+      call $argument.0: Boolean = external3 virtual[0]
+        Type Base
+        Local $dependency.receiver
+        Type (Point, Point)
+        Local $dependency.parameter.left
+        Type (Point, Point)
+        Local $dependency.parameter.right
+        Type Boolean
+        Local $dependency.parameter.equal
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.receiver: Child = external5 direct
+      call $call.8: Point = external1 direct
+      call $call.9: Point = external1 direct
+      val $dependency.argument.0: (Point, Point)
+        Type (Point, Point)
+        TupleLiteral
+          Type Point
+          Local $call.8
+          Type Point
+          Local $call.9
+      call $call.10: Point = external1 direct
+      call $call.11: Point = external1 direct
+      val $dependency.argument.1: (Point, Point)
+        Type (Point, Point)
+        TupleLiteral
+          Type Point
+          Local $call.10
+          Type Point
+          Local $call.11
+      val $dependency.parameter.left: (Point, Point)
+        Type (Point, Point)
+        Local $dependency.argument.0
+      val $dependency.parameter.right: (Point, Point)
+        Type (Point, Point)
+        Local $dependency.argument.1
+      call $dependency.parameter.equal: Boolean = @fn6 direct
+        Type (Point, Point)
+        Local $dependency.parameter.left
+        Type (Point, Point)
+        Local $dependency.parameter.right
+      call $argument.0: Boolean = external4 direct
+        Type Child
+        Local $dependency.receiver
+        Type (Point, Point)
+        Local $dependency.parameter.left
+        Type (Point, Point)
+        Local $dependency.parameter.right
+        Type Boolean
+        Local $dependency.parameter.equal
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.argument.0: Holder = external6 direct
+      val $dependency.parameter.value: Holder
+        Type Holder
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external7 direct
+        Type Holder
+        Local $dependency.parameter.value
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun $derived.equals.0 @fn3(this: Unit, other: Unit) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun $derived.equals.1 @fn4(this: (Unit, Unit), other: (Unit, Unit)) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn3 direct
+        Type Unit
+        FieldAccess 0
+          Type (Unit, Unit)
+          Local this
+        Type Unit
+        FieldAccess 0
+          Type (Unit, Unit)
+          Local other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 logic.rhs.1
+      call $call.3: Boolean = @fn3 direct
+        Type Unit
+        FieldAccess 1
+          Type (Unit, Unit)
+          Local this
+        Type Unit
+        FieldAccess 1
+          Type (Unit, Unit)
+          Local other
+      assign $logic.2
+        Type Boolean
+        Local $call.3
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.2
+  fun $derived.equals.2 @fn5(this: (Point, (Unit, Unit)), other: (Point, (Unit, Unit))) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = external8 direct
+        Type Point
+        FieldAccess 0
+          Type (Point, (Unit, Unit))
+          Local this
+        Type Point
+        FieldAccess 0
+          Type (Point, (Unit, Unit))
+          Local other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 logic.rhs.1
+      call $call.3: Boolean = @fn4 direct
+        Type (Unit, Unit)
+        FieldAccess 1
+          Type (Point, (Unit, Unit))
+          Local this
+        Type (Unit, Unit)
+        FieldAccess 1
+          Type (Point, (Unit, Unit))
+          Local other
+      assign $logic.2
+        Type Boolean
+        Local $call.3
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.2
+  fun $derived.equals.3 @fn6(this: (Point, Point), other: (Point, Point)) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = external8 direct
+        Type Point
+        FieldAccess 0
+          Type (Point, Point)
+          Local this
+        Type Point
+        FieldAccess 0
+          Type (Point, Point)
+          Local other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 logic.rhs.1
+      call $call.3: Boolean = external8 direct
+        Type Point
+        FieldAccess 1
+          Type (Point, Point)
+          Local this
+        Type Point
+        FieldAccess 1
+          Type (Point, Point)
+          Local other
+      assign $logic.2
+        Type Boolean
+        Local $call.3
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.2
+  str @str0 "illegal state"
+  output executable @fn2

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `Reader` takes 1 type argument(s), but 2 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "45713f3bc59aa7321da982c69489ff997242b76ee2a7a579049ba3e4a8247924",
+      "end": 62,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 56
+    },
+    "severity": "error"
+  }
+]

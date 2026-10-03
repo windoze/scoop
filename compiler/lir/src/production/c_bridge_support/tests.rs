@@ -44,7 +44,14 @@ fn registry_is_a_closed_typed_lookup() {
         CBridgeTargetSupportRegistryV1::current(LirTargetProfile::DARWIN_AARCH64, &profile)
             .unwrap();
 
-    assert_eq!(registry.requirements().len(), 1);
+    assert_eq!(registry.requirements().len(), 2);
+    assert_eq!(
+        registry
+            .requirement_for_object_symbol(b"__tlv_bootstrap")
+            .unwrap()
+            .support(),
+        CBridgeTargetSupportV1::TlvBootstrap
+    );
     assert_eq!(
         registry
             .requirement_for_object_symbol(b"_memcpy")

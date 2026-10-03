@@ -1,0 +1,32 @@
+SourceFile
+  RootPackage
+  public interface DeferredGeneric<T>
+  public class DeferredRoot(), DeferredGeneric<Int>
+  public class DeferredHolder(val value: DeferredRoot)
+  public class DeferredLeaf(val value: DeferredHolder)
+  public struct DeferredBox<T>
+    field value: T
+  public class DeferredConstructor(value: DeferredBox<Int>)
+  public interface DeferredSlot
+    fun take
+  public open class DeferredVirtual()
+    public fun take
+  public class DeferredDerived() : DeferredVirtual(<0 args>)
+  public object DeferredObject
+    public fun take
+  private class DeferredPrivate(), DeferredGeneric<Int>
+  public class DeferredPrivateHolder()
+    private val hidden: DeferredPrivate = <expr>
+      Call DeferredPrivate
+  public open class DeferredProtected(), DeferredGeneric<Int>
+    protected val code: Int = <expr>
+      IntLiteral 3
+    protected fun read
+    protected nested class DeferredNested
+  public class DeferredCycleA(val next: DeferredCycleB)
+  public class DeferredCycleB(val next: DeferredCycleA), DeferredGeneric<Int>
+  public class ReadyCycleA(val next: ReadyCycleB)
+  public class ReadyCycleB(val next: ReadyCycleA)
+  public class ReadyDirect()
+    public fun take
+  public struct ReadyEmpty

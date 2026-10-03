@@ -1,7 +1,0 @@
-span=69..110
-expression=public val value: Long
-        get() = 21
-property `value` overrides an inherited property and must be marked `override`
-span=80..85
-expression=value
-`$get$value` overrides `Valued.$get$value` and must be marked `override`

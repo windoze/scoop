@@ -1,0 +1,62 @@
+SourceFile
+  QualifiedPackage consumer.adapters
+  ImportStar Local templates.adapters.*
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val boxed
+      Call boxedResult
+        Var seed
+    val value
+      Call valueResult
+        Call read
+          Var seed
+    val reference
+      Call referenceResult
+        Call read
+          Var seed
+    val nested
+      Call nestedResult
+        Call read
+          Var seed
+    val foreign
+      Cast (T) -> Any optional=false
+        Call externalErased
+    if
+      Binary Ne
+        Call read
+          Cast T optional=false
+            Call boxed
+        IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Or
+        Binary Ne
+          MethodCall read
+            Call value
+          IntLiteral 42
+        Binary Ne
+          FieldAccess value
+            Call reference
+          IntLiteral 42
+      return
+        IntLiteral 2
+    if
+      Binary Ne
+        Cast Int optional=false
+          Call foreign
+            Var seed
+        IntLiteral 42
+      return
+        IntLiteral 3
+    return
+      Cast Int optional=false
+        Invoke
+          Call nested
+          IntLiteral 0
+  public fun result(): Int
+    =
+      Call exercise
+        IntLiteral 42
+        Lambda 0 suspend=false
+          param value: Int
+          Var value

@@ -1,0 +1,26 @@
+SourceFile
+  RootPackage
+  public fun nestedIdentity(): Int
+    =
+      IntLiteral 1
+  public fun nestedLambda<A, B, Unused>(value: () -> Int = <expr>): () -> Int
+    =
+      Var value
+  public fun nestedLocal<A, B>(value: () -> Int = <expr>): () -> Int
+    =
+      Var value
+  public fun nestedAnonymous<A, B, Unused>(value: () -> Int = <expr>): () -> Int
+    =
+      Var value
+  public fun nestedReference<T>(value: () -> Int = <expr>): () -> Int
+    =
+      Var value
+  public class NestedBinderHost<Host>()
+    public fun expanded
+    public fun local
+    public fun anonymous
+SourceFile
+  RootPackage
+  public fun nestedHost(): NestedBinderHost<Int>
+    =
+      Call NestedBinderHost<Int>

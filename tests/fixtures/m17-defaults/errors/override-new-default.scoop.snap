@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m17-defaults/errors/override-new-default.scoop:6:24: error: override function `value` cannot declare a new default expression

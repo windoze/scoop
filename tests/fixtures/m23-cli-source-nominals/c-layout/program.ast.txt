@@ -1,0 +1,64 @@
+SourceFile
+  RootPackage
+  ImportStar Local sourcepolicy.*
+  fun verifyNominal(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call verifyNominal
+      Binary Eq
+        Call packedValues
+          Call Packed
+            BoolLiteral true
+            IntLiteral 17
+        TupleLiteral
+          BoolLiteral true
+          IntLiteral 17
+    Call verifyNominal
+      Binary Eq
+        Call outerValue
+          Call Outer
+            BoolLiteral false
+            Call Packed
+              BoolLiteral true
+              IntLiteral 19
+        IntLiteral 19
+    Call verifyNominal
+      Binary Eq
+        Call boxValue
+          Call CBox
+            IntLiteral 23
+        IntLiteral 23
+    Call verifyNominal
+      Binary Eq
+        Call boxValue
+          Call CBox
+            IntLiteral 29uL
+        IntLiteral 29uL
+    Call verifyNominal
+      Binary Eq
+        Call ordinaryValue
+          Call Ordinary
+            IntLiteral 31
+        IntLiteral 31
+    Call verifyNominal
+      Binary Eq
+        MethodCall headerValue
+          Call envelope
+          IntLiteral 37
+        IntLiteral 37
+    Call verifyNominal
+      Binary Eq
+        Call Outer
+          BoolLiteral false
+          Call Packed
+            BoolLiteral true
+            IntLiteral 41
+        Call Outer
+          BoolLiteral false
+          Call Packed
+            BoolLiteral true
+            IntLiteral 41

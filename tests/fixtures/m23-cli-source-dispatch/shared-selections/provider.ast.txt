@@ -1,0 +1,10 @@
+SourceFile
+  RootPackage
+  public interface Generic<T>
+    fun value
+  public interface Refined<T> : Generic<T>
+    fun value
+  public open class Base<T>()
+    public fun compute
+  public class Leaf<T>() : Base<T>(<0 args>), Refined<T>
+    public fun compute

@@ -1,0 +1,42 @@
+SourceFile
+  RootPackage
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call verifyDefault
+      Binary Eq
+        MethodCall inherited
+          Call defaultChild
+        IntLiteral 9
+    val base: Base
+      Call defaultChild
+    Call verifyDefault
+      Binary Eq
+        MethodCall inherited
+          Var base
+        IntLiteral 9
+    Call verifyDefault
+      Binary Eq
+        MethodCall exposed
+          Call defaultPublicStatic
+        IntLiteral 9
+    Call verifyDefault
+      Binary Eq
+        MethodCall checkConfined
+          Call defaultEnvelope<Int>
+        IntLiteral 9
+    Call verifyDefault
+      Binary Eq
+        MethodCall Item
+          FieldAccess Choice
+            Var Envelope
+          IntLiteral 7
+        MethodCall Item
+          FieldAccess Choice
+            Var Envelope
+          IntLiteral 7
+          IntLiteral 7

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `selected`: Other is not a subtype of Registry",
+    "notes": [],
+    "origin": {
+      "cone": "4bcd8a6855bdbf3844bb8d1e26a1ae19178b5eee6b16e9a0649de8fa7479fb92",
+      "end": 182,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 177
+    },
+    "severity": "error"
+  }
+]

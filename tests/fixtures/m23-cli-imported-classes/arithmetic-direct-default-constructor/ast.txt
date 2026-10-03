@@ -1,0 +1,24 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  private fun operand(value: Long): Long
+    =
+      Var value
+  public fun primary(): Counter
+    val quotient
+      Binary Div
+        Call operand
+          IntLiteral 43
+        IntLiteral 2
+    val remainder
+      Binary Rem
+        Call operand
+          IntLiteral 43
+        IntLiteral 2
+    return
+      Call Counter
+        Binary Sub
+          Binary Add
+            Var quotient
+            Var remainder
+          IntLiteral 1

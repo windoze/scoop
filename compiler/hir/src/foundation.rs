@@ -36,6 +36,7 @@ mod identities;
 mod imported;
 mod imported_protocols;
 mod projection;
+mod source_names;
 mod source_queries;
 mod strong_profile;
 pub use counts::HirFoundationCounts;

@@ -1,0 +1,35 @@
+SourceFile
+  QualifiedPackage consumer
+  ImportExact Local dependency.api.run as directRun
+  ImportExact Local dependency.api.combineUnits
+  ImportExact Local dependency.api.choose
+  ImportExact Local facade.api.run as exportedRun
+  private val initialized: Boolean = <expr>
+  private fun empty(): Unit
+  public fun withDefault(value: Boolean = <expr>): Boolean
+    =
+      Var value
+  public fun invoke(): Boolean
+    fun nested(): Boolean
+      Call directRun
+    val callback
+      Lambda 0 suspend=false
+        parameters omitted
+        Call exportedRun
+    Call combineUnits
+      Call empty
+      Call empty
+    val defaulted
+      Call withDefault
+    val fromProvider
+      Call choose
+    return
+      Binary And
+        Binary And
+          Binary And
+            Binary And
+              Call nested
+              Call callback
+            Var defaulted
+          Var initialized
+        Var fromProvider

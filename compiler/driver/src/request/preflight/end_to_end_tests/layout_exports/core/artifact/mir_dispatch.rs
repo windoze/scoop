@@ -1,13 +1,11 @@
 use super::*;
 use scoop_identity::{
     DeclarationName, GeneratedCallableKey, SignatureTypeKey, SourceDeclarationKey,
-    StrongCallableDefinitionOwner,
 };
 use scoop_slib::{
     SharedMirDispatchComponent as Component, SharedMirDispatchValidationError as Error,
 };
 
-mod dump;
 mod mutations;
 
 pub(super) fn check(
@@ -36,7 +34,6 @@ pub(super) fn check(
         return;
     }
     let combined = name.ends_with("combined");
-    dump::check(&replay, name);
     mutations::check(&replay, combined);
     let missing = replay.owner(if combined {
         "SharedDispatchMutableImpl"

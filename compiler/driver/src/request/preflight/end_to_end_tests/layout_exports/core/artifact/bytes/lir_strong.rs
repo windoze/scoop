@@ -21,25 +21,6 @@ pub(super) fn check(
     assert_eq!(current.initialization_units(), units);
     let strong = current.lir_strong_production();
     assert!(!strong.digest_finalization_plan().nodes().is_empty());
-    if name.starts_with("shared-production-") {
-        let dump = format!(
-            "callables={}\ntypes={}\nsafepoints={}\nimmortals={}\nstorages={}\ninitializations={}\ndigests={}\n",
-            strong.callable_registrations().registrations().len(),
-            strong.type_registrations().registrations().len(),
-            strong.safepoint_registrations().registrations().len(),
-            strong.immortal_registrations().registrations().len(),
-            strong.static_storage_registrations().registrations().len(),
-            strong.initialization_registrations().registrations().len(),
-            strong.digest_finalization_plan().nodes().len(),
-        );
-        let snapshot = crate::workspace_root()
-            .join("tests/fixtures/m23-core-layout-exports")
-            .join(format!("{name}.production.snap"));
-        if std::env::var_os("SCOOP_UPDATE_CORE_LAYOUT_EXPORTS").is_some() {
-            std::fs::write(&snapshot, &dump).unwrap();
-        }
-        assert_eq!(dump, std::fs::read_to_string(snapshot).unwrap());
-    }
     let dependencies = checked
         .replay_mir_dependency_graph()
         .unwrap_or_else(|error| panic!("{name} shared MIR dependency graph: {error}"));

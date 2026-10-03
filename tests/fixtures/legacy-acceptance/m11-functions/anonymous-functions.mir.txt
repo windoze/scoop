@@ -1,0 +1,217 @@
+Module
+  class box<Int> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  closure cc0 $Closure$anonymous0 type=function_type0 invoke=@fn2 captures=1
+    bridge function_type1 -> @fn5 id=6e2634912a6fb3718f383dee439f3798cb4d9a73784e14aa16c7f90e6813c4a7
+  closure cc1 $Closure$anonymous1 type=function_type0 invoke=@fn3 captures=0
+    bridge function_type1 -> @fn6 id=4f6e67c61282686fd6a36b5fb39ddfce0f73dc80223731eeb68b38534c3c2707
+  generated_exact_type get0 location=closure0 nominal_id=90a27b59fae67177e43b63e2aecba11908d294b61a6af5fde170f8f4b4583efd exact_id=1e7b23a2b077efe3283abc731c0a5b2e3c13cbe72aa6c05edd2c7f5122dc3423
+  generated_exact_type get1 location=class0 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get2 location=closure1 nominal_id=5e68b0b8cc8e58092426c44b9bc2d9db961f3225bc87056875b5c403c9d51d31 exact_id=ee915ae1b3fcecc6a16b4e9032780c6025784c3d16a3f67460c55addd6bbda3c
+  generated_callable gc0 function=@fn6 id=4f6e67c61282686fd6a36b5fb39ddfce0f73dc80223731eeb68b38534c3c2707
+  generated_callable gc1 function=@fn5 id=6e2634912a6fb3718f383dee439f3798cb4d9a73784e14aa16c7f90e6813c4a7
+  fun makeOperation @fn0(base: Int) -> (Int) -> Int
+    bb0 entry
+      return
+        Type (Int) -> Int
+        ClosureAlloc cc0 $Closure$anonymous0
+          CaptureInit field=0
+            Type Int
+            Local base
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.base: Int
+        Type Int
+        Local $argument.0
+      call operation: (Int) -> Int = @fn0 direct
+        Type Int
+        Local $parameter.base
+      val inferred: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc1 $Closure$anonymous1
+      call @scoop_rt_gc_collect direct
+      call $dependency.argument.0: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local operation
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local operation
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.0: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $callable.receiver
+        Type Int
+        IntegerBinary subtract kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Int
+        Local $dependency.parameter.value
+      call $dependency.argument.0: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local inferred
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun $anonymous.0 @fn2($closure: (Int) -> Int, value: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary subtract kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb2 if.merge.2
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        ClosureCapture cc0 0
+          Type (Int) -> Int
+          Local $closure
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun $anonymous.1 @fn3($closure: (Int) -> Int, value: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun println @fn4(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun function_bridge.$Closure$anonymous0.(Any) -> Any @fn5($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$anonymous1.(Any) -> Any @fn6($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  instance mi0 function=@fn4 <- println
+  str @str0 "\n"
+  output executable @fn1

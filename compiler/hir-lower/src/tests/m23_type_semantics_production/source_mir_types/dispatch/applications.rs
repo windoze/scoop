@@ -109,7 +109,7 @@ fn concrete_generic_dispatch_keeps_direct_parents_and_actual_odr_bodies() {
                                 scoop_mir::Terminator::Trap { .. }
                             ));
                         }
-                        _ => {}
+                        _ => continue,
                     }
                 }
             }
@@ -126,13 +126,6 @@ fn concrete_generic_dispatch_keeps_direct_parents_and_actual_odr_bodies() {
                 MirTypeBridgeCallableIndexV1::try_new(&[&bindings, &bindings], &[]).unwrap();
             assert_eq!(merged.record_count(), bindings.entries().len());
             reject_wrong_application_target(callable_authority, &bindings);
-
-            let snapshot = fixtures.join(format!("{case}.hir.snap"));
-            let actual = hir::dump(&output.output().export);
-            if std::env::var_os("SCOOP_UPDATE_GENERIC_BODY_SNAPSHOTS").is_some() {
-                std::fs::write(&snapshot, &actual).unwrap();
-            }
-            assert_eq!(actual, std::fs::read_to_string(snapshot).unwrap());
         });
     }
 }

@@ -1,0 +1,67 @@
+SourceFile
+  QualifiedPackage consumer.iteration
+  ImportStar Local upstream.iteration.*
+  ImportExact Local upstream.iteration.exercise as providerExercise
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    =
+      Call providerExercise<T>
+        Var seed
+        Var read
+  private fun readInt(value: Int): Int
+    =
+      Var value
+  public fun result(): Int
+    if
+      Binary Ne
+        Call total<Int>
+          ArrayLiteral
+            IntLiteral 20
+            IntLiteral 22
+          CallableReference 0 readInt
+        IntLiteral 42
+      return
+        IntLiteral 1
+    val mutable: MutableArray<Int>
+      ArrayLiteral
+        IntLiteral 10
+        IntLiteral 12
+        IntLiteral 20
+    if
+      Binary Ne
+        Call total<Int>
+          Var mutable
+          CallableReference 1 readInt
+        IntLiteral 42
+      return
+        IntLiteral 2
+    val empty: Array<Int>
+      ArrayLiteral
+    if
+      Binary Ne
+        Call total<Int>
+          Var empty
+          CallableReference 2 readInt
+        IntLiteral 0
+      return
+        IntLiteral 3
+    var sum
+      IntLiteral 0
+    for value
+      Call marked<Int>
+        ArrayLiteral
+          IntLiteral 20
+          IntLiteral 22
+      assign sum
+        Binary Add
+          Var sum
+          Var value
+    if
+      Binary Ne
+        Var sum
+        IntLiteral 42
+      return
+        IntLiteral 4
+    return
+      Call exercise<Int>
+        IntLiteral 42
+        CallableReference 3 readInt

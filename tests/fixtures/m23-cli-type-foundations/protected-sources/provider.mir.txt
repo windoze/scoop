@@ -1,0 +1,387 @@
+Module
+  global0 $singleton$Constants: Surface.Box.Constants managed initial=zeroed-for-runtime-unit
+  global1 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  init0 object:Surface.Box.Constants singleton lazy global0 initializer=@fn5 ensure=@fn6 failure=1 deps=[]
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Surface>
+    Completed(value: Surface)
+    Suspended()
+  enum CoroutineSlot<Surface>
+    Empty()
+    Value(value: Surface)
+  enum CoroutineStep<Surface.Box.Constants>
+    Completed(value: Surface.Box.Constants)
+    Suspended()
+  enum CoroutineSlot<Surface.Box.Constants>
+    Empty()
+    Value(value: Surface.Box.Constants)
+  enum CoroutineStep<Surface.Box.Child>
+    Completed(value: Surface.Box.Child)
+    Suspended()
+  enum CoroutineSlot<Surface.Box.Child>
+    Empty()
+    Value(value: Surface.Box.Child)
+  class Surface vtable=2 itables=0
+  class Surface.Box.Constants vtable=0 itables=0
+  class Surface.Box.Child vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<Surface>
+  interface SuspendTask<Surface>
+  interface SuspendRegistration<Surface>
+  interface Continuation<Surface.Box.Constants>
+  interface SuspendTask<Surface.Box.Constants>
+  interface SuspendRegistration<Surface.Box.Constants>
+  interface Continuation<Surface.Box.Child>
+  interface SuspendTask<Surface.Box.Child>
+  interface SuspendRegistration<Surface.Box.Child>
+  generated_exact_type get0 location=enum5 nominal_id=7c54fefdfcccd7ac76b210f9cb543f30f58ef33727634aefb82f416384b47127 exact_id=0d9552d269c06280747928e04632b9df853538dd86a1bf03f4994271fa19334b
+  generated_exact_type get1 location=enum6 nominal_id=e7a05ab7b92b165eaade5d8e6738759a7dd5d461b74f1fd86bc611d8e133739e exact_id=4afe840452f1d840eaff04363ce5364266862ac5bc0d6728a2e0ec6b3eaa6f38
+  generated_exact_type get2 location=enum1 nominal_id=44e742efe6a4be0e4e95bbfdaad7459e5acb87f911ffa63c0a1965b57ff1fab0 exact_id=509804cb9f4af58681b9d000d53be10a0181b3965c4c6ec2c47b522e027e55ea
+  generated_exact_type get3 location=enum2 nominal_id=6f3b817b0e78797d7a2e25d52aaf2c7c085e109c63ccc4082a67657fdb3374d0 exact_id=decced60267175c2e2f4de6e084305a98fccfaac6f0e31b64d4e4860cfd5aed3
+  generated_exact_type get4 location=enum4 nominal_id=158a1d0ef514ad5293a74309be6d64f80746bf04144118f229bb30b891b45851 exact_id=ed4faf645d7f1f1fc412b9c1ee34deb9de646245bbcab967e4fedf7987f691e1
+  generated_exact_type get5 location=enum3 nominal_id=60bac639b0f3fa39dc7731330896a723ea1c7ae9c5eb1da245c574b7737936ee exact_id=ffc39c6d2e2ccc41d4894c5a629b41f0f5188ff1320bfddb895a6f432960dc7f
+  generated_callable gc0 function=@fn24 id=35895fc6a727c97b021010e323310f1e6530612635ffe9d526e53944edc2999d
+  generated_callable gc1 function=@fn23 id=bef98641a8867c38cf5fc547ba7a9612b31100e7668298fdd60fcc18a126a9ca
+  generated_callable gc2 function=@fn22 id=cc2904f1208133c63667142b187bdf1f18a1c5023054d044dd0d2a3e5639dbe1
+  fun Surface.$get$stored @fn0(this: Surface) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+  fun Surface.$set$stored @fn1(this: Surface, value: Int) -> Unit
+    bb0 entry
+      return
+  fun Surface.$get$computed @fn2(this: Surface) -> Int
+    bb0 entry
+      call $call.1: Int = @fn0 direct
+        Type Surface
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun Surface.$get$virtualValue @fn3(this: Surface) -> Int
+    bb0 entry
+      call $call.1: Int = @fn0 direct
+        Type Surface
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun Surface.$set$virtualValue @fn4(this: Surface, value: Int) -> Unit
+    bb0 entry
+      return
+  fun $init$body$0 @fn5() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Surface.Box.Constants
+        ClassAlloc Surface.Box.Constants
+      call @fn20 direct
+        Type Surface.Box.Constants
+        Local $new.1
+      global_assign $singleton$Constants
+        Type Surface.Box.Constants
+        Local $new.1
+      return
+  fun $init$ensure$0 @fn6() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Surface.Box.Constants
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn5 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Surface.Box.Constants
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Surface.Box.Constants
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Surface.Box.Constants
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Surface.Box.Constants
+      call external0 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun Continuation.resume @fn7(this: Continuation<Surface>, value: Surface) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn8(this: Continuation<Surface>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn9(this: SuspendTask<Surface>, $completion: Continuation<Surface>) -> CoroutineStep<Surface>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn10(this: SuspendRegistration<Surface>, continuation: Continuation<Surface>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn11(this: Continuation<Surface.Box.Constants>, value: Surface.Box.Constants) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn12(this: Continuation<Surface.Box.Constants>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn13(this: SuspendTask<Surface.Box.Constants>, $completion: Continuation<Surface.Box.Constants>) -> CoroutineStep<Surface.Box.Constants>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn14(this: SuspendRegistration<Surface.Box.Constants>, continuation: Continuation<Surface.Box.Constants>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn15(this: Continuation<Surface.Box.Child>, value: Surface.Box.Child) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn16(this: Continuation<Surface.Box.Child>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn17(this: SuspendTask<Surface.Box.Child>, $completion: Continuation<Surface.Box.Child>) -> CoroutineStep<Surface.Box.Child>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn18(this: SuspendRegistration<Surface.Box.Child>, continuation: Continuation<Surface.Box.Child>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Surface.$c0 @fn19(this: Surface) -> Unit
+    bb0 entry
+      return
+  fun init.Surface.Box.Constants.$c4 @fn20(this: Surface.Box.Constants) -> Unit
+    bb0 entry
+      return
+  fun init.Surface.Box.Child.$c3 @fn21(this: Surface.Box.Child, code: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Surface.Box.Child
+        Local this
+        Type Int
+        Local code
+      return
+  fun startCoroutine<Surface> @fn22(task: SuspendTask<Surface>, completion: Continuation<Surface>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn7 interface Continuation<Surface>[0]
+        Type Continuation<Surface>
+        Local completion
+        Type Surface
+        EnumField v0 f0
+          Type CoroutineStep<Surface>
+          Local $step
+      return
+    bb2 failed
+      call @fn8 interface Continuation<Surface>[1]
+        Type Continuation<Surface>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Surface> = @fn9 interface SuspendTask<Surface>[0]
+        Type SuspendTask<Surface>
+        Local task
+        Type Continuation<Surface>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Surface>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Surface.Box.Constants> @fn23(task: SuspendTask<Surface.Box.Constants>, completion: Continuation<Surface.Box.Constants>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn11 interface Continuation<Surface.Box.Constants>[0]
+        Type Continuation<Surface.Box.Constants>
+        Local completion
+        Type Surface.Box.Constants
+        EnumField v0 f0
+          Type CoroutineStep<Surface.Box.Constants>
+          Local $step
+      return
+    bb2 failed
+      call @fn12 interface Continuation<Surface.Box.Constants>[1]
+        Type Continuation<Surface.Box.Constants>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Surface.Box.Constants> = @fn13 interface SuspendTask<Surface.Box.Constants>[0]
+        Type SuspendTask<Surface.Box.Constants>
+        Local task
+        Type Continuation<Surface.Box.Constants>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Surface.Box.Constants>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Surface.Box.Child> @fn24(task: SuspendTask<Surface.Box.Child>, completion: Continuation<Surface.Box.Child>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn15 interface Continuation<Surface.Box.Child>[0]
+        Type Continuation<Surface.Box.Child>
+        Local completion
+        Type Surface.Box.Child
+        EnumField v0 f0
+          Type CoroutineStep<Surface.Box.Child>
+          Local $step
+      return
+    bb2 failed
+      call @fn16 interface Continuation<Surface.Box.Child>[1]
+        Type Continuation<Surface.Box.Child>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Surface.Box.Child> = @fn17 interface SuspendTask<Surface.Box.Child>[0]
+        Type SuspendTask<Surface.Box.Child>
+        Local task
+        Type Continuation<Surface.Box.Child>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Surface.Box.Child>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Surface> result=Surface
+  coroutine_step cs1 CoroutineStep<Surface.Box.Constants> result=Surface.Box.Constants
+  coroutine_step cs2 CoroutineStep<Surface.Box.Child> result=Surface.Box.Child
+  coroutine_slot cl0 CoroutineSlot<Surface> value=Surface
+  coroutine_slot cl1 CoroutineSlot<Surface.Box.Constants> value=Surface.Box.Constants
+  coroutine_slot cl2 CoroutineSlot<Surface.Box.Child> value=Surface.Box.Child
+  coroutine_start ct0 result=Surface function=fn22
+  coroutine_start ct1 result=Surface.Box.Constants function=fn23
+  coroutine_start ct2 result=Surface.Box.Child function=fn24
+  coroutine_fn cf0 @fn9 source_return=Surface step=cs0 immediate
+  coroutine_fn cf1 @fn13 source_return=Surface.Box.Constants step=cs1 immediate
+  coroutine_fn cf2 @fn17 source_return=Surface.Box.Child step=cs2 immediate
+  instance mi0 function=@fn7 <- Continuation.resume
+  instance mi1 function=@fn8 <- Continuation.resumeWithException
+  instance mi2 function=@fn9 <- SuspendTask.run
+  instance mi3 function=@fn10 <- SuspendRegistration.register
+  instance mi4 function=@fn11 <- Continuation.resume
+  instance mi5 function=@fn12 <- Continuation.resumeWithException
+  instance mi6 function=@fn13 <- SuspendTask.run
+  instance mi7 function=@fn14 <- SuspendRegistration.register
+  instance mi8 function=@fn15 <- Continuation.resume
+  instance mi9 function=@fn16 <- Continuation.resumeWithException
+  instance mi10 function=@fn17 <- SuspendTask.run
+  instance mi11 function=@fn18 <- SuspendRegistration.register
+  output library

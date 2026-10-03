@@ -1,0 +1,41 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@NoGC` function `invalid` has non-GC-free return type SharedHolder",
+    "notes": [],
+    "origin": {
+      "cone": "7a56097b28b84c948a3dc5720ce72137b78de1c4a6e37636dfe9fcf20a6ce47d",
+      "end": 95,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 40
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "value of non-GC-free type SharedHolder is not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "7a56097b28b84c948a3dc5720ce72137b78de1c4a6e37636dfe9fcf20a6ce47d",
+      "end": 95,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 83
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "singleton access may initialize, allocate, and throw in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "7a56097b28b84c948a3dc5720ce72137b78de1c4a6e37636dfe9fcf20a6ce47d",
+      "end": 95,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 83
+    },
+    "severity": "error"
+  }
+]

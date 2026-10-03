@@ -1,4 +1,8 @@
+use scoop_identity::SourceIdentity;
 use std::fmt;
+
+mod protocol;
+pub use protocol::DiagnosticMappingError;
 
 use scoop_ast::{CurrentConeParsedSources, Diagnostic};
 use scoop_slib::PublishedCrossConeArtifact;
@@ -27,8 +31,9 @@ impl EmittedStageDump {
 
 #[derive(Debug)]
 struct CurrentConeDiagnosticSource {
+    identity: SourceIdentity,
     display_locator: String,
-    source_text: String,
+    source_text: Option<String>,
 }
 
 /// Diagnostics inseparably paired with the exact current-Cone sources whose
@@ -41,16 +46,27 @@ pub struct CurrentConeDiagnosticSet {
 
 impl CurrentConeDiagnosticSet {
     pub(super) fn try_new(
-        diagnostics: Vec<Diagnostic>,
+        mut diagnostics: Vec<Diagnostic>,
         sources: &CurrentConeParsedSources,
     ) -> Result<Self, CurrentConeDiagnosticSetError> {
-        let sources = sources
+        let mut sources = sources
             .iter()
             .map(|source| CurrentConeDiagnosticSource {
+                identity: source.text().identity().clone(),
                 display_locator: source.diagnostic().display_locator().display().to_string(),
-                source_text: source.text().text().to_owned(),
+                source_text: Some(source.text().text().to_owned()),
             })
             .collect::<Vec<_>>();
+        for diagnostic in &mut diagnostics {
+            if let Some(identity) = &diagnostic.source {
+                diagnostic.file = source_index(&mut sources, identity);
+            }
+            for note in &mut diagnostic.notes {
+                if let Some(identity) = &note.source {
+                    note.file = source_index(&mut sources, identity);
+                }
+            }
+        }
         for (diagnostic_index, diagnostic) in diagnostics.iter().enumerate() {
             if diagnostic.file >= sources.len() {
                 return Err(CurrentConeDiagnosticSetError::PrimarySourceIndex {
@@ -89,11 +105,29 @@ impl CurrentConeDiagnosticSet {
             .iter()
             .flat_map(|diagnostic| {
                 let primary_source = &self.sources[diagnostic.file];
-                let primary =
-                    diagnostic.render(&primary_source.display_locator, &primary_source.source_text);
+                let primary = match &primary_source.source_text {
+                    Some(text) => diagnostic.render(&primary_source.display_locator, text),
+                    None => {
+                        let severity = match diagnostic.severity {
+                            scoop_ast::DiagnosticSeverity::Error => "error",
+                            scoop_ast::DiagnosticSeverity::Warning => "warning",
+                        };
+                        render_without_text(
+                            primary_source,
+                            diagnostic.span,
+                            severity,
+                            &diagnostic.message,
+                        )
+                    }
+                };
                 std::iter::once(primary).chain(diagnostic.notes.iter().map(|note| {
                     let note_source = &self.sources[note.file];
-                    note.render(&note_source.display_locator, &note_source.source_text)
+                    match &note_source.source_text {
+                        Some(text) => note.render(&note_source.display_locator, text),
+                        None => {
+                            render_without_text(note_source, Some(note.span), "note", &note.message)
+                        }
+                    }
                 }))
             })
             .collect::<Vec<_>>()
@@ -146,19 +180,19 @@ impl std::error::Error for CurrentConeDiagnosticSetError {}
 pub struct SingleConeProductionSuccess {
     artifact: PublishedCrossConeArtifact,
     warnings: CurrentConeDiagnosticSet,
-    emitted_dump: Option<EmittedStageDump>,
+    emitted_dumps: Vec<EmittedStageDump>,
 }
 
 impl SingleConeProductionSuccess {
     pub(super) fn new_cross_cone(
         artifact: PublishedCrossConeArtifact,
         warnings: CurrentConeDiagnosticSet,
-        emitted_dump: Option<EmittedStageDump>,
+        emitted_dumps: Vec<EmittedStageDump>,
     ) -> Self {
         Self {
             artifact,
             warnings,
-            emitted_dump,
+            emitted_dumps,
         }
     }
 
@@ -170,7 +204,42 @@ impl SingleConeProductionSuccess {
         &self.warnings
     }
 
-    pub const fn emitted_dump(&self) -> Option<&EmittedStageDump> {
-        self.emitted_dump.as_ref()
+    pub fn emitted_dumps(&self) -> &[EmittedStageDump] {
+        &self.emitted_dumps
     }
+}
+
+fn source_index(
+    sources: &mut Vec<CurrentConeDiagnosticSource>,
+    identity: &SourceIdentity,
+) -> usize {
+    if let Some(index) = sources
+        .iter()
+        .position(|source| &source.identity == identity)
+    {
+        return index;
+    }
+    let index = sources.len();
+    sources.push(CurrentConeDiagnosticSource {
+        identity: identity.clone(),
+        display_locator: format!("{}/{}", identity.cone(), identity.logical_path()),
+        source_text: None,
+    });
+    index
+}
+
+fn render_without_text(
+    source: &CurrentConeDiagnosticSource,
+    span: Option<scoop_ast::Span>,
+    severity: &str,
+    message: &str,
+) -> String {
+    let location = match span {
+        Some(span) => format!(
+            "{}:bytes {}..{}",
+            source.display_locator, span.start, span.end
+        ),
+        None => source.display_locator.clone(),
+    };
+    format!("{location}: {severity}: {message}")
 }

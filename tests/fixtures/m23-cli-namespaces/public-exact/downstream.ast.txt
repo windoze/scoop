@@ -1,0 +1,52 @@
+SourceFile
+  RootPackage
+  ImportExact Local consumer.nesting.exercise
+  ImportExact Local consumer.nesting.ExportedLeaf
+  ImportExact Local consumer.nesting.ExportedBox
+  private class Later(val number: Int)
+  private fun readLater(value: Later): Int
+    =
+      FieldAccess number
+        Var value
+  private fun readInt(value: Int): Int
+    =
+      Var value
+  private fun readUnit(value: Unit): Int
+    =
+      IntLiteral 42
+  public fun check(): Int
+    val value
+      Call Later
+        IntLiteral 42
+    val box
+      Call ExportedBox<Later>
+        Var value
+    val leaf
+      Call ExportedLeaf
+        Call exercise<Later>
+          FieldAccess value
+            Var box
+          CallableReference 0 readLater
+    return
+      IfExpression
+        Binary And
+          Binary And
+            Binary Eq
+              Call exercise<Int>
+                IntLiteral 42
+                CallableReference 1 readInt
+              IntLiteral 42
+            Binary Eq
+              Call exercise<Unit>
+                UnitLiteral
+                CallableReference 2 readUnit
+              IntLiteral 42
+          Binary Eq
+            FieldAccess number
+              FieldAccess value
+                Var box
+            IntLiteral 42
+        FieldAccess number
+          Var leaf
+        else
+        IntLiteral 1

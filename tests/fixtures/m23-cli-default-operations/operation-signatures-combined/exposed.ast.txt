@@ -1,0 +1,17 @@
+SourceFile
+  RootPackage
+  public fun defaultSamples(): Samples
+    =
+      Call Samples
+SourceFile
+  RootPackage
+  public class Box<T>(val seed: T)
+    public fun echo
+    public fun pair
+  public class Outer<T>()
+    public nested object Static
+  public class Samples()
+    public fun method
+    public fun echo
+    public fun constructed
+    public fun nested

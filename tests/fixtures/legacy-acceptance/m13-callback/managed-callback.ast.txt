@@ -1,0 +1,214 @@
+SourceFile
+  RootPackage
+    @Extern(lib = "fixture_native", name = "m13_start_one")
+  fun startOne(callback: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, value: Int): Ptr<Unit>
+    @Extern(lib = "fixture_native", name = "m13_join_one")
+  fun joinOne(job: Ptr<Unit>): Int
+    @Extern(lib = "fixture_native", name = "m13_run_many")
+  fun runMany(callback: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, base: Int, count: Int): Int
+    @Extern(lib = "fixture_native", name = "m13_fail_start")
+  fun failStart(callback: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>): Int
+    @Extern(lib = "fixture_native", name = "m13_callback_barrier")
+  fun callbackBarrier()
+    @Extern(lib = "fixture_native", name = "m13_attached_thread_count")
+  fun attachedThreadCount(): Int
+    @Extern(lib = "fixture_native", name = "m13_borrowed_round_trip", abi = "scoop")
+  fun borrowedRoundTrip(message: String, callback: FunPtr<(Ptr<Unit>) -> Unit>, context: Ptr<Unit>): String
+  enum ManagedPayload
+    Text(String)
+    Empty
+  fun isNone<T>(value: T?): Boolean
+    =
+      WhenExpression
+        Var value
+        arm Some(_)
+          BoolLiteral false
+        arm None
+          BoolLiteral true
+  fun main()
+    val offset
+      IntLiteral 40
+    @Unsafe block
+      val oneShot
+        Call foreignCallback<(Int, Ptr<Unit>) -> Int>
+          Lambda 0 suspend=false
+            param value: Int
+            Call gcCollect
+            Binary Add
+              Var value
+              Var offset
+          IntLiteral 1
+          FieldAccess OneShot
+            Var ForeignCallbackMode
+      val observer
+        Call retainForeignCallback
+          Var oneShot
+      val callerRoot
+        Binary Add
+          StringLiteral "caller-"
+          StringLiteral "alive"
+      val job
+        Call startOne
+          FieldAccess function
+            Var oneShot
+          FieldAccess context
+            Var oneShot
+          IntLiteral 2
+      Call println
+        Call joinOne
+          Var job
+      Call println
+        Var callerRoot
+      Call println
+        Binary Eq
+          Call foreignCallbackState
+            Var observer
+          FieldAccess Completed
+            Var ForeignCallbackState
+      Call println
+        Call isNone
+          Call foreignCallbackFailure
+            Var observer
+      Call releaseForeignCallback
+        Var observer
+      val failedStart
+        Call foreignCallback<(Int, Ptr<Unit>) -> Int>
+          Lambda 1 suspend=false
+            param value: Int
+            Var value
+          IntLiteral 1
+          FieldAccess OneShot
+            Var ForeignCallbackMode
+      val failedObserver
+        Call retainForeignCallback
+          Var failedStart
+      Call println
+        Binary Eq
+          Call failStart
+            FieldAccess function
+              Var failedStart
+            FieldAccess context
+              Var failedStart
+          Unary Neg
+            IntLiteral 1
+      Call releaseForeignCallback
+        Var failedStart
+      Call releaseForeignCallback
+        Var failedObserver
+      val reusable
+        Call foreignCallback<(Int, Ptr<Unit>) -> Int>
+          Lambda 2 suspend=false
+            param value: Int
+            var index
+              IntLiteral 0
+            var text
+              StringLiteral "managed"
+            while
+              Binary Lt
+                Var index
+                IntLiteral 32
+              assign text
+                Binary Add
+                  Var text
+                  StringLiteral " callback"
+              assign index
+                Binary Add
+                  Var index
+                  IntLiteral 1
+            val payloads: Array<ManagedPayload>
+              ArrayLiteral
+                MethodCall Text
+                  Var ManagedPayload
+                  Var text
+                FieldAccess Empty
+                  Var ManagedPayload
+            @Unsafe block
+              Call callbackBarrier
+            Call gcCollect
+            when
+              Index
+                Var payloads
+                IntLiteral 0
+              arm Text(saved)
+                IfExpression
+                  Binary Eq
+                    Var saved
+                    Var text
+                  Var value
+                  else
+                  Unary Neg
+                    IntLiteral 100
+              arm Empty
+                Unary Neg
+                  IntLiteral 200
+          IntLiteral 1
+          FieldAccess Reusable
+            Var ForeignCallbackMode
+      Call println
+        Call runMany
+          FieldAccess function
+            Var reusable
+          FieldAccess context
+            Var reusable
+          IntLiteral 10
+          IntLiteral 4
+      Call println
+        Call runMany
+          FieldAccess function
+            Var reusable
+          FieldAccess context
+            Var reusable
+          IntLiteral 10
+          IntLiteral 4
+      Call println
+        Binary Eq
+          Call attachedThreadCount
+          IntLiteral 1
+      Call println
+        Binary Eq
+          Call foreignCallbackState
+            Var reusable
+          FieldAccess Registered
+            Var ForeignCallbackState
+      Call println
+        Call isNone
+          Call foreignCallbackFailure
+            Var reusable
+      Call releaseForeignCallback
+        Var reusable
+      val collector
+        Call foreignCallback<(Ptr<Unit>) -> Unit>
+          Lambda 3 suspend=false
+            parameters omitted
+            Call gcCollect
+          IntLiteral 0
+          FieldAccess OneShot
+            Var ForeignCallbackMode
+      val collectorObserver
+        Call retainForeignCallback
+          Var collector
+      val borrowedMessage
+        Binary Add
+          StringLiteral "borrowed-"
+          StringLiteral "alive"
+      Call println
+        Binary Eq
+          Call borrowedRoundTrip
+            Var borrowedMessage
+            FieldAccess function
+              Var collector
+            FieldAccess context
+              Var collector
+          Var borrowedMessage
+      Call println
+        Binary Eq
+          Call foreignCallbackState
+            Var collectorObserver
+          FieldAccess Completed
+            Var ForeignCallbackState
+      Call println
+        Call isNone
+          Call foreignCallbackFailure
+            Var collectorObserver
+      Call releaseForeignCallback
+        Var collectorObserver

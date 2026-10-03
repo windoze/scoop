@@ -3,9 +3,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use scoop_hir::concrete::ExecutableExpressionPosition;
 use scoop_identity::{
     CallableApplicationKey, CallableMaterializationContext, CallableOwner, CallableTemplateOrigin,
-    CallableTemplateOwner, ExactCallableSignature, InitializationUnitKey, OdrGroupId,
-    OdrMemberDiscriminator, OdrMemberKey, OdrMemberRole, PersistentCallableApplicationId,
-    PersistentGeneratedCallableId, ValidatedIdentityGraph,
+    CallableTemplateOwner, ExactCallableSignature, GeneratedCallableKey, InitializationUnitKey,
+    OdrGroupId, OdrMemberDiscriminator, OdrMemberKey, OdrMemberRole,
+    PersistentCallableApplicationId, PersistentGeneratedCallableId, ValidatedIdentityGraph,
 };
 use scoop_mir::{CallableSignatureSubject, CanonicalMirFoundation, StrongCallableBridgeSurfaceV1};
 
@@ -20,6 +20,7 @@ pub(super) struct ApplicationSignature<'a> {
 pub(super) struct Signatures<'a> {
     pub(super) applications: BTreeMap<PersistentCallableApplicationId, ApplicationSignature<'a>>,
     generated: BTreeSet<(OdrGroupId, PersistentGeneratedCallableId)>,
+    exact_generated: BTreeSet<PersistentGeneratedCallableId>,
 }
 
 pub(super) fn signatures<'a>(
@@ -29,6 +30,7 @@ pub(super) fn signatures<'a>(
 ) -> Result<Signatures<'a>, Error> {
     let mut applications = BTreeMap::new();
     let mut generated = BTreeSet::new();
+    let mut exact_generated = BTreeSet::new();
     for signature in foundation.callable_signatures() {
         let CallableSignatureSubject::Odr(member) = signature.subject() else {
             continue;
@@ -43,6 +45,12 @@ pub(super) fn signatures<'a>(
             OdrMemberDiscriminator::CallableApplication(application) => *application,
             OdrMemberDiscriminator::GeneratedCallable(callable) => {
                 generated.insert((key.group(), *callable));
+                let key = identities
+                    .canonical_key::<_, GeneratedCallableKey>(*callable)
+                    .map_err(|source| Error::CallIdentity(Box::new(source)))?;
+                if matches!(key.as_ref(), GeneratedCallableKey::DerivedEquality { .. }) {
+                    exact_generated.insert(*callable);
+                }
                 continue;
             }
             _ => continue,
@@ -71,6 +79,7 @@ pub(super) fn signatures<'a>(
     Ok(Signatures {
         applications,
         generated,
+        exact_generated,
     })
 }
 
@@ -87,7 +96,13 @@ pub(super) fn validate_root(
                 CallableTemplateOwner::Function(id) => CallableOwner::Function(id),
                 CallableTemplateOwner::Constructor(id) => CallableOwner::Constructor(id),
                 CallableTemplateOwner::Accessor(id) => CallableOwner::Accessor(id),
-                CallableTemplateOwner::Generated(id) => CallableOwner::Generated(id),
+                CallableTemplateOwner::Generated(id) => {
+                    // Exact-owner equality keys already contain all substitutions.
+                    if signatures.exact_generated.contains(&id) {
+                        return Ok(());
+                    }
+                    CallableOwner::Generated(id)
+                }
                 CallableTemplateOwner::GenericFunction(_)
                 | CallableTemplateOwner::VariantConstructor(_) => {
                     return Err(Error::CallRoot { position });

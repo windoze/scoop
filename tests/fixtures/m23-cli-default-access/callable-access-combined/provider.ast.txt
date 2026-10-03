@@ -1,0 +1,44 @@
+SourceFile
+  RootPackage
+  public fun callablePlain(): Int
+    =
+      IntLiteral 1
+  public fun callableKeep<T>(value: T): T
+    =
+      Var value
+  public fun Int.callableExtension(): Int
+    =
+      This
+  public class CallableCell<T>(var backing: T)
+    public var number: T <computed>
+      get()
+        Var backing
+      set(next)
+        assign backing
+          Var next
+  public struct CallableValue<T>
+  public open class CallableBase<T>()
+    public fun read
+  public interface CallableReader<T>
+    fun read
+  public class CallableHost<Host>()
+    public fun direct
+    public fun generic
+    public fun getter
+    public fun setter
+    public fun lambda
+    public fun anonymous
+    public fun reference
+    public fun extension
+    public fun local
+    public fun localReference
+    public fun equality
+    public fun unit
+    public fun tuple
+    public fun classBound
+    public fun interfaceBound
+    public fun boundReference
+    public fun choose
+    public fun factory
+    public fun factoryReference
+    public fun pair

@@ -1,0 +1,22 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.AccessParent
+  ImportExact Local dependency.classes.Counter
+  public class Derived() : AccessParent(<0 args>)
+    protected open override var state: Long = <expr>
+      IntLiteral 20
+      get()
+        Binary Add
+          Var field
+          IntLiteral 1
+      set(next)
+        assign field
+          Binary Mul
+            Var next
+            IntLiteral 2
+    public fun read
+  public fun primary(): Counter
+    =
+      Call Counter
+        MethodCall read
+          Call Derived

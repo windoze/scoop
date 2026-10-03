@@ -1,0 +1,45 @@
+Module
+  fun $extension.localAnswer @fn0(this: Any) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+  fun generic @fn1() -> Int
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      val $receiver: Any
+        Type Any
+        Retype Any
+          Type String
+          Local $parameter.value
+      call $parameter.answer: Int = @fn0 direct
+        Type Any
+        Local $receiver
+      call local: Int = @fn2 direct
+        Type String
+        Local $parameter.value
+        Type Int
+        Local $parameter.answer
+      val $dependency.receiver: String
+        Type String
+        StringConst @str1
+      call $call.1: Int = external0 direct
+        Type String
+        Local $dependency.receiver
+      return
+        Type Int
+        Local $call.1
+  fun using @fn2(value: String, answer: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local answer
+  instance mi0 function=@fn2 <- using
+  str @str0 "generic"
+  str @str1 "generic"
+  output library

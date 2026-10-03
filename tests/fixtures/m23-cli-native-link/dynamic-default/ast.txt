@@ -1,0 +1,14 @@
+SourceFile
+  RootPackage
+    @Extern(lib = "m23_a", name = "m23_foo")
+  fun first(): Int
+    @Extern(lib = "m23_b", name = "m23_bar")
+  fun second(): Int
+    @Extern(name = "m23_shared")
+  fun shared(): Int
+  fun main()
+    @Unsafe block
+      Call println
+        Call first
+      Call println
+        Call second

@@ -1,3 +1,0 @@
-span=83..132
-expression=Other.Pair(left = 1, marker = Token(), right = 2)
-dependency constructor `Pair` positional variants do not accept named arguments

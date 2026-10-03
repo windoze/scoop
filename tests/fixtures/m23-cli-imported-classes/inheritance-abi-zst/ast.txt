@@ -1,0 +1,22 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.Token
+  ImportExact Local dependency.classes.ZstParent
+  public class Derived() : ZstParent(<1 args>)
+    public fun echo
+  public fun primary(): Counter
+    val value: ZstParent
+      Call Derived
+    val marker
+      MethodCall echo
+        Var value
+        FieldAccess marker
+          Var value
+        IntLiteral 20
+        Call Token
+    return
+      Call Counter
+        MethodCall read
+          Var value
+          Var marker

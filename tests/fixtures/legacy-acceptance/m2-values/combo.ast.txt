@@ -1,0 +1,39 @@
+SourceFile
+  RootPackage
+  struct Tagged
+    field tag: String
+    field pair: (Int, String)
+  fun main()
+    val a
+      Call Tagged
+        StringLiteral "p"
+        TupleLiteral
+          IntLiteral 1
+          StringLiteral "one"
+    val b
+      Call Tagged
+        StringLiteral "p"
+        TupleLiteral
+          IntLiteral 1
+          StringLiteral "one"
+    Call println
+      Binary Eq
+        Var a
+        Var b
+    Call println
+      FieldAccess _2
+        FieldAccess pair
+          Var a
+    var count
+      IntLiteral 0
+    while
+      Binary Lt
+        Var count
+        IntLiteral 2
+      Call println
+        FieldAccess tag
+          Var a
+      assign count
+        Binary Add
+          Var count
+          IntLiteral 1

@@ -1,0 +1,267 @@
+schema = 1
+name = "native-link-archive-conflicts"
+inputs = ["cone", "../../m23-native-link/direct/root.scoop", "../../m23-native-link/direct/native.c", "native-sources/first_missing.c", "native-sources/second_missing.c", "native-sources/first_strong.c", "native-sources/second_strong.c", "native-sources/first_weak.c", "native-sources/second_weak.c", "native-sources/first_constructor.c", "native-sources/second_constructor.c"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin"]
+tags = ["native-link", "program-link", "stage-golden"]
+
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${fixture}/cone", "to" = "${work}/sources/archive"}}, {"copy" = {"from" = "${fixture}/../../m23-native-link/direct/root.scoop", "to" = "${work}/sources/archive/src/main.scoop"}}, {"mkdir" = {"path" = "${work}/native"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "prepare_compile_good"
+files = [{"copy" = {"from" = "${fixture}/../../m23-native-link/direct/native.c", "to" = "${work}/sources/native/good.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "compile_good"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/good.c", "-o", "${work}/objects/good.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "archive_m23_math"
+argv = ["${ar}", "qcS", "${work}/native/libm23_math.a", "${work}/objects/good.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"ZERO_AR_DATE" = "1"}
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${work}/sources/archive", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "lir.txt"}]
+
+[[steps]]
+name = "isolate"
+files = [{"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}}, {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}}, {"mkdir" = {"path" = "${work}/empty-sysroot"}}, {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}}, {"remove" = {"path" = "${work}/sources"}}]
+checks = []
+
+[[steps]]
+name = "prepare_first_missing"
+files = [{"copy" = {"from" = "${fixture}/native-sources/first_missing.c", "to" = "${work}/sources/native/first.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "first_missing"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/first.c", "-o", "${work}/objects/first.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "prepare_second_missing"
+files = [{"copy" = {"from" = "${fixture}/native-sources/second_missing.c", "to" = "${work}/sources/native/second.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "second_missing"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/second.c", "-o", "${work}/objects/second.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "remove_archive_missing"
+files = [{"remove" = {"path" = "${work}/native/libm23_math.a"}}]
+checks = []
+
+[[steps]]
+name = "archive_missing"
+argv = ["${ar}", "qcS", "${work}/native/libm23_math.a", "${work}/objects/first.o", "${work}/objects/second.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"ZERO_AR_DATE" = "1"}
+
+[[steps]]
+name = "previous_reject_missing"
+files = [{"write" = {"path" = "${work}/program", "data" = "previous executable"}}]
+checks = []
+
+[[steps]]
+name = "reject_missing"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "reject_missing.json"}
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
+
+[[steps]]
+name = "prepare_first_strong"
+files = [{"copy" = {"from" = "${fixture}/native-sources/first_strong.c", "to" = "${work}/sources/native/first.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "first_strong"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/first.c", "-o", "${work}/objects/first.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "prepare_second_strong"
+files = [{"copy" = {"from" = "${fixture}/native-sources/second_strong.c", "to" = "${work}/sources/native/second.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "second_strong"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/second.c", "-o", "${work}/objects/second.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "remove_archive_strong"
+files = [{"remove" = {"path" = "${work}/native/libm23_math.a"}}]
+checks = []
+
+[[steps]]
+name = "archive_strong"
+argv = ["${ar}", "qcS", "${work}/native/libm23_math.a", "${work}/objects/first.o", "${work}/objects/second.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"ZERO_AR_DATE" = "1"}
+
+[[steps]]
+name = "previous_reject_strong"
+files = [{"write" = {"path" = "${work}/program", "data" = "previous executable"}}]
+checks = []
+
+[[steps]]
+name = "reject_strong"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "reject_strong.json"}
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
+
+[[steps]]
+name = "prepare_first_weak"
+files = [{"copy" = {"from" = "${fixture}/native-sources/first_weak.c", "to" = "${work}/sources/native/first.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "first_weak"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/first.c", "-o", "${work}/objects/first.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "prepare_second_weak"
+files = [{"copy" = {"from" = "${fixture}/native-sources/second_weak.c", "to" = "${work}/sources/native/second.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "second_weak"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/second.c", "-o", "${work}/objects/second.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "remove_archive_weak"
+files = [{"remove" = {"path" = "${work}/native/libm23_math.a"}}]
+checks = []
+
+[[steps]]
+name = "archive_weak"
+argv = ["${ar}", "qcS", "${work}/native/libm23_math.a", "${work}/objects/first.o", "${work}/objects/second.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"ZERO_AR_DATE" = "1"}
+
+[[steps]]
+name = "previous_reject_weak"
+files = [{"write" = {"path" = "${work}/program", "data" = "previous executable"}}]
+checks = []
+
+[[steps]]
+name = "reject_weak"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "reject_weak.json"}
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
+
+[[steps]]
+name = "prepare_first_constructor"
+files = [{"copy" = {"from" = "${fixture}/native-sources/first_constructor.c", "to" = "${work}/sources/native/first.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "first_constructor"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/first.c", "-o", "${work}/objects/first.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "prepare_second_constructor"
+files = [{"copy" = {"from" = "${fixture}/native-sources/second_constructor.c", "to" = "${work}/sources/native/second.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "second_constructor"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/second.c", "-o", "${work}/objects/second.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "remove_archive_constructor"
+files = [{"remove" = {"path" = "${work}/native/libm23_math.a"}}]
+checks = []
+
+[[steps]]
+name = "archive_constructor"
+argv = ["${ar}", "qcS", "${work}/native/libm23_math.a", "${work}/objects/first.o", "${work}/objects/second.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"ZERO_AR_DATE" = "1"}
+
+[[steps]]
+name = "previous_reject_constructor"
+files = [{"write" = {"path" = "${work}/program", "data" = "previous executable"}}]
+checks = []
+
+[[steps]]
+name = "reject_constructor"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "reject_constructor.json"}
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"file" = "${work}/program", "equals" = "previous executable"}]

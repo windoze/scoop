@@ -1,0 +1,43 @@
+Module
+  extern ef0 handleRoundTrip @handle_round_trip(i64) -> i64 <c exact=(ULong)->ULong bridge=@scoop$1$br$b76a0cbef755af022b4bcd5c7384dbc1f508a4a85e2a4ca11e4524c836579b5f gc-leaf nounwind>
+  fun @scoop$1$cb$79e1fb8504e451bd867dd0b5b4014d8e70052086e692454a6cde063d5940f59e(indirect<struct0 size=8 align=8 scan=none>) -> sret<struct0 size=8 align=8 scan=none>
+    local %0 $call.1: struct0
+    local %1 $sc.1: i64
+    local %2 $sc.2: i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    t0 = extract param0, 0 : i64
+    store t0 -> local1
+    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer i64 size=8 align=8 scan=none, ptr<raw>) extern0(c-arg-address(local1))
+    t1 = aggregate (local2) : struct0
+    store t1 -> local0
+    ret local0
+  fun @scoop$1$cb$7c2c7e6fed4aece1680a349cab5a271ab20824701d80c3a308ec0883e5a08ea5() -> void
+    local %0 $dependency.argument.0: i64
+    local %1 $dependency.parameter.raw: i64
+    local %2 $argument.0: struct0
+    local %3 $parameter.value: struct0
+    local %4 result: struct0
+    local %5 $sc.1: struct0
+    local %6 $sc.2: i64
+    local %7 $sc.3: i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<ULong>(0x000000000000002a) -> local0
+    store local0 -> local1
+    call no-gc-indirect-target0 local5 = sig=indirect0 (sret struct0 size=8 align=8 scan=none, i64) local-fn2(local1)
+    store local5 -> local2
+    store local2 -> local3
+    t0 = extract local3, 0 : i64
+    store t0 -> local6
+    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local7 = sig=indirect1 (c-storage-pointer i64 size=8 align=8 scan=none, ptr<raw>) extern0(c-arg-address(local6))
+    t1 = aggregate (local7) : struct0
+    store t1 -> local4
+    ret
+  fun @scoop$1$cb$e175893d88dd93c124f63cd6e0e41224153aa8dba79cfb0a172c7129748b73a3(i64) -> sret<struct0 size=8 align=8 scan=none> <no-gc>
+  block entry
+    t0 = aggregate (param0) : struct0
+    ret t0
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=GcHandle);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=Any)]) @scoop$1$td$a1aa08fb59e2eeef139cd9aa7bb3fdc2d7bc9b99b20c3c8b96c57d5a9bedd0df type-id=5592580737159135366 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout GcHandle size=8 align=8 refs=[]
+  output library

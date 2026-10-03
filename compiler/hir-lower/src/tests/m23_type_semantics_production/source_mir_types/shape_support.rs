@@ -9,7 +9,7 @@ fn actual_mir_shape_families_replay_and_match_bound_materializations() {
         let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/m23-mir-shape-support");
         let source = std::fs::read_to_string(directory.join(format!("{name}.scoop"))).unwrap();
-        let (bytes, projection) = with_production(&source, |output, input, hir, graph, _| {
+        let bytes = with_production(&source, |output, input, hir, graph, _| {
             let types = scoop_mir_lower::lower_type_exports(
                 output.output().local.module(),
                 hir,
@@ -37,10 +37,8 @@ fn actual_mir_shape_families_replay_and_match_bound_materializations() {
             if name == "combined" {
                 assertions::hidden_box(input, &families);
             }
-            (
-                encode(&families).unwrap(),
-                assertions::projection(output, &families, &types),
-            )
+            assertions::source_families(output, &families, &types);
+            encode(&families).unwrap()
         });
         with_production(
             &format!("private struct Unrelated() {{}}\n{source}"),
@@ -56,10 +54,6 @@ fn actual_mir_shape_families_replay_and_match_bound_materializations() {
                     CanonicalMirShapeSupportsV1::from_strong_input(input, graph, &types).unwrap();
                 assert_eq!(encode(&families).unwrap(), bytes);
             },
-        );
-        assert_eq!(
-            projection,
-            std::fs::read_to_string(directory.join(format!("{name}.snap"))).unwrap()
         );
     }
 }

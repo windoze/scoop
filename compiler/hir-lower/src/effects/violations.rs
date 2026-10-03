@@ -229,6 +229,14 @@ impl Lowerer {
                 let span = expr.origin.concrete().evaluation.span;
                 if let Some(target) = callee.declared_callable(&self.bound_callable_refs) {
                     self.check_no_gc_call_target(target, span, out);
+                } else if let hir::MethodCallee::ImportedDerivedEquality { owner, .. } = callee {
+                    out.push((
+                        span,
+                        format!(
+                            "`@NoGC` code may not call managed function `{}.equals`",
+                            self.type_name(*owner)
+                        ),
+                    ));
                 } else if let hir::MethodCallee::DerivedEquality(application) = callee {
                     self.check_no_gc_function(
                         self.derived_equality_applications[*application].function,

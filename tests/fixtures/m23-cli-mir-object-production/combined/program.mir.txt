@@ -1,0 +1,283 @@
+Module
+  global0 $singleton$1dc3d34e8e914b697f7ed1860bfb8d7044ac5d5b5ab87691f0f1550b01ff9ee1: Second imported provider=911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006 storage=c601a4151f54c2f5bd45ba5824d70f36daae5d915a5c0688b7e95caf76ba513d
+  global1 $singleton$483319eb399ac425cb606e05dba996519f5c0289ac8da4a4e12f962826601d40: Companion imported provider=911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006 storage=8bf27bf5baf7969d31072973a68e18b451f0d652a32bf156d0a9ca5375de0cf3
+  global2 $singleton$92c65971003e6eb149bf1a8769fcf67224a862fcc5243f9e5ce92fe894d020e4: First imported provider=911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006 storage=98d53b52c6281c6dec500d87ef30bb4033b5d327be544da96f015d8d761383ac
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class First vtable=0 itables=0
+  class Second vtable=0 itables=0
+  class Companion vtable=0 itables=0
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn2 captures=0
+    bridge function_type1 -> @fn3 id=dfcd470966e1de73ceb1bd3002cd0fda20ce734cd262cb9e7447f9d926bd8ea2
+  generated_exact_type get0 location=closure0 nominal_id=27d9bb677cc720139c2c0e19c2b936ad0c25500d27086490d5d100fc88766e85 exact_id=c278af9ce50f62594f0b2d8a1f168e47970207d66e4059e6c020c3e2483eb48b
+  generated_callable gc0 function=@fn3 id=dfcd470966e1de73ceb1bd3002cd0fda20ce734cd262cb9e7447f9d926bd8ea2
+  fun verifyType @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call external9 direct
+      call $dependency.receiver: Int = external1 direct
+        Type First
+        GlobalRead $singleton$92c65971003e6eb149bf1a8769fcf67224a862fcc5243f9e5ce92fe894d020e4
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      call external7 direct
+      call $dependency.receiver: Int = external2 direct
+        Type Second
+        GlobalRead $singleton$1dc3d34e8e914b697f7ed1860bfb8d7044ac5d5b5ab87691f0f1550b01ff9ee1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.0
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call external8 direct
+      call $dependency.receiver: String = external3 direct
+        Type Companion
+        GlobalRead $singleton$483319eb399ac425cb606e05dba996519f5c0289ac8da4a4e12f962826601d40
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: Boolean = external4 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      branch bb4 bb5
+        Type Boolean
+        Local $call.1
+    bb4 if.then.4
+      call external8 direct
+      call $dependency.receiver: String = external3 direct
+        Type Companion
+        GlobalRead $singleton$483319eb399ac425cb606e05dba996519f5c0289ac8da4a4e12f962826601d40
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $shortCircuit.1: Boolean = external4 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      goto bb6
+    bb5 if.else.5
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 if.merge.6
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.receiver: Int = external5 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb7 bb8
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb7 if.then.7
+      call $dependency.receiver: Int = external6 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb9
+    bb8 if.else.8
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 if.merge.9
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.2
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call external9 direct
+      call external9 direct
+      call external7 direct
+      call external7 direct
+      branch bb10 bb11
+        Type Boolean
+        Binary RefEq
+          Type First
+          GlobalRead $singleton$92c65971003e6eb149bf1a8769fcf67224a862fcc5243f9e5ce92fe894d020e4
+          Type First
+          GlobalRead $singleton$92c65971003e6eb149bf1a8769fcf67224a862fcc5243f9e5ce92fe894d020e4
+    bb10 logic.rhs.10
+      assign $logic.2
+        Type Boolean
+        Binary RefEq
+          Type Second
+          GlobalRead $singleton$1dc3d34e8e914b697f7ed1860bfb8d7044ac5d5b5ab87691f0f1550b01ff9ee1
+          Type Second
+          GlobalRead $singleton$1dc3d34e8e914b697f7ed1860bfb8d7044ac5d5b5ab87691f0f1550b01ff9ee1
+      goto bb12
+    bb11 logic.short.11
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb12 logic.merge.12
+      val $argument.0: Boolean
+        Type Boolean
+        Local $logic.2
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val captured: () -> String
+        Type () -> String
+        ClosureAlloc cc0 $Closure$lambda0
+      call $dependency.receiver: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local captured
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external4 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun $lambda.0 @fn2($closure: () -> String) -> String
+    bb0 entry
+      call external8 direct
+      call $call.1: String = external3 direct
+        Type Companion
+        GlobalRead $singleton$483319eb399ac425cb606e05dba996519f5c0289ac8da4a4e12f962826601d40
+      return
+        Type String
+        Local $call.1
+  fun function_bridge.$Closure$lambda0.() -> Any @fn3($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  str @str0 "illegal state"
+  str @str1 "nested"
+  str @str2 "nested"
+  str @str3 "nested"
+  output executable @fn1

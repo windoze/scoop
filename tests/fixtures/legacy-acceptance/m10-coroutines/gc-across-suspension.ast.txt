@@ -1,0 +1,84 @@
+SourceFile
+  RootPackage
+  class Node(val name: String)
+  struct Bundle
+    field text: String
+    field node: Node
+  enum Payload
+    Full(Bundle)
+    Empty
+  class Gate(var waiter: Continuation<Int>?)
+    fun complete
+  class Registration(val gate: Gate), SuspendRegistration<Int>
+    public fun register
+  suspend fun deepest(gate: Gate): Int
+    =
+      Call suspendCoroutine
+        Call Registration
+          Var gate
+  suspend fun middle(gate: Gate, payload: Payload): Int
+    val marker
+      Binary Add
+        StringLiteral "middle-"
+        StringLiteral "alive"
+    val value
+      Call deepest
+        Var gate
+    Call println
+      Var marker
+    when
+      Var payload
+      arm Full(bundle)
+        Call println
+          FieldAccess text
+            Var bundle
+        Call println
+          FieldAccess name
+            FieldAccess node
+              Var bundle
+      arm Empty
+        Call println
+          StringLiteral "empty"
+    return
+      Binary Add
+        Var value
+        IntLiteral 1
+  class GcTask(val gate: Gate), SuspendTask<Int>
+    public suspend fun run
+  class RecordingCompletion(), Continuation<Int>
+    public fun resume
+    public fun resumeWithException
+  fun makeGarbage()
+    var index
+      IntLiteral 0
+    while
+      Binary Lt
+        Var index
+        IntLiteral 1000
+      val garbage
+        Call Node
+          Binary Add
+            StringLiteral "garbage-"
+            StringLiteral "node"
+      assign index
+        Binary Add
+          Var index
+          IntLiteral 1
+  fun main()
+    val gate
+      Call Gate
+        Var None
+    Call startCoroutine
+      Call GcTask
+        Var gate
+      Call RecordingCompletion
+    Call println
+      StringLiteral "suspended"
+    Call gcCollect
+    Call makeGarbage
+    Call gcCollect
+    Call println
+      StringLiteral "collected"
+    MethodCall complete
+      Var gate
+      IntLiteral 40

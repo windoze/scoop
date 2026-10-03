@@ -1,0 +1,16 @@
+schema = 1
+name = "legacy-m17-arguments-errors-spread-non-vararg"
+root = "../../../m17-arguments/errors/spread-non-vararg.scoop"
+inputs = ["../../../m17-arguments/errors/spread-non-vararg.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["legacy", "m17-arguments", "single-file", "negative"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "spread-non-vararg.diagnostics.json"}

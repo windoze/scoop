@@ -1,0 +1,36 @@
+SourceFile
+  RootPackage
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun defaultUnit()
+  fun main()
+    val host
+      Call defaultDerivedHost
+    Call verifyDefault
+      MethodCall nominal
+        Var host
+        Call Token<Int>
+        Call Token<Int>
+    Call verifyDefault
+      MethodCall nominal
+        Var host
+        Call Token<String>
+        Call Token<String>
+    Call verifyDefault
+      MethodCall tuple
+        Var host
+        TupleLiteral
+          Call Token<Int>
+          Call defaultUnit
+        TupleLiteral
+          Call Token<Int>
+          Call defaultUnit
+    Call verifyDefault
+      Call concrete
+        Call Token<Unit>
+        Call Token<Unit>
+        Call defaultUnit

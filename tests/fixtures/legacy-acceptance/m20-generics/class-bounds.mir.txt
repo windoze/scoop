@@ -1,0 +1,461 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Left>
+    Completed(value: Left)
+    Suspended()
+  enum CoroutineSlot<Left>
+    Empty()
+    Value(value: Left)
+  enum CoroutineStep<Right>
+    Completed(value: Right)
+    Suspended()
+  enum CoroutineSlot<Right>
+    Empty()
+    Value(value: Right)
+  enum CoroutineStep<Named>
+    Completed(value: Named)
+    Suspended()
+  enum CoroutineSlot<Named>
+    Empty()
+    Value(value: Named)
+  class StringNode vtable=2 itables=3
+  class Node<String> vtable=2 itables=3
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Named
+  interface Left
+  interface Right
+  interface ToString
+  interface Hash
+  interface Continuation<Named>
+  interface SuspendTask<Named>
+  interface SuspendRegistration<Named>
+  interface Continuation<Left>
+  interface SuspendTask<Left>
+  interface SuspendRegistration<Left>
+  interface Continuation<Right>
+  interface SuspendTask<Right>
+  interface SuspendRegistration<Right>
+  generated_exact_type get0 location=enum1 nominal_id=aae71021f74648d6fe56721fbc35e9d80daeb8c6914c061c895b242183fd69fe exact_id=3b939da287eb31f93a1964817f5e1e7e86684d1e1afa0a88992f9a4eee24e044
+  generated_exact_type get1 location=enum5 nominal_id=126e880653f3f9865ef0c3b8122aaeabbf6fa15cd0730a0ed881c8871c2a3b90 exact_id=4f352bbe28f103cf1923f0210f0ed6c9d4dc67390679e96e6108be0a864bb3bb
+  generated_exact_type get2 location=enum6 nominal_id=93666cc01a1a2b21c3cb7c332d15e38c21bf1e950644dd354b82eb87266268bd exact_id=7577af9bc6a8af6971ad0008e0d6a4f1a3a59febd93ad3f53e2c6f1bcba81d8b
+  generated_exact_type get3 location=enum2 nominal_id=a4dc187fdbcae6c754ef3c8b2e9e67349e4c08b94e3c6fbd0ccb2091af40ffcf exact_id=93d3766aed53729423165a54ea12a0ef4225783589bb5784ceeac77d3d1ba45d
+  generated_exact_type get4 location=enum4 nominal_id=69416218c21e077ea6f5e0c37faad537c2ecc8e806cdb5f9ccfe14dcf29d5105 exact_id=9dcacad16cd1a2a75f327c534292d2b2ae2de6dd1885393b42c8eaa1d78edece
+  generated_exact_type get5 location=enum3 nominal_id=83dafd145112cb33bd50b527867a075eefabb75776dfce080911e3c4f7eda655 exact_id=aba5cb5ebd8febb093ec9a9af1fc5dbe5cf2130dd698b6b0776ac4394e380d5f
+  generated_callable gc0 function=@fn27 id=86dd0d0bbcfacf48b203e5b7c2086a72fcc208fa5723993b260ea0fb9c9003ce
+  generated_callable gc1 function=@fn26 id=b4787dea3fd5114cdb7663362081d0a7656d97f13bdd5c0d63884f0cc4168b43
+  generated_callable gc2 function=@fn28 id=fdb3100ea6a3b250e8d8800f3e73c1da941bbad9453c857d072e7b5781eefd45
+  fun Node.name @fn0(this: Node<String>) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str0
+  fun Node.read @fn1(this: Node<String>) -> String
+    bb0 entry
+      return
+        Type String
+        FieldAccess 0
+          Type Node<String>
+          Local this
+  fun StringNode.name @fn2(this: StringNode) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str1
+  fun StringNode.read @fn3(this: StringNode) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str2
+  fun main @fn4() -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str3
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      assign $new.1
+        Type StringNode
+        ClassAlloc StringNode
+      call @fn24 direct
+        Type StringNode
+        Local $new.1
+        Type String
+        Local $parameter.value
+      val node: StringNode
+        Type StringNode
+        Local $new.1
+      val $argument.0: StringNode
+        Type StringNode
+        Local node
+      val $parameter.node: StringNode
+        Type StringNode
+        Local $argument.0
+      call $dependency.argument.0: String = @fn5 direct
+        Type StringNode
+        Local $parameter.node
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: StringNode
+        Type StringNode
+        Local node
+      val $parameter.node: StringNode
+        Type StringNode
+        Local $argument.0
+      call $dependency.argument.0: String = @fn7 direct
+        Type StringNode
+        Local $parameter.node
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: StringNode
+        Type StringNode
+        Local node
+      val $parameter.node: StringNode
+        Type StringNode
+        Local $argument.0
+      call $dependency.argument.0: String = @fn8 direct
+        Type StringNode
+        Local $parameter.node
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: StringNode
+        Type StringNode
+        Local node
+      val $parameter.node: StringNode
+        Type StringNode
+        Local $argument.0
+      call $dependency.argument.0: String = @fn9 direct
+        Type StringNode
+        Local $parameter.node
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun direct @fn5(node: StringNode) -> String
+    bb0 entry
+      val $receiver: StringNode
+        Type StringNode
+        Local node
+      call $call.1: String = @fn10 direct
+        Type Node<String>
+        Retype Node<String>
+          Type StringNode
+          Local $receiver
+      return
+        Type String
+        Local $call.1
+  fun println @fn6(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun virtual @fn7(node: StringNode) -> String
+    bb0 entry
+      val $receiver: StringNode
+        Type StringNode
+        Local node
+      call $call.1: String = @fn1 virtual[1]
+        Type Node<String>
+        Retype Node<String>
+          Type StringNode
+          Local $receiver
+      return
+        Type String
+        Local $call.1
+  fun inheritedInterface @fn8(node: StringNode) -> String
+    bb0 entry
+      val $receiver: StringNode
+        Type StringNode
+        Local node
+      call $call.1: String = @fn0 virtual[0]
+        Type Node<String>
+        Retype Node<String>
+          Type StringNode
+          Local $receiver
+      return
+        Type String
+        Local $call.1
+  fun combined @fn9(node: StringNode) -> String
+    bb0 entry
+      val $receiver: StringNode
+        Type StringNode
+        Local node
+      call $call.1: String = @fn10 direct
+        Type Node<String>
+        Retype Node<String>
+          Type StringNode
+          Local $receiver
+      return
+        Type String
+        Local $call.1
+  fun Node.tag @fn10(this: Node<String>) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str5
+  fun Continuation.resume @fn11(this: Continuation<Named>, value: Named) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn12(this: Continuation<Named>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn13(this: SuspendTask<Named>, $completion: Continuation<Named>) -> CoroutineStep<Named>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn14(this: SuspendRegistration<Named>, continuation: Continuation<Named>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn15(this: Continuation<Left>, value: Left) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn16(this: Continuation<Left>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn17(this: SuspendTask<Left>, $completion: Continuation<Left>) -> CoroutineStep<Left>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn18(this: SuspendRegistration<Left>, continuation: Continuation<Left>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn19(this: Continuation<Right>, value: Right) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn20(this: Continuation<Right>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn21(this: SuspendTask<Right>, $completion: Continuation<Right>) -> CoroutineStep<Right>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn22(this: SuspendRegistration<Right>, continuation: Continuation<Right>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Named.name @fn23(this: Named) -> String
+    bb0 entry
+      trap "call to abstract method `Named.name`"
+  fun init.StringNode.$c1 @fn24(this: StringNode, value: String) -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        Local value
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @fn25 direct
+        Type Node<String>
+        Retype Node<String>
+          Type StringNode
+          Local this
+        Type String
+        Local $parameter.value
+      return
+  fun init.Node.$c0 @fn25(this: Node<String>, value: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type Node<String>
+        Local this
+        Type String
+        Local value
+      return
+  fun startCoroutine<Left> @fn26(task: SuspendTask<Left>, completion: Continuation<Left>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn15 interface Continuation<Left>[0]
+        Type Continuation<Left>
+        Local completion
+        Type Left
+        EnumField v0 f0
+          Type CoroutineStep<Left>
+          Local $step
+      return
+    bb2 failed
+      call @fn16 interface Continuation<Left>[1]
+        Type Continuation<Left>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Left> = @fn17 interface SuspendTask<Left>[0]
+        Type SuspendTask<Left>
+        Local task
+        Type Continuation<Left>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Left>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Right> @fn27(task: SuspendTask<Right>, completion: Continuation<Right>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn19 interface Continuation<Right>[0]
+        Type Continuation<Right>
+        Local completion
+        Type Right
+        EnumField v0 f0
+          Type CoroutineStep<Right>
+          Local $step
+      return
+    bb2 failed
+      call @fn20 interface Continuation<Right>[1]
+        Type Continuation<Right>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Right> = @fn21 interface SuspendTask<Right>[0]
+        Type SuspendTask<Right>
+        Local task
+        Type Continuation<Right>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Right>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Named> @fn28(task: SuspendTask<Named>, completion: Continuation<Named>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn11 interface Continuation<Named>[0]
+        Type Continuation<Named>
+        Local completion
+        Type Named
+        EnumField v0 f0
+          Type CoroutineStep<Named>
+          Local $step
+      return
+    bb2 failed
+      call @fn12 interface Continuation<Named>[1]
+        Type Continuation<Named>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Named> = @fn13 interface SuspendTask<Named>[0]
+        Type SuspendTask<Named>
+        Local task
+        Type Continuation<Named>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Named>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Left> result=Left
+  coroutine_step cs1 CoroutineStep<Right> result=Right
+  coroutine_step cs2 CoroutineStep<Named> result=Named
+  coroutine_slot cl0 CoroutineSlot<Left> value=Left
+  coroutine_slot cl1 CoroutineSlot<Right> value=Right
+  coroutine_slot cl2 CoroutineSlot<Named> value=Named
+  coroutine_start ct0 result=Left function=fn26
+  coroutine_start ct1 result=Right function=fn27
+  coroutine_start ct2 result=Named function=fn28
+  coroutine_fn cf0 @fn13 source_return=Named step=cs2 immediate
+  coroutine_fn cf1 @fn17 source_return=Left step=cs0 immediate
+  coroutine_fn cf2 @fn21 source_return=Right step=cs1 immediate
+  instance mi0 function=@fn0 <- Node.name
+  instance mi1 function=@fn1 <- Node.read
+  instance mi2 function=@fn5 <- direct
+  instance mi3 function=@fn6 <- println
+  instance mi4 function=@fn7 <- virtual
+  instance mi5 function=@fn8 <- inheritedInterface
+  instance mi6 function=@fn9 <- combined
+  instance mi7 function=@fn10 <- Node.tag
+  instance mi8 function=@fn11 <- Continuation.resume
+  instance mi9 function=@fn12 <- Continuation.resumeWithException
+  instance mi10 function=@fn13 <- SuspendTask.run
+  instance mi11 function=@fn14 <- SuspendRegistration.register
+  instance mi12 function=@fn15 <- Continuation.resume
+  instance mi13 function=@fn16 <- Continuation.resumeWithException
+  instance mi14 function=@fn17 <- SuspendTask.run
+  instance mi15 function=@fn18 <- SuspendRegistration.register
+  instance mi16 function=@fn19 <- Continuation.resume
+  instance mi17 function=@fn20 <- Continuation.resumeWithException
+  instance mi18 function=@fn21 <- SuspendTask.run
+  instance mi19 function=@fn22 <- SuspendRegistration.register
+  str @str0 "node"
+  str @str1 "derived"
+  str @str2 "virtual"
+  str @str3 "value"
+  str @str4 "\n"
+  str @str5 "base"
+  output executable @fn4

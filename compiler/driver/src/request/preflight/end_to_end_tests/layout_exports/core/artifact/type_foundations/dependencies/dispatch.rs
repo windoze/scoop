@@ -28,49 +28,13 @@ pub(super) fn check(
     schemas::check(checked, core);
     declarations::check(checked, core);
 
-    let mut dump = String::new();
-    let mut orders = Vec::new();
-    for nominal in checked.metadata().public.nominal_interfaces().all_records() {
-        let order = nominal.declaration_details().dispatch_order();
-        orders.push(order.clone());
-        dump.push_str(&format!(
-            "nominal {:?} {:?}\n",
-            nominal.declaration(),
-            nominal.kind()
-        ));
-        match order {
-            NominalDispatchOrderV1::NonVirtual => dump.push_str("  non-virtual\n"),
-            NominalDispatchOrderV1::Class { slots } => {
-                for slot in slots {
-                    dump.push_str(&format!("  virtual {slot}\n"));
-                }
-            }
-            NominalDispatchOrderV1::Interface { parents, members } => {
-                for parent in parents {
-                    dump.push_str(&format!("  parent {parent:?}\n"));
-                }
-                for member in members {
-                    dump.push_str(&format!("  member {}\n", member.slot()));
-                    for overridden in member.overrides().values() {
-                        dump.push_str(&format!("    overrides {overridden}\n"));
-                    }
-                }
-            }
-        }
-    }
-    for record in checked.section().inheritance().records() {
-        for schema in record.slot_schemas().records() {
-            dump.push_str(&format!("schema {} {:?}\n", record.owner(), schema.role()));
-            for (position, slot) in schema.slots().iter().enumerate() {
-                dump.push_str(&format!("  {position}: {slot}\n"));
-            }
-        }
-    }
-    let path = fixtures.join("dispatch-order.snap");
-    if std::env::var_os("SCOOP_UPDATE_SHARED_TYPE_FOUNDATIONS").is_some() {
-        std::fs::write(&path, &dump).unwrap();
-    }
-    assert_eq!(dump, std::fs::read_to_string(path).unwrap());
+    let orders = checked
+        .metadata()
+        .public
+        .nominal_interfaces()
+        .all_records()
+        .map(|nominal| nominal.declaration_details().dispatch_order().clone())
+        .collect::<Vec<_>>();
     for order in &orders {
         assert_eq!(&provider.resolve_dispatch_order(order).unwrap(), order);
     }

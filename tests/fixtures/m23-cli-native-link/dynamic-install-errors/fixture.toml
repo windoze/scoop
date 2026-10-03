@@ -1,0 +1,163 @@
+schema = 1
+name = "native-link-dynamic-install-errors"
+inputs = ["cone", "../../m23-native-link/dynamic/overlap.scoop", "../../m23-native-link/dynamic/a.c", "../../m23-native-link/dynamic/b.c"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin"]
+tags = ["native-link", "program-link", "stage-golden"]
+
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${fixture}/cone", "to" = "${work}/sources/overlap"}}, {"copy" = {"from" = "${fixture}/../../m23-native-link/dynamic/overlap.scoop", "to" = "${work}/sources/overlap/src/main.scoop"}}, {"mkdir" = {"path" = "${work}/native"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "prepare_compile_m23_a"
+files = [{"copy" = {"from" = "${fixture}/../../m23-native-link/dynamic/a.c", "to" = "${work}/sources/native/build-m23_a.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "compile_m23_a"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/build-m23_a.c", "-o", "${work}/objects/build-m23_a.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "dylib_m23_a"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-dynamiclib", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "${work}/objects/build-m23_a.o", "-install_name", "@rpath/libm23_a.dylib", "-current_version", "2.0", "-compatibility_version", "1.0", "-o", "${work}/native/libm23_a.dylib"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "prepare_compile_m23_b"
+files = [{"copy" = {"from" = "${fixture}/../../m23-native-link/dynamic/b.c", "to" = "${work}/sources/native/build-m23_b.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "compile_m23_b"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/build-m23_b.c", "-o", "${work}/objects/build-m23_b.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "dylib_m23_b"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-dynamiclib", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "${work}/objects/build-m23_b.o", "-install_name", "@rpath/libm23_b.dylib", "-current_version", "2.0", "-compatibility_version", "1.0", "-o", "${work}/native/libm23_b.dylib"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${work}/sources/overlap", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "lir.txt"}]
+
+[[steps]]
+name = "isolate"
+files = [{"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}}, {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}}, {"mkdir" = {"path" = "${work}/empty-sysroot"}}, {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}}, {"remove" = {"path" = "${work}/sources"}}]
+checks = []
+
+[[steps]]
+name = "prepare_compile_conflict_a"
+files = [{"copy" = {"from" = "${fixture}/../../m23-native-link/dynamic/a.c", "to" = "${work}/sources/native/build-conflict_a.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "compile_conflict_a"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/build-conflict_a.c", "-o", "${work}/objects/build-conflict_a.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "dylib_conflict_a"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-dynamiclib", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "${work}/objects/build-conflict_a.o", "-install_name", "/scoop/fixtures/shared.dylib", "-current_version", "2.0", "-compatibility_version", "1.0", "-o", "${work}/native/libm23_a.dylib"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "prepare_compile_conflict_b"
+files = [{"copy" = {"from" = "${fixture}/../../m23-native-link/dynamic/b.c", "to" = "${work}/sources/native/build-conflict_b.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "compile_conflict_b"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/build-conflict_b.c", "-o", "${work}/objects/build-conflict_b.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "dylib_conflict_b"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-dynamiclib", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "${work}/objects/build-conflict_b.o", "-install_name", "/scoop/fixtures/shared.dylib", "-current_version", "2.0", "-compatibility_version", "1.0", "-o", "${work}/native/libm23_b.dylib"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "previous_reject_conflict"
+files = [{"write" = {"path" = "${work}/program", "data" = "previous executable"}}]
+checks = []
+
+[[steps]]
+name = "reject_conflict"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "reject_conflict.json"}
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
+
+[[steps]]
+name = "prepare_compile_unsupported"
+files = [{"copy" = {"from" = "${fixture}/../../m23-native-link/dynamic/a.c", "to" = "${work}/sources/native/build-unsupported.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "compile_unsupported"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/build-unsupported.c", "-o", "${work}/objects/build-unsupported.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "dylib_unsupported"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-dynamiclib", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "${work}/objects/build-unsupported.o", "-install_name", "@executable_path/libm23_a.dylib", "-current_version", "2.0", "-compatibility_version", "1.0", "-o", "${work}/native/libm23_a.dylib"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "previous_reject_unsupported"
+files = [{"write" = {"path" = "${work}/program", "data" = "previous executable"}}]
+checks = []
+
+[[steps]]
+name = "reject_unsupported"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "reject_unsupported.json"}
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"file" = "${work}/program", "equals" = "previous executable"}]

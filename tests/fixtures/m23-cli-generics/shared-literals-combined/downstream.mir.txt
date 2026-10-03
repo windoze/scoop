@@ -1,0 +1,1147 @@
+Module
+  struct Local<Payload> (enabled: Boolean, label: String, value: Option<Payload>)
+  struct Tagged<Payload> (enabled: Boolean, label: String, value: Payload)
+  struct Local<Int> (enabled: Boolean, label: String, value: Option<Int>)
+  struct Tagged<Int> (enabled: Boolean, label: String, value: Int)
+  enum Option<Payload>
+    Some(_0: Payload)
+    None()
+  enum Option<Int>
+    Some(_0: Int)
+    None()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Payload>
+    Completed(value: Payload)
+    Suspended()
+  enum CoroutineSlot<Payload>
+    Empty()
+    Value(value: Payload)
+  class Payload vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface Continuation<Payload>
+  interface SuspendTask<Payload>
+  interface SuspendRegistration<Payload>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
+    bridge function_type1 -> @fn19 id=2018cf00e765278e8412a74596cfe48cc4952826a299b7a16eefa65f782efe73
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn3 captures=0
+    bridge function_type1 -> @fn20 id=719c29abc1d5752c381a988cbb93dd6d3060072029c925c39d7de20c00047a8c
+  generated_exact_type get0 location=closure0 nominal_id=5ae7cf6922f33b4b3a0a8dc35c9465abd7d3d0cc2df89e843ece3ace55f0345d exact_id=05a87b8afbeb1a56aaf15390c2885ed506d1e155268b31f88569c69210b99e49
+  generated_exact_type get1 location=enum4 nominal_id=c415c6916e8d793dc56f39b8a1fd345fc40d4e23e9f52318da370db23e7b9d41 exact_id=41c06e0e135a7296d03396c9652af2d91cb3ff30b547f065cdfa4be7e4bbc1e9
+  generated_exact_type get2 location=closure1 nominal_id=8994f82e0dfe0a3f664a058f34f59a709a91b0ffba8d43fa2fead4dfa67516da exact_id=5d07fda395885e88f1c3fec66119f2ced276475c643f48dd52de84fdf9bbc675
+  generated_exact_type get3 location=enum3 nominal_id=4b2656b10a0d965a7eb6675a2a20621f2ee03940d90d1e9d604039bc0c7b32bb exact_id=d19f75285cd62aad45da0c33de6db5b84d62ba3cd33ec79f380a7b05fe1f93e2
+  generated_exact_type get4 location=class4 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn19 id=2018cf00e765278e8412a74596cfe48cc4952826a299b7a16eefa65f782efe73
+  generated_callable gc1 function=@fn20 id=719c29abc1d5752c381a988cbb93dd6d3060072029c925c39d7de20c00047a8c
+  generated_callable gc2 function=@fn18 id=c951c1d26f63c4191f2e51a91b50a218acc235b822c629945f226017c572b8e4
+  fun check @fn0() -> Int
+    bb0 entry
+      call $argument.0: Int = external0 direct
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Payload
+        ClassAlloc Payload
+      call @fn13 direct
+        Type Payload
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val stored: Payload
+        Type Payload
+        Local $new.1
+      val $dependency.argument.0: Payload
+        Type Payload
+        Local stored
+      val $dependency.argument.1: (Payload) -> Int
+        Type (Payload) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      val $dependency.parameter.value: Payload
+        Type Payload
+        Local $dependency.argument.0
+      val $dependency.parameter.read: (Payload) -> Int
+        Type (Payload) -> Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = @fn2 direct
+        Type Payload
+        Local $dependency.parameter.value
+        Type (Payload) -> Int
+        Local $dependency.parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.argument.1: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc1 $Closure$lambda1
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.read: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = @fn4 direct
+        Type Int
+        Local $dependency.parameter.value
+        Type (Int) -> Int
+        Local $dependency.parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Payload
+        ClassAlloc Payload
+      call @fn13 direct
+        Type Payload
+        Local $new.2
+        Type Int
+        Local $parameter.value
+      val allocation: Payload
+        Type Payload
+        Local $new.2
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Payload
+          Local stored
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Payload
+          Local allocation
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun $lambda.0 @fn1($closure: (Payload) -> Int, item: Payload) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Payload
+          Local item
+  fun exercise @fn2(value: Payload, read: (Payload) -> Int) -> Int
+    bb0 entry
+      val $dependency.local.7: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.local.8: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: Payload
+        Type Payload
+        Local value
+      val $dependency.local.6: Payload
+        Type Payload
+        Local $dependency.local.5
+      val $dependency.local.9: Option<Payload>
+        Type Option<Payload>
+        VariantConstruct Option<Payload> v0
+          Type Payload
+          Local $dependency.local.6
+      val $dependency.local.10: Boolean
+        Type Boolean
+        Local $dependency.local.7
+      val $dependency.local.11: String
+        Type String
+        Local $dependency.local.8
+      val $dependency.local.12: Option<Payload>
+        Type Option<Payload>
+        Local $dependency.local.9
+      call $dependency.local.2: Local<Payload> = @fn14 direct
+        Type Boolean
+        Local $dependency.local.10
+        Type String
+        Local $dependency.local.11
+        Type Option<Payload>
+        Local $dependency.local.12
+      val $when.1: Local<Payload>
+        Type Local<Payload>
+        Local $dependency.local.2
+      call $call.1: Boolean = external1 direct
+        Type Boolean
+        FieldAccess 0
+          Type Local<Payload>
+          Local $when.1
+        Type Boolean
+        BoolLiteral true
+      branch bb1 bb4
+        Type Boolean
+        Local $call.1
+    bb1 pattern.pass.1
+      call $call.2: Boolean = external2 direct
+        Type String
+        FieldAccess 1
+          Type Local<Payload>
+          Local $when.1
+        Type String
+        StringConst @str1
+      branch bb2 bb4
+        Type Boolean
+        Local $call.2
+    bb2 pattern.pass.2
+      val $pattern.2: Option<Payload>
+        Type Option<Payload>
+        FieldAccess 2
+          Type Local<Payload>
+          Local $when.1
+      branch bb3 bb4
+        Type Boolean
+        VariantTest Option<Payload> v0
+          Type Option<Payload>
+          Local $pattern.2
+    bb3 pattern.pass.3
+      val $dependency.local.3: Payload
+        Type Payload
+        VariantPayloadProject Option<Payload> v0 f0
+          Type Option<Payload>
+          Local $pattern.2
+      call $dependency.local.13: Int = <closure:function_type0> closure[function_type0]
+        Type (Payload) -> Int
+        Local read
+        Type Payload
+        Local $dependency.local.3
+      val $dependency.local.14: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.15: Int
+        Type Int
+        Local $dependency.local.14
+      branch bb6 bb7
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.local.13
+          Type Int
+          Local $dependency.local.15
+    bb4 pattern.else.4
+      call $call.5: Boolean = external1 direct
+        Type Boolean
+        FieldAccess 0
+          Type Local<Payload>
+          Local $when.1
+        Type Boolean
+        BoolLiteral false
+      branch bb12 bb13
+        Type Boolean
+        Local $call.5
+    bb5 pattern.merge.5
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.16
+      val $dependency.local.17: Int
+        Type Int
+        Local $dependency.local.4
+      val $dependency.local.18: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.19: Int
+        Type Int
+        Local $dependency.local.18
+      branch bb15 bb16
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.17
+            Type Int
+            Local $dependency.local.19
+    bb6 if.then.6
+      call $call.3: Int = <closure:function_type0> closure[function_type0]
+        Type (Payload) -> Int
+        Local read
+        Type Payload
+        Local $dependency.local.3
+      assign $dependency.local.16
+        Type Int
+        Local $call.3
+      goto bb8
+    bb7 if.else.7
+      call $call.4: Boolean = external1 direct
+        Type Boolean
+        FieldAccess 0
+          Type Local<Payload>
+          Local $when.1
+        Type Boolean
+        BoolLiteral false
+      branch bb9 bb10
+        Type Boolean
+        Local $call.4
+    bb8 if.merge.8
+      goto bb5
+    bb9 pattern.pass.9
+      assign $dependency.local.16
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb11
+    bb10 pattern.else.10
+      assign $dependency.local.16
+        Type Int
+        IntegerLiteral Int value=-1 bits=0xffffffff
+      goto bb11
+    bb11 pattern.merge.11
+      goto bb8
+    bb12 pattern.pass.12
+      assign $dependency.local.16
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb14
+    bb13 pattern.else.13
+      assign $dependency.local.16
+        Type Int
+        IntegerLiteral Int value=-1 bits=0xffffffff
+      goto bb14
+    bb14 pattern.merge.14
+      goto bb5
+    bb15 if.then.15
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb16 if.merge.16
+      val $dependency.local.20: Payload
+        Type Payload
+        Local value
+      val $dependency.local.21: (Payload) -> Int
+        Type (Payload) -> Int
+        Local read
+      val $dependency.local.22: Payload
+        Type Payload
+        Local $dependency.local.20
+      val $dependency.local.23: (Payload) -> Int
+        Type (Payload) -> Int
+        Local $dependency.local.21
+      val $dependency.local.25: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.local.26: String
+        Type String
+        StringConst @str2
+      val $dependency.local.27: Payload
+        Type Payload
+        Local $dependency.local.22
+      val $dependency.local.28: Boolean
+        Type Boolean
+        Local $dependency.local.25
+      val $dependency.local.29: String
+        Type String
+        Local $dependency.local.26
+      val $dependency.local.30: Payload
+        Type Payload
+        Local $dependency.local.27
+      call $when.3: Tagged<Payload> = @fn15 direct
+        Type Boolean
+        Local $dependency.local.28
+        Type String
+        Local $dependency.local.29
+        Type Payload
+        Local $dependency.local.30
+      call $call.6: Boolean = external1 direct
+        Type Boolean
+        FieldAccess 0
+          Type Tagged<Payload>
+          Local $when.3
+        Type Boolean
+        BoolLiteral true
+      branch bb17 bb19
+        Type Boolean
+        Local $call.6
+    bb17 pattern.pass.17
+      call $call.7: Boolean = external2 direct
+        Type String
+        FieldAccess 1
+          Type Tagged<Payload>
+          Local $when.3
+        Type String
+        StringConst @str3
+      branch bb18 bb19
+        Type Boolean
+        Local $call.7
+    bb18 pattern.pass.18
+      val $dependency.local.24: Payload
+        Type Payload
+        FieldAccess 2
+          Type Tagged<Payload>
+          Local $when.3
+      call $call.8: Int = <closure:function_type0> closure[function_type0]
+        Type (Payload) -> Int
+        Local $dependency.local.23
+        Type Payload
+        Local $dependency.local.24
+      assign $dependency.local.31
+        Type Int
+        Local $call.8
+      goto bb20
+    bb19 pattern.else.19
+      assign $dependency.local.31
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb20
+    bb20 pattern.merge.20
+      val $dependency.local.32: Int
+        Type Int
+        Local $dependency.local.31
+      call $dependency.local.33: Int = @fn5 direct
+        Type Payload
+        Local $dependency.local.22
+        Type (Payload) -> Int
+        Local $dependency.local.23
+        Type Int
+        Local $dependency.local.32
+      val $dependency.local.34: Int
+        Type Int
+        Local $dependency.local.4
+      val $dependency.local.35: Int
+        Type Int
+        Local $dependency.local.34
+      branch bb21 bb22
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.33
+            Type Int
+            Local $dependency.local.35
+    bb21 if.then.21
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb22 if.merge.22
+      val $dependency.local.36: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.local.37: String
+        Type String
+        StringConst @str4
+      val $dependency.local.38: Payload
+        Type Payload
+        Local value
+      val $dependency.local.39: Boolean
+        Type Boolean
+        Local $dependency.local.36
+      val $dependency.local.40: String
+        Type String
+        Local $dependency.local.37
+      val $dependency.local.41: Payload
+        Type Payload
+        Local $dependency.local.38
+      call $dependency.local.42: Tagged<Payload> = @fn15 direct
+        Type Boolean
+        Local $dependency.local.39
+        Type String
+        Local $dependency.local.40
+        Type Payload
+        Local $dependency.local.41
+      val $dependency.local.43: (Payload) -> Int
+        Type (Payload) -> Int
+        Local read
+      val $dependency.local.44: Tagged<Payload>
+        Type Tagged<Payload>
+        Local $dependency.local.42
+      val $dependency.local.45: (Payload) -> Int
+        Type (Payload) -> Int
+        Local $dependency.local.43
+      call $call.9: Int = @fn6 direct
+        Type Tagged<Payload>
+        Local $dependency.local.44
+        Type (Payload) -> Int
+        Local $dependency.local.45
+      return
+        Type Int
+        Local $call.9
+  fun $lambda.1 @fn3($closure: (Int) -> Int, item: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local item
+  fun exercise @fn4(value: Int, read: (Int) -> Int) -> Int
+    bb0 entry
+      val $dependency.local.7: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.local.8: String
+        Type String
+        StringConst @str5
+      val $dependency.local.5: Int
+        Type Int
+        Local value
+      val $dependency.local.6: Int
+        Type Int
+        Local $dependency.local.5
+      val $dependency.local.9: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+          Type Int
+          Local $dependency.local.6
+      val $dependency.local.10: Boolean
+        Type Boolean
+        Local $dependency.local.7
+      val $dependency.local.11: String
+        Type String
+        Local $dependency.local.8
+      val $dependency.local.12: Option<Int>
+        Type Option<Int>
+        Local $dependency.local.9
+      call $dependency.local.2: Local<Int> = @fn16 direct
+        Type Boolean
+        Local $dependency.local.10
+        Type String
+        Local $dependency.local.11
+        Type Option<Int>
+        Local $dependency.local.12
+      val $when.1: Local<Int>
+        Type Local<Int>
+        Local $dependency.local.2
+      call $call.1: Boolean = external1 direct
+        Type Boolean
+        FieldAccess 0
+          Type Local<Int>
+          Local $when.1
+        Type Boolean
+        BoolLiteral true
+      branch bb1 bb4
+        Type Boolean
+        Local $call.1
+    bb1 pattern.pass.1
+      call $call.2: Boolean = external2 direct
+        Type String
+        FieldAccess 1
+          Type Local<Int>
+          Local $when.1
+        Type String
+        StringConst @str6
+      branch bb2 bb4
+        Type Boolean
+        Local $call.2
+    bb2 pattern.pass.2
+      val $pattern.2: Option<Int>
+        Type Option<Int>
+        FieldAccess 2
+          Type Local<Int>
+          Local $when.1
+      branch bb3 bb4
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $pattern.2
+    bb3 pattern.pass.3
+      val $dependency.local.3: Int
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local $pattern.2
+      call $dependency.local.13: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.14: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.15: Int
+        Type Int
+        Local $dependency.local.14
+      branch bb6 bb7
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.local.13
+          Type Int
+          Local $dependency.local.15
+    bb4 pattern.else.4
+      call $call.5: Boolean = external1 direct
+        Type Boolean
+        FieldAccess 0
+          Type Local<Int>
+          Local $when.1
+        Type Boolean
+        BoolLiteral false
+      branch bb12 bb13
+        Type Boolean
+        Local $call.5
+    bb5 pattern.merge.5
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.16
+      val $dependency.local.17: Int
+        Type Int
+        Local $dependency.local.4
+      val $dependency.local.18: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.19: Int
+        Type Int
+        Local $dependency.local.18
+      branch bb15 bb16
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.17
+            Type Int
+            Local $dependency.local.19
+    bb6 if.then.6
+      call $call.3: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local $dependency.local.3
+      assign $dependency.local.16
+        Type Int
+        Local $call.3
+      goto bb8
+    bb7 if.else.7
+      call $call.4: Boolean = external1 direct
+        Type Boolean
+        FieldAccess 0
+          Type Local<Int>
+          Local $when.1
+        Type Boolean
+        BoolLiteral false
+      branch bb9 bb10
+        Type Boolean
+        Local $call.4
+    bb8 if.merge.8
+      goto bb5
+    bb9 pattern.pass.9
+      assign $dependency.local.16
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb11
+    bb10 pattern.else.10
+      assign $dependency.local.16
+        Type Int
+        IntegerLiteral Int value=-1 bits=0xffffffff
+      goto bb11
+    bb11 pattern.merge.11
+      goto bb8
+    bb12 pattern.pass.12
+      assign $dependency.local.16
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb14
+    bb13 pattern.else.13
+      assign $dependency.local.16
+        Type Int
+        IntegerLiteral Int value=-1 bits=0xffffffff
+      goto bb14
+    bb14 pattern.merge.14
+      goto bb5
+    bb15 if.then.15
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb16 if.merge.16
+      val $dependency.local.20: Int
+        Type Int
+        Local value
+      val $dependency.local.21: (Int) -> Int
+        Type (Int) -> Int
+        Local read
+      val $dependency.local.22: Int
+        Type Int
+        Local $dependency.local.20
+      val $dependency.local.23: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.local.21
+      val $dependency.local.25: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.local.26: String
+        Type String
+        StringConst @str7
+      val $dependency.local.27: Int
+        Type Int
+        Local $dependency.local.22
+      val $dependency.local.28: Boolean
+        Type Boolean
+        Local $dependency.local.25
+      val $dependency.local.29: String
+        Type String
+        Local $dependency.local.26
+      val $dependency.local.30: Int
+        Type Int
+        Local $dependency.local.27
+      call $when.3: Tagged<Int> = @fn17 direct
+        Type Boolean
+        Local $dependency.local.28
+        Type String
+        Local $dependency.local.29
+        Type Int
+        Local $dependency.local.30
+      call $call.6: Boolean = external1 direct
+        Type Boolean
+        FieldAccess 0
+          Type Tagged<Int>
+          Local $when.3
+        Type Boolean
+        BoolLiteral true
+      branch bb17 bb19
+        Type Boolean
+        Local $call.6
+    bb17 pattern.pass.17
+      call $call.7: Boolean = external2 direct
+        Type String
+        FieldAccess 1
+          Type Tagged<Int>
+          Local $when.3
+        Type String
+        StringConst @str8
+      branch bb18 bb19
+        Type Boolean
+        Local $call.7
+    bb18 pattern.pass.18
+      val $dependency.local.24: Int
+        Type Int
+        FieldAccess 2
+          Type Tagged<Int>
+          Local $when.3
+      call $call.8: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local $dependency.local.23
+        Type Int
+        Local $dependency.local.24
+      assign $dependency.local.31
+        Type Int
+        Local $call.8
+      goto bb20
+    bb19 pattern.else.19
+      assign $dependency.local.31
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb20
+    bb20 pattern.merge.20
+      val $dependency.local.32: Int
+        Type Int
+        Local $dependency.local.31
+      call $dependency.local.33: Int = @fn7 direct
+        Type Int
+        Local $dependency.local.22
+        Type (Int) -> Int
+        Local $dependency.local.23
+        Type Int
+        Local $dependency.local.32
+      val $dependency.local.34: Int
+        Type Int
+        Local $dependency.local.4
+      val $dependency.local.35: Int
+        Type Int
+        Local $dependency.local.34
+      branch bb21 bb22
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.33
+            Type Int
+            Local $dependency.local.35
+    bb21 if.then.21
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb22 if.merge.22
+      val $dependency.local.36: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.local.37: String
+        Type String
+        StringConst @str9
+      val $dependency.local.38: Int
+        Type Int
+        Local value
+      val $dependency.local.39: Boolean
+        Type Boolean
+        Local $dependency.local.36
+      val $dependency.local.40: String
+        Type String
+        Local $dependency.local.37
+      val $dependency.local.41: Int
+        Type Int
+        Local $dependency.local.38
+      call $dependency.local.42: Tagged<Int> = @fn17 direct
+        Type Boolean
+        Local $dependency.local.39
+        Type String
+        Local $dependency.local.40
+        Type Int
+        Local $dependency.local.41
+      val $dependency.local.43: (Int) -> Int
+        Type (Int) -> Int
+        Local read
+      val $dependency.local.44: Tagged<Int>
+        Type Tagged<Int>
+        Local $dependency.local.42
+      val $dependency.local.45: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.local.43
+      call $call.9: Int = @fn8 direct
+        Type Tagged<Int>
+        Local $dependency.local.44
+        Type (Int) -> Int
+        Local $dependency.local.45
+      return
+        Type Int
+        Local $call.9
+  fun defaulted @fn5(value: Payload, read: (Payload) -> Int, score: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local score
+  fun inspect @fn6(value: Tagged<Payload>, read: (Payload) -> Int) -> Int
+    bb0 entry
+      val $when.1: Tagged<Payload>
+        Type Tagged<Payload>
+        Local value
+      call $call.1: Boolean = external1 direct
+        Type Boolean
+        FieldAccess 0
+          Type Tagged<Payload>
+          Local $when.1
+        Type Boolean
+        BoolLiteral true
+      branch bb1 bb3
+        Type Boolean
+        Local $call.1
+    bb1 pattern.pass.1
+      call $call.2: Boolean = external2 direct
+        Type String
+        FieldAccess 1
+          Type Tagged<Payload>
+          Local $when.1
+        Type String
+        StringConst @str10
+      branch bb2 bb3
+        Type Boolean
+        Local $call.2
+    bb2 pattern.pass.2
+      val $dependency.local.2: Payload
+        Type Payload
+        FieldAccess 2
+          Type Tagged<Payload>
+          Local $when.1
+      call $call.3: Int = <closure:function_type0> closure[function_type0]
+        Type (Payload) -> Int
+        Local read
+        Type Payload
+        Local $dependency.local.2
+      assign $dependency.local.3
+        Type Int
+        Local $call.3
+      goto bb4
+    bb3 pattern.else.3
+      call $call.4: Boolean = external1 direct
+        Type Boolean
+        FieldAccess 0
+          Type Tagged<Payload>
+          Local $when.1
+        Type Boolean
+        BoolLiteral false
+      branch bb5 bb6
+        Type Boolean
+        Local $call.4
+    bb4 pattern.merge.4
+      return
+        Type Int
+        Local $dependency.local.3
+    bb5 pattern.pass.5
+      assign $dependency.local.3
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb7
+    bb6 pattern.else.6
+      assign $dependency.local.3
+        Type Int
+        IntegerLiteral Int value=-1 bits=0xffffffff
+      goto bb7
+    bb7 pattern.merge.7
+      goto bb4
+  fun defaulted @fn7(value: Int, read: (Int) -> Int, score: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local score
+  fun inspect @fn8(value: Tagged<Int>, read: (Int) -> Int) -> Int
+    bb0 entry
+      val $when.1: Tagged<Int>
+        Type Tagged<Int>
+        Local value
+      call $call.1: Boolean = external1 direct
+        Type Boolean
+        FieldAccess 0
+          Type Tagged<Int>
+          Local $when.1
+        Type Boolean
+        BoolLiteral true
+      branch bb1 bb3
+        Type Boolean
+        Local $call.1
+    bb1 pattern.pass.1
+      call $call.2: Boolean = external2 direct
+        Type String
+        FieldAccess 1
+          Type Tagged<Int>
+          Local $when.1
+        Type String
+        StringConst @str11
+      branch bb2 bb3
+        Type Boolean
+        Local $call.2
+    bb2 pattern.pass.2
+      val $dependency.local.2: Int
+        Type Int
+        FieldAccess 2
+          Type Tagged<Int>
+          Local $when.1
+      call $call.3: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local $dependency.local.2
+      assign $dependency.local.3
+        Type Int
+        Local $call.3
+      goto bb4
+    bb3 pattern.else.3
+      call $call.4: Boolean = external1 direct
+        Type Boolean
+        FieldAccess 0
+          Type Tagged<Int>
+          Local $when.1
+        Type Boolean
+        BoolLiteral false
+      branch bb5 bb6
+        Type Boolean
+        Local $call.4
+    bb4 pattern.merge.4
+      return
+        Type Int
+        Local $dependency.local.3
+    bb5 pattern.pass.5
+      assign $dependency.local.3
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb7
+    bb6 pattern.else.6
+      assign $dependency.local.3
+        Type Int
+        IntegerLiteral Int value=-1 bits=0xffffffff
+      goto bb7
+    bb7 pattern.merge.7
+      goto bb4
+  fun Continuation.resume @fn9(this: Continuation<Payload>, value: Payload) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn10(this: Continuation<Payload>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn11(this: SuspendTask<Payload>, $completion: Continuation<Payload>) -> CoroutineStep<Payload>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn12(this: SuspendRegistration<Payload>, continuation: Continuation<Payload>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Payload.$c0 @fn13(this: Payload, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Payload
+        Local this
+        Type Int
+        Local value
+      return
+  fun ctor.Local.$c0 @fn14(enabled: Boolean, label: String, value: Option<Payload>) -> Local<Payload> <no-gc>
+    bb0 entry
+      return
+        Type Local<Payload>
+        StructInit Local<Payload>
+          Type Boolean
+          Local enabled
+          Type String
+          Local label
+          Type Option<Payload>
+          Local value
+  fun ctor.Tagged.$c1 @fn15(enabled: Boolean, label: String, value: Payload) -> Tagged<Payload> <no-gc>
+    bb0 entry
+      return
+        Type Tagged<Payload>
+        StructInit Tagged<Payload>
+          Type Boolean
+          Local enabled
+          Type String
+          Local label
+          Type Payload
+          Local value
+  fun ctor.Local.$c0 @fn16(enabled: Boolean, label: String, value: Option<Int>) -> Local<Int> <no-gc>
+    bb0 entry
+      return
+        Type Local<Int>
+        StructInit Local<Int>
+          Type Boolean
+          Local enabled
+          Type String
+          Local label
+          Type Option<Int>
+          Local value
+  fun ctor.Tagged.$c1 @fn17(enabled: Boolean, label: String, value: Int) -> Tagged<Int> <no-gc>
+    bb0 entry
+      return
+        Type Tagged<Int>
+        StructInit Tagged<Int>
+          Type Boolean
+          Local enabled
+          Type String
+          Local label
+          Type Int
+          Local value
+  fun startCoroutine<Payload> @fn18(task: SuspendTask<Payload>, completion: Continuation<Payload>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn9 interface Continuation<Payload>[0]
+        Type Continuation<Payload>
+        Local completion
+        Type Payload
+        EnumField v0 f0
+          Type CoroutineStep<Payload>
+          Local $step
+      return
+    bb2 failed
+      call @fn10 interface Continuation<Payload>[1]
+        Type Continuation<Payload>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Payload> = @fn11 interface SuspendTask<Payload>[0]
+        Type SuspendTask<Payload>
+        Local task
+        Type Continuation<Payload>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Payload>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn19($source: (Payload) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Payload) -> Int
+        Local $source
+        Type Payload
+        Retype Payload
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn20($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<Payload> result=Payload
+  coroutine_slot cl0 CoroutineSlot<Payload> value=Payload
+  coroutine_start ct0 result=Payload function=fn18
+  coroutine_fn cf0 @fn11 source_return=Payload step=cs0 immediate
+  instance mi0 function=@fn2 <- exercise
+  instance mi1 function=@fn4 <- exercise
+  instance mi2 function=@fn5 <- defaulted
+  instance mi3 function=@fn6 <- inspect
+  instance mi4 function=@fn7 <- defaulted
+  instance mi5 function=@fn8 <- inspect
+  instance mi6 function=@fn9 <- Continuation.resume
+  instance mi7 function=@fn10 <- Continuation.resumeWithException
+  instance mi8 function=@fn11 <- SuspendTask.run
+  instance mi9 function=@fn12 <- SuspendRegistration.register
+  str @str0 "hit"
+  str @str1 "hit"
+  str @str2 "hit"
+  str @str3 "hit"
+  str @str4 "hit"
+  str @str5 "hit"
+  str @str6 "hit"
+  str @str7 "hit"
+  str @str8 "hit"
+  str @str9 "hit"
+  str @str10 "hit"
+  str @str11 "hit"
+  output library

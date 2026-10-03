@@ -68,8 +68,12 @@ impl ExportHirOutput {
         })
     }
 
-    pub(crate) fn shared_source(&self) -> &crate::production::ExportSharedSource {
+    pub fn shared_source(&self) -> &std::sync::Arc<crate::ExportSharedSource> {
         &self.shared_source
+    }
+
+    pub fn set_shared_source(&mut self, source: std::sync::Arc<crate::ExportSharedSource>) {
+        self.shared_source = source;
     }
 
     pub const fn module(&self) -> &ExportHir {
@@ -233,11 +237,10 @@ impl Deref for LocalConcreteHirOutput {
 
 impl crate::Output {
     pub fn try_new(
-        mut export: ExportHirOutput,
-        mut local: LocalConcreteHirOutput,
+        export: ExportHirOutput,
+        local: LocalConcreteHirOutput,
         native_boundary_types: HirNativeBoundaryTypeDefinitions,
         warnings: Vec<scoop_ast::Diagnostic>,
-        dependencies: Option<&crate::SelectedImportedDependencySet>,
     ) -> Result<Self, HirOutputError> {
         if !matches!(
             (
@@ -268,20 +271,6 @@ impl crate::Output {
                 return Err(HirOutputError::EntryMismatch);
             }
             _ => return Err(HirOutputError::OutputKindMismatch),
-        }
-        let types = local
-            .shared_declaration_type_closure()
-            .map_err(HirOutputError::MaterializedTypes)?;
-        if let Some(shared_source) = export
-            .shared_source
-            .with_materialized_types(export.module(), local.module(), &types, dependencies)
-            .map_err(|error| HirOutputError::Templates(Box::new(error)))?
-        {
-            export.shared_source = std::sync::Arc::new(shared_source);
-            let requirements = crate::PublicNominalShapeRequirementsV1::from_export_hir(&export)
-                .map_err(|error| HirOutputError::ShapeRequirements(Box::new(error)))?;
-            local.materialization = LocalShapeSupportPlan::try_new(local.module(), &requirements)
-                .map_err(HirOutputError::ShapeSupport)?;
         }
         Ok(Self {
             export,
@@ -421,10 +410,6 @@ pub enum HirOutputError {
     OutputKindMismatch,
     EntryMismatch,
     CoreProtocolBranchMismatch,
-    MaterializedTypes(crate::MaterializedTypeClosureError),
-    Templates(Box<crate::GenericTemplateProductionError>),
-    ShapeRequirements(Box<crate::PublicNominalShapeProjectionError>),
-    ShapeSupport(LocalShapeSupportPlanError),
 }
 
 impl fmt::Display for HirOutputError {
@@ -437,10 +422,6 @@ impl fmt::Display for HirOutputError {
             Self::CoreProtocolBranchMismatch => {
                 "Export HIR and LocalConcrete HIR compiler-protocol branches disagree"
             }
-            Self::MaterializedTypes(error) => return error.fmt(formatter),
-            Self::Templates(error) => return error.fmt(formatter),
-            Self::ShapeRequirements(error) => return error.fmt(formatter),
-            Self::ShapeSupport(error) => return error.fmt(formatter),
         })
     }
 }

@@ -1,0 +1,137 @@
+SourceFile
+  QualifiedPackage templates.delegateCombinations
+  public object Trace
+    public var order: Int = <expr>
+      IntLiteral 0
+    public var direct: Int = <expr>
+      IntLiteral 0
+    public var left: Int = <expr>
+      IntLiteral 0
+    public var right: Int = <expr>
+      IntLiteral 0
+  public class Receiver<T>(val value: T)
+  public class Payload(var value: Int)
+  public class OrderedSlot<T>(val payload: Payload)
+    public operator fun getValue
+    public operator fun setValue
+  public class Starter<T>()
+    public operator fun provideDelegate
+  private fun start<T>(): Starter<T>
+    assign .order
+      Var Trace
+      Binary Add
+        Binary Mul
+          FieldAccess order
+            Var Trace
+          IntLiteral 10
+        IntLiteral 3
+    return
+      Call Starter<T>
+  public var <T>Receiver<T>.ordered: Int by <expr>
+  public var <T>Receiver<T>.compound: Int by <expr>
+  public var <T>Receiver<T>.writeOnly: Int by <expr>
+  public struct ZeroSlot<T>
+    public operator fun getValue
+  public struct FlatSlot<T>
+    field first: Long
+    field second: Long
+    field third: Long
+    public operator fun getValue
+  public struct ReferenceSlot<T>
+    field first: Payload
+    field second: Payload
+    field third: Payload
+    public operator fun getValue
+  private fun references<T>(): ReferenceSlot<T>
+    return
+      Call ReferenceSlot<T>
+        Call Payload
+          IntLiteral 7
+        Call Payload
+          IntLiteral 14
+        Call Payload
+          IntLiteral 21
+  public val <T>Receiver<T>.zero: Int by <expr>
+  public val <T>Receiver<T>.flat: Long by <expr>
+  public val <T>Receiver<T>.references: Int by <expr>
+  public class Token<T>()
+  public struct TokenSlot<T>
+    public operator fun getValue
+  private fun directStart<T>(): TokenSlot<T>
+    compound-assign Add
+      Var Trace
+      IntLiteral 1
+    FieldAccess cycleDirect
+      Call Token<T>
+    return
+      Call TokenSlot<T>
+  private fun leftStart<T>(): TokenSlot<T>
+    compound-assign Add
+      Var Trace
+      IntLiteral 1
+    FieldAccess cycleRight
+      Call Token<T>
+    return
+      Call TokenSlot<T>
+  private fun rightStart<T>(): TokenSlot<T>
+    compound-assign Add
+      Var Trace
+      IntLiteral 1
+    FieldAccess cycleLeft
+      Call Token<T>
+    return
+      Call TokenSlot<T>
+  public val <T>Token<T>.cycleDirect: Int by <expr>
+  public val <T>Token<T>.cycleLeft: Int by <expr>
+  public val <T>Token<T>.cycleRight: Int by <expr>
+  public class LocalValueSlot<T>(var stored: T)
+    public operator fun getValue
+    public operator fun setValue
+  public class FixedLocalSlot(var stored: Int)
+    public operator fun getValue
+    public operator fun setValue
+  public open class SpecificBase<T>()
+    public operator fun getValue
+  public open class BroadBase()
+    public operator fun getValue
+  public open class AmbiguousBase<T>()
+    public operator fun getValue
+    public operator fun setValue
+  public class ExtensionSeed()
+  public class ExtensionSlot(var stored: Int)
+  public operator fun ExtensionSeed.provideDelegate(): ExtensionSlot
+    assign .order
+      Var Trace
+      Binary Add
+        Binary Mul
+          FieldAccess order
+            Var Trace
+          IntLiteral 10
+        IntLiteral 4
+    return
+      Call ExtensionSlot
+        IntLiteral 10
+  public operator fun ExtensionSlot.getValue(thisRef: Any): Int
+    assign .order
+      Var Trace
+      Binary Add
+        Binary Mul
+          FieldAccess order
+            Var Trace
+          IntLiteral 10
+        IntLiteral 6
+    return
+      FieldAccess stored
+        This
+  public operator fun ExtensionSlot.setValue(thisRef: Any, value: Int): Unit
+    assign .order
+      Var Trace
+      Binary Add
+        Binary Mul
+          FieldAccess order
+            Var Trace
+          IntLiteral 10
+        IntLiteral 5
+    assign .stored
+      This
+      Var value

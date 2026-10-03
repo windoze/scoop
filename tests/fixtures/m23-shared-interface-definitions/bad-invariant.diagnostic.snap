@@ -1,3 +1,0 @@
-span=99..104
-expression=value
-body of `wrong` must be of type View<Unit, Any>, found Swap<Int, Unit>; nominal application `View` is invariant: first differing type argument 2 (`B`) is `Int` in `View<Unit, Int>`, but `Any` in `View<Unit, Any>`; construct the target application directly or convert explicitly

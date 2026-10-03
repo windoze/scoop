@@ -1,0 +1,60 @@
+Module
+  class Support<Int> vtable=0 itables=0
+  fun check @fn0() -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun fromSupport @fn1(value: Int) -> Int
+    bb0 entry
+      call $dependency.local.1: Int = external0 direct
+      val $dependency.local.2: Int
+        Type Int
+        Local value
+      val $dependency.local.3: Int
+        Type Int
+        Local $dependency.local.2
+      assign $new.1
+        Type Support<Int>
+        ClassAlloc Support<Int>
+      call @fn3 direct
+        Type Support<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.4: Support<Int>
+        Type Support<Int>
+        Local $new.1
+      call $call.2: Int = @fn2 direct
+        Type Support<Int>
+        Local $dependency.local.4
+      return
+        Type Int
+        Local $call.2
+  fun pick @fn2(this: Support<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Support<Int>
+          Local this
+  fun init.Support.$c0 @fn3(this: Support<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Support<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  instance mi0 function=@fn1 <- fromSupport
+  instance mi1 function=@fn2 <- pick
+  output library

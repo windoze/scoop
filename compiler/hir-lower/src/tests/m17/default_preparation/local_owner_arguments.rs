@@ -1,6 +1,51 @@
 use super::*;
 
 #[test]
+fn own_generic_arguments_keep_captures_from_a_non_generic_parent() {
+    use scoop_identity::{CallableInstantiationOwner, CallableMaterializationContext};
+
+    let output = lower_source(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/fixtures/m23-cli-default-preparation/non-generic-parent/program.scoop"
+    )))
+    .unwrap();
+    let module = &output.local;
+    let captures = module
+        .functions
+        .iter()
+        .filter(|(_, function)| !function.capture_parameters.is_empty())
+        .collect::<Vec<_>>();
+    assert_eq!(captures.len(), 1);
+    let (function, declaration) = captures[0];
+    let CallableMaterializationContext::Application(application) =
+        declaration.materialization.context()
+    else {
+        panic!("the local function has its own generic application");
+    };
+    assert_eq!(
+        module
+            .callable_applications
+            .get(application)
+            .unwrap()
+            .key()
+            .instantiation_owner(),
+        CallableInstantiationOwner::NoOwner
+    );
+    for capture in &declaration.capture_parameters {
+        assert_eq!(
+            module
+                .local_value_identities
+                .function_local(function, capture.local)
+                .key()
+                .owner()
+                .context(),
+            CallableMaterializationContext::NoSubstitution
+        );
+    }
+    scoop_mir_lower::lower(module).unwrap();
+}
+
+#[test]
 fn unused_local_owner_arguments_keep_distinct_body_materializations() {
     let source = [
         include_str!(concat!(

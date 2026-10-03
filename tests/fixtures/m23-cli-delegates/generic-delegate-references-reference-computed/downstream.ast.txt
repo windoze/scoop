@@ -1,0 +1,35 @@
+SourceFile
+  RootPackage
+  ImportExact Local consumer.delegates.result
+  ImportExact Local consumer.delegates.exercise
+  private class Later(val value: Int)
+  public fun check(): Int
+    if
+      Binary Ne
+        Call result
+        IntLiteral 42
+      return
+        IntLiteral 1
+    val value
+      Call Later
+        IntLiteral 42
+    val answer
+      Call exercise<Later>
+        Var value
+    val allocated
+      Call Later
+        IntLiteral 0
+    return
+      IfExpression
+        Binary And
+          Binary Eq
+            FieldAccess value
+              Var value
+            IntLiteral 42
+          Binary Eq
+            FieldAccess value
+              Var allocated
+            IntLiteral 0
+        Var answer
+        else
+        IntLiteral 2

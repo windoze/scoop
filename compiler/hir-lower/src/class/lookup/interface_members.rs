@@ -1,7 +1,7 @@
 use super::*;
 
 impl Lowerer {
-    pub(super) fn collect_selected_interface_members(
+    pub(crate) fn collect_selected_interface_members(
         &mut self,
         receiver: TypeId,
         out: &mut Vec<(crate::CallableCandidate, usize, usize)>,

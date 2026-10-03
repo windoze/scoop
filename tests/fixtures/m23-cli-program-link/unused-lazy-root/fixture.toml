@@ -1,0 +1,56 @@
+schema = 1
+name = "program-link-unused-lazy-root"
+inputs = ["lazy-failure-provider", "../../m23-program-link/lazy-failure-provider.scoop", "unused-lazy-root", "../../m23-program-link/unused-lazy-root.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["program-link", "multi-cone", "moving-gc", "stage-golden"]
+
+[[variants]]
+name = "normal"
+
+[[variants]]
+name = "moving"
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}
+
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${fixture}/lazy-failure-provider", "to" = "${work}/sources/lazy-failure-provider"}}, {"copy" = {"from" = "${fixture}/../../m23-program-link/lazy-failure-provider.scoop", "to" = "${work}/sources/lazy-failure-provider/src/main.scoop"}}, {"copy" = {"from" = "${fixture}/unused-lazy-root", "to" = "${work}/sources/unused-lazy-root"}}, {"copy" = {"from" = "${fixture}/../../m23-program-link/unused-lazy-root.scoop", "to" = "${work}/sources/unused-lazy-root/src/main.scoop"}}]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${work}/sources/unused-lazy-root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${build.result.dependencies.length}", "equals" = 2}, {"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "lir.txt"}]
+
+[[steps]]
+name = "run_built"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "42\n"
+stderr = ""
+
+[[steps]]
+name = "isolate"
+files = [{"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}}, {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}}, {"mkdir" = {"path" = "${work}/empty-sysroot"}}, {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}}, {"copy" = {"from" = "${build.result.dependencies.1.path}", "to" = "${work}/artifacts/1.slib"}}, {"remove" = {"path" = "${work}/sources"}}]
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "-o", "${work}/artifacts/program", "--message-format", "json", "--dump-plan"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}, {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan"}]
+
+[[steps]]
+name = "run_linked"
+argv = ["${link.result.output}"]
+exit = 0
+stdout = "42\n"
+stderr = ""

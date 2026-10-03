@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `IntHolder`: String is not a subtype of Int",
+    "notes": [],
+    "origin": {
+      "cone": "fad9e04f686e382e7a29a61e839d23da78aac0b9e7fc1b2b3ea7287467ff3139",
+      "end": 147,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 140
+    },
+    "severity": "error"
+  }
+]

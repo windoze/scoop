@@ -1,3 +1,0 @@
-span=37..42
-expression=paths
-`dependency.paths` names a package, not a type

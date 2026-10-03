@@ -1,0 +1,39 @@
+Module
+  global @scoop$1$ss$2fe2c406e79eade2b4b834b26239ee74689f9d407340ec3aafd9323b8034882c : i32 scan=none
+  global @scoop$1$ss$b30eb9b9e6d24c500c6db15b5dfd091ab2f78dafe6719bfce4b2154730768749 : i32 scan=none
+  global @scoop$1$ss$b389c93b5660689a80dc846d44847d33dfcac46f032e4e3be8306087703a13a6 : i32 scan=none
+  fun @scoop$1$cb$58915e54c3600d8b91ee25055009a5b0d26b2162ad0d9832be93f0093bdc8a32() -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call no-gc-void-target0 sig=void0 (i32) local-fn2(integer<Int>(0x00000000))
+    t0 = aggregate () : {}
+    call no-gc-void-target1 sig=void1 (i32) local-fn4(integer<Int>(0x00000000))
+    t1 = aggregate () : {}
+    call no-gc-void-target2 sig=void2 (i32) local-fn6(integer<Int>(0x00000000))
+    t2 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$99b0b8f7196c72244be129a1013fc6c766c45dd129adc9c48a7be1cd51807ed5() -> i32 <no-gc>
+  block entry
+    t0 = global_load global0 : i32
+    ret t0
+  fun @scoop$1$cb$51e43a24d49eb337028b546404d1b8eb9c877a2e20d894f229eb8aa8c9254d81(i32) -> void <no-gc>
+  block entry
+    global_store global0, param0
+    ret
+  fun @scoop$1$cb$2b359c9e04620d16d844921db5d40fcde346667002de86055d95ab98ba96c921() -> i32 <no-gc>
+  block entry
+    t0 = global_load global1 : i32
+    ret t0
+  fun @scoop$1$cb$fc8315cbb731ac3ea248654da8c1113bc2062dd05f8bb004698f599a7acbb3dd(i32) -> void <no-gc>
+  block entry
+    global_store global1, param0
+    ret
+  fun @scoop$1$cb$04a320efa72673c3efd4755070395ab9877fe44a7bba24c62a2a7110ea7d9037() -> i32 <no-gc>
+  block entry
+    t0 = global_load global2 : i32
+    ret t0
+  fun @scoop$1$cb$e36ba30bc8c183551e648bc3398c3aa25fd8e3a3fb01760fb1a25abc8d659d12(i32) -> void <no-gc>
+  block entry
+    global_store global2, param0
+    ret
+  output library

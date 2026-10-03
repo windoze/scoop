@@ -1,0 +1,7 @@
+fun main() {
+    if (choose(7, true)() != 7) { throw IllegalStateException() }
+    if (choose(11, false)() != 11) { throw IllegalStateException() }
+    if (choose(17, true, { 13 })() != 13) { throw IllegalStateException() }
+    if (lambda(19)() != 19) { throw IllegalStateException() }
+    if (anonymous(23)() != 23) { throw IllegalStateException() }
+}

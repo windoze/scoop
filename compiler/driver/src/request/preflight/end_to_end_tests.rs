@@ -13,42 +13,28 @@ use crate::{ExplicitDependencyInputs, HostArtifactLocator};
 mod cross_cone;
 mod default_call_domains;
 mod default_callable_access;
-mod default_nested_identities;
-mod default_reference_closure;
 mod default_type_access;
 mod default_value_access;
 mod dependency_preflight;
 mod executable_callables;
 mod executable_type_sites;
 mod generic_bodies;
-mod heap_zst;
 mod image_dependencies;
-mod imported_classes;
-mod imported_constructors;
-mod imported_enums;
-mod imported_members;
-mod imported_structs;
 mod layout_exports;
 mod nominal_signatures;
 mod program_link;
 mod publication;
-mod runtime_images;
-mod runtime_layout_gates;
 mod setter_domains;
 mod shape_materialization;
 mod shared_lir_selection;
 mod shared_nominal_declarations;
-mod shared_source_closure;
-mod source_only_nominals;
 mod support;
 
 use support::*;
 
 #[test]
 fn formal_pipeline_publishes_manifest_library_and_executable_artifacts() {
-    let Some(target) = resolved_target() else {
-        return;
-    };
+    let target = resolved_target().expect("artifact integration tests require a host target");
     let sysroot = tempfile::tempdir().unwrap();
     let core = bootstrap_core(sysroot.path(), &target);
     assert_graph_dependencies(&core, &target, &[]);
@@ -119,9 +105,7 @@ fn formal_pipeline_publishes_manifest_library_and_executable_artifacts() {
 
 #[test]
 fn formal_pipeline_is_byte_reproducible_for_every_stage3_input_form() {
-    let Some(target) = resolved_target() else {
-        return;
-    };
+    let target = resolved_target().expect("artifact integration tests require a host target");
     let workspace = tempfile::tempdir().unwrap();
     let first_sysroot = workspace.path().join("checkout-a/sysroot");
     let second_sysroot = workspace.path().join("checkout-b/sysroot");
@@ -207,9 +191,7 @@ fn formal_pipeline_is_byte_reproducible_for_every_stage3_input_form() {
 
 #[test]
 fn formal_pipeline_preserves_source_extern_without_attempting_final_link() {
-    let Some(target) = resolved_target() else {
-        return;
-    };
+    let target = resolved_target().expect("artifact integration tests require a host target");
     let sysroot = tempfile::tempdir().unwrap();
     bootstrap_core(sysroot.path(), &target);
 
@@ -247,9 +229,7 @@ fun main() {
 
 #[test]
 fn formal_pipeline_preserves_combined_stage3_language_features() {
-    let Some(target) = resolved_target() else {
-        return;
-    };
+    let target = resolved_target().expect("artifact integration tests require a host target");
     let sysroot = tempfile::tempdir().unwrap();
     bootstrap_core(sysroot.path(), &target);
 

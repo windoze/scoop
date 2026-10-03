@@ -1,0 +1,13 @@
+SourceFile
+  RootPackage
+  private fun warmup(left: (Unit, Unit), right: (Unit, Unit), equal: Boolean = <expr>): Boolean
+    =
+      Var equal
+SourceFile
+  RootPackage
+  public fun unitDefault(left: Unit, right: Unit, equal: Boolean = <expr>): Boolean
+    =
+      Var equal
+  public fun tupleDefault(left: (Unit, Unit), right: (Unit, Unit), equal: Boolean = <expr>): Boolean
+    =
+      Var equal

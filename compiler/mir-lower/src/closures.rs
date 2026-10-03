@@ -18,10 +18,16 @@ impl Lowerer {
 
     pub(super) fn lower_reference_callee(
         &mut self,
-        _module: &hir::Module,
+        module: &hir::Module,
         callable: hir::CallableTarget,
     ) -> mir::Callee {
         let callable = match callable {
+            hir::CallableTarget::DerivedEquality(target) => {
+                return mir::Callee::External(crate::current::external_equality(
+                    &self.external_callables,
+                    module.imported_derived_equalities[target].0,
+                ));
+            }
             hir::CallableTarget::Local(callable) => callable,
             hir::CallableTarget::Imported(callee) => {
                 return mir::Callee::External(
@@ -43,6 +49,7 @@ impl Lowerer {
         callable: hir::CallableTarget,
     ) -> mir::CallKind {
         let callable = match callable {
+            hir::CallableTarget::DerivedEquality(_) => return mir::CallKind::Direct,
             hir::CallableTarget::Local(callable) => callable,
             hir::CallableTarget::Imported(callee) => {
                 return match module.imported_dependency_callables[callee].dispatch() {

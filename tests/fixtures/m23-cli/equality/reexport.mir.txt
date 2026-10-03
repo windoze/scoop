@@ -1,0 +1,543 @@
+Module
+  struct Envelope (packet: Packet, flag: Flag)
+  struct Manual (number: Int)
+  struct Overloaded (number: Int)
+  struct Generic<Flag> (value: Flag)
+  enum Flag
+    Off()
+    On()
+  enum Packet
+    Empty()
+    Item(_0: Int)
+    Named(value: String, flag: Flag)
+  interface ToString
+  interface Hash
+  fun main @fn0() -> Unit
+    bb0 entry
+      call $dependency.argument.0: Boolean = external8 direct
+        Type Flag
+        VariantConstruct Flag v1
+        Type Flag
+        VariantConstruct Flag v1
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      call $call.1: Boolean = external8 direct
+        Type Flag
+        VariantConstruct Flag v0
+        Type Flag
+        VariantConstruct Flag v1
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.1
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      call $dependency.argument.0: Boolean = external9 direct
+        Type Packet
+        VariantConstruct Packet v0
+        Type Packet
+        VariantConstruct Packet v0
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      val $equality.lhs: Packet
+        Type Packet
+        VariantConstruct Packet v1
+          Type Int
+          Local $dependency.parameter._1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.0: Boolean = external9 direct
+        Type Packet
+        Local $equality.lhs
+        Type Packet
+        VariantConstruct Packet v1
+          Type Int
+          Local $dependency.parameter._1
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      val $equality.lhs: Packet
+        Type Packet
+        VariantConstruct Packet v1
+          Type Int
+          Local $dependency.parameter._1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.2: Boolean = external9 direct
+        Type Packet
+        Local $equality.lhs
+        Type Packet
+        VariantConstruct Packet v1
+          Type Int
+          Local $dependency.parameter._1
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.2
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.3: Boolean = external9 direct
+        Type Packet
+        VariantConstruct Packet v1
+          Type Int
+          Local $dependency.parameter._1
+        Type Packet
+        VariantConstruct Packet v0
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.3
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.argument.1: Flag
+        Type Flag
+        VariantConstruct Flag v1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      val $dependency.parameter.flag: Flag
+        Type Flag
+        Local $dependency.argument.1
+      val $equality.lhs: Packet
+        Type Packet
+        VariantConstruct Packet v2
+          Type String
+          Local $dependency.parameter.value
+          Type Flag
+          Local $dependency.parameter.flag
+      val $dependency.argument.0: Flag
+        Type Flag
+        VariantConstruct Flag v1
+      val $dependency.argument.1: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.1
+      val $dependency.parameter.flag: Flag
+        Type Flag
+        Local $dependency.argument.0
+      call $dependency.argument.0: Boolean = external9 direct
+        Type Packet
+        Local $equality.lhs
+        Type Packet
+        VariantConstruct Packet v2
+          Type String
+          Local $dependency.parameter.value
+          Type Flag
+          Local $dependency.parameter.flag
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.argument.1: Flag
+        Type Flag
+        VariantConstruct Flag v1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      val $dependency.parameter.flag: Flag
+        Type Flag
+        Local $dependency.argument.1
+      val $equality.lhs: Packet
+        Type Packet
+        VariantConstruct Packet v2
+          Type String
+          Local $dependency.parameter.value
+          Type Flag
+          Local $dependency.parameter.flag
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.argument.1: Flag
+        Type Flag
+        VariantConstruct Flag v0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      val $dependency.parameter.flag: Flag
+        Type Flag
+        Local $dependency.argument.1
+      call $call.4: Boolean = external9 direct
+        Type Packet
+        Local $equality.lhs
+        Type Packet
+        VariantConstruct Packet v2
+          Type String
+          Local $dependency.parameter.value
+          Type Flag
+          Local $dependency.parameter.flag
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.4
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Packet
+        Type Packet
+        VariantConstruct Packet v1
+          Type Int
+          Local $dependency.parameter._1
+      val $dependency.argument.1: Flag
+        Type Flag
+        VariantConstruct Flag v1
+      val $dependency.parameter.packet: Packet
+        Type Packet
+        Local $dependency.argument.0
+      val $dependency.parameter.flag: Flag
+        Type Flag
+        Local $dependency.argument.1
+      call $equality.lhs: Envelope = external0 direct
+        Type Packet
+        Local $dependency.parameter.packet
+        Type Flag
+        Local $dependency.parameter.flag
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Packet
+        Type Packet
+        VariantConstruct Packet v1
+          Type Int
+          Local $dependency.parameter._1
+      val $dependency.argument.1: Flag
+        Type Flag
+        VariantConstruct Flag v1
+      val $dependency.parameter.packet: Packet
+        Type Packet
+        Local $dependency.argument.0
+      val $dependency.parameter.flag: Flag
+        Type Flag
+        Local $dependency.argument.1
+      call $call.5: Envelope = external0 direct
+        Type Packet
+        Local $dependency.parameter.packet
+        Type Flag
+        Local $dependency.parameter.flag
+      call $dependency.argument.0: Boolean = external10 direct
+        Type Envelope
+        Local $equality.lhs
+        Type Envelope
+        Local $call.5
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      call $equality.lhs: Manual = external1 direct
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Manual
+        Type Manual
+        Local $equality.lhs
+      call $dependency.argument.0: Manual = external1 direct
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.parameter.other: Manual
+        Type Manual
+        Local $dependency.argument.0
+      call $dependency.argument.0: Boolean = external2 direct
+        Type Manual
+        Local $dependency.receiver
+        Type Manual
+        Local $dependency.parameter.other
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      call $equality.lhs: Overloaded = external3 direct
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.6: Overloaded = external3 direct
+        Type Int
+        Local $dependency.parameter.number
+      call $dependency.argument.0: Boolean = external11 direct
+        Type Overloaded
+        Local $equality.lhs
+        Type Overloaded
+        Local $call.6
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: Overloaded = external3 direct
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.0: Boolean = external4 direct
+        Type Overloaded
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.other
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: Flag
+        Type Flag
+        VariantConstruct Flag v1
+      val $parameter.value: Flag
+        Type Flag
+        Local $argument.0
+      call $equality.lhs: Generic<Flag> = @fn5 direct
+        Type Flag
+        Local $parameter.value
+      val $argument.0: Flag
+        Type Flag
+        VariantConstruct Flag v1
+      val $parameter.value: Flag
+        Type Flag
+        Local $argument.0
+      call $call.7: Generic<Flag> = @fn5 direct
+        Type Flag
+        Local $parameter.value
+      call $dependency.argument.0: Boolean = @fn2 direct
+        Type Generic<Flag>
+        Local $equality.lhs
+        Type Generic<Flag>
+        Local $call.7
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Flag
+        Type Flag
+        VariantConstruct Flag v1
+      val $dependency.argument.1: Flag
+        Type Flag
+        VariantConstruct Flag v1
+      val $dependency.parameter.left: Flag
+        Type Flag
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Flag
+        Type Flag
+        Local $dependency.argument.1
+      call $dependency.parameter.same: Boolean = external8 direct
+        Type Flag
+        Local $dependency.parameter.left
+        Type Flag
+        Local $dependency.parameter.right
+      call $dependency.argument.0: Int = @fn3 direct
+        Type Flag
+        Local $dependency.parameter.left
+        Type Flag
+        Local $dependency.parameter.right
+        Type Boolean
+        Local $dependency.parameter.same
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun println @fn1(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external6 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external7 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external7 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Generic.equals @fn2(this: Generic<Flag>, other: Generic<Flag>) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = external8 direct
+        Type Flag
+        FieldAccess 0
+          Type Generic<Flag>
+          Local this
+        Type Flag
+        FieldAccess 0
+          Type Generic<Flag>
+          Local other
+      return
+        Type Boolean
+        Local $call.1
+  fun defaultSame @fn3(left: Flag, right: Flag, same: Boolean) -> Int
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        Local same
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+    bb2 if.merge.2
+      return
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+  fun println @fn4(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external5 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external7 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str5
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external7 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun ctor.Generic.$c0 @fn5(value: Flag) -> Generic<Flag> <no-gc>
+    bb0 entry
+      return
+        Type Generic<Flag>
+        StructInit Generic<Flag>
+          Type Flag
+          Local value
+  instance mi0 function=@fn1 <- println
+  instance mi1 function=@fn3 <- defaultSame
+  instance mi2 function=@fn4 <- println
+  str @str0 "x"
+  str @str1 "x"
+  str @str2 "x"
+  str @str3 "x"
+  str @str4 "\n"
+  str @str5 "\n"
+  output executable @fn0

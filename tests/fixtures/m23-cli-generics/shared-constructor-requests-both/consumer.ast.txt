@@ -1,0 +1,128 @@
+SourceFile
+  QualifiedPackage consumer.constructorrequests
+  public open class Base<T, U>(val value: T)
+  public open class Shell<T, U>(), Base<T, U>
+    public val output: T = <expr>
+      IfExpression
+        BoolLiteral true
+        val saved
+          FieldAccess value
+            This
+        fun read(): T
+          return
+            Var saved
+        val reference: () -> T
+          CallableReference 0 read
+        val anonymous: () -> T
+          AnonymousFunction 0 suspend=false return=T
+            return
+              Call reference
+        val copy: () -> T
+          Lambda 0 suspend=false
+            parameters omitted
+            Call anonymous
+        Call copy
+        else
+        FieldAccess value
+          This
+    constructor(value: T) : super(<1 args>)
+    constructor(value: T, flag: Boolean) : super(<1 args>)
+  public struct Carrier<T, U>
+    field value: T
+  private typealias Fixed = Shell<Int, Unit>
+  private class Current<T, U>(value: T) : Shell<T, U>(<2 args>)
+  public fun make<T, U>(seed: T): Shell<T, U>
+    =
+      Call Shell<T, U>
+        Var seed
+        BoolLiteral true
+  public fun exercise<T>(seed: T, inspect: (T) -> Int): Int
+    val primary
+      Call Shell<T, Unit>
+        Var seed
+    if
+      Binary Ne
+        Call inspect
+          FieldAccess output
+            Var primary
+        IntLiteral 42
+      return
+        IntLiteral 3
+    val first
+      Call make<T, Unit>
+        Var seed
+    val repeated
+      Call Shell<T, Unit>
+        Var seed
+        BoolLiteral false
+    val phantom
+      Call Shell<T, String>
+        Var seed
+        BoolLiteral true
+    val current
+      Call Current<T, Unit>
+        Var seed
+    if
+      Binary Or
+        Binary Ne
+          Call inspect
+            FieldAccess output
+              Var first
+          IntLiteral 42
+        Binary Ne
+          Call inspect
+            FieldAccess output
+              Var repeated
+          IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Or
+        Binary Ne
+          Call inspect
+            FieldAccess output
+              Var phantom
+          IntLiteral 42
+        Binary Ne
+          Call inspect
+            FieldAccess output
+              Var current
+          IntLiteral 42
+      return
+        IntLiteral 2
+    val wrapper
+      Call Carrier<Shell<T, Unit>, String>
+        Var first
+    return
+      Call inspect
+        FieldAccess output
+          FieldAccess value
+            Var wrapper
+  public fun result(): Int
+    val other
+      Call Fixed
+        IntLiteral 21
+    if
+      Binary Ne
+        FieldAccess output
+          Var other
+        IntLiteral 21
+      return
+        IntLiteral 4
+    val alias
+      Call Fixed
+        IntLiteral 42
+        BoolLiteral true
+    if
+      Binary Ne
+        FieldAccess output
+          Var alias
+        IntLiteral 42
+      return
+        IntLiteral 1
+    return
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 1 suspend=false
+          param value: _
+          Var value

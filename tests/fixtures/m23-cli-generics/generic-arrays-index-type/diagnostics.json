@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `first`: Int is not a subtype of Long",
+    "notes": [],
+    "origin": {
+      "cone": "2de9bfa5f0abc27c41ff06e37dde02ce5cfbb3f324feac8609ec84a02f59eac6",
+      "end": 83,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 78
+    },
+    "severity": "error"
+  }
+]

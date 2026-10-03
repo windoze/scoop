@@ -1,0 +1,14 @@
+SourceFile
+  RootPackage
+  ImportStar Local dependency.classes.*
+  public fun primary(): Counter
+    val cell
+      Call MutableCell
+        IntLiteral 0
+    assign .value
+      Var cell
+      IntLiteral 21
+    return
+      Call Counter
+        FieldAccess value
+          Var cell

@@ -69,31 +69,40 @@ impl<'a> SlotContracts<'a> {
         let mut contracts = BTreeMap::new();
         for schema in schemas.records() {
             for slot in schema.slots() {
-                if contracts.contains_key(slot) {
-                    continue;
-                }
                 let declaration = *self
                     .roots
                     .get(slot)
                     .ok_or_else(|| invalid("dispatch slot has no source root declaration"))?;
-                let source = self.target(owner, declaration)?;
-                let selection = self.selections.get(owner, *slot).ok_or_else(|| {
-                    invalid("dispatch slot has no resolved implementation selection")
-                })?;
-                let implementation = match selection {
+                let source_root = match schema.role() {
+                    InheritanceSlotSchemaRoleV1::ClassVtable => owner,
+                    InheritanceSlotSchemaRoleV1::Interface { interface_exact } => interface_exact,
+                };
+                let source = self.target(source_root, declaration)?;
+                let selection = self
+                    .selections
+                    .get(owner, schema.role(), *slot)
+                    .ok_or_else(|| {
+                        invalid("dispatch slot has no resolved implementation selection")
+                    })?;
+                let implementation = match selection.selection() {
                     InheritanceSourceSlotSelectionV1::Abstract(target) => {
-                        InheritanceSlotImplementationV1::Abstract(self.target(owner, target)?)
+                        InheritanceSlotImplementationV1::Abstract(
+                            self.target(selection.receiver(), target)?,
+                        )
                     }
                     InheritanceSourceSlotSelectionV1::Concrete(target) => {
-                        InheritanceSlotImplementationV1::Concrete(self.target(owner, target)?)
+                        InheritanceSlotImplementationV1::Concrete(
+                            self.target(selection.receiver(), target)?,
+                        )
                     }
                     InheritanceSourceSlotSelectionV1::InterfaceDefault(target) => {
                         InheritanceSlotImplementationV1::InterfaceDefault(
-                            self.target(owner, target)?,
+                            self.target(selection.receiver(), target)?,
                         )
                     }
                 };
                 let contract = InheritanceSlotContractV1::try_new(
+                    schema.role(),
                     *slot,
                     declaration,
                     source.signature().clone(),
@@ -101,7 +110,7 @@ impl<'a> SlotContracts<'a> {
                     source.declaration_access().clone(),
                 )
                 .map_err(invalid)?;
-                contracts.insert(*slot, contract);
+                contracts.insert(contract.key(), contract);
             }
         }
         CanonicalInheritanceSlotContractsV1::try_new(contracts.into_values().collect())

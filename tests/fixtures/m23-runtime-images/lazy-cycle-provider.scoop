@@ -1,5 +1,5 @@
 package startup.cycle
-@Extern(name = "m23_trace") private fun trace(value: Long)
+@Extern(lib = "m23_runtime_images", name = "m23_trace") private fun trace(value: Long)
 private var attempts: Int = 0
 private fun left(): Long {
     attempts += 1

@@ -1,0 +1,16 @@
+SourceFile
+  QualifiedPackage nativelink.scoopabifacade
+  ImportStar PublicReexport nativelink.scoopabi.*
+  public fun roundTrip<T>(marker: T, text: String, token: Empty = <expr>): Aggregate
+    Call empty
+      Var token
+    val reloaded
+      Call leafEcho
+        Call managedEcho
+          Var text
+    return
+      Call aggregate
+        Call Aggregate
+          Var reloaded
+          IntLiteral 10L
+          IntLiteral 20L

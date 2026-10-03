@@ -163,6 +163,15 @@ impl Fixture {
         implementation: InheritanceSlotImplementationV1,
     ) -> InheritanceSlotContractV1 {
         InheritanceSlotContractV1::try_new(
+            if self.inheritance.records[&owner.exact].modality()
+                == NominalInheritanceModalityV1::Interface
+            {
+                InheritanceSlotSchemaRoleV1::Interface {
+                    interface_exact: owner.exact,
+                }
+            } else {
+                InheritanceSlotSchemaRoleV1::ClassVtable
+            },
             slot,
             self.declaration(slot),
             self.signature(owner, vec![]),

@@ -1,3 +1,0 @@
-span=124..130
-expression=narrow
-`return` value of `result` must be of type Option<Any>, found Option<Cell>; nominal application `Option` is invariant: first differing type argument 1 (`T`) is `Cell` in `Option<Cell>`, but `Any` in `Option<Any>`; construct the target application directly or convert explicitly

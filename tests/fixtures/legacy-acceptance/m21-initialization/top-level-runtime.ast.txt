@@ -1,0 +1,29 @@
+SourceFile
+  RootPackage
+  fun runtimeValue(label: String, value: Int): Int
+    Call println
+      Var label
+    return
+      Var value
+  fun movingText(): String
+    val text
+      StringLiteral "managed-initializer"
+    Call gcCollect
+    return
+      Var text
+  val zuluOrder: Int = <expr>
+  val alpha: Int = <expr>
+  val text: String = <expr>
+  val zed: Int = <expr>
+  val betaOrder: Int = <expr>
+  fun main()
+    Call println
+      Var alpha
+    Call println
+      Var text
+    Call println
+      Var zed
+    Call println
+      Var betaOrder
+    Call println
+      Var zuluOrder

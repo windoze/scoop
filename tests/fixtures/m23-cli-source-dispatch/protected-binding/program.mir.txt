@@ -1,0 +1,231 @@
+Module
+  global0 $singleton$0483bdb7a7abf7a66bc3e84ae3e84be67f74a7a543a8fabea8e03e0f5007e9cb: Argument imported provider=911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006 storage=2d526102cb95481b40624ea45cbbef651e0918d935a82a2739415744713c7c53
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Vault vtable=0 itables=0
+  class Argument vtable=0 itables=1
+  class Another vtable=0 itables=0
+  interface Constraint
+  fun verifyDispatch @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call $dependency.receiver: Vault = external1 direct
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=17 bits=0x0000000000000011
+      call external5 direct
+      val $dependency.argument.1: Argument
+        Type Argument
+        GlobalRead $singleton$0483bdb7a7abf7a66bc3e84ae3e84be67f74a7a543a8fabea8e03e0f5007e9cb
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.other: Argument
+        Type Argument
+        Local $dependency.argument.1
+      call value: (Long, Argument, Int) = @fn2 direct
+        Type Vault
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.value
+        Type Argument
+        Local $dependency.parameter.other
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 0
+          Type (Long, Argument, Int)
+          Local value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=17 bits=0x0000000000000011
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      call external5 direct
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        Binary RefEq
+          Type Argument
+          FieldAccess 1
+            Type (Long, Argument, Int)
+            Local value
+          Type Argument
+          GlobalRead $singleton$0483bdb7a7abf7a66bc3e84ae3e84be67f74a7a543a8fabea8e03e0f5007e9cb
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 2
+          Type (Long, Argument, Int)
+          Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb6
+    bb5 if.else.5
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 if.merge.6
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.0
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.receiver: Another = external2 direct
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=19 bits=0x0000000000000013
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call $dependency.receiver: Long = external3 direct
+        Type Another
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=19 bits=0x0000000000000013
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun observe @fn2(this: Vault, value: Long, other: Argument) -> (Long, Argument, Int)
+    bb0 entry
+      field_set 0
+        Type Vault
+        Local this
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.local.3: Vault
+        Type Vault
+        Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local value
+      val $dependency.local.5: Long
+        Type Long
+        Local $dependency.local.4
+      val $dependency.local.6: Vault
+        Type Vault
+        Local this
+      val $dependency.local.7: Argument
+        Type Argument
+        Local other
+      val $dependency.local.8: Argument
+        Type Argument
+        Local $dependency.local.7
+      call $call.1: Long = external4 direct
+        Type Vault
+        Local $dependency.local.3
+        Type Long
+        Local $dependency.local.5
+      call $call.2: Argument = @fn3 direct
+        Type Vault
+        Local $dependency.local.6
+        Type Argument
+        Local $dependency.local.8
+      return
+        Type (Long, Argument, Int)
+        TupleLiteral
+          Type Long
+          Local $call.1
+          Type Argument
+          Local $call.2
+          Type Int
+          FieldAccess 0
+            Type Vault
+            Local this
+  fun preserve @fn3(this: Vault, value: Argument) -> Argument
+    bb0 entry
+      return
+        Type Argument
+        Local value
+  instance mi0 function=@fn2 <- observe
+  instance mi1 function=@fn3 <- preserve
+  str @str0 "illegal state"
+  output executable @fn1

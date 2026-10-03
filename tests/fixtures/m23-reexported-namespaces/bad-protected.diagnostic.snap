@@ -1,3 +1,0 @@
-span=7..35
-expression=facade.nesting.Outer.Guarded
-import target is not available in the current compilation unit

@@ -1,0 +1,27 @@
+SourceFile
+  RootPackage
+  public interface Marker
+    fun mark
+    fun helper
+  public open class Base()
+    public fun inherited
+  public abstract class Abstract<T>()
+    public fun value
+  public class Final<T>(val item: T)
+  public struct Pair<T>
+    field second: T
+    field first: Int
+  public enum Choice<T>
+    Empty
+    Positional(T)
+    Named <named>
+      value: T
+    Constructed <ctor>
+      value: T
+  public object Singleton
+    private val secret: Int = <expr>
+      IntLiteral 7
+    public fun read
+  public class Defaults(val number: Int = <expr>)
+    constructor(text: String) : this(<1 args>)
+    constructor(flag: Boolean) : this(<1 args>)

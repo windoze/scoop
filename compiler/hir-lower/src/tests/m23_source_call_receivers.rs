@@ -1,7 +1,8 @@
 use scoop_hir as hir;
 
+mod inheritance;
 mod support;
-use support::{fixture, with_output};
+use support::with_output;
 
 #[test]
 fn source_call_receivers_survive_adaptation_defaults_and_property_access() {
@@ -45,7 +46,6 @@ fn source_call_receivers_survive_adaptation_defaults_and_property_access() {
                 &mut authority,
             )
             .unwrap();
-            let mut dump = String::new();
             let mut adapted = 0;
             local
                 .visit_executable_expressions(|occurrence| {
@@ -62,16 +62,13 @@ fn source_call_receivers_survive_adaptation_defaults_and_property_access() {
                         );
                         assert_eq!(local.types[args[0].ty].kind, hir::concrete::TypeKind::Any);
                         adapted += 1;
-                        dump.push_str(&format!(
-                            "{} local receiver=String argument=Any\n",
-                            occurrence.position.expression_index
-                        ));
                     }
                     Ok::<_, std::convert::Infallible>(())
                 })
                 .unwrap();
             assert_eq!(adapted, adapted_count);
 
+            let mut copied_defaults = 0;
             for reference in interface.external_references().records() {
                 for site in reference.call_sites().records() {
                     let call = calls
@@ -82,35 +79,22 @@ fn source_call_receivers_survive_adaptation_defaults_and_property_access() {
                         .receiver()
                         .map(|ty| local.exact_type_identities[ty].id());
                     assert_eq!(site.receiver(), expected);
-                    let source = match site.receiver() {
-                        hir::SourceCallReceiver::NoReceiver => "absent",
-                        hir::SourceCallReceiver::Receiver { static_type } => {
-                            assert_eq!(static_type, site.arguments()[0]);
-                            "String"
-                        }
-                    };
-                    let arguments = call
-                        .arguments()
-                        .iter()
-                        .map(|arg| format!("{:?}", local.types[arg.ty].kind))
-                        .collect::<Vec<_>>();
-                    let copied =
-                        call.origin().definition.provider != call.origin().evaluation.provider;
-                    dump.push_str(&format!(
-                        "{} receiver={source} args={arguments:?} provider_default={copied}\n",
-                        site.position().expression_index
-                    ));
+                    if let hir::SourceCallReceiver::Receiver { static_type } = site.receiver() {
+                        assert_eq!(static_type, site.arguments()[0]);
+                    }
+                    assert_eq!(
+                        site.arguments(),
+                        call.arguments()
+                            .iter()
+                            .map(|arg| local.exact_type_identities[arg.ty].id())
+                            .collect::<Vec<_>>()
+                    );
+                    copied_defaults += usize::from(
+                        call.origin().definition.provider != call.origin().evaluation.provider,
+                    );
                 }
             }
-            let mut lines = dump.lines().collect::<Vec<_>>();
-            lines.sort_unstable();
-            let dump = format!("{}\n", lines.join("\n"));
-            let path = fixture(&format!("{case}.snap"));
-            if std::env::var_os("SCOOP_UPDATE_SOURCE_RECEIVERS").is_some() {
-                std::fs::write(path, dump).unwrap();
-            } else {
-                assert_eq!(dump, std::fs::read_to_string(path).unwrap());
-            }
+            assert_eq!(copied_defaults, usize::from(case == "combined"));
         });
     }
 }

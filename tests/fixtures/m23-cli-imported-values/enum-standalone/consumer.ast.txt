@@ -1,0 +1,29 @@
+SourceFile
+  QualifiedPackage consumer.enums
+  ImportExact Local dependency.enums.Choice
+  ImportExact Local dependency.enums.make
+  ImportExact Local dependency.enums.empty
+  ImportExact Local dependency.enums.sum
+    @NoGC
+  public fun relay(value: Choice): Choice
+    =
+      Var value
+    @NoGC
+  public fun test(): Long
+    =
+      Binary Add
+        Binary Add
+          Call sum
+            Call relay
+              Call make
+                IntLiteral 17
+                Unary Neg
+                  IntLiteral 29
+          Call sum
+            Call relay
+              Call make
+                IntLiteral 53
+                IntLiteral 42
+        Call sum
+          Call relay
+            Call empty

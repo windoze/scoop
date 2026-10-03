@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "function `answer` is not a value; use `::answer` to create a callable reference",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 66,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 60
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown function `operation`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 88,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 79
+    },
+    "severity": "error"
+  }
+]

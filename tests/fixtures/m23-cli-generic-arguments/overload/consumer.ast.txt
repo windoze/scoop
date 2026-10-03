@@ -1,0 +1,9 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.generics.select
+  public fun selected(): Int
+    =
+      Call select
+        TupleLiteral
+          IntLiteral 1
+          BoolLiteral true

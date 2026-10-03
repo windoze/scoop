@@ -102,11 +102,10 @@ pub(super) fn check(
                     input.identities,
                 )
                 .unwrap();
-                mir_reader::check(name, &fixtures, input, &section, mir_dependency, &expected);
+                mir_reader::check(input, &section, mir_dependency, &expected);
                 lir_reader::check(input, core_lir, &expected);
                 machine::check(
                     name,
-                    &fixtures,
                     input,
                     callables,
                     &expected,
@@ -147,11 +146,4 @@ fn source_named(
         let source = identities.canonical_key::<_, scoop_identity::SourceDeclarationKey>(record.source()).unwrap();
         matches!(source.name(), scoop_identity::DeclarationName::Named(actual) if actual.as_str() == name).then_some(record.source())
     }).unwrap_or_else(|| panic!("missing provider shape {name}"))
-}
-
-fn snapshot(path: &Path, text: &str) {
-    if std::env::var_os("SCOOP_UPDATE_SHAPE_DEPENDENCY_GRAPH").is_some() {
-        std::fs::write(path, text).unwrap();
-    }
-    assert_eq!(text, std::fs::read_to_string(path).unwrap());
 }

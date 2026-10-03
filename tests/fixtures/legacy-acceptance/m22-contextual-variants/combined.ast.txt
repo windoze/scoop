@@ -1,0 +1,113 @@
+SourceFile
+  RootPackage
+  enum Token
+    Number(Int)
+    Text(Int)
+    Empty
+  enum LocalOption
+    Some(Int, Int)
+    None
+  fun mark(label: String, value: Int): Int
+    Call println
+      Var label
+    return
+      Var value
+  fun choose<T>(first: T, second: T): T
+    =
+      Var first
+  fun Text(value: String): String
+    =
+      Var value
+  fun tokenValue(value: Token): Int
+    =
+      WhenExpression
+        Var value
+        arm Number(number)
+          Var number
+        arm Text(number)
+          Var number
+        arm Empty
+          Unary Neg
+            IntLiteral 1
+  fun localValue(value: LocalOption): Int
+    =
+      WhenExpression
+        Var value
+        arm Some(left, right)
+          Binary Add
+            Var left
+            Var right
+        arm None
+          IntLiteral 0
+  fun localNonCallableDoesNotShadowCall(): Token
+    val Number
+      IntLiteral 99
+    return
+      Call Number
+        IntLiteral 8
+  fun ordinaryMissFallsThrough(): Token
+    =
+      Call Text
+        IntLiteral 9
+  fun main()
+    val fixedForward
+      Call choose
+        Call Number
+          IntLiteral 5
+        MethodCall Number
+          Var Token
+          IntLiteral 6
+    val fixedReverse
+      Call choose
+        MethodCall Number
+          Var Token
+          IntLiteral 7
+        Call Number
+          IntLiteral 8
+    Call println
+      Call tokenValue
+        Var fixedForward
+    Call println
+      Call tokenValue
+        Var fixedReverse
+    Call println
+      Binary Eq
+        Call Number
+          Call mark
+            StringLiteral "left"
+            IntLiteral 7
+        MethodCall Number
+          Var Token
+          Call mark
+            StringLiteral "right"
+            IntLiteral 7
+    Call println
+      Call tokenValue
+        Call localNonCallableDoesNotShadowCall
+    Call println
+      Call tokenValue
+        Call ordinaryMissFallsThrough
+    val localSome: LocalOption
+      Call Some
+        IntLiteral 3
+        IntLiteral 4
+    val localNone: LocalOption
+      Var None
+    Call println
+      Call localValue
+        Var localSome
+    Call println
+      Call localValue
+        Var localNone
+    val coreSome: Int?
+      Call Some
+        IntLiteral 8
+    val coreNone: Int?
+      Var None
+    Call println
+      NullAssert
+        Var coreSome
+    Call println
+      Binary Eq
+        Var coreNone
+        Var None

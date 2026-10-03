@@ -1,0 +1,6 @@
+Module
+  fun @scoop$1$cb$fd862ef1128957bd244647ea9b5b3566f58824c80c1126314590265895b568b5(ptr<managed>) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret
+  output library

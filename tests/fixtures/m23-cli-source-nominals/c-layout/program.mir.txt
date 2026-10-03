@@ -1,0 +1,419 @@
+Module
+  struct Packed (flag: Boolean, value: Int) <c-layout aligned=8 packed=1>
+  struct Outer (tag: Boolean, packed: Packed) <c-layout aligned=16 packed=2>
+  struct CBox<Int> (value: Int) <c-layout aligned=natural packed=natural>
+  struct CBox<ULong> (value: ULong) <c-layout aligned=natural packed=natural>
+  struct Ordinary (value: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Envelope vtable=0 itables=0
+  fun verifyNominal @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $dependency.parameter.flag: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.1
+      call $dependency.argument.0: Packed = external1 direct
+        Type Boolean
+        Local $dependency.parameter.flag
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Packed
+        Type Packed
+        Local $dependency.argument.0
+      call $call.1: (Boolean, Int) = external2 direct
+        Type Packed
+        Local $dependency.parameter.value
+      call $argument.0: Boolean = @fn2 direct
+        Type (Boolean, Int)
+        Local $call.1
+        Type (Boolean, Int)
+        TupleLiteral
+          Type Boolean
+          BoolLiteral true
+          Type Int
+          IntegerLiteral Int value=17 bits=0x00000011
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $dependency.parameter.flag: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.1
+      call $dependency.argument.1: Packed = external1 direct
+        Type Boolean
+        Local $dependency.parameter.flag
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.tag: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      val $dependency.parameter.packed: Packed
+        Type Packed
+        Local $dependency.argument.1
+      call $dependency.argument.0: Outer = external4 direct
+        Type Boolean
+        Local $dependency.parameter.tag
+        Type Packed
+        Local $dependency.parameter.packed
+      val $dependency.parameter.value: Outer
+        Type Outer
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = external5 direct
+        Type Outer
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=23 bits=0x00000017
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.0: CBox<Int> = @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: CBox<Int>
+        Type CBox<Int>
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn3 direct
+        Type CBox<Int>
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=23 bits=0x00000017
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=29 bits=0x000000000000001d
+      val $dependency.parameter.value: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call $dependency.argument.0: CBox<ULong> = @fn6 direct
+        Type ULong
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: CBox<ULong>
+        Type CBox<ULong>
+        Local $dependency.argument.0
+      call $dependency.receiver: ULong = @fn4 direct
+        Type CBox<ULong>
+        Local $dependency.parameter.value
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=29 bits=0x000000000000001d
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.receiver
+          Type ULong
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=31 bits=0x0000001f
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.0: Ordinary = external6 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Ordinary
+        Type Ordinary
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = external7 direct
+        Type Ordinary
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=31 bits=0x0000001f
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.receiver: Envelope = external8 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=37 bits=0x00000025
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = external9 direct
+        Type Envelope
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=37 bits=0x00000025
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $dependency.parameter.flag: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.1
+      call $dependency.argument.1: Packed = external1 direct
+        Type Boolean
+        Local $dependency.parameter.flag
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.tag: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      val $dependency.parameter.packed: Packed
+        Type Packed
+        Local $dependency.argument.1
+      call $equality.lhs: Outer = external4 direct
+        Type Boolean
+        Local $dependency.parameter.tag
+        Type Packed
+        Local $dependency.parameter.packed
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $dependency.parameter.flag: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.1
+      call $dependency.argument.1: Packed = external1 direct
+        Type Boolean
+        Local $dependency.parameter.flag
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.tag: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      val $dependency.parameter.packed: Packed
+        Type Packed
+        Local $dependency.argument.1
+      call $call.2: Outer = external4 direct
+        Type Boolean
+        Local $dependency.parameter.tag
+        Type Packed
+        Local $dependency.parameter.packed
+      call $argument.0: Boolean = external10 direct
+        Type Outer
+        Local $equality.lhs
+        Type Outer
+        Local $call.2
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun $derived.equals.0 @fn2(this: (Boolean, Int), other: (Boolean, Int)) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = external3 direct
+        Type Boolean
+        FieldAccess 0
+          Type (Boolean, Int)
+          Local this
+        Type Boolean
+        FieldAccess 0
+          Type (Boolean, Int)
+          Local other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 logic.rhs.1
+      assign $logic.2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 1
+            Type (Boolean, Int)
+            Local this
+          Type Int
+          FieldAccess 1
+            Type (Boolean, Int)
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.2
+  fun boxValue @fn3(value: CBox<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type CBox<Int>
+          Local value
+  fun boxValue @fn4(value: CBox<ULong>) -> ULong
+    bb0 entry
+      return
+        Type ULong
+        FieldAccess 0
+          Type CBox<ULong>
+          Local value
+  fun ctor.CBox.$c0 @fn5(value: Int) -> CBox<Int> <no-gc>
+    bb0 entry
+      return
+        Type CBox<Int>
+        StructInit CBox<Int>
+          Type Int
+          Local value
+  fun ctor.CBox.$c0 @fn6(value: ULong) -> CBox<ULong> <no-gc>
+    bb0 entry
+      return
+        Type CBox<ULong>
+        StructInit CBox<ULong>
+          Type ULong
+          Local value
+  instance mi0 function=@fn3 <- boxValue
+  instance mi1 function=@fn4 <- boxValue
+  str @str0 "illegal state"
+  output executable @fn1

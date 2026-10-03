@@ -1,0 +1,16 @@
+SourceFile
+  RootPackage
+  ImportExact Local startup.early.answer
+  private fun trace(value: Long)
+    Call println
+      Var value
+  fun main()
+    if
+      Binary Ne
+        Call answer
+        IntLiteral 6L
+      throw
+        Call IllegalStateException
+    @Unsafe block
+      Call trace
+        IntLiteral 7L

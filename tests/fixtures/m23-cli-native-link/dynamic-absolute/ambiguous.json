@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "ambiguous native library \"m23_math\": [\"${work}/native/libm23_math.dylib\", \"${work}/stubs/libm23_math.tbd\"]; requirement db3dcf42fa4d2363eddc5c56a0df56140b61934085593f5c3bcaf72307e37343; origins: dev.programlink:absolute:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([212, 67, 19, 112, 114, 94, 130, 136, 248, 106, 41, 14, 148, 179, 213, 25, 91, 236, 7, 231, 7, 67, 77, 187, 134, 216, 158, 115, 37, 62, 87, 123])])",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

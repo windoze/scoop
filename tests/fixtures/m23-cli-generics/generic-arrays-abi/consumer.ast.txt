@@ -1,0 +1,155 @@
+SourceFile
+  QualifiedPackage consumer.arrays
+  ImportStar Local upstream.arrays.*
+  ImportExact Local upstream.arrays.exercise as providerExercise
+  private class Reference(val value: Int)
+  private struct Large
+    field first: Reference
+    field second: Reference
+    field third: Reference
+  private enum Payload<T>
+    Data <ctor>
+      value: T
+    Empty
+  private fun readLarge(value: Large): Int
+    =
+      Binary Add
+        Binary Add
+          FieldAccess value
+            FieldAccess first
+              Var value
+          FieldAccess value
+            FieldAccess second
+              Var value
+        FieldAccess value
+          FieldAccess third
+            Var value
+  private fun readTuple(value: (Reference, Reference)): Int
+    =
+      Binary Add
+        FieldAccess value
+          FieldAccess _1
+            Var value
+        FieldAccess value
+          FieldAccess _2
+            Var value
+  private fun readPayload(value: Payload<Large>): Int
+    =
+      WhenExpression
+        Var value
+        arm Data(inner)
+          Call readLarge
+            Var inner
+        arm Empty
+          IntLiteral 0
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    =
+      Call providerExercise<T>
+        Var seed
+        Var read
+  public fun result(): Int
+    val large
+      Call Large
+        Call Reference
+          IntLiteral 10
+        Call Reference
+          IntLiteral 12
+        Call Reference
+          IntLiteral 20
+    if
+      Binary Ne
+        Call exercise<Large>
+          Var large
+          CallableReference 0 readLarge
+        IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call exercise<(Reference, Reference)>
+          TupleLiteral
+            Call Reference
+              IntLiteral 20
+            Call Reference
+              IntLiteral 22
+          CallableReference 1 readTuple
+        IntLiteral 42
+      return
+        IntLiteral 2
+    if
+      Binary Ne
+        Call exercise<Payload<Large>>
+          MethodCall Data
+            Var Payload
+            Var large
+          CallableReference 2 readPayload
+        IntLiteral 42
+      return
+        IntLiteral 3
+    val original
+      Call pack
+        Var large
+        Argument *
+          ArrayLiteral
+            Var large
+    val mutable
+      Call copy
+        Var original
+    val frozen
+      Call freeze
+        Var mutable
+    Call mutate
+      Var mutable
+      IntLiteral 0L
+      Call Large
+        Call Reference
+          IntLiteral 1
+        Call Reference
+          IntLiteral 2
+        Call Reference
+          IntLiteral 3
+    if
+      Binary Or
+        Binary Ne
+          Call readLarge
+            Call first
+              Var original
+          IntLiteral 42
+        Binary Ne
+          Call readLarge
+            Call first
+              Var frozen
+          IntLiteral 42
+      return
+        IntLiteral 4
+    if
+      Binary Or
+        Binary Ne
+          Call readLarge
+            Call first
+              Call freeze
+                Var mutable
+          IntLiteral 6
+        Binary RefEq
+          Var frozen
+          Var original
+      return
+        IntLiteral 5
+    val nested
+      Call pack
+        Var original
+        Argument *
+          ArrayLiteral
+            Var frozen
+    val allocation
+      Call Reference
+        IntLiteral 0
+    return
+      Binary Add
+        Call readLarge
+          Call first
+            Call first
+              Var nested
+              IntLiteral 1L
+        FieldAccess value
+          Var allocation

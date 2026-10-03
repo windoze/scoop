@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.example"
+name = "generic-constructor-downstream-default-base"
+version = "0.1.0"
+kind = "library"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.example:generic-constructor-default-base" = "0.1.0"

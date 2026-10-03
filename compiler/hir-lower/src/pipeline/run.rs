@@ -184,7 +184,7 @@ impl Lowerer {
             world,
         );
         if self.diagnostics.len() != errors_before_imports {
-            return Err(self.diagnostics);
+            return Err(self.take_source_diagnostics());
         }
 
         // Alias targets may mention any declaration in the Cone, including a
@@ -338,7 +338,7 @@ impl Lowerer {
         if let Err(error) = self.establish_enum_member_identities() {
             self.current_file = error.file();
             self.error(error.span(), error.to_string());
-            return Err(self.diagnostics);
+            return Err(self.take_source_diagnostics());
         }
         if defines_core {
             self.validate_option_variants();
@@ -363,7 +363,7 @@ impl Lowerer {
             // No later pass may try to materialize an application whose
             // inline layout grows forever. The validator has collected one
             // stable definition-site diagnostic for every cyclic SCC.
-            return Err(self.diagnostics);
+            return Err(self.take_source_diagnostics());
         }
 
         // Every nominal constraint and inheritance edge is now complete, so
@@ -476,7 +476,7 @@ impl Lowerer {
             None
         };
         if defines_core && (self.option_core.is_none() || exception_core.is_none()) {
-            return Err(self.diagnostics);
+            return Err(self.take_source_diagnostics());
         }
         self.lower_runtime_top_level_initializers();
 
@@ -517,6 +517,9 @@ impl Lowerer {
             self.error(Span::new(0, 0), error);
         }
         self.complete_imported_generic_bodies();
+        if self.diagnostics.is_empty() {
+            self.prepare_public_derived_equalities();
+        }
 
         // Effects consume fully resolved calls and types. Local functions and
         // callable literals lifted while lowering the bodies are visible now.
@@ -534,8 +537,8 @@ impl Lowerer {
             (diagnostic.file, span.start, span.end)
         });
         if !self.diagnostics.is_empty() {
-            self.diagnostics.extend(self.warnings);
-            return Err(self.diagnostics);
+            self.diagnostics.append(&mut self.warnings);
+            return Err(self.take_source_diagnostics());
         }
         let warnings = std::mem::take(&mut self.warnings);
         // Protocol provenance and dependency selections are independent.
@@ -564,6 +567,13 @@ impl Lowerer {
             }
             CoreLoweringAuthority::Imported(authority) => hir::CoreProtocols::Imported(authority),
         };
+        let sources = self.diagnostic_source_identities();
         self.finish(current_cone, warnings, core_protocols)
+            .map_err(|mut diagnostics| {
+                for diagnostic in &mut diagnostics {
+                    diagnostic.resolve_sources(&sources);
+                }
+                diagnostics
+            })
     }
 }

@@ -1,0 +1,52 @@
+SourceFile
+  QualifiedPackage consumer.requests
+  ImportExact Local upstream.requests.captured
+  private fun localCaptured<T>(value: T, read: (T) -> Int): Int
+    val amount
+      IntLiteral 0
+    fun step(delta: Int): Int
+      val added
+        Var delta
+      fun inner(): Int
+        Binary Add
+          Binary Add
+            Call read
+              Var value
+            Var amount
+          Var added
+      return
+        Call inner
+    fun apply<U>(extra: U, use: (U) -> Int): Int
+      Call step
+        Call use
+          Var extra
+    return
+      Call apply<Int>
+        IntLiteral 0
+        Lambda 0 suspend=false
+          param number: _
+          Var number
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val local
+      Call localCaptured<T>
+        Var seed
+        Var read
+    val dependency
+      Call captured<T>
+        Var seed
+        Var read
+    return
+      IfExpression
+        Binary Eq
+          Var local
+          Var dependency
+        Var dependency
+        else
+        IntLiteral 0
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 1 suspend=false
+          param value: _
+          Var value

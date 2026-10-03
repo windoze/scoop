@@ -5,10 +5,10 @@ use crate::{PROTOCOL_VERSION, ProtocolValidationError};
 
 const CAPABILITY_MAGIC: &str = "scoopc-machine-capability";
 const MACHINE_IDENTITY_MAGIC: &str = "scoopc-machine-identity";
-const REQUEST_SCHEMA_V1: &[u8] =
-    b"scoopc-request-envelope-v1:magic,version,request-id,build-request";
-const RESPONSE_SCHEMA_V1: &[u8] =
-    b"scoopc-response-envelope-v1:magic,version,request-id,result,diagnostics,dumps";
+const REQUEST_SCHEMA_V2: &[u8] =
+    b"scoopc-request-envelope-v2:magic,version,request-id,build-request,ordered-file-dumps";
+const RESPONSE_SCHEMA_V2: &[u8] =
+    b"scoopc-response-envelope-v2:magic,version,request-id,result,diagnostics,ordered-file-dumps";
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum MachineTransportCapabilityV1 {
@@ -91,8 +91,8 @@ impl ScoopcProtocolCapabilityV1 {
     pub fn current() -> Self {
         Self {
             protocol_version: PROTOCOL_VERSION,
-            request_schema: sha256(REQUEST_SCHEMA_V1),
-            response_schema: sha256(RESPONSE_SCHEMA_V1),
+            request_schema: sha256(REQUEST_SCHEMA_V2),
+            response_schema: sha256(RESPONSE_SCHEMA_V2),
             machine_transport: MachineTransportCapabilityV1::LengthPrefixedCanonicalCborStdio,
         }
     }

@@ -1,0 +1,324 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Later>
+    Completed(value: Later)
+    Suspended()
+  enum CoroutineSlot<Later>
+    Empty()
+    Value(value: Later)
+  class Later vtable=0 itables=0
+  class PropertyItem<Int> vtable=0 itables=2
+  class PropertyItem<Later> vtable=0 itables=2
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface MutableProperty<Int> : ReadOnlyProperty<Int>
+  interface ReadOnlyProperty<Int>
+  interface MutableProperty<Later> : ReadOnlyProperty<Later>
+  interface ReadOnlyProperty<Later>
+  interface Continuation<Later>
+  interface SuspendTask<Later>
+  interface SuspendRegistration<Later>
+  generated_exact_type get0 location=enum2 nominal_id=daae427be29e94e4c6f0c6a23261dd7c4294f2649f5f84b1dba6fa09b3caaf07 exact_id=81ce3181709268260135818af6bafc817c21c198dd2588f876df420fef8319b3
+  generated_exact_type get1 location=enum1 nominal_id=be6ee9a069092fd442bdce93ff72b48553179db925baf9b8e6c65b3d9d0f19ba exact_id=920582615f93405f3988bde35bbc4288defb55130ea020ff28e1aa62d2abb1b5
+  generated_callable gc0 function=@fn20 id=cfeba8c089327a9e9151942b321419ac9aca156d0eb8f928fd811123e44a945c
+  fun check @fn0() -> Int
+    bb0 entry
+      call $dependency.argument.0: Int = external0 direct
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call repeated: Int = @fn1 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        Local repeated
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Later
+        ClassAlloc Later
+      call @fn17 direct
+        Type Later
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.0: Later
+        Type Later
+        Local $new.1
+      val $dependency.parameter.value: Later
+        Type Later
+        Local $dependency.argument.0
+      call value: Later = @fn2 direct
+        Type Later
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Later
+        ClassAlloc Later
+      call @fn17 direct
+        Type Later
+        Local $new.2
+        Type Int
+        Local $parameter.value
+      val first: Later
+        Type Later
+        Local $new.2
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.3
+        Type Later
+        ClassAlloc Later
+      call @fn17 direct
+        Type Later
+        Local $new.3
+        Type Int
+        Local $parameter.value
+      val second: Later
+        Type Later
+        Local $new.3
+      return
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local value
+  fun make @fn1(value: Int) -> Int
+    bb0 entry
+      val $dependency.local.2: Int
+        Type Int
+        Local value
+      val $dependency.local.3: Int
+        Type Int
+        Local $dependency.local.2
+      assign $new.1
+        Type PropertyItem<Int>
+        ClassAlloc PropertyItem<Int>
+      call @fn18 direct
+        Type PropertyItem<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.1: PropertyItem<Int>
+        Type PropertyItem<Int>
+        Local $new.1
+      call @fn6 direct
+        Type PropertyItem<Int>
+        Local $dependency.local.1
+        Type Int
+        Local value
+      call $call.2: Int = @fn4 direct
+        Type PropertyItem<Int>
+        Local $dependency.local.1
+      return
+        Type Int
+        Local $call.2
+  fun make @fn2(value: Later) -> Later
+    bb0 entry
+      val $dependency.local.2: Later
+        Type Later
+        Local value
+      val $dependency.local.3: Later
+        Type Later
+        Local $dependency.local.2
+      assign $new.1
+        Type PropertyItem<Later>
+        ClassAlloc PropertyItem<Later>
+      call @fn19 direct
+        Type PropertyItem<Later>
+        Local $new.1
+        Type Later
+        Local $dependency.local.3
+      val $dependency.local.1: PropertyItem<Later>
+        Type PropertyItem<Later>
+        Local $new.1
+      call @fn10 direct
+        Type PropertyItem<Later>
+        Local $dependency.local.1
+        Type Later
+        Local value
+      call $call.2: Later = @fn8 direct
+        Type PropertyItem<Later>
+        Local $dependency.local.1
+      return
+        Type Later
+        Local $call.2
+  fun read @fn3(this: ReadOnlyProperty<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn11 interface ReadOnlyProperty<Int>[0]
+        Type ReadOnlyProperty<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun value @fn4(this: PropertyItem<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type PropertyItem<Int>
+          Local this
+  fun value @fn5(this: PropertyItem<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type PropertyItem<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun $extension.extensionState @fn6(this: PropertyItem<Int>, next: Int) -> Unit
+    bb0 entry
+      call @fn5 direct
+        Type PropertyItem<Int>
+        Local this
+        Type Int
+        Local next
+      return
+  fun read @fn7(this: ReadOnlyProperty<Later>) -> Later
+    bb0 entry
+      call $call.1: Later = @fn12 interface ReadOnlyProperty<Later>[0]
+        Type ReadOnlyProperty<Later>
+        Local this
+      return
+        Type Later
+        Local $call.1
+  fun value @fn8(this: PropertyItem<Later>) -> Later
+    bb0 entry
+      return
+        Type Later
+        FieldAccess 0
+          Type PropertyItem<Later>
+          Local this
+  fun value @fn9(this: PropertyItem<Later>, value: Later) -> Unit
+    bb0 entry
+      field_set 0
+        Type PropertyItem<Later>
+        Local this
+        Type Later
+        Local value
+      return
+  fun $extension.extensionState @fn10(this: PropertyItem<Later>, next: Later) -> Unit
+    bb0 entry
+      call @fn9 direct
+        Type PropertyItem<Later>
+        Local this
+        Type Later
+        Local next
+      return
+  fun ReadOnlyProperty.$get$value @fn11(this: ReadOnlyProperty<Int>) -> Int
+    bb0 entry
+      trap "call to abstract method `ReadOnlyProperty.$get$value`"
+  fun ReadOnlyProperty.$get$value @fn12(this: ReadOnlyProperty<Later>) -> Later
+    bb0 entry
+      trap "call to abstract method `ReadOnlyProperty.$get$value`"
+  fun Continuation.resume @fn13(this: Continuation<Later>, value: Later) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn14(this: Continuation<Later>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn15(this: SuspendTask<Later>, $completion: Continuation<Later>) -> CoroutineStep<Later>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn16(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Later.$c0 @fn17(this: Later, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Later
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.PropertyItem.$c0 @fn18(this: PropertyItem<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type PropertyItem<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.PropertyItem.$c0 @fn19(this: PropertyItem<Later>, value: Later) -> Unit
+    bb0 entry
+      field_set 0
+        Type PropertyItem<Later>
+        Local this
+        Type Later
+        Local value
+      return
+  fun startCoroutine<Later> @fn20(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn13 interface Continuation<Later>[0]
+        Type Continuation<Later>
+        Local completion
+        Type Later
+        EnumField v0 f0
+          Type CoroutineStep<Later>
+          Local $step
+      return
+    bb2 failed
+      call @fn14 interface Continuation<Later>[1]
+        Type Continuation<Later>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Later> = @fn15 interface SuspendTask<Later>[0]
+        Type SuspendTask<Later>
+        Local task
+        Type Continuation<Later>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Later>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Later> result=Later
+  coroutine_slot cl0 CoroutineSlot<Later> value=Later
+  coroutine_start ct0 result=Later function=fn20
+  coroutine_fn cf0 @fn15 source_return=Later step=cs0 immediate
+  instance mi0 function=@fn1 <- make
+  instance mi1 function=@fn2 <- make
+  instance mi2 function=@fn3 <- read
+  instance mi3 function=@fn4 <- value
+  instance mi4 function=@fn5 <- value
+  instance mi5 function=@fn6 <- $extension.extensionState
+  instance mi6 function=@fn7 <- read
+  instance mi7 function=@fn8 <- value
+  instance mi8 function=@fn9 <- value
+  instance mi9 function=@fn10 <- $extension.extensionState
+  instance mi10 function=@fn11 <- ReadOnlyProperty.$get$value
+  instance mi11 function=@fn12 <- ReadOnlyProperty.$get$value
+  instance mi12 function=@fn13 <- Continuation.resume
+  instance mi13 function=@fn14 <- Continuation.resumeWithException
+  instance mi14 function=@fn15 <- SuspendTask.run
+  instance mi15 function=@fn16 <- SuspendRegistration.register
+  output library

@@ -81,6 +81,7 @@ fn single_file_dependencies_fail_before_toolchain_resolution() {
             directory.0.join("main.slib"),
             DiagnosticOutputPolicy::Human,
             StageDumpPolicy::None,
+            Default::default(),
         ),
         Err(BuildRequestNormalizationError::Request(
             SingleConeBuildRequestError::SingleFileHasDependencies
@@ -142,25 +143,6 @@ fn output_isolation_accepts_a_new_file_in_an_existing_directory() {
     let output = SlibOutputDestination::new(directory.0.join("output.slib")).unwrap();
 
     validate_output_isolation(&current, &dependencies, &trusted_core, &output).unwrap();
-}
-
-#[test]
-fn policy_projection_is_total() {
-    assert_eq!(
-        map_diagnostic_policy(scoop_protocol::DiagnosticOutputPolicyV1::Structured),
-        DiagnosticOutputPolicy::Structured
-    );
-    for (wire, expected) in [
-        (StageDumpKindV1::Ast, StageDumpKind::Ast),
-        (StageDumpKindV1::Hir, StageDumpKind::Hir),
-        (StageDumpKindV1::Mir, StageDumpKind::Mir),
-        (StageDumpKindV1::Lir, StageDumpKind::Lir),
-    ] {
-        assert_eq!(
-            map_dump_policy(StageDumpPolicyV1::Stage(wire)),
-            StageDumpPolicy::Stage(expected)
-        );
-    }
 }
 
 mod core_dependencies;

@@ -1,3 +1,0 @@
-span=75..95
-expression=value.suspendedGet()
-suspend function `suspendedGet` cannot be called from non-suspend function `invalid`

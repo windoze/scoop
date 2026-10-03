@@ -1,3 +1,0 @@
-span=75..79
-expression=true
-cannot assign value of type Boolean to property `answer` of type Int

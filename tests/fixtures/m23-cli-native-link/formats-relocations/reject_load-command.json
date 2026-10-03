@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "native object 2ffb31567a62fe80a43652f9230237bf6ea9224c34b2978aa223299a9bc84057 selected by direct input (${work}/native/m23_final.o): native object requests an implicit linker input or unsupported load command: [291]",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

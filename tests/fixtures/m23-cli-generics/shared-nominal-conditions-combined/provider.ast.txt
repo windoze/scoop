@@ -1,0 +1,37 @@
+SourceFile
+  QualifiedPackage upstream.nominalConditions
+    @NoGC
+  public struct Scalar<T>
+    field value: T
+    @NoGC
+  public struct Phantom<T>
+    @NoGC
+  public enum Choice<T>
+    Empty
+    Item(T)
+  public struct Managed
+    field text: String
+    @CLayout
+  public struct Pointer<T : value>
+    field value: Ptr<T>
+  public class Cursor<T : value>(val value: Ptr<T>)
+  public interface PointerView<T : value>
+    public open val value: Ptr<T> <computed>
+  public struct Wrapped<T>
+    field scalar: Scalar<T>
+  public class Carrier<T>(val scalar: Scalar<T>)
+  public fun hidden<T>(value: T): Int
+    val scalar
+      Call Scalar
+        Var value
+    return
+      IntLiteral 42
+  public fun hiddenChoice<T>(value: T): Int
+    val choice: Choice<T>
+      Call Item
+        Var value
+    return
+      IntLiteral 42
+  public fun pack<T>(value: T, scalar: Scalar<T> = <expr>): Scalar<T>
+    =
+      Var scalar

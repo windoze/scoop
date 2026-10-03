@@ -1,0 +1,313 @@
+Module
+  global0 declarationStorage: String managed initial=encoded(@str0)
+  global1 $delegate$top-level:declarationDelegated: String managed initial=zeroed-for-runtime-unit
+  global2 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  init0 top-level:declarationDelegated eager global1 initializer=@fn8 ensure=@fn9 failure=2 deps=[]
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<DeclarationHolder>
+    Completed(value: DeclarationHolder)
+    Suspended()
+  enum CoroutineSlot<DeclarationHolder>
+    Empty()
+    Value(value: DeclarationHolder)
+  class DeclarationHolder vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<DeclarationHolder>
+  interface SuspendTask<DeclarationHolder>
+  interface SuspendRegistration<DeclarationHolder>
+  generated_exact_type get0 location=enum2 nominal_id=5f5eced1716ffa9f7574a86cd5918adc7bff54505ae68903c83e578a04babab5 exact_id=c9927d02d8cf51d0405185e43243c8a2c7ee8adefedccd17345d1a485d20e662
+  generated_exact_type get1 location=enum1 nominal_id=81396a5cd8bae24c92a6bdb854e153c36e7deaa853dd843e9c0cffcc652abf84 exact_id=d94a4523aff413ff92e6f9dc83e1bc0a9bd407356778860dbb75a18b58e11f6e
+  generated_callable gc0 function=@fn17 id=a8128753abef79455ae1f0af262fa0deb2d71b33d86f04afd6c01b7ae2f3f463
+  fun declarationPrivate @fn0(unused: Any) -> Unit
+    bb0 entry
+      return
+  fun $extension.declarationReceiver @fn1(this: String, unused: Int) -> Unit
+    bb0 entry
+      val retained: Any
+        Type Any
+        Retype Any
+          Type String
+          Local this
+      val $argument.0: Any
+        Type Any
+        Local retained
+      val $parameter.unused: Any
+        Type Any
+        Local $argument.0
+      call @fn0 direct
+        Type Any
+        Local $parameter.unused
+      return
+  fun $extension.getValue @fn2(this: String, thisRef: Unit) -> String
+    bb0 entry
+      return
+        Type String
+        Local this
+  fun declarationRead @fn3() -> String
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str1
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      assign $new.1
+        Type DeclarationHolder
+        ClassAlloc DeclarationHolder
+      call @fn15 direct
+        Type DeclarationHolder
+        Local $new.1
+        Type String
+        Local $parameter.value
+      val unused: Any
+        Type Any
+        Retype Any
+          Type DeclarationHolder
+          Local $new.1
+      call $receiver: String = @fn6 direct
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.unused: Int
+        Type Int
+        Local $argument.0
+      call @fn1 direct
+        Type String
+        Local $receiver
+        Type Int
+        Local $parameter.unused
+      call $call.2: String = @fn6 direct
+      return
+        Type String
+        Local $call.2
+  fun $get$declarationAlias @fn4() -> String
+    bb0 entry
+      call $call.1: String = @fn6 direct
+      return
+        Type String
+        Local $call.1
+  fun $set$declarationAlias @fn5(value: String) -> Unit
+    bb0 entry
+      call @fn7 direct
+        Type String
+        Local value
+      return
+  fun $get$declarationStorage @fn6() -> String
+    bb0 entry
+      return
+        Type String
+        GlobalRead declarationStorage
+  fun $set$declarationStorage @fn7(value: String) -> Unit
+    bb0 entry
+      global_assign declarationStorage
+        Type String
+        Local value
+      return
+  fun $init$body$0 @fn8() -> Unit
+    bb0 entry
+      global_assign $delegate$top-level:declarationDelegated
+        Type String
+        StringConst @str2
+      return
+  fun $init$ensure$0 @fn9() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:declarationDelegated
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn8 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:declarationDelegated
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:declarationDelegated
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:declarationDelegated
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:declarationDelegated
+      call external0 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun $get$declarationDelegated @fn10() -> String
+    bb0 entry
+      call @fn9 direct
+      call $call.1: String = @fn2 direct
+        Type String
+        GlobalRead $delegate$top-level:declarationDelegated
+        Type Unit
+        UnitLiteral
+      return
+        Type String
+        Local $call.1
+  fun Continuation.resume @fn11(this: Continuation<DeclarationHolder>, value: DeclarationHolder) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn12(this: Continuation<DeclarationHolder>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn13(this: SuspendTask<DeclarationHolder>, $completion: Continuation<DeclarationHolder>) -> CoroutineStep<DeclarationHolder>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn14(this: SuspendRegistration<DeclarationHolder>, continuation: Continuation<DeclarationHolder>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.DeclarationHolder.$c0 @fn15(this: DeclarationHolder, value: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type DeclarationHolder
+        Local this
+        Type String
+        Local value
+      return
+  fun init.DeclarationHolder.$c1 @fn16(this: DeclarationHolder, unused: Any) -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str3
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @fn15 direct
+        Type DeclarationHolder
+        Local this
+        Type String
+        Local $parameter.value
+      return
+  fun startCoroutine<DeclarationHolder> @fn17(task: SuspendTask<DeclarationHolder>, completion: Continuation<DeclarationHolder>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn11 interface Continuation<DeclarationHolder>[0]
+        Type Continuation<DeclarationHolder>
+        Local completion
+        Type DeclarationHolder
+        EnumField v0 f0
+          Type CoroutineStep<DeclarationHolder>
+          Local $step
+      return
+    bb2 failed
+      call @fn12 interface Continuation<DeclarationHolder>[1]
+        Type Continuation<DeclarationHolder>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<DeclarationHolder> = @fn13 interface SuspendTask<DeclarationHolder>[0]
+        Type SuspendTask<DeclarationHolder>
+        Local task
+        Type Continuation<DeclarationHolder>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<DeclarationHolder>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<DeclarationHolder> result=DeclarationHolder
+  coroutine_slot cl0 CoroutineSlot<DeclarationHolder> value=DeclarationHolder
+  coroutine_start ct0 result=DeclarationHolder function=fn17
+  coroutine_fn cf0 @fn13 source_return=DeclarationHolder step=cs0 immediate
+  instance mi0 function=@fn11 <- Continuation.resume
+  instance mi1 function=@fn12 <- Continuation.resumeWithException
+  instance mi2 function=@fn13 <- SuspendTask.run
+  instance mi3 function=@fn14 <- SuspendRegistration.register
+  str @str0 "storage"
+  str @str1 "value"
+  str @str2 "delegate"
+  str @str3 "constructor"
+  output library

@@ -15,9 +15,11 @@ use crate::{ImmutableInputSnapshot, ResolvedBuildGraph, ResolvedPairedScoopc};
 
 mod error;
 mod model;
+mod observation;
 mod ordinary_execution;
 
 pub use error::PrepareBuildGraphError;
+pub use observation::{BuildDumpRequest, DumpScope};
 pub use ordinary_execution::OrdinarySourceExecutionError;
 
 pub use model::{
@@ -138,6 +140,7 @@ impl Preparer {
 
             staging: self.staging,
             compiler: self.compiler,
+            dumps: BTreeMap::new(),
         })
     }
 }

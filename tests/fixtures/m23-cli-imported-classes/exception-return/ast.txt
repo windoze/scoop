@@ -1,0 +1,32 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.throwValue
+  private fun failure(): RebuiltFailure
+    =
+      TryExpression
+        Call throwValue
+          Call RebuiltFailure
+            IntLiteral 21
+        Call RebuiltFailure
+          IntLiteral 0
+        catch error: RebuiltFailure
+          Var error
+  public fun primary(): Counter
+    val error
+      Call failure
+    val allocated
+      Call Counter
+        IntLiteral 7
+    return
+      IfExpression
+        Binary Eq
+          MethodCall twice
+            Var allocated
+          IntLiteral 14
+        Call Counter
+          FieldAccess code
+            Var error
+        else
+        Call Counter
+          IntLiteral 0

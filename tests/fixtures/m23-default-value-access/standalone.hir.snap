@@ -1,7 +1,0 @@
-Module
-  property0 var ACCESS_GLOBAL: Int getter0=storage setter0=storage <native-storage global0>
-  var ACCESS_GLOBAL: Int <global0 global>
-  fun accessValue(value: Int): Int
-    return
-      Local value : Int
-  output library

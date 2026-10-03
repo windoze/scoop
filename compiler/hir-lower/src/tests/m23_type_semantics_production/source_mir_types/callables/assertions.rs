@@ -113,42 +113,17 @@ pub(super) fn actual(
     }
 }
 
-pub(super) fn dump(
-    input: &scoop_mir::ConeMirInput,
-    bindings: &CanonicalMirCallableBindingsV1,
-) -> String {
-    let mut lines = Vec::new();
-    for binding in bindings
+pub(super) fn combined(input: &scoop_mir::ConeMirInput, bindings: &CanonicalMirCallableBindingsV1) {
+    let names = bindings
         .entries()
         .iter()
         .filter(|binding| is_source(binding))
-    {
-        let root = root(input, binding);
-        let function = &input.module().functions[root.function()];
-        let role = match binding.lowering_role() {
-            Role::Ordinary => "ordinary",
-            Role::Accessor => "accessor",
-            Role::PureVirtualTrap { .. } => "trap",
-            other => panic!("{other:?}"),
-        };
-        let signature = binding.semantic_signature();
-        lines.push(format!(
-            "{}: {role} receiver={} parameters={} {:?}\n",
-            function.name,
-            signature.exact().receiver().is_present(),
-            signature.exact().parameters().len(),
-            signature.gc_effect()
-        ));
-    }
-    lines.sort();
-    lines.concat()
-}
-
-pub(super) fn combined(
-    input: &scoop_mir::ConeMirInput,
-    bindings: &CanonicalMirCallableBindingsV1,
-    dump: &str,
-) {
+        .map(|binding| {
+            input.module().functions[root(input, binding).function()]
+                .name
+                .as_str()
+        })
+        .collect::<BTreeSet<_>>();
     for name in [
         "Base.hidden",
         "Base.$set$slot",
@@ -162,12 +137,9 @@ pub(super) fn combined(
         "Registry.$set$value",
         "Registry.$get$direct",
     ] {
-        assert!(
-            dump.contains(&format!("{name}:")),
-            "missing {name}:\n{dump}"
-        );
+        assert!(names.contains(name), "missing {name}");
     }
-    assert!(!dump.contains("Base.secret:"));
+    assert!(!names.contains("Base.secret"));
     let secret = input
         .module()
         .functions

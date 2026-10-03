@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.example"
+name = "runtime-fixture"
+version = "0.1.0"
+kind = "executable"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.example:class-downstream-companion-named" = "0.1.0"

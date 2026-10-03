@@ -1,0 +1,643 @@
+Module
+  struct FlowOther (first: Int, second: Int)
+  struct FlowPair<Int> (first: Int, second: Int)
+  struct FlowPair<String> (first: String, second: String)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<FlowOther>
+    Completed(value: FlowOther)
+    Suspended()
+  enum CoroutineSlot<FlowOther>
+    Empty()
+    Value(value: FlowOther)
+  enum CoroutineStep<FlowHost>
+    Completed(value: FlowHost)
+    Suspended()
+  enum CoroutineSlot<FlowHost>
+    Empty()
+    Value(value: FlowHost)
+  class FlowHost vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<FlowOther> vtable=0 itables=0
+  interface Continuation<FlowOther>
+  interface SuspendTask<FlowOther>
+  interface SuspendRegistration<FlowOther>
+  interface Continuation<FlowHost>
+  interface SuspendTask<FlowHost>
+  interface SuspendRegistration<FlowHost>
+  generated_exact_type get0 location=enum1 nominal_id=6c31a7d6d9abd57378b308c3f1ead9a4055bf0c0d573a61fafa766b189499a26 exact_id=4191f718d2a22a0a7010f6d2b2781d2e2601c190843129f8b4de365427ce8111
+  generated_exact_type get1 location=enum4 nominal_id=02ee4f7106d38c55c2fa6e4cd636aa7b29a0acc88feee2c8e4bf8e3c917a6406 exact_id=b4d3138e88640d022a18e79c34652e7b1733edbd1bc29521030704a9a214efcc
+  generated_exact_type get2 location=enum2 nominal_id=413b0848ae838ade73cc1c5c2eefa0d4119b09a8c5e4209e79770b95655b4562 exact_id=c5585145e7d7995fbc132f86a4636008ab6526e7d5c2d4238fae5bb10fb6b388
+  generated_exact_type get3 location=enum3 nominal_id=ccf1664e0a3ad7334855f8487781dc75e6abe48a1397d9c1c6e235882f147e27 exact_id=f0931aa88e9c14e1f8801ab20f71856570ca87b43a9d6c04e38f52ca4a68242e
+  generated_exact_type get4 location=class4 nominal_id=bf0e8c2e35ef82582d0ddd755b799ec93b65dc87ca221a3adb8092bb5fbe82b7 exact_id=fb81dd266a786f04691079be1c9fd22df0dfc819101b6491fa9d2ddb3f077b3d
+  generated_callable gc0 function=@fn20 id=3309fc27206307460c4a6296a57a6e834c00600009669fa5fbfba39b9437733b
+  generated_callable gc1 function=@fn21 id=e5b2b852388107b3abccd53dc0c80129ffd26d09408d5b4e34dbd36172af5151
+  fun FlowOther.equals @fn0(this: FlowOther, other: FlowOther) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type FlowOther
+            Local this
+          Type Int
+          FieldAccess 0
+            Type FlowOther
+            Local other
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 1
+            Type FlowOther
+            Local this
+          Type Int
+          FieldAccess 1
+            Type FlowOther
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.1
+  fun FlowHost.check @fn1(this: FlowHost, seed: FlowPair<Int>) -> Int
+    bb0 entry
+      val $receiver: FlowHost
+        Type FlowHost
+        Local this
+      val $argument.0: FlowPair<Int>
+        Type FlowPair<Int>
+        Local seed
+      val $parameter.seed: FlowPair<Int>
+        Type FlowPair<Int>
+        Local $argument.0
+      branch bb1 bb2
+        Type Boolean
+        BoolLiteral true
+    bb1 if.then.1
+      val $binding.subject.1: FlowPair<Int>
+        Type FlowPair<Int>
+        Local $parameter.seed
+      val $binding.projection.2: Int
+        Type Int
+        FieldAccess 1
+          Type FlowPair<Int>
+          Local $binding.subject.1
+      val right: Int
+        Type Int
+        Local $binding.projection.2
+      val $binding.projection.3: Int
+        Type Int
+        FieldAccess 0
+          Type FlowPair<Int>
+          Local $binding.subject.1
+      val left: Int
+        Type Int
+        Local $binding.projection.3
+      var total: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb4
+    bb2 if.else.2
+      assign $result.5
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb3
+    bb3 if.merge.3
+      val $parameter.value: Int
+        Type Int
+        Local $result.5
+      call $call.1: Int = @fn3 direct
+        Type FlowHost
+        Local $receiver
+        Type FlowPair<Int>
+        Local $parameter.seed
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+    bb4 while.cond.4 <loop-header-poll>
+      branch bb6 bb5
+        Type Boolean
+        BoolLiteral true
+    bb5 while.exit.5
+      branch bb7 bb8
+        Type Boolean
+        BoolLiteral false
+    bb6 while.body.6
+      assign total
+        Type Int
+        Local left
+      goto bb5
+    bb7 if.then.7
+      assign $result.4
+        Type Int
+        Local right
+      goto bb9
+    bb8 if.else.8
+      assign $result.4
+        Type Int
+        Local total
+      goto bb9
+    bb9 if.merge.9
+      assign $result.5
+        Type Int
+        Local $result.4
+      goto bb3
+  fun FlowHost.scoped @fn2(this: FlowHost, seed: Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun FlowHost.loop @fn3(this: FlowHost, seed: FlowPair<Int>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun verifyDefault @fn4(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn5() -> Unit
+    bb0 entry
+      assign $new.1
+        Type FlowHost
+        ClassAlloc FlowHost
+      call @fn16 direct
+        Type FlowHost
+        Local $new.1
+      val host: FlowHost
+        Type FlowHost
+        Local $new.1
+      val $receiver: FlowHost
+        Type FlowHost
+        Local host
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      branch bb1 bb2
+        Type Boolean
+        BoolLiteral true
+    bb1 if.then.1
+      val copy: Int
+        Type Int
+        Local $parameter.seed
+      assign $result.0
+        Type Int
+        Local copy
+      goto bb3
+    bb2 if.else.2
+      assign $result.0
+        Type Int
+        Local $parameter.seed
+      goto bb3
+    bb3 if.merge.3
+      val $parameter.value: Int
+        Type Int
+        Local $result.0
+      call $dependency.receiver: Int = @fn2 direct
+        Type FlowHost
+        Local $receiver
+        Type Int
+        Local $parameter.seed
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $parameter.value
+      val $receiver: FlowHost
+        Type FlowHost
+        Local host
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: Int
+        Type Int
+        Local $argument.1
+      call $argument.0: FlowPair<Int> = @fn18 direct
+        Type Int
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+      val $parameter.seed: FlowPair<Int>
+        Type FlowPair<Int>
+        Local $argument.0
+      call $dependency.receiver: Int = @fn1 direct
+        Type FlowHost
+        Local $receiver
+        Type FlowPair<Int>
+        Local $parameter.seed
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $parameter.value
+      val $receiver: FlowHost
+        Type FlowHost
+        Local host
+      val $argument.0: String
+        Type String
+        StringConst @str1
+      val $argument.1: String
+        Type String
+        StringConst @str2
+      val $parameter.first: String
+        Type String
+        Local $argument.0
+      val $parameter.second: String
+        Type String
+        Local $argument.1
+      call $argument.0: FlowPair<String> = @fn19 direct
+        Type String
+        Local $parameter.first
+        Type String
+        Local $parameter.second
+      val $parameter.seed: FlowPair<String>
+        Type FlowPair<String>
+        Local $argument.0
+      branch bb4 bb5
+        Type Boolean
+        BoolLiteral true
+    bb4 if.then.4
+      val $binding.subject.6: FlowPair<String>
+        Type FlowPair<String>
+        Local $parameter.seed
+      val $binding.projection.7: String
+        Type String
+        FieldAccess 1
+          Type FlowPair<String>
+          Local $binding.subject.6
+      val next: String
+        Type String
+        Local $binding.projection.7
+      assign $result.8
+        Type String
+        Local next
+      goto bb6
+    bb5 if.else.5
+      assign $result.8
+        Type String
+        FieldAccess 0
+          Type FlowPair<String>
+          Local $parameter.seed
+      goto bb6
+    bb6 if.merge.6
+      val $parameter.value: String
+        Type String
+        Local $result.8
+      call $dependency.receiver: String = @fn6 direct
+        Type FlowHost
+        Local $receiver
+        Type FlowPair<String>
+        Local $parameter.seed
+        Type String
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external1 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $parameter.value
+      val $receiver: FlowHost
+        Type FlowHost
+        Local host
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=13 bits=0x0000000d
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=14 bits=0x0000000e
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: Int
+        Type Int
+        Local $argument.1
+      call $argument.0: FlowPair<Int> = @fn18 direct
+        Type Int
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+      val $parameter.seed: FlowPair<Int>
+        Type FlowPair<Int>
+        Local $argument.0
+      branch bb7 bb8
+        Type Boolean
+        BoolLiteral true
+    bb7 if.then.7
+      val $binding.subject.6: FlowPair<Int>
+        Type FlowPair<Int>
+        Local $parameter.seed
+      val $binding.projection.7: Int
+        Type Int
+        FieldAccess 1
+          Type FlowPair<Int>
+          Local $binding.subject.6
+      val next: Int
+        Type Int
+        Local $binding.projection.7
+      assign $result.8
+        Type Int
+        Local next
+      goto bb9
+    bb8 if.else.8
+      assign $result.8
+        Type Int
+        FieldAccess 0
+          Type FlowPair<Int>
+          Local $parameter.seed
+      goto bb9
+    bb9 if.merge.9
+      val $parameter.value: Int
+        Type Int
+        Local $result.8
+      call $dependency.receiver: Int = @fn7 direct
+        Type FlowHost
+        Local $receiver
+        Type FlowPair<Int>
+        Local $parameter.seed
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=14 bits=0x0000000e
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun FlowHost.generic @fn6(this: FlowHost, seed: FlowPair<String>, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun FlowHost.generic @fn7(this: FlowHost, seed: FlowPair<Int>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun Continuation.resume @fn8(this: Continuation<FlowOther>, value: FlowOther) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn9(this: Continuation<FlowOther>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn10(this: SuspendTask<FlowOther>, $completion: Continuation<FlowOther>) -> CoroutineStep<FlowOther>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn11(this: SuspendRegistration<FlowOther>, continuation: Continuation<FlowOther>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn12(this: Continuation<FlowHost>, value: FlowHost) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn13(this: Continuation<FlowHost>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn14(this: SuspendTask<FlowHost>, $completion: Continuation<FlowHost>) -> CoroutineStep<FlowHost>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn15(this: SuspendRegistration<FlowHost>, continuation: Continuation<FlowHost>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.FlowHost.$c0 @fn16(this: FlowHost) -> Unit
+    bb0 entry
+      return
+  fun ctor.FlowOther.$c1 @fn17(first: Int, second: Int) -> FlowOther <no-gc>
+    bb0 entry
+      return
+        Type FlowOther
+        StructInit FlowOther
+          Type Int
+          Local first
+          Type Int
+          Local second
+  fun ctor.FlowPair.$c0 @fn18(first: Int, second: Int) -> FlowPair<Int> <no-gc>
+    bb0 entry
+      return
+        Type FlowPair<Int>
+        StructInit FlowPair<Int>
+          Type Int
+          Local first
+          Type Int
+          Local second
+  fun ctor.FlowPair.$c0 @fn19(first: String, second: String) -> FlowPair<String> <no-gc>
+    bb0 entry
+      return
+        Type FlowPair<String>
+        StructInit FlowPair<String>
+          Type String
+          Local first
+          Type String
+          Local second
+  fun startCoroutine<FlowOther> @fn20(task: SuspendTask<FlowOther>, completion: Continuation<FlowOther>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn8 interface Continuation<FlowOther>[0]
+        Type Continuation<FlowOther>
+        Local completion
+        Type FlowOther
+        EnumField v0 f0
+          Type CoroutineStep<FlowOther>
+          Local $step
+      return
+    bb2 failed
+      call @fn9 interface Continuation<FlowOther>[1]
+        Type Continuation<FlowOther>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<FlowOther> = @fn10 interface SuspendTask<FlowOther>[0]
+        Type SuspendTask<FlowOther>
+        Local task
+        Type Continuation<FlowOther>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<FlowOther>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<FlowHost> @fn21(task: SuspendTask<FlowHost>, completion: Continuation<FlowHost>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn12 interface Continuation<FlowHost>[0]
+        Type Continuation<FlowHost>
+        Local completion
+        Type FlowHost
+        EnumField v0 f0
+          Type CoroutineStep<FlowHost>
+          Local $step
+      return
+    bb2 failed
+      call @fn13 interface Continuation<FlowHost>[1]
+        Type Continuation<FlowHost>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<FlowHost> = @fn14 interface SuspendTask<FlowHost>[0]
+        Type SuspendTask<FlowHost>
+        Local task
+        Type Continuation<FlowHost>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<FlowHost>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<FlowOther> result=FlowOther
+  coroutine_step cs1 CoroutineStep<FlowHost> result=FlowHost
+  coroutine_slot cl0 CoroutineSlot<FlowOther> value=FlowOther
+  coroutine_slot cl1 CoroutineSlot<FlowHost> value=FlowHost
+  coroutine_start ct0 result=FlowOther function=fn20
+  coroutine_start ct1 result=FlowHost function=fn21
+  coroutine_fn cf0 @fn10 source_return=FlowOther step=cs0 immediate
+  coroutine_fn cf1 @fn14 source_return=FlowHost step=cs1 immediate
+  instance mi0 function=@fn6 <- FlowHost.generic
+  instance mi1 function=@fn7 <- FlowHost.generic
+  instance mi2 function=@fn8 <- Continuation.resume
+  instance mi3 function=@fn9 <- Continuation.resumeWithException
+  instance mi4 function=@fn10 <- SuspendTask.run
+  instance mi5 function=@fn11 <- SuspendRegistration.register
+  instance mi6 function=@fn12 <- Continuation.resume
+  instance mi7 function=@fn13 <- Continuation.resumeWithException
+  instance mi8 function=@fn14 <- SuspendTask.run
+  instance mi9 function=@fn15 <- SuspendRegistration.register
+  str @str0 "illegal state"
+  str @str1 "left"
+  str @str2 "right"
+  str @str3 "right"
+  output executable @fn5

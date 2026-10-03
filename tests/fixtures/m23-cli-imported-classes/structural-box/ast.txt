@@ -1,0 +1,16 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  public fun primary(): Counter
+    val number: Long
+      IntLiteral 21
+    val boxed: Any
+      TupleLiteral
+        Var number
+        StringLiteral "tuple"
+    val (value, text)
+      Cast (Long, String) optional=false
+        Var boxed
+    return
+      Call Counter
+        Var value

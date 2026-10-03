@@ -1,0 +1,146 @@
+SourceFile
+  QualifiedPackage consumer.references
+  public fun equalsDefault(check: (Int) -> Boolean = <expr>): Boolean
+    =
+      Call check
+        IntLiteral 42
+  public fun exercise<T>(value: T): Int
+    var number: Int
+      IntLiteral 41
+    val add: (Int) -> Int
+      CallableReference 1 plus
+        Var number
+    assign number
+      IntLiteral 0
+    val negate
+      CallableReference 2 unaryMinus
+        IntLiteral 42
+    val compare: (Int) -> Long
+      CallableReference 3 compareTo
+        IntLiteral 42
+    val widen
+      CallableReference 4 toInt64
+        IntLiteral 42
+    val shift: (Long) -> Int
+      CallableReference 5 shl
+        IntLiteral 21
+    val divide: (Int) -> Int
+      CallableReference 6 div
+        IntLiteral 84
+    val remainder: (Int) -> Int
+      CallableReference 7 rem
+        IntLiteral 85
+    val minimum: Int
+      Unary Neg
+        IntLiteral 2147483648
+    val boundary: (Int) -> Int
+      CallableReference 8 div
+        Var minimum
+    val unsigned: UInt
+      IntLiteral 84u
+    val unsignedDivide: (UInt) -> UInt
+      CallableReference 9 div
+        Var unsigned
+    val invert
+      CallableReference 10 not
+        BoolLiteral false
+    val concat: (String) -> String
+      CallableReference 11 plus
+        StringLiteral "scoop"
+    val compareString: (String) -> Long
+      CallableReference 12 compareTo
+        StringLiteral "scoop"
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Call add
+              IntLiteral 1
+            IntLiteral 42
+          Binary Ne
+            Var number
+            IntLiteral 0
+        Binary Ne
+          Call negate
+          Unary Neg
+            IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Call compare
+              IntLiteral 42
+            IntLiteral 0L
+          Binary Le
+            Call compare
+              IntLiteral 1
+            IntLiteral 0L
+        Binary Ne
+          Call widen
+          IntLiteral 42L
+      return
+        IntLiteral 2
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Call shift
+              IntLiteral 33L
+            IntLiteral 42
+          Binary Ne
+            Call divide
+              IntLiteral 2
+            IntLiteral 42
+        Binary Ne
+          Call remainder
+            IntLiteral 2
+          IntLiteral 1
+      return
+        IntLiteral 3
+    if
+      Binary Or
+        Binary Ne
+          Call boundary
+            Unary Neg
+              IntLiteral 1
+          Var minimum
+        Binary Ne
+          Call unsignedDivide
+            IntLiteral 2u
+          IntLiteral 42u
+      return
+        IntLiteral 4
+    if
+      Binary Or
+        Binary Or
+          Unary Not
+            Call invert
+          Binary Ne
+            Call concat
+              StringLiteral "!"
+            StringLiteral "scoop!"
+        Binary Ne
+          Call compareString
+            StringLiteral "scoop"
+          IntLiteral 0L
+      return
+        IntLiteral 5
+    if
+      Unary Not
+        Call equalsDefault
+      return
+        IntLiteral 6
+    try
+      Call divide
+        IntLiteral 0
+    catch error: ArithmeticException
+      return
+        IntLiteral 42
+    return
+      IntLiteral 7
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0

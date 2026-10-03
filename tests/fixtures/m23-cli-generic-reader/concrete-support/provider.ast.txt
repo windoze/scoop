@@ -1,0 +1,28 @@
+SourceFile
+  RootPackage
+  private struct HiddenValue
+    field number: Int
+  private struct UnusedValue
+    field number: Int
+  private fun seed(): HiddenValue
+    =
+      Call HiddenValue
+        IntLiteral 41
+  public fun withHiddenValue<T>(value: T): T
+    val direct
+      Call HiddenValue
+        IntLiteral 2
+    val supplied
+      Call seed
+    if
+      Binary Eq
+        Binary Add
+          FieldAccess number
+            Var direct
+          FieldAccess number
+            Var supplied
+        IntLiteral 43
+      return
+        Var value
+    return
+      Var value

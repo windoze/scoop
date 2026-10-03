@@ -1,0 +1,70 @@
+SourceFile
+  QualifiedPackage consumer.bounds
+  ImportStar Local templates.bounds.*
+  private interface LocalExtra
+    fun extra
+  private open class LocalBase(), Readable, Extra
+    public fun read
+    public fun extra
+  private class ForeignDerived() : PlainBase(<0 args>), LocalExtra
+    public fun read
+    public fun extra
+  private fun fromLocal<T>(value: T): Int where T : LocalBase, T : Extra
+    val reference
+      Call readReference
+        Var value
+    return
+      Binary Add
+        Call reference
+        MethodCall extra
+          Var value
+  private fun fromImported<T>(value: T): Int where T : LocalExtra, T : PlainBase
+    =
+      Binary Add
+        Call readBound
+          Var value
+        MethodCall extra
+          Var value
+  private fun fromInterfaces<T>(value: T): Int where T : Readable, T : LocalExtra
+    =
+      Binary Add
+        Call readBound
+          Var value
+        MethodCall extra
+          Var value
+  private fun fromHolder<T, U>(value: T): U where T : ChildHolder<U>
+    =
+      MethodCall get
+        Var value
+  public fun exercise<T>(value: T): Int
+    if
+      Binary Ne
+        Call fromLocal
+          Call LocalBase
+        IntLiteral 42
+      return
+        IntLiteral 1
+    val receiver
+      Call ForeignDerived
+    if
+      Binary Ne
+        Call fromInterfaces
+          Var receiver
+        IntLiteral 42
+      return
+        IntLiteral 2
+    if
+      Binary Ne
+        Call fromHolder<HolderImpl<Int>, Int>
+          Call HolderImpl<Int>
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 3
+    return
+      Call fromImported
+        Var receiver
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 1

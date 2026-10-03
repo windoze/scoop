@@ -372,7 +372,7 @@ fn finish_output(
     dependencies: &hir::ImportedSemanticWorld<'_>,
     selected: Option<&hir::SelectedImportedDependencySet>,
 ) -> Result<hir::Output, Vec<Diagnostic>> {
-    let export = match selected {
+    let mut export = match selected {
         Some(selected) => {
             hir::ExportHirOutput::try_new_with_dependencies(export, output_kind, selected)
         }
@@ -384,25 +384,16 @@ fn finish_output(
             format!("failed to seal Export HIR output: {error}"),
         )]
     })?;
-    let requirements =
-        hir::PublicNominalShapeRequirementsV1::from_export_hir(&export).map_err(|error| {
-            vec![Diagnostic::at(
-                Span { start: 0, end: 0 },
-                format!("failed to project public nominal shapes: {error}"),
-            )]
-        })?;
-    let local = concretize::lower_output(&export, &requirements)?;
+    let local = concretize::lower_output(&mut export, selected)?;
     let native_boundary_types =
         crate::persistent_native_boundary::build(export.module(), local.module(), dependencies)
             .map_err(native_boundary_diagnostic)?;
-    hir::Output::try_new(export, local, native_boundary_types, warnings, selected).map_err(
-        |error| {
-            vec![Diagnostic::at(
-                Span { start: 0, end: 0 },
-                format!("failed to seal HIR output: {error}"),
-            )]
-        },
-    )
+    hir::Output::try_new(export, local, native_boundary_types, warnings).map_err(|error| {
+        vec![Diagnostic::at(
+            Span { start: 0, end: 0 },
+            format!("failed to seal HIR output: {error}"),
+        )]
+    })
 }
 
 fn native_boundary_diagnostic(
@@ -504,9 +495,7 @@ pub fn concretize_export(
 pub fn concretize_output(
     export: &hir::ExportHirOutput,
 ) -> Result<hir::LocalConcreteHirOutput, Vec<ast::Diagnostic>> {
-    let requirements = hir::PublicNominalShapeRequirementsV1::from_export_hir(export)
-        .expect("checked HIR public bindings have valid nominal identities");
-    concretize::lower_output(export, &requirements)
+    concretize::lower_output(&mut export.clone(), None)
 }
 
 #[derive(Clone)]
@@ -563,6 +552,7 @@ pub(crate) struct Lowerer {
     pub(crate) local_functions: Arena<hir::LocalFunction>,
     pub(crate) local_function_by_function: HashMap<FunctionId, hir::LocalFunctionId>,
     pub(crate) callable_references: Arena<hir::CallableReference>,
+    pub(crate) imported_derived_equalities: Arena<hir::ImportedDerivedEquality>,
     pub(crate) imported_dependency_callables: Arena<hir::ImportedDependencyCallableUse>,
     pub(crate) imported_constructor_templates: imported_constructors::ImportedConstructorTemplates,
     pub(crate) imported_generic_templates: imported_generics::ImportedGenericTemplates,
@@ -836,7 +826,8 @@ pub(crate) struct Lowerer {
     /// Index of the file currently being processed (diagnostics).
     pub(crate) current_file: usize,
     intrinsic_sources: Vec<SourceProvider>,
-    /// Authenticated dependency sources referenced by instantiated defaults.
+    source_names: std::collections::BTreeMap<scoop_identity::ConeIdentity, String>,
+    /// Dependency sources referenced by instantiated defaults and bodies.
     /// They are appended only after a winning candidate is committed and are
     /// never traversed as parser inputs.
     imported_source_files: Vec<hir::SourceFileMetadata>,

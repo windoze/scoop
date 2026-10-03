@@ -82,10 +82,7 @@ pub fn resolve_trusted_core_slot(
 }
 
 pub(crate) fn configured_sysroot_root() -> PathBuf {
-    match std::env::var_os("SCOOP_SYSROOT") {
-        Some(path) => PathBuf::from(path),
-        None => super::workspace_root().join("sysroot"),
-    }
+    scoop_toolchain::configured_sysroot_root(None)
 }
 
 pub(crate) fn resolve_trusted_core_slot_at(

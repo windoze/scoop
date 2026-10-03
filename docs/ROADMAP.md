@@ -399,12 +399,13 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 ### M23-11 umbrella CLI、single-file mode与总验收
 
-详细设计见 [M23-11](milestone23/stage11/DESIGN.md)，状态：已设计，待实现（2026-10-02）；前置为已验收的 M23-10。
+详细设计见 [M23-11](milestone23/stage11/DESIGN.md)，状态：已完成并验收（2026-10-03）；前置为已验收的 M23-10。完整 Rust 5197 项、正式 CLI 2067 个 fixture／2157 个变体均通过，分批实现、迁移与清理见 [验收记录](milestone23/stage11/ACCEPTANCE.md)。
 
 - 新增薄 `scoop` bin，复用实际 DAG／snapshot／cache、配套 `scoopc` child、runtime-build 和 program-link。build/run 共用完整构建，显式 link 只定位已有 `.slib`，消费必需的 runtime 对象索引和 native 输入，不读源码或探测 LLVM／compiler。
-- 文件 root 使用 reserved synthetic identity、logical `main.scoop`、唯一 source 与 core-only Cone dependency；不发现相邻 manifest、Scoop/C/C++ 或 blob。明确 manifest／single-file 默认输出、`-o` 原子物化、run 的私有 binary、argv/cwd/env/stdio 和真实 exit/signal；native requirement 仍由显式 library search roots 解析。
+- build/run 可省略 root，此时使用当前目录 `Cone.toml`；显式文件 root 使用 reserved synthetic identity、logical `main.scoop`、唯一 source 与 core-only Cone dependency，不发现相邻 manifest、Scoop/C/C++ 或 blob。构建 profile 仅 debug/release，默认 debug，支持 `--profile`／`--release`；默认输出为 `target/<canonical-target-triple>/<profile>`，`--target-dir` 替换 target 根，`-o` 可覆盖 build 的最终文件。profile 先预留选择与布局，优化延后实现，当前相同编译设置可复用缓存。
+- run 共用 build 的稳定输出发布，再执行同次结果，保留公开产物并清理私有执行副本；覆盖原子物化、并发发布、argv/cwd/env/stdio 和真实 exit/signal。native requirement 仍由显式 library search roots 解析。
 - 补齐 primary／note 的 canonical source 和缓存 warning；子进程协议升至 2，一次真实编译可输出 AST、Export／LocalConcrete HIR、MIR、LIR 文件。普通缓存命中零 child，显式 dump 对指定源码节点重新编译一次；不增加 dump cache、第二条语义管线或完整 Compile/Link 重放。
-- 旧 driver fixture runner 已在 `c02bd245c` 删除，当前需恢复历史端到端覆盖。盘点 M1–M22/M25 的 534 份源码，480 份原合并式端到端 fixture 全部经 Python runner 接通正式 CLI，其余阶段 fixture 明确归属并补语言规则的 CLI 覆盖；另保留 M0 smoke。FFI companion 由声明式步骤显式构建，再仅通过 `--library-path` 参与链接。
+- 旧 driver fixture runner 已在 `c02bd245c` 删除，历史端到端覆盖现已恢复。M1–M22/M25 的 534 份源码均保留，480 份原合并式端到端 fixture 全部经 Python runner 接通正式 CLI，其余阶段 fixture 明确归属并补语言规则的 CLI 覆盖；另保留 M0 smoke。最终 3040 份 Scoop 源码未归属数为零。FFI companion 由声明式步骤显式构建，再仅通过 `--library-path` 参与链接。
 - 将现有 Rust fixture infra（含阶段 golden、program-link/native 编排）迁到统一 Python infra；源码注释或附加 TOML 用同一 schema 表达执行条件、步骤、断言和变体，新增 fixture 原则上只加数据，不写 case-by-case 分支。覆盖恢复后删除原 Rust runner、专用 helper、入口与不再使用的依赖，保留普通 Rust 内部单元测试；以仅改 fixture 数据的新增用例验证扩展性，完整验收同时运行 Rust 测试与 Python suite。
 - 总验收覆盖 6a 的共同语义／wire／声明位置／双向泛型矩阵及 Stage 7–10 的 ODR、初始化、native、corruption/reproducibility、cache 和 moving-GC/exception/closure/coroutine/FFI 组合；修复实际产物路径暴露的共同实现缺口，删除仅供运行验收的临时 link/startup 旁路。`.slib` 和 runtime metadata ABI 3 保持，不实现 final-link cache。
 

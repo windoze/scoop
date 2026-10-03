@@ -1,8 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m11-functions/errors/lambda-type-mismatches.scoop:2:36: error: lambda parameter type is String, but the expected type is Int
-m11-functions/errors/lambda-type-mismatches.scoop:3:35: error: lambda result must be of type String, found Int
-m11-functions/errors/lambda-type-mismatches.scoop:4:38: error: lambda omits its parameter list, but the expected type has 2 parameters

@@ -1,3 +1,0 @@
-span=144..157
-expression=left == right
-type `Counter<Int>` has no member operator `equals` for `==`

@@ -9,6 +9,9 @@ impl ReferenceCollector<'_> {
         origin: hir::DefinitionOrigin,
     ) {
         let target = match callee {
+            hir::MethodCallee::ImportedDerivedEquality { owner, .. } => {
+                hir::ExportDefaultCallableTarget::ImportedDerivedEquality(owner)
+            }
             hir::MethodCallee::Callable(callable) => return self.callable_target(callable, origin),
             hir::MethodCallee::Bound(bound) => hir::ExportDefaultCallableTarget::Bound(bound),
             hir::MethodCallee::DerivedEquality(application) => {
@@ -56,6 +59,9 @@ impl ReferenceCollector<'_> {
         origin: hir::DefinitionOrigin,
     ) {
         match callee {
+            hir::MethodCallee::ImportedDerivedEquality { owner, .. } => {
+                self.type_reference(owner, origin)
+            }
             hir::MethodCallee::Callable(callable) => self.callable_target_shape(callable, origin),
             hir::MethodCallee::Bound(bound) => self.bound_callable_shape(bound, origin),
             hir::MethodCallee::DerivedEquality(application) => {
@@ -192,9 +198,6 @@ impl ReferenceCollector<'_> {
             self.type_reference(ty, origin);
         }
         self.capture_shapes(&reference.captures);
-        for capture in &reference.captures {
-            self.expression(&capture.source);
-        }
     }
 
     fn lexical_callable_shape(
@@ -211,12 +214,10 @@ impl ReferenceCollector<'_> {
             }
         }
         self.capture_shapes(captures);
-        for capture in captures {
-            self.expression(&capture.source);
-        }
     }
 
     fn capture_shapes(&mut self, captures: &[hir::Capture]) {
+        // Exported captures are binding descriptors, not nested body expressions.
         for capture in captures {
             let mut origin = capture.source.origin.definition();
             origin.span = capture.first_use_span;

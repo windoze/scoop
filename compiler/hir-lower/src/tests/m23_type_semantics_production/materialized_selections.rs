@@ -49,19 +49,39 @@ fn materialized_selections_are_produced_and_replayed_from_shared_hir_bytes() {
                         .all(|record| record.provider() == dependencies[0].provider)
                 );
             });
-            let actual = render(section.selected(), &identities);
-            let snapshot = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
-                "../../tests/fixtures/m23-hir-materialized-selections/{case}.hir.snap"
-            ));
-            if std::env::var_os("SCOOP_UPDATE_MATERIALIZED_SELECTION_SNAPSHOTS").is_some() {
-                std::fs::write(&snapshot, &actual).unwrap();
-            }
-            assert_eq!(actual, std::fs::read_to_string(snapshot).unwrap());
+            let records = section.selected().records();
+            assert_eq!(records.len(), if case == "combined" { 21 } else { 14 });
             if case == "combined" {
-                assert!(actual.contains("TypeTest String"));
-                assert!(actual.contains("ShapeSupport String"));
-                assert!(actual.contains("Signature Long"));
-                assert!(!actual.contains("ULong"));
+                for expected in ["String", "Long"] {
+                    let selected = records
+                        .iter()
+                        .filter(|record| type_name(record.usage().exact(), &identities) == expected)
+                        .map(|record| record.usage())
+                        .collect::<Vec<_>>();
+                    assert!(
+                        selected
+                            .iter()
+                            .any(|usage| matches!(usage, SelectedTypeUseV1::Signature { .. }))
+                    );
+                    if expected == "String" {
+                        assert!(
+                            selected
+                                .iter()
+                                .any(|usage| matches!(usage, SelectedTypeUseV1::TypeTest { .. }))
+                        );
+                        assert!(
+                            selected.iter().any(|usage| matches!(
+                                usage,
+                                SelectedTypeUseV1::ShapeSupport { .. }
+                            ))
+                        );
+                    }
+                }
+                assert!(
+                    records
+                        .iter()
+                        .all(|record| type_name(record.usage().exact(), &identities) != "ULong")
+                );
             }
         });
     }
@@ -84,31 +104,6 @@ fn unused_generic_declarations_and_defaults_do_not_create_selected_type_roots() 
         project(STANDALONE),
         project(&format!("{STANDALONE}{extra}"))
     );
-}
-
-fn render(
-    selected: &CanonicalSelectedExternalTypeUsesV1,
-    identities: &ValidatedIdentityGraph,
-) -> String {
-    let mut rows = selected
-        .records()
-        .iter()
-        .map(|record| {
-            let kind = match record.usage() {
-                SelectedTypeUseV1::Signature { .. } => "Signature",
-                SelectedTypeUseV1::Representation { .. } => "Representation",
-                SelectedTypeUseV1::TypeTest { .. } => "TypeTest",
-                SelectedTypeUseV1::ShapeSupport { .. } => "ShapeSupport",
-                other => panic!("unexpected operation use in the fixture: {other:?}"),
-            };
-            format!(
-                "{kind} {} provider=dependency\n",
-                type_name(record.usage().exact(), identities)
-            )
-        })
-        .collect::<Vec<_>>();
-    rows.sort();
-    rows.concat()
 }
 
 fn type_name(exact: PersistentExactTypeId, identities: &ValidatedIdentityGraph) -> String {

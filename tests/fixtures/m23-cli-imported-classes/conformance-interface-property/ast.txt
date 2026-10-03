@@ -1,0 +1,20 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.Valued
+  public interface LocalValue : Valued
+    fun inherited
+  public enum LocalChoice : LocalValue
+    Ready
+    public final override val value: Long <computed>
+      get()
+        IntLiteral 21
+  public fun localValue(): LocalValue
+    =
+      FieldAccess Ready
+        Var LocalChoice
+  public fun primary(): Counter
+    =
+      Call Counter
+        MethodCall inherited
+          Call localValue

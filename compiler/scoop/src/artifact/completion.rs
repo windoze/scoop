@@ -43,6 +43,7 @@ pub struct CompletedNode {
     artifact: Rc<BuildArtifact>,
     closure: Rc<ValidatedArtifactClosure>,
     materialized_child_path: PrivateArtifactPath,
+    artifact_locator: PathBuf,
     warnings: Vec<StructuredDiagnosticV1>,
 }
 
@@ -67,6 +68,15 @@ impl CompletedNode {
         &self.materialized_child_path
     }
 
+    /// The original prebuilt file or published cache file, retained after staging is dropped.
+    pub fn artifact_locator(&self) -> &Path {
+        &self.artifact_locator
+    }
+
+    pub(crate) fn replace_artifact_locator(&mut self, path: PathBuf) {
+        self.artifact_locator = path;
+    }
+
     pub fn warnings(&self) -> &[StructuredDiagnosticV1] {
         &self.warnings
     }
@@ -84,6 +94,7 @@ impl CompletedNode {
         artifact: Rc<BuildArtifact>,
         closures: ValidatedArtifactClosure,
         materialized_child_path: PathBuf,
+        artifact_locator: PathBuf,
         warnings: Vec<StructuredDiagnosticV1>,
     ) -> Self {
         Self {
@@ -92,6 +103,7 @@ impl CompletedNode {
             artifact,
             closure: Rc::new(closures),
             materialized_child_path: PrivateArtifactPath::new(materialized_child_path),
+            artifact_locator,
             warnings,
         }
     }
@@ -108,6 +120,7 @@ impl CompletedNode {
             origin: CompletedNodeOrigin::Compiled,
             artifact,
             closure: Rc::new(closures),
+            artifact_locator: materialized_child_path.clone(),
             materialized_child_path: PrivateArtifactPath::new(materialized_child_path),
             warnings,
         }
@@ -366,6 +379,7 @@ pub(crate) fn complete_prebuilt_candidates(
         artifact: selected.artifact,
         closure: Rc::new(selected.closures),
         materialized_child_path: PrivateArtifactPath::new(selected.materialized_path),
+        artifact_locator: selected.source_locator,
         warnings: Vec::new(),
     })
 }

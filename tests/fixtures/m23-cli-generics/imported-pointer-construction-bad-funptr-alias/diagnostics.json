@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `Callback` does not name a constructible type",
+    "notes": [],
+    "origin": {
+      "cone": "24a6e8ca9e35d4ebe01534ebd8b6da56dbe0bbe5954f401d96760c64adb216e5",
+      "end": 104,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 91
+    },
+    "severity": "error"
+  }
+]

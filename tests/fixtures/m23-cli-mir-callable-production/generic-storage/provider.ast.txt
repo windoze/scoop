@@ -1,0 +1,10 @@
+SourceFile
+  RootPackage
+  public struct Payload<T>
+    field value: T
+  public struct Holder
+    field payload: Payload<Int>
+    @NoGC
+  public fun keepPayload(value: Payload<Int>): Payload<Int>
+    =
+      Var value

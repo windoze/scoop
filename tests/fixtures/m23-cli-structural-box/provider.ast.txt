@@ -1,0 +1,16 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.api.relayAny
+  public fun check(): Long
+    val number: Long
+      IntLiteral 42
+    val boxed
+      Call relayAny
+        TupleLiteral
+          Var number
+          StringLiteral "tuple"
+    val (value, text)
+      Cast (Long, String) optional=false
+        Var boxed
+    return
+      Var value

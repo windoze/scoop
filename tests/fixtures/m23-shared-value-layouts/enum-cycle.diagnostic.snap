@@ -1,3 +1,0 @@
-span=69..121
-expression=public enum Recursive { Value(Indirect<Recursive>) }
-recursive value layout does not cross a reference boundary: Recursive -> Recursive

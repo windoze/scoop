@@ -1,0 +1,23 @@
+SourceFile
+  RootPackage
+  class GenericError<T>() : Exception(<1 args>)
+  fun failInt()
+    throw
+      Call GenericError<Int>
+  fun failString()
+    throw
+      Call GenericError<String>
+  fun main()
+    try
+      Call failInt
+    catch error: GenericError<Int>
+      Call println
+        StringLiteral "int"
+    try
+      Call failString
+    catch error: GenericError<Int>
+      Call println
+        StringLiteral "wrong"
+    catch error: Exception
+      Call println
+        StringLiteral "base"

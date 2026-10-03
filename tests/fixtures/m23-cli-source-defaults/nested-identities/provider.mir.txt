@@ -1,0 +1,112 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<NestedIdentityHost>
+    Completed(value: NestedIdentityHost)
+    Suspended()
+  enum CoroutineSlot<NestedIdentityHost>
+    Empty()
+    Value(value: NestedIdentityHost)
+  class NestedIdentityHost vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<NestedIdentityHost>
+  interface SuspendTask<NestedIdentityHost>
+  interface SuspendRegistration<NestedIdentityHost>
+  generated_exact_type get0 location=enum2 nominal_id=16948fd74c51c39639b6d89caab57705fb20eec6f591f9e5a750eb241621b0ea exact_id=75642d2243643acb922b8df6b4c04fbefdc74c5f290c1a0dbe414f137c30e12a
+  generated_exact_type get1 location=enum1 nominal_id=958016aeaf8ea6669c50170aa50785acb19c4fe10b4e24e39accf65c26fb462c exact_id=f33ef795fe0216f13d5487021d29d0ec49ca372b909f0149308d3cb7f5ac7ff8
+  generated_callable gc0 function=@fn10 id=629f56da394b9d415c17b4fd0072b5b32ee9e2daa6b5bb621e29cd6ac6b6e93c
+  fun NestedIdentityHost.lambda @fn0(this: NestedIdentityHost, seed: String, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun NestedIdentityHost.anonymous @fn1(this: NestedIdentityHost, seed: String, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun NestedIdentityHost.reference @fn2(this: NestedIdentityHost, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun NestedIdentityHost.local @fn3(this: NestedIdentityHost, seed: String, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun nestedIdentityValue @fn4() -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str0
+  fun Continuation.resume @fn5(this: Continuation<NestedIdentityHost>, value: NestedIdentityHost) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn6(this: Continuation<NestedIdentityHost>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn7(this: SuspendTask<NestedIdentityHost>, $completion: Continuation<NestedIdentityHost>) -> CoroutineStep<NestedIdentityHost>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn8(this: SuspendRegistration<NestedIdentityHost>, continuation: Continuation<NestedIdentityHost>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.NestedIdentityHost.$c0 @fn9(this: NestedIdentityHost) -> Unit
+    bb0 entry
+      return
+  fun startCoroutine<NestedIdentityHost> @fn10(task: SuspendTask<NestedIdentityHost>, completion: Continuation<NestedIdentityHost>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn5 interface Continuation<NestedIdentityHost>[0]
+        Type Continuation<NestedIdentityHost>
+        Local completion
+        Type NestedIdentityHost
+        EnumField v0 f0
+          Type CoroutineStep<NestedIdentityHost>
+          Local $step
+      return
+    bb2 failed
+      call @fn6 interface Continuation<NestedIdentityHost>[1]
+        Type Continuation<NestedIdentityHost>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<NestedIdentityHost> = @fn7 interface SuspendTask<NestedIdentityHost>[0]
+        Type SuspendTask<NestedIdentityHost>
+        Local task
+        Type Continuation<NestedIdentityHost>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<NestedIdentityHost>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<NestedIdentityHost> result=NestedIdentityHost
+  coroutine_slot cl0 CoroutineSlot<NestedIdentityHost> value=NestedIdentityHost
+  coroutine_start ct0 result=NestedIdentityHost function=fn10
+  coroutine_fn cf0 @fn7 source_return=NestedIdentityHost step=cs0 immediate
+  instance mi0 function=@fn5 <- Continuation.resume
+  instance mi1 function=@fn6 <- Continuation.resumeWithException
+  instance mi2 function=@fn7 <- SuspendTask.run
+  instance mi3 function=@fn8 <- SuspendRegistration.register
+  str @str0 "identity"
+  output library

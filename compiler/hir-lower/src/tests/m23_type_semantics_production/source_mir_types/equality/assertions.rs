@@ -45,8 +45,11 @@ pub(super) fn actual(input: &ConeMirInput, bindings: &CanonicalMirCallableBindin
     }
 }
 
-pub(super) fn dump(input: &ConeMirInput, bindings: &CanonicalMirCallableBindingsV1) -> String {
-    let mut lines = Vec::new();
+pub(super) fn calls<'a>(
+    input: &'a ConeMirInput,
+    bindings: &CanonicalMirCallableBindingsV1,
+) -> BTreeMap<&'a str, Vec<&'a str>> {
+    let mut result = BTreeMap::new();
     for binding in bindings.entries() {
         let root = input
             .materialization()
@@ -81,13 +84,7 @@ pub(super) fn dump(input: &ConeMirInput, bindings: &CanonicalMirCallableBindings
                 _ => None,
             })
             .collect();
-        lines.push(format!(
-            "{}: {:?} -> {:?}; calls={calls:?}\n",
-            function.name,
-            binding.semantic_signature().gc_effect(),
-            binding.lowered_signature().gc_effect()
-        ));
+        result.insert(function.name.as_str(), calls);
     }
-    lines.sort();
-    lines.concat()
+    result
 }

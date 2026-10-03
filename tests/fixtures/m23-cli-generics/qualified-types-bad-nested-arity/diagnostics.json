@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `Generic` takes 1 type argument(s), but 2 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "7d5237915964c2a1bb8bf539209b6a980fbbc21aa8abcb10458730399493e7e2",
+      "end": 56,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 49
+    },
+    "severity": "error"
+  }
+]

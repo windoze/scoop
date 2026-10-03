@@ -1,0 +1,58 @@
+SourceFile
+  QualifiedPackage consumer.bindings
+  ImportStar Local upstream.bindings.*
+  private class LocalPieces<T>(val first: T, val second: Int)
+    operator fun component1
+    operator fun component2
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    Call reset
+    val (value, _)
+      Call Pieces<T>
+        Var seed
+        IntLiteral 0
+    if
+      Binary Ne
+        Var order
+        IntLiteral 12
+      return
+        IntLiteral 1
+    val (localValue, extra)
+      Call LocalPieces<T>
+        Var seed
+        IntLiteral 0
+    if
+      Binary Ne
+        Call read
+          Var value
+        Binary Add
+          Call read
+            Var localValue
+          Var extra
+      return
+        IntLiteral 2
+    val (extended,)
+      Call ExtensionPieces<T>
+        Var seed
+    return
+      Call read
+        Var extended
+  public fun result(): Int
+    Call reset
+    val ((value, _), _)
+      Call Pieces<Pieces<Int>>
+        Call Pieces<Int>
+          IntLiteral 42
+          IntLiteral 0
+        IntLiteral 0
+    if
+      Binary Ne
+        Var order
+        IntLiteral 1122
+      return
+        IntLiteral 3
+    return
+      Call exercise<Int>
+        Var value
+        Lambda 0 suspend=false
+          param item: _
+          Var item

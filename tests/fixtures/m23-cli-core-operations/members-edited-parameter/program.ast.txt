@@ -1,0 +1,23 @@
+SourceFile
+  RootPackage
+  fun main()
+    if
+      Binary Or
+        Binary Ne
+          Call shifted
+            IntLiteral 3
+          IntLiteral 12
+        Binary Ne
+          Call shifted
+            IntLiteral 1073741824
+          IntLiteral 0
+      throw
+        Call IllegalStateException
+SourceFile
+  RootPackage
+  fun shifted(value: Int): Int
+    =
+      MethodCall shl
+        Var value
+        Argument distance=
+          IntLiteral 2L

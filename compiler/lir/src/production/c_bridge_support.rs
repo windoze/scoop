@@ -1,4 +1,4 @@
-//! Typed target-native support admitted by the generated-C producer.
+//! Typed platform helpers used by generated C and LLVM object emission.
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -13,18 +13,20 @@ use crate::{
 
 const C_BRIDGE_TARGET_SUPPORT_DOMAIN: &str = "scoop-c-bridge-target-support-v1";
 
-/// Target-native helpers which the frozen generated-C template may introduce.
+/// Platform helpers whose machine contracts are fixed by the selected target.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum CBridgeTargetSupportV1 {
     Memcpy,
+    TlvBootstrap,
 }
 
 impl CBridgeTargetSupportV1 {
-    pub const ALL: [Self; 1] = [Self::Memcpy];
+    pub const ALL: [Self; 2] = [Self::Memcpy, Self::TlvBootstrap];
 
     pub const fn logical_symbol(self) -> &'static str {
         match self {
             Self::Memcpy => "memcpy",
+            Self::TlvBootstrap => "_tlv_bootstrap",
         }
     }
 }
@@ -33,6 +35,7 @@ impl WireEncode for CBridgeTargetSupportV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.unsigned(match self {
             Self::Memcpy => 1,
+            Self::TlvBootstrap => 2,
         })
     }
 }

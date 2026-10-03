@@ -1,0 +1,112 @@
+Module
+  class box<Int> vtable=0 itables=0
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn3 captures=1
+    bridge function_type1 -> @fn4 id=32ddec881d864136a4ef36b2ef21f44ea8047bdab9ac80525133bb3c3f8bcb29
+  generated_exact_type get0 location=closure0 nominal_id=4be201642418802165e5ad85aa1b771846fbf3c57456ceabf0bd61a50eaa5a50 exact_id=d9e2ca7ce375473c2c5e4a87de57f98dce7cef6c38c75ba1ec5114567bab680a
+  generated_exact_type get1 location=class0 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn4 id=32ddec881d864136a4ef36b2ef21f44ea8047bdab9ac80525133bb3c3f8bcb29
+  fun answer @fn0() -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun selfReference @fn1(seed: Int) -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.depth: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn2 direct
+        Type Int
+        Local seed
+        Type Int
+        Local $parameter.depth
+      return
+        Type Int
+        Local $call.1
+  fun $local.3.recur @fn2($capture.seed: Int, depth: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local depth
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare greater-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      val next: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc0 $Closure$reference0
+          CaptureInit field=0
+            Type Int
+            Local $capture.seed
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local next
+      val $dependency.receiver: Int
+        Type Int
+        Local depth
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $callable.receiver
+        Type Int
+        IntegerBinary subtract kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      return
+        Type Int
+        Local $call.1
+    bb2 if.merge.2
+      return
+        Type Int
+        Local $capture.seed
+  fun $reference.0 @fn3($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn2 direct
+        Type Int
+        ClosureCapture cc0 0
+          Type (Int) -> Int
+          Local $closure
+        Type Int
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn4($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  output library

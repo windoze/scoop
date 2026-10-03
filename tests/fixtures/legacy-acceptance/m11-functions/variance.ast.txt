@@ -1,0 +1,163 @@
+SourceFile
+  RootPackage
+  open class Animal()
+  class Dog() : Animal(<0 args>)
+  interface Describable
+    fun describe
+  struct Label : Describable
+    field text: String
+    fun describe
+  fun acceptAny(value: Any): Int
+    =
+      IntLiteral 42
+  fun acceptAnyString(value: Any): String
+    =
+      StringLiteral "generic"
+  fun acceptAnyLabel(value: Any): Label
+    =
+      Call Label
+        StringLiteral "value"
+  fun acceptAnimal(value: Animal): Dog
+    =
+      Call Dog
+  fun failAny(value: Any): Int
+    throw
+      Call ArithmeticException
+  fun widen<T>(op: (Any) -> T): (T) -> Any
+    =
+      Var op
+  fun isNone<T>(value: T?): Boolean
+    =
+      WhenExpression
+        Var value
+        arm Some(_)
+          BoolLiteral false
+        arm None
+          BoolLiteral true
+  fun returnNested(op: (Int) -> Any): (Any) -> Int
+    =
+      CallableReference 0 acceptAny
+  fun main()
+    val exactValue: (Any) -> Int
+      CallableReference 1 acceptAny
+    val widenedValue: (Int) -> Any
+      Var exactValue
+    val exactReference: (Animal) -> Dog
+      CallableReference 2 acceptAnimal
+    val widenedReference: (Dog) -> Animal
+      Var exactReference
+    val failing: (Any) -> Int
+      CallableReference 3 failAny
+    val widenedFailing: (Int) -> Any
+      Var failing
+    val genericInt
+      Call widen
+        Var exactValue
+    val genericString
+      Call widen
+        CallableReference 4 acceptAnyString
+    val boxedExact: (Any) -> Label
+      CallableReference 5 acceptAnyLabel
+    val boxedReturn: (Int) -> Describable
+      Var boxedExact
+    val nestedExact: ((Int) -> Any) -> (Any) -> Int
+      CallableReference 6 returnNested
+    val nestedWidened: ((Any) -> Int) -> (Int) -> Any
+      Var nestedExact
+    val nestedResult
+      Call nestedWidened
+        Var exactValue
+    val erased: Any
+      Var exactValue
+    val checked
+      Cast (Int) -> Any optional=false
+        Var erased
+    val exactChecked
+      Cast (Any) -> Int optional=false
+        Var erased
+    val optionalChecked
+      NullAssert
+        Cast (Int) -> Any optional=true
+          Var erased
+    val missing
+      Cast (Any) -> String optional=true
+        Var erased
+    val nestedErased: Any
+      Var nestedExact
+    val nestedChecked
+      Cast ((Any) -> Int) -> (Int) -> Any optional=false
+        Var nestedErased
+    val nestedDynamicResult
+      Call nestedChecked
+        Var exactValue
+    val boxedErased: Any
+      Var boxedExact
+    val boxedChecked
+      Cast (Int) -> Describable optional=false
+        Var boxedErased
+    Call gcCollect
+    Call println
+      Is Int false
+        Call widenedValue
+          IntLiteral 0
+    Call println
+      Is Dog false
+        Call widenedReference
+          Call Dog
+    Call println
+      Is Int false
+        Call genericInt
+          IntLiteral 0
+    Call println
+      Is String false
+        Call genericString
+          StringLiteral "ignored"
+    Call println
+      MethodCall describe
+        Call boxedReturn
+          IntLiteral 0
+    Call println
+      Is Int false
+        Call nestedResult
+          IntLiteral 0
+    Call println
+      Is (Int) -> Any false
+        Var erased
+    Call println
+      Is (Any) -> String false
+        Var erased
+    Call println
+      Is Int false
+        Call checked
+          IntLiteral 0
+    Call println
+      Call exactChecked
+        StringLiteral "ignored"
+    Call println
+      Is Int false
+        Call optionalChecked
+          IntLiteral 0
+    Call println
+      Call isNone
+        Var missing
+    Call println
+      Is Int false
+        Call nestedDynamicResult
+          IntLiteral 0
+    Call println
+      MethodCall describe
+        Call boxedChecked
+          IntLiteral 0
+    if
+      Is (Int) -> Any false
+        Var erased
+      Call println
+        Is Int false
+          Call erased
+            IntLiteral 0
+    try
+      Call widenedFailing
+        IntLiteral 0
+    catch exception: ArithmeticException
+      Call println
+        StringLiteral "caught"

@@ -1,0 +1,17 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.WideValue
+  public fun primary(): Counter
+    val boxed: Any
+      Call WideValue
+        IntLiteral 21
+        IntLiteral 1
+        IntLiteral 2
+    val value
+      Cast WideValue optional=false
+        Var boxed
+    return
+      Call Counter
+        FieldAccess first
+          Var value

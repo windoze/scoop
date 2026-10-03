@@ -1,0 +1,13 @@
+SourceFile
+  RootPackage
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call verifyDefault
+      Binary Eq
+        Call accessToken
+        Call AccessToken

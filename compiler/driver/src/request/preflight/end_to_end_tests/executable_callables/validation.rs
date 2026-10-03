@@ -14,6 +14,7 @@ pub(super) fn check_machine_input(request: SingleConeBuildRequest, selected_coun
         parsed.sources(),
         inputs.as_ref().clone().into(),
         &world,
+        Default::default(),
     )
     .unwrap();
     let projected = closure

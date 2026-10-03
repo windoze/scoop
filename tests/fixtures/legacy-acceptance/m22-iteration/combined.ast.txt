@@ -1,0 +1,282 @@
+SourceFile
+  RootPackage
+  public struct Entry<T>
+    field slot: Long
+    field payload: (T, String)
+  public class Node(val text: String)
+  struct RangePatternPayload
+    field entry: Entry<Node>
+    field marker: (Boolean, Int)
+  struct RangeCheckpoint
+    field ordinal: Int
+    field retained: Node
+    field label: String
+  enum RangeSignal
+    Data <named>
+      payload: RangePatternPayload
+      enabled: Boolean
+    End
+  fun classifyRangeSignal(signal: RangeSignal): Int
+    =
+      WhenExpression
+        Var signal
+        arm Data{payload: {entry: {payload: (node, label), ..}, marker: (true, ordinal)}, enabled: true}
+          Call println
+            Binary Add
+              Binary Add
+                Binary Add
+                  StringLiteral "range-match-"
+                  Var label
+                StringLiteral "-"
+              FieldAccess text
+                Var node
+          Var ordinal
+        arm Data{payload: _, enabled: _}
+          Unary Neg
+            IntLiteral 99
+        arm End
+          Unary Neg
+            IntLiteral 100
+  fun markArray<T>(values: Array<T>): Array<T>
+    Call println
+      StringLiteral "array-source"
+    return
+      Var values
+  fun installReaders<T>(entries: Array<Entry<T>>, readers: MutableArray<() -> T>)
+    for {slot, payload: (value, _)}
+      Call markArray
+        Var entries
+      assign []
+        Var readers
+        Var slot
+        Lambda 0 suspend=false
+          parameters omitted
+          Var value
+  fun replayReaders<T>(readers: MutableArray<() -> T>, render: (T) -> String)
+    for reader
+      Var readers
+      Call println
+        Call render
+          Call reader
+  class UserIterator(val values: Array<Int>, var index: Long), Iterator<Int>
+    public fun next
+  class UserIterable(val values: Array<Int>), Iterable<Int>
+    public operator fun iterator
+  fun replayIterable(values: Iterable<Int>)
+    for value
+      Var values
+      Call println
+        Binary Add
+          StringLiteral "user-value-"
+          MethodCall toString
+            Var value
+  struct EmptyValueIterator : Iterator<Unit>
+    public fun next
+  class EmptyValueSource()
+    operator fun iterator
+  internal class RangeEntryIterator(val inner: Iterator<Int>), Iterator<Entry<Node>>
+    public fun next
+  internal class RangeEntries(val range: IntRange), Iterable<Entry<Node>>
+    public operator fun iterator
+  fun boxedValueIteratorPath()
+    for _
+      Call EmptyValueSource
+      Call println
+        StringLiteral "unexpected-value-body"
+  fun nestedLoopTargets()
+    val outerValues
+      ArrayLiteral
+        IntLiteral 1
+        IntLiteral 2
+        IntLiteral 3
+    val innerValues
+      ArrayLiteral
+        IntLiteral 0
+        IntLiteral 1
+        IntLiteral 2
+        IntLiteral 3
+    for outer
+      Var outerValues
+      for inner
+        Var innerValues
+        if
+          Binary Eq
+            Var inner
+            IntLiteral 0
+          continue
+        if
+          Binary Eq
+            Var outer
+            IntLiteral 2
+          break
+        Call println
+          Binary Add
+            Binary Mul
+              Var outer
+              IntLiteral 10
+            Var inner
+      if
+        Binary Eq
+          Var outer
+          IntLiteral 2
+        continue
+      if
+        Binary Eq
+          Var outer
+          IntLiteral 3
+        break
+      Call println
+        Var outer
+  fun jumpCleanup()
+    val values
+      ArrayLiteral
+        IntLiteral 0
+        IntLiteral 1
+        IntLiteral 2
+        IntLiteral 3
+    for value
+      Var values
+      try
+        if
+          Binary Eq
+            Var value
+            IntLiteral 0
+          Call println
+            StringLiteral "jump-continue"
+          continue
+        if
+          Binary Eq
+            Var value
+            IntLiteral 2
+          Call println
+            StringLiteral "jump-break"
+          break
+        Call println
+          Binary Add
+            StringLiteral "jump-body-"
+            MethodCall toString
+              Var value
+      finally
+        Call println
+          Binary Add
+            StringLiteral "jump-cleanup-"
+            MethodCall toString
+              Var value
+  class Gate(var waiter: Continuation<Unit>?)
+    fun complete
+  class Registration(val gate: Gate), SuspendRegistration<Unit>
+    public fun register
+  suspend fun waitFor(gate: Gate)
+    Call suspendCoroutine
+      Call Registration
+        Var gate
+  class DelayedIterator<T>(val values: Array<T>, var index: Long), Iterator<T>
+    public fun next
+  class DelayedIterable<T>(val gate: Gate, val values: Array<T>)
+    operator suspend fun iterator
+  fun delayedSource<T>(gate: Gate, values: Array<T>): DelayedIterable<T>
+    Call println
+      StringLiteral "delayed-source"
+    return
+      Call DelayedIterable<T>
+        Var gate
+        Var values
+  fun makeGarbage()
+    var index
+      IntLiteral 0
+    while
+      Binary Lt
+        Var index
+        IntLiteral 128
+      val garbage
+        Call Node
+          Binary Add
+            StringLiteral "garbage-"
+            StringLiteral "node"
+      assign index
+        Binary Add
+          Var index
+          IntLiteral 1
+  fun collectAndMove()
+    Call gcCollect
+    Call makeGarbage
+    Call gcCollect
+  class IterationTask(val gate: Gate, val entries: Array<Entry<Node>>), SuspendTask<Long>
+    public suspend fun run
+  class RecordingCompletion(), Continuation<Long>
+    public fun resume
+    public fun resumeWithException
+  fun main()
+    val entries: Array<Entry<Node>>
+      ArrayLiteral
+        Call Entry
+          IntLiteral 0L
+          TupleLiteral
+            Call Node
+              StringLiteral "capture-a"
+            StringLiteral "a"
+        Call Entry
+          IntLiteral 1L
+          TupleLiteral
+            Call Node
+              StringLiteral "capture-b"
+            StringLiteral "b"
+        Call Entry
+          IntLiteral 2L
+          TupleLiteral
+            Call Node
+              StringLiteral "capture-c"
+            StringLiteral "c"
+    val fallback
+      Call Node
+        StringLiteral "unset"
+    val readers: MutableArray<() -> Node>
+      ArrayLiteral
+        Lambda 1 suspend=false
+          parameters omitted
+          Var fallback
+        Lambda 2 suspend=false
+          parameters omitted
+          Var fallback
+        Lambda 3 suspend=false
+          parameters omitted
+          Var fallback
+    Call collectAndMove
+    Call installReaders
+      Var entries
+      Var readers
+    Call collectAndMove
+    Call replayReaders
+      Var readers
+      Lambda 4 suspend=false
+        param node: Node
+        FieldAccess text
+          Var node
+    Call replayIterable
+      Call UserIterable
+        ArrayLiteral
+    Call replayIterable
+      Call UserIterable
+        ArrayLiteral
+          IntLiteral 4
+    Call boxedValueIteratorPath
+    Call nestedLoopTargets
+    Call jumpCleanup
+    val gate
+      Call Gate
+        Var None
+    Call startCoroutine
+      Call IterationTask
+        Var gate
+        Var entries
+      Call RecordingCompletion
+    Call println
+      StringLiteral "iterator-suspended"
+    Call collectAndMove
+    MethodCall complete
+      Var gate
+    Call println
+      StringLiteral "range-suspended"
+    Call collectAndMove
+    MethodCall complete
+      Var gate

@@ -1,0 +1,6 @@
+SourceFile
+  RootPackage
+  ImportExact Local consumer.helpers.retained
+  public fun check(): Int
+    =
+      Call retained

@@ -1,0 +1,143 @@
+Module
+  global @scoop$1$bs$3231cd414a536ef970cb433e17539c201aed656f3d65ab7f4118a202e5bb0766 = c"call to abstract method `Continuation.resume`"
+  global @scoop$1$bs$166dff07151161f503e5e1e7bf7517faeef2c98e196abf706d9e12f8f24b051f = c"call to abstract method `Continuation.resumeWithException`"
+  global @scoop$1$bs$eab885666c46995a94cfb4acc258536b7a6b9a2a3aea3ddde79cacc60c137244 = c"call to abstract method `SuspendTask.run`"
+  global @scoop$1$bs$27afa2d5b7a25cf6bdc875b4195a9b92ce2e632983bd7fd2e41c1e803667d2b8 = c"call to abstract method `SuspendRegistration.register`"
+  enum Option niche(kind=managed,payload_variant=0)
+  enum CoroutineStep<Child> niche(kind=managed,payload_variant=0)
+  enum CoroutineSlot<Child> niche(kind=managed,payload_variant=1)
+  fun @scoop$1$cb$13c4b16140e66a903688dabefba897540360a40b6009e8c2e7a4eeec4c359426(ptr<managed>) -> i32
+    local %0 $dependency.receiver: ptr<managed>
+    local %1 $dependency.parameter.value: i32
+    local %2 $dependency.receiver: ptr<managed>
+    local %3 $dependency.argument.0: i32
+    local %4 $dependency.parameter.value: i32
+    local %5 $dependency.receiver: i32
+    local %6 $dependency.argument.0: i32
+    local %7 $dependency.parameter.other: i32
+    local %8 $dependency.receiver: ptr<managed>
+    local %9 $dependency.receiver: i32
+    local %10 $dependency.argument.0: i32
+    local %11 $dependency.parameter.other: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    store param0 -> local0
+    store integer<Int>(0x00000002) -> local1
+    t0 = heap_load local0 +0 : ptr<metadata>
+    t1 = heap_load t0 +88 : ptr<metadata>
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0, local0:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>, i32) -> i32 dispatch[Virtual:0] t1(local0, local1)
+    store t2 -> local5
+    store param0 -> local2
+    store integer<Int>(0x00000003) -> local3
+    store local3 -> local4
+    call managed-direct-target1 sp<managed-call:1> live=[param0:ptr<managed>@0, local2:ptr<managed>@0] t3 = sig=direct1 (ptr<managed>, i32) -> i32 local-fn1(local2, local4)
+    store t3 -> local6
+    store local6 -> local7
+    t4 = integer_Add<Int> local5, local7 : i32
+    store t4 -> local9
+    store param0 -> local8
+    t5 = heap_load local8 +0 : ptr<metadata>
+    t6 = heap_load t5 +88 : ptr<metadata>
+    call managed-direct-target2 sp<managed-call:2> live=[local8:ptr<managed>@0] t7 = sig=direct2 (ptr<managed>) -> i32 dispatch[Virtual:1] t6(local8)
+    store t7 -> local10
+    store local10 -> local11
+    t8 = integer_Add<Int> local9, local11 : i32
+    ret t8
+  fun @scoop$1$cb$9c213b2d6ab13ebdfc8840796e6d4f8b54fbc82e30e45a3e5b5e2f47c9eeed35(ptr<managed>, i32) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret param1
+  fun @scoop$1$cb$89eb87dbefdc397f4990fe5a9288b6695fc566014c1f22a08e490036e4a44ee2(ptr<managed>, ptr<managed>) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    br @unwrap.trap.1
+  block unwrap.trap.1
+    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global0)
+    unreachable
+  fun @scoop$1$cb$0f2b0fab6348c6e30b5b93578ce6a803830001f81e5453074430063765cf90f3(ptr<managed>, ptr<managed>) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    br @unwrap.trap.1
+  block unwrap.trap.1
+    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global1)
+    unreachable
+  fun @scoop$1$cb$eee17861bfd9edb225f572b3959cb50d435b7b2dfe5fea4d2a1cf8aadd9c88a6(ptr<managed>, ptr<managed>) -> enum1
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    br @unwrap.trap.1
+  block unwrap.trap.1
+    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global2)
+    unreachable
+  fun @scoop$1$cb$5d913899b69bf566484711e20214e30a79d24bd1b651f4488dc8ac69b0bc4289(ptr<managed>, ptr<managed>) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    br @unwrap.trap.1
+  block unwrap.trap.1
+    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global3)
+    unreachable
+  fun @scoop$1$cb$6a25e8ecdab8987eef713815ef35b32553b6666eff2651a1023ec7a810b58708(ptr<managed>) -> void
+    local %0 $dependency.parameter.seed: i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    store integer<Int>(0x00000001) -> local0
+    call managed-void-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] sig=void0 (ptr<managed>, i32) external-fn2(param0, local0)
+    t0 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$08a578eb43bf8d80d0c3b94c68320d15907180d74af791a426a81b906dd51687(ptr<managed>, ptr<managed>) -> void
+    local %0 $step: enum1
+    local %1 $exception: ptr<managed>
+    local %2 $sc.1: exception_record
+    local %3 $sc.2: ptr<raw>
+    local %4 $sc.3: ptr<managed>
+  block suspended
+    ret
+  block completed
+    t0 = enum_field e1 v0 f0 local0 : ptr<managed>
+    t1 = heap_load param1 +0 : ptr<metadata>
+    call no-gc-direct-target0 t2 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t1, td0)
+    call managed-void-target0 sp<managed-call:2> live=[param1:ptr<managed>@0, t0:ptr<managed>@0] sig=void0 (ptr<managed>, ptr<managed>) dispatch[Interface:0] t2(param1, t0)
+    t3 = aggregate () : {}
+    ret
+  block failed
+    t4 = heap_load param1 +0 : ptr<metadata>
+    call no-gc-direct-target1 t5 = sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t4, td0)
+    call managed-void-target1 sp<managed-call:1> live=[param1:ptr<managed>@0, local1:ptr<managed>@0] sig=void1 (ptr<managed>, ptr<managed>) dispatch[Interface:1] t5(param1, local1)
+    t6 = aggregate () : {}
+    ret
+  block body_failure
+    (t7, t8) = landingpad : (exception_record, ptr<raw>)
+    store t7 -> local2
+    store t8 -> local3
+    t9 = begin_catch local3 : ptr<managed>
+    store t9 -> local4
+    call managed-direct-target0 sp<managed-call:0> live=[param1:ptr<managed>@0, local4:ptr<managed>@0] t10 = sig=direct2 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local4)
+    store t10 -> local1
+    end_catch
+    br @failed
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    t11 = heap_load param0 +0 : ptr<metadata>
+    call no-gc-direct-target2 t12 = sig=direct3 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t11, td1)
+    invoke managed-direct-target1 sp<managed-invoke:0> roots=[param0:argument, param1:normal+unwind] t13 = sig=direct4 (ptr<managed>, ptr<managed>) -> enum1 dispatch[Interface:0] t12(param0, param1) normal @invoke.normal.1 unwind @body_failure
+    br @invoke.normal.1
+  block invoke.normal.1
+    store t13 -> local0
+    t14 = enum_tag e1 local0 : machine<enum-tag>
+    t15 = MachineEq(EnumTag) t14, machine<enum-tag>(EnumTag(0)) : i1
+    cbr t15 then @completed else @suspended
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=dev.example%3Atype-foundation-inheritance-members-consumer%3A0.1.0;p=;o=-;k=C;x=Child)]) @scoop$1$td$82540875eb340999c70dc39fdde21932e9b403c20de9957c2c5402704cbc3597 type-id=10949036099526600733 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td1 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=dev.example%3Atype-foundation-inheritance-members-consumer%3A0.1.0;p=;o=-;k=C;x=Child)]) @scoop$1$td$faa3f3bd5dfa2f1a5f555a0b5931b16a8af5b959449d1ac3587f7214747c492f type-id=1553860283671396981 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td2 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=dev.example%3Atype-foundation-inheritance-members-consumer%3A0.1.0;p=;o=-;k=C;x=Child)]) @scoop$1$td$2a1b3a3b8bfebef4ee0bda554e871c4544939a29e22698ca3772d539e9585493 type-id=1834387533042810715 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td3 n(c=dev.example%3Atype-foundation-inheritance-members-consumer%3A0.1.0;p=;o=-;k=C;x=Child) @scoop$1$td$0c4ac2ef1fd0f15230aeb2906489e891052a4ac28ebcfc21cc4ecb65154c9690 type-id=17231915899722988557 shape=FixedObject minimum-size=16 align=8 parent=external-td1 vtable=[external-fn0, external-fn1] itables=[external-td0:[external-fn1]]
+  td td4 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td5 g(r=00000005;i=8803552c88972dd2c38e2bc80d40dcadf617288f60648ccefbbafa56ea6b0b64) @scoop$1$td$0169d6d34253fc89b3ff637dc8c731531694b82d253e9a6aae0f78853f89cc56 type-id=16948628423624351071 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td6 g(r=00000007;i=b7f6ef69464c5eaf961b3f80a75f131b27b2ec6659ab2b2a41ea430ae1428e59) @scoop$1$td$bfe1ba0587ed89da059ce221e334314d5a38b70cd4337ec10503d6ecef0a3458 type-id=4938801441618258197 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout Option size=8 align=8 enum-scan=refs[0]
+  layout CoroutineStep<Child> size=8 align=8 enum-scan=refs[0]
+  layout CoroutineSlot<Child> size=8 align=8 enum-scan=refs[0]
+  layout Continuation value size=8 align=8 refs=[0]
+  layout SuspendTask value size=8 align=8 refs=[0]
+  layout SuspendRegistration value size=8 align=8 refs=[0]
+  layout Child value size=8 align=8 refs=[0]
+  layout Child size=16 align=8 refs=[]
+  output library

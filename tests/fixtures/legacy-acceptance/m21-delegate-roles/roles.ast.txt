@@ -1,0 +1,15 @@
+SourceFile
+  RootPackage
+  interface Readable<T>
+    operator fun getValue
+  class BoxDelegate<T>(val value: T), Readable<T>
+    operator fun getValue
+    operator fun provideDelegate
+  class MutableDelegate(var value: Int)
+    operator fun getValue
+    operator fun setValue
+  class Ordinary()
+    fun getValue
+  fun main()
+    Call println
+      IntLiteral 21

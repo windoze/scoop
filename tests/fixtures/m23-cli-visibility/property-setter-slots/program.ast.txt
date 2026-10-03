@@ -1,0 +1,29 @@
+SourceFile
+  RootPackage
+  public open class Base()
+    public open var internalWriter: Int <computed>
+      get()
+        IntLiteral 1
+      internal set(value)
+    public open var protectedWriter: Int <computed>
+      get()
+        IntLiteral 2
+      protected set(value)
+    public open var visible: Int <computed>
+      get()
+        IntLiteral 3
+      public set(value)
+  internal class Child() : Base(<0 args>)
+    public final override var internalWriter: Int <computed>
+      get()
+        IntLiteral 4
+      internal set(value)
+    public final override var protectedWriter: Int <computed>
+      get()
+        IntLiteral 5
+      protected set(value)
+    public final override var visible: Int <computed>
+      get()
+        IntLiteral 6
+      public set(value)
+  fun main()

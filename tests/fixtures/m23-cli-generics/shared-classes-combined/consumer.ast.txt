@@ -1,0 +1,90 @@
+SourceFile
+  QualifiedPackage consumer.classes
+  ImportStar Local upstream.classes.*
+  private class Local<T>(value: T, val remote: Remote<T>) : Base<T>(<1 args>)
+    public fun select
+  private object State
+    val delta: Int =
+      IntLiteral 0
+  public fun exercise<T>(value: T, read: (T) -> Int): Int
+    val local
+      Call Local
+        Var value
+        Call create
+          Var value
+    val base: Base<T>
+      Var local
+    val receiver: ValueSource<T>
+      Var local
+    if
+      Binary Ne
+        Call read
+          FieldAccess value
+            Var base
+        IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call read
+          MethodCall select
+            Var base
+            Var value
+        IntLiteral 42
+      return
+        IntLiteral 2
+    if
+      Binary Ne
+        Call read
+          MethodCall read
+            Var receiver
+        IntLiteral 42
+      return
+        IntLiteral 3
+    val source: Array<Local<T>>
+      ArrayLiteral
+        Var local
+    val values
+      Call MutableArray
+        Var source
+    assign []
+      Var values
+      IntLiteral 0L
+      Var local
+    return
+      Binary Add
+        Call read
+          FieldAccess alternate
+            FieldAccess remote
+              Index
+                Var values
+                IntLiteral 0L
+        FieldAccess delta
+          Var State
+  public fun result(): Int
+    if
+      Binary Ne
+        Call exercise<String>
+          StringLiteral "value"
+          Lambda 0 suspend=false
+            param item: _
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call exercise<Unit>
+          UnitLiteral
+          Lambda 1 suspend=false
+            param item: _
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 2
+    return
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 2 suspend=false
+          param item: _
+          Var item

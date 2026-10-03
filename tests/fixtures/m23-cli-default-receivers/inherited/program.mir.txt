@@ -1,0 +1,216 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class Child vtable=0 itables=0
+  class Parent vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  fun main @fn0() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Child
+        ClassAlloc Child
+      call external0 direct
+        Type Child
+        Local $new.1
+      val child: Child
+        Type Child
+        Local $new.1
+      val $dependency.receiver: Parent
+        Type Parent
+        Retype Parent
+          Type Child
+          Local child
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = external1 direct
+        Type Parent
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.2
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external2 direct
+        Type IllegalStateException
+        Local $new.2
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.2
+    bb2 if.merge.2
+      val $argument.0: Child
+        Type Child
+        Local child
+      val $parameter.child: Child
+        Type Child
+        Local $argument.0
+      call $dependency.receiver: Int = @fn1 direct
+        Type Child
+        Local $parameter.child
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb3 if.then.3
+      val $default.local.0: String
+        Type String
+        StringConst @str1
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.3
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external2 direct
+        Type IllegalStateException
+        Local $new.3
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.3
+    bb4 if.merge.4
+      val $dependency.argument.0: Child
+        Type Child
+        Local child
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.parameter.child: Child
+        Type Child
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = external3 direct
+        Type Child
+        Local $dependency.parameter.child
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb5 bb6
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb5 if.then.5
+      val $default.local.0: String
+        Type String
+        StringConst @str2
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.4
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external2 direct
+        Type IllegalStateException
+        Local $new.4
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.4
+    bb6 if.merge.6
+      return
+  fun probe @fn1(child: Child) -> Int
+    bb0 entry
+      val $dependency.argument.0: Child
+        Type Child
+        Local child
+      val $dependency.parameter.child: Child
+        Type Child
+        Local $dependency.argument.0
+      val $default.local.1: Child
+        Type Child
+        Local $dependency.parameter.child
+      val $default.local.2: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $default.local.3: Int
+        Type Int
+        Local $default.local.2
+      call $dependency.parameter.value: Int = external1 direct
+        Type Parent
+        Retype Parent
+          Type Child
+          Local $default.local.1
+        Type Int
+        Local $default.local.3
+      call $call.1: Int = external3 direct
+        Type Child
+        Local $dependency.parameter.child
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Int
+        Local $call.1
+  str @str0 "illegal state"
+  str @str1 "illegal state"
+  str @str2 "illegal state"
+  output executable @fn0

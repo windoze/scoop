@@ -1,0 +1,36 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `Point` is ambiguous in the qualified package layer",
+    "notes": [
+      {
+        "message": "candidate declared here",
+        "origin": {
+          "cone": "b165cff08f0e4c7399dc5d2dc5f35eb1ed1db419515c2d6d5b75dfafd1e44d61",
+          "end": 62,
+          "kind": "source",
+          "path": "src/main.scoop",
+          "start": 25
+        }
+      },
+      {
+        "message": "candidate declared here",
+        "origin": {
+          "cone": "51528abb22f645eaa0d4b9a6d183b4a57f0b12c4ab4648367fc94858a56d32b5",
+          "end": 62,
+          "kind": "source",
+          "path": "src/main.scoop",
+          "start": 26
+        }
+      }
+    ],
+    "origin": {
+      "cone": "b165cff08f0e4c7399dc5d2dc5f35eb1ed1db419515c2d6d5b75dfafd1e44d61",
+      "end": 111,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 106
+    },
+    "severity": "error"
+  }
+]

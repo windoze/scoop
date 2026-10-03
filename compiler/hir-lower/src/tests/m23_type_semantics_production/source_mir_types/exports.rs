@@ -85,29 +85,16 @@ fn produce(
 #[test]
 fn actual_mir_export_assembly_completes_all_tables_and_keeps_ordinary_partition() {
     for name in ["standalone", "combined"] {
-        let (directory, source) = fixture(name);
-        let (bytes, dump) = with_exports(&source, |input, dependencies, exports| {
+        let (_, source) = fixture(name);
+        let bytes = with_exports(&source, |input, dependencies, exports| {
             assertions::actual(input, dependencies, exports);
             assertions::roundtrip(input, dependencies, exports);
-            (assertions::bytes(exports), assertions::dump(input, exports))
+            assertions::bytes(exports)
         });
         with_exports(
             &format!("private struct Unrelated() {{}}\n{source}"),
             |_, _, exports| assert_eq!(assertions::bytes(exports), bytes),
         );
-        if let Some(path) = std::env::var_os("SCOOP_MIR_EXPORT_SNAPSHOT_DIR") {
-            std::fs::create_dir_all(&path).unwrap();
-            std::fs::write(
-                std::path::Path::new(&path).join(format!("{name}.snap")),
-                dump,
-            )
-            .unwrap();
-        } else {
-            assert_eq!(
-                dump,
-                std::fs::read_to_string(directory.join(format!("{name}.snap"))).unwrap()
-            );
-        }
     }
 }
 

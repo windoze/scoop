@@ -1,0 +1,131 @@
+schema = 1
+name = "native-link-dynamic-ordinary"
+inputs = ["cone", "../../m23-native-link/direct/root.scoop", "../../m23-native-link/direct/native.c", "native-sources/compile_m23_facade.c", "native-sources/compile_ordinary.c"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin"]
+tags = ["native-link", "program-link", "stage-golden"]
+
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${fixture}/cone", "to" = "${work}/sources/ordinary-load"}}, {"copy" = {"from" = "${fixture}/../../m23-native-link/direct/root.scoop", "to" = "${work}/sources/ordinary-load/src/main.scoop"}}, {"mkdir" = {"path" = "${work}/native"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "library_binding"
+files = [{"replace" = {"path" = "${work}/sources/ordinary-load/src/main.scoop", "old" = "m23_math", "new" = "m23_facade"}}]
+checks = []
+
+[[steps]]
+name = "prepare_compile_m23_leaf"
+files = [{"copy" = {"from" = "${fixture}/../../m23-native-link/direct/native.c", "to" = "${work}/sources/native/build-m23_leaf.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "compile_m23_leaf"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/build-m23_leaf.c", "-o", "${work}/objects/build-m23_leaf.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "dylib_m23_leaf"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-dynamiclib", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "${work}/objects/build-m23_leaf.o", "-install_name", "@rpath/libm23_leaf.dylib", "-current_version", "2.0", "-compatibility_version", "1.0", "-o", "${work}/native/libm23_leaf.dylib"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "prepare_compile_m23_facade"
+files = [{"copy" = {"from" = "${fixture}/native-sources/compile_m23_facade.c", "to" = "${work}/sources/native/build-m23_facade.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "compile_m23_facade"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/build-m23_facade.c", "-o", "${work}/objects/build-m23_facade.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "dylib_m23_facade"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-dynamiclib", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "${work}/objects/build-m23_facade.o", "-install_name", "@rpath/libm23_facade.dylib", "-current_version", "2.0", "-compatibility_version", "1.0", "-Wl,-reexport_library", "${work}/native/libm23_leaf.dylib", "-o", "${work}/native/libm23_facade.dylib"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${work}/sources/ordinary-load", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "lir.txt"}]
+
+[[steps]]
+name = "isolate"
+files = [{"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}}, {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}}, {"mkdir" = {"path" = "${work}/empty-sysroot"}}, {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}}, {"remove" = {"path" = "${work}/sources"}}]
+checks = []
+
+[[steps]]
+name = "prepare_compile_ordinary"
+files = [{"copy" = {"from" = "${fixture}/native-sources/compile_ordinary.c", "to" = "${work}/sources/native/build-ordinary.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "compile_ordinary"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/build-ordinary.c", "-o", "${work}/objects/build-ordinary.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "dylib_ordinary"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-dynamiclib", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "${work}/objects/build-ordinary.o", "-install_name", "@rpath/libm23_facade.dylib", "-current_version", "2.0", "-compatibility_version", "1.0", "${work}/native/libm23_leaf.dylib", "-o", "${work}/native/libm23_facade.dylib"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "previous_reject_nonpublic"
+files = [{"write" = {"path" = "${work}/program", "data" = "previous executable"}}]
+checks = []
+
+[[steps]]
+name = "reject_nonpublic"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "reject_nonpublic.json"}
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
+
+[[steps]]
+name = "remove_dependency"
+files = [{"remove" = {"path" = "${work}/native/libm23_leaf.dylib"}}]
+checks = []
+
+[[steps]]
+name = "previous_reject_missing"
+files = [{"write" = {"path" = "${work}/program", "data" = "previous executable"}}]
+checks = []
+
+[[steps]]
+name = "reject_missing"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "reject_missing.json"}
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"file" = "${work}/program", "equals" = "previous executable"}]

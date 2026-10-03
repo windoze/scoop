@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for constructor `Array` in nominal constructor candidate layer:\n  - class Array<T>(source: MutableArray<T>) — argument for `source` has type Array<Int>, which is not a subtype of MutableArray<T>",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 51,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 50
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown variable `b`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 66,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 65
+    },
+    "severity": "error"
+  }
+]

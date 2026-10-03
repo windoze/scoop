@@ -31,17 +31,17 @@ pub(super) fn verify(
         .unwrap()
     };
     assert!(matches!(
-        resolve(&[records[1], records[0]]).resolve(&mut identities),
+        resolve(&[records[1].clone(), records[0].clone()]).resolve(&mut identities),
         Err(ResolutionError::Order(BuildError::NonCanonicalOrder {
             index: 1
         }))
     ));
     assert!(
-        matches!(resolve(&[records[0], records[0]]).resolve(&mut identities),
+        matches!(resolve(&[records[0].clone(), records[0].clone()]).resolve(&mut identities),
         Err(ResolutionError::Order(BuildError::Duplicate(slot))) if slot == records[0].slot())
     );
     assert!(
-        matches!(CanonicalNominalDispatchSelectionsV1::try_new(vec![records[0], records[0]]),
+        matches!(CanonicalNominalDispatchSelectionsV1::try_new(vec![records[0].clone(), records[0].clone()]),
         Err(BuildError::Duplicate(slot)) if slot == records[0].slot())
     );
     let mut missing = scoop_identity::PendingIdentityValidation::new()

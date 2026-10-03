@@ -1,0 +1,86 @@
+SourceFile
+  RootPackage
+  class SafeFailure() : Exception(<1 args>)
+  class SafePayload(val text: String)
+  class SafeGate(var waiter: Continuation<Int>?)
+    fun complete
+  class SafeRegistration(val gate: SafeGate), SuspendRegistration<Int>
+    public fun register
+  suspend fun awaitSafe(gate: SafeGate): Int
+    =
+      Call suspendCoroutine
+        Call SafeRegistration
+          Var gate
+  fun safeCombinedDefault(): String
+    Call println
+      StringLiteral "safe-combined-default"
+    return
+      StringLiteral "!"
+  fun makeSafeTransform(prefix: String): (SafePayload) -> String
+    Call println
+      StringLiteral "safe-transform-created"
+    return
+      Lambda 0 suspend=false
+        param payload: SafePayload
+        Binary Add
+          Var prefix
+          FieldAccess text
+            Var payload
+  class AsyncSafeBox<T>(val gate: SafeGate, val payload: T, val label: String)
+    suspend fun apply
+  class SafeTask(val maybe: AsyncSafeBox<SafePayload>?, val prefix: String), SuspendTask<String>
+    public suspend fun run
+  class SafeCompletion(val label: String), Continuation<String>
+    public fun resume
+    public fun resumeWithException
+  fun main()
+    val successGate
+      Call SafeGate
+        Var None
+    val failureGate
+      Call SafeGate
+        Var None
+    val payload
+      Call SafePayload
+        StringLiteral "payload"
+    val success: AsyncSafeBox<SafePayload>?
+      Call Some
+        Call AsyncSafeBox
+          Var successGate
+          Var payload
+          StringLiteral "-success"
+    val failure: AsyncSafeBox<SafePayload>?
+      Call Some
+        Call AsyncSafeBox
+          Var failureGate
+          Var payload
+          StringLiteral "-failure"
+    val absent: AsyncSafeBox<SafePayload>?
+      Var None
+    Call startCoroutine
+      Call SafeTask
+        Var success
+        StringLiteral "captured-"
+      Call SafeCompletion
+        StringLiteral "safe-success"
+    Call startCoroutine
+      Call SafeTask
+        Var failure
+        StringLiteral "captured-"
+      Call SafeCompletion
+        StringLiteral "safe-failure"
+    Call startCoroutine
+      Call SafeTask
+        Var absent
+        StringLiteral "unused-"
+      Call SafeCompletion
+        StringLiteral "safe-absent"
+    Call println
+      StringLiteral "safe-suspended"
+    Call gcCollect
+    MethodCall complete
+      Var successGate
+      IntLiteral 1
+    MethodCall complete
+      Var failureGate
+      IntLiteral 0

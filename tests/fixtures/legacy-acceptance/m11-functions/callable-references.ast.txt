@@ -1,0 +1,129 @@
+SourceFile
+  RootPackage
+  fun increment(value: Int): Int
+    =
+      Binary Add
+        Var value
+        IntLiteral 1
+  fun identity<T>(value: T): T
+    =
+      Var value
+  fun describe(value: Int): String
+    =
+      StringLiteral "int"
+  fun describe(value: String): String
+    =
+      Var value
+  open class BaseMapper()
+    fun map
+  class TimesTwo() : BaseMapper(<0 args>)
+    fun map
+  class PlusHundred() : BaseMapper(<0 args>)
+    fun map
+  class MapperFactory(var calls: Int)
+    fun make
+  interface TextMapper
+    fun map
+  class PrefixMapper(val prefix: String), TextMapper
+    fun map
+  struct ValueMapper
+    field offset: Int
+    fun map
+  class GenericMapper()
+    fun choose
+  class OverloadedMapper()
+    fun choose
+    fun choose
+  class ThrowingMapper()
+    fun map
+  fun main()
+    val inferred
+      CallableReference 0 increment
+    val generic: (Int) -> Int
+      CallableReference 1 identity
+    val overloaded: (String) -> String
+      CallableReference 2 describe
+    val factory
+      Call MapperFactory
+        IntLiteral 0
+    val once
+      CallableReference 3 map
+        MethodCall make
+          Var factory
+    Call println
+      FieldAccess calls
+        Var factory
+    var selected: BaseMapper
+      Call TimesTwo
+    val virtual
+      CallableReference 4 map
+        Var selected
+    assign selected
+      Call PlusHundred
+    val mapper: TextMapper
+      Call PrefixMapper
+        StringLiteral "kept-"
+    val interfaceReference
+      CallableReference 5 map
+        Var mapper
+    var valueMapper
+      Call ValueMapper
+        IntLiteral 2
+    val valueReference
+      CallableReference 6 map
+        Var valueMapper
+    assign valueMapper
+      Call ValueMapper
+        IntLiteral 100
+    val genericMember: (String) -> String
+      CallableReference 7 choose
+        Call GenericMapper
+    val concreteWins: (Int) -> Int
+      CallableReference 8 choose
+        Call OverloadedMapper
+    val throwing
+      CallableReference 9 map
+        Call ThrowingMapper
+    Call gcCollect
+    Call println
+      Call inferred
+        IntLiteral 41
+    Call println
+      Call generic
+        IntLiteral 42
+    Call println
+      Call overloaded
+        StringLiteral "string"
+    Call println
+      Call once
+        IntLiteral 21
+    Call println
+      Call virtual
+        IntLiteral 21
+    Call println
+      MethodCall map
+        Var selected
+        IntLiteral 21
+    Call println
+      Call interfaceReference
+        StringLiteral "alive"
+    Call println
+      Call valueReference
+        IntLiteral 40
+    Call println
+      MethodCall map
+        Var valueMapper
+        IntLiteral 40
+    Call println
+      Call genericMember
+        StringLiteral "generic"
+    Call println
+      Call concreteWins
+        IntLiteral 1
+    try
+      Call println
+        Call throwing
+          IntLiteral 0
+    catch exception: ArithmeticException
+      Call println
+        StringLiteral "caught"

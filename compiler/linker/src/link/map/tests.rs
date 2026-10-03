@@ -78,3 +78,29 @@ fn trace_rejects_extra_repeated_and_missing_inputs() {
         assert!(trace(text, &objects, &stubs).is_err());
     }
 }
+
+#[test]
+fn retained_cone_symbols_keep_their_actual_input_member_and_address() {
+    use scoop_slib::{MemberStableKey, SlibMemberRecord, SlibMemberRole};
+
+    let objects = [
+        PathBuf::from("/private/left.o"),
+        PathBuf::from("/private/right.o"),
+    ];
+    let cone = ConeIdentity::CORE;
+    let member = SlibMemberRecord::new(
+        cone,
+        MemberStableKey::HirMetadata,
+        SlibMemberRole::HirMetadata,
+        &[],
+    )
+    .unwrap()
+    .id();
+    let origins = BTreeMap::from([(objects[1].clone(), ObjectOrigin::Cone { cone, member })]);
+    let text = "# Object files:\n[ 1] /private/left.o\n[ 2] /private/right.o\n# Symbols:\n0x1000 0x0 [ 2] _shared\n# Dead Stripped Symbols:\n0x0 0x10 [ 1] _shared\n";
+    let map = check(text, &objects, &BTreeMap::new(), &origins).unwrap();
+    let [row] = map.cones["_shared"].as_slice() else {
+        panic!("only the retained symbol belongs to the final map");
+    };
+    assert_eq!((row.cone, row.member, row.address), (cone, member, 0x1000));
+}

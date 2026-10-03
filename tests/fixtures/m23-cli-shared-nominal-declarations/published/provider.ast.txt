@@ -1,0 +1,9 @@
+SourceFile
+  RootPackage
+  private open class StorageBase()
+  private class SecretStorage() : StorageBase(<0 args>)
+  public class Envelope()
+    private val storage: SecretStorage = <expr>
+      Call SecretStorage
+    private nested class Hidden
+    public nested object Cache

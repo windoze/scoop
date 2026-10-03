@@ -6,15 +6,14 @@ fn encoded_global(module: &mut Module, ty: Type, payload: MirConstantImage) -> G
         storage_owner: test_static_storage_owner("constant"),
         ty,
         mutable: false,
-        storage: GlobalStorage::Local {
-            thread_local: false,
+        storage: GlobalStorage::Managed {
             initial_state: MirStaticInitialState::EncodedStaticValue { payload },
         },
     })
 }
 
 fn global_payload_mut(module: &mut Module, global: GlobalId) -> &mut MirConstantImage {
-    let GlobalStorage::Local {
+    let GlobalStorage::Managed {
         initial_state: MirStaticInitialState::EncodedStaticValue { payload },
         ..
     } = &mut module.globals[global].storage

@@ -1,0 +1,128 @@
+schema = 1
+name = "program-link-effective-inputs"
+inputs = ["cone", "../../m23-program-link/read-println.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["program-link", "stage-golden", "cache", "runtime", "moving-gc"]
+
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${fixture}/cone", "to" = "${work}/sources/root"}}, {"copy" = {"from" = "${fixture}/../../m23-program-link/read-println.scoop", "to" = "${work}/sources/root/src/main.scoop"}}, {"mkdir" = {"path" = "${work}/native"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-build", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-build", "--dump-scope", "sources"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"file" = "${work}/dump-build/${build.result.root.identity}/ast.txt", "snapshot" = "build.ast.txt"}, {"file" = "${work}/dump-build/${build.result.root.identity}/hir.txt", "snapshot" = "build.hir.txt"}, {"file" = "${work}/dump-build/${build.result.root.identity}/mir.txt", "snapshot" = "build.mir.txt"}, {"file" = "${work}/dump-build/${build.result.root.identity}/lir.txt", "snapshot" = "build.lir.txt"}]
+
+[[steps]]
+name = "isolate"
+files = [{"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}}, {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}}, {"mkdir" = {"path" = "${work}/empty-sysroot"}}, {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}}, {"remove" = {"path" = "${work}/sources"}}]
+checks = []
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--dump-plan"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"actual" = "${link.result.link_plan}", "snapshot" = "link.plan", "normalize" = ["paths"]}]
+
+[[steps]]
+name = "original"
+argv = ["${work}/program"]
+exit = 0
+stdout = "42\n"
+stderr = ""
+
+[[steps]]
+name = "changed_source"
+files = [{"copy" = {"from" = "${fixture}/cone", "to" = "${work}/sources/root"}}, {"copy" = {"from" = "${fixture}/../../m23-program-link/read-println.scoop", "to" = "${work}/sources/root/src/main.scoop"}}, {"replace" = {"path" = "${work}/sources/root/src/main.scoop", "old" = "42", "new" = "43"}}]
+checks = []
+
+[[steps]]
+name = "changed"
+argv = ["${scoop}", "build", "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-changed", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-changed", "--dump-scope", "sources"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"file" = "${work}/dump-changed/${changed.result.root.identity}/ast.txt", "snapshot" = "changed.ast.txt"}, {"file" = "${work}/dump-changed/${changed.result.root.identity}/hir.txt", "snapshot" = "changed.hir.txt"}, {"file" = "${work}/dump-changed/${changed.result.root.identity}/mir.txt", "snapshot" = "changed.mir.txt"}, {"file" = "${work}/dump-changed/${changed.result.root.identity}/lir.txt", "snapshot" = "changed.lir.txt"}]
+
+[[steps]]
+name = "changed_artifacts"
+files = [{"copy" = {"from" = "${changed.result.root.path}", "to" = "${work}/changed-artifacts/root.slib"}}, {"copy" = {"from" = "${changed.result.dependencies.0.path}", "to" = "${work}/changed-artifacts/0.slib"}}, {"move" = {"from" = "${work}/sources", "to" = "${work}/parked-sources"}}]
+checks = []
+
+[[steps]]
+name = "changed_link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/changed-artifacts/root.slib", "--dependency-slib", "${work}/changed-artifacts/0.slib", "--runtime-objects", "${changed.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"actual" = "${changed_link.result.link_plan}", "equals" = "${link.result.link_plan}"}, {"actual" = "${changed_link.result.link_plan_fingerprint}", "not_equals" = "${link.result.link_plan_fingerprint}"}]
+
+[[steps]]
+name = "run_changed"
+argv = ["${work}/program"]
+exit = 0
+stdout = "43\n"
+stderr = ""
+
+[[steps]]
+name = "runtime_sources"
+files = [{"move" = {"from" = "${work}/parked-sources", "to" = "${work}/sources"}}, {"copy" = {"from" = "${runtime}/src", "to" = "${work}/runtime-source/src"}}, {"copy" = {"from" = "${runtime}/include", "to" = "${work}/runtime-source/include"}}, {"replace" = {"path" = "${work}/runtime-source/src/rt.c", "old" = "/* Scoop runtime (DESIGN section 3). C11. */", "new" = "/* Scoop runtime (DESIGN section 3). C11. */\n#pragma clang optimize off"}}]
+checks = []
+
+[[steps]]
+name = "runtime_build"
+argv = ["${scoop}", "build", "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${work}/runtime-source", "--cache-dir", "${cache}", "--target-dir", "${work}/runtime-target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${runtime_build.result.observations.child_invocations}", "equals" = []}, {"actual" = "${runtime_build.result.link_plan_fingerprint}", "not_equals" = "${changed_link.result.link_plan_fingerprint}"}, {"actual" = "${runtime_build.result.runtime_index}", "not_equals" = "${changed.result.runtime_index}"}]
+
+[[steps]]
+name = "remove_all_sources"
+files = [{"remove" = {"path" = "${work}/sources"}}, {"remove" = {"path" = "${work}/runtime-source"}}]
+checks = []
+
+[[steps]]
+name = "runtime_link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/changed-artifacts/root.slib", "--dependency-slib", "${work}/changed-artifacts/0.slib", "--runtime-objects", "${runtime_build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"actual" = "${runtime_link.result.link_plan_fingerprint}", "equals" = "${runtime_build.result.link_plan_fingerprint}"}, {"actual" = "${runtime_link.result.link_plan_fingerprint}", "not_equals" = "${changed_link.result.link_plan_fingerprint}"}, {"actual" = "${runtime_link.result.link_plan}", "snapshot" = "runtime.plan"}]
+
+[[steps]]
+name = "changed_runtime"
+argv = ["${work}/program"]
+exit = 0
+stdout = "43\n"
+stderr = ""
+
+[[steps]]
+name = "changed_runtime_moving"
+argv = ["${work}/program"]
+exit = 0
+stdout = "43\n"
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}

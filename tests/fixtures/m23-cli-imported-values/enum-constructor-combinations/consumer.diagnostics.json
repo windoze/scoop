@@ -1,0 +1,28 @@
+[
+  {
+    "severity": "warning",
+    "code": "SCOOPC_COMPILER_WARNING",
+    "message": "`choice` is a catch-all binding because `Choice` has no variant named `choice`; qualify an intended variant as `E.V`, or use `_` or an intentional binding name for a catch-all",
+    "origin": {
+      "kind": "source",
+      "cone": "05cabbd9ae2cefb58134bfe09ffee95776b195a5633dad003b0b2e4121add209",
+      "path": "src/main.scoop",
+      "start": 972,
+      "end": 978
+    },
+    "notes": []
+  },
+  {
+    "severity": "warning",
+    "code": "SCOOPC_COMPILER_WARNING",
+    "message": "`draft` is a catch-all binding because `Draft` has no variant named `draft`; qualify an intended variant as `E.V`, or use `_` or an intentional binding name for a catch-all",
+    "origin": {
+      "kind": "source",
+      "cone": "05cabbd9ae2cefb58134bfe09ffee95776b195a5633dad003b0b2e4121add209",
+      "path": "src/main.scoop",
+      "start": 983,
+      "end": 988
+    },
+    "notes": []
+  }
+]

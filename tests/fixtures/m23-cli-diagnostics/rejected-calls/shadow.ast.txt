@@ -1,0 +1,9 @@
+SourceFile
+  RootPackage
+  struct ForeignCallback<T>
+    field value: T
+  fun main()
+    Call println
+      FieldAccess value
+        Call ForeignCallback
+          IntLiteral 42

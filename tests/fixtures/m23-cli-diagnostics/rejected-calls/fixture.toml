@@ -1,0 +1,67 @@
+schema = 1
+name = "cli-invalid-declarations-retain-language-diagnostics"
+inputs = ["../../m7-overload/errors/duplicate-signature.scoop", "../../m7-overload/errors/duplicate-return-only.scoop", "../../m13-callback/errors/direct-construction.scoop", "callback-alias.scoop", "shadow.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["cli", "diagnostics", "negative", "callback"]
+
+[vars]
+options = ["--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+
+[[steps]]
+name = "duplicate"
+argv = ["${scoop}", "build", "${fixture}/../../m7-overload/errors/duplicate-signature.scoop", {each = "${options}"}]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "duplicate.json"}
+
+[[steps]]
+name = "duplicate_return"
+argv = ["${scoop}", "build", "${fixture}/../../m7-overload/errors/duplicate-return-only.scoop", {each = "${options}"}]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "duplicate_return.json"}
+
+[[steps]]
+name = "callback"
+argv = ["${scoop}", "build", "${fixture}/../../m13-callback/errors/direct-construction.scoop", {each = "${options}"}]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "callback.json"}
+
+[[steps]]
+name = "alias"
+argv = ["${scoop}", "build", "${fixture}/callback-alias.scoop", {each = "${options}"}]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "alias.json"}
+
+[[steps]]
+name = "shadow"
+argv = ["${scoop}", "build", "${fixture}/shadow.scoop", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump/${shadow.result.root.identity}/ast.txt", snapshot = "shadow.ast.txt"},
+  {file = "${work}/dump/${shadow.result.root.identity}/hir.txt", snapshot = "shadow.hir.txt"},
+  {file = "${work}/dump/${shadow.result.root.identity}/mir.txt", snapshot = "shadow.mir.txt"},
+  {file = "${work}/dump/${shadow.result.root.identity}/lir.txt", snapshot = "shadow.lir.txt"},
+]
+
+[[steps]]
+name = "run"
+argv = ["${shadow.result.output}"]
+exit = 0
+stdout = "42\n"
+stderr = ""

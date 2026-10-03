@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m22-binding-patterns/errors/class-component-suspend-context.scoop:8:10: error: suspend function `Async.component1` cannot be called from non-suspend function `main`

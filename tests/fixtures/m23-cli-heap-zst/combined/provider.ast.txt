@@ -1,0 +1,72 @@
+SourceFile
+  RootPackage
+  public struct HeapEmpty
+  public struct HeapPair
+    field first: HeapEmpty
+    field second: HeapEmpty
+  public class HeapCell(var empty: HeapEmpty)
+  public open class HeapBase(var first: HeapEmpty)
+  public class HeapDerived(var number: Int, var pair: HeapPair) : HeapBase(<1 args>)
+  public var heapEffects: Int = <expr>
+  public object HeapSingleton
+    public var empty: HeapEmpty = <expr>
+      Call heapEmptySource
+  public fun heapEmptySource(): HeapEmpty
+    assign heapEffects
+      Binary Add
+        Var heapEffects
+        IntLiteral 1
+    return
+      Call HeapEmpty
+  public fun heapClosureRoundtrip(): HeapEmpty
+    val empty
+      Call heapEmptySource
+    val pair
+      Call HeapPair
+        Var empty
+        Call HeapEmpty
+    val derived
+      Call HeapDerived
+        IntLiteral 7
+        Var pair
+    val changing
+      Call HeapCell
+        Var empty
+    val readEmpty: () -> HeapEmpty
+      Lambda 0 suspend=false
+        parameters omitted
+        Var empty
+    val readPair: () -> HeapPair
+      Lambda 1 suspend=false
+        parameters omitted
+        Var pair
+    val readReference: () -> HeapDerived
+      Lambda 2 suspend=false
+        parameters omitted
+        Var derived
+    val readChanging: () -> HeapEmpty
+      Lambda 3 suspend=false
+        parameters omitted
+        FieldAccess empty
+          Var changing
+    assign .empty
+      Var changing
+      Call heapEmptySource
+    assign .pair
+      Call readReference
+      Call readPair
+    assign .first
+      Var derived
+      Call readEmpty
+    assign .empty
+      Var HeapSingleton
+      Call readChanging
+    assign .number
+      Var derived
+      Binary Add
+        FieldAccess number
+          Var derived
+        Var heapEffects
+    return
+      FieldAccess empty
+        Var HeapSingleton

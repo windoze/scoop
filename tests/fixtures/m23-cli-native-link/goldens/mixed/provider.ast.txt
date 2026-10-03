@@ -1,0 +1,36 @@
+SourceFile
+  QualifiedPackage nativelink.mixed
+    @Extern(lib = "m23_mix_archive", name = "m23_archived")
+  public fun archived(value: Int): Int
+    @Extern(lib = "m23_mix_dynamic", name = "m23_dynamic")
+  public fun dynamic(value: Int): Int
+  public fun shared<T>(marker: T, value: Int = <expr>): Int
+    @Unsafe block
+      return
+        Binary Add
+          Call archived
+            Var value
+          Call dynamic
+            Var value
+  private fun initialize(): Int
+    Call println
+      IntLiteral 100
+    @Unsafe block
+      return
+        Call archived
+          IntLiteral 3
+  public val eager: Int = <expr>
+  private fun initializeLazy(): Int
+    Call println
+      IntLiteral 200
+    @Unsafe block
+      return
+        Call dynamic
+          IntLiteral 4
+  private object Delayed
+    val value: Int =
+      Call initializeLazy
+  public fun readLazy(): Int
+    =
+      FieldAccess value
+        Var Delayed

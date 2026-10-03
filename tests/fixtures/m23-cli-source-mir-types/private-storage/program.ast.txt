@@ -1,0 +1,29 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call verifyType
+      Binary Eq
+        Call result
+        IntLiteral 42
+    Call verifyType
+      Binary Eq
+        MethodCall Item
+          Var Parcel
+          StringLiteral "value"
+        MethodCall Item
+          Var Parcel
+          StringLiteral "value"
+    val empty: Parcel<Int>
+      FieldAccess Empty
+        Var Parcel
+    Call verifyType
+      Binary Eq
+        Var empty
+        FieldAccess Empty
+          Var Parcel

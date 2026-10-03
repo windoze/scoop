@@ -1,0 +1,257 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Later>
+    Completed(value: Later)
+    Suspended()
+  enum CoroutineSlot<Later>
+    Empty()
+    Value(value: Later)
+  class Later vtable=0 itables=0
+  class VirtualBox<Later> vtable=1 itables=0
+  class VirtualChild<Later> vtable=1 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<Later>
+  interface SuspendTask<Later>
+  interface SuspendRegistration<Later>
+  generated_exact_type get0 location=enum1 nominal_id=2337cf3da73a48a455c2759a62de7b294825669ad1ee56dc77028773f2a9a734 exact_id=084c08d0a421cc11c9d922cf11048c23f9961d0cca09853e1f50d1d526e9012c
+  generated_exact_type get1 location=enum2 nominal_id=67ce3b7e252eb3154ccc526f53799f5794bed85307bdc0108b670e83e3d4159c exact_id=d82f42c3fcdf524c4068a3edeb5357562f6ba0718b3311fd0f0dc19176e16986
+  generated_callable gc0 function=@fn13 id=760423b1f9580d591237caeee83cdaf41d2ffd36252f046ec3be683becd2740c
+  fun check @fn0() -> Int
+    bb0 entry
+      call $argument.0: Int = external0 direct
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Later
+        ClassAlloc Later
+      call @fn10 direct
+        Type Later
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.0: Later
+        Type Later
+        Local $new.1
+      val $dependency.parameter.value: Later
+        Type Later
+        Local $dependency.argument.0
+      call value: Later = @fn1 direct
+        Type Later
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Later
+        ClassAlloc Later
+      call @fn10 direct
+        Type Later
+        Local $new.2
+        Type Int
+        Local $parameter.value
+      val first: Later
+        Type Later
+        Local $new.2
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.3
+        Type Later
+        ClassAlloc Later
+      call @fn10 direct
+        Type Later
+        Local $new.3
+        Type Int
+        Local $parameter.value
+      val second: Later
+        Type Later
+        Local $new.3
+      return
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local value
+  fun make @fn1(value: Later) -> Later
+    bb0 entry
+      val $dependency.local.2: Later
+        Type Later
+        Local value
+      val $dependency.local.3: Later
+        Type Later
+        Local value
+      val $dependency.local.4: Later
+        Type Later
+        Local $dependency.local.2
+      val $dependency.local.5: Later
+        Type Later
+        Local $dependency.local.3
+      assign $new.1
+        Type VirtualChild<Later>
+        ClassAlloc VirtualChild<Later>
+      call @fn11 direct
+        Type VirtualChild<Later>
+        Local $new.1
+        Type Later
+        Local $dependency.local.4
+        Type Later
+        Local $dependency.local.5
+      val $dependency.local.1: VirtualBox<Later>
+        Type VirtualBox<Later>
+        Retype VirtualBox<Later>
+          Type VirtualChild<Later>
+          Local $new.1
+      val $dependency.local.6: VirtualBox<Later>
+        Type VirtualBox<Later>
+        Local $dependency.local.1
+      call $call.2: Later = @fn2 virtual[0]
+        Type VirtualBox<Later>
+        Local $dependency.local.6
+      return
+        Type Later
+        Local $call.2
+  fun read @fn2(this: VirtualBox<Later>) -> Later
+    bb0 entry
+      call $call.1: Later = @fn4 direct
+        Type VirtualBox<Later>
+        Local this
+      return
+        Type Later
+        Local $call.1
+  fun read @fn3(this: VirtualChild<Later>) -> Later
+    bb0 entry
+      call $call.1: Later = @fn5 direct
+        Type VirtualChild<Later>
+        Local this
+      return
+        Type Later
+        Local $call.1
+  fun value @fn4(this: VirtualBox<Later>) -> Later
+    bb0 entry
+      return
+        Type Later
+        FieldAccess 0
+          Type VirtualBox<Later>
+          Local this
+  fun other @fn5(this: VirtualChild<Later>) -> Later
+    bb0 entry
+      return
+        Type Later
+        FieldAccess 1
+          Type VirtualChild<Later>
+          Local this
+  fun Continuation.resume @fn6(this: Continuation<Later>, value: Later) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn7(this: Continuation<Later>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn8(this: SuspendTask<Later>, $completion: Continuation<Later>) -> CoroutineStep<Later>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn9(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Later.$c0 @fn10(this: Later, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Later
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.VirtualChild.$c0 @fn11(this: VirtualChild<Later>, value: Later, other: Later) -> Unit
+    bb0 entry
+      val $dependency.constructor.local.0: Later
+        Type Later
+        Local value
+      val $dependency.constructor.local.1: Later
+        Type Later
+        Local $dependency.constructor.local.0
+      call @fn12 direct
+        Type VirtualBox<Later>
+        Retype VirtualBox<Later>
+          Type VirtualChild<Later>
+          Local this
+        Type Later
+        Local $dependency.constructor.local.1
+      field_set 1
+        Type VirtualChild<Later>
+        Local this
+        Type Later
+        Local other
+      return
+  fun init.VirtualBox.$c1 @fn12(this: VirtualBox<Later>, value: Later) -> Unit
+    bb0 entry
+      field_set 0
+        Type VirtualBox<Later>
+        Local this
+        Type Later
+        Local value
+      return
+  fun startCoroutine<Later> @fn13(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn6 interface Continuation<Later>[0]
+        Type Continuation<Later>
+        Local completion
+        Type Later
+        EnumField v0 f0
+          Type CoroutineStep<Later>
+          Local $step
+      return
+    bb2 failed
+      call @fn7 interface Continuation<Later>[1]
+        Type Continuation<Later>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Later> = @fn8 interface SuspendTask<Later>[0]
+        Type SuspendTask<Later>
+        Local task
+        Type Continuation<Later>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Later>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Later> result=Later
+  coroutine_slot cl0 CoroutineSlot<Later> value=Later
+  coroutine_start ct0 result=Later function=fn13
+  coroutine_fn cf0 @fn8 source_return=Later step=cs0 immediate
+  instance mi0 function=@fn1 <- make
+  instance mi1 function=@fn2 <- read
+  instance mi2 function=@fn3 <- read
+  instance mi3 function=@fn4 <- value
+  instance mi4 function=@fn5 <- other
+  instance mi5 function=@fn6 <- Continuation.resume
+  instance mi6 function=@fn7 <- Continuation.resumeWithException
+  instance mi7 function=@fn8 <- SuspendTask.run
+  instance mi8 function=@fn9 <- SuspendRegistration.register
+  output library

@@ -18,7 +18,8 @@ use crate::{
 #[derive(Clone, Debug)]
 pub(super) struct ImportedDependencyDefinitionSources {
     pub(super) records: BTreeMap<SourceIdentity, SourceRecord>,
-    pub(super) contexts: BTreeMap<PersistentSourceContextId, SourceContextKey>,
+    pub(super) contexts:
+        BTreeMap<PersistentSourceContextId, (SourceContextKey, crate::SourceContextNames)>,
 }
 
 impl ImportedDependencyDefinitionSources {
@@ -35,9 +36,11 @@ impl ImportedDependencyDefinitionSources {
         source: &SourceIdentity,
         context: PersistentSourceContextId,
     ) -> Option<ImportedDependencyDefinitionSource<'_>> {
+        let (key, names) = self.contexts.get(&context)?;
         Some(ImportedDependencyDefinitionSource {
             record: self.records.get(source)?,
-            context: self.contexts.get(&context)?,
+            context: key,
+            names,
         })
     }
 }
@@ -48,6 +51,7 @@ impl ImportedDependencyDefinitionSources {
 pub struct ImportedDependencyDefinitionSource<'a> {
     record: &'a SourceRecord,
     context: &'a SourceContextKey,
+    names: &'a crate::SourceContextNames,
 }
 
 impl<'a> ImportedDependencyDefinitionSource<'a> {
@@ -57,6 +61,10 @@ impl<'a> ImportedDependencyDefinitionSource<'a> {
 
     pub const fn context(self) -> &'a SourceContextKey {
         self.context
+    }
+
+    pub const fn names(self) -> &'a crate::SourceContextNames {
+        self.names
     }
 }
 

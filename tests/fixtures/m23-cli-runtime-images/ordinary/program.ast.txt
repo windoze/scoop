@@ -1,0 +1,14 @@
+SourceFile
+  RootPackage
+    @Extern(lib = "m23_runtime_images", name = "m23_trace")
+  private fun trace(value: Long)
+  fun main()
+    @Unsafe block
+      Call trace
+        IfExpression
+          Binary Eq
+            Call unused
+            IntLiteral 7
+          IntLiteral 42L
+          else
+          IntLiteral 0L

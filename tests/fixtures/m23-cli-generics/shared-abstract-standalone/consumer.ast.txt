@@ -1,0 +1,54 @@
+SourceFile
+  QualifiedPackage consumer.abstracts
+  private interface MutableReader<T>
+    fun replace
+    fun read
+    fun again
+    public open var value: T <computed>
+  private abstract class BaseReader<T>(), MutableReader<T>
+    protected fun stored
+    public abstract override var value: T <abstract>
+    public fun read
+    public fun replace
+  private class ReaderBox<T>(var item: T) : BaseReader<T>(<0 args>)
+    protected fun stored
+    public open override var value: T <computed>
+      get()
+        FieldAccess item
+          This
+      set(next)
+        assign .item
+          This
+          Var next
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 0 suspend=false
+          param value: _
+          Var value
+  public fun exercise<T>(value: T, read: (T) -> Int): Int
+    val box: MutableReader<T>
+      Call ReaderBox<T>
+        Var value
+    val replace: (T) -> Unit
+      CallableReference 0 replace
+        Var box
+    Call replace
+      Var value
+    val fetch: () -> T
+      CallableReference 1 read
+        Var box
+    return
+      IfExpression
+        Binary Eq
+          Call read
+            MethodCall again
+              Var box
+          Call read
+            Call fetch
+        Call read
+          FieldAccess value
+            Var box
+        else
+        IntLiteral 0

@@ -1,0 +1,16 @@
+SourceFile
+  QualifiedPackage sibling.right
+  ImportStar Local dependency.union.*
+  public fun action(): (Payload) -> Any
+    =
+      Call second
+        Call Other
+          IntLiteral 22
+  public fun sameType(): Any
+    =
+      Call Marker<Int>
+        IntLiteral 22
+  public fun otherType(): Any
+    =
+      Call Marker<Long>
+        IntLiteral 22L

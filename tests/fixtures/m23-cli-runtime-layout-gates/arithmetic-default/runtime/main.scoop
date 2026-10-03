@@ -1,0 +1,7 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    verifyType(primary() == 21L)
+    verifyType(withDefault() == 21L)
+    verifyType(withDefault(7L) == 7L)
+}

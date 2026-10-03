@@ -1,0 +1,125 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<ShapeSource>
+    Completed(value: ShapeSource)
+    Suspended()
+  enum CoroutineSlot<ShapeSource>
+    Empty()
+    Value(value: ShapeSource)
+  class ShapeSource vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<ShapeSource>
+  interface SuspendTask<ShapeSource>
+  interface SuspendRegistration<ShapeSource>
+  generated_exact_type get0 location=enum2 nominal_id=1c5705a7705a2c61c13cfb605f7cc1baaa4356f87014e5225629097f47c85b99 exact_id=6a6303a14dd80cd42f971c215d4439f94bd771631f83cf8e9f3c020a05f79f8c
+  generated_exact_type get1 location=enum1 nominal_id=9c07b47bd7242f8180f85265fd6a2a4ca5271857292a23c81eab15731f3d865c exact_id=cea41e5a5895731ee6e8821e57a26d0386dfc89c3647bb59d78ee36808220cf7
+  generated_callable gc0 function=@fn8 id=4b108f1c4a48e7ee2f5be178de66906a1bd3b2be0949914d595965c193f67575
+  fun ShapeSource.observe @fn0(this: ShapeSource) -> ((Int, Long), (Int, Long))
+    bb0 entry
+      val $receiver: ShapeSource
+        Type ShapeSource
+        Local this
+      call $call.1: ((Int, Long), (Int, Long)) = @fn1 direct
+        Type ShapeSource
+        Local $receiver
+      return
+        Type ((Int, Long), (Int, Long))
+        Local $call.1
+  fun ShapeSource.nested @fn1(this: ShapeSource) -> ((Int, Long), (Int, Long))
+    bb0 entry
+      return
+        Type ((Int, Long), (Int, Long))
+        TupleLiteral
+          Type (Int, Long)
+          TupleLiteral
+            Type Int
+            IntegerLiteral Int value=1 bits=0x00000001
+            Type Long
+            IntegerLiteral Long value=2 bits=0x0000000000000002
+          Type (Int, Long)
+          TupleLiteral
+            Type Int
+            IntegerLiteral Int value=3 bits=0x00000003
+            Type Long
+            IntegerLiteral Long value=4 bits=0x0000000000000004
+  fun shape @fn2() -> ShapeSource
+    bb0 entry
+      assign $new.1
+        Type ShapeSource
+        ClassAlloc ShapeSource
+      call @fn7 direct
+        Type ShapeSource
+        Local $new.1
+      return
+        Type ShapeSource
+        Local $new.1
+  fun Continuation.resume @fn3(this: Continuation<ShapeSource>, value: ShapeSource) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn4(this: Continuation<ShapeSource>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn5(this: SuspendTask<ShapeSource>, $completion: Continuation<ShapeSource>) -> CoroutineStep<ShapeSource>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn6(this: SuspendRegistration<ShapeSource>, continuation: Continuation<ShapeSource>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.ShapeSource.$c0 @fn7(this: ShapeSource) -> Unit
+    bb0 entry
+      return
+  fun startCoroutine<ShapeSource> @fn8(task: SuspendTask<ShapeSource>, completion: Continuation<ShapeSource>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn3 interface Continuation<ShapeSource>[0]
+        Type Continuation<ShapeSource>
+        Local completion
+        Type ShapeSource
+        EnumField v0 f0
+          Type CoroutineStep<ShapeSource>
+          Local $step
+      return
+    bb2 failed
+      call @fn4 interface Continuation<ShapeSource>[1]
+        Type Continuation<ShapeSource>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<ShapeSource> = @fn5 interface SuspendTask<ShapeSource>[0]
+        Type SuspendTask<ShapeSource>
+        Local task
+        Type Continuation<ShapeSource>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<ShapeSource>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<ShapeSource> result=ShapeSource
+  coroutine_slot cl0 CoroutineSlot<ShapeSource> value=ShapeSource
+  coroutine_start ct0 result=ShapeSource function=fn8
+  coroutine_fn cf0 @fn5 source_return=ShapeSource step=cs0 immediate
+  instance mi0 function=@fn3 <- Continuation.resume
+  instance mi1 function=@fn4 <- Continuation.resumeWithException
+  instance mi2 function=@fn5 <- SuspendTask.run
+  instance mi3 function=@fn6 <- SuspendRegistration.register
+  output library

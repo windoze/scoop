@@ -1,0 +1,87 @@
+SourceFile
+  QualifiedPackage consumer.references
+  ImportStar Local templates.references.*
+  private var evaluations: Int = <expr>
+  private fun resetEvaluations()
+    assign evaluations
+      IntLiteral 0
+  private fun evaluationCount(): Int
+    =
+      Var evaluations
+  private fun next(): Plain
+    compound-assign Add
+      IntLiteral 1
+    return
+      Call Plain
+        IntLiteral 42
+  public fun exercise<T>(value: T): Int
+    Call resetEvaluations
+    val computed
+      CallableReference 0 read
+        Call next
+    var current
+      Call Plain
+        IntLiteral 42
+    val saved
+      CallableReference 1 read
+        Var current
+    assign current
+      Call Plain
+        IntLiteral 1
+    val choose: (T) -> T
+      CallableReference 2 choose
+        Var current
+    val child
+      Call Child<T>
+        Var value
+    val read
+      CallableReference 3 read
+        Var child
+    val chooseBoth: (T, Int) -> Int
+      CallableReference 4 choose
+        Var child
+    val cell
+      Call Cell<T>
+        Var value
+    val valueRead
+      CallableReference 5 read
+        Var cell
+    val values
+      TupleLiteral
+        Call choose
+          Var value
+        Call read
+        Call valueRead
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Call computed
+            IntLiteral 42
+          Binary Ne
+            Call computed
+            IntLiteral 42
+        Binary Ne
+          Call evaluationCount
+          IntLiteral 1
+      return
+        IntLiteral 1
+    if
+      Binary Or
+        Binary Ne
+          Call saved
+          IntLiteral 42
+        Binary Ne
+          MethodCall read
+            Var current
+          IntLiteral 1
+      return
+        IntLiteral 2
+    return
+      Call chooseBoth
+        Var value
+        IntLiteral 42
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0

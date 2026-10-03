@@ -1,0 +1,29 @@
+SourceFile
+  QualifiedPackage consumer.nesting
+  ImportExact Local facade.nesting.Outer.companionAdd
+  ImportStar Local facade.nesting.Outer.Companion.*
+  ImportExact Local facade.nesting.Outer.Tools.keep
+  public fun exercise<T>(value: T, read: (T) -> Int): Int
+    val leaf
+      Call CompanionLeaf
+        Call companionAdd
+          Var companionBase
+    return
+      IfExpression
+        Binary Eq
+          Call read
+            Call keep<T>
+              Var value
+          IntLiteral 42
+        FieldAccess number
+          Var leaf
+        else
+        IntLiteral 0
+  private fun readInt(value: Int): Int
+    =
+      Var value
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 42
+        CallableReference 0 readInt

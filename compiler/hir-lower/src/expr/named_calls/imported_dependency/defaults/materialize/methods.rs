@@ -132,9 +132,15 @@ impl Lowerer {
                     .ok_or_else(|| ImportedDefaultMaterializationError::Plan(
                         "a derived equality target requires an equality derivation for its owner".into(),
                     ))?;
-                let (crate::derived::DerivedEqualityCandidate::Nominal { application, .. }
-                | crate::derived::DerivedEqualityCandidate::TypeOwned { application, .. }) =
-                    candidate;
+                let application = match candidate {
+                    crate::derived::DerivedEqualityCandidate::Imported(target) => {
+                        return Ok(self.imported_equality_callee(target, owner));
+                    }
+                    crate::derived::DerivedEqualityCandidate::Nominal { application, .. }
+                    | crate::derived::DerivedEqualityCandidate::TypeOwned { application, .. } => {
+                        application
+                    }
+                };
                 Ok(hir::MethodCallee::DerivedEquality(application))
             }
         }

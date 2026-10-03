@@ -1,0 +1,10 @@
+SourceFile
+  RootPackage
+  ImportExact Local checkPublicationWarning
+  fun main()
+    if
+      Binary Ne
+        Call checkPublicationWarning
+        IntLiteral 3
+      throw
+        Call IllegalStateException

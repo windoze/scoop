@@ -1,0 +1,51 @@
+SourceFile
+  QualifiedPackage upstream.boundProperties
+  public open class Box<T>(var value: T)
+    public open var exposed: T <computed>
+      get()
+        FieldAccess value
+          This
+      set(next)
+        assign .value
+          This
+          Var next
+  public class Remote<T>(value: T, var alternate: T) : Box<T>(<1 args>)
+    public open override var exposed: T <computed>
+      get()
+        FieldAccess alternate
+          This
+      set(next)
+        assign .alternate
+          This
+          Var next
+  public fun stored<T, B : Box<T>>(box: B): T
+    =
+      FieldAccess value
+        Var box
+  public fun exchange<T, B : Box<T>>(box: B, next: T): T
+    val previous
+      FieldAccess exposed
+        Var box
+    assign .exposed
+      Var box
+      Var next
+    return
+      Var previous
+  public fun defaultRead<T, B : Box<T>>(box: B, previous: T = <expr>): T
+    =
+      Var previous
+  public fun optional<T, B : Box<T>>(box: B?): T?
+    =
+      FieldAccess ?value
+        Var box
+  public fun invoke<B : Box<() -> Int>>(box: B): Int
+    =
+      MethodCall value
+        Var box
+  public fun advance<B : Box<Int>>(box: B): Int
+    compound-assign Add
+      Var box
+      IntLiteral 2
+    return
+      FieldAccess value
+        Var box

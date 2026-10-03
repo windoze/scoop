@@ -1,0 +1,78 @@
+schema = 1
+name = "program-link-diamond-ready-order"
+inputs = ["a-base", "../../m23-program-link/schedule-a-base.scoop", "b-next", "../../m23-program-link/schedule-b-next.scoop", "c-peer", "../../m23-program-link/schedule-c-peer.scoop", "d-join", "../../m23-program-link/schedule-d-join.scoop", "root", "../../m23-program-link/schedule-root.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["program-link", "multi-cone", "moving-gc", "stage-golden"]
+
+[[variants]]
+name = "normal"
+
+[[variants]]
+name = "moving"
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}
+
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${fixture}/a-base", "to" = "${work}/sources/a-base"}}, {"copy" = {"from" = "${fixture}/../../m23-program-link/schedule-a-base.scoop", "to" = "${work}/sources/a-base/src/main.scoop"}}, {"copy" = {"from" = "${fixture}/b-next", "to" = "${work}/sources/b-next"}}, {"copy" = {"from" = "${fixture}/../../m23-program-link/schedule-b-next.scoop", "to" = "${work}/sources/b-next/src/main.scoop"}}, {"copy" = {"from" = "${fixture}/c-peer", "to" = "${work}/sources/c-peer"}}, {"copy" = {"from" = "${fixture}/../../m23-program-link/schedule-c-peer.scoop", "to" = "${work}/sources/c-peer/src/main.scoop"}}, {"copy" = {"from" = "${fixture}/d-join", "to" = "${work}/sources/d-join"}}, {"copy" = {"from" = "${fixture}/../../m23-program-link/schedule-d-join.scoop", "to" = "${work}/sources/d-join/src/main.scoop"}}, {"copy" = {"from" = "${fixture}/root", "to" = "${work}/sources/root"}}, {"copy" = {"from" = "${fixture}/../../m23-program-link/schedule-root.scoop", "to" = "${work}/sources/root/src/main.scoop"}}]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${build.result.dependencies.length}", "equals" = 5}, {"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "lir.txt"}]
+
+[[steps]]
+name = "run_built"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "10\n20\n30\n40\n50\n"
+stderr = ""
+
+[[steps]]
+name = "isolate"
+files = [{"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}}, {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}}, {"mkdir" = {"path" = "${work}/empty-sysroot"}}, {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}}, {"copy" = {"from" = "${build.result.dependencies.1.path}", "to" = "${work}/artifacts/1.slib"}}, {"copy" = {"from" = "${build.result.dependencies.2.path}", "to" = "${work}/artifacts/2.slib"}}, {"copy" = {"from" = "${build.result.dependencies.3.path}", "to" = "${work}/artifacts/3.slib"}}, {"copy" = {"from" = "${build.result.dependencies.4.path}", "to" = "${work}/artifacts/4.slib"}}, {"remove" = {"path" = "${work}/sources"}}]
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/4.slib", "--dependency-slib", "${work}/artifacts/3.slib", "--dependency-slib", "${work}/artifacts/2.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "-o", "${work}/artifacts/program", "--message-format", "json", "--dump-plan"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}, {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan"}, {"actual" = "${link.result.link_plan}", "contains" = "images=6 "}]
+
+[[steps]]
+name = "run_linked"
+argv = ["${link.result.output}"]
+exit = 0
+stdout = "10\n20\n30\n40\n50\n"
+stderr = ""
+
+[[steps]]
+name = "relocate"
+files = [{"move" = {"from" = "${work}/artifacts", "to" = "${work}/elsewhere"}}]
+
+[[steps]]
+name = "relink"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/elsewhere/root.slib", "--dependency-slib", "${work}/elsewhere/0.slib", "--dependency-slib", "${work}/elsewhere/1.slib", "--dependency-slib", "${work}/elsewhere/2.slib", "--dependency-slib", "${work}/elsewhere/3.slib", "--dependency-slib", "${work}/elsewhere/4.slib", "--dependency-slib", "${work}/elsewhere/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "-o", "${work}/elsewhere/program", "--message-format", "json", "--dump-plan"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"actual" = "${relink.result.link_plan}", "equals" = "${link.result.link_plan}"}, {"actual" = "${relink.result.link_plan_fingerprint}", "equals" = "${link.result.link_plan_fingerprint}"}]
+
+[[steps]]
+name = "run_relinked"
+argv = ["${relink.result.output}"]
+exit = 0
+stdout = "10\n20\n30\n40\n50\n"
+stderr = ""

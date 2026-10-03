@@ -1,0 +1,13 @@
+SourceFile
+  QualifiedPackage schedule.base
+    @Extern(lib = "m23_runtime_images", name = "m23_trace")
+  private fun trace(value: Long)
+  public class Base(val number: Int)
+  private fun initialize(): Base
+    @Unsafe block
+      Call trace
+        IntLiteral 10
+    return
+      Call Base
+        IntLiteral 10
+  public val base: Base = <expr>

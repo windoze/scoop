@@ -1,0 +1,82 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val token
+      Call Token
+    val payload
+      Call Payload
+        Call reference
+    val diamond: Diamond
+      Var payload
+    val root: Root
+      Var diamond
+    val left: Left
+      Var diamond
+    val right: Right
+      Var diamond
+    Call verifyType
+      Binary And
+        Binary Eq
+          MethodCall echo
+            Var root
+            Var token
+          Var token
+        Binary Eq
+          FieldAccess token
+            Var root
+          Var token
+    Call verifyType
+      Binary And
+        Binary Eq
+          MethodCall left
+            Var left
+            Var token
+          Var token
+        Binary Eq
+          MethodCall right
+            Var right
+            Var token
+          Var token
+    val choice: Diamond
+      FieldAccess One
+        Var Choice
+    val singleton: Diamond
+      Var Singleton
+    Call verifyType
+      Binary And
+        Binary Eq
+          MethodCall echo
+            Var choice
+            Var token
+          Var token
+        Binary Eq
+          FieldAccess token
+            Var choice
+          Var token
+    Call verifyType
+      Binary And
+        Binary Eq
+          MethodCall echo
+            Var singleton
+            Var token
+          Var token
+        Binary Eq
+          MethodCall right
+            Var singleton
+            Var token
+          Var token
+    val erased: Any
+      Var payload
+    Call verifyType
+      Binary RefEq
+        FieldAccess reference
+          Cast Payload optional=false
+            Var erased
+        FieldAccess reference
+          Var payload

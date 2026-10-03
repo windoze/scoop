@@ -1,4 +1,4 @@
-; Function names are replaced with the published typed callable symbols.
+; Explicit fixture bindings use the published typed callable symbols.
 %Wide = type { i64, i64, i64 }
 @input = private constant %Wide { i64 17, i64 -29, i64 53 }, align 8
 
@@ -9,7 +9,7 @@ declare void @f3(ptr sret(%Wide) align 8, ptr byval(%Wide) align 8)
 declare void @f4()
 declare void @f5(ptr sret(%Wide) align 8, ptr byval(%Wide) align 8)
 
-define i32 @main() {
+define i32 @m23_struct_abi_check() {
 entry:
   %a = alloca %Wide, align 8
   %b = alloca %Wide, align 8

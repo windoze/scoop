@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `mutate`: Array<Int> is not a subtype of MutableArray<T>",
+    "notes": [],
+    "origin": {
+      "cone": "2c74f495b9415c2bd82752f08e45541599033d8e6572a14a5a7ba7c2b3c3c560",
+      "end": 88,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 82
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,7 @@
+SourceFile
+  RootPackage
+  ImportExact Local helper.helperAnswer
+  public fun answer(): Int
+    =
+      Call userCoreOffset
+        Call helperAnswer

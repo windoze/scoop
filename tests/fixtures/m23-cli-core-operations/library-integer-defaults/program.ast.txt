@@ -1,0 +1,15 @@
+SourceFile
+  RootPackage
+  fun main()
+    val simple
+      Call userCoreIntegerDefault
+    val combined
+      Call userCoreIntegerCombination
+    val converted
+      Call userCoreConvertedDefault
+    val forwarded
+      Call userCoreIntegerOperands
+        Argument seed=
+          Call userCoreIntegerDefault
+            Argument value=
+              IntLiteral 40

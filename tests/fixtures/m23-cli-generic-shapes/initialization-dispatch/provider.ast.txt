@@ -1,0 +1,24 @@
+SourceFile
+  QualifiedPackage templates.initialization
+  public interface Source<T>
+    fun get
+    fun echo
+  public open class Base<T>(val item: T), Source<T>
+    public fun get
+    public fun offset
+  public class Derived<T>(item: T) : Base<T>(<1 args>)
+    public fun offset
+  public fun result(): Int
+    val base: Base<Int>
+      Call Derived<Int>
+        IntLiteral 40
+    val source: Source<Int>
+      Var base
+    return
+      Binary Add
+        MethodCall echo
+          Var source
+          MethodCall get
+            Var source
+        MethodCall offset
+          Var base

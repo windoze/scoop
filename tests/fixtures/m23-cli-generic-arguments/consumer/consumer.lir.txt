@@ -1,0 +1,255 @@
+Module
+  fun @scoop$1$cb$b181fcb3060559ca3d0eb1a54b1a295892e798ad408ccd55a2f421bbc3b83538() -> i32
+    local %0 $dependency.argument.0: i32
+    local %1 $dependency.parameter.value: i32
+    local %2 $dependency.argument.0: i32
+    local %3 $dependency.parameter.value: i32
+    local %4 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x0000002a) -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn9(local1)
+    store t0 -> local2
+    store local2 -> local3
+    call managed-direct-target1 sp<managed-call:1> live=[] t1 = sig=direct1 (i32) -> i32 local-fn9(local3)
+    store t1 -> local4
+    ret local4
+  fun @scoop$1$cb$82be34a87dddfbab9610e7beaae405b89480eec0709b977dc9810cedb8a11c7b() -> i32
+    local %0 $argument.0: i32
+    local %1 $parameter.number: i32
+    local %2 $dependency.argument.0: struct0
+    local %3 $dependency.parameter.value: struct0
+    local %4 $call.1: struct0
+    local %5 $sc.1: struct0
+    local %6 $sc.2: struct0
+    local %7 $sc.3: struct0
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x0000002b) -> local0
+    store local0 -> local1
+    call no-gc-indirect-target0 local5 = sig=indirect0 (sret struct0 size=4 align=4 scan=none, i32) local-fn20(local1)
+    store local5 -> local2
+    store local2 -> local3
+    store local3 -> local6
+    call managed-indirect-target0 sp<managed-call:0> live=[] local7 = sig=indirect1 (sret struct0 size=4 align=4 scan=none, indirect<struct0 size=4 align=4 scan=none>) local-fn10(indirect local6)
+    store local7 -> local4
+    t0 = extract local4, 0 : i32
+    ret t0
+  fun @scoop$1$cb$28ea5ce49f9ca132be67e294733d34c1c2148d70d03a31ad440bac397c25683e() -> i32
+    local %0 $argument.0: i32
+    local %1 $parameter.value: i32
+    local %2 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x0000002c) -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn11(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop$1$cb$d72adf541374d96bc912263f688df352172851ac018e5c2f865171df820ad574() -> i32
+    local %0 $dependency.receiver: i32
+    local %1 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x0000002d) -> local0
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn12(local0)
+    store t0 -> local1
+    ret local1
+  fun @scoop$1$cb$3797937f619c3c2d5574b755cb9f45842de9cfb41e3f53730f4874a846aff375() -> i32
+    local %0 $dependency.argument.0: i32
+    local %1 $dependency.parameter.first: i32
+    local %2 $default.local.1: i32
+    local %3 $default.local.2: i32
+    local %4 $dependency.parameter.second: i32
+    local %5 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x0000002e) -> local0
+    store local0 -> local1
+    store local1 -> local2
+    store local2 -> local3
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn9(local3)
+    store t0 -> local4
+    call managed-direct-target1 sp<managed-call:1> live=[] t1 = sig=direct1 (i32, i32) -> i32 local-fn13(local1, local4)
+    store t1 -> local5
+    ret local5
+  fun @scoop$1$cb$7e0db7a396119cd686397a5faacb6d07d35a9ed77769392aa251a934df611999() -> i32
+    local %0 $argument.0: i32
+    local %1 $parameter.number: i32
+    local %2 $dependency.argument.0: struct0
+    local %3 $dependency.parameter.first: struct0
+    local %4 $default.local.1: struct0
+    local %5 $default.local.2: struct0
+    local %6 $dependency.parameter.second: struct0
+    local %7 $call.1: struct0
+    local %8 $sc.1: struct0
+    local %9 $sc.2: struct0
+    local %10 $sc.3: struct0
+    local %11 $sc.4: struct0
+    local %12 $sc.5: struct0
+    local %13 $sc.6: struct0
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x0000002f) -> local0
+    store local0 -> local1
+    call no-gc-indirect-target0 local8 = sig=indirect0 (sret struct0 size=4 align=4 scan=none, i32) local-fn20(local1)
+    store local8 -> local2
+    store local2 -> local3
+    store local3 -> local4
+    store local4 -> local5
+    store local5 -> local9
+    call managed-indirect-target0 sp<managed-call:0> live=[] local10 = sig=indirect1 (sret struct0 size=4 align=4 scan=none, indirect<struct0 size=4 align=4 scan=none>) local-fn10(indirect local9)
+    store local10 -> local6
+    store local3 -> local11
+    store local6 -> local12
+    call managed-indirect-target1 sp<managed-call:1> live=[] local13 = sig=indirect2 (sret struct0 size=4 align=4 scan=none, indirect<struct0 size=4 align=4 scan=none>, indirect<struct0 size=4 align=4 scan=none>) local-fn14(indirect local11, indirect local12)
+    store local13 -> local7
+    t0 = extract local7, 0 : i32
+    ret t0
+  fun @scoop$1$cb$ae74a4d2549c9564f224eb928134cbd5758910a16cb79abc309750c5fe0f5ab9() -> i32 <no-gc>
+    local %0 $dependency.argument.0: i32
+    local %1 $dependency.parameter.value: i32
+    local %2 $call.1: i32
+  block entry
+    store integer<Int>(0x00000030) -> local0
+    store local0 -> local1
+    call no-gc-direct-target0 t0 = sig=direct0 (i32) -> i32 local-fn15(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop$1$cb$ddb93b11570815a8e05c0975c8cf5015d93e79500b08c6109f8f38cdfe66b482() -> i32
+    local %0 $dependency.argument.0: i32
+    local %1 $dependency.argument.1: i1
+    local %2 $dependency.parameter.value: i32
+    local %3 $dependency.parameter.again: i1
+    local %4 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x00000031) -> local0
+    store true -> local1
+    store local0 -> local2
+    store local1 -> local3
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32, i1) -> i32 local-fn16(local2, local3)
+    store t0 -> local4
+    ret local4
+  fun @scoop$1$cb$e16996f2dcde98426ad9bac97c6024c57973bb47b5809c844d448a13c7788984(ptr<raw>) -> ptr<raw>
+    local %0 $dependency.argument.0: ptr<raw>
+    local %1 $dependency.parameter.pointer: ptr<raw>
+    local %2 $call.1: ptr<raw>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<raw>) -> ptr<raw> local-fn17(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop$1$cb$e0de9ba6e70744ba86ca39ba4863416bb83a5dd499115cdb1b6771ad52cffb2c(i32) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret param0
+  fun @scoop$1$cb$f7fdc4bcb6c8d5a99391bf36fced969e38d445fd2cbcf70bba1de3f1ea653883(indirect<struct0 size=4 align=4 scan=none>) -> sret<struct0 size=4 align=4 scan=none>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret param0
+  fun @scoop$1$cb$599b5f3de6de24fee0caa36ac0a54bbac8f57d577d36a1797ef49283d087c9d6(i32) -> i32
+    local %0 $dependency.argument.0: i32
+    local %1 $dependency.parameter.value: i32
+    local %2 $dependency.argument.0: i32
+    local %3 $dependency.argument.1: i32
+    local %4 $dependency.parameter.first: i32
+    local %5 $dependency.parameter.second: i32
+    local %6 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local2
+    store param0 -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn9(local1)
+    store t0 -> local3
+    store local2 -> local4
+    store local3 -> local5
+    call managed-direct-target1 sp<managed-call:1> live=[] t1 = sig=direct1 (i32, i32) -> i32 local-fn18(local4, local5)
+    store t1 -> local6
+    ret local6
+  fun @scoop$1$cb$ef8591e71b56768810127f5316b30c74315508537d9f69b29be4ca04f2f7871e(i32) -> i32
+    local %0 $dependency.local.1: i32
+    local %1 $dependency.local.2: i32
+    local %2 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn9(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop$1$cb$2b0f6795b780ecaf11f4292a0e138081d1023fbebd804deef9f112154849f85d(i32, i32) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret param1
+  fun @scoop$1$cb$1a87e1e054f12806245684f71a851c2657b3568874e53f2a64fff2c8c8d21ca6(indirect<struct0 size=4 align=4 scan=none>, indirect<struct0 size=4 align=4 scan=none>) -> sret<struct0 size=4 align=4 scan=none>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret param1
+  fun @scoop$1$cb$2f69d05e96e8a402c36d9a748ab64e43d4a5c58d877e35714e1365a587e0cd32(i32) -> i32 <no-gc>
+  block entry
+    ret param0
+  fun @scoop$1$cb$dfea580810efefe22ab70578472804b954aa3db387c6d89e7e5cdaba85a183a8(i32, i1) -> i32
+    local %0 $dependency.local.2: i32
+    local %1 $dependency.local.3: i1
+    local %2 $dependency.local.4: i32
+    local %3 $dependency.local.5: i1
+    local %4 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    cbr param1 then @if.then.1 else @if.merge.2
+  block if.then.1
+    store param0 -> local0
+    store false -> local1
+    store local0 -> local2
+    store local1 -> local3
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32, i1) -> i32 local-fn16(local2, local3)
+    store t0 -> local4
+    ret local4
+  block if.merge.2
+    ret param0
+  fun @scoop$1$cb$9205c456900bdc85c57c6e56aa80cd48a64bb40c20d93975670329c0194e4e06(ptr<raw>) -> ptr<raw>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret param0
+  fun @scoop$1$cb$059e7d47e535d0bf9077bed1a988d589fbf7046d1d95cf7f6fb8b896195cc90d(i32, i32) -> i32
+    local %0 $dependency.local.2: i32
+    local %1 $dependency.local.3: i32
+    local %2 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn19(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop$1$cb$77cbdac948d39a214ef84aad01d6842355f60e098967940dde987abab0b636b1(i32) -> i32
+    local %0 $dependency.local.1: i32
+    local %1 $dependency.local.2: i32
+    local %2 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn9(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop$1$cb$2e4a9df96c3be60b061caa3bee60f1b73bc4a3141c0b4a76fe95ca00860c8e3a(i32) -> sret<struct0 size=4 align=4 scan=none> <no-gc>
+  block entry
+    t0 = aggregate (param0) : struct0
+    ret t0
+  fun @scoop$1$cb$fcdab4a11e52fc14d99308bbf65d47347a2d1dfa5d2e2745acdbcef52514fc81(ptr<raw>) -> void <no-gc>
+    local %0 $value: i32
+  block entry
+    call no-gc-direct-target0 t0 = sig=direct0 () -> i32 local-fn6()
+    store t0 -> local0
+    raw_store param0 local0 align 4
+    t1 = aggregate () : {}
+    ret
+  td td0 n(c=test%3Ascoop-hir-lower%3A0.0.0;p=;o=-;k=S;x=LocalValue) @scoop$1$td$9ce0e502067b4251e3d0699a51c7564e1c3a5c2097791d24079f6a83ed1c3812 type-id=9063995751031669276 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout LocalValue size=4 align=4 refs=[]
+  output library

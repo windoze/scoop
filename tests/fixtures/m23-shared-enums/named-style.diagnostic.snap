@@ -1,3 +1,0 @@
-span=94..116
-expression=Named(payload, amount)
-variant `Named` of `Choice` has named fields; use a named field pattern

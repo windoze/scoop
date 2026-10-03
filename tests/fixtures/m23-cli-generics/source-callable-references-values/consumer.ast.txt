@@ -1,0 +1,53 @@
+SourceFile
+  QualifiedPackage consumer.references
+  ImportStar Local templates.references.*
+  public fun exercise<T>(value: T): Int
+    var triple
+      Call Triple
+        Call Plain
+          IntLiteral 14
+        Call Plain
+          IntLiteral 14
+        Call Plain
+          IntLiteral 14
+    val read
+      CallableReference 0 sum
+        Var triple
+    assign triple
+      Call Triple
+        Call Plain
+          IntLiteral 0
+        Call Plain
+          IntLiteral 0
+        Call Plain
+          IntLiteral 0
+    val empty
+      CallableReference 1 read
+        Call Empty
+    val box
+      Call Cell<T>
+        Var value
+    val valueRead
+      CallableReference 2 read
+        Var box
+    val values
+      TupleLiteral
+        Call valueRead
+        Var value
+    if
+      Binary Or
+        Binary Ne
+          MethodCall sum
+            Var triple
+          IntLiteral 0
+        Binary Ne
+          Call empty
+          IntLiteral 42
+      return
+        IntLiteral 1
+    return
+      Call read
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0

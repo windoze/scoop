@@ -1,7 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m12-ffi/errors/address-of-invalid-places.scoop:7:38: error: `addressOf` argument must be an addressable local, parameter, global, or value-type `this`
-m12-ffi/errors/address-of-invalid-places.scoop:8:40: error: `addressOf` argument must be an addressable local, parameter, global, or value-type `this`

@@ -1,4 +1,0 @@
-span=105..142
-expression=catch (error: RebuiltFailure) {
-    }
-unreachable catch block: RebuiltFailure is already covered by an earlier catch

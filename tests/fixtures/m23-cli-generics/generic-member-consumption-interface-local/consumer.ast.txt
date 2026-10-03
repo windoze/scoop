@@ -1,0 +1,24 @@
+SourceFile
+  QualifiedPackage consumer.members
+  ImportStar Local templates.members.*
+  public class LocalReader<T>(val value: T), Reader<T>
+    public fun get
+    public fun readBase
+  public class LocalItem<T>(val value: T) : AbstractReader<T>(<0 args>)
+    public fun get
+  public fun result(): Int
+    =
+      Binary Add
+        MethodCall readBase
+          Call LocalReader<Int>
+            IntLiteral 20
+        MethodCall get
+          Call LocalItem<Int>
+            IntLiteral 22
+  public fun make<T>(value: T): T
+    val reader: Reader<T>
+      Call LocalItem<T>
+        Var value
+    return
+      MethodCall read
+        Var reader

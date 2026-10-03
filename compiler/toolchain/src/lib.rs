@@ -9,11 +9,14 @@ use std::fmt;
 mod c_bridge;
 mod compiler;
 mod final_link;
+mod paths;
 mod registry;
 mod system_provider;
 mod trusted_core;
 
 pub use final_link::ValidatedFinalLinkProfile;
+pub use paths::{configured_sysroot_root, development_runtime_root, development_workspace_root};
+pub use registry::host_target_triple;
 pub use registry::{ResolvedTargetProfile, ValidatedRuntimeBuildProfile};
 pub use system_provider::{
     LIBSYSTEM_INSTALL_NAME, NativeExport, SystemExportKind, SystemProvider, SystemStubFile,

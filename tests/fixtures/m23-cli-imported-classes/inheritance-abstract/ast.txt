@@ -1,0 +1,20 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.AbstractParent
+  public class Derived() : AbstractParent(<0 args>)
+    public fun read
+    public open override var value: Long = <expr>
+      IntLiteral 21
+  public fun primary(): Counter
+    val value: AbstractParent
+      Call Derived
+    return
+      Call Counter
+        Binary Sub
+          Binary Add
+            MethodCall read
+              Var value
+            FieldAccess value
+              Var value
+          IntLiteral 21

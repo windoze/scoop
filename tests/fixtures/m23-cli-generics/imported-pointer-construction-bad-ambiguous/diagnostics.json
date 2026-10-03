@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "call to `Make` is ambiguous in exact import layer:\n  - Make<T : value>(raw: ULong): Ptr<T> — applicable; tied by MSC\n  - Make<T>(raw: ULong) — applicable; tied by MSC",
+    "notes": [],
+    "origin": {
+      "cone": "e3d53dd864f0cbdd1e732908e3981c28c0db97835a879d38fc536065df087469",
+      "end": 131,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 117
+    },
+    "severity": "error"
+  }
+]

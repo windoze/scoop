@@ -1,0 +1,27 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val value
+      Call envelope
+    Call verifyType
+      Is String true
+        MethodCall storageValue
+          Var value
+    Call verifyType
+      Binary And
+        Binary Eq
+          MethodCall read
+            FieldAccess Cache
+              Var Envelope
+          IntLiteral 8
+        Binary RefEq
+          FieldAccess Cache
+            Var Envelope
+          FieldAccess Cache
+            Var Envelope

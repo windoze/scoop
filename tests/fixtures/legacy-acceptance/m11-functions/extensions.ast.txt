@@ -1,0 +1,181 @@
+SourceFile
+  RootPackage
+  fun Int.bump(delta: Int): Int
+    =
+      Binary Add
+        This
+        Var delta
+  fun T.keep<T>(): T
+    =
+      This
+  fun String.decorate(suffix: String): String
+    =
+      Binary Add
+        This
+        Var suffix
+  fun String.suffixer(): (String) -> String
+    return
+      Lambda 0 suspend=false
+        param suffix: _
+        Binary Add
+          This
+          Var suffix
+  fun T.echo<T>(value: T): T
+    =
+      Var value
+  fun Any.kind(): String
+    =
+      StringLiteral "any"
+  fun String.kind(): String
+    =
+      StringLiteral "string"
+  fun collide(value: Int): Int
+    =
+      Binary Add
+        Var value
+        IntLiteral 1
+  fun Int.collide(): Int
+    =
+      Binary Add
+        This
+        IntLiteral 2
+  class Named(val value: String)
+    fun label
+  fun Named.label(): String
+    =
+      StringLiteral "extension"
+  class MutableName(var value: String)
+  fun MutableName.rename(next: String): String
+    assign value
+      Var next
+    return
+      Var value
+  struct Offset
+    field amount: Int
+  fun Offset.apply(value: Int): Int
+    =
+      Binary Add
+        Var value
+        Var amount
+  class ReceiverFactory(var calls: Int)
+    fun make
+  class ThrowingExtension()
+  fun ThrowingExtension.run(value: Int): Int
+    if
+      Binary Eq
+        Var value
+        IntLiteral 0
+      throw
+        Call ArithmeticException
+    return
+      Var value
+  fun main()
+    Call println
+      MethodCall bump
+        IntLiteral 40
+        IntLiteral 2
+    Call println
+      MethodCall keep
+        StringLiteral "generic"
+    Call println
+      MethodCall kind
+        StringLiteral "specific"
+    Call println
+      Call collide
+        IntLiteral 39
+    Call println
+      MethodCall collide
+        IntLiteral 40
+    val named
+      Call Named
+        StringLiteral "kept"
+    Call println
+      MethodCall label
+        Var named
+    val member
+      CallableReference 0 label
+        Var named
+    Call println
+      Call member
+    val mutable
+      Call MutableName
+        StringLiteral "old"
+    Call println
+      MethodCall rename
+        Var mutable
+        StringLiteral "new"
+    Call println
+      MethodCall apply
+        Call Offset
+          IntLiteral 2
+        IntLiteral 40
+    val unbound: (String, String) -> String
+      CallableReference 1 decorate
+    val bound
+      CallableReference 2 decorate
+        StringLiteral "bound"
+    val genericUnbound: (String, String) -> String
+      CallableReference 3 echo
+    val genericBound: (String) -> String
+      CallableReference 4 echo
+        StringLiteral "receiver"
+    val capturedReceiver
+      MethodCall suffixer
+        StringLiteral "capture"
+    val factory
+      Call ReceiverFactory
+        IntLiteral 0
+    val once
+      CallableReference 5 decorate
+        MethodCall make
+          Var factory
+    Call println
+      FieldAccess calls
+        Var factory
+    var offset
+      Call Offset
+        IntLiteral 2
+    val snapshot
+      CallableReference 6 apply
+        Var offset
+    assign offset
+      Call Offset
+        IntLiteral 100
+    val throwing
+      CallableReference 7 run
+        Call ThrowingExtension
+    Call gcCollect
+    Call println
+      Call unbound
+        StringLiteral "unbound"
+        StringLiteral "-ok"
+    Call println
+      Call bound
+        StringLiteral "-ok"
+    Call println
+      Call genericUnbound
+        StringLiteral "ignored"
+        StringLiteral "generic-unbound"
+    Call println
+      Call genericBound
+        StringLiteral "generic-bound"
+    Call println
+      Call capturedReceiver
+        StringLiteral "-this"
+    Call println
+      Call once
+        StringLiteral "-only"
+    Call println
+      Call snapshot
+        IntLiteral 40
+    Call println
+      MethodCall apply
+        Var offset
+        IntLiteral 40
+    try
+      Call println
+        Call throwing
+          IntLiteral 0
+    catch exception: ArithmeticException
+      Call println
+        StringLiteral "caught"

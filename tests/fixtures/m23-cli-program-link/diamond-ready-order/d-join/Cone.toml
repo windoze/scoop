@@ -1,0 +1,10 @@
+schema = 1
+[cone]
+group = "dev.programlink"
+name = "d-join"
+version = "0.1.0"
+kind = "library"
+
+[dependencies]
+"dev.programlink:b-next" = {"version" = "0.1.0", "path" = "../b-next"}
+"dev.programlink:c-peer" = {"version" = "0.1.0", "path" = "../c-peer"}

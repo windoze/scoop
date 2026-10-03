@@ -1,0 +1,26 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.VirtualBase
+  ImportExact Local dependency.classes.VirtualCounter
+  ImportExact Local dependency.classes.virtualCounter
+  public fun primary(): Counter
+    val value: VirtualBase
+      Call virtualCounter
+        IntLiteral 20
+    val alias: Any
+      Var value
+    if
+      Binary And
+        Binary RefEq
+          Var alias
+          Var value
+        Is VirtualCounter false
+          Var value
+      return
+        Call Counter
+          MethodCall read
+            Var value
+    return
+      Call Counter
+        IntLiteral 0

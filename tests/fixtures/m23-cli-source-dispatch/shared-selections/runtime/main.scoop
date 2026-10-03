@@ -1,0 +1,12 @@
+fun verifyDispatch(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    val integer = leaf<Int>()
+    val base: Base<Int> = integer
+    val generic: Generic<Int> = integer
+    verifyDispatch(integer.compute(17) == 17 && base.compute(19) == 19 && generic.value(23) == 23)
+    val text = leaf<String>()
+    val refined: Refined<String> = text
+    verifyDispatch(text.compute("method") == "method" && refined.value("default") == "default")
+}

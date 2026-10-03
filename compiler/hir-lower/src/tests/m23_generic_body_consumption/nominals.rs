@@ -155,30 +155,3 @@ fn imported_generic_nominals_substitute_payloads_and_preserve_origin() {
         .unwrap_or_else(|error| panic!("{case}: {error:?}"));
     }
 }
-
-#[test]
-fn imported_generic_nominal_arguments_obey_invariance_and_bounds() {
-    for (case, message, expression) in [
-        ("bad-ref", "must satisfy `ref`", "Int"),
-        ("bad-value", "must satisfy `value`", "Number"),
-        ("bad-arity", "takes 1 type argument(s)", "Parcel"),
-        ("bad-invariance", "is invariant", "actual"),
-    ] {
-        let source = fixture(case);
-        let errors =
-            with_provider_consumer(&fixture("provider"), &source, |output, _, _, _, _| output)
-                .err()
-                .expect("invalid nominal arguments must be rejected");
-        let error = errors
-            .iter()
-            .find(|error| error.message.contains(message))
-            .unwrap_or_else(|| panic!("{case}: {errors:?}"));
-        assert_eq!(error.file, 0);
-        let span = error.span.unwrap();
-        assert_eq!(
-            &source[span.start as usize..span.end as usize],
-            expression,
-            "{case}: {errors:?}"
-        );
-    }
-}

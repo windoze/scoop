@@ -1,0 +1,18 @@
+SourceFile
+  RootPackage
+  ImportExact Local receiver.consumer.generic
+  fun verifyCalls(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call verifyCalls
+      Binary Eq
+        Call generic
+        IntLiteral 7
+    Call verifyCalls
+      Binary Eq
+        Call generic
+        IntLiteral 7

@@ -1,0 +1,46 @@
+SourceFile
+  QualifiedPackage consumer.interfaces
+  ImportExact Local upstream.interfaces.Remote
+  ImportExact Local upstream.interfaces.Values as View
+  public fun exercise<T>(value: T, read: (T) -> Int): Int
+    val remote: View<T, Unit>
+      Call Remote
+        Var value
+        UnitLiteral
+    assign .second
+      Var remote
+      UnitLiteral
+    return
+      MethodCall total
+        Var remote
+        Var read
+        Lambda 0 suspend=false
+          param unused: _
+          IntLiteral 0
+  public fun result(): Int
+    if
+      Binary Ne
+        Call exercise<String>
+          StringLiteral "value"
+          Lambda 1 suspend=false
+            param item: _
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call exercise<Unit>
+          UnitLiteral
+          Lambda 2 suspend=false
+            param item: _
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 2
+    return
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 3 suspend=false
+          param item: _
+          Var item

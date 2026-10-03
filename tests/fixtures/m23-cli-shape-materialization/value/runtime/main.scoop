@@ -1,0 +1,9 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val value = Payload(17)
+    verifyType(value.value == 17)
+    verifyType(value == Payload(17))
+    val erased: Any = value
+    verifyType((erased as Payload).value == 17)
+}

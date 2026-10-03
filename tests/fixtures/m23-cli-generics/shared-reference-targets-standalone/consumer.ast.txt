@@ -1,0 +1,216 @@
+SourceFile
+  QualifiedPackage consumer.references
+  ImportStar Local upstream.references.*
+  private fun localCaptured<T, U>(seed: T, inspect: (T) -> Int): () -> Int
+    fun value<V>(ignored: V): Int
+      Call inspect
+        Var seed
+    val first: (Int) -> Int
+      CallableReference 0 value
+    val repeated: (Int) -> Int
+      CallableReference 1 value
+    val alternate: (Unit) -> Int
+      CallableReference 2 value
+    return
+      Lambda 0 suspend=false
+        parameters omitted
+        Binary Sub
+          Binary Add
+            Binary Add
+              Call first
+                IntLiteral 0
+              Call repeated
+                IntLiteral 0
+            Call alternate
+              UnitLiteral
+          IntLiteral 84
+  public fun exercise<T>(seed: T, inspect: (T) -> Int): Int
+    if
+      Binary Ne
+        Call localSelfReference
+          IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 7
+    if
+      Binary Ne
+        Call localGenericSelfReference<T>
+          Var seed
+          Var inspect
+        Call inspect
+          Var seed
+      return
+        IntLiteral 8
+    if
+      Binary Ne
+        Call localRecursiveReference<T>
+          Var seed
+          Var inspect
+        Call inspect
+          Var seed
+      return
+        IntLiteral 6
+    val plain: () -> Int
+      CallableReference 3 answer
+    val copy: (T) -> T
+      CallableReference 4 identity
+    val bound: () -> T
+      CallableReference 5 retain
+        Var seed
+    val unbound: (T) -> T
+      CallableReference 6 retain
+    val member: () -> T
+      CallableReference 7 read
+        Call Box<T>
+          Var seed
+    val intrinsic: (Int) -> Boolean
+      CallableReference 8 equals
+        IntLiteral 42
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Call plain
+            IntLiteral 42
+          Unary Not
+            Call intrinsic
+              IntLiteral 42
+        Call intrinsic
+          IntLiteral 1
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call inspect
+          Call copy
+            Var seed
+        Call inspect
+          Call bound
+      return
+        IntLiteral 2
+    if
+      Binary Ne
+        Call inspect
+          Call unbound
+            Var seed
+        Call inspect
+          Call member
+      return
+        IntLiteral 3
+    val first
+      Call localCaptured<Int, T>
+        IntLiteral 42
+        Lambda 1 suspend=false
+          param value: _
+          Var value
+    val second
+      Call localCaptured<Int, T>
+        IntLiteral 43
+        Lambda 2 suspend=false
+          param value: _
+          Var value
+    if
+      Binary Or
+        Binary Ne
+          Call first
+          IntLiteral 42
+        Binary Ne
+          Call second
+          IntLiteral 45
+      return
+        IntLiteral 4
+    val inherited
+      Call localCaptured<T, Int>
+        Var seed
+        Var inspect
+    val distinct
+      Call localCaptured<T, Unit>
+        Var seed
+        Var inspect
+    if
+      Binary Ne
+        Call inherited
+        Call distinct
+      return
+        IntLiteral 5
+    return
+      Call inherited
+  private fun localRecursiveReference<T>(seed: T, inspect: (T) -> Int): Int
+    fun descend(depth: Int): Box<T>
+      if
+        Binary Gt
+          Var depth
+          IntLiteral 0
+        val read: () -> T
+          CallableReference 9 read
+            Call descend
+              Binary Sub
+                Var depth
+                IntLiteral 1
+        return
+          Call Box<T>
+            Call read
+      return
+        Call Box<T>
+          Var seed
+    return
+      Call inspect
+        MethodCall read
+          Call descend
+            IntLiteral 2
+  private fun localSelfReference(seed: Int): Int
+    fun recur(depth: Int): Int
+      if
+        Binary Gt
+          Var depth
+          IntLiteral 0
+        val next: (Int) -> Int
+          CallableReference 10 recur
+        return
+          Call next
+            Binary Sub
+              Var depth
+              IntLiteral 1
+      return
+        Var seed
+    return
+      Call recur
+        IntLiteral 2
+  private fun localGenericSelfReference<T>(seed: T, inspect: (T) -> Int): Int
+    val limit
+      IntLiteral 0
+    fun recur<U>(ignored: U, depth: Int): T
+      if
+        Binary Gt
+          Var depth
+          Var limit
+        val next: (U, Int) -> T
+          CallableReference 11 recur
+        return
+          Call next
+            Var ignored
+            Binary Sub
+              Var depth
+              IntLiteral 1
+      return
+        Var seed
+    return
+      Binary Sub
+        Binary Add
+          Call inspect
+            Call recur<Unit>
+              UnitLiteral
+              IntLiteral 2
+          Call inspect
+            Call recur<Int>
+              IntLiteral 0
+              IntLiteral 2
+        Call inspect
+          Var seed
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 3 suspend=false
+          param value: _
+          Var value

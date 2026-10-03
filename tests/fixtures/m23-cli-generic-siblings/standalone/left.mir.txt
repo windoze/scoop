@@ -1,0 +1,43 @@
+Module
+  class Payload vtable=0 itables=0
+  fun left @fn0(value: Payload) -> Payload
+    bb0 entry
+      val $dependency.argument.0: Payload
+        Type Payload
+        Local value
+      val $dependency.parameter.value: Payload
+        Type Payload
+        Local $dependency.argument.0
+      call $call.1: Payload = @fn2 direct
+        Type Payload
+        Local $dependency.parameter.value
+      return
+        Type Payload
+        Local $call.1
+  fun leftNumber @fn1(value: Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: Int = @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun identity @fn2(value: Payload) -> Payload
+    bb0 entry
+      return
+        Type Payload
+        Local value
+  fun identity @fn3(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  instance mi0 function=@fn2 <- identity
+  instance mi1 function=@fn3 <- identity
+  output library

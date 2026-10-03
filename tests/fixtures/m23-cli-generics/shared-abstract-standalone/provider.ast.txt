@@ -1,0 +1,22 @@
+SourceFile
+  QualifiedPackage dependency.abstracts
+  public interface MutableReader<T>
+    fun replace
+    fun read
+    fun again
+    public open var value: T <computed>
+  public abstract class BaseReader<T>(), MutableReader<T>
+    protected fun stored
+    public abstract override var value: T <abstract>
+    public fun read
+    public fun replace
+  public class ReaderBox<T>(var item: T) : BaseReader<T>(<0 args>)
+    protected fun stored
+    public open override var value: T <computed>
+      get()
+        FieldAccess item
+          This
+      set(next)
+        assign .item
+          This
+          Var next

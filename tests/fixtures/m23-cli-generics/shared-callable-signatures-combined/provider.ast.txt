@@ -1,0 +1,35 @@
+SourceFile
+  QualifiedPackage upstream.signatures
+  public fun identity<T>(value: T): T
+    =
+      Var value
+    @NoGC
+  public fun scalar<T>(value: T): T
+    =
+      Var value
+    @Unsafe
+  public fun unchecked<T>(value: T): T
+    =
+      Var value
+  public suspend fun delayed<T>(value: T): T
+    =
+      Var value
+  public fun defaulted<T>(value: T, select: (T) -> T = <expr>): T
+    =
+      Call select
+        Var value
+  public fun nested<T>(value: T): () -> T
+    fun keep<U>(next: U): U
+      Call identity<U>
+        Var next
+    return
+      Lambda 1 suspend=false
+        parameters omitted
+        Call keep<T>
+          Var value
+  public interface Source<T>
+    fun get
+  public class Box<T>(val value: T), Source<T>
+    public fun get
+    public suspend fun suspendedGet
+    public fun apply

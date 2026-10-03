@@ -1,0 +1,16 @@
+SourceFile
+  RootPackage
+  public abstract class Base()
+    public fun observe
+    public fun call
+    public fun alpha
+    public fun direct
+    public open var value: Int <computed>
+      get()
+        IntLiteral 4
+      set(value)
+    internal fun local
+  public open class Derived() : Base(<0 args>)
+    public fun call
+    public fun middle
+  public object Singleton

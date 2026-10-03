@@ -1,0 +1,33 @@
+SourceFile
+  RootPackage
+  class Gate(var waiter: Continuation<Int>?)
+    fun complete
+  class Registration(val gate: Gate), SuspendRegistration<Int>
+    public fun register
+  suspend fun awaitValue(gate: Gate): Int
+    =
+      Call suspendCoroutine
+        Call Registration
+          Var gate
+  class Constructed(val value: Int)
+    init
+      Call println
+        StringLiteral "constructed-after-resume"
+  class ConstructionTask(val gate: Gate), SuspendTask<Int>
+    public suspend fun run
+  class Completion(), Continuation<Int>
+    public fun resume
+    public fun resumeWithException
+  fun main()
+    val gate
+      Call Gate
+        Var None
+    Call startCoroutine
+      Call ConstructionTask
+        Var gate
+      Call Completion
+    Call println
+      StringLiteral "suspended-before-construction"
+    MethodCall complete
+      Var gate
+      IntLiteral 40

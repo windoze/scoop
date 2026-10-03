@@ -1,7 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m4-enum/errors/named-rest-missing.scoop:5:9: error: pattern does not list all fields of struct `S`; add `..` to ignore the rest
-m4-enum/errors/named-rest-missing.scoop:6:13: error: unknown variable `f1`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation

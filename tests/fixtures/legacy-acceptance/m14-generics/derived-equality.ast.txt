@@ -1,0 +1,40 @@
+SourceFile
+  RootPackage
+  struct Pair<T>
+    field first: T
+    field second: T
+  enum Maybe<T>
+    Value(T)
+    Empty
+  fun main()
+    Call println
+      Binary Eq
+        Call Pair
+          IntLiteral 1
+          IntLiteral 2
+        Call Pair
+          IntLiteral 1
+          IntLiteral 2
+    Call println
+      Binary Ne
+        Call Pair
+          IntLiteral 1
+          IntLiteral 2
+        Call Pair
+          IntLiteral 1
+          IntLiteral 3
+    Call println
+      Binary Eq
+        MethodCall Value
+          Var Maybe
+          StringLiteral "x"
+        MethodCall Value
+          Var Maybe
+          StringLiteral "x"
+    Call println
+      Binary Eq
+        MethodCall Value
+          Var Maybe
+          StringLiteral "x"
+        FieldAccess Empty
+          Var Maybe

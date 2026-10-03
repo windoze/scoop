@@ -1,0 +1,11 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    verifyDefault(defaultPlain().checkOwn() == 9)
+    verifyDefault(defaultPlain().checkInherited() == 9)
+    verifyDefault(defaultChild().checkInherited() == 9)
+    verifyDefault(defaultGeneric<Int>().checkOwner() == 9)
+    verifyDefault(defaultGeneric<String>().checkOwner() == 9)
+    verifyDefault(defaultGenericStatic().checkStatic() == 9)
+}

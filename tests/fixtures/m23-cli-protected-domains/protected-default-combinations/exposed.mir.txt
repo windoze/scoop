@@ -1,0 +1,886 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum DefaultContainer.Choice<Int>
+    Empty()
+    Item(seed: Int, value: Int)
+  enum DefaultContainer.Choice<String>
+    Empty()
+    Item(seed: String, value: String)
+  enum CoroutineStep<DefaultContainer.Nested>
+    Completed(value: DefaultContainer.Nested)
+    Suspended()
+  enum CoroutineSlot<DefaultContainer.Nested>
+    Empty()
+    Value(value: DefaultContainer.Nested)
+  enum CoroutineStep<DefaultContainer>
+    Completed(value: DefaultContainer)
+    Suspended()
+  enum CoroutineSlot<DefaultContainer>
+    Empty()
+    Value(value: DefaultContainer)
+  class DefaultContainer vtable=0 itables=0
+  class DefaultContainer.Nested vtable=0 itables=0
+  class DefaultContainer.Generic<Int> vtable=0 itables=0
+  class DefaultContainer.Generic<String> vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface Continuation<DefaultContainer>
+  interface SuspendTask<DefaultContainer>
+  interface SuspendRegistration<DefaultContainer>
+  interface Continuation<DefaultContainer.Nested>
+  interface SuspendTask<DefaultContainer.Nested>
+  interface SuspendRegistration<DefaultContainer.Nested>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn10 captures=1
+    bridge function_type1 -> @fn37 id=5ef70f49946fdf41d8724ce3891751c8b9e42d5d83e9f142746eba53800facd7
+  closure cc1 $Closure$reference0 type=function_type0 invoke=@fn30 captures=1
+    bridge function_type1 -> @fn38 id=b27fda42f865655d87eff2d5354451c02a3d40c69709d5b69da3008263ccac91
+  generated_exact_type get0 location=enum3 nominal_id=edead4f737aa0f1099035a2707403119a7728f79e371b06d74602e7d8b83aa1d exact_id=092e170fa50af95ec038a20d5b668ab55e56b749614a9bde2567a5fe3b0aa3b2
+  generated_exact_type get1 location=closure1 nominal_id=b2ababbbee91166e333c9e780b91a6fad90539a92d96a0ed6c2ae8d1d42e242c exact_id=1f2c3fba9d986d741bd45a8173e88684cba4cfe9caf39d8565738c2c5c8f8c9a
+  generated_exact_type get2 location=closure0 nominal_id=bb81d3a089bdb4c896d7fe05aacae05ab6c9b1375d14eb0e051da869180f2741 exact_id=5782a5f9545985750fc2ae33964e7f67a8325be5c166ea93b76f43bce21611a8
+  generated_exact_type get3 location=enum5 nominal_id=b2bb3f4da335cc1bb11fc75de5744aa7f7c86d5ae1529e93163ba667b1848b51 exact_id=83d5e13b2d13bf66d64c65ff35a4c7dce851ae017ae71bb50e34a3c61b242b61
+  generated_exact_type get4 location=enum4 nominal_id=930ab59cccc3af8c62a494c4acb9cccd2759705e1df9a5a618b811fb97890dc4 exact_id=d1ae2e3ba4a3f94ebccb5f96721f91898227b321d36ac2acdeb67e9eadb19c90
+  generated_exact_type get5 location=enum6 nominal_id=840e637db255181a018dfc959fdf270d5e59615ec0315cd769984376a26fb92b exact_id=e1d2a3a6d9cf9c51ae869a3e65b5f480a73bbb7ced321d69e920ffc173af0685
+  generated_exact_type get6 location=class7 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn35 id=21f50c50b05543ca2e068b354c57d6435330d8726791ddee352f5922aec3a212
+  generated_callable gc1 function=@fn36 id=47bb2aa8fd762b91a5cfc353d8d97bc00eddcdaedead687c6151340ba4ed2c3e
+  generated_callable gc2 function=@fn37 id=5ef70f49946fdf41d8724ce3891751c8b9e42d5d83e9f142746eba53800facd7
+  generated_callable gc3 function=@fn38 id=b27fda42f865655d87eff2d5354451c02a3d40c69709d5b69da3008263ccac91
+  fun DefaultContainer.inspectLocal @fn0(this: DefaultContainer) -> Int
+    bb0 entry
+      val $receiver: DefaultContainer
+        Type DefaultContainer
+        Local this
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      branch bb1 bb2
+        Type Boolean
+        BoolLiteral true
+    bb1 if.then.1
+      assign $result.0
+        Type () -> Int
+        ClosureAlloc cc1 $Closure$reference0
+          CaptureInit field=0
+            Type Int
+            Local $parameter.seed
+      goto bb3
+    bb2 if.else.2
+      val fallback: () -> Int
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type Int
+            Local $parameter.seed
+      assign $result.0
+        Type () -> Int
+        Local fallback
+      goto bb3
+    bb3 if.merge.3
+      val $parameter.value: () -> Int
+        Type () -> Int
+        Local $result.0
+      call $call.1: () -> Int = @fn5 direct
+        Type DefaultContainer
+        Local $receiver
+        Type Int
+        Local $parameter.seed
+        Type () -> Int
+        Local $parameter.value
+      call $call.2: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $call.1
+      return
+        Type Int
+        Local $call.2
+  fun DefaultContainer.integerPair @fn1(this: DefaultContainer) -> (Int, Int)
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type DefaultContainer.Generic<Int>
+        ClassAlloc DefaultContainer.Generic<Int>
+      call @fn33 direct
+        Type DefaultContainer.Generic<Int>
+        Local $new.1
+        Type Int
+        Local $parameter.seed
+      val $receiver: DefaultContainer.Generic<Int>
+        Type DefaultContainer.Generic<Int>
+        Local $new.1
+      call $call.2: (Int, Int) = @fn11 direct
+        Type DefaultContainer.Generic<Int>
+        Local $receiver
+      return
+        Type (Int, Int)
+        Local $call.2
+  fun DefaultContainer.stringPair @fn2(this: DefaultContainer) -> (String, String)
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      assign $new.1
+        Type DefaultContainer.Generic<String>
+        ClassAlloc DefaultContainer.Generic<String>
+      call @fn34 direct
+        Type DefaultContainer.Generic<String>
+        Local $new.1
+        Type String
+        Local $parameter.seed
+      val $receiver: DefaultContainer.Generic<String>
+        Type DefaultContainer.Generic<String>
+        Local $new.1
+      call $call.2: (String, String) = @fn12 direct
+        Type DefaultContainer.Generic<String>
+        Local $receiver
+      return
+        Type (String, String)
+        Local $call.2
+  fun DefaultContainer.inspectNested @fn3(this: DefaultContainer) -> Int
+    bb0 entry
+      assign $new.1
+        Type DefaultContainer.Nested
+        ClassAlloc DefaultContainer.Nested
+      call @fn32 direct
+        Type DefaultContainer.Nested
+        Local $new.1
+      val $receiver: DefaultContainer.Nested
+        Type DefaultContainer.Nested
+        Local $new.1
+      call $dependency.receiver: Int = @fn6 direct
+        Type DefaultContainer.Nested
+        Local $receiver
+      assign $new.2
+        Type DefaultContainer.Nested
+        ClassAlloc DefaultContainer.Nested
+      call @fn32 direct
+        Type DefaultContainer.Nested
+        Local $new.2
+      val $receiver: DefaultContainer.Nested
+        Type DefaultContainer.Nested
+        Local $new.2
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $parameter.seed
+      call $dependency.argument.0: Int = @fn13 direct
+        Type DefaultContainer.Nested
+        Local $receiver
+        Type Int
+        Local $parameter.seed
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun DefaultContainer.inspectChoice @fn4(this: DefaultContainer) -> Boolean
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=23 bits=0x00000017
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $parameter.seed
+      val $equality.lhs: DefaultContainer.Choice<Int>
+        Type DefaultContainer.Choice<Int>
+        VariantConstruct DefaultContainer.Choice<Int> v1
+          Type Int
+          Local $parameter.seed
+          Type Int
+          Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=23 bits=0x00000017
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=23 bits=0x00000017
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $call.1: Boolean = @fn14 direct
+        Type DefaultContainer.Choice<Int>
+        Local $equality.lhs
+        Type DefaultContainer.Choice<Int>
+        VariantConstruct DefaultContainer.Choice<Int> v1
+          Type Int
+          Local $parameter.seed
+          Type Int
+          Local $parameter.value
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 if.then.1
+      val $argument.0: String
+        Type String
+        StringConst @str1
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      val $parameter.value: String
+        Type String
+        Local $parameter.seed
+      val $equality.lhs: DefaultContainer.Choice<String>
+        Type DefaultContainer.Choice<String>
+        VariantConstruct DefaultContainer.Choice<String> v1
+          Type String
+          Local $parameter.seed
+          Type String
+          Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str2
+      val $argument.1: String
+        Type String
+        StringConst @str3
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      val $parameter.value: String
+        Type String
+        Local $argument.1
+      call $shortCircuit.1: Boolean = @fn15 direct
+        Type DefaultContainer.Choice<String>
+        Local $equality.lhs
+        Type DefaultContainer.Choice<String>
+        VariantConstruct DefaultContainer.Choice<String> v1
+          Type String
+          Local $parameter.seed
+          Type String
+          Local $parameter.value
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Boolean
+        Local $shortCircuit.1
+  fun DefaultContainer.local @fn5(this: DefaultContainer, seed: Int, value: () -> Int) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        Local value
+  fun DefaultContainer.Nested.inspect @fn6(this: DefaultContainer.Nested) -> Int
+    bb0 entry
+      val $receiver: DefaultContainer.Nested
+        Type DefaultContainer.Nested
+        Local this
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      call $call.1: Int = @fn7 direct
+        Type DefaultContainer.Nested
+        Local $receiver
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun DefaultContainer.Nested.hidden @fn7(this: DefaultContainer.Nested, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun defaults @fn8() -> DefaultContainer
+    bb0 entry
+      assign $new.1
+        Type DefaultContainer
+        ClassAlloc DefaultContainer
+      call @fn31 direct
+        Type DefaultContainer
+        Local $new.1
+      return
+        Type DefaultContainer
+        Local $new.1
+  fun $local.0.copy @fn9($capture.seed: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local $capture.seed
+  fun $lambda.0 @fn10($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        ClosureCapture cc0 0
+          Type () -> Int
+          Local $closure
+  fun DefaultContainer.Generic.pair @fn11(this: DefaultContainer.Generic<Int>) -> (Int, Int)
+    bb0 entry
+      val $receiver: DefaultContainer.Generic<Int>
+        Type DefaultContainer.Generic<Int>
+        Local this
+      val $parameter.value: Int
+        Type Int
+        FieldAccess 0
+          Type DefaultContainer.Generic<Int>
+          Local $receiver
+      val $receiver: DefaultContainer.Generic<Int>
+        Type DefaultContainer.Generic<Int>
+        Local this
+      val $argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type DefaultContainer.Generic<Int>
+          Local $receiver
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $parameter.seed
+      call $parameter.value: Int = @fn16 direct
+        Type Int
+        Local $parameter.seed
+        Type Int
+        Local $parameter.value
+      call $call.1: Int = @fn17 direct
+        Type DefaultContainer.Generic<Int>
+        Local $receiver
+        Type Int
+        Local $parameter.value
+      call $call.2: Int = @fn18 direct
+        Type DefaultContainer.Generic<Int>
+        Local $receiver
+        Type Int
+        Local $parameter.value
+      return
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          Local $call.1
+          Type Int
+          Local $call.2
+  fun DefaultContainer.Generic.pair @fn12(this: DefaultContainer.Generic<String>) -> (String, String)
+    bb0 entry
+      val $receiver: DefaultContainer.Generic<String>
+        Type DefaultContainer.Generic<String>
+        Local this
+      val $parameter.value: String
+        Type String
+        FieldAccess 0
+          Type DefaultContainer.Generic<String>
+          Local $receiver
+      val $receiver: DefaultContainer.Generic<String>
+        Type DefaultContainer.Generic<String>
+        Local this
+      val $argument.0: String
+        Type String
+        FieldAccess 0
+          Type DefaultContainer.Generic<String>
+          Local $receiver
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      val $parameter.value: String
+        Type String
+        Local $parameter.seed
+      call $parameter.value: String = @fn19 direct
+        Type String
+        Local $parameter.seed
+        Type String
+        Local $parameter.value
+      call $call.1: String = @fn20 direct
+        Type DefaultContainer.Generic<String>
+        Local $receiver
+        Type String
+        Local $parameter.value
+      call $call.2: String = @fn21 direct
+        Type DefaultContainer.Generic<String>
+        Local $receiver
+        Type String
+        Local $parameter.value
+      return
+        Type (String, String)
+        TupleLiteral
+          Type String
+          Local $call.1
+          Type String
+          Local $call.2
+  fun DefaultContainer.Nested.choose @fn13(this: DefaultContainer.Nested, seed: Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun DefaultContainer.Choice.equals @fn14(this: DefaultContainer.Choice<Int>, other: DefaultContainer.Choice<Int>) -> Boolean
+    bb0 entry
+      val $when.1: DefaultContainer.Choice<Int>
+        Type DefaultContainer.Choice<Int>
+        Local this
+      val $pattern.subject.2: DefaultContainer.Choice<Int>
+        Type DefaultContainer.Choice<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest DefaultContainer.Choice<Int> v0
+          Type DefaultContainer.Choice<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $when.3: DefaultContainer.Choice<Int>
+        Type DefaultContainer.Choice<Int>
+        Local other
+      val $pattern.subject.4: DefaultContainer.Choice<Int>
+        Type DefaultContainer.Choice<Int>
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest DefaultContainer.Choice<Int> v0
+          Type DefaultContainer.Choice<Int>
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: DefaultContainer.Choice<Int>
+        Type DefaultContainer.Choice<Int>
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest DefaultContainer.Choice<Int> v1
+          Type DefaultContainer.Choice<Int>
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      return
+        Type Boolean
+        BoolLiteral true
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $left.1.0: Int
+        Type Int
+        VariantPayloadProject DefaultContainer.Choice<Int> v1 f0
+          Type DefaultContainer.Choice<Int>
+          Local $pattern.subject.5
+      val $left.1.1: Int
+        Type Int
+        VariantPayloadProject DefaultContainer.Choice<Int> v1 f1
+          Type DefaultContainer.Choice<Int>
+          Local $pattern.subject.5
+      val $when.6: DefaultContainer.Choice<Int>
+        Type DefaultContainer.Choice<Int>
+        Local other
+      val $pattern.subject.7: DefaultContainer.Choice<Int>
+        Type DefaultContainer.Choice<Int>
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest DefaultContainer.Choice<Int> v1
+          Type DefaultContainer.Choice<Int>
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      val $right.1.0: Int
+        Type Int
+        VariantPayloadProject DefaultContainer.Choice<Int> v1 f0
+          Type DefaultContainer.Choice<Int>
+          Local $pattern.subject.7
+      val $right.1.1: Int
+        Type Int
+        VariantPayloadProject DefaultContainer.Choice<Int> v1 f1
+          Type DefaultContainer.Choice<Int>
+          Local $pattern.subject.7
+      branch bb13 bb14
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $left.1.0
+          Type Int
+          Local $right.1.0
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+    bb13 logic.rhs.13
+      assign $logic.1
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $left.1.1
+          Type Int
+          Local $right.1.1
+      goto bb15
+    bb14 logic.short.14
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb15
+    bb15 logic.merge.15
+      return
+        Type Boolean
+        Local $logic.1
+  fun DefaultContainer.Choice.equals @fn15(this: DefaultContainer.Choice<String>, other: DefaultContainer.Choice<String>) -> Boolean
+    bb0 entry
+      val $when.1: DefaultContainer.Choice<String>
+        Type DefaultContainer.Choice<String>
+        Local this
+      val $pattern.subject.2: DefaultContainer.Choice<String>
+        Type DefaultContainer.Choice<String>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest DefaultContainer.Choice<String> v0
+          Type DefaultContainer.Choice<String>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $when.3: DefaultContainer.Choice<String>
+        Type DefaultContainer.Choice<String>
+        Local other
+      val $pattern.subject.4: DefaultContainer.Choice<String>
+        Type DefaultContainer.Choice<String>
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest DefaultContainer.Choice<String> v0
+          Type DefaultContainer.Choice<String>
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: DefaultContainer.Choice<String>
+        Type DefaultContainer.Choice<String>
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest DefaultContainer.Choice<String> v1
+          Type DefaultContainer.Choice<String>
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      return
+        Type Boolean
+        BoolLiteral true
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $left.1.0: String
+        Type String
+        VariantPayloadProject DefaultContainer.Choice<String> v1 f0
+          Type DefaultContainer.Choice<String>
+          Local $pattern.subject.5
+      val $left.1.1: String
+        Type String
+        VariantPayloadProject DefaultContainer.Choice<String> v1 f1
+          Type DefaultContainer.Choice<String>
+          Local $pattern.subject.5
+      val $when.6: DefaultContainer.Choice<String>
+        Type DefaultContainer.Choice<String>
+        Local other
+      val $pattern.subject.7: DefaultContainer.Choice<String>
+        Type DefaultContainer.Choice<String>
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest DefaultContainer.Choice<String> v1
+          Type DefaultContainer.Choice<String>
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      val $right.1.0: String
+        Type String
+        VariantPayloadProject DefaultContainer.Choice<String> v1 f0
+          Type DefaultContainer.Choice<String>
+          Local $pattern.subject.7
+      val $right.1.1: String
+        Type String
+        VariantPayloadProject DefaultContainer.Choice<String> v1 f1
+          Type DefaultContainer.Choice<String>
+          Local $pattern.subject.7
+      call $call.1: Boolean = external0 direct
+        Type String
+        Local $left.1.0
+        Type String
+        Local $right.1.0
+      branch bb13 bb14
+        Type Boolean
+        Local $call.1
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+    bb13 logic.rhs.13
+      call $call.3: Boolean = external0 direct
+        Type String
+        Local $left.1.1
+        Type String
+        Local $right.1.1
+      assign $logic.2
+        Type Boolean
+        Local $call.3
+      goto bb15
+    bb14 logic.short.14
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb15
+    bb15 logic.merge.15
+      return
+        Type Boolean
+        Local $logic.2
+  fun defaultIdentity @fn16(seed: Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun DefaultContainer.Generic.choose @fn17(this: DefaultContainer.Generic<Int>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun DefaultContainer.Generic.copy @fn18(this: DefaultContainer.Generic<Int>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun defaultIdentity @fn19(seed: String, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun DefaultContainer.Generic.choose @fn20(this: DefaultContainer.Generic<String>, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun DefaultContainer.Generic.copy @fn21(this: DefaultContainer.Generic<String>, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun Continuation.resume @fn22(this: Continuation<DefaultContainer>, value: DefaultContainer) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn23(this: Continuation<DefaultContainer>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn24(this: SuspendTask<DefaultContainer>, $completion: Continuation<DefaultContainer>) -> CoroutineStep<DefaultContainer>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn25(this: SuspendRegistration<DefaultContainer>, continuation: Continuation<DefaultContainer>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn26(this: Continuation<DefaultContainer.Nested>, value: DefaultContainer.Nested) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn27(this: Continuation<DefaultContainer.Nested>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn28(this: SuspendTask<DefaultContainer.Nested>, $completion: Continuation<DefaultContainer.Nested>) -> CoroutineStep<DefaultContainer.Nested>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn29(this: SuspendRegistration<DefaultContainer.Nested>, continuation: Continuation<DefaultContainer.Nested>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun $reference.0 @fn30($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn9 direct
+        Type Int
+        ClosureCapture cc1 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun init.DefaultContainer.$c0 @fn31(this: DefaultContainer) -> Unit
+    bb0 entry
+      return
+  fun init.DefaultContainer.Nested.$c2 @fn32(this: DefaultContainer.Nested) -> Unit
+    bb0 entry
+      return
+  fun init.DefaultContainer.Generic.$c1 @fn33(this: DefaultContainer.Generic<Int>, seed: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type DefaultContainer.Generic<Int>
+        Local this
+        Type Int
+        Local seed
+      return
+  fun init.DefaultContainer.Generic.$c1 @fn34(this: DefaultContainer.Generic<String>, seed: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type DefaultContainer.Generic<String>
+        Local this
+        Type String
+        Local seed
+      return
+  fun startCoroutine<DefaultContainer.Nested> @fn35(task: SuspendTask<DefaultContainer.Nested>, completion: Continuation<DefaultContainer.Nested>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn26 interface Continuation<DefaultContainer.Nested>[0]
+        Type Continuation<DefaultContainer.Nested>
+        Local completion
+        Type DefaultContainer.Nested
+        EnumField v0 f0
+          Type CoroutineStep<DefaultContainer.Nested>
+          Local $step
+      return
+    bb2 failed
+      call @fn27 interface Continuation<DefaultContainer.Nested>[1]
+        Type Continuation<DefaultContainer.Nested>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<DefaultContainer.Nested> = @fn28 interface SuspendTask<DefaultContainer.Nested>[0]
+        Type SuspendTask<DefaultContainer.Nested>
+        Local task
+        Type Continuation<DefaultContainer.Nested>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<DefaultContainer.Nested>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<DefaultContainer> @fn36(task: SuspendTask<DefaultContainer>, completion: Continuation<DefaultContainer>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn22 interface Continuation<DefaultContainer>[0]
+        Type Continuation<DefaultContainer>
+        Local completion
+        Type DefaultContainer
+        EnumField v0 f0
+          Type CoroutineStep<DefaultContainer>
+          Local $step
+      return
+    bb2 failed
+      call @fn23 interface Continuation<DefaultContainer>[1]
+        Type Continuation<DefaultContainer>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<DefaultContainer> = @fn24 interface SuspendTask<DefaultContainer>[0]
+        Type SuspendTask<DefaultContainer>
+        Local task
+        Type Continuation<DefaultContainer>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<DefaultContainer>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$lambda0.() -> Any @fn37($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference0.() -> Any @fn38($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<DefaultContainer.Nested> result=DefaultContainer.Nested
+  coroutine_step cs1 CoroutineStep<DefaultContainer> result=DefaultContainer
+  coroutine_slot cl0 CoroutineSlot<DefaultContainer.Nested> value=DefaultContainer.Nested
+  coroutine_slot cl1 CoroutineSlot<DefaultContainer> value=DefaultContainer
+  coroutine_start ct0 result=DefaultContainer.Nested function=fn35
+  coroutine_start ct1 result=DefaultContainer function=fn36
+  coroutine_fn cf0 @fn24 source_return=DefaultContainer step=cs1 immediate
+  coroutine_fn cf1 @fn28 source_return=DefaultContainer.Nested step=cs0 immediate
+  instance mi0 function=@fn11 <- DefaultContainer.Generic.pair
+  instance mi1 function=@fn12 <- DefaultContainer.Generic.pair
+  instance mi2 function=@fn13 <- DefaultContainer.Nested.choose
+  instance mi3 function=@fn16 <- defaultIdentity
+  instance mi4 function=@fn17 <- DefaultContainer.Generic.choose
+  instance mi5 function=@fn18 <- DefaultContainer.Generic.copy
+  instance mi6 function=@fn19 <- defaultIdentity
+  instance mi7 function=@fn20 <- DefaultContainer.Generic.choose
+  instance mi8 function=@fn21 <- DefaultContainer.Generic.copy
+  instance mi9 function=@fn22 <- Continuation.resume
+  instance mi10 function=@fn23 <- Continuation.resumeWithException
+  instance mi11 function=@fn24 <- SuspendTask.run
+  instance mi12 function=@fn25 <- SuspendRegistration.register
+  instance mi13 function=@fn26 <- Continuation.resume
+  instance mi14 function=@fn27 <- Continuation.resumeWithException
+  instance mi15 function=@fn28 <- SuspendTask.run
+  instance mi16 function=@fn29 <- SuspendRegistration.register
+  str @str0 "kept"
+  str @str1 "choice"
+  str @str2 "choice"
+  str @str3 "choice"
+  output library

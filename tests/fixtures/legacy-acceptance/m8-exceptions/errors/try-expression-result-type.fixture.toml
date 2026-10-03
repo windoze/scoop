@@ -1,0 +1,16 @@
+schema = 1
+name = "legacy-m8-exceptions-errors-try-expression-result-type"
+root = "../../../m8-exceptions/errors/try-expression-result-type.scoop"
+inputs = ["../../../m8-exceptions/errors/try-expression-result-type.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["legacy", "m8-exceptions", "single-file", "negative"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "try-expression-result-type.diagnostics.json"}

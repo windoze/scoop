@@ -1,0 +1,88 @@
+SourceFile
+  QualifiedPackage consumer.bindings
+  ImportStar Local upstream.bindings.*
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val consume: (Pair<T>) -> Int
+      Lambda 0 suspend=false
+        param (value, extra): _
+        Binary Add
+          Call read
+            Var value
+          Var extra
+    if
+      Binary Ne
+        Call consume
+          Call Pair<T>
+            Var seed
+            IntLiteral 0
+        IntLiteral 42
+      return
+        IntLiteral 1
+    val readers: MutableArray<() -> T>
+      ArrayLiteral
+        Lambda 1 suspend=false
+          parameters omitted
+          Var seed
+        Lambda 2 suspend=false
+          parameters omitted
+          Var seed
+    val entries
+      ArrayLiteral
+        Call Pair<T>
+          Var seed
+          IntLiteral 0
+        Call Pair<T>
+          Var seed
+          IntLiteral 1
+    for Pair{right: slot, left: value}
+      Var entries
+      if
+        Binary Eq
+          Var slot
+          IntLiteral 0
+        assign []
+          Var readers
+          IntLiteral 0L
+          Lambda 3 suspend=false
+            parameters omitted
+            Var value
+      else
+        assign []
+          Var readers
+          IntLiteral 1L
+          Lambda 4 suspend=false
+            parameters omitted
+            Var value
+    if
+      Binary Ne
+        Call read
+          Invoke
+            Index
+              Var readers
+              IntLiteral 0L
+        IntLiteral 42
+      return
+        IntLiteral 2
+    var total
+      IntLiteral 0
+    for (value, extra)
+      ArrayLiteral
+        Call Pieces<T>
+          Var seed
+          IntLiteral 0
+      assign total
+        Binary Add
+          Binary Add
+            Var total
+            Call read
+              Var value
+          Var extra
+    return
+      Var total
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 5 suspend=false
+          param item: _
+          Var item

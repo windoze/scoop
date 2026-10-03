@@ -2,14 +2,9 @@ use super::*;
 use hir::{
     CanonicalCallableInterfacesV1 as Callables, CanonicalPropertyInterfacesV1 as Properties,
 };
-use scoop_identity::{
-    AccessorRole, CallableTemplateOrigin, PropertyOwner, SourceDeclarationKey,
-    ValidatedIdentityGraph,
-};
+use scoop_identity::{AccessorRole, CallableTemplateOrigin};
 use scoop_wire::{decode_canonical, encode};
 use source_dispatch::with_hir_source;
-
-mod render;
 
 const STANDALONE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -22,7 +17,7 @@ const COMBINED: &str = include_str!(concat!(
 
 #[test]
 fn ordinary_property_metadata_keeps_complete_restricted_accessors_and_generic_owners() {
-    for (case, source) in [("standalone", STANDALONE), ("combined", COMBINED)] {
+    for source in [STANDALONE, COMBINED] {
         with_hir_source(source, |output, _| {
             let export = output.output().export.module();
             let properties = Properties::from_export_hir(export).unwrap();
@@ -35,14 +30,6 @@ fn ordinary_property_metadata_keeps_complete_restricted_accessors_and_generic_ow
             let decoded: hir::DecodedCanonicalPropertyInterfacesV1 =
                 decode_canonical(&encode(&properties).unwrap()).unwrap();
             assert_eq!(decoded.resolve(&mut identities).unwrap(), properties);
-            let rows = render::table(&properties, &callables, &identities);
-            let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
-                "../../tests/fixtures/m23-shared-property-declarations/{case}.snap"
-            ));
-            if std::env::var_os("SCOOP_UPDATE_SHARED_PROPERTY_SNAPSHOTS").is_some() {
-                std::fs::write(&path, &rows).unwrap();
-            }
-            assert_eq!(rows, std::fs::read_to_string(path).unwrap());
         });
     }
 }

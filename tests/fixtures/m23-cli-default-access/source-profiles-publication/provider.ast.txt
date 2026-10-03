@@ -1,0 +1,13 @@
+SourceFile
+  RootPackage
+  public fun sharedDefault(): Int
+    =
+      IntLiteral 9
+  public open class Plain()
+    protected fun own
+    protected fun inherited
+  public class Child() : Plain(<0 args>)
+    protected fun inherited
+  public class Generic<T>()
+    protected fun fromOwner
+    public nested class Static

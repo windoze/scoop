@@ -1,0 +1,142 @@
+SourceFile
+  RootPackage
+  fun factorialOf(value: Int): Int
+    fun factorial(n: Int): Int
+      return
+        IfExpression
+          Binary Le
+            Var n
+            IntLiteral 1
+          IntLiteral 1
+          else
+          Binary Mul
+            Var n
+            Call factorial
+              Binary Sub
+                Var n
+                IntLiteral 1
+    return
+      Call factorial
+        Var value
+  fun makeAdder(base: Int): (Int) -> Int
+    fun add(value: Int): Int
+      Binary Add
+        Var value
+        Var base
+    Call println
+      Call add
+        IntLiteral 1
+    return
+      CallableReference 0 add
+  fun overloaded(): Int
+    fun choose(value: Int): Int
+      Binary Add
+        Var value
+        IntLiteral 1
+    fun choose(value: String): Int
+      IntLiteral 0
+    return
+      Call choose
+        IntLiteral 41
+  fun genericLocal(): Int
+    fun identity<T>(value: T): T
+      Var value
+    return
+      Call identity
+        IntLiteral 42
+  fun genericReference(): (Int) -> Int
+    fun identity<T>(value: T): T
+      Var value
+    return
+      CallableReference 1 identity
+  fun throughOuterGeneric<T>(value: T): T
+    fun local(value: T): T
+      Var value
+    return
+      Call local
+        Var value
+  fun recursiveCapture(base: Int): Int
+    fun finishAfter(n: Int): Int
+      if
+        Binary Gt
+          Var n
+          IntLiteral 0
+        return
+          Call finishAfter
+            Binary Sub
+              Var n
+              IntLiteral 1
+      return
+        Var base
+    return
+      Call finishAfter
+        IntLiteral 2
+  fun makeLabelReader(label: LocalLabel): () -> String
+    fun read(): String
+      FieldAccess text
+        Var label
+    return
+      CallableReference 2 read
+  fun nestedLocal(base: Int): Int
+    fun outer(value: Int): Int
+      fun inner(value: Int): Int
+        Binary Add
+          Var value
+          Var base
+      return
+        Call inner
+          Var value
+    return
+      Call outer
+        IntLiteral 40
+  fun main()
+    val add
+      Call makeAdder
+        IntLiteral 2
+    val read
+      Call makeLabelReader
+        Call LocalLabel
+          StringLiteral "alive"
+    Call gcCollect
+    Call println
+      Call factorialOf
+        IntLiteral 5
+    Call println
+      Call add
+        IntLiteral 40
+    Call println
+      Call overloaded
+    Call println
+      Call genericLocal
+    Call println
+      Invoke
+        Call genericReference
+        IntLiteral 42
+    Call println
+      Call throughOuterGeneric
+        IntLiteral 42
+    Call println
+      Call recursiveCapture
+        IntLiteral 42
+    Call println
+      Call read
+    Call println
+      Call nestedLocal
+        IntLiteral 2
+    var snapshot
+      Call LocalSnapshot
+        IntLiteral 42
+    Call println
+      MethodCall readThroughLocal
+        Var snapshot
+    assign snapshot
+      Call LocalSnapshot
+        IntLiteral 0
+    Call println
+      FieldAccess value
+        Var snapshot
+  struct LocalLabel
+    field text: String
+  struct LocalSnapshot
+    field value: Int
+    fun readThroughLocal

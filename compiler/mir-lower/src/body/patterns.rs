@@ -44,6 +44,12 @@ impl BodyLowerer<'_> {
                     }
                     hir::LiteralPatternEquality::Ordinary { equals } => {
                         let callee = match *equals {
+                            hir::CallableTarget::DerivedEquality(target) => {
+                                mir::Callee::External(crate::current::external_equality(
+                                    self.external_callables,
+                                    self.module.imported_derived_equalities[target].0,
+                                ))
+                            }
                             hir::CallableTarget::Local(callable) => {
                                 let function = self.module.callable_function(callable);
                                 self.instances.get(function).map_or_else(

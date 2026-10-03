@@ -740,7 +740,6 @@ fn exact_raw_and_code_niches_emit_through_all_enum_operations() {
                 initial_state: LirStaticInitialState::EncodedStaticValue {
                     payload: LirConstantImage::EnumUnit { variant: none },
                 },
-                thread_local: false,
             },
         });
 
@@ -841,7 +840,6 @@ fn niche_enum_null_constant_cannot_bypass_pointer_provenance() {
             initial_state: LirStaticInitialState::EncodedStaticValue {
                 payload: LirConstantImage::NullPointer(PointerKind::Code),
             },
-            thread_local: false,
         },
     });
 

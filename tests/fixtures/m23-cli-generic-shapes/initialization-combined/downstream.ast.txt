@@ -1,0 +1,6 @@
+SourceFile
+  QualifiedPackage downstream.initialization
+  ImportExact Local consumer.initialization.answer
+  public fun check(): Int
+    =
+      Call answer

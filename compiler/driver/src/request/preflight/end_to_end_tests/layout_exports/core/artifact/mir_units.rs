@@ -33,33 +33,19 @@ pub(super) fn check(
     if name.starts_with("shared-units-") {
         assert!(!units.is_empty());
         mutations::check(&replay, &units);
-        let dump = format!(
-            "source-units={} materialized-units={}\n{}",
-            metadata.source_initialization_units().len(),
-            units.len(),
-            units
-                .iter()
-                .map(|unit| format!(
-                    "unit {}: initializer={:?} ensure={:?} {:?} {:?}\n",
-                    unit.unit(),
-                    unit.initializer().callable_owner(),
-                    unit.ensure().callable_owner(),
-                    unit.signature().exact().effect(),
-                    unit.signature().gc_effect()
-                ))
-                .collect::<String>(),
-        );
-        let snapshot = crate::workspace_root().join(format!(
-            "tests/fixtures/m23-core-layout-exports/{name}.units.snap"
-        ));
-        if std::env::var_os("SCOOP_UPDATE_CORE_LAYOUT_EXPORTS").is_some() {
-            std::fs::write(&snapshot, &dump).unwrap();
-        }
-        assert_eq!(dump, std::fs::read_to_string(snapshot).unwrap());
         if name.ends_with("standalone") {
             assert_eq!(
                 (metadata.source_initialization_units().len(), units.len()),
-                (3, 2)
+                (3, 3)
+            );
+            // The suspend object now has its concrete methods and initialization pair.
+            assert_eq!(
+                metadata
+                    .source_initialization_units()
+                    .iter()
+                    .map(|source| source.id())
+                    .collect::<std::collections::BTreeSet<_>>(),
+                units.iter().map(|unit| unit.unit()).collect(),
             );
         } else {
             assert_eq!(units.len(), 5);

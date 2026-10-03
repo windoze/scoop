@@ -1,0 +1,57 @@
+Module
+  class box<Int> vtable=0 itables=0
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=1
+    bridge function_type1 -> @fn3 id=588f5ad50e692066a9157868091b1ff684cf96725bc5fc2ea16462d98f004284
+  generated_exact_type get0 location=closure0 nominal_id=d51dcb79a557611207eec1227ac6a5127ae87b15d33214a385e2194af8e1d998 exact_id=051e5c11b50b3a9501cf1334febbabf040322212e658e37f97b72cb0964ac384
+  generated_exact_type get1 location=class0 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn3 id=588f5ad50e692066a9157868091b1ff684cf96725bc5fc2ea16462d98f004284
+  fun check @fn0() -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.seed: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.value: () -> Int
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type Int
+            Local $dependency.parameter.seed
+      call $call.1: () -> Int = @fn2 direct
+        Type Int
+        Local $dependency.parameter.seed
+        Type () -> Int
+        Local $dependency.parameter.value
+      call $call.2: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $call.1
+      return
+        Type Int
+        Local $call.2
+  fun $lambda @fn1($argument.0: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        ClosureCapture cc0 0
+          Type () -> Int
+          Local $argument.0
+  fun readerNested @fn2(seed: Int, value: () -> Int) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        Local value
+  fun function_bridge.$Closure$lambda0.() -> Any @fn3($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  instance mi0 function=@fn1 <- $lambda
+  instance mi1 function=@fn2 <- readerNested
+  output library

@@ -31,6 +31,7 @@ pub(super) fn with_mir(
         parsed.sources(),
         protocols.as_ref().clone().into(),
         &world,
+        Default::default(),
     )
     .unwrap();
     let selected = closure

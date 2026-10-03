@@ -1,0 +1,7 @@
+Module
+  fun @scoop$1$cb$d88a634a45925b500ed1df6ded5f050431df5a04049e49a7232c7876bc84e0d5(indirect<struct0 size=16 align=8 scan=refs[8]>) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:struct0@8]
+    t0 = extract param0, 0 : i32
+    ret t0
+  output library

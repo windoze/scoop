@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m21-companions/errors/private-access.scoop:11:13: error: companion object `Companion` is not accessible here

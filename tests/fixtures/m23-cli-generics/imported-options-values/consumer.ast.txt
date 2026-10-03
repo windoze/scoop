@@ -1,0 +1,102 @@
+SourceFile
+  QualifiedPackage consumer.options
+  ImportExact Local dependency.options.wrap
+  ImportExact Local dependency.options.force
+  private class Cell(val number: Int)
+  private struct Wide
+    field first: Cell
+    field second: Cell
+    field third: Cell
+  private struct Empty
+  public fun exercise<T>(value: T): Int
+    val held: T?
+      Call wrap
+        Var value
+    val wide: Wide?
+      Call Some
+        Call Wide
+          Call Cell
+            IntLiteral 10
+          Call Cell
+            IntLiteral 11
+          Call Cell
+            IntLiteral 20
+    val tuple: (Cell, Int)?
+      Call Some
+        TupleLiteral
+          Call Cell
+            IntLiteral 1
+          IntLiteral 0
+    val empty: Empty?
+      Call Some
+        Call Empty
+    val missing: Empty?
+      Var None
+    val callback: (() -> Int)?
+      Call Some
+        Lambda 0 suspend=false
+          parameters omitted
+          IntLiteral 42
+    val allocated
+      Call Cell
+        IntLiteral 0
+    val restored
+      Call force
+        Var held
+    if
+      WhenExpression
+        Var empty
+        arm Some(marker)
+          BoolLiteral false
+        arm None
+          BoolLiteral true
+      return
+        IntLiteral 1
+    if
+      WhenExpression
+        Var missing
+        arm Some(marker)
+          BoolLiteral true
+        arm None
+          BoolLiteral false
+      return
+        IntLiteral 2
+    val read
+      Call force
+        Var wide
+    val pair
+      Call force
+        Var tuple
+    if
+      Binary Or
+        Binary Ne
+          Invoke
+            Call force
+              Var callback
+          IntLiteral 42
+        Binary Ne
+          FieldAccess number
+            Var allocated
+          IntLiteral 0
+      return
+        IntLiteral 3
+    return
+      Binary Add
+        Binary Add
+          Binary Add
+            FieldAccess number
+              FieldAccess first
+                Var read
+            FieldAccess number
+              FieldAccess second
+                Var read
+          FieldAccess number
+            FieldAccess third
+              Var read
+        FieldAccess number
+          FieldAccess _1
+            Var pair
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 1

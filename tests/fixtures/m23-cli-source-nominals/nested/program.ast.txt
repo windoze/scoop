@@ -1,0 +1,60 @@
+SourceFile
+  RootPackage
+  fun verifyNominal(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val value
+      Call envelope
+    val marker
+      MethodCall marker
+        Var value
+    Call verifyNominal
+      Binary RefEq
+        MethodCall boxed
+          Var value
+          Var marker
+        Var marker
+    Call verifyNominal
+      Binary Eq
+        MethodCall inherited
+          Var value
+        IntLiteral 1
+    Call verifyNominal
+      Binary Eq
+        MethodCall readView
+          Var value
+        IntLiteral 16
+    Call verifyNominal
+      Binary Eq
+        MethodCall cacheValue
+          Var value
+        IntLiteral 7
+    Call verifyNominal
+      MethodCall values
+        Var value
+    Call verifyNominal
+      Binary Eq
+        MethodCall childValue
+          Call outer<Int>
+        IntLiteral 1
+    Call verifyNominal
+      Binary Eq
+        MethodCall childValue
+          Call outer<String>
+        IntLiteral 1
+    Call verifyNominal
+      Binary Eq
+        MethodCall genericValue
+          Call outer<Int>
+          StringLiteral "child"
+        StringLiteral "child"
+    Call verifyNominal
+      Binary Eq
+        MethodCall genericValue
+          Call outer<String>
+          IntLiteral 17
+        IntLiteral 17

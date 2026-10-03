@@ -1,0 +1,19 @@
+SourceFile
+  QualifiedPackage callbacks
+  public val callback: (Int) -> Int = <expr>
+  public var trace: Int = <expr>
+  public val selected: (Int) -> Int <computed>
+  public fun mark(): Int
+    assign trace
+      Binary Add
+        Binary Mul
+          Var trace
+          IntLiteral 10
+        IntLiteral 2
+    return
+      IntLiteral 40
+  public class Adder()
+    public operator fun invoke
+  public val operation: Adder = <expr>
+  public object Singleton
+    public operator fun invoke

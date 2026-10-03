@@ -1,0 +1,33 @@
+SourceFile
+  QualifiedPackage consumer.references
+  ImportExact Local templates.references.select as mixed
+  ImportExact Local consumer.references.localSelect as mixed
+  ImportExact Local templates.references.prefer as preferred
+  ImportExact Local consumer.references.localPrefer as preferred
+  public fun localSelect<T>(value: T): Int
+    =
+      IntLiteral 1
+  public fun localPrefer<T>(value: T): Int
+    =
+      IntLiteral 2
+  public fun exercise<T>(value: T): Int
+    val selected: ((T, Int)) -> Int
+      CallableReference 0 mixed
+    val preference: (Int) -> Int
+      CallableReference 1 preferred
+    if
+      Binary Ne
+        Call selected
+          TupleLiteral
+            Var value
+            IntLiteral 0
+        IntLiteral 42
+      return
+        IntLiteral 1
+    return
+      Call preference
+        IntLiteral 0
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0

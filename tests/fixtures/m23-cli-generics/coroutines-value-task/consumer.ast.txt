@@ -1,0 +1,71 @@
+SourceFile
+  QualifiedPackage consumer.coroutines
+  ImportStar Local templates.coroutines.*
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val immediate
+      Call Completion<T>
+    Call startCoroutine
+      Call valueTask
+        Var seed
+      Var immediate
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess calls
+            Var immediate
+          IntLiteral 1
+        Binary Ne
+          Call read
+            NullAssert
+              FieldAccess value
+                Var immediate
+          IntLiteral 42
+      return
+        IntLiteral 2
+    val gate
+      Call Gate<T>
+    val deferred
+      Call Completion<T>
+    Call startCoroutine
+      Call waitingValueTask
+        Var gate
+      Var deferred
+    if
+      Binary Ne
+        FieldAccess calls
+          Var deferred
+        IntLiteral 0
+      return
+        IntLiteral 3
+    val retained
+      Call Counter
+    assign .value
+      Var retained
+      IntLiteral 42
+    MethodCall complete
+      Var gate
+      Var seed
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess calls
+            Var deferred
+          IntLiteral 1
+        Binary Ne
+          FieldAccess value
+            Var retained
+          IntLiteral 42
+      return
+        IntLiteral 4
+    return
+      Call read
+        NullAssert
+          FieldAccess value
+            Var deferred
+  public fun result(): Int
+    =
+      Call exercise
+        IntLiteral 42
+        Lambda 0 suspend=false
+          param value: Int
+          Var value

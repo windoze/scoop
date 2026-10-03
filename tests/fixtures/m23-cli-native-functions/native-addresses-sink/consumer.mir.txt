@@ -1,0 +1,58 @@
+Module
+  extern ef0 nativeSink @m23_call_sink(FunPtr<(Ptr<Long>) -> Unit>) -> Long <abi=c no-gc lib=m23_native_calls>
+  callback cb0 external0 -> external1 function_type0 id=ac97133c6293897c6b06d6426dd61f2831da78a4c5ea07b8868938293cb4c5f5
+  fun nativeSink @fn0(arg0: FunPtr<(Ptr<Long>) -> Unit>) -> Long
+    bb0 entry
+      call $call.1: Long = extern0 @m23_call_sink direct
+        Type FunPtr<(Ptr<Long>) -> Unit>
+        Local arg0
+      return
+        Type Long
+        Local $call.1
+  fun callSink @fn1(callback: FunPtr<(Ptr<Long>) -> Unit>) -> Long
+    bb0 entry
+      val $argument.0: FunPtr<(Ptr<Long>) -> Unit>
+        Type FunPtr<(Ptr<Long>) -> Unit>
+        Local callback
+      val $parameter.callback: FunPtr<(Ptr<Long>) -> Unit>
+        Type FunPtr<(Ptr<Long>) -> Unit>
+        Local $argument.0
+      call $call.1: Long = extern0 @m23_call_sink direct
+        Type FunPtr<(Ptr<Long>) -> Unit>
+        Local $parameter.callback
+      return
+        Type Long
+        Local $call.1
+  fun result @fn2() -> Long
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Long = @fn3 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Long
+        Local $call.1
+  fun exercise @fn3(value: Int) -> Long
+    bb0 entry
+      val callback: FunPtr<(Ptr<Long>) -> Unit>
+        Type FunPtr<(Ptr<Long>) -> Unit>
+        FunctionAddress cb0
+      val $argument.0: FunPtr<(Ptr<Long>) -> Unit>
+        Type FunPtr<(Ptr<Long>) -> Unit>
+        Local callback
+      val $parameter.callback: FunPtr<(Ptr<Long>) -> Unit>
+        Type FunPtr<(Ptr<Long>) -> Unit>
+        Local $argument.0
+      call $call.1: Long = @fn1 direct
+        Type FunPtr<(Ptr<Long>) -> Unit>
+        Local $parameter.callback
+      return
+        Type Long
+        Local $call.1
+  instance mi0 function=@fn3 <- exercise
+  output library

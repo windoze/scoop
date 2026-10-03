@@ -1,0 +1,54 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "method `secret` is not accessible here",
+    "notes": [],
+    "origin": {
+      "cone": "911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006",
+      "end": 467,
+      "kind": "source",
+      "path": "src/user.scoop",
+      "start": 461
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "protected method `secret` cannot be accessed through receiver of static type `Base`; receiver must be `Derived` or one of its subclasses",
+    "notes": [],
+    "origin": {
+      "cone": "911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006",
+      "end": 269,
+      "kind": "source",
+      "path": "src/user.scoop",
+      "start": 263
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "protected method `secret` cannot be accessed through receiver of static type `Sibling`; receiver must be `Derived` or one of its subclasses",
+    "notes": [],
+    "origin": {
+      "cone": "911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006",
+      "end": 329,
+      "kind": "source",
+      "path": "src/user.scoop",
+      "start": 323
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "setter of property `state` is not accessible",
+    "notes": [],
+    "origin": {
+      "cone": "911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006",
+      "end": 382,
+      "kind": "source",
+      "path": "src/user.scoop",
+      "start": 377
+    },
+    "severity": "error"
+  }
+]

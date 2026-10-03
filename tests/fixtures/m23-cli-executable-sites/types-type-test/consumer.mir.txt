@@ -1,0 +1,14 @@
+Module
+  fun inspect @fn0(value: Any) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        IsInstance String
+          Type Any
+          Local value
+  fun dormant @fn1(value: UInt16) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral false
+  output library

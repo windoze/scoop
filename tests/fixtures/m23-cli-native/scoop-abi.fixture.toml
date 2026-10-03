@@ -1,0 +1,55 @@
+schema = 1
+name = "native-scoop-abi-moving-roots"
+inputs = ["../m12-extern-scoop/extern-scoop.scoop", "../m12-extern-scoop/native.c"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin"]
+tags = ["native", "scoop-abi", "moving-gc", "stage-golden"]
+
+[[variants]]
+name = "normal"
+[[variants]]
+name = "moving"
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+
+[[steps]]
+name = "prepare"
+files = [
+  {mkdir = {path = "${work}/native/objects"}},
+  {mkdir = {path = "${work}/native/lib"}},
+]
+
+[[steps]]
+name = "compile_native"
+argv = ["${cc}", "-target", "${target}", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-std=c11", "-O0", "-Wall", "-Wextra", "-Werror", "-fno-omit-frame-pointer", "-I", "${runtime}/include", "-c", "${fixture}/../m12-extern-scoop/native.c", "-o", "${work}/native/objects/scoop-abi.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive_native"
+argv = ["${ar}", "rcs", "${work}/native/lib/libfixture_native.a", "${work}/native/objects/scoop-abi.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${fixture}/../m12-extern-scoop/extern-scoop.scoop", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}/native/lib", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump/${build.result.root.identity}/ast.txt", snapshot = "scoop-abi.ast.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "scoop-abi.hir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "scoop-abi.mir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "scoop-abi.lir.txt"},
+]
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "direct managed ref42\naggregate\n11\n22\n"
+stderr = ""

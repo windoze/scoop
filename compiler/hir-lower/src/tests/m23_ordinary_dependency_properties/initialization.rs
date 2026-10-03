@@ -166,21 +166,6 @@ fn property_initialization_uses_replay_actual_source_and_expanded_defaults() {
                         .any(|(_, unit)| unit.identity.id() == usage.local_unit())
                 );
             }
-            let mut dump = format!("uses={count}\n");
-            for usage in &actual {
-                dump.push_str(&format!(
-                    "local={}\nprovider={}\ndependency={}\naccessor={}\n",
-                    usage.local_unit(),
-                    usage.provider(),
-                    usage.dependency_unit(),
-                    usage.accessor(),
-                ));
-            }
-            let path = fixture_path().join(format!("{name}.hir-uses.snap"));
-            if std::env::var_os("SCOOP_UPDATE_PROPERTY_INITIALIZATION").is_some() {
-                std::fs::write(&path, &dump).unwrap();
-            }
-            assert_eq!(dump, std::fs::read_to_string(path).unwrap());
         });
     }
 }

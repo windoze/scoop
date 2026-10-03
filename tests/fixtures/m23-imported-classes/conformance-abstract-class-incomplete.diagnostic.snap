@@ -1,6 +1,0 @@
-span=157..218
-expression=public class LocalReader public constructor(): LocalBase() {}
-class `LocalReader` does not implement abstract method `LocalBase.choose`
-span=157..218
-expression=public class LocalReader public constructor(): LocalBase() {}
-class `LocalReader` leaves interface method `FirstChoice.choose` abstract

@@ -1,0 +1,176 @@
+schema = 1
+name = "cli-process-source-observations"
+inputs = ["dependency", "root", "runner", "warning.scoop", "broken.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["cli", "cache", "diagnostics", "stage-golden", "process-cache"]
+
+[vars]
+options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [
+  {"copy" = {"from" = "${fixture}/dependency", "to" = "${work}/dependency"}},
+  {"copy" = {"from" = "${fixture}/root", "to" = "${work}/root"}},
+  {"copy" = {"from" = "${fixture}/runner", "to" = "${work}/runner"}},
+]
+
+[[steps]]
+name = "cold"
+argv = ["${scoop}", "build", "${work}/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${cold.result.kind}", "equals" = "library"},
+  {"actual" = "${cold.result.dependencies.length}", "equals" = 2},
+  {"actual" = "${cold.result.observations.child_invocations}", "equals" = ["${cold.result.dependencies.0.identity}", "${cold.result.dependencies.1.identity}", "${cold.result.root.identity}"]},
+  {"glob" = "${work}/cache/compile-v1/.staging/*", "equals" = []},
+  {"file" = "${work}/library.slib", "same_as" = "${cold.result.root.path}"},
+  {"actual" = "${cold.result.dependencies.0.coordinate}", "equals" = {"group" = "scoop", "name" = "scoop.core", "version" = "0.1.0"}},
+  {"actual" = "${cold.result.observations.nodes.0.origin}", "equals" = "compiled"},
+  {"actual" = "${cold.result.dependencies.1.coordinate}", "equals" = {"group" = "test", "name" = "dependency", "version" = "1.0.0"}},
+  {"actual" = "${cold.result.observations.nodes.1.origin}", "equals" = "compiled"},
+  {"actual" = "${cold.result.root.coordinate}", "equals" = {"group" = "test", "name" = "root", "version" = "1.0.0"}},
+  {"actual" = "${cold.result.observations.nodes.2.origin}", "equals" = "compiled"},
+]
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", "${work}/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${warm.result.kind}", "equals" = "library"},
+  {"actual" = "${warm.result.dependencies.length}", "equals" = 2},
+  {"actual" = "${warm.result.observations.child_invocations}", "equals" = []},
+  {"glob" = "${work}/cache/compile-v1/.staging/*", "equals" = []},
+  {"file" = "${work}/library.slib", "same_as" = "${warm.result.root.path}"},
+  {"actual" = "${warm.result.dependencies.0.coordinate}", "equals" = {"group" = "scoop", "name" = "scoop.core", "version" = "0.1.0"}},
+  {"actual" = "${warm.result.observations.nodes.0.origin}", "equals" = "cache"},
+  {"actual" = "${warm.result.dependencies.0.artifact_fingerprint}", "equals" = "${cold.result.dependencies.0.artifact_fingerprint}"},
+  {"file" = "${warm.result.dependencies.0.path}", "same_as" = "${cold.result.dependencies.0.path}"},
+  {"actual" = "${warm.result.dependencies.1.coordinate}", "equals" = {"group" = "test", "name" = "dependency", "version" = "1.0.0"}},
+  {"actual" = "${warm.result.observations.nodes.1.origin}", "equals" = "cache"},
+  {"actual" = "${warm.result.dependencies.1.artifact_fingerprint}", "equals" = "${cold.result.dependencies.1.artifact_fingerprint}"},
+  {"file" = "${warm.result.dependencies.1.path}", "same_as" = "${cold.result.dependencies.1.path}"},
+  {"actual" = "${warm.result.root.coordinate}", "equals" = {"group" = "test", "name" = "root", "version" = "1.0.0"}},
+  {"actual" = "${warm.result.observations.nodes.2.origin}", "equals" = "cache"},
+  {"actual" = "${warm.result.root.artifact_fingerprint}", "equals" = "${cold.result.root.artifact_fingerprint}"},
+  {"file" = "${warm.result.root.path}", "same_as" = "${cold.result.root.path}"},
+]
+
+[[steps]]
+name = "observed"
+argv = ["${scoop}", "build", "${work}/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${observed.result.kind}", "equals" = "library"},
+  {"actual" = "${observed.result.dependencies.length}", "equals" = 2},
+  {"actual" = "${observed.result.observations.child_invocations}", "equals" = ["${observed.result.root.identity}"]},
+  {"glob" = "${work}/cache/compile-v1/.staging/*", "equals" = []},
+  {"file" = "${work}/library.slib", "same_as" = "${observed.result.root.path}"},
+  {"actual" = "${observed.result.dependencies.0.coordinate}", "equals" = {"group" = "scoop", "name" = "scoop.core", "version" = "0.1.0"}},
+  {"actual" = "${observed.result.observations.nodes.0.origin}", "equals" = "cache"},
+  {"actual" = "${observed.result.dependencies.0.artifact_fingerprint}", "equals" = "${cold.result.dependencies.0.artifact_fingerprint}"},
+  {"file" = "${observed.result.dependencies.0.path}", "same_as" = "${cold.result.dependencies.0.path}"},
+  {"actual" = "${observed.result.dependencies.1.coordinate}", "equals" = {"group" = "test", "name" = "dependency", "version" = "1.0.0"}},
+  {"actual" = "${observed.result.observations.nodes.1.origin}", "equals" = "cache"},
+  {"actual" = "${observed.result.dependencies.1.artifact_fingerprint}", "equals" = "${cold.result.dependencies.1.artifact_fingerprint}"},
+  {"file" = "${observed.result.dependencies.1.path}", "same_as" = "${cold.result.dependencies.1.path}"},
+  {"actual" = "${observed.result.root.coordinate}", "equals" = {"group" = "test", "name" = "root", "version" = "1.0.0"}},
+  {"actual" = "${observed.result.observations.nodes.2.origin}", "equals" = "compiled"},
+  {"actual" = "${observed.result.root.artifact_fingerprint}", "equals" = "${cold.result.root.artifact_fingerprint}"},
+  {"file" = "${observed.result.root.path}", "same_as" = "${cold.result.root.path}"},
+  {"glob" = "${work}/dump/*", "equals" = ["${work}/dump/${observed.result.root.identity}"]},
+  {"file" = "${work}/dump/${observed.result.root.identity}/ast.txt", "snapshot" = "ast.txt"},
+  {"file" = "${work}/dump/${observed.result.root.identity}/hir.txt", "snapshot" = "hir.txt"},
+  {"file" = "${work}/dump/${observed.result.root.identity}/mir.txt", "snapshot" = "mir.txt"},
+  {"file" = "${work}/dump/${observed.result.root.identity}/lir.txt", "snapshot" = "lir.txt"},
+]
+
+[[steps]]
+name = "retain_closure"
+files = [
+  {"copy" = {"from" = "${observed.result.dependencies.0.path}", "to" = "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"}},
+  {"copy" = {"from" = "${observed.result.dependencies.1.path}", "to" = "${work}/artifacts/test/dependency/1.0.0/cone.slib"}},
+  {"copy" = {"from" = "${observed.result.root.path}", "to" = "${work}/artifacts/test/root/1.0.0/cone.slib"}},
+]
+
+[[steps]]
+name = "program"
+argv = ["${scoop}", "build", "${work}/runner", {"each" = "${options}"}, "--cone-path", "${work}/artifacts", "-o", "${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${program.result.observations.child_invocations}", "equals" = ["${program.result.root.identity}"]},
+  {"actual" = "${program.result.observations.nodes.0.origin}", "equals" = "prebuilt"},
+  {"actual" = "${program.result.observations.nodes.1.origin}", "equals" = "prebuilt"},
+  {"actual" = "${program.result.observations.nodes.2.origin}", "equals" = "prebuilt"},
+]
+
+[[steps]]
+name = "run"
+argv = ["${work}/program"]
+exit = 0
+stdout = "1\n"
+stderr = ""
+
+[[steps]]
+name = "moving"
+argv = ["${work}/program"]
+exit = 0
+stdout = "1\n"
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}
+
+[[steps]]
+name = "change_sources"
+files = [
+  {"copy" = {"from" = "${fixture}/warning.scoop", "to" = "${work}/dependency/src/warning.scoop"}},
+  {"copy" = {"from" = "${fixture}/broken.scoop", "to" = "${work}/root/src/main.scoop"}},
+]
+
+[[steps]]
+name = "failed"
+argv = ["${scoop}", "build", "${work}/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "diagnostics.json"}
+checks = [
+  {"actual" = "${failed.diagnostics.length}", "equals" = 2},
+  {"actual" = "${failed.records.length}", "equals" = 2},
+  {"file" = "${work}/library.slib", "same_as" = "${work}/artifacts/test/root/1.0.0/cone.slib"},
+  {"glob" = "${work}/cache/compile-v1/.staging/*", "equals" = []},
+]
+
+[[steps]]
+name = "failed_warm"
+argv = ["${scoop}", "build", "${work}/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "diagnostics.json"}
+checks = [
+  {"actual" = "${failed_warm.diagnostics.length}", "equals" = 2},
+  {"actual" = "${failed_warm.records.length}", "equals" = 2},
+  {"file" = "${work}/library.slib", "same_as" = "${work}/artifacts/test/root/1.0.0/cone.slib"},
+  {"glob" = "${work}/cache/compile-v1/.staging/*", "equals" = []},
+  {"actual" = "${failed_warm.diagnostics}", "equals" = "${failed.diagnostics}"},
+]

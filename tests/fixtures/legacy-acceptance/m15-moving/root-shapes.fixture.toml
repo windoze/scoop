@@ -1,0 +1,31 @@
+schema = 1
+name = "legacy-m15-moving-root-shapes"
+root = "../../m15-moving/root-shapes.scoop"
+inputs = ["../../m15-moving/root-shapes.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["legacy", "m15-moving", "single-file", "run", "moving-gc"]
+
+[[variants]]
+name = "normal"
+
+[[variants]]
+name = "moving"
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "root-shapes.ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "root-shapes.hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "root-shapes.mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "root-shapes.lir.txt"}]
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "head-alive\nhead-alive\npair-alive\nnode-alive\nnode-alive\nchoice-alive\nfirst-alive\nnode-alive\nfirst-alive\nhead-alive\npair-alive\nnode-alive\nnode-alive\nchoice-alive\nsecond-alive\nnode-alive\nsecond-alive\n"
+stderr = ""

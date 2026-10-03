@@ -30,6 +30,10 @@ struct Cli {
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
+    if let Err(error) = scoop_process::initialize() {
+        eprintln!("cannot initialize process signal handling: {error}");
+        return ExitCode::FAILURE;
+    }
     let request = ArtifactLinkRequest {
         root_slib: cli.root_slib,
         dependency_slibs: cli.dependencies,
@@ -38,7 +42,7 @@ fn main() -> ExitCode {
         library_paths: cli.library_paths,
         output: cli.output,
     };
-    match request.link() {
+    let result = match request.link() {
         Ok(output) => {
             if cli.dump_plan {
                 print!("{}", output.plan_dump);
@@ -50,5 +54,7 @@ fn main() -> ExitCode {
             eprintln!("scoop-link: {error}");
             ExitCode::FAILURE
         }
-    }
+    };
+    scoop_process::finish_interruption();
+    result
 }

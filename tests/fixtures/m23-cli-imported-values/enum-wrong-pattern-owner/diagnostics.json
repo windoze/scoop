@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "pattern `Other.Empty` does not match a subject of type Choice",
+    "notes": [],
+    "origin": {
+      "cone": "4f1bfbba007f2d71f32b5f8d113536cc853fb7df09d7c5fc798a9349b6b18891",
+      "end": 159,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 148
+    },
+    "severity": "error"
+  }
+]

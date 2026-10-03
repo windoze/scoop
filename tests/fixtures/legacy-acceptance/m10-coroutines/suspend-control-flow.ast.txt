@@ -1,0 +1,134 @@
+SourceFile
+  RootPackage
+  public enum Choice
+    Number(Int)
+    Empty
+  class IntGate(var waiter: Continuation<Int>?)
+    fun complete
+  class BooleanGate(var waiter: Continuation<Boolean>?)
+    fun complete
+  class ChoiceGate(var waiter: Continuation<Choice>?)
+    fun complete
+  class IntRegistration(val gate: IntGate), SuspendRegistration<Int>
+    public fun register
+  class BooleanRegistration(val gate: BooleanGate), SuspendRegistration<Boolean>
+    public fun register
+  class ChoiceRegistration(val gate: ChoiceGate), SuspendRegistration<Choice>
+    public fun register
+  suspend fun waitForInt(gate: IntGate): Int
+    =
+      Call suspendCoroutine
+        Call IntRegistration
+          Var gate
+  suspend fun waitForBoolean(gate: BooleanGate): Boolean
+    =
+      Call suspendCoroutine
+        Call BooleanRegistration
+          Var gate
+  suspend fun waitForChoice(gate: ChoiceGate): Choice
+    =
+      Call suspendCoroutine
+        Call ChoiceRegistration
+          Var gate
+  fun markedInt(label: String, value: Int): Int
+    Call println
+      Var label
+    return
+      Var value
+  fun markedBoolean(label: String, value: Boolean): Boolean
+    Call println
+      Var label
+    return
+      Var value
+  fun combine(first: Int, second: Int, third: Int): Int
+    =
+      Binary Add
+        Binary Add
+          Var first
+          Var second
+        Var third
+  class ControlTask(val argumentGate: IntGate, val ifConditionGate: BooleanGate, val ifValueGate: IntGate, val whenChoiceGate: ChoiceGate, val whenValueGate: IntGate, val loopConditionGate: BooleanGate, val loopBodyGate: IntGate, val andGate: BooleanGate, val orGate: BooleanGate), SuspendTask<Int>
+    public suspend fun run
+  class RecordingCompletion(), Continuation<Int>
+    public fun resume
+    public fun resumeWithException
+  fun main()
+    val argumentGate
+      Call IntGate
+        Var None
+    val ifConditionGate
+      Call BooleanGate
+        Var None
+    val ifValueGate
+      Call IntGate
+        Var None
+    val whenChoiceGate
+      Call ChoiceGate
+        Var None
+    val whenValueGate
+      Call IntGate
+        Var None
+    val loopConditionGate
+      Call BooleanGate
+        Var None
+    val loopBodyGate
+      Call IntGate
+        Var None
+    val andGate
+      Call BooleanGate
+        Var None
+    val orGate
+      Call BooleanGate
+        Var None
+    Call startCoroutine
+      Call ControlTask
+        Var argumentGate
+        Var ifConditionGate
+        Var ifValueGate
+        Var whenChoiceGate
+        Var whenValueGate
+        Var loopConditionGate
+        Var loopBodyGate
+        Var andGate
+        Var orGate
+      Call RecordingCompletion
+    Call println
+      StringLiteral "started"
+    MethodCall complete
+      Var argumentGate
+      IntLiteral 2
+    MethodCall complete
+      Var ifConditionGate
+      BoolLiteral true
+    MethodCall complete
+      Var ifValueGate
+      IntLiteral 4
+    MethodCall complete
+      Var whenChoiceGate
+      MethodCall Number
+        Var Choice
+        IntLiteral 5
+    MethodCall complete
+      Var whenValueGate
+      IntLiteral 6
+    MethodCall complete
+      Var loopConditionGate
+      BoolLiteral true
+    MethodCall complete
+      Var loopBodyGate
+      IntLiteral 7
+    MethodCall complete
+      Var loopConditionGate
+      BoolLiteral true
+    MethodCall complete
+      Var loopBodyGate
+      IntLiteral 8
+    MethodCall complete
+      Var loopConditionGate
+      BoolLiteral false
+    MethodCall complete
+      Var andGate
+      BoolLiteral true
+    MethodCall complete
+      Var orGate
+      BoolLiteral true

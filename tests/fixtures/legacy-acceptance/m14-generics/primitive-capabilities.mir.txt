@@ -1,0 +1,286 @@
+Module
+  interface ToString
+  interface Hash
+  fun main @fn0() -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: ULong
+        Type ULong
+        SizeOf Int
+      val $dependency.parameter.value: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type ULong
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      call $equality.lhs: Long = external0 direct
+        Type Int
+        Local $dependency.receiver
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.receiver: Long
+        Type Long
+        Local $equality.lhs
+      call $dependency.argument.0: Long = external0 direct
+        Type Int
+        Local $dependency.receiver
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.receiver: ULong
+        Type ULong
+        SizeOf Int
+      call $equality.lhs: Long = external1 direct
+        Type ULong
+        Local $dependency.receiver
+      val $dependency.receiver: ULong
+        Type ULong
+        SizeOf Int
+      val $dependency.receiver: Long
+        Type Long
+        Local $equality.lhs
+      call $dependency.argument.0: Long = external1 direct
+        Type ULong
+        Local $dependency.receiver
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.receiver: Boolean
+        Type Boolean
+        BoolLiteral true
+      call $equality.lhs: Long = external2 direct
+        Type Boolean
+        Local $dependency.receiver
+      val $dependency.receiver: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.receiver: Long
+        Type Long
+        Local $equality.lhs
+      call $dependency.argument.0: Long = external2 direct
+        Type Boolean
+        Local $dependency.receiver
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.receiver: String
+        Type String
+        StringConst @str1
+      call $equality.lhs: Long = external3 direct
+        Type String
+        Local $dependency.receiver
+      val $dependency.receiver: String
+        Type String
+        StringConst @str2
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $dependency.receiver: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $dependency.receiver: Long
+        Type Long
+        Local $equality.lhs
+      call $dependency.argument.0: Long = external3 direct
+        Type String
+        Local $dependency.receiver
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      return
+  fun println @fn1(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external4 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external8 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external8 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn2(value: ULong) -> Unit
+    bb0 entry
+      val $dependency.local.1: ULong
+        Type ULong
+        Local value
+      call $dependency.local.2: String = external5 direct
+        Type ULong
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external8 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str5
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external8 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn3(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external6 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external8 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str6
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external8 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn4(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external7 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external8 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str7
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external8 direct
+        Type String
+        Local $dependency.local.5
+      return
+  instance mi0 function=@fn1 <- println
+  instance mi1 function=@fn2 <- println
+  instance mi2 function=@fn3 <- println
+  instance mi3 function=@fn4 <- println
+  str @str0 "text"
+  str @str1 "same"
+  str @str2 "sa"
+  str @str3 "me"
+  str @str4 "\n"
+  str @str5 "\n"
+  str @str6 "\n"
+  str @str7 "\n"
+  output executable @fn0

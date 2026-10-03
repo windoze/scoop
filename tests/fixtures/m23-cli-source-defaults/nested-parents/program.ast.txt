@@ -1,0 +1,139 @@
+SourceFile
+  RootPackage
+  public fun nestedParentSeed(): String
+    =
+      StringLiteral "parent"
+  public fun nestedParentProvider(value: String = <expr>): String
+    =
+      Var value
+  public class NestedParentHost()
+    internal fun lambdaA
+    internal fun lambdaB
+    internal fun anonymousA
+    internal fun anonymousB
+    internal fun referenceA
+    internal fun referenceB
+    internal fun localA
+    internal fun localB
+    internal fun expanded
+    internal fun generic
+  public class NestedParentConstructor(val callback: () -> String = <expr>)
+  public class NestedParentGeneric<T>(seed: T, val callback: () -> T = <expr>)
+  public enum NestedParentChoice
+    First <ctor>
+      callback: () -> String = <expr>
+    Second <ctor>
+      callback: () -> String = <expr>
+SourceFile
+  RootPackage
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun invokeChoice(value: NestedParentChoice): String
+    =
+      WhenExpression
+        Var value
+        arm NestedParentChoice.First(callback)
+          Call callback
+        arm NestedParentChoice.Second(callback)
+          Call callback
+  fun main()
+    val host
+      Call NestedParentHost
+    Call verifyDefault
+      Binary Eq
+        Invoke
+          MethodCall lambdaA
+            Var host
+        StringLiteral "first"
+    Call verifyDefault
+      Binary Eq
+        Invoke
+          MethodCall lambdaB
+            Var host
+        StringLiteral "second"
+    Call verifyDefault
+      Binary Eq
+        Invoke
+          MethodCall anonymousA
+            Var host
+        StringLiteral "first"
+    Call verifyDefault
+      Binary Eq
+        Invoke
+          MethodCall anonymousB
+            Var host
+        StringLiteral "second"
+    Call verifyDefault
+      Binary Eq
+        Invoke
+          MethodCall referenceA
+            Var host
+        StringLiteral "parent"
+    Call verifyDefault
+      Binary Eq
+        Invoke
+          MethodCall referenceB
+            Var host
+        StringLiteral "parent"
+    Call verifyDefault
+      Binary Eq
+        MethodCall localA
+          Var host
+        StringLiteral "first"
+    Call verifyDefault
+      Binary Eq
+        MethodCall localB
+          Var host
+        StringLiteral "second"
+    Call verifyDefault
+      Binary Eq
+        MethodCall expanded
+          Var host
+        StringLiteral "source"
+    Call verifyDefault
+      Binary Eq
+        Invoke
+          MethodCall generic
+            Var host
+            IntLiteral 11
+        IntLiteral 11
+    Call verifyDefault
+      Binary Eq
+        Invoke
+          MethodCall generic
+            Var host
+            StringLiteral "generic"
+        StringLiteral "generic"
+    Call verifyDefault
+      Binary Eq
+        MethodCall callback
+          Call NestedParentConstructor
+        StringLiteral "constructor"
+    Call verifyDefault
+      Binary Eq
+        MethodCall callback
+          Call NestedParentGeneric
+            IntLiteral 13
+        IntLiteral 13
+    Call verifyDefault
+      Binary Eq
+        MethodCall callback
+          Call NestedParentGeneric
+            StringLiteral "kept"
+        StringLiteral "kept"
+    Call verifyDefault
+      Binary Eq
+        Call invokeChoice
+          MethodCall First
+            Var NestedParentChoice
+        StringLiteral "first"
+    Call verifyDefault
+      Binary Eq
+        Call invokeChoice
+          MethodCall Second
+            Var NestedParentChoice
+        StringLiteral "second"

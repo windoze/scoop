@@ -1,0 +1,16 @@
+schema = 1
+name = "legacy-m11-functions-errors-local-forward-recursion"
+root = "../../../m11-functions/errors/local-forward-recursion.scoop"
+inputs = ["../../../m11-functions/errors/local-forward-recursion.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["legacy", "m11-functions", "single-file", "negative"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "local-forward-recursion.diagnostics.json"}

@@ -1,0 +1,109 @@
+SourceFile
+  QualifiedPackage templates.members
+  public open class Box<T>(val value: T)
+    public fun read
+    public fun echo
+    public fun choose
+    public fun valueOnly
+    public fun captured
+  public class Inherited<T>(value: T) : Box<T>(<1 args>)
+  public struct Cell<T>
+    field value: T
+    public fun read
+    public fun choose
+  public class Plain()
+    public fun choose
+  public enum Choice<T>
+    Empty
+    Item(T)
+  public fun emptyChoice<T>(): Choice<T>
+    =
+      FieldAccess Empty
+        Var Choice
+  public fun through<T>(value: Box<T>): T
+    =
+      MethodCall read
+        Var value
+  public open class VirtualBox<T>(val value: T)
+    public fun read
+  public class VirtualChild<T>(value: T, val other: T) : VirtualBox<T>(<1 args>)
+    public fun read
+    public fun inheritedRead
+  public class Overloads<T>()
+    public fun select
+    public fun select
+    public fun conflict
+    public fun conflict
+  public interface Readable<T>
+    fun get
+  public interface Reader<T> : Readable<T>
+    fun read
+  public abstract class AbstractReader<T>(), Reader<T>
+    public fun get
+  public class InterfaceItem<T>(val value: T) : AbstractReader<T>(<0 args>)
+    public fun get
+  public struct InterfaceCell<T> : Reader<T>
+    field value: T
+    public fun get
+  public interface Chooser<T>
+    fun choose
+  public interface RequiredChooser<T> : Chooser<T>
+    fun choose
+  public abstract class AbstractChooser<T>(), RequiredChooser<T>
+  public class InterfaceChooser<T>() : AbstractChooser<T>(<0 args>)
+    public fun choose
+  public enum InterfaceTag<T> : Chooser<T>
+    Empty
+    Value(T)
+  public fun interfaceTag<T>(value: T): InterfaceTag<T>
+    =
+      MethodCall Value
+        Var InterfaceTag
+        Var value
+  public interface ReadOnlyProperty<T>
+    public open val value: T <computed>
+    public open val read: T <computed>
+      get()
+        FieldAccess value
+          This
+  public interface MutableProperty<T> : ReadOnlyProperty<T>
+    public open override var value: T <computed>
+  public class PropertyItem<T>(var value: T), MutableProperty<T>
+  public struct PropertyCell<T> : ReadOnlyProperty<T>
+    field stored: T
+    public final override val value: T <computed>
+      get()
+        FieldAccess stored
+          This
+  public open class ProtectedBox<T>(val stored: T)
+    protected fun secret
+    protected fun choose
+    public fun readVirtual
+    public fun replaceVirtual
+    public open var state: T = <expr>
+      Var stored
+      protected set(next)
+        assign field
+          Var next
+    protected var restricted: T = <expr>
+      Var stored
+      private set(next)
+        assign field
+          Var next
+  public open class ProtectedMiddle<T>(value: T) : ProtectedBox<T>(<1 args>)
+  public class ProtectedChild<T>(value: T) : ProtectedMiddle<T>(<1 args>)
+    public fun read
+  private fun extensionIdentity<T>(value: T): T
+    =
+      Var value
+  public val <T>Box<T>.extensionValue: T <computed>
+  public var <T>PropertyItem<T>.extensionState: T <computed>
+  public val <T>Box<T>.extensionCaptured: T <computed>
+  public val <T : value>Box<T>.extensionValueOnly: T <computed>
+  public var <T>PropertyItem<T>.extensionRestricted: T <computed>
+  public val <T>T.extensionKind: Int <computed>
+  public val Int.extensionKind: Int <computed>
+  public val <T>T.extensionSelect: Int <computed>
+  public val <T>Box<T>.extensionSelect: Int <computed>
+  public class ExtensionTrace<T>(var value: T, var order: Int)
+  public var <T>ExtensionTrace<T>.extensionTracked: T <computed>

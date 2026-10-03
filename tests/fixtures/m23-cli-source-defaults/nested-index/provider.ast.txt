@@ -1,0 +1,8 @@
+SourceFile
+  RootPackage
+  public fun String.indexCopy(): String
+    =
+      This
+  public class NestedIndexHost()
+    internal fun bound
+    internal fun local

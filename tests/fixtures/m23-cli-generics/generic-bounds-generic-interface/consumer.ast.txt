@@ -1,0 +1,33 @@
+SourceFile
+  QualifiedPackage consumer.bounds
+  ImportStar Local templates.bounds.*
+  public fun exercise<T>(value: T): Int
+    val receiver
+      Call HolderImpl<T>
+        Var value
+    val get
+      Call inheritedReference<HolderImpl<T>, T>
+        Var receiver
+    val copied
+      Call GenericValue<T>
+        Call genericInterfaceGet<HolderImpl<T>, T>
+          Var receiver
+        IntLiteral 42
+    val retained
+      Call GenericValue<T>
+        Call get
+        IntLiteral 42
+    if
+      Binary Ne
+        MethodCall read
+          Var copied
+        IntLiteral 42
+      return
+        IntLiteral 1
+    return
+      MethodCall read
+        Var retained
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 1

@@ -1,0 +1,96 @@
+SourceFile
+  QualifiedPackage consumer.singletons
+  ImportStar Local upstream.singletons.*
+  private var starts: Int = <expr>
+  private fun initialized(): Int
+    assign starts
+      Binary Add
+        Var starts
+        IntLiteral 1
+    return
+      IntLiteral 42
+  private object Current
+    val state: State =
+      Call State
+        Call initialized
+  private fun readCurrent(): Current
+    =
+      Var Current
+  private fun selectedCurrent<T>(seed: T, inspect: (T) -> Int, registry: Current = <expr>): Int
+    =
+      Binary Sub
+        Binary Add
+          Call inspect
+            Var seed
+          FieldAccess value
+            FieldAccess state
+              Var registry
+        IntLiteral 42
+  public fun exercise<T>(seed: T, inspect: (T) -> Int): Int
+    val registry
+      Var Current
+    val retained
+      FieldAccess state
+        Var registry
+    val read: () -> Int
+      Lambda 0 suspend=false
+        parameters omitted
+        FieldAccess value
+          FieldAccess state
+            Var Current
+    val again
+      AnonymousFunction 0 suspend=false return=Int
+        return
+          FieldAccess value
+            FieldAccess state
+              Call readCurrent
+    if
+      Binary Or
+        Binary RefNe
+          Var registry
+          Call readCurrent
+        Binary Ne
+          Var starts
+          IntLiteral 1
+      return
+        IntLiteral 1
+    val fresh
+      Call State
+        IntLiteral 1
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            FieldAccess value
+              Var fresh
+            IntLiteral 1
+          Binary RefNe
+            Var retained
+            FieldAccess state
+              Var Current
+        Binary Ne
+          Var starts
+          IntLiteral 1
+      return
+        IntLiteral 2
+    if
+      Binary Or
+        Binary Ne
+          Call read
+          IntLiteral 42
+        Binary Ne
+          Call again
+          IntLiteral 42
+      return
+        IntLiteral 3
+    return
+      Call selectedCurrent<T>
+        Var seed
+        Var inspect
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 1 suspend=false
+          param value: _
+          Var value

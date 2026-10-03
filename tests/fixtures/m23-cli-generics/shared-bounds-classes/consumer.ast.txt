@@ -1,0 +1,32 @@
+SourceFile
+  QualifiedPackage consumer.sharedbounds
+  ImportStar Local upstream.sharedbounds.*
+  private open class LocalBase<T>(val value: T)
+  private class LocalChild<T>(value: T) : LocalBase<T>(<1 args>)
+  private fun readBase<T>(source: LocalBase<T>): T
+    =
+      FieldAccess value
+        Var source
+  private fun readLocal<T, R : LocalBase<T>>(source: R): T
+    =
+      Call readBase
+        Var source
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val local
+      Call readLocal
+        Call LocalChild<T>
+          Var seed
+    val imported
+      Call readClass
+        Call Child<T>
+          Var local
+    return
+      Call read
+        Var imported
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 0 suspend=false
+          param value: _
+          Var value

@@ -1,0 +1,69 @@
+SourceFile
+  QualifiedPackage consumer.adapters
+  ImportStar Local templates.adapters.*
+  public fun isNone<T>(value: T?): Boolean
+    =
+      WhenExpression
+        Var value
+        arm Some(_)
+          BoolLiteral false
+        arm None
+          BoolLiteral true
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    var storage: Int
+      IntLiteral 0
+    @Unsafe block
+      val pointer
+        Call addressOf
+          Var storage
+      val erased
+        Call dynamicPointer
+          Var seed
+          Var read
+          Var pointer
+      if
+        Unary Not
+          Is (Ptr<Int>) -> Any false
+            Var erased
+        return
+          IntLiteral 1
+      if
+        Unary Not
+          Call isNone
+            Cast (Ptr<Int>) -> Long optional=true
+              Var erased
+        return
+          IntLiteral 2
+      val optional
+        NullAssert
+          Cast (Ptr<Int>) -> Any optional=true
+            Var erased
+      val action
+        Cast (Ptr<Int>) -> Any optional=false
+          Var erased
+      val first
+        Cast Ptr<Int> optional=false
+          Call optional
+            Var pointer
+      val second
+        Cast Ptr<Int> optional=false
+          Call action
+            Var pointer
+      if
+        Binary Ne
+          MethodCall toULong
+            Var first
+          MethodCall toULong
+            Var second
+        return
+          IntLiteral 3
+      return
+        MethodCall load
+          Var second
+  public fun result(): Int
+    =
+      Call exercise
+        IntLiteral 42
+        Lambda 0 suspend=false
+          param value: Int
+          Var value

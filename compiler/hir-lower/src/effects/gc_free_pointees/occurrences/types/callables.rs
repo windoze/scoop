@@ -105,6 +105,7 @@ pub(in crate::effects::gc_free_pointees) fn collect_method_callee_types(
     out: &mut Vec<hir::TypeId>,
 ) {
     match callee {
+        hir::MethodCallee::ImportedDerivedEquality { owner, .. } => out.push(owner),
         hir::MethodCallee::Callable(callable) => {
             collect_callable_target_types(lowerer, callable, out)
         }

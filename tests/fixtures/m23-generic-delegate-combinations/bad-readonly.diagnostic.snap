@@ -1,3 +1,0 @@
-span=78..82
-expression=zero
-cannot assign to immutable property `zero`

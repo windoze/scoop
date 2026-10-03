@@ -1,0 +1,93 @@
+SourceFile
+  RootPackage
+  fun printLocation(label: String, location: SourceLocation, expectedFile: String)
+    Call println
+      Var label
+    Call println
+      Binary Eq
+        FieldAccess file
+          Var location
+        Var expectedFile
+    Call println
+      FieldAccess line
+        Var location
+    Call println
+      FieldAccess column
+        Var location
+    Call println
+      FieldAccess functionName
+        Var location
+    Call println
+      FieldAccess typeName
+        Var location
+  fun trace(location: SourceLocation = <expr>): SourceLocation
+    =
+      Var location
+  fun warn(location: SourceLocation = <expr>): SourceLocation
+    =
+      Call trace
+        Var location
+  fun relay(location: SourceLocation = <expr>): SourceLocation
+    =
+      Call warn
+        Var location
+  fun genericBody<T>(value: T): SourceLocation
+    =
+      Call getCurrentSourceLocation
+  class Reporter()
+    fun bodyLocation
+    fun defaultLocation
+  class LocationTask(), SuspendTask<SourceLocation>
+    public suspend fun run
+  class LocationCompletion(val expectedFile: String), Continuation<SourceLocation>
+    public fun resume
+    public fun resumeWithException
+  fun main()
+    val direct
+      Call getCurrentSourceLocation
+    Call printLocation
+      StringLiteral "direct"
+      Var direct
+      FieldAccess file
+        Var direct
+    Call printLocation
+      StringLiteral "default"
+      Call trace
+      FieldAccess file
+        Var direct
+    Call printLocation
+      StringLiteral "explicit"
+      Call trace
+        Var direct
+      FieldAccess file
+        Var direct
+    Call printLocation
+      StringLiteral "forwarded"
+      Call relay
+      FieldAccess file
+        Var direct
+    Call printLocation
+      StringLiteral "generic-body"
+      Call genericBody
+        IntLiteral 1
+      FieldAccess file
+        Var direct
+    val reporter
+      Call Reporter
+    Call printLocation
+      StringLiteral "member-body"
+      MethodCall bodyLocation
+        Var reporter
+      FieldAccess file
+        Var direct
+    Call printLocation
+      StringLiteral "member-default"
+      MethodCall defaultLocation
+        Var reporter
+      FieldAccess file
+        Var direct
+    Call startCoroutine
+      Call LocationTask
+      Call LocationCompletion
+        FieldAccess file
+          Var direct

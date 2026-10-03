@@ -1,0 +1,6 @@
+fun read(cell: Cell): Int = cell.stored + cell.added
+
+fun main() {
+    Registry.value = 42
+    if (Registry.value != 42) { throw IllegalStateException() }
+}

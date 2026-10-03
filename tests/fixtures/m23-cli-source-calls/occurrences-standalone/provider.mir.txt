@@ -1,0 +1,64 @@
+Module
+  global0 mode: Boolean global initial=encoded(false)
+  global1 calls: Int global initial=encoded(Int:0x0)
+  fun configure @fn0(value: Boolean) -> Unit
+    bb0 entry
+      global_assign mode
+        Type Boolean
+        Local value
+      global_assign calls
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      return
+  fun callCount @fn1() -> Int
+    bb0 entry
+      return
+        Type Int
+        GlobalRead calls
+  fun run @fn2() -> Boolean
+    bb0 entry
+      val $old.0: Int
+        Type Int
+        GlobalRead calls
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      global_assign calls
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      return
+        Type Boolean
+        GlobalRead mode
+  fun $get$mode @fn3() -> Boolean <no-gc>
+    bb0 entry
+      return
+        Type Boolean
+        GlobalRead mode
+  fun $set$mode @fn4(value: Boolean) -> Unit <no-gc>
+    bb0 entry
+      global_assign mode
+        Type Boolean
+        Local value
+      return
+  fun $get$calls @fn5() -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        GlobalRead calls
+  fun $set$calls @fn6(value: Int) -> Unit <no-gc>
+    bb0 entry
+      global_assign calls
+        Type Int
+        Local value
+      return
+  output library

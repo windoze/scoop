@@ -1,3 +1,0 @@
-span=99..143
-expression=when (value) { Off -> 0; On if (true) -> 1 }
-non-exhaustive when: missing pattern On; guarded arms do not contribute to exhaustiveness

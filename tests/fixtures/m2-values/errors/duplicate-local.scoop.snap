@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m2-values/errors/duplicate-local.scoop:3:9: error: `x` is already declared in this scope

@@ -1,0 +1,11 @@
+Module
+  callback cb0 @fn0 -> @fn1 function_type0 id=305de743c1a7462b864835f072d4399b9da024c492bb0a49f541b5bc640ef8e3
+  generated_callable gc0 function=@fn1 id=305de743c1a7462b864835f072d4399b9da024c492bb0a49f541b5bc640ef8e3
+  fun main @fn0() -> Unit <no-gc>
+    bb0 entry
+      return
+  fun callback bridge for main @fn1() -> Unit <no-gc>
+    bb0 entry
+      call @fn0 direct
+      return
+  output executable @fn0

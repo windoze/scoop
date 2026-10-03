@@ -1,0 +1,81 @@
+SourceFile
+  QualifiedPackage dependency.helpers
+  public class Payload(val number: Int)
+  private fun offset(): Int
+    =
+      IntLiteral 1
+  private fun copy<T>(value: T): T
+    =
+      Var value
+  private fun classify<T>(value: T): Int
+    =
+      IntLiteral 40
+  private fun classify(value: Int): Int
+    =
+      IntLiteral 99
+  public fun retain<T>(value: T): T
+    =
+      Call copy
+        Var value
+  public fun definitionSite<T>(value: T): Int
+    =
+      Binary Add
+        Binary Add
+          Call classify
+            Var value
+          Call offset
+        IntLiteral 1
+  public fun captured<T>(value: T): T
+    fun local(): T
+      Call copy
+        Var value
+    return
+      Call local
+  public fun nested<T>(value: T): T
+    fun middle(): T
+      fun local<U>(argument: U, again: Boolean): T
+        if
+          Var again
+          return
+            Call local<U>
+              Var argument
+              BoolLiteral false
+        return
+          Call copy
+            Var value
+      return
+        Call local<Int>
+          IntLiteral 1
+          BoolLiteral true
+    return
+      Call middle
+  public fun T.echo<T>(): T
+    =
+      Call copy
+        This
+  public fun recursive<T>(value: T, again: Boolean): T
+    if
+      Var again
+      return
+        Call recursive<T>
+          Var value
+          BoolLiteral false
+    return
+      Var value
+    @NoGC
+  public fun native<T>(value: T): T
+    =
+      Var value
+  public fun precompiled(value: Payload): Payload
+    val flag
+      Call native
+        IntLiteral 0
+    return
+      Call recursive
+        MethodCall echo
+          Call nested
+            Call captured
+              Var value
+        Binary Eq
+          Var flag
+          IntLiteral 1

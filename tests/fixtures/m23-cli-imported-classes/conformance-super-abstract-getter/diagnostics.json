@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "abstract interface accessor cannot be called with qualified `super`",
+    "notes": [],
+    "origin": {
+      "cone": "12d4b3c00d753fa4c5c805e6bff1cca9385b0623406e1b2de51071b09aa76d92",
+      "end": 160,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 141
+    },
+    "severity": "error"
+  }
+]

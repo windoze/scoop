@@ -1,0 +1,27 @@
+SourceFile
+  RootPackage
+  open class Shape(val name: String)
+  class Circle(val r: Int) : Shape(<1 args>)
+  fun tag(s: Shape): String
+    =
+      StringLiteral "shape"
+  fun tag(i: Int): String
+    =
+      StringLiteral "int"
+  fun pick(v: Int): String
+    =
+      StringLiteral "int"
+  fun pick(v: Any): String
+    =
+      StringLiteral "any"
+  fun main()
+    Call println
+      Call tag
+        Call Circle
+          IntLiteral 1
+    Call println
+      Call tag
+        IntLiteral 7
+    Call println
+      Call pick
+        IntLiteral 5

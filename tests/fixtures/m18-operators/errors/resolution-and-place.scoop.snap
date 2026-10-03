@@ -1,8 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m18-operators/errors/resolution-and-place.scoop:15:17: error: type `Plain` has no method `plus`
-m18-operators/errors/resolution-and-place.scoop:17:5: error: operator `plus` is applicable, but compound-assignment fallback is not writable
-m18-operators/errors/resolution-and-place.scoop:19:5: error: compound assignment is ambiguous: both `plusAssign` and `plus` are applicable

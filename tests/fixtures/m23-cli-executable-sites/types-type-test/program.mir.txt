@@ -1,0 +1,96 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  generated_exact_type get0 location=class3 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  fun main @fn0() -> Unit
+    bb0 entry
+      val $dependency.argument.0: Any
+        Type Any
+        Retype Any
+          Type String
+          StringConst @str0
+      val $dependency.parameter.value: Any
+        Type Any
+        Local $dependency.argument.0
+      call $dependency.receiver: Boolean = external0 direct
+        Type Any
+        Local $dependency.parameter.value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.argument.0: Any
+        Type Any
+        Box
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.value: Any
+        Type Any
+        Local $dependency.argument.0
+      call $shortCircuit.0: Boolean = external0 direct
+        Type Any
+        Local $dependency.parameter.value
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb5 if.else.5
+      val $dependency.parameter.value: UInt16
+        Type UInt16
+        IntegerLiteral UInt16 value=1 bits=0x0001
+      call $shortCircuit.1: Boolean = external1 direct
+        Type UInt16
+        Local $dependency.parameter.value
+      goto bb6
+    bb6 if.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $shortCircuit.1
+    bb7 if.then.7
+      val $default.local.0: String
+        Type String
+        StringConst @str1
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external2 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb8 if.merge.8
+      return
+  str @str0 "text"
+  str @str1 "illegal state"
+  output executable @fn0

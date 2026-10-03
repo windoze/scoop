@@ -1,0 +1,70 @@
+SourceFile
+  RootPackage
+  fun verifyNominal(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val value
+      Call envelope
+    val integer
+      MethodCall exercise
+        Var value
+        IntLiteral 17
+        Var Argument
+    Call verifyNominal
+      Binary And
+        Binary Eq
+          FieldAccess _1
+            Var integer
+          IntLiteral 17
+        Binary RefEq
+          FieldAccess _2
+            Var integer
+          Var Argument
+    val text
+      MethodCall exercise
+        Var value
+        StringLiteral "callable"
+        Var Argument
+    Call verifyNominal
+      Binary And
+        Binary Eq
+          FieldAccess _1
+            Var text
+          StringLiteral "callable"
+        Binary RefEq
+          FieldAccess _2
+            Var text
+          Var Argument
+    Call verifyNominal
+      Binary Eq
+        MethodCall view
+          Var value
+          IntLiteral 19
+        TupleLiteral
+          IntLiteral 19
+          IntLiteral 19
+          IntLiteral 1
+          IntLiteral 2
+    Call verifyNominal
+      Binary Eq
+        MethodCall view
+          Var value
+          StringLiteral "view"
+        TupleLiteral
+          StringLiteral "view"
+          StringLiteral "view"
+          IntLiteral 1
+          IntLiteral 2
+    Call verifyNominal
+      Binary Eq
+        MethodCall cached
+          Var value
+        IntLiteral 10
+    Call verifyNominal
+      MethodCall variant
+        Var value
+        IntLiteral 23

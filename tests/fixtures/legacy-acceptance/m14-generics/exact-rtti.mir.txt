@@ -1,0 +1,251 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class Box<Int> vtable=0 itables=0
+  class Box<String> vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Marked<Int> vtable=0 itables=1
+  interface Marker<Int>
+  interface Marker<String>
+  interface ToString
+  interface Hash
+  fun main @fn0() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Box<Int>
+        ClassAlloc Box<Int>
+      call @fn5 direct
+        Type Box<Int>
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val boxedInt: Any
+        Type Any
+        Retype Any
+          Type Box<Int>
+          Local $new.1
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IsInstance Box<Int>
+          Type Any
+          Local boxedInt
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IsInstance Box<String>
+          Type Any
+          Local boxedInt
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $cast.1: Any
+        Type Any
+        Local boxedInt
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Box<Int>
+            Type Any
+            Local $cast.1
+    bb1 if.then.1
+      assign $new.2
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external3 direct
+        Type ClassCastException
+        Local $new.2
+      throw
+        Type ClassCastException
+        Local $new.2
+    bb2 if.merge.2
+      val concrete: Box<Int>
+        Type Box<Int>
+        Retype Box<Int>
+          Type Any
+          Local $cast.1
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Box<Int>
+          Local concrete
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Any
+        Type Any
+        Local boxedInt
+      val $parameter.value: Any
+        Type Any
+        Local $argument.0
+      call $dependency.argument.0: Boolean = @fn3 direct
+        Type Any
+        Local $parameter.value
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: Any
+        Type Any
+        Local boxedInt
+      val $parameter.value: Any
+        Type Any
+        Local $argument.0
+      call $dependency.argument.0: Boolean = @fn4 direct
+        Type Any
+        Local $parameter.value
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.3
+        Type Marked<Int>
+        ClassAlloc Marked<Int>
+      call @fn6 direct
+        Type Marked<Int>
+        Local $new.3
+        Type Int
+        Local $parameter.value
+      val marker: Any
+        Type Any
+        Retype Any
+          Type Marked<Int>
+          Local $new.3
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IsInstance Marker<Int>
+          Type Any
+          Local marker
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IsInstance Marker<String>
+          Type Any
+          Local marker
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      return
+  fun println @fn1(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn2(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str1
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun exact @fn3(value: Any) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        IsInstance Box<Int>
+          Type Any
+          Local value
+  fun exact @fn4(value: Any) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        IsInstance Box<String>
+          Type Any
+          Local value
+  fun init.Box.$c0 @fn5(this: Box<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Box<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Marked.$c1 @fn6(this: Marked<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Marked<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  instance mi0 function=@fn1 <- println
+  instance mi1 function=@fn2 <- println
+  instance mi2 function=@fn3 <- exact
+  instance mi3 function=@fn4 <- exact
+  str @str0 "\n"
+  str @str1 "\n"
+  output executable @fn0

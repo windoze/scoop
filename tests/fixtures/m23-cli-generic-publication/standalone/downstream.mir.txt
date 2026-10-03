@@ -1,0 +1,96 @@
+Module
+  class Result vtable=0 itables=0
+  fun check @fn0() -> Int
+    bb0 entry
+      call $dependency.receiver: Int = external0 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Result
+        ClassAlloc Result
+      call @fn2 direct
+        Type Result
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.0: Result
+        Type Result
+        Local $new.1
+      val $dependency.parameter.value: Result
+        Type Result
+        Local $dependency.argument.0
+      call result: Result = @fn1 direct
+        Type Result
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Result
+        ClassAlloc Result
+      call @fn2 direct
+        Type Result
+        Local $new.2
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.0: Result
+        Type Result
+        Local $new.2
+      val $dependency.parameter.value: Result
+        Type Result
+        Local $dependency.argument.0
+      call other: Result = @fn1 direct
+        Type Result
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Result
+          Local result
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Result
+          Local other
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun identity @fn1(value: Result) -> Result
+    bb0 entry
+      return
+        Type Result
+        Local value
+  fun init.Result.$c0 @fn2(this: Result, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Result
+        Local this
+        Type Int
+        Local value
+      return
+  instance mi0 function=@fn1 <- identity
+  output library

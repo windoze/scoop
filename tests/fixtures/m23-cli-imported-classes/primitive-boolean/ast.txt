@@ -1,0 +1,24 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  public fun primary(): Counter
+    val boxed: Any
+      BoolLiteral true
+    val yes: Hash
+      BoolLiteral true
+    val no: Hash
+      BoolLiteral false
+    return
+      Call Counter
+        IfExpression
+          Binary And
+            Cast Boolean optional=false
+              Var boxed
+            Binary Ne
+              MethodCall hash
+                Var yes
+              MethodCall hash
+                Var no
+          IntLiteral 21
+          else
+          IntLiteral 0

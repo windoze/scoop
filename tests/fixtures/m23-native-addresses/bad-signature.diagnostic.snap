@@ -1,5 +1,0 @@
-span=94..100
-expression=::echo
-no applicable candidate for native function reference `::echo` in dependency top-level candidate layer:
-  - fun echo(value: Long): Long — Long is not equal to Boolean
-  - fun echo(value: Int): Int — Int is not equal to Boolean

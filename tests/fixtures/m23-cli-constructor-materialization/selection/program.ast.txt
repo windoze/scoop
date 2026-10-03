@@ -1,0 +1,16 @@
+SourceFile
+  RootPackage
+  class DeferredHolder<T>(val value: T)
+    constructor(value: T, extra: Int) : this(<1 args>)
+  struct DeferredData<T>
+    field value: T
+    constructor(value: T, extra: Int) : this(<1 args>)
+  class DeferredTypeOnly<T>()
+  fun inspect(value: DeferredTypeOnly<Int>)
+  fun main()
+    val holder: DeferredHolder<Int>
+      Call DeferredHolder
+        IntLiteral 1
+    val data: DeferredData<Int>
+      Call DeferredData
+        IntLiteral 1

@@ -1,0 +1,8 @@
+Module
+  global0 staticValue: Int8 managed initial=encoded(Int8:0xb)
+  fun $get$staticValue @fn0() -> Int8 <no-gc>
+    bb0 entry
+      return
+        Type Int8
+        GlobalRead staticValue
+  output library

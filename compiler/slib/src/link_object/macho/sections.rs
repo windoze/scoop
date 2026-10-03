@@ -24,6 +24,9 @@ pub enum BuiltinObjectSectionRoleV1 {
     LlvmStackmaps,
     CompactUnwind,
     EhFrame,
+    ThreadLocalData,
+    ThreadLocalZeroFill,
+    ThreadLocalVariables,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -138,6 +141,18 @@ fn classify_section(
             Some((BuiltinObjectSectionRoleV1::WritableData, macho::S_REGULAR))
         }
         (b"__DATA", b"__bss") => Some((BuiltinObjectSectionRoleV1::ZeroFill, macho::S_ZEROFILL)),
+        (b"__DATA", b"__thread_data") => Some((
+            BuiltinObjectSectionRoleV1::ThreadLocalData,
+            macho::S_THREAD_LOCAL_REGULAR,
+        )),
+        (b"__DATA", b"__thread_bss") => Some((
+            BuiltinObjectSectionRoleV1::ThreadLocalZeroFill,
+            macho::S_THREAD_LOCAL_ZEROFILL,
+        )),
+        (b"__DATA", b"__thread_vars") => Some((
+            BuiltinObjectSectionRoleV1::ThreadLocalVariables,
+            macho::S_THREAD_LOCAL_VARIABLES,
+        )),
         (b"__TEXT", b"__gcc_except_tab") => Some((
             BuiltinObjectSectionRoleV1::GccExceptionTable,
             macho::S_REGULAR,

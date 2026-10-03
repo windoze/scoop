@@ -240,7 +240,7 @@ mod tests {
                 TargetSelectionRequestV1::new("aarch64-apple-darwin".to_owned()).unwrap(),
                 path("out/current.slib"),
                 DiagnosticOutputPolicyV1::Structured,
-                StageDumpPolicyV1::Stage(StageDumpKindV1::Lir),
+                StageDumpPolicyV1::None,
             )
             .unwrap(),
         )
@@ -251,7 +251,7 @@ mod tests {
         let request = request();
         let frame = encode_request_frame(&request).unwrap();
         assert_eq!(decode_request_frame(&frame).unwrap(), request);
-        assert_eq!(u64::from_le_bytes(frame[..8].try_into().unwrap()), 188);
+        assert_eq!(u64::from_le_bytes(frame[..8].try_into().unwrap()), 186);
     }
 
     #[test]
@@ -268,7 +268,7 @@ mod tests {
             vec![warning()],
             vec![EmittedDumpDescriptorV1::new(
                 StageDumpKindV1::Lir,
-                EmittedDumpDestinationV1::Stdout,
+                EmittedDumpDestinationV1::File(path("dump/lir.txt")),
                 ProtocolDumpContentDigest::from_array([8; 32]),
             )],
         )
@@ -361,11 +361,11 @@ mod tests {
             .windows(8)
             .position(|window| window == b"SCOOPREQ")
             .unwrap();
-        version_frame[magic + 9] = 2;
+        version_frame[magic + 9] = 1;
         assert!(matches!(
             decode_request_frame(&version_frame),
             Err(ProtocolReadError::Validation(
-                ProtocolValidationError::UnsupportedVersion(2)
+                ProtocolValidationError::UnsupportedVersion(1)
             ))
         ));
 

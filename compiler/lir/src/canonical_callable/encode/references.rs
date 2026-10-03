@@ -46,6 +46,14 @@ impl Writer<'_, '_> {
             GlobalInit::Storage { identity, ty, .. } => {
                 record!(self, 3; self.id(&identity.symbol_request()), self.ty(ty))
             }
+            GlobalInit::RawStorage {
+                identity,
+                ty,
+                thread_local,
+                ..
+            } => {
+                record!(self, 4; self.id(&identity.symbol_request()), self.ty(ty), self.boolean(*thread_local))
+            }
             GlobalInit::ImportedStorage { definition, ty } => {
                 record!(self, 3; self.id(&definition.expected_symbol()), self.ty(ty))
             }

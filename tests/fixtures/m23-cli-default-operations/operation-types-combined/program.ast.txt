@@ -1,0 +1,145 @@
+SourceFile
+  RootPackage
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val values
+      Call defaultCombinations
+    val array: Array<Int>
+      ArrayLiteral
+        IntLiteral 7
+        IntLiteral 11
+    val mutable: MutableArray<Int>
+      ArrayLiteral
+        IntLiteral 13
+        IntLiteral 17
+    Call verifyDefault
+      Binary Eq
+        Index
+          MethodCall array<Int>
+            Var values
+            Var array
+          IntLiteral 0
+        IntLiteral 7
+    assign []
+      MethodCall mutable<Int>
+        Var values
+        Var mutable
+      IntLiteral 0
+      IntLiteral 19
+    Call verifyDefault
+      Binary Eq
+        Index
+          Var mutable
+          IntLiteral 0
+        IntLiteral 19
+    Call verifyDefault
+      Binary Eq
+        MethodCall option<Int>
+          Var values
+          Call Some
+            IntLiteral 23
+        Call Some
+          IntLiteral 23
+    Call verifyDefault
+      Binary Eq
+        MethodCall mimicArray<Int>
+          Var values
+          MethodCall Array
+            Var Mimics
+            IntLiteral 29
+        MethodCall Array
+          Var Mimics
+          IntLiteral 29
+    Call verifyDefault
+      Binary Eq
+        MethodCall mimicMutable<Int>
+          Var values
+          MethodCall MutableArray
+            Var Mimics
+            IntLiteral 31
+        MethodCall MutableArray
+          Var Mimics
+          IntLiteral 31
+    Call verifyDefault
+      Binary Eq
+        MethodCall mimicOption<Int>
+          Var values
+          MethodCall Option
+            Var Mimics
+            IntLiteral 37
+        MethodCall Option
+          Var Mimics
+          IntLiteral 37
+    Call verifyDefault
+      Binary Eq
+        MethodCall mimicCallback<Int>
+          Var values
+          MethodCall ForeignCallback
+            Var Mimics
+            IntLiteral 41
+        MethodCall ForeignCallback
+          Var Mimics
+          IntLiteral 41
+    Call verifyDefault
+      Binary Eq
+        MethodCall tuple
+          Var values
+          TupleLiteral
+            UnitLiteral
+            BoolLiteral true
+        TupleLiteral
+          UnitLiteral
+          BoolLiteral true
+    var number
+      IntLiteral 43
+    @Unsafe block
+      val pointer
+        Call addressOf
+          Var number
+      val nested: Array<(Int, Ptr<Int>)>
+        ArrayLiteral
+          TupleLiteral
+            IntLiteral 47
+            Var pointer
+      val selected
+        Index
+          MethodCall nested<Int>
+            Var values
+            Var nested
+          IntLiteral 0
+      Call verifyDefault
+        Binary Eq
+          FieldAccess _1
+            Var selected
+          IntLiteral 47
+      Call verifyDefault
+        Binary Eq
+          MethodCall load
+            FieldAccess _2
+              Var selected
+          IntLiteral 43
+      val callback
+        Call foreignCallback<(Ptr<Unit>) -> Unit>
+          Lambda 0 suspend=false
+            parameters omitted
+            UnitLiteral
+          IntLiteral 0L
+          FieldAccess Reusable
+            Var ForeignCallbackMode
+      val copied
+        MethodCall callback<Ptr<Unit>>
+          Var values
+          Var callback
+      Call verifyDefault
+        Binary Eq
+          Call foreignCallbackState
+            Var copied
+          FieldAccess Registered
+            Var ForeignCallbackState
+      Call releaseForeignCallback
+        Var copied

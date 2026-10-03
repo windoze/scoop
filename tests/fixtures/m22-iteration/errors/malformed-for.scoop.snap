@@ -1,9 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m22-iteration/errors/malformed-for.scoop:4:9: error: expected `(`, found `value`
-m22-iteration/errors/malformed-for.scoop:8:16: error: expected `in`, found `values`
-m22-iteration/errors/malformed-for.scoop:13:1: error: expected `)`, found `}`
-m22-iteration/errors/malformed-for.scoop:16:27: error: expected `{`, found `consume`

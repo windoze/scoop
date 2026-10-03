@@ -1,0 +1,11 @@
+SourceFile
+  RootPackage
+  public fun result(): Int
+    =
+      Binary Add
+        Binary Add
+          Call dormant
+          Call dormantBody<Int>
+            IntLiteral 0
+        Call requested<Int>
+          IntLiteral 26

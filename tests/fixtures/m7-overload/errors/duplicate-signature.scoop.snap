@@ -1,8 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m7-overload/errors/duplicate-signature.scoop:2:5: error: function `f` is already declared with the same signature
-m7-overload/errors/duplicate-signature.scoop:5:13: error: no applicable candidate for `println` in implicit-import candidate layer:
-  - fun println<T : ToString>(value: T): Unit — argument for `value`: expression could not be typed

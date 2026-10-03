@@ -1,3 +1,4 @@
+use scoop_process::CommandExt;
 use std::collections::BTreeSet;
 use std::path::Path;
 
@@ -41,7 +42,7 @@ impl StartupObject {
         let output = profile
             .startup_toolchain()
             .object_compilation_command(&source_path, &object)
-            .output()
+            .scoop_output()
             .map_err(error)?;
         if !output.status.success() {
             return Err(error(format!(

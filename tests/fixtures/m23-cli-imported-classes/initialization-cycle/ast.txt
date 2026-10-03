@@ -1,0 +1,71 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  private fun readLeft(): Long
+    =
+      FieldAccess value
+        Var Left
+  private fun readRight(): Long
+    =
+      FieldAccess value
+        Var Right
+  private object Attempts
+    var count: Long =
+      IntLiteral 0
+  private fun initializeLeft(): Long
+    assign .count
+      Var Attempts
+      Binary Add
+        FieldAccess count
+          Var Attempts
+        IntLiteral 1
+    return
+      Call readRight
+  private object Left
+    val value: Long =
+      Call initializeLeft
+  private object Right
+    val value: Long =
+      Call readLeft
+  private fun failure(): RebuiltFailure
+    =
+      TryExpression
+        Call RebuiltFailure
+          Call readLeft
+        catch error: RebuiltFailure
+          Var error
+  public fun primary(): Counter
+    val first
+      Call failure
+    val allocated
+      Call Counter
+        IntLiteral 7
+    val second
+      Call failure
+    return
+      IfExpression
+        Binary And
+          Binary And
+            Binary And
+              Binary Eq
+                FieldAccess code
+                  Var first
+                IntLiteral 21
+              Binary Eq
+                FieldAccess code
+                  Var second
+                IntLiteral 21
+            Binary Eq
+              FieldAccess count
+                Var Attempts
+              IntLiteral 1
+          Binary Eq
+            MethodCall twice
+              Var allocated
+            IntLiteral 14
+        Call Counter
+          FieldAccess code
+            Var second
+        else
+        Call Counter
+          IntLiteral 0

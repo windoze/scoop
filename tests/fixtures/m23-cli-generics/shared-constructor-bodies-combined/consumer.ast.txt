@@ -1,0 +1,167 @@
+SourceFile
+  QualifiedPackage consumer.constructorbodies
+  ImportStar Local upstream.constructorbodies.*
+  private struct CurrentPair<T, U>
+    field value: T
+  private class Current<T, U>(value: T, trace: Trace) : Base<T, U>(<2 args>)
+    val done: Int =
+      MethodCall mark
+        Var trace
+        IntLiteral 8
+  public fun exercise<T>(seed: T, inspect: (T) -> Int): Int
+    val trace
+      Call Trace
+        IntLiteral 0
+    val pair
+      Call Pair<T, Unit>
+        Var seed
+        Var trace
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            FieldAccess digits
+              Var trace
+            IntLiteral 12
+          Binary Ne
+            FieldAccess serial
+              Var pair
+            IntLiteral 1
+        Binary Ne
+          Call inspect
+            FieldAccess value
+              Var pair
+          IntLiteral 42
+      return
+        IntLiteral 1
+    assign .digits
+      Var trace
+      IntLiteral 0
+    val built
+      Call Built<T, String>
+        Var seed
+        Var trace
+        BoolLiteral true
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess digits
+            Var trace
+          IntLiteral 34956
+        Binary Ne
+          Call inspect
+            FieldAccess delegated
+              Var built
+          IntLiteral 42
+      return
+        IntLiteral 2
+    if
+      Binary Or
+        Binary Ne
+          Call inspect
+            FieldAccess retained
+              Var built
+          IntLiteral 42
+        Binary Ne
+          Call inspect
+            FieldAccess output
+              Var built
+          IntLiteral 42
+      return
+        IntLiteral 3
+    assign .digits
+      Var trace
+      IntLiteral 0
+    val primary
+      Call Built<T, Int>
+        Var seed
+        Var trace
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess digits
+            Var trace
+          IntLiteral 3495
+        Binary Ne
+          Call inspect
+            FieldAccess value
+              Var primary
+          IntLiteral 42
+      return
+        IntLiteral 4
+    assign .digits
+      Var trace
+      IntLiteral 0
+    val terminal
+      Call Terminal<T, Unit>
+        Var seed
+        Var trace
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess digits
+            Var trace
+          IntLiteral 37
+        Binary Ne
+          Call inspect
+            FieldAccess copied
+              Var terminal
+          IntLiteral 42
+      return
+        IntLiteral 5
+    assign .digits
+      Var trace
+      IntLiteral 0
+    val chained
+      Call Terminal<T, String>
+        Var seed
+        Var trace
+        BoolLiteral false
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess digits
+            Var trace
+          IntLiteral 378
+        Binary Ne
+          Call inspect
+            FieldAccess value
+              Var chained
+          IntLiteral 42
+      return
+        IntLiteral 6
+    assign .digits
+      Var trace
+      IntLiteral 0
+    val local
+      Call Current<T, Unit>
+        Var seed
+        Var trace
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess digits
+            Var trace
+          IntLiteral 38
+        Binary Ne
+          Call inspect
+            FieldAccess value
+              Var local
+          IntLiteral 42
+      return
+        IntLiteral 7
+    val copy
+      Call CurrentPair<Built<T, String>, Unit>
+        Var built
+    return
+      Call inspect
+        FieldAccess retained
+          FieldAccess value
+            Var copy
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 0 suspend=false
+          param value: _
+          Var value

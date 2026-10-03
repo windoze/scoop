@@ -1,0 +1,149 @@
+schema = 1
+name = "runtime-images-lazy-cycle-root"
+inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "lazy-cycle-provider", "../../m23-runtime-images/lazy-cycle-provider.scoop", "../support/trace.c", "lazy-cycle-root", "../../m23-runtime-images/lazy-cycle-root.scoop"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin"]
+tags = ["runtime-images", "lazy", "stage-golden"]
+
+[[steps]]
+name = "prepare_core"
+files = [
+  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"copy" = {"from" = "${fixture}/../../m23-cli-imported-classes/support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
+  {"mkdir" = {"path" = "${work}/empty-sysroot"}},
+]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "remove_core_source"
+files = [
+  {"remove" = {"path" = "${work}/core-source"}},
+]
+
+[[steps]]
+name = "prepare_lazy-cycle-provider"
+files = [
+  {"copy" = {"from" = "${fixture}/lazy-cycle-provider", "to" = "${work}/sources/lazy-cycle-provider"}},
+  {"copy" = {"from" = "${fixture}/../../m23-runtime-images/lazy-cycle-provider.scoop", "to" = "${work}/sources/lazy-cycle-provider/src/main.scoop"}},
+]
+
+[[steps]]
+name = "lazy-cycle-provider"
+argv = ["${scoop}", "build", "${work}/sources/lazy-cycle-provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-lazy-cycle-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/lazy-cycle-provider/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/lazy-cycle-provider"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${lazy-cycle-provider.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/lazy-cycle-provider/${lazy-cycle-provider.result.root.identity}/ast.txt", "snapshot" = "lazy-cycle-provider.ast.txt"},
+  {"file" = "${work}/dump/lazy-cycle-provider/${lazy-cycle-provider.result.root.identity}/hir.txt", "snapshot" = "lazy-cycle-provider.hir.txt"},
+  {"file" = "${work}/dump/lazy-cycle-provider/${lazy-cycle-provider.result.root.identity}/mir.txt", "snapshot" = "lazy-cycle-provider.mir.txt"},
+  {"file" = "${work}/dump/lazy-cycle-provider/${lazy-cycle-provider.result.root.identity}/lir.txt", "snapshot" = "lazy-cycle-provider.lir.txt"},
+]
+
+[[steps]]
+name = "remove_lazy-cycle-provider"
+files = [
+  {"remove" = {"path" = "${work}/sources/lazy-cycle-provider"}},
+]
+
+[[steps]]
+name = "prepare_native"
+files = [
+  {"copy" = {"from" = "${fixture}/../support/trace.c", "to" = "${work}/native/trace.c"}},
+]
+
+[[steps]]
+name = "compile_native"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/native/trace.c", "-o", "${work}/native/trace.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive_native"
+argv = ["${ar}", "qcS", "${work}/native/libm23_runtime_images.a", "${work}/native/trace.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"ZERO_AR_DATE" = "1"}
+
+[[steps]]
+name = "remove_native_source"
+files = [
+  {"remove" = {"path" = "${work}/native/trace.c"}},
+  {"remove" = {"path" = "${work}/native/trace.o"}},
+]
+
+[[steps]]
+name = "prepare_lazy-cycle-root"
+files = [
+  {"copy" = {"from" = "${fixture}/lazy-cycle-root", "to" = "${work}/sources/lazy-cycle-root"}},
+  {"copy" = {"from" = "${fixture}/../../m23-runtime-images/lazy-cycle-root.scoop", "to" = "${work}/sources/lazy-cycle-root/src/main.scoop"}},
+]
+
+[[steps]]
+name = "program"
+argv = ["${scoop}", "build", "${work}/sources/lazy-cycle-root", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/built-program", "--emit", "all", "--dump-dir", "${work}/dump/program", "--runtime-root", "${runtime}", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${program.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/ast.txt", "snapshot" = "program.ast.txt"},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/hir.txt", "snapshot" = "program.hir.txt"},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/mir.txt", "snapshot" = "program.mir.txt"},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/lir.txt", "snapshot" = "program.lir.txt"},
+]
+
+[[steps]]
+name = "isolate"
+files = [
+  {"copy" = {"from" = "${program.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
+  {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}},
+  {"remove" = {"path" = "${work}/sources"}},
+]
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--cone-path", "${work}/artifacts", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--library-path", "${work}/native", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [
+  {"actual" = "${link.result.dependencies.length}", "equals" = 2},
+  {"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
+  {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan.txt", "normalize" = ["paths"]},
+]
+
+[[steps]]
+name = "run"
+argv = ["${work}/program"]
+exit = 0
+stdout = "1\n42\n"
+stderr = ""
+env = {}
+
+[[steps]]
+name = "run_moving"
+argv = ["${work}/program"]
+exit = 0
+stdout = "1\n42\n"
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}

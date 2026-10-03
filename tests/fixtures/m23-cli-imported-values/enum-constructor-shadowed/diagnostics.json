@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `Token` has no method `Pair`",
+    "notes": [],
+    "origin": {
+      "cone": "935b00550b5a77ebb5dbe99fc9db9e3a9694c74d026bbab0a089a2006438319e",
+      "end": 132,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 128
+    },
+    "severity": "error"
+  }
+]

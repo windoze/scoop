@@ -1,0 +1,20 @@
+SourceFile
+  RootPackage
+  public struct HeapEmpty
+  public class HeapCell(var empty: HeapEmpty)
+  public fun heapEmptySource(): HeapEmpty
+    =
+      Call HeapEmpty
+  public fun heapCellSource(): HeapCell
+    =
+      Call HeapCell
+        Call heapEmptySource
+  public fun heapFieldRoundtrip(): HeapEmpty
+    val cell
+      Call heapCellSource
+    assign .empty
+      Var cell
+      Call heapEmptySource
+    return
+      FieldAccess empty
+        Var cell

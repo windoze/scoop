@@ -1,0 +1,8 @@
+SourceFile
+  RootPackage
+  public fun pass(value: ReadyValue): ReadyValue
+    =
+      Var value
+  public fun passTemplate<T>(value: DeferredGeneric<T>): DeferredGeneric<T>
+    =
+      Var value

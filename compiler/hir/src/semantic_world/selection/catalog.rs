@@ -44,6 +44,7 @@ pub(super) struct PropertyCatalogEntry {
     pub(super) provider: ConeIdentity,
     pub(super) name: scoop_identity::CanonicalIdentifier,
     pub(super) interface: PropertyDeclarationRecordV1,
+    pub(super) definition_origin: crate::ExportDefinitionSourceV1,
     pub(super) native_contract: Option<Arc<scoop_identity::SourceNativeExternalContractRecord>>,
 }
 
@@ -146,7 +147,7 @@ impl ImportedSemanticWorld<'_> {
                     ));
                 }
             }
-            let definition_sources = Arc::new(imported_definition_sources(provider));
+            let definition_sources = Arc::new(imported_definition_sources(provider, self)?);
             for initialization in provider.interface().generic_initializations().records() {
                 initializations.insert(initialization.owner(), Arc::new(initialization.clone()));
             }
@@ -318,10 +319,24 @@ impl ImportedSemanticWorld<'_> {
                 .all_declarations()
             {
                 let declaration = property.declaration();
+                let subject = match declaration {
+                    PropertyOwner::Property(id) => DefinitionOriginSubject::Property(id),
+                    PropertyOwner::ExtensionProperty(id) => {
+                        DefinitionOriginSubject::ExtensionProperty(id)
+                    }
+                };
+                let origin = provider
+                    .foundation()
+                    .canonical_for_semantic_authority()
+                    .definition_origin(subject)
+                    .ok_or(
+                        ImportedDependencySelectionPlanBuildError::MissingDefinitionOrigin(subject),
+                    )?;
                 let entry = PropertyCatalogEntry {
                     provider: provider.identity(),
                     name: super::intrinsics::property_catalog_name(provider, declaration)?,
                     interface: property.clone(),
+                    definition_origin: crate::ExportDefinitionSourceV1::new(origin.origin().clone()),
                     native_contract: provider.foundation().canonical_for_semantic_authority().source_native_contracts().iter()
                         .find(|record| matches!((declaration, record.key().owner()),
                             (PropertyOwner::Property(property), scoop_identity::SourceNativeExternalOwner::Property(owner)) if property == owner))
@@ -392,7 +407,8 @@ impl ImportedSemanticWorld<'_> {
 
 fn imported_definition_sources(
     provider: &ImportedProvider<'_>,
-) -> ImportedDependencyDefinitionSources {
+    world: &ImportedSemanticWorld<'_>,
+) -> Result<ImportedDependencyDefinitionSources, ImportedDependencySelectionPlanBuildError> {
     let foundation = provider.foundation().canonical_for_semantic_authority();
     let records = foundation
         .source_records()
@@ -401,9 +417,24 @@ fn imported_definition_sources(
         .collect();
     let contexts = foundation
         .source_context_records()
-        .map(|(id, key)| (id, key.clone()))
-        .collect();
-    ImportedDependencyDefinitionSources { records, contexts }
+        .map(|(id, key)| {
+            let origin = world.positions.get(&key.source().cone()).map(|index| {
+                world.providers[*index]
+                    .foundation()
+                    .canonical_for_semantic_authority()
+            });
+            let names = origin
+                .and_then(|origin| origin.source_context_names(key))
+                .ok_or(
+                    ImportedDependencySelectionPlanBuildError::MissingDefinitionContext {
+                        provider: key.source().cone(),
+                        context: id,
+                    },
+                )?;
+            Ok((id, (key.clone(), names)))
+        })
+        .collect::<Result<_, _>>()?;
+    Ok(ImportedDependencyDefinitionSources { records, contexts })
 }
 
 impl ImportedDependencySelectionPlan {

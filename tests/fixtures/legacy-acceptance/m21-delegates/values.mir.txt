@@ -1,0 +1,365 @@
+Module
+  class LocalDelegate vtable=0 itables=0
+  class OwnerDelegate vtable=0 itables=0
+  class Host vtable=0 itables=0
+  class ExtensionDelegate vtable=0 itables=0
+  interface ToString
+  interface Hash
+  fun LocalDelegate.provideDelegate @fn0(this: LocalDelegate) -> LocalDelegate
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=100 bits=0x00000064
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type LocalDelegate
+        Local this
+  fun LocalDelegate.getValue @fn1(this: LocalDelegate, thisRef: Unit) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type LocalDelegate
+          Local this
+  fun LocalDelegate.setValue @fn2(this: LocalDelegate, thisRef: Unit, next: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type LocalDelegate
+        Local this
+        Type Int
+        Local next
+      return
+  fun OwnerDelegate.getValue @fn3(this: OwnerDelegate, thisRef: Host) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type OwnerDelegate
+          Local this
+  fun OwnerDelegate.setValue @fn4(this: OwnerDelegate, thisRef: Host, next: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type OwnerDelegate
+        Local this
+        Type Int
+        Local next
+      return
+  fun Host.$get$number @fn5(this: Host) -> Int
+    bb0 entry
+      call $call.1: Int = @fn3 direct
+        Type OwnerDelegate
+        FieldAccess 0
+          Type Host
+          Local this
+        Type Host
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun Host.$set$number @fn6(this: Host, value: Int) -> Unit
+    bb0 entry
+      call @fn4 direct
+        Type OwnerDelegate
+        FieldAccess 0
+          Type Host
+          Local this
+        Type Host
+        Local this
+        Type Int
+        Local value
+      return
+  fun ExtensionDelegate.getValue @fn7(this: ExtensionDelegate, thisRef: Unit) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str0
+  fun $extension.getValue @fn8(this: ExtensionDelegate, thisRef: Unit) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type ExtensionDelegate
+          Local this
+  fun main @fn9() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type LocalDelegate
+        ClassAlloc LocalDelegate
+      call @fn12 direct
+        Type LocalDelegate
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      call $delegate.0: LocalDelegate = @fn0 direct
+        Type LocalDelegate
+        Local $new.1
+      call $dependency.argument.0: Int = @fn1 direct
+        Type LocalDelegate
+        Local $delegate.0
+        Type Unit
+        UnitLiteral
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      call @fn2 direct
+        Type LocalDelegate
+        Local $delegate.0
+        Type Unit
+        UnitLiteral
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      call $dependency.argument.0: Int = @fn1 direct
+        Type LocalDelegate
+        Local $delegate.0
+        Type Unit
+        UnitLiteral
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      call $dependency.argument.0: Int = @fn11 direct
+        Type LocalDelegate
+        Local $delegate.0
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      call $old.1: Int = @fn1 direct
+        Type LocalDelegate
+        Local $delegate.0
+        Type Unit
+        UnitLiteral
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.1
+      val $new.2: Int
+        Type Int
+        IntegerUnary increment kind=Int
+          Type Int
+          Local $dependency.receiver
+      call @fn2 direct
+        Type LocalDelegate
+        Local $delegate.0
+        Type Unit
+        UnitLiteral
+        Type Int
+        Local $new.2
+      val $dependency.argument.0: Int
+        Type Int
+        Local $old.1
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      call $dependency.argument.0: Int = @fn1 direct
+        Type LocalDelegate
+        Local $delegate.0
+        Type Unit
+        UnitLiteral
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      call $old.3: Int = @fn1 direct
+        Type LocalDelegate
+        Local $delegate.0
+        Type Unit
+        UnitLiteral
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.3
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type LocalDelegate
+        Local $delegate.0
+        Type Unit
+        UnitLiteral
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      call $dependency.argument.0: Int = @fn1 direct
+        Type LocalDelegate
+        Local $delegate.0
+        Type Unit
+        UnitLiteral
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type ExtensionDelegate
+        ClassAlloc ExtensionDelegate
+      call @fn15 direct
+        Type ExtensionDelegate
+        Local $new.2
+        Type Int
+        Local $parameter.value
+      val $delegate.4: ExtensionDelegate
+        Type ExtensionDelegate
+        Local $new.2
+      call $dependency.argument.0: Int = @fn8 direct
+        Type ExtensionDelegate
+        Local $delegate.4
+        Type Unit
+        UnitLiteral
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      assign $new.3
+        Type Host
+        ClassAlloc Host
+      call @fn14 direct
+        Type Host
+        Local $new.3
+      val host: Host
+        Type Host
+        Local $new.3
+      call $dependency.argument.0: Int = @fn5 direct
+        Type Host
+        Local host
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      call @fn6 direct
+        Type Host
+        Local host
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      call $dependency.argument.0: Int = @fn5 direct
+        Type Host
+        Local host
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun println @fn10(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str1
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun $local.0.captured @fn11($capture.local: LocalDelegate) -> Int
+    bb0 entry
+      call $call.1: Int = @fn1 direct
+        Type LocalDelegate
+        Local $capture.local
+        Type Unit
+        UnitLiteral
+      return
+        Type Int
+        Local $call.1
+  fun init.LocalDelegate.$c0 @fn12(this: LocalDelegate, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type LocalDelegate
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.OwnerDelegate.$c1 @fn13(this: OwnerDelegate, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type OwnerDelegate
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Host.$c2 @fn14(this: Host) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type OwnerDelegate
+        ClassAlloc OwnerDelegate
+      call @fn13 direct
+        Type OwnerDelegate
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      field_set 0
+        Type Host
+        Local this
+        Type OwnerDelegate
+        Local $new.1
+      return
+  fun init.ExtensionDelegate.$c3 @fn15(this: ExtensionDelegate, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type ExtensionDelegate
+        Local this
+        Type Int
+        Local value
+      return
+  instance mi0 function=@fn10 <- println
+  str @str0 "ordinary"
+  str @str1 "\n"
+  output executable @fn9

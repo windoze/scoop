@@ -1,0 +1,100 @@
+SourceFile
+  QualifiedPackage consumer.arrays
+  ImportStar Local upstream.arrays.*
+  ImportExact Local upstream.arrays.exercise as providerExercise
+  private var events: Int = <expr>
+  private fun badIndex(): Long
+    assign events
+      Binary Add
+        Binary Mul
+          Var events
+          IntLiteral 10
+        IntLiteral 1
+    return
+      IntLiteral 1L
+  private fun replacement(): Int
+    assign events
+      Binary Add
+        Binary Mul
+          Var events
+          IntLiteral 10
+        IntLiteral 2
+    return
+      IntLiteral 42
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    =
+      Call providerExercise<T>
+        Var seed
+        Var read
+  public fun result(): Int
+    var caught
+      IntLiteral 0
+    val values
+      Call pack
+        IntLiteral 42
+    try
+      Call first
+        Var values
+        Unary Neg
+          IntLiteral 1L
+    catch error: IndexOutOfBoundsException
+      assign caught
+        Binary Add
+          Var caught
+          IntLiteral 1
+    try
+      Call first
+        Var values
+        FieldAccess size
+          Var values
+    catch error: IndexOutOfBoundsException
+      assign caught
+        Binary Add
+          Var caught
+          IntLiteral 1
+    val mutable
+      Call copy
+        Var values
+    try
+      Call mutateComputed
+        Var mutable
+        CallableReference 0 badIndex
+        CallableReference 1 replacement
+    catch error: IndexOutOfBoundsException
+      assign caught
+        Binary Add
+          Var caught
+          IntLiteral 1
+    finally
+      assign events
+        Binary Add
+          Binary Mul
+            Var events
+            IntLiteral 10
+          IntLiteral 3
+    try
+      Call first<Unit>
+        Call pack<Unit>
+    catch error: IndexOutOfBoundsException
+      assign caught
+        Binary Add
+          Var caught
+          IntLiteral 1
+    return
+      IfExpression
+        Binary And
+          Binary And
+            Binary Eq
+              Var caught
+              IntLiteral 4
+            Binary Eq
+              Var events
+              IntLiteral 123
+          Binary Eq
+            Call first
+              Call freeze
+                Var mutable
+            IntLiteral 42
+        IntLiteral 42
+        else
+        IntLiteral 1

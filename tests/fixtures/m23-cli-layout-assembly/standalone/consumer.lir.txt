@@ -1,0 +1,24 @@
+Module
+  fun @scoop$1$cb$3173750cdb0c21f275b35890960aecb05e93e19f1562ef5ebdff0797fd7a449c() -> i1
+    local %0 $dependency.argument.0: struct0 <logical-zst 307f6d500e893433b620323e5ddfe0a97bab5274c907b2d0170e144371453e6e>
+    local %1 $dependency.parameter.value: struct0 <logical-zst 307f6d500e893433b620323e5ddfe0a97bab5274c907b2d0170e144371453e6e>
+    local %2 $dependency.argument.0: struct0 <logical-zst 307f6d500e893433b620323e5ddfe0a97bab5274c907b2d0170e144371453e6e>
+    local %3 $dependency.argument.1: struct0 <logical-zst 307f6d500e893433b620323e5ddfe0a97bab5274c907b2d0170e144371453e6e>
+    local %4 $dependency.parameter.left: struct0 <logical-zst 307f6d500e893433b620323e5ddfe0a97bab5274c907b2d0170e144371453e6e>
+    local %5 $dependency.parameter.right: struct0 <logical-zst 307f6d500e893433b620323e5ddfe0a97bab5274c907b2d0170e144371453e6e>
+    local %6 $call.1: i1
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call no-gc-elided-zst-target0 t0 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> external-fn0()
+    store t0 -> local0
+    store local0 -> local1
+    call managed-elided-zst-target0 sp<managed-call:0> live=[] t1 = sig=elided-zst1 (elided-zst<struct0 size=0 align=1>) -> elided-zst<struct0 size=0 align=1> external-fn1(elided-zst local1)
+    store t1 -> local2
+    call no-gc-elided-zst-target1 t2 = sig=elided-zst2 () -> elided-zst<struct0 size=0 align=1> external-fn0()
+    store t2 -> local3
+    store local2 -> local4
+    store local3 -> local5
+    call managed-direct-target0 sp<managed-call:1> live=[] t3 = sig=direct0 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1 external-fn2(elided-zst local4, elided-zst local5)
+    store t3 -> local6
+    ret local6
+  output library

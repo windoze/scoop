@@ -1,0 +1,37 @@
+SourceFile
+  RootPackage
+  public fun item(value: Int): Item
+    =
+      Call Item
+        Var value
+  public fun count(value: Item): Int
+    =
+      FieldAccess count
+        Var value
+SourceFile
+  RootPackage
+  public interface Reader
+    fun read
+  public open class Base()
+    public fun observe
+    private val marker: Int8 = <expr>
+      IntLiteral 1
+    protected fun echo
+  public class Item(val count: Int) : Base(<0 args>), Reader
+    public fun read
+  public enum Message
+    Empty
+    Text(String)
+    Marker(Int8)
+  public var storage: String = <expr>
+  public fun inspect(value: Any): Boolean
+    =
+      Is String false
+        Var value
+  public struct Generic<T>
+    field value: T
+  public struct Deferred
+    field value: Generic<Long>
+  public fun dormant<T>(value: T, fallback: ULong = <expr>): T
+    =
+      Var value

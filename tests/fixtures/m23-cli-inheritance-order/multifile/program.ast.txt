@@ -1,0 +1,71 @@
+SourceFile
+  RootPackage
+  fun main()
+    val integer
+      Call leaf
+        IntLiteral 17
+    if
+      Binary Ne
+        MethodCall value
+          Var integer
+        IntLiteral 17
+      throw
+        Call IllegalStateException
+    if
+      Binary Ne
+        FieldAccess property
+          Var integer
+        IntLiteral 17
+      throw
+        Call IllegalStateException
+    val string
+      Call leaf
+        StringLiteral "source order"
+    if
+      Binary Ne
+        MethodCall value
+          Var string
+        StringLiteral "source order"
+      throw
+        Call IllegalStateException
+    if
+      Binary Ne
+        FieldAccess property
+          Var string
+        StringLiteral "source order"
+      throw
+        Call IllegalStateException
+    val interfaceInteger
+      Call reader
+        IntLiteral 23
+    if
+      Binary Ne
+        MethodCall value
+          Var interfaceInteger
+        IntLiteral 23
+      throw
+        Call IllegalStateException
+    if
+      Binary Ne
+        FieldAccess property
+          Var interfaceInteger
+        IntLiteral 23
+      throw
+        Call IllegalStateException
+    val interfaceString
+      Call reader
+        StringLiteral "interface order"
+    if
+      Binary Ne
+        MethodCall value
+          Var interfaceString
+        StringLiteral "interface order"
+      throw
+        Call IllegalStateException
+    if
+      Binary Ne
+        FieldAccess property
+          Var interfaceString
+        StringLiteral "interface order"
+      throw
+        Call IllegalStateException

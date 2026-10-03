@@ -1,0 +1,7 @@
+SourceFile
+  RootPackage
+    @Extern(lib = "m23_lifecycle", name = "m23_register_restart")
+  private fun registerRestart()
+  fun main()
+    @Unsafe block
+      Call registerRestart

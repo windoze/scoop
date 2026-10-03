@@ -1,0 +1,26 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.Token
+  ImportExact Local dependency.classes.WideValue
+  ImportExact Local dependency.classes.ValueReader
+  public abstract class LocalBase(), ValueReader
+    public fun value
+  public class LocalReader() : LocalBase(<0 args>)
+    public fun value
+  public fun localReader(): LocalBase
+    =
+      Call LocalReader
+  public fun primary(): Counter
+    val reader: ValueReader
+      Call localReader
+    return
+      Call Counter
+        Binary Add
+          FieldAccess first
+            MethodCall value
+              Var reader
+              Call Token
+              Call Counter
+                IntLiteral 10
+          IntLiteral 1

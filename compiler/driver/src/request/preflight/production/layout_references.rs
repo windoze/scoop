@@ -60,12 +60,7 @@ pub(in crate::request::preflight) fn collect_mir_references(
         .module()
         .globals
         .iter()
-        .filter(|(_, global)| {
-            !matches!(
-                global.storage,
-                mir::GlobalStorage::Extern { .. } | mir::GlobalStorage::Imported { .. }
-            )
-        })
+        .filter(|(_, global)| matches!(global.storage, mir::GlobalStorage::Managed { .. }))
         .map(|(_, global)| &global.ty)
         .chain(
             matches!(input.module().output, mir::MirOutput::Executable { .. })

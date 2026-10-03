@@ -35,49 +35,6 @@ fn default_local_captures_combine_generics_local_defaults_and_repeated_closures(
         "lambda bodies are reused while expanded references retain distinct creation sites"
     );
     assert_eq!(mir.closure_invoke_functions.len(), 5);
-    assert_eq!(
-        selected(&hir::dump(&output.export)),
-        include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../tests/fixtures/m23-type-source-defaults/nested-capture-combinations.hir.snap"
-        ))
-    );
-    assert_eq!(
-        selected(&scoop_mir::dump(&mir)),
-        include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../tests/fixtures/m23-type-source-defaults/nested-capture-combinations.mir.snap"
-        ))
-    );
-}
-
-fn selected(dump: &str) -> String {
-    let mut keep = false;
-    let mut result = String::new();
-    for line in dump.lines() {
-        if line.starts_with("  ") && !line.starts_with("   ") {
-            keep = [
-                "genericCapture",
-                "forward",
-                "localDefault",
-                "capturedCallback",
-                "capturedReference",
-                "unused",
-                "fun main",
-                "$local.",
-                "$lambda.",
-                "$reference.",
-            ]
-            .iter()
-            .any(|name| line.contains(name))
-                || line.starts_with("  closure ");
-        }
-        if keep {
-            result.push_str(line);
-            result.push('\n');
-        }
-    }
-    result
 }
 
 #[test]

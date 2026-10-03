@@ -1,6 +1,6 @@
 package schedule.base
 
-@Extern(name = "m23_trace")
+@Extern(lib = "m23_runtime_images", name = "m23_trace")
 private fun trace(value: Long)
 
 public class Base public constructor(public val number: Int)

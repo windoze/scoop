@@ -1,0 +1,816 @@
+Module
+  global0 $delegate$extension:Int:offset: ExtensionDelegate managed initial=zeroed-for-runtime-unit
+  global1 $delegate$top-level:message: UnitDelegate managed initial=zeroed-for-runtime-unit
+  global2 $delegate$top-level:provided: EffectiveDelegate managed initial=zeroed-for-runtime-unit
+  global3 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  global4 $init$failure$1: Any managed initial=zeroed-for-runtime-unit
+  global5 $init$failure$2: Any managed initial=zeroed-for-runtime-unit
+  init0 extension:Int:offset eager global0 initializer=@fn12 ensure=@fn13 failure=3 deps=[]
+  init1 top-level:message eager global1 initializer=@fn16 ensure=@fn17 failure=4 deps=[]
+  init2 top-level:provided eager global2 initializer=@fn20 ensure=@fn21 failure=5 deps=[]
+  class ExtensionDelegate vtable=0 itables=0
+  class UnitDelegate vtable=0 itables=0
+  class EffectiveDelegate vtable=0 itables=0
+  class Seed vtable=0 itables=0
+  interface ToString
+  interface Hash
+  fun UnitDelegate.provideDelegate @fn0(this: UnitDelegate) -> UnitDelegate
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn24 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type UnitDelegate
+        Local this
+  fun UnitDelegate.getValue @fn1(this: UnitDelegate, thisRef: Unit) -> String
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn24 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type String
+        FieldAccess 0
+          Type UnitDelegate
+          Local this
+  fun UnitDelegate.setValue @fn2(this: UnitDelegate, thisRef: Unit, next: String) -> Unit
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn24 direct
+        Type String
+        Local $dependency.parameter.value
+      field_set 0
+        Type UnitDelegate
+        Local this
+        Type String
+        Local next
+      return
+  fun EffectiveDelegate.getValue @fn3(this: EffectiveDelegate, thisRef: Unit) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type EffectiveDelegate
+          Local this
+  fun EffectiveDelegate.setValue @fn4(this: EffectiveDelegate, thisRef: Unit, next: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type EffectiveDelegate
+        Local this
+        Type Int
+        Local next
+      return
+  fun Seed.provideDelegate @fn5(this: Seed) -> EffectiveDelegate
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn24 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Seed
+          Local this
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type EffectiveDelegate
+        ClassAlloc EffectiveDelegate
+      call @fn28 direct
+        Type EffectiveDelegate
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      return
+        Type EffectiveDelegate
+        Local $new.1
+  fun $extension.provideDelegate @fn6(this: ExtensionDelegate) -> ExtensionDelegate
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str4
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn24 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type ExtensionDelegate
+        Local this
+  fun $extension.getValue @fn7(this: ExtensionDelegate, thisRef: Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str5
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn24 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type ExtensionDelegate
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        Local thisRef
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun $extension.setValue @fn8(this: ExtensionDelegate, thisRef: Int, next: Int) -> Unit
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str6
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn24 direct
+        Type String
+        Local $dependency.parameter.value
+      field_set 0
+        Type ExtensionDelegate
+        Local this
+        Type Int
+        Local next
+      return
+  fun makeUnitDelegate @fn9() -> UnitDelegate
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str7
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn24 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str8
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      assign $new.1
+        Type UnitDelegate
+        ClassAlloc UnitDelegate
+      call @fn27 direct
+        Type UnitDelegate
+        Local $new.1
+        Type String
+        Local $parameter.value
+      return
+        Type UnitDelegate
+        Local $new.1
+  fun makeExtensionDelegate @fn10() -> ExtensionDelegate
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str9
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn24 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type ExtensionDelegate
+        ClassAlloc ExtensionDelegate
+      call @fn26 direct
+        Type ExtensionDelegate
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      return
+        Type ExtensionDelegate
+        Local $new.1
+  fun main @fn11() -> Unit
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str10
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn24 direct
+        Type String
+        Local $dependency.parameter.value
+      call @scoop_rt_gc_collect direct
+      call $dependency.argument.0: String = @fn18 direct
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn24 direct
+        Type String
+        Local $dependency.parameter.value
+      call @fn19 direct
+        Type String
+        StringConst @str11
+      call $dependency.argument.0: String = @fn18 direct
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn24 direct
+        Type String
+        Local $dependency.parameter.value
+      call $dependency.argument.0: Int = @fn22 direct
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn25 direct
+        Type Int
+        Local $dependency.parameter.value
+      call @fn23 direct
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      call $dependency.argument.0: Int = @fn22 direct
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn25 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $receiver: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      call $dependency.argument.0: Int = @fn14 direct
+        Type Int
+        Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn25 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $receiver: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      call @fn15 direct
+        Type Int
+        Local $receiver
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $receiver: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      call $dependency.argument.0: Int = @fn14 direct
+        Type Int
+        Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn25 direct
+        Type Int
+        Local $dependency.parameter.value
+      call @scoop_rt_gc_collect direct
+      val $receiver: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      call $dependency.argument.0: Int = @fn14 direct
+        Type Int
+        Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn25 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun $init$body$0 @fn12() -> Unit
+    bb0 entry
+      call $call.1: ExtensionDelegate = @fn10 direct
+      call $call.2: ExtensionDelegate = @fn6 direct
+        Type ExtensionDelegate
+        Local $call.1
+      global_assign $delegate$extension:Int:offset
+        Type ExtensionDelegate
+        Local $call.2
+      return
+  fun $init$ensure$0 @fn13() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 extension:Int:offset
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn12 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 extension:Int:offset
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 extension:Int:offset
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 extension:Int:offset
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 extension:Int:offset
+      call external3 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun $extension.$get$offset @fn14(this: Int) -> Int
+    bb0 entry
+      call @fn13 direct
+      call $call.1: Int = @fn7 direct
+        Type ExtensionDelegate
+        GlobalRead $delegate$extension:Int:offset
+        Type Int
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun $extension.$set$offset @fn15(this: Int, value: Int) -> Unit
+    bb0 entry
+      call @fn13 direct
+      call @fn8 direct
+        Type ExtensionDelegate
+        GlobalRead $delegate$extension:Int:offset
+        Type Int
+        Local this
+        Type Int
+        Local value
+      return
+  fun $init$body$1 @fn16() -> Unit
+    bb0 entry
+      call $call.1: UnitDelegate = @fn9 direct
+      call $call.2: UnitDelegate = @fn0 direct
+        Type UnitDelegate
+        Local $call.1
+      global_assign $delegate$top-level:message
+        Type UnitDelegate
+        Local $call.2
+      return
+  fun $init$ensure$1 @fn17() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 top-level:message
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn16 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 top-level:message
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 top-level:message
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 top-level:message
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 top-level:message
+      call external3 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun $get$message @fn18() -> String
+    bb0 entry
+      call @fn17 direct
+      call $call.1: String = @fn1 direct
+        Type UnitDelegate
+        GlobalRead $delegate$top-level:message
+        Type Unit
+        UnitLiteral
+      return
+        Type String
+        Local $call.1
+  fun $set$message @fn19(value: String) -> Unit
+    bb0 entry
+      call @fn17 direct
+      call @fn2 direct
+        Type UnitDelegate
+        GlobalRead $delegate$top-level:message
+        Type Unit
+        UnitLiteral
+        Type String
+        Local value
+      return
+  fun $init$body$2 @fn20() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Seed
+        ClassAlloc Seed
+      call @fn29 direct
+        Type Seed
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      call $call.2: EffectiveDelegate = @fn5 direct
+        Type Seed
+        Local $new.1
+      global_assign $delegate$top-level:provided
+        Type EffectiveDelegate
+        Local $call.2
+      return
+  fun $init$ensure$2 @fn21() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 top-level:provided
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn20 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 top-level:provided
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 top-level:provided
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 top-level:provided
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 top-level:provided
+      call external3 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun $get$provided @fn22() -> Int
+    bb0 entry
+      call @fn21 direct
+      call $call.1: Int = @fn3 direct
+        Type EffectiveDelegate
+        GlobalRead $delegate$top-level:provided
+        Type Unit
+        UnitLiteral
+      return
+        Type Int
+        Local $call.1
+  fun $set$provided @fn23(value: Int) -> Unit
+    bb0 entry
+      call @fn21 direct
+      call @fn4 direct
+        Type EffectiveDelegate
+        GlobalRead $delegate$top-level:provided
+        Type Unit
+        UnitLiteral
+        Type Int
+        Local value
+      return
+  fun println @fn24(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str12
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn25(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str13
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun init.ExtensionDelegate.$c1 @fn26(this: ExtensionDelegate, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type ExtensionDelegate
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.UnitDelegate.$c0 @fn27(this: UnitDelegate, value: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type UnitDelegate
+        Local this
+        Type String
+        Local value
+      return
+  fun init.EffectiveDelegate.$c3 @fn28(this: EffectiveDelegate, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type EffectiveDelegate
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Seed.$c2 @fn29(this: Seed, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Seed
+        Local this
+        Type Int
+        Local value
+      return
+  instance mi0 function=@fn24 <- println
+  instance mi1 function=@fn25 <- println
+  str @str0 "provide-unit"
+  str @str1 "get-unit"
+  str @str2 "set-unit"
+  str @str3 "provide-effective"
+  str @str4 "provide-extension"
+  str @str5 "get-extension"
+  str @str6 "set-extension"
+  str @str7 "make-unit"
+  str @str8 "initial"
+  str @str9 "make-extension"
+  str @str10 "main"
+  str @str11 "changed"
+  str @str12 "\n"
+  str @str13 "\n"
+  output executable @fn11

@@ -1,0 +1,175 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Parcel<Number>
+    Empty()
+    Item(_1: Number)
+  enum CoroutineStep<Number>
+    Completed(value: Number)
+    Suspended()
+  enum CoroutineSlot<Number>
+    Empty()
+    Value(value: Number)
+  class Number vtable=0 itables=0
+  class Unused vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<Number>
+  interface SuspendTask<Number>
+  interface SuspendRegistration<Number>
+  generated_exact_type get0 location=enum3 nominal_id=5cde30094d9c803b61d5f1dc16df2770228722408419a34aca6e4e5a3582254a exact_id=09ad6c0386260dd41b6373a59f96c1389ae13cf702f7f1b75508700f75117482
+  generated_exact_type get1 location=enum2 nominal_id=16c62249db98f4113f369080479cab4b882eba399fbf4c6ea5aae49829cbc827 exact_id=22d3c9cd2bb3db37a29c086ac7981d6daf0da35ed9d086e42706b6872c2d12b9
+  generated_callable gc0 function=@fn7 id=b2a92ede4fa10c07eac163fef958b692c1672d8e925d16bbc013bd3c299488c5
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Number
+        ClassAlloc Number
+      call @fn5 direct
+        Type Number
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val $argument.0: Number
+        Type Number
+        Local $new.1
+      val $parameter._1: Number
+        Type Number
+        Local $argument.0
+      val parcel: Parcel<Number>
+        Type Parcel<Number>
+        VariantConstruct Parcel<Number> v1
+          Type Number
+          Local $parameter._1
+      val $when.1: Parcel<Number>
+        Type Parcel<Number>
+        Local parcel
+      val $pattern.subject.2: Parcel<Number>
+        Type Parcel<Number>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Parcel<Number> v0
+          Type Parcel<Number>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $result.0
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Parcel<Number>
+        Type Parcel<Number>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Parcel<Number> v1
+          Type Parcel<Number>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Int
+        Local $result.0
+    bb4 pattern.pass.4
+      val number: Number
+        Type Number
+        VariantPayloadProject Parcel<Number> v1 f0
+          Type Parcel<Number>
+          Local $pattern.subject.3
+      assign $result.0
+        Type Int
+        FieldAccess 0
+          Type Number
+          Local number
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun Continuation.resume @fn1(this: Continuation<Number>, value: Number) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn2(this: Continuation<Number>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn3(this: SuspendTask<Number>, $completion: Continuation<Number>) -> CoroutineStep<Number>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn4(this: SuspendRegistration<Number>, continuation: Continuation<Number>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Number.$c0 @fn5(this: Number, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Number
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Unused.$c1 @fn6(this: Unused, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Unused
+        Local this
+        Type Int
+        Local value
+      return
+  fun startCoroutine<Number> @fn7(task: SuspendTask<Number>, completion: Continuation<Number>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn1 interface Continuation<Number>[0]
+        Type Continuation<Number>
+        Local completion
+        Type Number
+        EnumField v0 f0
+          Type CoroutineStep<Number>
+          Local $step
+      return
+    bb2 failed
+      call @fn2 interface Continuation<Number>[1]
+        Type Continuation<Number>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Number> = @fn3 interface SuspendTask<Number>[0]
+        Type SuspendTask<Number>
+        Local task
+        Type Continuation<Number>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Number>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Number> result=Number
+  coroutine_slot cl0 CoroutineSlot<Number> value=Number
+  coroutine_start ct0 result=Number function=fn7
+  coroutine_fn cf0 @fn3 source_return=Number step=cs0 immediate
+  instance mi0 function=@fn1 <- Continuation.resume
+  instance mi1 function=@fn2 <- Continuation.resumeWithException
+  instance mi2 function=@fn3 <- SuspendTask.run
+  instance mi3 function=@fn4 <- SuspendRegistration.register
+  output library

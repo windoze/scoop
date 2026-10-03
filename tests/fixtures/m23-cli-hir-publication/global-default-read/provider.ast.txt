@@ -1,0 +1,19 @@
+SourceFile
+  RootPackage
+    @Global
+  public var globalDefaultValue: Int = <expr>
+  public fun readGlobalDefault(value: Int = <expr>): Int
+    =
+      Var value
+    @ThreadLocal
+  public var threadDefaultValue: Int = <expr>
+  public fun readThreadDefault(value: Int = <expr>): Int
+    =
+      Var value
+    @Extern(lib = "m23_default_storage", name = "m23_default_value")
+    @Global
+  public var nativeDefaultValue: Int
+    @Unsafe
+  public fun readNativeDefault(value: Int = <expr>): Int
+    =
+      Var value

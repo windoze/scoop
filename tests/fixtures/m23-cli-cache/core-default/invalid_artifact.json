@@ -1,0 +1,14 @@
+[
+  {
+    "code": "SCOOP_PREBUILT_VIEW_INVALID",
+    "message": "invalid artifact summary ${work}/private-sysroot/artifacts/darwin-aarch64/scoop.core.slib: archive global magic is not canonical",
+    "notes": [],
+    "origin": {
+      "kind": "artifact",
+      "member": "container:$",
+      "path": "${work}/private-sysroot/artifacts/darwin-aarch64/scoop.core.slib"
+    },
+    "phase": "Summary",
+    "severity": "error"
+  }
+]

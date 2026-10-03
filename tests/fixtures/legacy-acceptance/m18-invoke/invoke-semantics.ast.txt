@@ -1,0 +1,112 @@
+SourceFile
+  RootPackage
+  struct Handler
+    field prefix: String
+    operator fun invoke
+  class Service(val handler: Handler)
+    @Global
+  var globalHandler: GlobalHandler = <expr>
+  struct GlobalHandler
+    field base: Int
+    operator fun invoke
+  class Host(val handler: Handler)
+    fun run
+  struct ExtensionHandler
+    field base: Int
+  operator fun ExtensionHandler.invoke(value: Int): Int
+    =
+      Binary Add
+        Var base
+        Var value
+  struct Command
+    operator infix fun invoke
+  struct Mapper
+    operator fun invoke
+  struct Collector
+    operator fun invoke
+  fun applyParameter(handler: Handler): String
+    =
+      Call handler
+        IntLiteral 5
+  fun main()
+    val handler
+      Call Handler
+        StringLiteral "local-"
+    Call println
+      Call handler
+        IntLiteral 1
+    Call println
+      Invoke
+        Call Handler
+          StringLiteral "temporary-"
+        IntLiteral 2
+        Argument suffix=
+          StringLiteral "?"
+    val service
+      Call Service
+        Call Handler
+          StringLiteral "field-"
+    Call println
+      MethodCall handler
+        Var service
+        IntLiteral 3
+    Call println
+      MethodCall run
+        Call Host
+          Call Handler
+            StringLiteral "member-"
+    Call println
+      Call applyParameter
+        Call Handler
+          StringLiteral "parameter-"
+    Call println
+      Call globalHandler
+        IntLiteral 2
+    val captured: () -> String
+      Lambda 0 suspend=false
+        parameters omitted
+        Call handler
+          IntLiteral 6
+    Call println
+      Call captured
+    Call println
+      Invoke
+        Call ExtensionHandler
+          IntLiteral 40
+        IntLiteral 2
+    Call println
+      InfixCall <invoke>
+        Call Command
+        StringLiteral "build"
+    val mapper
+      Call Mapper
+    Call println
+      Call mapper<Int>
+        IntLiteral 41
+        Lambda 1 suspend=false
+          param value: Int
+          MethodCall toString
+            Var value
+    val collector
+      Call Collector
+    Call println
+      Call collector
+        IntLiteral 10
+        IntLiteral 1
+        Argument *
+          ArrayLiteral
+            IntLiteral 2
+            IntLiteral 3
+    val function: (Int) -> Int
+      Lambda 2 suspend=false
+        param value: Int
+        Binary Add
+          Var value
+          IntLiteral 1
+    Call println
+      Call function
+        IntLiteral 41
+    Call println
+      MethodCall invoke
+        Var function
+        IntLiteral 42

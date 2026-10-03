@@ -1,0 +1,109 @@
+Module
+  global0 $singleton$7fb7e4aaaaa130b990194127c79a36b94873b63da58808f3f0cbb76821047bf0: Storage imported provider=5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d storage=4b43f894b6c35f032ba80bffa826db840418f0b900cc21a977763440890b572a
+  struct Payload (flag: Boolean)
+  struct Box<Payload> (value: Payload)
+  struct Target (value: Boolean) <c-layout aligned=natural packed=natural>
+  struct Result (value: Boolean) <c-layout aligned=natural packed=natural>
+  enum Selection
+    Empty()
+    Present(_0: Payload)
+  enum Option<Fields>
+    Some(_0: Fields)
+    None()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Storage vtable=0 itables=0
+  class Fields vtable=0 itables=0
+  fun check @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call external2 direct
+      val $dependency.receiver: Storage
+        Type Storage
+        GlobalRead $singleton$7fb7e4aaaaa130b990194127c79a36b94873b63da58808f3f0cbb76821047bf0
+      call flags: (Boolean, Boolean) = external1 direct
+        Type Storage
+        Local $dependency.receiver
+      branch bb1 bb2
+        Type Boolean
+        FieldAccess 0
+          Type (Boolean, Boolean)
+          Local flags
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        FieldAccess 1
+          Type (Boolean, Boolean)
+          Local flags
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      val $argument.0: Boolean
+        Type Boolean
+        Local $logic.1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call external2 direct
+      call external2 direct
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Storage
+          GlobalRead $singleton$7fb7e4aaaaa130b990194127c79a36b94873b63da58808f3f0cbb76821047bf0
+          Type Storage
+          GlobalRead $singleton$7fb7e4aaaaa130b990194127c79a36b94873b63da58808f3f0cbb76821047bf0
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  str @str0 "illegal state"
+  output executable @fn1

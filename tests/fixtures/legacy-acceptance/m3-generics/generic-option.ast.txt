@@ -1,0 +1,34 @@
+SourceFile
+  RootPackage
+  fun unwrapOr<T>(o: T?, fallback: T): T
+    return
+      Elvis
+        Var o
+        Var fallback
+  fun isPresent<T>(o: T?): Boolean
+    return
+      WhenExpression
+        Var o
+        arm None
+          BoolLiteral false
+        arm Some(_)
+          BoolLiteral true
+  fun main()
+    Call println
+      Call unwrapOr
+        Call Some
+          IntLiteral 7
+        IntLiteral 0
+    val e: Int?
+      Var None
+    Call println
+      Call unwrapOr
+        Var e
+        IntLiteral 9
+    Call println
+      Call isPresent
+        Call Some
+          StringLiteral "x"
+    Call println
+      Call isPresent
+        Var e

@@ -1,0 +1,11 @@
+SourceFile
+  RootPackage
+  ImportExact Local callbacks.callback
+  fun main()
+    if
+      Binary Ne
+        Call callback
+          IntLiteral 40
+        IntLiteral 42
+      throw
+        Call IllegalStateException

@@ -15,8 +15,8 @@ fn fixture(name: &str) -> (std::path::PathBuf, String) {
 #[test]
 fn actual_derived_equality_bindings_cover_nested_values_enum_and_explicit_overloads() {
     for name in ["standalone", "combined"] {
-        let (directory, source) = fixture(name);
-        let (bytes, dump) = with_production(&source, |output, input, _, graph, types| {
+        let (_, source) = fixture(name);
+        let bytes = with_production(&source, |output, input, _, graph, types| {
             let boolean = dependencies::boolean(input, graph);
             let index = MirTypeBridgeTypeIndexV1::try_new(&[types, &boolean]).unwrap();
             let bindings =
@@ -29,26 +29,20 @@ fn actual_derived_equality_bindings_cover_nested_values_enum_and_explicit_overlo
                     .unwrap(),
                 bindings
             );
-            let dump = assertions::dump(input, &bindings);
-            if name == "standalone" {
-                assert_eq!(bindings.entries().len(), 1);
-                assert!(dump.contains("Token.equals"));
-                assert!(!dump.contains("Hidden") && !dump.contains("Unrequested"));
+            let calls = assertions::calls(input, &bindings);
+            let expected = if name == "standalone" {
+                BTreeMap::from([("Token.equals", vec![]), ("Unrequested.equals", vec![])])
             } else {
-                assert_eq!(bindings.entries().len(), 5);
-                for member in [
-                    "Leaf.equals",
-                    "Pair.equals",
-                    "Choice.equals",
-                    "UsesManual.equals",
-                    "Overloaded.equals",
-                ] {
-                    assert!(dump.contains(member), "{dump}");
-                }
-                assert!(!dump.lines().any(|line| line.starts_with("Manual.equals")));
-                assert!(!dump.contains("NotComparable"));
-            }
-            (encode(&bindings).unwrap(), dump)
+                BTreeMap::from([
+                    ("Leaf.equals", vec![]),
+                    ("Pair.equals", vec!["Leaf.equals", "Leaf.equals"]),
+                    ("Choice.equals", vec!["Pair.equals"]),
+                    ("UsesManual.equals", vec!["Manual.equals"]),
+                    ("Overloaded.equals", vec![]),
+                ])
+            };
+            assert_eq!(calls, expected);
+            encode(&bindings).unwrap()
         });
         with_production(
             &format!("private struct Unrelated() {{}}\n{source}"),
@@ -60,19 +54,6 @@ fn actual_derived_equality_bindings_cover_nested_values_enum_and_explicit_overlo
                 assert_eq!(encode(&bindings).unwrap(), bytes);
             },
         );
-        if let Some(path) = std::env::var_os("SCOOP_MIR_EQUALITY_SNAPSHOT_DIR") {
-            std::fs::create_dir_all(&path).unwrap();
-            std::fs::write(
-                std::path::Path::new(&path).join(format!("{name}.snap")),
-                dump,
-            )
-            .unwrap();
-        } else {
-            assert_eq!(
-                dump,
-                std::fs::read_to_string(directory.join(format!("{name}.snap"))).unwrap()
-            );
-        }
     }
 }
 

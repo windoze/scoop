@@ -1,0 +1,37 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.MutableCell
+  ImportExact Local dependency.classes.ReferenceAggregate
+  ImportExact Local dependency.classes.ReferenceParent
+  public class Derived() : ReferenceParent(<1 args>)
+    public val extra: MutableCell = <expr>
+      Call MutableCell
+        IntLiteral 1
+    public fun transfer
+  public fun primary(): Counter
+    val value: ReferenceParent
+      Call Derived
+    val result
+      MethodCall transfer
+        Var value
+        FieldAccess data
+          Var value
+    val scratch
+      Call MutableCell
+        IntLiteral 0
+    return
+      Call Counter
+        Binary Add
+          Binary Add
+            Binary Add
+              FieldAccess value
+                FieldAccess first
+                  Var result
+              FieldAccess value
+                FieldAccess second
+                  Var result
+            FieldAccess tag
+              Var result
+          FieldAccess value
+            Var scratch

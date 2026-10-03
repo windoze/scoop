@@ -1,3 +1,0 @@
-span=85..145
-expression=Choice.Pair(left = 1, marker = Token(), left = 2, right = 3)
-dependency constructor `Pair` parameter `left` is supplied more than once

@@ -1,0 +1,194 @@
+SourceFile
+  QualifiedPackage consumer.enums
+  ImportExact Local dependency.enums.Choice
+  ImportExact Local dependency.enums.ChoiceAlias as Renamed
+  ImportExact Local dependency.enums.Flag
+  ImportExact Local dependency.enums.Flag.On as Enabled
+  ImportExact Local dependency.enums.Token
+  ImportExact Local dependency.enums.Marker
+  ImportStar Local dependency.enums.Marker.*
+  ImportExact Local dependency.enums.Draft
+  ImportExact Local dependency.enums.Draft.Position as Coordinates
+  ImportExact Local dependency.enums.Draft.Defaults
+  ImportExact Local dependency.enums.sum
+  typealias Pick = Choice
+    @NoGC
+  public fun relay(value: Choice): Choice
+    =
+      Var value
+    @NoGC
+  public fun defaultScore(value: Choice = <expr>): Long
+    =
+      Call sum
+        Var value
+    @NoGC
+  public fun defaultFlag(value: Flag = <expr>): Long
+    =
+      WhenExpression
+        Var value
+        arm Off
+          IntLiteral 0
+        arm On
+          IntLiteral 1
+    @NoGC
+  public fun defaultMarker(value: Marker = <expr>): Long
+    =
+      WhenExpression
+        Var value
+        arm Only
+          IntLiteral 0
+    @NoGC
+  fun score(value: Draft): Long
+    =
+      WhenExpression
+        Var value
+        arm Absent
+          IntLiteral 0
+        arm Position(left, _, right)
+          Binary Add
+            Var left
+            Var right
+        arm Named{left, right, ..}
+          Binary Add
+            Var left
+            Var right
+        arm Defaults{left, right, ..}
+          Binary Add
+            Var left
+            Var right
+    @NoGC
+  public fun test(): Long
+    val named
+      MethodCall Pair
+        Var Renamed
+        Argument right=
+          Unary Neg
+            IntLiteral 29
+        Argument marker=
+          Call Token
+        Argument left=
+          IntLiteral 17
+    if
+      Binary Ne
+        Call sum
+          Call relay
+            Var named
+        Unary Neg
+          IntLiteral 12
+      return
+        IntLiteral 1
+    val difference
+      WhenExpression
+        Var named
+        arm Empty
+          IntLiteral 0
+        arm Pair{left, right, ..}
+          Binary Sub
+            Var left
+            Var right
+    if
+      Binary Ne
+        Var difference
+        IntLiteral 46
+      return
+        IntLiteral 2
+    if
+      Binary Ne
+        Call score
+          Call Coordinates
+            IntLiteral 47
+            Call Token
+            IntLiteral 48
+        IntLiteral 95
+      return
+        IntLiteral 3
+    if
+      Binary Ne
+        Call score
+          MethodCall Named
+            Var Draft
+            Argument right=
+              IntLiteral 42
+            Argument marker=
+              Call Token
+            Argument left=
+              IntLiteral 53
+        IntLiteral 95
+      return
+        IntLiteral 4
+    if
+      Binary Ne
+        Call score
+          Call Defaults
+            IntLiteral 47
+        IntLiteral 95
+      return
+        IntLiteral 5
+    if
+      Binary Ne
+        Call score
+          MethodCall Defaults
+            Var Draft
+            Argument right=
+              IntLiteral 48
+            Argument left=
+              IntLiteral 47
+        IntLiteral 95
+      return
+        IntLiteral 6
+    val contextual: Choice
+      Call Pair
+        Argument left=
+          IntLiteral 0
+        Argument marker=
+          Call Token
+        Argument right=
+          IntLiteral 0
+    if
+      Binary Ne
+        Call sum
+          Var contextual
+        IntLiteral 0
+      return
+        IntLiteral 7
+    if
+      Binary Ne
+        Call sum
+          FieldAccess Empty
+            Var Choice
+        IntLiteral 0
+      return
+        IntLiteral 8
+    val off: Flag
+      Var Off
+    if
+      Binary Ne
+        Call defaultFlag
+          Var off
+        IntLiteral 0
+      return
+        IntLiteral 9
+    if
+      Binary Ne
+        Call defaultFlag
+          Var Enabled
+        IntLiteral 1
+      return
+        IntLiteral 10
+    if
+      Binary Ne
+        Call defaultMarker
+          FieldAccess Only
+            Var Marker
+        IntLiteral 0
+      return
+        IntLiteral 11
+    if
+      Binary Ne
+        Call defaultMarker
+          Var Only
+        IntLiteral 0
+      return
+        IntLiteral 12
+    return
+      IntLiteral 83

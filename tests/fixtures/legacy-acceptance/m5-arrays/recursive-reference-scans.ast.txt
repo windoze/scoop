@@ -1,0 +1,61 @@
+SourceFile
+  RootPackage
+  enum Payload
+    Text(String)
+    Number(Int)
+    Empty
+  struct Item
+    field payload: Payload
+    field tail: String
+  fun makeItems(): Array<Item>
+    val payload
+      Binary Add
+        StringLiteral "en"
+        StringLiteral "um"
+    val firstTail
+      Binary Add
+        StringLiteral "ta"
+        StringLiteral "il"
+    val secondTail
+      Binary Add
+        StringLiteral "em"
+        StringLiteral "pty"
+    return
+      ArrayLiteral
+        Call Item
+          MethodCall Text
+            Var Payload
+            Var payload
+          Var firstTail
+        Call Item
+          FieldAccess Empty
+            Var Payload
+          Var secondTail
+  fun main()
+    val items
+      Call makeItems
+    Call gcCollect
+    when
+      FieldAccess payload
+        Index
+          Var items
+          IntLiteral 0
+      arm Text(value)
+        Call println
+          Var value
+      arm Number(value)
+        Call println
+          Var value
+      arm Empty
+        Call println
+          StringLiteral "missing"
+    Call println
+      FieldAccess tail
+        Index
+          Var items
+          IntLiteral 0
+    Call println
+      FieldAccess tail
+        Index
+          Var items
+          IntLiteral 1

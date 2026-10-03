@@ -9,6 +9,9 @@ impl BodyLowerer<'_> {
         span: Span,
     ) -> mir::CallbackBridgeId {
         match target {
+            hir::CallableTarget::DerivedEquality(_) => {
+                unreachable!("managed equality cannot be a native static callback")
+            }
             hir::CallableTarget::Local(hir::Callable::Function(source)) => {
                 self.ensure_local_callback_bridge(source, signature, span)
             }

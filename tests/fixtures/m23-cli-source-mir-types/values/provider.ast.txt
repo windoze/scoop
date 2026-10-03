@@ -1,0 +1,17 @@
+SourceFile
+  RootPackage
+  public struct Empty
+  public struct EmptyPair
+    field first: Empty
+    field second: Empty
+  public struct Pair
+    field number: Int
+    field empty: Empty
+  public enum State
+    Off
+    On(Int)
+    Stamp(Empty)
+    Data(Int, Empty)
+    @CLayout
+  public struct Packet
+    field number: Int

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "generic function `scalar` requires type argument String for `T` to be GC-free",
+    "notes": [],
+    "origin": {
+      "cone": "5065d02015a6be0959d7d031531fd7d4e17b26fccb253b417bdd7593521a1a9d",
+      "end": 99,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 78
+    },
+    "severity": "error"
+  }
+]

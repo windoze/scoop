@@ -1,0 +1,22 @@
+SourceFile
+  RootPackage
+  public struct Marker
+  private struct Storage
+    field flag: Boolean
+  public struct Payload
+    field marker: Marker
+    field flag: Boolean
+  public class Box(val value: Payload)
+    private val storage: Storage = <expr>
+      Call Storage
+        BoolLiteral true
+  public enum Choice
+    Empty
+    Full(Payload)
+  public fun read(box: Box, label: String): Payload
+    =
+      FieldAccess value
+        Var box
+  public fun pass(value: Choice, marker: Marker): Choice
+    =
+      Var value

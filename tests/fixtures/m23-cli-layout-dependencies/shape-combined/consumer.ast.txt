@@ -1,0 +1,35 @@
+SourceFile
+  RootPackage
+  public fun boxInteger(value: Int): Any
+    =
+      Var value
+  public fun boxUnit(value: Unit): Any
+    =
+      Var value
+  public fun testString(value: Any): Boolean
+    =
+      Is String false
+        Var value
+  public fun literalString(): String
+    =
+      StringLiteral "shape"
+  public fun smartInteger(value: Any): Int
+    if
+      Is Int false
+        Var value
+      return
+        Var value
+    return
+      IntLiteral 0
+  public fun defaultInteger(value: Any = <expr>): Boolean
+    =
+      Is Int false
+        Var value
+  public fun expandedDefaults(): Boolean
+    =
+      Binary And
+        Call defaultInteger
+        Call defaultInteger
+  public fun dormant<T>(value: T): Any
+    =
+      Var value

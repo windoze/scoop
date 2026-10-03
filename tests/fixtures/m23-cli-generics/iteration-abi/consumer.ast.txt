@@ -1,0 +1,121 @@
+SourceFile
+  QualifiedPackage consumer.iteration
+  ImportStar Local upstream.iteration.*
+  ImportExact Local upstream.iteration.exercise as providerExercise
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    =
+      Call providerExercise<T>
+        Var seed
+        Var read
+  private fun readInt(value: Int): Int
+    =
+      Var value
+  private class Reference(val value: Int)
+  private struct Large
+    field first: Reference
+    field second: Reference
+    field third: Reference
+  private enum Payload<T>
+    Data(T)
+    Empty
+  private fun readLarge(value: Large): Int
+    =
+      Binary Add
+        Binary Add
+          FieldAccess value
+            FieldAccess first
+              Var value
+          FieldAccess value
+            FieldAccess second
+              Var value
+        FieldAccess value
+          FieldAccess third
+            Var value
+  private fun readTuple(value: (Reference, Reference)): Int
+    =
+      Binary Add
+        FieldAccess value
+          FieldAccess _1
+            Var value
+        FieldAccess value
+          FieldAccess _2
+            Var value
+  private fun readUnit(value: Unit): Int
+    =
+      IntLiteral 42
+  private fun readPayload(value: Payload<Large>): Int
+    =
+      WhenExpression
+        Var value
+        arm Data(inner)
+          Call readLarge
+            Var inner
+        arm Empty
+          IntLiteral 0
+  public fun result(): Int
+    val large
+      Call Large
+        Call Reference
+          IntLiteral 10
+        Call Reference
+          IntLiteral 12
+        Call Reference
+          IntLiteral 20
+    if
+      Binary Ne
+        Call exercise<Large>
+          Var large
+          CallableReference 0 readLarge
+        IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call exercise<Payload<Large>>
+          MethodCall Data
+            Var Payload
+            Var large
+          CallableReference 1 readPayload
+        IntLiteral 42
+      return
+        IntLiteral 2
+    if
+      Binary Ne
+        Call exercise<(Reference, Reference)>
+          TupleLiteral
+            Call Reference
+              IntLiteral 20
+            Call Reference
+              IntLiteral 22
+          CallableReference 2 readTuple
+        IntLiteral 42
+      return
+        IntLiteral 3
+    if
+      Binary Ne
+        Call exercise<Unit>
+          UnitLiteral
+          CallableReference 3 readUnit
+        IntLiteral 42
+      return
+        IntLiteral 4
+    val entries: Array<Large>
+      ArrayLiteral
+        Var large
+    var sum
+      IntLiteral 0
+    for value
+      Var entries
+      val allocation
+        Call Reference
+          IntLiteral 0
+      assign sum
+        Binary Add
+          Binary Add
+            Var sum
+            Call readLarge
+              Var value
+          FieldAccess value
+            Var allocation
+    return
+      Var sum

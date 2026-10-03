@@ -1,0 +1,71 @@
+SourceFile
+  RootPackage
+    @Extern(name = "malloc")
+  fun malloc(size: ULong): Ptr<Unit>
+    @Extern(name = "free")
+  fun free(pointer: Ptr<Unit>)
+    @Unsafe
+  fun reconstruct<T : value>(raw: ULong): Ptr<T>
+    =
+      Call Ptr<T>
+        Var raw
+    @Unsafe
+  fun forwardRaw<T : value>(raw: ULong): ULong
+    =
+      MethodCall toULong
+        Call reconstruct<T>
+          Var raw
+  fun main()
+    @Unsafe block
+      val allocation
+        Call malloc
+          Call sizeOf<Int>
+      val raw
+        Call forwardRaw<Int>
+          MethodCall toULong
+            Var allocation
+      val pointer
+        Call Ptr<Int>
+          Argument raw=
+            Var raw
+      MethodCall store
+        Var pointer
+        IntLiteral 42
+      Call println
+        MethodCall load
+          Var pointer
+      Call println
+        MethodCall load
+          Var pointer
+          IntLiteral 0L
+      Call println
+        Binary Eq
+          MethodCall toULong
+            Var pointer
+          Var raw
+      val present: Ptr<Int>?
+        Call Some
+          Var pointer
+      val absent: Ptr<Int>?
+        Var None
+      when
+        Var present
+        arm Some(value)
+          Call println
+            MethodCall load
+              Var value
+        arm None
+          Call println
+            IntLiteral 0
+      when
+        Var absent
+        arm Some(value)
+          Call println
+            MethodCall load
+              Var value
+        arm None
+          Call println
+            IntLiteral 43
+      Call free
+        MethodCall cast<Unit>
+          Var pointer

@@ -1,0 +1,43 @@
+SourceFile
+  RootPackage
+    @Unsafe
+  public fun dangerous(): Int
+    =
+      IntLiteral 1
+  public class Box<T>(val value: T)
+    constructor(value: T, count: Int = <expr>) : this(<1 args>)
+      Call dangerous
+    init
+      @Unsafe block
+        Call dangerous
+  public struct Pair<T>
+    field value: T
+    field count: Int
+    constructor(value: T) : this(<2 args>)
+      Call dangerous
+  public class Mixed()
+    constructor(value: Int)
+      Call dangerous
+    constructor(value: Boolean)
+    init
+      @Unsafe block
+        Call dangerous
+  fun main()
+    @Unsafe block
+      val box: Box<Int>
+        Call Box
+          IntLiteral 1
+      val alternate: Box<Int>
+        Call Box
+          IntLiteral 1
+          IntLiteral 2
+      val pair: Pair<Int>
+        Call Pair
+          IntLiteral 1
+      val mixed: Mixed
+        Call Mixed
+          IntLiteral 1
+      @Safe block
+        val safe: Mixed
+          Call Mixed
+            BoolLiteral true

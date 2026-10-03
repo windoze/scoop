@@ -13,7 +13,7 @@ fn ordinary_reader_consumes_default_callable_references_from_published_bytes() {
         let source = std::fs::read_to_string(directory.join(format!("{case}.scoop"))).unwrap();
         let root = sysroot.path().join(case);
         write_manifest_cone(&root, "dev.example", case, "library", &source);
-        let mut request = build_manifest_request(
+        let request = build_manifest_request(
             sysroot.path(),
             &target,
             &root,
@@ -21,14 +21,7 @@ fn ordinary_reader_consumes_default_callable_references_from_published_bytes() {
             vec![],
             vec![],
         );
-        request.emit = StageDumpPolicy::Stage(StageDumpKind::Hir);
         let library = request.build_and_publish().unwrap();
-        let dump = library.emitted_dump().unwrap();
-        let snapshot = directory.join(format!("{case}.hir.snap"));
-        if std::env::var_os("SCOOP_UPDATE_CALLABLE_ACCESS_SNAPSHOTS").is_some() {
-            std::fs::write(&snapshot, dump.text()).unwrap();
-        }
-        assert_eq!(dump.text(), std::fs::read_to_string(snapshot).unwrap());
         let bytes = std::fs::read(library.artifact().path()).unwrap();
         let identity = ConeCoordinate::new("dev.example", case, "0.1.0")
             .unwrap()

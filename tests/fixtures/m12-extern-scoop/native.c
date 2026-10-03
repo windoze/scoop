@@ -1,5 +1,6 @@
 #include "../../../runtime/include/scoop_rt.h"
 
+#include <assert.h>
 #include <stdbool.h>
 #include <signal.h>
 #include <stddef.h>
@@ -33,20 +34,15 @@ _Static_assert(offsetof(ManagedAggregate, value) == 0 &&
                    offsetof(ManagedAggregate, right) == 16,
                "Scoop aggregate fixture offsets must stay exact");
 
-static const uint64_t node_refs[] = {2, 16, 24};
-static const ScoopTypeDescriptor node_td = {
-    .type_id = UINT64_C(0x4e41544956454e44),
-    .size = sizeof(NativeNode),
-    .align = _Alignof(NativeNode),
-    .ref_offsets = node_refs,
-    .parent = NULL,
-    .vtable = NULL,
-    .itables = NULL,
-    .itable_count = 0,
-    .name = "fixture.NativeNode",
-};
+_Static_assert(sizeof(NativeNode) == 32 && _Alignof(NativeNode) == 8,
+               "Scoop node fixture size and alignment must stay exact");
+_Static_assert(offsetof(NativeNode, left) == 16 &&
+                   offsetof(NativeNode, right) == 24,
+               "Scoop node fixture references must retain their offsets");
 
 static bool stress_move_enabled(void) {
+    /* Normal collection selects eligible blocks; only stress collection must
+     * relocate every unpinned object (runtime spec 3.7). */
     const char *value = getenv("SCOOP_GC_STRESS_MOVE");
     return value != NULL && strcmp(value, "1") == 0;
 }
@@ -90,6 +86,7 @@ static bool exact_bytes_are_poisoned(const void *object, size_t size) {
  */
 void native_aggregate_round_trip_storage(ManagedAggregate *result,
                                          ManagedAggregate *value) {
+    bool stress = stress_move_enabled();
     uintptr_t old_value_address = (uintptr_t)value->value;
     int64_t left = value->left;
     int64_t right = value->right;
@@ -103,9 +100,11 @@ void native_aggregate_round_trip_storage(ManagedAggregate *result,
     scoop_rt_push_native_roots(&frame, slots, 1);
     scoop_runtime_gc_collect();
     const ScoopString *reloaded = root;
-    bool valid = reloaded != NULL && (uintptr_t)reloaded != old_value_address &&
+    bool valid = reloaded != NULL &&
+                 (!stress || (uintptr_t)reloaded != old_value_address) &&
                  reloaded->len == 9 &&
                  memcmp(reloaded->data, "aggregate", 9) == 0;
+    assert(valid && "native aggregate argument must survive collection");
 
     result->value = reloaded;
     result->left = left + 1;
@@ -114,15 +113,12 @@ void native_aggregate_round_trip_storage(ManagedAggregate *result,
     scoop_runtime_gc_collect();
     reloaded = root;
     valid = valid && reloaded != NULL &&
-            (uintptr_t)reloaded != old_result_value_address &&
+            (!stress || (uintptr_t)reloaded != old_result_value_address) &&
             result->value == reloaded && reloaded->len == 9 &&
             memcmp(reloaded->data, "aggregate", 9) == 0;
     scoop_rt_pop_native_roots(&frame);
 
-    if (!valid) {
-        result->left = -1;
-        result->right = -1;
-    }
+    assert(valid && "native aggregate result must survive collection");
 }
 
 __asm__(
@@ -134,7 +130,10 @@ __asm__(
     "mov x0, x8\n"
     "b _native_aggregate_round_trip_storage\n");
 
-const ScoopString *native_root_round_trip(const ScoopString *message) {
+const ScoopString *native_root_round_trip(const ScoopString *message,
+                                          const NativeNode *prototype) {
+    const ScoopTypeDescriptor *node_td = prototype->header.td;
+    bool stress = stress_move_enabled();
     void *root = (void *)message;
     void *large_root = NULL;
     void *node_root = NULL;
@@ -147,14 +146,15 @@ const ScoopString *native_root_round_trip(const ScoopString *message) {
     const ScoopString *reloaded = root;
     bool valid = scoop_rt_gc_debug_native_root_count() == 3 &&
                  scoop_rt_gc_debug_last_moved_count() > 0 &&
-                 reloaded != message &&
+                 (!stress || reloaded != message) &&
                  reloaded != NULL &&
                  scoop_rt_gc_debug_allocation_size(reloaded) == 32 &&
                  reloaded->len == 2 &&
                  reloaded->data[0] == '4' && reloaded->data[1] == '2';
-    if (stress_move_enabled()) {
+    if (stress) {
         valid = valid && stale_address_faults(message);
     }
+    assert(valid && "native direct roots must survive collection");
 
     ScoopString *large = scoop_rt_alloc(&scoop_td_String, 224);
     large->len = 200;
@@ -165,17 +165,18 @@ const ScoopString *native_root_round_trip(const ScoopString *message) {
     scoop_runtime_gc_collect();
 
     valid = valid && root == pinned_address &&
-            large_root != old_large_address &&
+            (!stress || large_root != old_large_address) &&
             scoop_rt_gc_debug_last_moved_count() > 0 &&
             scoop_rt_gc_debug_allocation_size(large_root) == 224 &&
             ((const ScoopString *)large_root)->len == 200 &&
             ((const ScoopString *)large_root)->data[199] == 'x';
+    assert(valid && "pinned roots and large strings must survive collection");
     scoop_rt_unpin(root);
 
     large_root = NULL;
-    NativeNode *child = scoop_rt_alloc(&node_td, sizeof(NativeNode));
+    NativeNode *child = scoop_rt_alloc(node_td, sizeof(NativeNode));
     node_root = child;
-    NativeNode *parent = scoop_rt_alloc(&node_td, sizeof(NativeNode));
+    NativeNode *parent = scoop_rt_alloc(node_td, sizeof(NativeNode));
     child = node_root;
     child->left = child;
     child->right = NULL;
@@ -188,32 +189,36 @@ const ScoopString *native_root_round_trip(const ScoopString *message) {
 
     parent = node_root;
     child = parent->left;
-    valid = valid && parent != old_parent && child != old_child &&
+    valid = valid && (!stress || (parent != old_parent && child != old_child)) &&
             parent->left == parent->right && child->left == child &&
             child->right == NULL &&
             scoop_rt_gc_debug_allocation_size(parent) ==
                 sizeof(NativeNode);
+    assert(valid && "native cycles and shared references must survive collection");
 
     scoop_rt_pin(parent);
     old_child = child;
     scoop_runtime_gc_collect();
     parent = node_root;
     child = parent->left;
-    valid = valid && child != old_child && parent->left == parent->right &&
+    valid = valid && (!stress || child != old_child) &&
+            parent->left == parent->right &&
             child->left == child;
-    if (stress_move_enabled()) {
+    if (stress) {
         valid = valid &&
                 exact_bytes_are_poisoned(old_child, sizeof(NativeNode));
     }
+    assert(valid && "pinned objects must retain their relocated child references");
     scoop_rt_unpin(parent);
 
     /* The first collection quarantined `message`'s old, now-empty block.
      * Later stress allocations and collections must never make it readable
      * or eligible for arena reuse again. */
-    if (stress_move_enabled()) {
+    if (stress) {
         valid = valid && stale_address_faults(message);
     }
+    assert(valid && "stress collections must retain quarantined old blocks");
 
     scoop_rt_pop_native_roots(&frame);
-    return valid ? root : NULL;
+    return root;
 }

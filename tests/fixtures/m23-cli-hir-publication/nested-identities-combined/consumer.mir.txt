@@ -1,0 +1,432 @@
+Module
+  class NestedBinderHost<Int> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
+    bridge function_type1 -> @fn14 id=0e8251db5ffb28877f27f59c3cdcf3f229cc2ff2993c456ee41b49e139a40816
+  closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn3 captures=0
+    bridge function_type1 -> @fn15 id=404e5cc699d126da18ebd6287dfc2e0fde26d8f670effaaea1d18784f1b4d44c
+  closure cc2 $Closure$lambda2 type=function_type0 invoke=@fn5 captures=0
+    bridge function_type1 -> @fn16 id=c8969bfca7f26778c6f5e0af38d635b66b7a6e3eb893558237957bd1806fedee
+  closure cc3 $Closure$anonymous0 type=function_type0 invoke=@fn7 captures=0
+    bridge function_type1 -> @fn17 id=2140672bc373a162c44de6af4a3b6dc89dec0793f00e4b0d45e08dd9406f2445
+  closure cc4 $Closure$reference0 type=function_type0 invoke=@fn13 captures=0
+    bridge function_type1 -> @fn18 id=ecfaeae19dcd8bab39cbee994eefff239129331ed2d7be522d7a787ddca06670
+  generated_exact_type get0 location=closure2 nominal_id=ed2a0d795d9f4df706f4cb90b311bcd3f3705b469e3fdcaebaf9c73fd0a558fb exact_id=0616b9ef00a870a6662520af02d3ab3e12e6d69af57aa4a03ab610c7cace8b40
+  generated_exact_type get1 location=closure3 nominal_id=2e04cf8944d334de02ec60596011747811693ce7db7321efcaa7eaacb639861e exact_id=967737323fd834c1e2219c30c4402ff5f90cf58488e65183772f4788dcf70e97
+  generated_exact_type get2 location=closure0 nominal_id=766833583cf073ef00c50098d56ac9d26028385105da080a9c376a8ba828bc78 exact_id=ac26299049bec934a6ca1a6b6c4ae5eb0dc059bc9c00a9d924937fa4f72d764e
+  generated_exact_type get3 location=class1 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get4 location=closure1 nominal_id=20ea056fac93478bef02c18569c908a640a389b8986ded6b92de0d8f5385cde9 exact_id=eb2b21293bea67e0fea843809ce88303ce8cfdc680e9cbecdadcccf220a1836b
+  generated_exact_type get5 location=closure4 nominal_id=6d306ffb3db36f581f36338bd9e0c367e42a6f1b2c78c2017989bb70106a5388 exact_id=ed3876ea4060702bf1c38fb465145a18c25de7db94ae4bf9692885d910d96a3d
+  generated_callable gc0 function=@fn14 id=0e8251db5ffb28877f27f59c3cdcf3f229cc2ff2993c456ee41b49e139a40816
+  generated_callable gc1 function=@fn17 id=2140672bc373a162c44de6af4a3b6dc89dec0793f00e4b0d45e08dd9406f2445
+  generated_callable gc2 function=@fn15 id=404e5cc699d126da18ebd6287dfc2e0fde26d8f670effaaea1d18784f1b4d44c
+  generated_callable gc3 function=@fn16 id=c8969bfca7f26778c6f5e0af38d635b66b7a6e3eb893558237957bd1806fedee
+  generated_callable gc4 function=@fn18 id=ecfaeae19dcd8bab39cbee994eefff239129331ed2d7be522d7a787ddca06670
+  fun check @fn0() -> Int
+    bb0 entry
+      val $dependency.parameter.value: () -> Int
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      call $call.1: () -> Int = @fn2 direct
+        Type () -> Int
+        Local $dependency.parameter.value
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $call.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      branch bb3 bb4
+        Type Boolean
+        BoolLiteral true
+    bb3 if.then.3
+      val $default.local.1: () -> Int
+        Type () -> Int
+        ClosureAlloc cc1 $Closure$lambda1
+      call $call.2: () -> Int = @fn4 direct
+        Type () -> Int
+        Local $default.local.1
+      assign $default.local.2
+        Type () -> Int
+        Local $call.2
+      goto bb5
+    bb4 if.else.4
+      val $default.local.0: () -> Int
+        Type () -> Int
+        ClosureAlloc cc2 $Closure$lambda2
+      assign $default.local.2
+        Type () -> Int
+        Local $default.local.0
+      goto bb5
+    bb5 if.merge.5
+      val $dependency.parameter.value: () -> Int
+        Type () -> Int
+        Local $default.local.2
+      call $call.3: () -> Int = @fn6 direct
+        Type () -> Int
+        Local $dependency.parameter.value
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $call.3
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb6 bb7
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb6 if.then.6
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb7 if.merge.7
+      val $dependency.parameter.value: () -> Int
+        Type () -> Int
+        ClosureAlloc cc3 $Closure$anonymous0
+      call $call.4: () -> Int = @fn8 direct
+        Type () -> Int
+        Local $dependency.parameter.value
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $call.4
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb8 bb9
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb8 if.then.8
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb9 if.merge.9
+      val $dependency.parameter.value: () -> Int
+        Type () -> Int
+        ClosureAlloc cc4 $Closure$reference0
+      call $call.5: () -> Int = @fn9 direct
+        Type () -> Int
+        Local $dependency.parameter.value
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $call.5
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb10 bb11
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb10 if.then.10
+      return
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+    bb11 if.merge.11
+      call host: NestedBinderHost<Int> = external1 direct
+      val $dependency.receiver: NestedBinderHost<Int>
+        Type NestedBinderHost<Int>
+        Local host
+      val $default.local.1: () -> Int
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      call $dependency.parameter.value: () -> Int = @fn2 direct
+        Type () -> Int
+        Local $default.local.1
+      call $call.6: () -> Int = @fn10 direct
+        Type NestedBinderHost<Int>
+        Local $dependency.receiver
+        Type () -> Int
+        Local $dependency.parameter.value
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $call.6
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb12 bb13
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb12 if.then.12
+      return
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+    bb13 if.merge.13
+      val $dependency.receiver: NestedBinderHost<Int>
+        Type NestedBinderHost<Int>
+        Local host
+      branch bb14 bb15
+        Type Boolean
+        BoolLiteral true
+    bb14 if.then.14
+      val $default.local.1: () -> Int
+        Type () -> Int
+        ClosureAlloc cc1 $Closure$lambda1
+      call $call.7: () -> Int = @fn4 direct
+        Type () -> Int
+        Local $default.local.1
+      assign $default.local.3
+        Type () -> Int
+        Local $call.7
+      goto bb16
+    bb15 if.else.15
+      val $default.local.2: () -> Int
+        Type () -> Int
+        ClosureAlloc cc2 $Closure$lambda2
+      assign $default.local.3
+        Type () -> Int
+        Local $default.local.2
+      goto bb16
+    bb16 if.merge.16
+      val $default.local.4: () -> Int
+        Type () -> Int
+        Local $default.local.3
+      call $dependency.parameter.value: () -> Int = @fn6 direct
+        Type () -> Int
+        Local $default.local.4
+      call $call.8: () -> Int = @fn11 direct
+        Type NestedBinderHost<Int>
+        Local $dependency.receiver
+        Type () -> Int
+        Local $dependency.parameter.value
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $call.8
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb17 bb18
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb17 if.then.17
+      return
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+    bb18 if.merge.18
+      val $dependency.receiver: NestedBinderHost<Int>
+        Type NestedBinderHost<Int>
+        Local host
+      val $default.local.1: () -> Int
+        Type () -> Int
+        ClosureAlloc cc3 $Closure$anonymous0
+      call $dependency.parameter.value: () -> Int = @fn8 direct
+        Type () -> Int
+        Local $default.local.1
+      call $call.9: () -> Int = @fn12 direct
+        Type NestedBinderHost<Int>
+        Local $dependency.receiver
+        Type () -> Int
+        Local $dependency.parameter.value
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $call.9
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb19 bb20
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb19 if.then.19
+      return
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+    bb20 if.merge.20
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun $lambda @fn1($argument.0: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+  fun nestedLambda @fn2(value: () -> Int) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        Local value
+  fun $lambda @fn3($argument.0: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+  fun local @fn4($argument.0: () -> Int) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        Local $argument.0
+  fun $lambda @fn5($argument.0: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+  fun nestedLocal @fn6(value: () -> Int) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        Local value
+  fun $anonymous @fn7($argument.0: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+  fun nestedAnonymous @fn8(value: () -> Int) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        Local value
+  fun nestedReference @fn9(value: () -> Int) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        Local value
+  fun expanded @fn10(this: NestedBinderHost<Int>, value: () -> Int) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        Local value
+  fun local @fn11(this: NestedBinderHost<Int>, value: () -> Int) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        Local value
+  fun anonymous @fn12(this: NestedBinderHost<Int>, value: () -> Int) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        Local value
+  fun $reference.0 @fn13($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = external0 direct
+      return
+        Type Int
+        Local $call.1
+  fun function_bridge.$Closure$lambda0.() -> Any @fn14($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.() -> Any @fn15($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.() -> Any @fn16($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$anonymous0.() -> Any @fn17($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference0.() -> Any @fn18($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  instance mi0 function=@fn1 <- $lambda
+  instance mi1 function=@fn2 <- nestedLambda
+  instance mi2 function=@fn3 <- $lambda
+  instance mi3 function=@fn4 <- local
+  instance mi4 function=@fn5 <- $lambda
+  instance mi5 function=@fn6 <- nestedLocal
+  instance mi6 function=@fn7 <- $anonymous
+  instance mi7 function=@fn8 <- nestedAnonymous
+  instance mi8 function=@fn9 <- nestedReference
+  instance mi9 function=@fn10 <- expanded
+  instance mi10 function=@fn11 <- local
+  instance mi11 function=@fn12 <- anonymous
+  output library

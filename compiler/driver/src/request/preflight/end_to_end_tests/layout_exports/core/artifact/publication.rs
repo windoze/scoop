@@ -69,21 +69,11 @@ pub(super) fn check(
     assert_eq!(reread.link_summary(), published.summary().link_summary());
     assert_no_temporary(root.path(), &destination);
 
-    let mut dump = format!(
-        "profile={}/{}/{}\ndirect={} objects={}\nshared-semantics=true\nround-trip=true\n",
-        reread.profile().capability().namespace(),
-        reread.profile().capability().name(),
-        reread.profile().capability().major_version(),
-        reread.direct_dependencies().len(),
+    assert_eq!(
         reread.link_summary().link_object_count(),
+        if name == "combined" { 32 } else { 6 }
     );
-    rejections::check(&destination, public, provider, artifact, profile, &mut dump);
-    let fixtures = crate::workspace_root().join("tests/fixtures/m23-layout-publication");
-    let path = fixtures.join(format!("{name}.snap"));
-    if std::env::var_os("SCOOP_UPDATE_LAYOUT_PUBLICATION").is_some() {
-        std::fs::write(&path, &dump).unwrap();
-    }
-    assert_eq!(dump, std::fs::read_to_string(path).unwrap());
+    rejections::check(&destination, public, provider, artifact, profile);
 }
 
 fn verify(

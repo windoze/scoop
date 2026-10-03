@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "native object cb8efd7e5886bbfaa118cf188a704e47e019f14819e74be9f0fae3c1f3ef9a7c selected by direct input (${work}/native/m23_final.o): native section __text: invalid Darwin/AArch64 object relocation inventory: InvalidRelocationPair { first: 10, second: 4 }",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

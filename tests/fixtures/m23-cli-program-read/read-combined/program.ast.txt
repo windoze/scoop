@@ -1,0 +1,40 @@
+SourceFile
+  RootPackage
+  struct Pair
+    field first: Long
+    field second: Long
+  interface Measure
+    fun size
+  class Box<T>(val item: T)
+    fun read
+  class Sample(val value: Long), Measure
+    fun size
+  fun capture<T>(value: T): () -> T
+    =
+      Lambda 0 suspend=false
+        parameters omitted
+        Var value
+  fun main()
+    val pair
+      Call Pair
+        IntLiteral 17
+        IntLiteral 25
+    val box
+      Call Box<Pair>
+        Var pair
+    val read
+      Call capture
+        MethodCall read
+          Var box
+    val sample: Measure
+      Call Sample
+        Binary Add
+          FieldAccess first
+            Call read
+          FieldAccess second
+            Call read
+    val result
+      MethodCall size
+        Var sample
+    val message
+      StringLiteral "combined"

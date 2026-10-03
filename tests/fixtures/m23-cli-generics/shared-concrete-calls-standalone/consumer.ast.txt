@@ -1,0 +1,39 @@
+SourceFile
+  QualifiedPackage consumer.calls
+  ImportExact Local upstream.calls.identity as first
+  ImportExact Local upstream.calls.identity as second
+  ImportExact Local upstream.calls.nested
+  public fun localIdentity<T>(value: T): T
+    =
+      Var value
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    =
+      Call read
+        Call localIdentity<T>
+          Call first<T>
+            Call nested<T>
+              Call second<T>
+                Var seed
+  public fun result(): Int
+    if
+      Binary Ne
+        Call first<String>
+          StringLiteral "call"
+        Call localIdentity<String>
+          StringLiteral "call"
+      return
+        IntLiteral 1
+    Call first<Unit>
+      UnitLiteral
+    Call localIdentity<Unit>
+      UnitLiteral
+    return
+      Call exercise<Int>
+        Binary Add
+          Call first<Int>
+            IntLiteral 40
+          Call second<Int>
+            IntLiteral 2
+        Lambda 0 suspend=false
+          param value: _
+          Var value

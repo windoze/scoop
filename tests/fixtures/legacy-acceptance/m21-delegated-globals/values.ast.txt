@@ -1,0 +1,73 @@
+SourceFile
+  RootPackage
+  class UnitDelegate(var value: String)
+    operator fun provideDelegate
+    operator fun getValue
+    operator fun setValue
+  class ExtensionDelegate(var value: Int)
+  operator fun ExtensionDelegate.provideDelegate(): ExtensionDelegate
+    Call println
+      StringLiteral "provide-extension"
+    return
+      This
+  operator fun ExtensionDelegate.getValue(thisRef: Int): Int
+    Call println
+      StringLiteral "get-extension"
+    return
+      Binary Add
+        Var value
+        Var thisRef
+  operator fun ExtensionDelegate.setValue(thisRef: Int, next: Int)
+    Call println
+      StringLiteral "set-extension"
+    assign value
+      Var next
+  class Seed(val value: Int)
+    operator fun provideDelegate
+  class EffectiveDelegate(var value: Int)
+    operator fun getValue
+    operator fun setValue
+  fun makeUnitDelegate(): UnitDelegate
+    Call println
+      StringLiteral "make-unit"
+    return
+      Call UnitDelegate
+        StringLiteral "initial"
+  fun makeExtensionDelegate(): ExtensionDelegate
+    Call println
+      StringLiteral "make-extension"
+    return
+      Call ExtensionDelegate
+        IntLiteral 10
+  var message: String by <expr>
+  var provided: Int by <expr>
+  var Int.offset: Int by <expr>
+  fun main()
+    Call println
+      StringLiteral "main"
+    Call gcCollect
+    Call println
+      Var message
+    assign message
+      StringLiteral "changed"
+    Call println
+      Var message
+    Call println
+      Var provided
+    assign provided
+      IntLiteral 8
+    Call println
+      Var provided
+    Call println
+      FieldAccess offset
+        IntLiteral 1
+    assign .offset
+      IntLiteral 2
+      IntLiteral 40
+    Call println
+      FieldAccess offset
+        IntLiteral 3
+    Call gcCollect
+    Call println
+      FieldAccess offset
+        IntLiteral 4

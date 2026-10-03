@@ -1,3 +1,0 @@
-span=109..139
-expression=copy<Managed>(Managed("text"))
-generic function `copy` requires type argument Managed for `T` to be a GC-free `Ptr` pointee

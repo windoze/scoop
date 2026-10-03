@@ -1,0 +1,161 @@
+Module
+  struct Local (number: Int)
+  struct Point (number: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Local>
+    Completed(value: Local)
+    Suspended()
+  enum CoroutineSlot<Local>
+    Empty()
+    Value(value: Local)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Local> vtable=0 itables=0
+  interface Continuation<Local>
+  interface SuspendTask<Local>
+  interface SuspendRegistration<Local>
+  generated_exact_type get0 location=class3 nominal_id=3d633abb569b0a5807408855a3ecfb8279d9b0549cb2a252ae7db63d24862b04 exact_id=3223205200cb589a56dc914fe4be737a44b39ed39b442dbe0d18c0108ab55075
+  generated_exact_type get1 location=enum1 nominal_id=8a87a3e9b360484fb8be6cd1d7b06bb86be7f39c3848b51168d34943bf37a8e8 exact_id=4fae9cc9ea8b31205409e32bba3e6230f985714c72abdefc6419dbba5f6fef02
+  generated_exact_type get2 location=enum2 nominal_id=5556c6e3e3c5d1067072a245567596a220be470a25c5fed5ce315b8fe4125f9a exact_id=d4b0324e2c39a47f6e8afbd28eb339091e139c1e37d1060221f4176d0bed132b
+  generated_callable gc0 function=@fn8 id=b3220f60011ac4f67f540f68c835f89a7003337f2f6110730e58cf354faef75f
+  fun Local.equals @fn0(this: Local, other: Local) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type Local
+            Local this
+          Type Int
+          FieldAccess 0
+            Type Local
+            Local other
+  fun result @fn1() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn2 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn2(value: Int) -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      call own: Local = @fn7 direct
+        Type Int
+        Local $parameter.number
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      call foreign: Point = external0 direct
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Local
+          Local own
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Point
+          Local foreign
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun Continuation.resume @fn3(this: Continuation<Local>, value: Local) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn4(this: Continuation<Local>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn5(this: SuspendTask<Local>, $completion: Continuation<Local>) -> CoroutineStep<Local>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn6(this: SuspendRegistration<Local>, continuation: Continuation<Local>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.Local.$c0 @fn7(number: Int) -> Local <no-gc>
+    bb0 entry
+      return
+        Type Local
+        StructInit Local
+          Type Int
+          Local number
+  fun startCoroutine<Local> @fn8(task: SuspendTask<Local>, completion: Continuation<Local>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn3 interface Continuation<Local>[0]
+        Type Continuation<Local>
+        Local completion
+        Type Local
+        EnumField v0 f0
+          Type CoroutineStep<Local>
+          Local $step
+      return
+    bb2 failed
+      call @fn4 interface Continuation<Local>[1]
+        Type Continuation<Local>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Local> = @fn5 interface SuspendTask<Local>[0]
+        Type SuspendTask<Local>
+        Local task
+        Type Continuation<Local>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Local>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Local> result=Local
+  coroutine_slot cl0 CoroutineSlot<Local> value=Local
+  coroutine_start ct0 result=Local function=fn8
+  coroutine_fn cf0 @fn5 source_return=Local step=cs0 immediate
+  instance mi0 function=@fn2 <- exercise
+  instance mi1 function=@fn3 <- Continuation.resume
+  instance mi2 function=@fn4 <- Continuation.resumeWithException
+  instance mi3 function=@fn5 <- SuspendTask.run
+  instance mi4 function=@fn6 <- SuspendRegistration.register
+  output library

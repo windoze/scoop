@@ -1,0 +1,9 @@
+SourceFile
+  RootPackage
+  fun userCoreOffset(value: Int): Int
+    =
+      Var value
+  fun main()
+    val value
+      Call userCoreOffset
+        IntLiteral 42

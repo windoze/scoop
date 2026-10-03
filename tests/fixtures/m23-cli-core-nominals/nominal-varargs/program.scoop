@@ -1,0 +1,21 @@
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun count(value: Batches<Int>): Long = when (value) {
+    Batches.Items(values) -> values.size
+    Batches.Defaulted(values) -> values.size
+}
+fun main() {
+    val values: Array<Int> = [3, 4]
+    val ints = Variadic<Int>(1, 2)
+    check(ints.observe() == 0L)
+    check(ints.observe(1, *values, 5) == 4L)
+    check(ints.observe(values = values) == 2L)
+    check(ints.generic<String>("one") == 0)
+    val strings = Variadic<String>("constructor")
+    check(strings.observe("one", "two") == 2L)
+    check(strings.generic<Int>() == 0)
+    check(count(Batches.Items(1, 2, 3)) == 3L)
+    check(count(Batches.Items(values = values)) == 2L)
+    check(count(Batches.Defaulted()) == 1L)
+    check(count(Batches.Defaulted(7, 8)) == 2L)
+    check(count(Batches.Defaulted(values = values)) == 2L)
+}

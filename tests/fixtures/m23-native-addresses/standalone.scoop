@@ -2,7 +2,7 @@ package consumer.nativeAddresses
 
 import dependency.nativeAddresses.echo
 
-@Extern(name = "m23_call_scalar")
+@Extern(lib = "m23_native_calls", name = "m23_call_scalar")
 private fun nativeScalar(callback: FunPtr<(Long) -> Long>, value: Long): Long
 
 public fun callScalar(callback: FunPtr<(Long) -> Long>, value: Long): Long {

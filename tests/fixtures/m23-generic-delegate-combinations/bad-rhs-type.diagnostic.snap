@@ -1,3 +1,0 @@
-span=88..92
-expression=true
-cannot assign value of type Boolean to property `ordered` of type Int

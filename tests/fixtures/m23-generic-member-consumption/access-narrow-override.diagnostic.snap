@@ -1,3 +1,0 @@
-span=124..130
-expression=secret
-visibility of `secret` does not cover inherited slot `ProtectedBox<T0>.secret`

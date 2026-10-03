@@ -37,12 +37,17 @@ impl NominalInheritanceInterfaceV1 {
         let required: BTreeSet<_> = slot_schemas
             .records()
             .iter()
-            .flat_map(|schema| schema.slots().iter().copied())
+            .flat_map(|schema| {
+                schema
+                    .slots()
+                    .iter()
+                    .map(move |slot| (schema.role(), *slot))
+            })
             .collect();
         if !required
             .iter()
             .copied()
-            .eq(slots.records().iter().map(|slot| slot.slot()))
+            .eq(slots.records().iter().map(|slot| slot.key()))
         {
             return Err(InheritanceInterfaceBuildError::SlotClosure);
         }

@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.programlink"
+name = "cabi-facade"
+version = "0.1.0"
+kind = "library"
+
+[dependencies]
+"dev.programlink:cabi-provider" = {"version" = "0.1.0", "path" = "../cabi-provider"}

@@ -1,0 +1,28 @@
+Module
+  fun $extension.localAnswer @fn0(this: Any) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+  fun standalone @fn1() -> Int
+    bb0 entry
+      val $receiver: Any
+        Type Any
+        Retype Any
+          Type String
+          StringConst @str0
+      call local: Int = @fn0 direct
+        Type Any
+        Local $receiver
+      val $dependency.receiver: String
+        Type String
+        StringConst @str1
+      call $call.1: Int = external0 direct
+        Type String
+        Local $dependency.receiver
+      return
+        Type Int
+        Local $call.1
+  str @str0 "local"
+  str @str1 "standalone"
+  output library

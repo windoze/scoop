@@ -1,0 +1,24 @@
+schema = 1
+name = "legacy-m22-patterns-suspicious-enum-catch-all"
+root = "../../m22-patterns/suspicious-enum-catch-all.scoop"
+inputs = ["../../m22-patterns/suspicious-enum-catch-all.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["legacy", "m22-patterns", "single-file", "run"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "suspicious-enum-catch-all.diagnostics.json"}
+checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "suspicious-enum-catch-all.ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "suspicious-enum-catch-all.hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "suspicious-enum-catch-all.mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "suspicious-enum-catch-all.lir.txt"}]
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "1\n2\n"
+stderr = ""

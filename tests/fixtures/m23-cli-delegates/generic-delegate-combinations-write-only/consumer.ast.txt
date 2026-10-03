@@ -1,0 +1,24 @@
+SourceFile
+  QualifiedPackage consumer.delegates
+  ImportStar Local templates.delegateCombinations.*
+  public fun exercise<T>(value: T): Int
+    assign .order
+      Var Trace
+      IntLiteral 0
+    assign .writeOnly
+      Call Receiver<T>
+        Var value
+      IntLiteral 42
+    return
+      IfExpression
+        Binary Eq
+          FieldAccess order
+            Var Trace
+          IntLiteral 345
+        IntLiteral 42
+        else
+        IntLiteral 1
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 1

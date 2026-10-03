@@ -1,0 +1,45 @@
+SourceFile
+  QualifiedPackage consumer.arrays
+  ImportStar Local upstream.arrays.*
+  ImportExact Local upstream.arrays.exercise as providerExercise
+  private fun readInt(value: Int): Int
+    =
+      Var value
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    =
+      Call providerExercise<T>
+        Var seed
+        Var read
+  public fun result(): Int
+    val implicit
+      Call pack
+        IntLiteral 20
+        IntLiteral 22
+    val defaulted
+      Call defaultPack
+        IntLiteral 42
+    return
+      IfExpression
+        Binary And
+          Binary And
+            Binary Eq
+              FieldAccess size
+                Var implicit
+              IntLiteral 2L
+            Binary Eq
+              Call first
+                Var defaulted
+              IntLiteral 42
+          Binary Eq
+            Binary Add
+              Call first
+                Var implicit
+              Call first
+                Var implicit
+                IntLiteral 1L
+            IntLiteral 42
+        Call exercise<Int>
+          IntLiteral 42
+          CallableReference 0 readInt
+        else
+        IntLiteral 0

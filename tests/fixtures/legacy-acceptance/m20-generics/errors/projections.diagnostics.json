@@ -1,0 +1,54 @@
+[
+  {
+    "code": "SCOOPC_PARSE_ERROR",
+    "message": "`out` projections are not supported; nominal generic applications are invariant",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 57,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 54
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_PARSE_ERROR",
+    "message": "`in` projections are not supported; nominal generic applications are invariant",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 94,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 92
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_PARSE_ERROR",
+    "message": "star projections are not supported; use a bounded generic callable, an exact interface, or an explicit wrapper",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 132,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 131
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_PARSE_ERROR",
+    "message": "star projections are not supported; use a bounded generic callable, an exact interface, or an explicit wrapper",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 176,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 175
+    },
+    "severity": "error"
+  }
+]

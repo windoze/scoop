@@ -1,0 +1,13 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val first = reference(17)
+    val second = reference(25)
+    val pair = Pair(first, second)
+    val value = Combined(owner(first), Maybe.Full(pair), [pair, pair])
+    verifyType(ownedValue(value.reference) === first)
+    verifyType(when (value.values) { Empty -> false; Full(item) -> item.first === first && item.second === second })
+    verifyType(referenceValue(value.array[0].first) + referenceValue(value.array[1].second) == 42)
+    val erased: Any = pair
+    verifyType((erased as Pair<Reference>).second === second)
+}

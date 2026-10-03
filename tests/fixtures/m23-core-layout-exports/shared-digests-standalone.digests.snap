@@ -1,7 +1,0 @@
-Layout: nodes=211 inputs=0 patches=211
-LirDefinition: nodes=1081 inputs=0 patches=0
-ObjectDefinition: nodes=2060 inputs=1003 patches=485
-StackmapRecord: nodes=557 inputs=0 patches=557
-OdrDefinition: nodes=1081 inputs=2402 patches=343
-StrongRegistration: nodes=708 inputs=1524 patches=708
-RuntimeImage: nodes=1 inputs=1051 patches=1

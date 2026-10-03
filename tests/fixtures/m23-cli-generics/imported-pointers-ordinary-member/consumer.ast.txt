@@ -1,0 +1,26 @@
+SourceFile
+  QualifiedPackage consumer.pointers
+  public fun exercise<T>(value: T): Int
+    var number
+      IntLiteral 42
+    @Unsafe block
+      val pointer
+        Call addressOf
+          Var number
+      val copy
+        Binary Add
+          Var pointer
+          IntLiteral 0L
+      return
+        IfExpression
+          MethodCall equals
+            Var copy
+            Var pointer
+          MethodCall load
+            Var pointer
+          else
+          IntLiteral 1
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0

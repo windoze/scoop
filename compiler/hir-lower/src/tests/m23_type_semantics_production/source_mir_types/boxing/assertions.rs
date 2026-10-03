@@ -83,8 +83,14 @@ pub(super) fn actual(
     }
 }
 
-pub(super) fn dump(input: &ConeMirInput, bindings: &CanonicalMirCallableBindingsV1) -> String {
-    let mut lines = Vec::new();
+pub(super) fn selection(
+    output: &hir::DependencyHirOutput,
+    input: &ConeMirInput,
+    bindings: &CanonicalMirCallableBindingsV1,
+    case: &str,
+) {
+    let mut payloads = BTreeSet::new();
+    let mut targets = BTreeSet::new();
     for adjust in &input.module().meta.boxing_adjusts {
         let id = StrongCallableDefinitionOwner::GeneratedCallable(
             adjust.identity().callable_record().id(),
@@ -92,21 +98,37 @@ pub(super) fn dump(input: &ConeMirInput, bindings: &CanonicalMirCallableBindings
         let Some(binding) = bindings.get(id) else {
             continue;
         };
-        lines.push(format!(
-            "{} => {} ({:?} -> {:?})\n",
-            input.module().functions[adjust.function()].name,
-            match adjust.target() {
-                scoop_mir::BoxingAdjustTarget::Local(target) =>
-                    input.module().functions[target].name.clone(),
-                scoop_mir::BoxingAdjustTarget::External(target) => format!(
-                    "{:?}",
-                    input.module().meta.external_callables[target].reference()
-                ),
-            },
+        let GeneratedCallableKey::BoxingAdjust { payload, .. } =
+            adjust.identity().callable_record().key()
+        else {
+            panic!("boxing key")
+        };
+        payloads.insert(*payload);
+        let scoop_mir::BoxingAdjustTarget::Local(target) = adjust.target() else {
+            panic!("local source target")
+        };
+        targets.insert(input.module().functions[target].name.as_str());
+        assert_eq!(
             binding.semantic_signature().gc_effect(),
-            binding.lowered_signature().gc_effect()
-        ));
+            scoop_mir::GcEffect::Managed
+        );
+        assert_eq!(
+            binding.lowered_signature().gc_effect(),
+            scoop_mir::GcEffect::Managed
+        );
     }
-    lines.sort();
-    lines.concat()
+    let owners = source_dispatch::owners(output);
+    if case == "standalone" {
+        assert_eq!(bindings.entries().len(), 2);
+        assert_eq!(payloads, BTreeSet::from([owners["Token"]]));
+        assert!(input.module().meta.boxing_adjusts.len() > bindings.entries().len());
+    } else {
+        assert_eq!(bindings.entries().len(), 24);
+        assert_eq!(
+            payloads,
+            BTreeSet::from([owners["Choice"], owners["Payload"]])
+        );
+        assert!(targets.contains("Diamond.echo"));
+        assert!(targets.contains("Root.$get$token"));
+    }
 }

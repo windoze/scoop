@@ -1,0 +1,41 @@
+SourceFile
+  QualifiedPackage templates.initialization
+  public class Payload(val value: Int)
+  public interface Root<T>
+    fun get
+    fun echo
+  public interface Source<T> : Root<T>
+  public abstract class Base<T>(val item: T), Source<T>
+    public fun get
+    public fun offset
+  public class Derived<T>(item: T) : Base<T>(<1 args>)
+    public fun get
+    public fun offset
+  private fun read<T>(source: Source<T>): T
+    =
+      MethodCall echo
+        Var source
+        MethodCall get
+          Var source
+  public fun result(): Int
+    val base: Base<Payload>
+      Call Derived<Payload>
+        Call Payload
+          IntLiteral 40
+    val source: Source<Payload>
+      Var base
+    val value
+      Call read<Payload>
+        Var source
+    val first
+      Call Payload
+        IntLiteral 1
+    val second
+      Call Payload
+        IntLiteral 2
+    return
+      Binary Add
+        FieldAccess value
+          Var value
+        MethodCall offset
+          Var base

@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "test"
+name = "inheritance-order-consumer"
+version = "1.0.0"
+kind = "executable"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"test:inheritance-order-provider" = "1.0.0"

@@ -1,0 +1,158 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "enum `State` has no variant `Missing`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 190,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 183
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "enum `State` has no variant `Missing`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 244,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 237
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "enum `State` has no variant `None`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 305,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 301
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "variant `Value` of `State` takes arguments; use `Value(...)` to construct it",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 360,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 355
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unit variant `Ready` of `State` does not take arguments; use `Ready` without parentheses",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 413,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 406
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for constructor `State.Pair` in nominal constructor candidate layer:\n  - variant State.Pair(_1: Int, _2: Int) — expects 2 argument(s), but 1 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 466,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 459
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "initializer of `value` must be of type State, found Int",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 539,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 534
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "initializer of `value` must be of type State, found Int",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 657,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 649
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "initializer of `value` must be of type State, found Int",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 722,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 713
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown variable `Ready`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 769,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 764
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown function `Value`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 793,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 788
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown variable `Ready`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 854,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 849
+    },
+    "severity": "error"
+  }
+]

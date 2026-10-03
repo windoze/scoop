@@ -1,0 +1,22 @@
+SourceFile
+  RootPackage
+  class MovingError(val payload: String) : Exception(<1 args>)
+  fun failWithMovingPayload()
+    val payload
+      Binary Add
+        StringLiteral "moving-"
+        StringLiteral "payload"
+    throw
+      Call MovingError
+        Var payload
+  fun main()
+    try
+      Call failWithMovingPayload
+    catch error: MovingError
+      Call println
+        FieldAccess payload
+          Var error
+      Call println
+        NullAssert
+          FieldAccess message
+            Var error

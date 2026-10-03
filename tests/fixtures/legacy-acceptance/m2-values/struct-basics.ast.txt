@@ -1,0 +1,16 @@
+SourceFile
+  RootPackage
+  struct Point
+    field x: Int
+    field y: Int
+  fun main()
+    val p
+      Call Point
+        IntLiteral 1
+        IntLiteral 2
+    Call println
+      FieldAccess x
+        Var p
+    Call println
+      FieldAccess y
+        Var p

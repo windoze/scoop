@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m22-integers/errors/mixed-width-assignment.scoop:5:23: error: initializer of `wide` must be of type Int16, found Int8

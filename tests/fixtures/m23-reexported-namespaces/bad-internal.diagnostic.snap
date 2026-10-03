@@ -1,3 +1,0 @@
-span=7..40
-expression=facade.nesting.Outer.InternalLeaf
-import target is not available in the current compilation unit

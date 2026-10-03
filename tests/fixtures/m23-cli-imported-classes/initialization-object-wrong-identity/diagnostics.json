@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "body of `invalid` must be of type OtherHolder, found SharedHolder",
+    "notes": [],
+    "origin": {
+      "cone": "e9715d8140532d73029edfcd805357b9e75fb17761bb499d9d67d5b268a97be0",
+      "end": 126,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 114
+    },
+    "severity": "error"
+  }
+]

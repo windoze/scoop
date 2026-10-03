@@ -1,0 +1,6 @@
+SourceFile
+  QualifiedPackage consumer
+  ImportExact Local dependency.api.run
+  public fun dormant(value: Boolean = <expr>): Boolean
+    =
+      Var value

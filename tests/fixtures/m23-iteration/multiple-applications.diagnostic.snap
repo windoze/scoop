@@ -1,3 +1,0 @@
-span=126..145
-expression=Direct<I>(iterator)
-iterator operator result type `I` implements multiple distinct `Iterator<T>` applications

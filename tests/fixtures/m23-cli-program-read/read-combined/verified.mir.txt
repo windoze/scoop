@@ -1,0 +1,306 @@
+Module
+  struct Pair (first: Long, second: Long)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Pair>
+    Completed(value: Pair)
+    Suspended()
+  enum CoroutineSlot<Pair>
+    Empty()
+    Value(value: Pair)
+  class Sample vtable=0 itables=1
+  class Box<Pair> vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Pair> vtable=0 itables=0
+  interface Measure
+  interface Continuation<Pair>
+  interface SuspendTask<Pair>
+  interface SuspendRegistration<Pair>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn4 captures=1
+    bridge function_type1 -> @fn14 id=8552633db722618e268c5d4858875e0d79a245adceff0abe5e8c7511059b3899
+  generated_exact_type get0 location=enum1 nominal_id=0d3e80267df3e593b80bc99d3215996284cc698ef4a331370b70d64e820a7e93 exact_id=3f42a97f1193777f25f9662c58999d67d0b9fe6ed800234033a7ee515a329582
+  generated_exact_type get1 location=class5 nominal_id=690a2d64f675f40b8c87ba79a920015ff133b752093f415d10583806a5408adc exact_id=94fb113da691db6fb4ec92862f30d8de80b55473e47c1689a5208e4e101a6ca5
+  generated_exact_type get2 location=closure0 nominal_id=523355f23aa78c2455572f2f02b651dd5fe1867e4397d34ba274e29b4e67499c exact_id=a93188cd42fa643441d85f47d1782ee5410963ccbd53af9485609c235cb92565
+  generated_exact_type get3 location=enum2 nominal_id=8cdac1ef83ac3927876e79249d5421b6a82c5df67f2954c9ade521a6474af787 exact_id=c0280ab10ad9876ee72d1bd9bd77638537476171aface8260fb92dfc090af097
+  generated_callable gc0 function=@fn13 id=4e1f7cbbb9b874a7c7aabada74a10f286cf07e75c26b4b5bee58c199656acabd
+  generated_callable gc1 function=@fn14 id=8552633db722618e268c5d4858875e0d79a245adceff0abe5e8c7511059b3899
+  fun Sample.size @fn0(this: Sample) -> Long
+    bb0 entry
+      return
+        Type Long
+        FieldAccess 0
+          Type Sample
+          Local this
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=17 bits=0x0000000000000011
+      val $argument.1: Long
+        Type Long
+        IntegerLiteral Long value=25 bits=0x0000000000000019
+      val $parameter.first: Long
+        Type Long
+        Local $argument.0
+      val $parameter.second: Long
+        Type Long
+        Local $argument.1
+      call pair: Pair = @fn12 direct
+        Type Long
+        Local $parameter.first
+        Type Long
+        Local $parameter.second
+      val $argument.0: Pair
+        Type Pair
+        Local pair
+      val $parameter.item: Pair
+        Type Pair
+        Local $argument.0
+      assign $new.1
+        Type Box<Pair>
+        ClassAlloc Box<Pair>
+      call @fn11 direct
+        Type Box<Pair>
+        Local $new.1
+        Type Pair
+        Local $parameter.item
+      val box: Box<Pair>
+        Type Box<Pair>
+        Local $new.1
+      val $receiver: Box<Pair>
+        Type Box<Pair>
+        Local box
+      call $argument.0: Pair = @fn2 direct
+        Type Box<Pair>
+        Local $receiver
+      val $parameter.value: Pair
+        Type Pair
+        Local $argument.0
+      call read: () -> Pair = @fn3 direct
+        Type Pair
+        Local $parameter.value
+      call $call.2: Pair = <closure:function_type0> closure[function_type0]
+        Type () -> Pair
+        Local read
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 0
+          Type Pair
+          Local $call.2
+      call $call.3: Pair = <closure:function_type0> closure[function_type0]
+        Type () -> Pair
+        Local read
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 1
+          Type Pair
+          Local $call.3
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $argument.0: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      assign $new.4
+        Type Sample
+        ClassAlloc Sample
+      call @fn10 direct
+        Type Sample
+        Local $new.4
+        Type Long
+        Local $parameter.value
+      val sample: Measure
+        Type Measure
+        Retype Measure
+          Type Sample
+          Local $new.4
+      val $receiver: Measure
+        Type Measure
+        Local sample
+      call result: Long = @fn9 interface Measure[0]
+        Type Measure
+        Local $receiver
+      val $dependency.receiver: Long
+        Type Long
+        Local result
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=42 bits=0x000000000000002a
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.5
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.5
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.5
+    bb2 if.merge.2
+      val message: String
+        Type String
+        StringConst @str1
+      return
+  fun Box.read @fn2(this: Box<Pair>) -> Pair
+    bb0 entry
+      return
+        Type Pair
+        FieldAccess 0
+          Type Box<Pair>
+          Local this
+  fun capture @fn3(value: Pair) -> () -> Pair
+    bb0 entry
+      return
+        Type () -> Pair
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type Pair
+            Local value
+  fun $lambda.0 @fn4($closure: () -> Pair) -> Pair
+    bb0 entry
+      return
+        Type Pair
+        ClosureCapture cc0 0
+          Type () -> Pair
+          Local $closure
+  fun Continuation.resume @fn5(this: Continuation<Pair>, value: Pair) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn6(this: Continuation<Pair>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn7(this: SuspendTask<Pair>, $completion: Continuation<Pair>) -> CoroutineStep<Pair>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn8(this: SuspendRegistration<Pair>, continuation: Continuation<Pair>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Measure.size @fn9(this: Measure) -> Long
+    bb0 entry
+      trap "call to abstract method `Measure.size`"
+  fun init.Sample.$c1 @fn10(this: Sample, value: Long) -> Unit
+    bb0 entry
+      field_set 0
+        Type Sample
+        Local this
+        Type Long
+        Local value
+      return
+  fun init.Box.$c0 @fn11(this: Box<Pair>, item: Pair) -> Unit
+    bb0 entry
+      field_set 0
+        Type Box<Pair>
+        Local this
+        Type Pair
+        Local item
+      return
+  fun ctor.Pair.$c0 @fn12(first: Long, second: Long) -> Pair <no-gc>
+    bb0 entry
+      return
+        Type Pair
+        StructInit Pair
+          Type Long
+          Local first
+          Type Long
+          Local second
+  fun startCoroutine<Pair> @fn13(task: SuspendTask<Pair>, completion: Continuation<Pair>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn5 interface Continuation<Pair>[0]
+        Type Continuation<Pair>
+        Local completion
+        Type Pair
+        EnumField v0 f0
+          Type CoroutineStep<Pair>
+          Local $step
+      return
+    bb2 failed
+      call @fn6 interface Continuation<Pair>[1]
+        Type Continuation<Pair>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Pair> = @fn7 interface SuspendTask<Pair>[0]
+        Type SuspendTask<Pair>
+        Local task
+        Type Continuation<Pair>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Pair>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$lambda0.() -> Any @fn14($source: () -> Pair) -> Any
+    bb0 entry
+      call $call.1: Pair = <closure:function_type0> closure[function_type0]
+        Type () -> Pair
+        Local $source
+      return
+        Type Any
+        Box
+          Type Pair
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<Pair> result=Pair
+  coroutine_slot cl0 CoroutineSlot<Pair> value=Pair
+  coroutine_start ct0 result=Pair function=fn13
+  coroutine_fn cf0 @fn7 source_return=Pair step=cs0 immediate
+  instance mi0 function=@fn2 <- Box.read
+  instance mi1 function=@fn3 <- capture
+  instance mi2 function=@fn4 <- $lambda.0
+  instance mi3 function=@fn5 <- Continuation.resume
+  instance mi4 function=@fn6 <- Continuation.resumeWithException
+  instance mi5 function=@fn7 <- SuspendTask.run
+  instance mi6 function=@fn8 <- SuspendRegistration.register
+  str @str0 "illegal state"
+  str @str1 "combined"
+  output executable @fn1

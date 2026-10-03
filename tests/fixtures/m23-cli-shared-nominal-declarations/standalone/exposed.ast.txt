@@ -1,0 +1,14 @@
+SourceFile
+  RootPackage
+  public fun envelope(): Envelope
+    =
+      Call Envelope
+SourceFile
+  RootPackage
+  private class SecretStorage()
+    private val payload: Int = <expr>
+      IntLiteral 4
+  public class Envelope()
+    public fun storageValue
+    private val storage: SecretStorage = <expr>
+      Call SecretStorage

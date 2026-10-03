@@ -1,0 +1,45 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  private fun divide(value: Long, divisor: Long): Long
+    =
+      Binary Div
+        Var value
+        Var divisor
+  public fun primary(): Counter
+    var caught: Long
+      IntLiteral 0
+    try
+      Call divide
+        IntLiteral 42
+        IntLiteral 0
+    catch failure: ArithmeticException
+      assign caught
+        Binary Add
+          Var caught
+          IntLiteral 10
+    try
+      val value: UInt
+        IntLiteral 42u
+      val remainder
+        Binary Rem
+          Var value
+          IntLiteral 0u
+      assign caught
+        Binary Add
+          Var caught
+          MethodCall toInt64
+            Var remainder
+    catch failure: ArithmeticException
+      assign caught
+        Binary Add
+          Var caught
+          IntLiteral 10
+    finally
+      assign caught
+        Binary Add
+          Var caught
+          IntLiteral 1
+    return
+      Call Counter
+        Var caught

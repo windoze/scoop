@@ -1,7 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m17-defaults/errors/uninferrable-default.scoop:4:5: error: no applicable candidate for `empty` in current-unit top-level candidate layer:
-  - fun empty<T>(values: Array<T>): Array<T> — cannot infer a unique type argument for `T`

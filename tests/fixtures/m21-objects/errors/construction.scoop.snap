@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m21-objects/errors/construction.scoop:4:19: error: object `Unique` cannot be constructed

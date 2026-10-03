@@ -1,0 +1,89 @@
+SourceFile
+  RootPackage
+  fun mark(label: String, value: Int): Int
+    Call println
+      Var label
+    return
+      Var value
+  open class Base(val base: Int)
+    val doubled: Int =
+      Call mark
+        StringLiteral "base-property"
+        Binary Mul
+          Var base
+          IntLiteral 2
+    init
+      Call println
+        StringLiteral "base-init"
+    constructor(text: String) : this(<1 args>)
+      Call println
+        Var text
+      Call println
+        StringLiteral "base-secondary"
+  class Derived(seed: Int, val own: Int = <expr>) : Base(<1 args>)
+    val copied: Int =
+      Call mark
+        StringLiteral "derived-property"
+        Var seed
+    init
+      Call println
+        StringLiteral "derived-init-one"
+    constructor(seed: Int, label: String) : this(<1 args>)
+      Call println
+        Var label
+      Call println
+        StringLiteral "derived-secondary-inner"
+    constructor() : this(<2 args>)
+      Call println
+        StringLiteral "derived-secondary-outer"
+    init
+      Call println
+        StringLiteral "derived-init-two"
+  class Alternate(), Base
+    val alternateOwn: Int =
+      Call mark
+        StringLiteral "alternate-property"
+        Binary Add
+          Var base
+          IntLiteral 1
+    init
+      Call println
+        StringLiteral "alternate-init"
+    constructor(value: Int) : super(<1 args>)
+      Call println
+        StringLiteral "alternate-terminal"
+    constructor() : this(<1 args>)
+      Call println
+        StringLiteral "alternate-outer"
+  struct Count
+    field value: Int
+    constructor() : this(<1 args>)
+      Call println
+        Var value
+      Call println
+        StringLiteral "struct-secondary"
+  fun main()
+    val derived
+      Call Derived
+    Call println
+      FieldAccess base
+        Var derived
+    Call println
+      FieldAccess own
+        Var derived
+    Call println
+      FieldAccess copied
+        Var derived
+    val alternate
+      Call Alternate
+    Call println
+      FieldAccess base
+        Var alternate
+    Call println
+      FieldAccess alternateOwn
+        Var alternate
+    val count
+      Call Count
+    Call println
+      FieldAccess value
+        Var count

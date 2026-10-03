@@ -1,0 +1,22 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val narrow: Int8
+      IntLiteral 7
+    Call verifyType
+      Call observe
+        Var narrow
+    Call verifyType
+      Binary And
+        Unary Not
+          Call observe
+            IntLiteral 7
+        Unary Not
+          Call observe
+            StringLiteral "text"

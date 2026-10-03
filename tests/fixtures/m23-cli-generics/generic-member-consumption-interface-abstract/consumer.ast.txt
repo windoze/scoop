@@ -1,0 +1,17 @@
+SourceFile
+  QualifiedPackage consumer.members
+  ImportStar Local templates.members.*
+  public fun result(): Int
+    val chooser: Chooser<Int>
+      Call InterfaceChooser<Int>
+    return
+      MethodCall choose
+        Var chooser
+        IntLiteral 42
+  public fun make<T>(value: T): T
+    val chooser: RequiredChooser<T>
+      Call InterfaceChooser<T>
+    return
+      MethodCall choose
+        Var chooser
+        Var value

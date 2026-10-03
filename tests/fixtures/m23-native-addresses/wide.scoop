@@ -3,7 +3,7 @@ package consumer.nativeAddresses
 import dependency.nativeAddresses.Wide
 import dependency.nativeAddresses.roundWide
 
-@Extern(name = "m23_call_wide")
+@Extern(lib = "m23_native_calls", name = "m23_call_wide")
 private fun nativeWide(callback: FunPtr<(Wide) -> Wide>): Long
 
 public fun callWide(callback: FunPtr<(Wide) -> Wide>): Long {

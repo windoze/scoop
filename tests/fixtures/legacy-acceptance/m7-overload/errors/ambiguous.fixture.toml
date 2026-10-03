@@ -1,0 +1,16 @@
+schema = 1
+name = "legacy-m7-overload-errors-ambiguous"
+root = "../../../m7-overload/errors/ambiguous.scoop"
+inputs = ["../../../m7-overload/errors/ambiguous.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["legacy", "m7-overload", "single-file", "negative"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "ambiguous.diagnostics.json"}

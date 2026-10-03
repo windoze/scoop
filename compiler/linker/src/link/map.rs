@@ -2,6 +2,9 @@ use super::*;
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::native_input::NativeObjectId;
+use crate::program::ObjectOrigin;
+use scoop_identity::ConeIdentity;
+use scoop_slib::SlibMemberId;
 
 #[cfg(test)]
 mod tests;
@@ -12,14 +15,25 @@ pub(crate) struct MapSymbol {
     pub size: u64,
 }
 
+pub(crate) struct ConeMapSymbol {
+    pub cone: ConeIdentity,
+    pub member: SlibMemberId,
+    pub address: u64,
+}
+
 #[derive(Default)]
 pub(crate) struct LinkMap {
     pub native: BTreeMap<NativeObjectId, BTreeMap<String, Vec<MapSymbol>>>,
     pub synthesized: BTreeMap<String, Vec<MapSymbol>>,
+    pub cones: BTreeMap<String, Vec<ConeMapSymbol>>,
 }
 
 enum MapOwner {
     Native(NativeObjectId),
+    Cone {
+        cone: ConeIdentity,
+        member: SlibMemberId,
+    },
     Synthesized,
     Other,
 }
@@ -28,7 +42,7 @@ pub(super) fn check(
     text: &str,
     objects: &[PathBuf],
     stubs: &BTreeMap<PathBuf, String>,
-    native: &BTreeMap<PathBuf, NativeObjectId>,
+    origins: &BTreeMap<PathBuf, ObjectOrigin>,
 ) -> Result<LinkMap, LinkError> {
     let mut expected: BTreeSet<_> = objects.iter().map(PathBuf::as_path).collect();
     let mut indices = BTreeMap::new();
@@ -54,10 +68,14 @@ pub(super) fn check(
             "# Object files:" => {
                 let (index, path) = indexed(line)?;
                 let path = Path::new(path);
-                let owner = match native.get(path) {
-                    Some(id) => MapOwner::Native(*id),
+                let owner = match origins.get(path) {
+                    Some(ObjectOrigin::Native(id)) => MapOwner::Native(*id),
+                    Some(ObjectOrigin::Cone { cone, member }) => MapOwner::Cone {
+                        cone: *cone,
+                        member: *member,
+                    },
                     None if path == Path::new("linker synthesized") => MapOwner::Synthesized,
-                    None => MapOwner::Other,
+                    _ => MapOwner::Other,
                 };
                 if indices.insert(index, owner).is_some() {
                     return Err(error(format!("link map repeats object index {index}")));
@@ -97,6 +115,17 @@ pub(super) fn check(
                 })?;
                 let symbols = match owner {
                     MapOwner::Native(id) => map.native.entry(*id).or_default(),
+                    MapOwner::Cone { cone, member } => {
+                        map.cones
+                            .entry(name.to_owned())
+                            .or_default()
+                            .push(ConeMapSymbol {
+                                cone: *cone,
+                                member: *member,
+                                address,
+                            });
+                        continue;
+                    }
                     MapOwner::Synthesized => &mut map.synthesized,
                     MapOwner::Other => continue,
                 };

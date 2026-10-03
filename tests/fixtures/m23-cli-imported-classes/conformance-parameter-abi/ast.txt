@@ -1,0 +1,11 @@
+SourceFile
+  RootPackage
+  ImportStar Local dependency.classes.*
+  public struct LocalDefaults : CompoundParameters
+    public fun answer
+  public fun primary(): Counter
+    =
+      Call Counter
+        FieldAccess first
+          MethodCall answer
+            Call LocalDefaults

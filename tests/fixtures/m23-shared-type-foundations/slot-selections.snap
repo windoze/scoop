@@ -1,9 +1,0 @@
-Base Base.count -> concrete Base.count
-ClassWinner Base.count -> concrete Base.count
-ClassWinner Root.value -> concrete ClassWinner.value
-ClassWinner Specific.value -> concrete ClassWinner.value
-Leaf Base.count -> concrete Leaf.count
-Leaf Root.value -> default Specific.value
-Leaf Specific.value -> default Specific.value
-Root Root.value -> default Root.value
-Specific Specific.value -> default Specific.value

@@ -1,0 +1,1135 @@
+Module
+  interface ToString
+  interface Hash
+  fun main @fn0() -> Unit
+    bb0 entry
+      val i8: Int8
+        Type Int8
+        IntegerLiteral Int8 value=-1 bits=0xff
+      val $dependency.receiver: Int8
+        Type Int8
+        Local i8
+      val $dependency.argument.0: Int8
+        Type Int8
+        IntegerConversion Int8 -> Int8
+          Type Int8
+          Local $dependency.receiver
+      val $dependency.parameter.value: Int8
+        Type Int8
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Int8
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int8
+        Type Int8
+        Local i8
+      val $dependency.argument.0: Int16
+        Type Int16
+        IntegerConversion Int8 -> Int16
+          Type Int8
+          Local $dependency.receiver
+      val $dependency.parameter.value: Int16
+        Type Int16
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int16
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int8
+        Type Int8
+        Local i8
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerConversion Int8 -> Int
+          Type Int8
+          Local $dependency.receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int8
+        Type Int8
+        Local i8
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerConversion Int8 -> Long
+          Type Int8
+          Local $dependency.receiver
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int8
+        Type Int8
+        Local i8
+      val $dependency.argument.0: UInt8
+        Type UInt8
+        IntegerConversion Int8 -> UInt8
+          Type Int8
+          Local $dependency.receiver
+      val $dependency.parameter.value: UInt8
+        Type UInt8
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type UInt8
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int8
+        Type Int8
+        Local i8
+      val $dependency.argument.0: UInt16
+        Type UInt16
+        IntegerConversion Int8 -> UInt16
+          Type Int8
+          Local $dependency.receiver
+      val $dependency.parameter.value: UInt16
+        Type UInt16
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type UInt16
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int8
+        Type Int8
+        Local i8
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerConversion Int8 -> UInt
+          Type Int8
+          Local $dependency.receiver
+      val $dependency.parameter.value: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type UInt
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int8
+        Type Int8
+        Local i8
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerConversion Int8 -> ULong
+          Type Int8
+          Local $dependency.receiver
+      val $dependency.parameter.value: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type ULong
+        Local $dependency.parameter.value
+      val i16: Int16
+        Type Int16
+        IntegerLiteral Int16 value=-257 bits=0xfeff
+      val $dependency.receiver: Int16
+        Type Int16
+        Local i16
+      val $dependency.argument.0: Int8
+        Type Int8
+        IntegerConversion Int16 -> Int8
+          Type Int16
+          Local $dependency.receiver
+      val $dependency.parameter.value: Int8
+        Type Int8
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Int8
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int16
+        Type Int16
+        Local i16
+      val $dependency.argument.0: Int16
+        Type Int16
+        IntegerConversion Int16 -> Int16
+          Type Int16
+          Local $dependency.receiver
+      val $dependency.parameter.value: Int16
+        Type Int16
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int16
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int16
+        Type Int16
+        Local i16
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerConversion Int16 -> Int
+          Type Int16
+          Local $dependency.receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int16
+        Type Int16
+        Local i16
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerConversion Int16 -> Long
+          Type Int16
+          Local $dependency.receiver
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int16
+        Type Int16
+        Local i16
+      val $dependency.argument.0: UInt8
+        Type UInt8
+        IntegerConversion Int16 -> UInt8
+          Type Int16
+          Local $dependency.receiver
+      val $dependency.parameter.value: UInt8
+        Type UInt8
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type UInt8
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int16
+        Type Int16
+        Local i16
+      val $dependency.argument.0: UInt16
+        Type UInt16
+        IntegerConversion Int16 -> UInt16
+          Type Int16
+          Local $dependency.receiver
+      val $dependency.parameter.value: UInt16
+        Type UInt16
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type UInt16
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int16
+        Type Int16
+        Local i16
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerConversion Int16 -> UInt
+          Type Int16
+          Local $dependency.receiver
+      val $dependency.parameter.value: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type UInt
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int16
+        Type Int16
+        Local i16
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerConversion Int16 -> ULong
+          Type Int16
+          Local $dependency.receiver
+      val $dependency.parameter.value: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type ULong
+        Local $dependency.parameter.value
+      val i32: Int
+        Type Int
+        IntegerLiteral Int value=-65537 bits=0xfffeffff
+      val $dependency.receiver: Int
+        Type Int
+        Local i32
+      val $dependency.argument.0: Int8
+        Type Int8
+        IntegerConversion Int -> Int8
+          Type Int
+          Local $dependency.receiver
+      val $dependency.parameter.value: Int8
+        Type Int8
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Int8
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        Local i32
+      val $dependency.argument.0: Int16
+        Type Int16
+        IntegerConversion Int -> Int16
+          Type Int
+          Local $dependency.receiver
+      val $dependency.parameter.value: Int16
+        Type Int16
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int16
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        Local i32
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerConversion Int -> Int
+          Type Int
+          Local $dependency.receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        Local i32
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerConversion Int -> Long
+          Type Int
+          Local $dependency.receiver
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        Local i32
+      val $dependency.argument.0: UInt8
+        Type UInt8
+        IntegerConversion Int -> UInt8
+          Type Int
+          Local $dependency.receiver
+      val $dependency.parameter.value: UInt8
+        Type UInt8
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type UInt8
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        Local i32
+      val $dependency.argument.0: UInt16
+        Type UInt16
+        IntegerConversion Int -> UInt16
+          Type Int
+          Local $dependency.receiver
+      val $dependency.parameter.value: UInt16
+        Type UInt16
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type UInt16
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        Local i32
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerConversion Int -> UInt
+          Type Int
+          Local $dependency.receiver
+      val $dependency.parameter.value: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type UInt
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        Local i32
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerConversion Int -> ULong
+          Type Int
+          Local $dependency.receiver
+      val $dependency.parameter.value: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type ULong
+        Local $dependency.parameter.value
+      val i64: Long
+        Type Long
+        IntegerLiteral Long value=-4294967297 bits=0xfffffffeffffffff
+      val $dependency.receiver: Long
+        Type Long
+        Local i64
+      val $dependency.argument.0: Int8
+        Type Int8
+        IntegerConversion Long -> Int8
+          Type Long
+          Local $dependency.receiver
+      val $dependency.parameter.value: Int8
+        Type Int8
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Int8
+        Local $dependency.parameter.value
+      val $dependency.receiver: Long
+        Type Long
+        Local i64
+      val $dependency.argument.0: Int16
+        Type Int16
+        IntegerConversion Long -> Int16
+          Type Long
+          Local $dependency.receiver
+      val $dependency.parameter.value: Int16
+        Type Int16
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int16
+        Local $dependency.parameter.value
+      val $dependency.receiver: Long
+        Type Long
+        Local i64
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerConversion Long -> Int
+          Type Long
+          Local $dependency.receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Long
+        Type Long
+        Local i64
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerConversion Long -> Long
+          Type Long
+          Local $dependency.receiver
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.receiver: Long
+        Type Long
+        Local i64
+      val $dependency.argument.0: UInt8
+        Type UInt8
+        IntegerConversion Long -> UInt8
+          Type Long
+          Local $dependency.receiver
+      val $dependency.parameter.value: UInt8
+        Type UInt8
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type UInt8
+        Local $dependency.parameter.value
+      val $dependency.receiver: Long
+        Type Long
+        Local i64
+      val $dependency.argument.0: UInt16
+        Type UInt16
+        IntegerConversion Long -> UInt16
+          Type Long
+          Local $dependency.receiver
+      val $dependency.parameter.value: UInt16
+        Type UInt16
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type UInt16
+        Local $dependency.parameter.value
+      val $dependency.receiver: Long
+        Type Long
+        Local i64
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerConversion Long -> UInt
+          Type Long
+          Local $dependency.receiver
+      val $dependency.parameter.value: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type UInt
+        Local $dependency.parameter.value
+      val $dependency.receiver: Long
+        Type Long
+        Local i64
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerConversion Long -> ULong
+          Type Long
+          Local $dependency.receiver
+      val $dependency.parameter.value: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type ULong
+        Local $dependency.parameter.value
+      val u8: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=255 bits=0xff
+      val $dependency.receiver: UInt8
+        Type UInt8
+        Local u8
+      val $dependency.argument.0: Int8
+        Type Int8
+        IntegerConversion UInt8 -> Int8
+          Type UInt8
+          Local $dependency.receiver
+      val $dependency.parameter.value: Int8
+        Type Int8
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Int8
+        Local $dependency.parameter.value
+      val $dependency.receiver: UInt8
+        Type UInt8
+        Local u8
+      val $dependency.argument.0: Int16
+        Type Int16
+        IntegerConversion UInt8 -> Int16
+          Type UInt8
+          Local $dependency.receiver
+      val $dependency.parameter.value: Int16
+        Type Int16
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int16
+        Local $dependency.parameter.value
+      val $dependency.receiver: UInt8
+        Type UInt8
+        Local u8
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerConversion UInt8 -> Int
+          Type UInt8
+          Local $dependency.receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: UInt8
+        Type UInt8
+        Local u8
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerConversion UInt8 -> Long
+          Type UInt8
+          Local $dependency.receiver
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.receiver: UInt8
+        Type UInt8
+        Local u8
+      val $dependency.argument.0: UInt8
+        Type UInt8
+        IntegerConversion UInt8 -> UInt8
+          Type UInt8
+          Local $dependency.receiver
+      val $dependency.parameter.value: UInt8
+        Type UInt8
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type UInt8
+        Local $dependency.parameter.value
+      val $dependency.receiver: UInt8
+        Type UInt8
+        Local u8
+      val $dependency.argument.0: UInt16
+        Type UInt16
+        IntegerConversion UInt8 -> UInt16
+          Type UInt8
+          Local $dependency.receiver
+      val $dependency.parameter.value: UInt16
+        Type UInt16
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type UInt16
+        Local $dependency.parameter.value
+      val $dependency.receiver: UInt8
+        Type UInt8
+        Local u8
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerConversion UInt8 -> UInt
+          Type UInt8
+          Local $dependency.receiver
+      val $dependency.parameter.value: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type UInt
+        Local $dependency.parameter.value
+      val $dependency.receiver: UInt8
+        Type UInt8
+        Local u8
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerConversion UInt8 -> ULong
+          Type UInt8
+          Local $dependency.receiver
+      val $dependency.parameter.value: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type ULong
+        Local $dependency.parameter.value
+      val u16: UInt16
+        Type UInt16
+        IntegerLiteral UInt16 value=65535 bits=0xffff
+      val $dependency.receiver: UInt16
+        Type UInt16
+        Local u16
+      val $dependency.argument.0: Int8
+        Type Int8
+        IntegerConversion UInt16 -> Int8
+          Type UInt16
+          Local $dependency.receiver
+      val $dependency.parameter.value: Int8
+        Type Int8
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Int8
+        Local $dependency.parameter.value
+      val $dependency.receiver: UInt16
+        Type UInt16
+        Local u16
+      val $dependency.argument.0: Int16
+        Type Int16
+        IntegerConversion UInt16 -> Int16
+          Type UInt16
+          Local $dependency.receiver
+      val $dependency.parameter.value: Int16
+        Type Int16
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int16
+        Local $dependency.parameter.value
+      val $dependency.receiver: UInt16
+        Type UInt16
+        Local u16
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerConversion UInt16 -> Int
+          Type UInt16
+          Local $dependency.receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: UInt16
+        Type UInt16
+        Local u16
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerConversion UInt16 -> Long
+          Type UInt16
+          Local $dependency.receiver
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.receiver: UInt16
+        Type UInt16
+        Local u16
+      val $dependency.argument.0: UInt8
+        Type UInt8
+        IntegerConversion UInt16 -> UInt8
+          Type UInt16
+          Local $dependency.receiver
+      val $dependency.parameter.value: UInt8
+        Type UInt8
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type UInt8
+        Local $dependency.parameter.value
+      val $dependency.receiver: UInt16
+        Type UInt16
+        Local u16
+      val $dependency.argument.0: UInt16
+        Type UInt16
+        IntegerConversion UInt16 -> UInt16
+          Type UInt16
+          Local $dependency.receiver
+      val $dependency.parameter.value: UInt16
+        Type UInt16
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type UInt16
+        Local $dependency.parameter.value
+      val $dependency.receiver: UInt16
+        Type UInt16
+        Local u16
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerConversion UInt16 -> UInt
+          Type UInt16
+          Local $dependency.receiver
+      val $dependency.parameter.value: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type UInt
+        Local $dependency.parameter.value
+      val $dependency.receiver: UInt16
+        Type UInt16
+        Local u16
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerConversion UInt16 -> ULong
+          Type UInt16
+          Local $dependency.receiver
+      val $dependency.parameter.value: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type ULong
+        Local $dependency.parameter.value
+      val u32: UInt
+        Type UInt
+        IntegerLiteral UInt value=4294967295 bits=0xffffffff
+      val $dependency.receiver: UInt
+        Type UInt
+        Local u32
+      val $dependency.argument.0: Int8
+        Type Int8
+        IntegerConversion UInt -> Int8
+          Type UInt
+          Local $dependency.receiver
+      val $dependency.parameter.value: Int8
+        Type Int8
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Int8
+        Local $dependency.parameter.value
+      val $dependency.receiver: UInt
+        Type UInt
+        Local u32
+      val $dependency.argument.0: Int16
+        Type Int16
+        IntegerConversion UInt -> Int16
+          Type UInt
+          Local $dependency.receiver
+      val $dependency.parameter.value: Int16
+        Type Int16
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int16
+        Local $dependency.parameter.value
+      val $dependency.receiver: UInt
+        Type UInt
+        Local u32
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerConversion UInt -> Int
+          Type UInt
+          Local $dependency.receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: UInt
+        Type UInt
+        Local u32
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerConversion UInt -> Long
+          Type UInt
+          Local $dependency.receiver
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.receiver: UInt
+        Type UInt
+        Local u32
+      val $dependency.argument.0: UInt8
+        Type UInt8
+        IntegerConversion UInt -> UInt8
+          Type UInt
+          Local $dependency.receiver
+      val $dependency.parameter.value: UInt8
+        Type UInt8
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type UInt8
+        Local $dependency.parameter.value
+      val $dependency.receiver: UInt
+        Type UInt
+        Local u32
+      val $dependency.argument.0: UInt16
+        Type UInt16
+        IntegerConversion UInt -> UInt16
+          Type UInt
+          Local $dependency.receiver
+      val $dependency.parameter.value: UInt16
+        Type UInt16
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type UInt16
+        Local $dependency.parameter.value
+      val $dependency.receiver: UInt
+        Type UInt
+        Local u32
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerConversion UInt -> UInt
+          Type UInt
+          Local $dependency.receiver
+      val $dependency.parameter.value: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type UInt
+        Local $dependency.parameter.value
+      val $dependency.receiver: UInt
+        Type UInt
+        Local u32
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerConversion UInt -> ULong
+          Type UInt
+          Local $dependency.receiver
+      val $dependency.parameter.value: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type ULong
+        Local $dependency.parameter.value
+      val u64: ULong
+        Type ULong
+        IntegerLiteral ULong value=18446744073709551615 bits=0xffffffffffffffff
+      val $dependency.receiver: ULong
+        Type ULong
+        Local u64
+      val $dependency.argument.0: Int8
+        Type Int8
+        IntegerConversion ULong -> Int8
+          Type ULong
+          Local $dependency.receiver
+      val $dependency.parameter.value: Int8
+        Type Int8
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Int8
+        Local $dependency.parameter.value
+      val $dependency.receiver: ULong
+        Type ULong
+        Local u64
+      val $dependency.argument.0: Int16
+        Type Int16
+        IntegerConversion ULong -> Int16
+          Type ULong
+          Local $dependency.receiver
+      val $dependency.parameter.value: Int16
+        Type Int16
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int16
+        Local $dependency.parameter.value
+      val $dependency.receiver: ULong
+        Type ULong
+        Local u64
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerConversion ULong -> Int
+          Type ULong
+          Local $dependency.receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: ULong
+        Type ULong
+        Local u64
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerConversion ULong -> Long
+          Type ULong
+          Local $dependency.receiver
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.receiver: ULong
+        Type ULong
+        Local u64
+      val $dependency.argument.0: UInt8
+        Type UInt8
+        IntegerConversion ULong -> UInt8
+          Type ULong
+          Local $dependency.receiver
+      val $dependency.parameter.value: UInt8
+        Type UInt8
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type UInt8
+        Local $dependency.parameter.value
+      val $dependency.receiver: ULong
+        Type ULong
+        Local u64
+      val $dependency.argument.0: UInt16
+        Type UInt16
+        IntegerConversion ULong -> UInt16
+          Type ULong
+          Local $dependency.receiver
+      val $dependency.parameter.value: UInt16
+        Type UInt16
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type UInt16
+        Local $dependency.parameter.value
+      val $dependency.receiver: ULong
+        Type ULong
+        Local u64
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerConversion ULong -> UInt
+          Type ULong
+          Local $dependency.receiver
+      val $dependency.parameter.value: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type UInt
+        Local $dependency.parameter.value
+      val $dependency.receiver: ULong
+        Type ULong
+        Local u64
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerConversion ULong -> ULong
+          Type ULong
+          Local $dependency.receiver
+      val $dependency.parameter.value: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type ULong
+        Local $dependency.parameter.value
+      return
+  fun println @fn1(value: Int8) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int8
+        Type Int8
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int8
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external8 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external8 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn2(value: Int16) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int16
+        Type Int16
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Int16
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external8 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str1
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external8 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn3(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external8 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external8 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn4(value: Long) -> Unit
+    bb0 entry
+      val $dependency.local.1: Long
+        Type Long
+        Local value
+      call $dependency.local.2: String = external3 direct
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external8 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external8 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn5(value: UInt8) -> Unit
+    bb0 entry
+      val $dependency.local.1: UInt8
+        Type UInt8
+        Local value
+      call $dependency.local.2: String = external4 direct
+        Type UInt8
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external8 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external8 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn6(value: UInt16) -> Unit
+    bb0 entry
+      val $dependency.local.1: UInt16
+        Type UInt16
+        Local value
+      call $dependency.local.2: String = external5 direct
+        Type UInt16
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external8 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str5
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external8 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn7(value: UInt) -> Unit
+    bb0 entry
+      val $dependency.local.1: UInt
+        Type UInt
+        Local value
+      call $dependency.local.2: String = external6 direct
+        Type UInt
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external8 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str6
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external8 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn8(value: ULong) -> Unit
+    bb0 entry
+      val $dependency.local.1: ULong
+        Type ULong
+        Local value
+      call $dependency.local.2: String = external7 direct
+        Type ULong
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external8 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str7
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external8 direct
+        Type String
+        Local $dependency.local.5
+      return
+  instance mi0 function=@fn1 <- println
+  instance mi1 function=@fn2 <- println
+  instance mi2 function=@fn3 <- println
+  instance mi3 function=@fn4 <- println
+  instance mi4 function=@fn5 <- println
+  instance mi5 function=@fn6 <- println
+  instance mi6 function=@fn7 <- println
+  instance mi7 function=@fn8 <- println
+  str @str0 "\n"
+  str @str1 "\n"
+  str @str2 "\n"
+  str @str3 "\n"
+  str @str4 "\n"
+  str @str5 "\n"
+  str @str6 "\n"
+  str @str7 "\n"
+  output executable @fn0

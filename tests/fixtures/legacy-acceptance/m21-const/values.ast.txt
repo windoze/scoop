@@ -1,0 +1,24 @@
+SourceFile
+  RootPackage
+  public val ANSWER: Int <const> = <expr>
+  val BASE: Int <const> = <expr>
+  val UNSIGNED: UInt <const> = <expr>
+  val LABEL: String <const> = <expr>
+  val VALID: Boolean <const> = <expr>
+  class Box(val value: Int)
+  fun boxed(value: Int = <expr>): Box
+    =
+      Call Box
+        Var value
+  fun main()
+    Call println
+      Var ANSWER
+    Call println
+      Var UNSIGNED
+    Call println
+      Var LABEL
+    Call println
+      Var VALID
+    Call println
+      FieldAccess value
+        Call boxed

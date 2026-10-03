@@ -1,0 +1,82 @@
+SourceFile
+  RootPackage
+  class Gate(var waiter: Continuation<Int>?)
+    fun complete
+  class Registration(val gate: Gate), SuspendRegistration<Int>
+    public fun register
+  suspend fun waitFor(gate: Gate): Int
+    =
+      Call suspendCoroutine
+        Call Registration
+          Var gate
+  class DirectWorker(val gate: Gate)
+    suspend fun work
+  abstract class VirtualWorker()
+    suspend fun work
+  class VirtualWorkerImpl(val gate: Gate) : VirtualWorker(<0 args>)
+    suspend fun work
+  interface AsyncWorker
+    suspend fun work
+  class AsyncWorkerImpl(val gate: Gate), AsyncWorker
+    suspend fun work
+  struct StructWorker
+    field gate: Gate
+    suspend fun work
+  enum EnumWorker
+    Waiting(Gate)
+  class DispatchTask(val direct: DirectWorker, val virtual: VirtualWorker, val interfaced: AsyncWorker, val value: StructWorker, val tagged: EnumWorker), SuspendTask<Int>
+    public suspend fun run
+  class RecordingCompletion(), Continuation<Int>
+    public fun resume
+    public fun resumeWithException
+  fun main()
+    val directGate
+      Call Gate
+        Var None
+    val virtualGate
+      Call Gate
+        Var None
+    val interfaceGate
+      Call Gate
+        Var None
+    val structGate
+      Call Gate
+        Var None
+    val enumGate
+      Call Gate
+        Var None
+    val virtual: VirtualWorker
+      Call VirtualWorkerImpl
+        Var virtualGate
+    val interfaced: AsyncWorker
+      Call AsyncWorkerImpl
+        Var interfaceGate
+    Call startCoroutine
+      Call DispatchTask
+        Call DirectWorker
+          Var directGate
+        Var virtual
+        Var interfaced
+        Call StructWorker
+          Var structGate
+        MethodCall Waiting
+          Var EnumWorker
+          Var enumGate
+      Call RecordingCompletion
+    Call println
+      StringLiteral "started"
+    MethodCall complete
+      Var directGate
+      IntLiteral 1
+    MethodCall complete
+      Var virtualGate
+      IntLiteral 2
+    MethodCall complete
+      Var interfaceGate
+      IntLiteral 3
+    MethodCall complete
+      Var structGate
+      IntLiteral 4
+    MethodCall complete
+      Var enumGate
+      IntLiteral 5

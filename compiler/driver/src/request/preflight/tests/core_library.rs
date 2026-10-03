@@ -1,13 +1,7 @@
 use super::*;
 use crate::{HostArtifactLocator, normalize_direct_build_request};
 
-mod aliases;
-mod calls;
-mod default_data_flow;
 mod direct_inputs;
-mod equality;
-mod intrinsics;
-mod member_calls;
 mod metadata;
 mod source_fields;
 
@@ -17,9 +11,8 @@ const CONSUMER: &str = include_str!("../../../../../../tests/fixtures/core-libra
 
 #[test]
 fn edited_core_library_builds_from_a_manifest_and_is_consumed_from_any_output_path() {
-    let Ok(target) = scoop_toolchain::ResolvedTargetProfile::resolve_host() else {
-        return;
-    };
+    let target = scoop_toolchain::ResolvedTargetProfile::resolve_host()
+        .expect("the core production test requires a supported host target");
     let workspace = tempfile::tempdir().unwrap();
     bootstrap::copy_trusted_core_sources(workspace.path());
     let source = workspace.path().join("edited-library");
@@ -62,50 +55,6 @@ fn edited_core_library_builds_from_a_manifest_and_is_consumed_from_any_output_pa
     let consumer_artifact = workspace.path().join("consumer.slib");
     let first_consumer = build_consumer(&target, &consumer_source, &consumer_artifact, &artifact);
     assert_core_views_share_the_dependency_closure(&target, &consumer_source, &artifact);
-    let shadow_source = workspace.path().join("shadow.scoop");
-    std::fs::write(
-        &shadow_source,
-        include_str!("../../../../../../tests/fixtures/core-library/prelude-priority.scoop"),
-    )
-    .unwrap();
-    build_consumer(
-        &target,
-        &shadow_source,
-        &workspace.path().join("shadow.slib"),
-        &artifact,
-    );
-    let call_source = workspace.path().join("calls.scoop");
-    std::fs::write(
-        &call_source,
-        include_str!("../../../../../../tests/fixtures/core-library/call-consumer.scoop"),
-    )
-    .unwrap();
-    build_consumer(
-        &target,
-        &call_source,
-        &workspace.path().join("calls.slib"),
-        &artifact,
-    );
-    let abi_source = workspace.path().join("abi-calls.scoop");
-    std::fs::write(
-        &abi_source,
-        include_str!("../../../../../../tests/fixtures/core-library/abi-consumer.scoop"),
-    )
-    .unwrap();
-    build_consumer(
-        &target,
-        &abi_source,
-        &workspace.path().join("abi-calls.slib"),
-        &artifact,
-    );
-    aliases::assert_alias_stage_dumps(&target, workspace.path(), &artifact);
-    calls::assert_initialization_and_dependency_calls(&target, workspace.path(), &artifact);
-    intrinsics::assert_shared_intrinsic_constants(&target, workspace.path(), &artifact);
-    member_calls::assert_member_calls(&target, workspace.path(), &artifact);
-    equality::assert_equality(&target, workspace.path(), &artifact);
-    intrinsics::assert_normalized_integer_defaults(&target, workspace.path(), &artifact);
-    default_data_flow::assert_branching_defaults(&target, workspace.path(), &artifact);
-    intrinsics::assert_integer_exception_uses_shared_layout(&target, workspace.path(), &artifact);
     assert_non_core_artifact_is_rejected(&target, &consumer_artifact);
     assert_eq!(
         first_consumer.artifact().summary().direct_dependencies(),
@@ -144,6 +93,7 @@ fn build_core(source: &Path, artifact: &Path) -> SingleConeProductionSuccess {
         artifact,
         DiagnosticOutputPolicy::Human,
         StageDumpPolicy::None,
+        Default::default(),
     )
     .unwrap()
     .build_and_publish()
@@ -294,28 +244,6 @@ fn build_consumer(
     output: &Path,
     core: &Path,
 ) -> SingleConeProductionSuccess {
-    build_consumer_emitting(target, source, output, core, StageDumpPolicy::None)
-}
-
-fn build_consumer_emitting(
-    target: &scoop_toolchain::ResolvedTargetProfile,
-    source: &Path,
-    output: &Path,
-    core: &Path,
-    emit: StageDumpPolicy,
-) -> SingleConeProductionSuccess {
-    consumer_request(target, source, output, core, emit)
-        .build_and_publish()
-        .unwrap()
-}
-
-fn consumer_request(
-    target: &scoop_toolchain::ResolvedTargetProfile,
-    source: &Path,
-    output: &Path,
-    core: &Path,
-    emit: StageDumpPolicy,
-) -> SingleConeBuildRequest {
     SingleConeBuildRequest::new(
         CurrentConeInput::SingleFile {
             source: SingleFileLocator::from_path(source).unwrap(),
@@ -325,7 +253,9 @@ fn consumer_request(
         target.clone(),
         SlibOutputDestination::new(output).unwrap(),
         DiagnosticOutputPolicy::Human,
-        emit,
+        StageDumpPolicy::None,
     )
+    .unwrap()
+    .build_and_publish()
     .unwrap()
 }

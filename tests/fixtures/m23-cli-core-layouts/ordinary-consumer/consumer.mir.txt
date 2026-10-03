@@ -1,0 +1,22 @@
+Module
+  fun sharedOrdinaryUse @fn0(value: String) -> String
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        Local value
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: String = external0 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type String
+        Local $call.1
+  fun sharedOrdinaryAvailable @fn1() -> Boolean
+    bb0 entry
+      call $call.1: Boolean = external1 direct
+      return
+        Type Boolean
+        Local $call.1
+  output library

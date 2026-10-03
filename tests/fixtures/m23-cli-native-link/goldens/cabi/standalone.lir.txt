@@ -1,0 +1,116 @@
+Module
+  global @scoop$1$io$f0fefd5ee848e76be5b8c0e31b49e0950fab7b3c446de18d43af30a7d8ec6681 = "\n"
+  global @scoop$1$io$5b150b9a087b1c8a15caa55cfa092ea3d8ea7a2adeaff2ea753d789ac919417a = "\n"
+  global @scoop$1$ss$e8034aaf5677e62586a895d9c2427bbcc614d8e11366a371cad54e976c5f805d : ptr<managed> scan=refs[0]
+  c-struct struct0 Packed fields=[Boolean@0/1,Int@1/1]
+  extern ef0 transform @m23_packed(struct0) -> struct0 <c exact=(c-struct0)->c-struct0 bridge=@scoop$1$br$83c54927c8169da18a36e95fdceedd2c6ac99a964e3af8a5050f80ea8d38e683 gc-leaf nounwind lib=m23_cabi>
+  fun @scoop$1$cb$a2f059f1c8c082de29c4b4a337148c031373928be3470fd51943d1720e0463ae(indirect<struct0 size=8 align=8 scan=none>) -> sret<struct0 size=8 align=8 scan=none>
+    local %0 $call.1: struct0
+    local %1 $sc.1: struct0
+    local %2 $sc.2: struct0
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local1
+    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer struct0 size=8 align=8 scan=none, ptr<raw>) extern0(c-arg-address(local1))
+    store local2 -> local0
+    ret local0
+  fun @scoop$1$cb$af4faf6423f24db21cc8df8d7b759b418d5a4d2929ad127e1cd1a5270b56917b() -> void
+    local %0 $argument.0: i1
+    local %1 $argument.1: i32
+    local %2 $parameter.flag: i1
+    local %3 $parameter.value: i32
+    local %4 $argument.0: struct0
+    local %5 $parameter.value: struct0
+    local %6 result: struct0
+    local %7 $dependency.argument.0: i1
+    local %8 $dependency.parameter.value: i1
+    local %9 $dependency.argument.0: i32
+    local %10 $dependency.parameter.value: i32
+    local %11 $sc.1: struct0
+    local %12 $sc.2: struct0
+    local %13 $sc.3: struct0
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[]
+    store true -> local0
+    store integer<Int>(0x00000029) -> local1
+    store local0 -> local2
+    store local1 -> local3
+    call no-gc-indirect-target0 local11 = sig=indirect0 (sret struct0 size=8 align=8 scan=none, i1, i32) local-fn4(local2, local3)
+    store local11 -> local4
+    store local4 -> local5
+    store local5 -> local12
+    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local13 = sig=indirect1 (c-storage-pointer struct0 size=8 align=8 scan=none, ptr<raw>) extern0(c-arg-address(local12))
+    store local13 -> local6
+    t0 = extract local6, 0 : i1
+    store t0 -> local7
+    store local7 -> local8
+    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 (i1) local-fn2(local8)
+    t1 = aggregate () : {}
+    t2 = extract local6, 1 : i32
+    store t2 -> local9
+    store local9 -> local10
+    call managed-void-target1 sp<managed-call:1> live=[] sig=void1 (i32) local-fn3(local10)
+    t3 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$71a8bdb7e9069d4ec0fedc224c7d96f852fc7cc568868eb03032ab468e4c5207(i1) -> void
+    local %0 $dependency.local.1: i1
+    local %1 $dependency.local.2: ptr<managed>
+    local %2 $dependency.local.3: ptr<managed>
+    local %3 $dependency.local.4: ptr<managed>
+    local %4 $dependency.local.5: ptr<managed>
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i1) -> ptr<managed> external-fn1(local0)
+    store t0 -> local1
+    store local1 -> local2
+    call managed-void-target0 sp<managed-call:1> live=[local2:ptr<managed>@0] sig=void0 (ptr<managed>) external-fn2(local2)
+    t1 = aggregate () : {}
+    store global0 -> local3
+    store local3 -> local4
+    call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn2(local4)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$05ffc32f631b2fcd15ae6cb61f370b61c17fa98cb6f1492449586fa0abce58a1(i32) -> void
+    local %0 $dependency.local.1: i32
+    local %1 $dependency.local.2: ptr<managed>
+    local %2 $dependency.local.3: ptr<managed>
+    local %3 $dependency.local.4: ptr<managed>
+    local %4 $dependency.local.5: ptr<managed>
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> ptr<managed> external-fn0(local0)
+    store t0 -> local1
+    store local1 -> local2
+    call managed-void-target0 sp<managed-call:1> live=[local2:ptr<managed>@0] sig=void0 (ptr<managed>) external-fn2(local2)
+    t1 = aggregate () : {}
+    store global1 -> local3
+    store local3 -> local4
+    call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn2(local4)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$bcc3e45bb56f06e5d8c566c479808ab7b4279cecccea2d8b075fa1c8e012cd2e(i1, i32) -> sret<struct0 size=8 align=8 scan=none> <no-gc>
+  block entry
+    t0 = aggregate (param0, param1) : struct0
+    ret t0
+  fun @scoop$1$cb$12b22ac1771e1d5a140e15976472ddb249873197add5c6aec0388b53a1bf4e6f() -> i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
+    br @success
+  block success
+    ret integer<UInt>(0x00000000)
+  block failure
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
+    t2 = begin_catch t1 : ptr<managed>
+    call managed-direct-target0 sp<managed-call:0> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
+    global_store global2, t3
+    end_catch
+    ret integer<UInt>(0x00000001)
+  td td0 n(c=dev.programlink%3Acabi%3A0.1.0;p=;o=-;k=S;x=Packed) @scoop$1$td$eba5808f1c3f2f6e426e2f392523f8112519387ce2bb6f1099f4143fed93aeff type-id=6413863973408416815 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout Packed size=8 align=8 refs=[]
+  layout-meta Packed c-layout(aligned=8,packed=1) fields=[0@1,1@1] interior-mutable=false
+  layout Packed size=8 align=8 refs=[]
+  layout-meta Packed c-layout(aligned=8,packed=1) fields=[0@1,1@1] interior-mutable=false
+  output executable @scoop$1$cb$af4faf6423f24db21cc8df8d7b759b418d5a4d2929ad127e1cd1a5270b56917b

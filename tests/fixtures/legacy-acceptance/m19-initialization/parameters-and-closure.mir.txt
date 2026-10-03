@@ -1,0 +1,267 @@
+Module
+  class Captured vtable=0 itables=0
+  class MutableBody vtable=0 itables=0
+  class Shadow vtable=0 itables=0
+  interface ToString
+  interface Hash
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn5 captures=1
+    bridge function_type1 -> @fn9 id=0c5f8bbd70d736f593689a541849c1a6420c9fd5e71d45466a8e7ab908d8fa69
+  generated_exact_type get0 location=closure0 nominal_id=de858cddadd180c8ab19e65c12c2a07eb699276610a9ab1068709e67854a6276 exact_id=060dd3724dee6fd4521ed7642f59e4d4fead07b4997666a61a221f35e3ac0eab
+  generated_callable gc0 function=@fn9 id=0c5f8bbd70d736f593689a541849c1a6420c9fd5e71d45466a8e7ab908d8fa69
+  fun Captured.read @fn0(this: Captured) -> String
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        FieldAccess 1
+          Type Captured
+          Local this
+      return
+        Type String
+        Local $call.1
+  fun Shadow.read @fn1(this: Shadow) -> String
+    bb0 entry
+      return
+        Type String
+        FieldAccess 0
+          Type Shadow
+          Local this
+  fun main @fn2() -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      assign $new.1
+        Type Captured
+        ClassAlloc Captured
+      call @fn6 direct
+        Type Captured
+        Local $new.1
+        Type String
+        Local $parameter.seed
+      val captured: Captured
+        Type Captured
+        Local $new.1
+      val $receiver: Captured
+        Type Captured
+        Local captured
+      call $dependency.argument.0: String = @fn0 direct
+        Type Captured
+        Local $receiver
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str1
+      val $parameter.name: String
+        Type String
+        Local $argument.0
+      assign $new.2
+        Type Shadow
+        ClassAlloc Shadow
+      call @fn8 direct
+        Type Shadow
+        Local $new.2
+        Type String
+        Local $parameter.name
+      val $receiver: Shadow
+        Type Shadow
+        Local $new.2
+      call $dependency.argument.0: String = @fn1 direct
+        Type Shadow
+        Local $receiver
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      assign $new.3
+        Type MutableBody
+        ClassAlloc MutableBody
+      call @fn7 direct
+        Type MutableBody
+        Local $new.3
+        Type Int
+        Local $parameter.seed
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type MutableBody
+          Local $new.3
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun println @fn3(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn4(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun $lambda.0 @fn5($closure: () -> String) -> String
+    bb0 entry
+      return
+        Type String
+        ClosureCapture cc0 0
+          Type () -> String
+          Local $closure
+  fun init.Captured.$c0 @fn6(this: Captured, seed: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type Captured
+        Local this
+        Type String
+        Local seed
+      field_set 1
+        Type Captured
+        Local this
+        Type () -> String
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type String
+            Local seed
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type Captured
+          Local this
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type String
+        Local $dependency.parameter.value
+      call $dependency.argument.0: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        FieldAccess 1
+          Type Captured
+          Local this
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun init.MutableBody.$c1 @fn7(this: MutableBody, seed: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type MutableBody
+        Local this
+        Type Int
+        Local seed
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type MutableBody
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      field_set 0
+        Type MutableBody
+        Local this
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      return
+  fun init.Shadow.$c2 @fn8(this: Shadow, name: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type Shadow
+        Local this
+        Type String
+        Local name
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type Shadow
+          Local this
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun function_bridge.$Closure$lambda0.() -> Any @fn9($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  instance mi0 function=@fn3 <- println
+  instance mi1 function=@fn4 <- println
+  str @str0 "captured"
+  str @str1 "shadowed"
+  str @str2 "\n"
+  str @str3 "\n"
+  output executable @fn2

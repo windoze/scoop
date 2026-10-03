@@ -1,0 +1,10 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.Token
+  ImportExact Local dependency.classes.SharedMethods
+  public fun primary(): Counter
+    =
+      MethodCall read
+        Var SharedMethods
+        Call Token

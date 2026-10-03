@@ -1,0 +1,16 @@
+private class ReaderProbe(public val value: Int)
+
+@Extern(lib = "m23_class_gc", name = "m23_class_gc_collected")
+fun collected(): Int
+
+fun main() {
+    val retained = ReaderProbe(42)
+    if (check() != retained.value) {
+        throw IllegalStateException()
+    }
+    @Unsafe {
+        if (collected() != 1) {
+            throw IllegalStateException()
+        }
+    }
+}

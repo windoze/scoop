@@ -1,4 +1,0 @@
-span=117..127
-expression=::identity
-no applicable candidate for callable reference `::identity` in dependency top-level candidate layer:
-  - fun identity<T>(value: T): T — conflicting types for `T`: Int and String

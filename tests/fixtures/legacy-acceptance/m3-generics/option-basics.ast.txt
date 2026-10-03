@@ -1,0 +1,41 @@
+SourceFile
+  RootPackage
+  struct Point
+    field x: Int
+    field y: Int
+  fun main()
+    val a: Int?
+      Call Some
+        IntLiteral 41
+    Call println
+      Elvis
+        Var a
+        IntLiteral 0
+    val b: Int?
+      Var None
+    Call println
+      Elvis
+        Var b
+        IntLiteral 99
+    val p: Point?
+      Call Some
+        Call Point
+          IntLiteral 10
+          IntLiteral 20
+    Call println
+      Elvis
+        FieldAccess ?x
+          Var p
+        IntLiteral 0
+    val q: Point?
+      Var None
+    Call println
+      Elvis
+        FieldAccess ?x
+          Var q
+        IntLiteral 0
+    Call println
+      Binary Add
+        NullAssert
+          Var a
+        IntLiteral 1

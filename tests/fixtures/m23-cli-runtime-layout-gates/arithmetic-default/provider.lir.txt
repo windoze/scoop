@@ -1,0 +1,60 @@
+Module
+  enum Option niche(kind=managed,payload_variant=0)
+  fun @scoop$1$cb$eae915ae1da84873eaca007db72f549e41bd715c4de0be9db6373dc0e0f673a7(i64) -> i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret param0
+  fun @scoop$1$cb$5e5ca90ac70e307dd327b8fde75d4852cfd4e18613eb6259a2d0ab2f94028ad3() -> i64
+    local %0 $dependency.receiver: i64
+    local %1 $dependency.argument.0: i64
+    local %2 $dependency.parameter.other: i64
+    local %3 $parameter.value: i64
+    local %4 $div.1: i64
+    local %5 $div.2: i64
+    local %6 $div.result.3: i64
+    local %7 $new.1: ptr<managed>
+    local %8 $logic.2: i1
+    local %9 $call.3: i64
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    store integer<Long>(0x000000000000002a) -> local0
+    store integer<Long>(0x0000000000000002) -> local1
+    store local1 -> local2
+    store local0 -> local4
+    store local2 -> local5
+    t0 = integer_compare_Equal<Long> local5, integer<Long>(0x0000000000000000) : i1
+    cbr t0 then @if.then.1 else @if.merge.2
+  block if.then.1
+    call managed-direct-target0 sp<managed-call:1> live=[] t1 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td0, machine<byte-size>(ByteSize(24)))
+    store t1 -> local7
+    call managed-void-target0 sp<managed-call:2> live=[local7:ptr<managed>@0] sig=void0 (ptr<managed>) external-fn0(local7)
+    t2 = aggregate () : {}
+    throw local7
+    unreachable
+  block if.merge.2
+    t3 = integer_compare_Equal<Long> local4, integer<Long>(0x8000000000000000) : i1
+    cbr t3 then @logic.rhs.3 else @logic.short.4
+  block logic.rhs.3
+    t4 = integer_compare_Equal<Long> local5, integer<Long>(0xffffffffffffffff) : i1
+    store t4 -> local8
+    br @logic.merge.5
+  block logic.short.4
+    store false -> local8
+    br @logic.merge.5
+  block logic.merge.5
+    cbr local8 then @if.then.6 else @if.else.7
+  block if.then.6
+    store integer<Long>(0x8000000000000000) -> local6
+    br @if.merge.8
+  block if.else.7
+    t5 = safe_integer_Divide<Long> local4, local5 : i64
+    store t5 -> local6
+    br @if.merge.8
+  block if.merge.8
+    store local6 -> local3
+    call managed-direct-target1 sp<managed-call:0> live=[] t6 = sig=direct1 (i64) -> i64 local-fn0(local3)
+    store t6 -> local9
+    ret local9
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout Option size=8 align=8 enum-scan=refs[0]
+  output library

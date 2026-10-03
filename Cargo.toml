@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "compiler/wire",
+    "compiler/process",
     "compiler/identity",
     "compiler/manifest",
     "compiler/protocol",
@@ -47,8 +48,10 @@ serde_yaml_ng = "0.10"
 tempfile = { version = "3" }
 fs4 = { version = "1.1" }
 rustix = { version = "1.1", features = ["fs"] }
+signal-hook = "0.4.4"
 
 scoop-wire = { path = "compiler/wire" }
+scoop-process = { path = "compiler/process" }
 scoop-identity = { path = "compiler/identity" }
 scoop-manifest = { path = "compiler/manifest" }
 scoop-protocol = { path = "compiler/protocol" }

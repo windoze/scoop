@@ -1,0 +1,15 @@
+Module
+  raw_global @scoop$1$ss$978ae7b4ce045eb64a4b2eec55a35190d19de419b2c63866fdf4c1ec109f9977 : i32
+  fun @scoop$1$cb$f8a9e45569d4c6c05905e6640ce76aa428a20e00c321888e80bb85954bb3ffa0(i32) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret param0
+  fun @scoop$1$cb$78cd35104a1dd1e775bc7244afa89ca84478113d3e4f5f71e35671a200530e6e() -> i32 <no-gc>
+  block entry
+    t0 = global_load global0 : i32
+    ret t0
+  fun @scoop$1$cb$db6423bfb371bc04fb7a4ea978143030d869ad34f5a9575e137f3ce35350a201(i32) -> void <no-gc>
+  block entry
+    global_store global0, param0
+    ret
+  output library

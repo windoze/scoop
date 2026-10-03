@@ -15,6 +15,7 @@ use super::metadata::{repr_shape, sequence};
 use super::{LoweringContext, StorageLoweringError, StorageResult};
 
 mod cfg;
+mod constants;
 mod dataflow;
 mod identity;
 mod layout;
@@ -26,6 +27,7 @@ mod scans;
 mod tests;
 
 use cfg::*;
+use constants::fold_constant_branches;
 use dataflow::*;
 use identity::*;
 pub(crate) use layout::lir_size_align;

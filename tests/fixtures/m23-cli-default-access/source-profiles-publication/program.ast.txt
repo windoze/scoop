@@ -1,0 +1,39 @@
+SourceFile
+  RootPackage
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call verifyDefault
+      Binary Eq
+        MethodCall checkOwn
+          Call defaultPlain
+        IntLiteral 9
+    Call verifyDefault
+      Binary Eq
+        MethodCall checkInherited
+          Call defaultPlain
+        IntLiteral 9
+    Call verifyDefault
+      Binary Eq
+        MethodCall checkInherited
+          Call defaultChild
+        IntLiteral 9
+    Call verifyDefault
+      Binary Eq
+        MethodCall checkOwner
+          Call defaultGeneric<Int>
+        IntLiteral 9
+    Call verifyDefault
+      Binary Eq
+        MethodCall checkOwner
+          Call defaultGeneric<String>
+        IntLiteral 9
+    Call verifyDefault
+      Binary Eq
+        MethodCall checkStatic
+          Call defaultGenericStatic
+        IntLiteral 9

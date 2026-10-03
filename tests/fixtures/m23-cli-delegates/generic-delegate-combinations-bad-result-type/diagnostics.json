@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "body of `wrong` must be of type Boolean, found Int",
+    "notes": [],
+    "origin": {
+      "cone": "dc38853c55e15ebc1276125b738f804513c2893a39326ea90c3d7be676c9e458",
+      "end": 85,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 64
+    },
+    "severity": "error"
+  }
+]

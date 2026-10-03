@@ -1,0 +1,75 @@
+Module
+  extern ef0 verifyFinished @verify_finished() -> Unit <abi=c no-gc lib=m23_native_boundary>
+  extern ef1 nativeNarrow @native_narrow(Int8) -> Int8 <abi=scoop managed lib=m23_native_boundary>
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  fun verifyFinished @fn0() -> Unit
+    bb0 entry
+      call extern0 @verify_finished direct
+      return
+  fun perform @fn1() -> Unit
+    bb0 entry
+      val $argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=17 bits=0x11
+      val $parameter.value: Int8
+        Type Int8
+        Local $argument.0
+      call $dependency.receiver: Int8 = extern1 @native_narrow direct
+        Type Int8
+        Local $parameter.value
+      val $dependency.argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=18 bits=0x12
+      val $dependency.parameter.other: Int8
+        Type Int8
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int8 result=Boolean
+            Type Int8
+            Local $dependency.receiver
+            Type Int8
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      call extern0 @verify_finished direct
+      return
+  fun nativeNarrow @fn2(arg0: Int8) -> Int8
+    bb0 entry
+      call $call.1: Int8 = extern1 @native_narrow direct
+        Type Int8
+        Local arg0
+      return
+        Type Int8
+        Local $call.1
+  str @str0 "illegal state"
+  output library

@@ -1,0 +1,149 @@
+schema = 1
+name = "runtime-images-early-root"
+inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "early-chain", "../../m23-runtime-images/early-chain.scoop", "../support/trace.c", "early-root", "../../m23-runtime-images/early-root.scoop"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin"]
+tags = ["runtime-images", "early", "stage-golden"]
+
+[[steps]]
+name = "prepare_core"
+files = [
+  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"copy" = {"from" = "${fixture}/../../m23-cli-imported-classes/support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
+  {"mkdir" = {"path" = "${work}/empty-sysroot"}},
+]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "remove_core_source"
+files = [
+  {"remove" = {"path" = "${work}/core-source"}},
+]
+
+[[steps]]
+name = "prepare_early-chain"
+files = [
+  {"copy" = {"from" = "${fixture}/early-chain", "to" = "${work}/sources/early-chain"}},
+  {"copy" = {"from" = "${fixture}/../../m23-runtime-images/early-chain.scoop", "to" = "${work}/sources/early-chain/src/main.scoop"}},
+]
+
+[[steps]]
+name = "early-chain"
+argv = ["${scoop}", "build", "${work}/sources/early-chain", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-early-chain", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/early-chain/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/early-chain"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${early-chain.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/early-chain/${early-chain.result.root.identity}/ast.txt", "snapshot" = "early-chain.ast.txt"},
+  {"file" = "${work}/dump/early-chain/${early-chain.result.root.identity}/hir.txt", "snapshot" = "early-chain.hir.txt"},
+  {"file" = "${work}/dump/early-chain/${early-chain.result.root.identity}/mir.txt", "snapshot" = "early-chain.mir.txt"},
+  {"file" = "${work}/dump/early-chain/${early-chain.result.root.identity}/lir.txt", "snapshot" = "early-chain.lir.txt"},
+]
+
+[[steps]]
+name = "remove_early-chain"
+files = [
+  {"remove" = {"path" = "${work}/sources/early-chain"}},
+]
+
+[[steps]]
+name = "prepare_native"
+files = [
+  {"copy" = {"from" = "${fixture}/../support/trace.c", "to" = "${work}/native/trace.c"}},
+]
+
+[[steps]]
+name = "compile_native"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/native/trace.c", "-o", "${work}/native/trace.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive_native"
+argv = ["${ar}", "qcS", "${work}/native/libm23_runtime_images.a", "${work}/native/trace.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"ZERO_AR_DATE" = "1"}
+
+[[steps]]
+name = "remove_native_source"
+files = [
+  {"remove" = {"path" = "${work}/native/trace.c"}},
+  {"remove" = {"path" = "${work}/native/trace.o"}},
+]
+
+[[steps]]
+name = "prepare_early-root"
+files = [
+  {"copy" = {"from" = "${fixture}/early-root", "to" = "${work}/sources/early-root"}},
+  {"copy" = {"from" = "${fixture}/../../m23-runtime-images/early-root.scoop", "to" = "${work}/sources/early-root/src/main.scoop"}},
+]
+
+[[steps]]
+name = "program"
+argv = ["${scoop}", "build", "${work}/sources/early-root", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/built-program", "--emit", "all", "--dump-dir", "${work}/dump/program", "--runtime-root", "${runtime}", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${program.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/ast.txt", "snapshot" = "program.ast.txt"},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/hir.txt", "snapshot" = "program.hir.txt"},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/mir.txt", "snapshot" = "program.mir.txt"},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/lir.txt", "snapshot" = "program.lir.txt"},
+]
+
+[[steps]]
+name = "isolate"
+files = [
+  {"copy" = {"from" = "${program.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
+  {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}},
+  {"remove" = {"path" = "${work}/sources"}},
+]
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--cone-path", "${work}/artifacts", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--library-path", "${work}/native", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [
+  {"actual" = "${link.result.dependencies.length}", "equals" = 2},
+  {"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
+  {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan.txt", "normalize" = ["paths"]},
+]
+
+[[steps]]
+name = "run"
+argv = ["${work}/program"]
+exit = 0
+stdout = "6\n5\n4\n3\n2\n1\n7\n"
+stderr = ""
+env = {}
+
+[[steps]]
+name = "run_moving"
+argv = ["${work}/program"]
+exit = 0
+stdout = "6\n5\n4\n3\n2\n1\n7\n"
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}

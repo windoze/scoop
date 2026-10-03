@@ -1,0 +1,25 @@
+SourceFile
+  QualifiedPackage dependency.dispatch
+  public interface Root
+    fun root
+  public interface Left : Root
+    fun left
+  public interface Right : Root
+    fun right
+  public interface Joined : Right, Left
+    fun root
+    public open val size: Int <computed>
+      get()
+        IntLiteral 5
+  public open class Base()
+    public fun first
+    public fun second
+    public open var value: Int <computed>
+      get()
+        IntLiteral 8
+      set(value)
+  public class Derived() : Base(<0 args>), Joined
+    public fun first
+  public struct Small : Joined
+  public interface Generic<T>
+    fun select

@@ -1,0 +1,14 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "archive global magic is not canonical",
+    "notes": [],
+    "origin": {
+      "kind": "artifact",
+      "member": "container:$",
+      "path": "${work}/artifacts/root.slib"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

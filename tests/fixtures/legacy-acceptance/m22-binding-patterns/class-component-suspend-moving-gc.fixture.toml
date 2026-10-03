@@ -1,0 +1,31 @@
+schema = 1
+name = "legacy-m22-binding-patterns-class-component-suspend-moving-gc"
+root = "../../m22-binding-patterns/class-component-suspend-moving-gc.scoop"
+inputs = ["../../m22-binding-patterns/class-component-suspend-moving-gc.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["legacy", "m22-binding-patterns", "single-file", "run", "moving-gc"]
+
+[[variants]]
+name = "normal"
+
+[[variants]]
+name = "moving"
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "class-component-suspend-moving-gc.ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "class-component-suspend-moving-gc.hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "class-component-suspend-moving-gc.mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "class-component-suspend-moving-gc.lir.txt"}]
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "subject-normal\nouter-1\ninner-1\ninner-2-enter\nnormal-suspended\ninner-2-exit\ninner-3\nouter-2\nfirst-normal\n42\nthird-normal\nlast-normal\nnormal-done\n42\nsubject-failure\nouter-1\ninner-1\ninner-2-enter\nfailure-suspended\ncaught-failure\nfailure-done\n0\n"
+stderr = ""
