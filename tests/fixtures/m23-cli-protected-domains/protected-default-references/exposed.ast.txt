@@ -1,0 +1,39 @@
+SourceFile
+  RootPackage
+  public fun defaultChild(): DefaultChild
+    =
+      Call DefaultChild
+  public fun defaultMulti(): DefaultMulti
+    =
+      Call DefaultMulti
+SourceFile
+  RootPackage
+  public struct DefaultValue
+    field field: Int = <expr>
+  public enum DefaultChoice
+    Empty
+    Item <ctor>
+      field: Int = <expr>
+  public object DefaultMarker
+    @Global
+  public var defaultSeed: Int = <expr>
+  public fun defaultFirst(): Int
+    =
+      IntLiteral 1
+  public open class DefaultBase(seed: Int = <expr>)
+    public fun read
+    protected fun inherited
+    protected fun combined
+    protected fun implicit
+    protected fun explicit
+    protected fun variant
+    protected fun callback
+    protected fun repeated
+  public class DefaultChild() : DefaultBase(<0 args>)
+    public fun inspect
+    protected fun inherited
+  public class DefaultMulti()
+    public fun inspect
+    public nested interface Left
+    protected nested interface Right
+    protected nested class Both

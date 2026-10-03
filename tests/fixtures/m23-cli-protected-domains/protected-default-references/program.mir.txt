@@ -1,0 +1,815 @@
+Module
+  global0 $singleton$66654e41720aae7ddf6fe1ca771e7004b2430c917fb97a280733a1df4e8a7ee8: DefaultMarker imported provider=911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006 storage=fbe1a7414910c428318842f4877778180d07c556721a62b9d8701628baad1b58
+  struct DefaultValue (field: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum DefaultChoice
+    Empty()
+    Item(field: Int)
+  enum CoroutineStep<ConsumerDefault>
+    Completed(value: ConsumerDefault)
+    Suspended()
+  enum CoroutineSlot<ConsumerDefault>
+    Empty()
+    Value(value: ConsumerDefault)
+  class ConsumerDefault vtable=1 itables=0
+  class DefaultBase vtable=1 itables=0
+  class DefaultMarker vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class DefaultChild vtable=1 itables=0
+  class DefaultMulti vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface Continuation<ConsumerDefault>
+  interface SuspendTask<ConsumerDefault>
+  interface SuspendRegistration<ConsumerDefault>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn4 captures=1
+    bridge function_type1 -> @fn12 id=982d3b72eb9dfe0e7170b544e8f2a2fbd2686292afb66a7c65e940d9605331cd
+  generated_exact_type get0 location=closure0 nominal_id=107fc2567c6a3b7bd9f2219807d8d8a48987eb343771ee6060b4b3a731d525a4 exact_id=2704ebbd70f0aa4555dbadc53858732d434fcba0d9f3ba1a7fe3343566d91d6d
+  generated_exact_type get1 location=class8 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get2 location=enum3 nominal_id=8ebc66dcd61fb45bfacfc2e735773b9825d53a89bb638deed0ad0af4d83152e4 exact_id=ea6dc0e85dd5e15e9f5e457ecd49c152b1ceeb9aae023898034b4e81661fc465
+  generated_exact_type get3 location=enum2 nominal_id=f435ca3e55c47e416414773928fde9ad2876bdfcba1c4aa4ba91660624762896 exact_id=f4b53385d339032ee64e2412b3b8454e7080e7b5a5a8915143185591512c5156
+  generated_callable gc0 function=@fn12 id=982d3b72eb9dfe0e7170b544e8f2a2fbd2686292afb66a7c65e940d9605331cd
+  generated_callable gc1 function=@fn11 id=b93601e2cc785036b5ad8888e18f889ada2c866ba9da7d607ce3712839d5ef88
+  fun ConsumerDefault.globalValue @fn0(this: ConsumerDefault) -> Int
+    bb0 entry
+      val $dependency.receiver: DefaultBase
+        Type DefaultBase
+        Retype DefaultBase
+          Type ConsumerDefault
+          Local this
+      val $default.local.1: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $default.local.2: Int
+        Type Int
+        Local $default.local.1
+      call external21 direct
+      call $call.1: Int = external10 direct
+      call $call.2: Int = external11 direct
+      call $call.3: DefaultValue = external8 direct
+        Type Int
+        Local $default.local.2
+      val $dependency.parameter.value: (Int, Int, DefaultMarker, Int)
+        Type (Int, Int, DefaultMarker, Int)
+        TupleLiteral
+          Type Int
+          Local $call.1
+          Type Int
+          Local $call.2
+          Type DefaultMarker
+          GlobalRead $singleton$66654e41720aae7ddf6fe1ca771e7004b2430c917fb97a280733a1df4e8a7ee8
+          Type Int
+          FieldAccess 0
+            Type DefaultValue
+            Local $call.3
+      call $call.4: (Int, Int, DefaultMarker, Int) = external12 direct
+        Type DefaultBase
+        Local $dependency.receiver
+        Type (Int, Int, DefaultMarker, Int)
+        Local $dependency.parameter.value
+      return
+        Type Int
+        FieldAccess 1
+          Type (Int, Int, DefaultMarker, Int)
+          Local $call.4
+  fun ConsumerDefault.inspect @fn1(this: ConsumerDefault) -> Boolean
+    bb0 entry
+      val $dependency.receiver: DefaultBase
+        Type DefaultBase
+        Retype DefaultBase
+          Type ConsumerDefault
+          Local this
+      val $default.local.1: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $default.local.2: Int
+        Type Int
+        Local $default.local.1
+      call external21 direct
+      call $call.1: Int = external10 direct
+      call $call.2: Int = external11 direct
+      call $call.3: DefaultValue = external8 direct
+        Type Int
+        Local $default.local.2
+      val $dependency.parameter.value: (Int, Int, DefaultMarker, Int)
+        Type (Int, Int, DefaultMarker, Int)
+        TupleLiteral
+          Type Int
+          Local $call.1
+          Type Int
+          Local $call.2
+          Type DefaultMarker
+          GlobalRead $singleton$66654e41720aae7ddf6fe1ca771e7004b2430c917fb97a280733a1df4e8a7ee8
+          Type Int
+          FieldAccess 0
+            Type DefaultValue
+            Local $call.3
+      call tuple: (Int, Int, DefaultMarker, Int) = external12 direct
+        Type DefaultBase
+        Local $dependency.receiver
+        Type (Int, Int, DefaultMarker, Int)
+        Local $dependency.parameter.value
+      val $dependency.receiver: DefaultBase
+        Type DefaultBase
+        Retype DefaultBase
+          Type ConsumerDefault
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.seed: Int
+        Type Int
+        Local $dependency.argument.0
+      val $default.local.2: DefaultBase
+        Type DefaultBase
+        Local $dependency.receiver
+      call $default.local.3: Int = external13 direct
+        Type DefaultBase
+        Local $default.local.2
+      val $default.local.4: Int
+        Type Int
+        Local $dependency.parameter.seed
+      val $default.local.5: Int
+        Type Int
+        Local $default.local.4
+      val $dependency.parameter.value: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $default.local.3
+          Type Int
+          Local $default.local.5
+      call $dependency.receiver: Int = external0 virtual[0]
+        Type DefaultBase
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.seed
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      val $dependency.receiver: DefaultBase
+        Type DefaultBase
+        Retype DefaultBase
+          Type ConsumerDefault
+          Local this
+      val $default.local.1: DefaultBase
+        Type DefaultBase
+        Local $dependency.receiver
+      call $dependency.parameter.value: Int = external13 direct
+        Type DefaultBase
+        Local $default.local.1
+      call $dependency.receiver: Int = external14 direct
+        Type DefaultBase
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      val $dependency.receiver: DefaultBase
+        Type DefaultBase
+        Retype DefaultBase
+          Type ConsumerDefault
+          Local this
+      val $dependency.argument.0: DefaultBase
+        Type DefaultBase
+        Retype DefaultBase
+          Type ConsumerDefault
+          Local this
+      val $dependency.parameter.other: DefaultBase
+        Type DefaultBase
+        Local $dependency.argument.0
+      val $default.local.2: DefaultBase
+        Type DefaultBase
+        Local $dependency.parameter.other
+      call $dependency.parameter.value: Int = external13 direct
+        Type DefaultBase
+        Local $default.local.2
+      call $dependency.receiver: Int = external15 direct
+        Type DefaultBase
+        Local $dependency.receiver
+        Type DefaultBase
+        Local $dependency.parameter.other
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb6
+    bb5 if.else.5
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 if.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $shortCircuit.1
+    bb7 if.then.7
+      val $dependency.receiver: DefaultBase
+        Type DefaultBase
+        Retype DefaultBase
+          Type ConsumerDefault
+          Local this
+      val $default.local.1: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.value: DefaultChoice
+        Type DefaultChoice
+        VariantConstruct DefaultChoice v1
+          Type Int
+          Local $default.local.1
+      call $equality.lhs: DefaultChoice = external16 direct
+        Type DefaultBase
+        Local $dependency.receiver
+        Type DefaultChoice
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.field: Int
+        Type Int
+        Local $dependency.argument.0
+      call $shortCircuit.2: Boolean = external19 direct
+        Type DefaultChoice
+        Local $equality.lhs
+        Type DefaultChoice
+        VariantConstruct DefaultChoice v1
+          Type Int
+          Local $dependency.parameter.field
+      goto bb9
+    bb8 if.else.8
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 if.merge.9
+      branch bb10 bb11
+        Type Boolean
+        Local $shortCircuit.2
+    bb10 if.then.10
+      val $dependency.receiver: DefaultBase
+        Type DefaultBase
+        Retype DefaultBase
+          Type ConsumerDefault
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $dependency.parameter.seed: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.value: () -> Int
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type Int
+            Local $dependency.parameter.seed
+      call $call.4: () -> Int = external17 direct
+        Type DefaultBase
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.seed
+        Type () -> Int
+        Local $dependency.parameter.value
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $call.4
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb12
+    bb11 if.else.11
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb12 if.merge.12
+      branch bb13 bb14
+        Type Boolean
+        Local $shortCircuit.3
+    bb13 if.then.13
+      val $dependency.receiver: DefaultBase
+        Type DefaultBase
+        Retype DefaultBase
+          Type ConsumerDefault
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $dependency.parameter.seed: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.value: (Int, Int)
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          Local $dependency.parameter.seed
+          Type Int
+          Local $dependency.parameter.seed
+      call $call.5: (Int, Int) = external18 direct
+        Type DefaultBase
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.seed
+        Type (Int, Int)
+        Local $dependency.parameter.value
+      call $shortCircuit.4: Boolean = @fn5 direct
+        Type (Int, Int)
+        Local $call.5
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=19 bits=0x00000013
+          Type Int
+          IntegerLiteral Int value=19 bits=0x00000013
+      goto bb15
+    bb14 if.else.14
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb15
+    bb15 if.merge.15
+      branch bb16 bb17
+        Type Boolean
+        Local $shortCircuit.4
+    bb16 if.then.16
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type (Int, Int, DefaultMarker, Int)
+          Local tuple
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.5: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb18
+    bb17 if.else.17
+      val $shortCircuit.5: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb18
+    bb18 if.merge.18
+      branch bb19 bb20
+        Type Boolean
+        Local $shortCircuit.5
+    bb19 if.then.19
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 1
+          Type (Int, Int, DefaultMarker, Int)
+          Local tuple
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.6: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb21
+    bb20 if.else.20
+      val $shortCircuit.6: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb21
+    bb21 if.merge.21
+      call external21 direct
+      branch bb22 bb23
+        Type Boolean
+        Local $shortCircuit.6
+    bb22 logic.rhs.22
+      assign $logic.6
+        Type Boolean
+        Binary RefEq
+          Type DefaultMarker
+          FieldAccess 2
+            Type (Int, Int, DefaultMarker, Int)
+            Local tuple
+          Type DefaultMarker
+          GlobalRead $singleton$66654e41720aae7ddf6fe1ca771e7004b2430c917fb97a280733a1df4e8a7ee8
+      goto bb24
+    bb23 logic.short.23
+      assign $logic.6
+        Type Boolean
+        BoolLiteral false
+      goto bb24
+    bb24 logic.merge.24
+      branch bb25 bb26
+        Type Boolean
+        Local $logic.6
+    bb25 if.then.25
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 3
+          Type (Int, Int, DefaultMarker, Int)
+          Local tuple
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.7: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb27
+    bb26 if.else.26
+      val $shortCircuit.7: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb27
+    bb27 if.merge.27
+      return
+        Type Boolean
+        Local $shortCircuit.7
+  fun verifyDomain @fn2(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external2 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn3() -> Unit
+    bb0 entry
+      assign $new.1
+        Type ConsumerDefault
+        ClassAlloc ConsumerDefault
+      call @fn10 direct
+        Type ConsumerDefault
+        Local $new.1
+      val value: ConsumerDefault
+        Type ConsumerDefault
+        Local $new.1
+      val $receiver: ConsumerDefault
+        Type ConsumerDefault
+        Local value
+      call $argument.0: Boolean = @fn1 direct
+        Type ConsumerDefault
+        Local $receiver
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.receiver: DefaultChild = external4 direct
+      call $dependency.receiver: Int = external5 direct
+        Type DefaultChild
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.receiver: DefaultMulti = external6 direct
+      call $dependency.receiver: Int = external7 direct
+        Type DefaultMulti
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.parameter.field: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      call $equality.lhs: DefaultValue = external8 direct
+        Type Int
+        Local $dependency.parameter.field
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.field: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.2: DefaultValue = external8 direct
+        Type Int
+        Local $dependency.parameter.field
+      call $argument.0: Boolean = external20 direct
+        Type DefaultValue
+        Local $equality.lhs
+        Type DefaultValue
+        Local $call.2
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.parameter.field: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $equality.lhs: DefaultChoice
+        Type DefaultChoice
+        VariantConstruct DefaultChoice v1
+          Type Int
+          Local $dependency.parameter.field
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.field: Int
+        Type Int
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external19 direct
+        Type DefaultChoice
+        Local $equality.lhs
+        Type DefaultChoice
+        VariantConstruct DefaultChoice v1
+          Type Int
+          Local $dependency.parameter.field
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      call external9 direct
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $receiver: ConsumerDefault
+        Type ConsumerDefault
+        Local value
+      call $dependency.receiver: Int = @fn0 direct
+        Type ConsumerDefault
+        Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun $lambda @fn4($argument.0: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        ClosureCapture cc0 0
+          Type () -> Int
+          Local $argument.0
+  fun $derived.equals.0 @fn5(this: (Int, Int), other: (Int, Int)) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type (Int, Int)
+            Local this
+          Type Int
+          FieldAccess 0
+            Type (Int, Int)
+            Local other
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 1
+            Type (Int, Int)
+            Local this
+          Type Int
+          FieldAccess 1
+            Type (Int, Int)
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.1
+  fun Continuation.resume @fn6(this: Continuation<ConsumerDefault>, value: ConsumerDefault) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn7(this: Continuation<ConsumerDefault>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn8(this: SuspendTask<ConsumerDefault>, $completion: Continuation<ConsumerDefault>) -> CoroutineStep<ConsumerDefault>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn9(this: SuspendRegistration<ConsumerDefault>, continuation: Continuation<ConsumerDefault>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.ConsumerDefault.$c0 @fn10(this: ConsumerDefault) -> Unit
+    bb0 entry
+      val $dependency.parameter.seed: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      call external1 direct
+        Type DefaultBase
+        Retype DefaultBase
+          Type ConsumerDefault
+          Local this
+        Type Int
+        Local $dependency.parameter.seed
+      return
+  fun startCoroutine<ConsumerDefault> @fn11(task: SuspendTask<ConsumerDefault>, completion: Continuation<ConsumerDefault>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn6 interface Continuation<ConsumerDefault>[0]
+        Type Continuation<ConsumerDefault>
+        Local completion
+        Type ConsumerDefault
+        EnumField v0 f0
+          Type CoroutineStep<ConsumerDefault>
+          Local $step
+      return
+    bb2 failed
+      call @fn7 interface Continuation<ConsumerDefault>[1]
+        Type Continuation<ConsumerDefault>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<ConsumerDefault> = @fn8 interface SuspendTask<ConsumerDefault>[0]
+        Type SuspendTask<ConsumerDefault>
+        Local task
+        Type Continuation<ConsumerDefault>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<ConsumerDefault>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$lambda0.() -> Any @fn12($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<ConsumerDefault> result=ConsumerDefault
+  coroutine_slot cl0 CoroutineSlot<ConsumerDefault> value=ConsumerDefault
+  coroutine_start ct0 result=ConsumerDefault function=fn11
+  coroutine_fn cf0 @fn8 source_return=ConsumerDefault step=cs0 immediate
+  instance mi0 function=@fn6 <- Continuation.resume
+  instance mi1 function=@fn7 <- Continuation.resumeWithException
+  instance mi2 function=@fn8 <- SuspendTask.run
+  instance mi3 function=@fn9 <- SuspendRegistration.register
+  str @str0 "illegal state"
+  output executable @fn3

@@ -1,0 +1,11 @@
+SourceFile
+  RootPackage
+  public fun variadic(): DefaultVariadic
+    =
+      Call DefaultVariadic
+SourceFile
+  RootPackage
+  public class DefaultVariadic()
+    public fun inspect
+    protected fun defaulted
+    protected fun empty

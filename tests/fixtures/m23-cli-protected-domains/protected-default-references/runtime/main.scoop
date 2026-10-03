@@ -1,0 +1,23 @@
+fun verifyDomain(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+class ConsumerDefault : DefaultBase() {
+    fun globalValue(): Int = combined()._2
+    fun inspect(): Boolean {
+        val tuple = combined()
+        return inherited(2) == 7 && implicit() == 5 && explicit(this) == 5
+            && variant() == DefaultChoice.Item(3) && callback(17)() == 17
+            && repeated(19) == (19, 19) && tuple._1 == 1 && tuple._2 == 7
+            && tuple._3 === DefaultMarker && tuple._4 == 6
+    }
+}
+
+fun main() {
+    val value = ConsumerDefault()
+    verifyDomain(value.inspect())
+    verifyDomain(defaultChild().inspect() == 8)
+    verifyDomain(defaultMulti().inspect() == 1)
+    verifyDomain(DefaultValue() == DefaultValue(2))
+    verifyDomain(DefaultChoice.Item() == DefaultChoice.Item(3))
+    defaultSeed = 11
+    verifyDomain(value.globalValue() == 11)
+}
