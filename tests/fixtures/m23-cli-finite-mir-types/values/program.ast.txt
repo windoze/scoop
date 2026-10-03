@@ -1,0 +1,36 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call verifyType
+      Binary Eq
+        Call FiniteEmpty
+        Call FiniteEmpty
+    Call verifyType
+      Binary Eq
+        FieldAccess number
+          Call FiniteScalar
+            IntLiteral 17
+        IntLiteral 17
+    Call verifyType
+      Binary Eq
+        MethodCall On
+          Var FiniteState
+          IntLiteral 23
+        MethodCall On
+          Var FiniteState
+          IntLiteral 23
+    val erased: Any
+      Call FiniteScalar
+        IntLiteral 29
+    Call verifyType
+      Binary Eq
+        FieldAccess number
+          Cast FiniteScalar optional=false
+            Var erased
+        IntLiteral 29

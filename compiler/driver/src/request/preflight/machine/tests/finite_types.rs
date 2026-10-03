@@ -70,7 +70,7 @@ fn finite_mir_types_are_produced_from_real_materializations_and_survive_bytes() 
     for (name, count) in [("values", 9), ("combined", 10)] {
         let directory = crate::workspace_root().join("tests/fixtures/m23-finite-mir-types");
         let source = std::fs::read_to_string(directory.join(format!("{name}.scoop"))).unwrap();
-        let (bytes, projection) = with_production(&source, |input, graph, records, _| {
+        let bytes = with_production(&source, |input, graph, records, _| {
             assertions::materializations(input, records);
             if name == "combined" {
                 assertions::hidden_box(input, records);
@@ -80,8 +80,8 @@ fn finite_mir_types_are_produced_from_real_materializations_and_survive_bytes() 
                 restored.validate(graph, input.foundation()).unwrap(),
                 *records
             );
-            let projection = assertions::projection(input, records, count);
-            (encode(records).unwrap(), projection)
+            assertions::role_count(input, records, count);
+            encode(records).unwrap()
         });
         with_production(
             &format!("private struct Unrelated() {{}}\n{source}"),
@@ -89,18 +89,5 @@ fn finite_mir_types_are_produced_from_real_materializations_and_survive_bytes() 
                 assert_eq!(encode(records).unwrap(), bytes);
             },
         );
-        if let Some(output) = std::env::var_os("SCOOP_FINITE_MIR_SNAPSHOT_DIR") {
-            std::fs::create_dir_all(&output).unwrap();
-            std::fs::write(
-                std::path::Path::new(&output).join(format!("{name}.snap")),
-                projection,
-            )
-            .unwrap();
-        } else {
-            assert_eq!(
-                projection,
-                std::fs::read_to_string(directory.join(format!("{name}.snap"))).unwrap()
-            );
-        }
     }
 }

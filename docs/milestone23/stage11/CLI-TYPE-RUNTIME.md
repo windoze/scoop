@@ -8,3 +8,4 @@
 | 名义形状物化 | `shape-materialization` 两例 | 13／22／7 | 值、class、enum、接口默认属性、alias、装箱；保留实际产物的 1／4 个 root、1／2 个 box 及六种支持角色断言，三阶段重复编译收敛为一次生产读取 |
 
 形状物化快照审阅：两例原 Export HIR 全文相同，新 HIR 同时显示 LocalConcrete 与 CrossCone。原 31 个 MIR 函数正文在统一函数 ID 后相同，新增 Payload／Combined／Choice 的既有派生 equality；LIR 只增加对应函数与更新函数引用编号。原逐 root 产物断言继续验证 layout、scan、descriptor、registration、coroutine step／slot，并将目标缺失改为明确失败。
+| 有限 MIR helper | `finite-mir-types` 两例 | 11／22／5 | 原 core identity 与 src/finite-types.scoop 路径，真实 core 重建与单文件下游；9／10 个指定形状 helper、字段／变体身份、GC、私有 box 排除和 wire 拒绝断言保留 |
