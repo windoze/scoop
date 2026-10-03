@@ -1,7 +1,6 @@
 use super::*;
 
 mod adapters;
-mod constructor_bodies;
 mod constructor_requests;
 mod constructors;
 mod coroutines;

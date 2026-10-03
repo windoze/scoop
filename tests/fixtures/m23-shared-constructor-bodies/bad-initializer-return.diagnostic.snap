@@ -1,3 +1,0 @@
-span=86..92
-expression=return
-`return` is not allowed in an initializer or constructor body
