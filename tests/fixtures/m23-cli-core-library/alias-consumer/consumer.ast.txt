@@ -1,0 +1,12 @@
+SourceFile
+  RootPackage
+  public typealias LocalCoreNumber = UserCoreNumber
+  public fun identity(value: UserCoreNumber): LocalCoreNumber
+    =
+      Var value
+  public fun pair(value: UserCorePair): UserCorePair
+    =
+      Var value
+  public fun namedResult(): UserCoreNumber
+    =
+      Call UserCoreNumber

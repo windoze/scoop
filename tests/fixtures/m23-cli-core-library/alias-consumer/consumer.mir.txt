@@ -1,0 +1,18 @@
+Module
+  fun identity @fn0(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun pair @fn1(value: (Int, Boolean)) -> (Int, Boolean)
+    bb0 entry
+      return
+        Type (Int, Boolean)
+        Local value
+  fun namedResult @fn2() -> Int
+    bb0 entry
+      call $call.1: Int = external0 direct
+      return
+        Type Int
+        Local $call.1
+  output library

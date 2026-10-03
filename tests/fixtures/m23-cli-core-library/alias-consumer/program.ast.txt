@@ -1,0 +1,29 @@
+SourceFile
+  RootPackage
+  ImportExact Local LocalCoreNumber
+  ImportExact Local identity
+  ImportExact Local pair
+  ImportExact Local namedResult
+  fun main()
+    val value: LocalCoreNumber
+      Call identity
+        IntLiteral 41
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Var value
+            IntLiteral 41
+          Binary Ne
+            Call pair
+              TupleLiteral
+                IntLiteral 41
+                BoolLiteral true
+            TupleLiteral
+              IntLiteral 41
+              BoolLiteral true
+        Binary Ne
+          Call namedResult
+          IntLiteral 12
+      throw
+        Call IllegalStateException

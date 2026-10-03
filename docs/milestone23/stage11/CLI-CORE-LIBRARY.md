@@ -17,3 +17,4 @@
 | 当前声明优先级 | `prelude-priority` | 1／5／5 | 当前同名函数优先于导入的 core prelude |
 | core 调用组合 | `calls` | 1／5／5 | 具名、默认、显式参数、const 与默认链 |
 | Unit 与混合 ABI | `abi` | 1／5／5 | Unit elision、Int32、managed String、返回类型与调用顺序 |
+| core typealias | `alias-consumer`、`alias-shadow`、`alias-generic-error` | 3／14／18 | 原完整 HIR export 逐字相同；类型／值命名空间、shadow、非泛型 alias 错误 |

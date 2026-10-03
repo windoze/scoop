@@ -1,0 +1,18 @@
+SourceFile
+  RootPackage
+  fun main()
+    if
+      Binary Or
+        Unary Not
+          Call localIdentity
+            BoolLiteral true
+        Call localIdentity
+          BoolLiteral false
+      throw
+        Call IllegalStateException
+SourceFile
+  RootPackage
+  typealias UserCoreNumber = Boolean
+  fun localIdentity(value: UserCoreNumber): Boolean
+    =
+      Var value
