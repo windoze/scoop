@@ -11,3 +11,4 @@
 | native source boundary rejections | 2／4／0／2 | 普通同形 struct 不能冒充 handle，GcHandle? 不具备 C nullable-pointer ABI；删除重复的两行 Rust 诊断快照。 |
 | constructor materialization | 2／10／10／4 | 主次构造、泛型闭包、继承与 type-only 选择；保留 source ID 到实际 MIR root 的一对一映射、参数/receiver 数量、GC effect 及未选择 NoGC overload 不物化。 |
 | boxed source values | 2／10／10／4 | ZST、Unit、类型测试和拆箱，以及含 String/tuple 的结构值在显式 gcCollect 后存活；逐字断言原有六行和四行输出。 |
+| program link source reads | 2／12／22／6 | core 调用、泛型 Box、closure、struct 与 interface；两例实际计算结果都是 42，并核对构建与独立链接计划相等。原 ProgramLinkClosure reader 的缺失/损坏测试继续保留。 |
