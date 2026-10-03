@@ -402,3 +402,4 @@ parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end，
 | `integer_ranges_preserve_iteration_through_artifact_republication` | `m23-shared-ranges` | 2／0 | 24／26 | 6 份阶段、0 份诊断逐项相同 |
 | `selected_interface_members_preserve_overloads_and_defaults` | `m23-shared-interface-members` | 2／1 | 27／26 | 6 份阶段、1 份诊断逐项相同 |
 | `callable_reference_targets_share_local_definitions_and_creation_captures` | `m23-shared-reference-targets` | 2／4 | 36／26 | 6 份阶段、4 份诊断逐项相同 |
+| `source_callable_references_republish_and_execute_from_artifacts` | `m23-source-callable-references` | 14／13 | 207／182 | 42 份阶段、13 份诊断逐项相同 |

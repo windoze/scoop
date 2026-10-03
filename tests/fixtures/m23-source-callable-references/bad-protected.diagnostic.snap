@@ -1,3 +1,0 @@
-span=108..112
-expression=read
-type `Protected<Int>` has no method `read`

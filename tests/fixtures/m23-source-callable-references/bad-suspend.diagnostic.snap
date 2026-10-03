@@ -1,4 +1,0 @@
-span=94..105
-expression=::suspended
-no applicable candidate for callable reference `::suspended` in dependency top-level candidate layer:
-  - suspend fun suspended<T>(value: T): T — ordinary and suspend callable shapes differ

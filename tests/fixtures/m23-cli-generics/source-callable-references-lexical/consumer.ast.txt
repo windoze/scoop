@@ -1,0 +1,39 @@
+SourceFile
+  QualifiedPackage consumer.references
+  ImportStar Local templates.references.*
+  public fun exercise<T>(value: T): Int
+    val copy: (T) -> T
+      CallableReference 0 identity
+    fun make(): (T) -> T
+      CallableReference 1 identity
+    val invoke: () -> T
+      Lambda 0 suspend=false
+        parameters omitted
+        Call copy
+          Var value
+    val invokeAgain: () -> T
+      AnonymousFunction 0 suspend=false return=T
+        return
+          Call invoke
+    val copied
+      Invoke
+        Call make
+        Call invokeAgain
+    val member: () -> Int
+      CallableReference 2 read
+        Call Plain
+          IntLiteral 42
+    fun read(): Int
+      Call member
+    val call: () -> Int
+      CallableReference 3 read
+    val values
+      TupleLiteral
+        Var value
+        Var copied
+    return
+      Call call
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0

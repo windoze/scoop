@@ -1,4 +1,0 @@
-span=91..105
-expression=::unsafeAnswer
-no applicable candidate for callable reference `::unsafeAnswer` in dependency top-level candidate layer:
-  - fun unsafeAnswer(): Int — unsafe functions cannot be stored in a managed function type because safety is not part of function-type identity

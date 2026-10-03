@@ -1,0 +1,60 @@
+SourceFile
+  QualifiedPackage consumer.references
+  ImportStar Local templates.references.*
+  public fun exercise<T>(value: T): Int
+    val unbound: (T) -> T
+      CallableReference 0 retain
+    val bound: () -> T
+      CallableReference 1 retain
+        Var value
+    val whole: (T, Int) -> Int
+      CallableReference 2 extensionSelect
+    val saved: (Int) -> Int
+      CallableReference 3 extensionSelect
+        Var value
+    val boundIncrement
+      CallableReference 4 increment
+        IntLiteral 41
+    val incrementUnbound
+      CallableReference 5 increment
+    val equals: (Int) -> Boolean
+      CallableReference 6 equals
+        IntLiteral 42
+    val values
+      TupleLiteral
+        Call bound
+        Call unbound
+          Var value
+    if
+      Binary Or
+        Binary Ne
+          Call boundIncrement
+          IntLiteral 42
+        Binary Ne
+          Call incrementUnbound
+            IntLiteral 41
+          IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Call whole
+              Var value
+              IntLiteral 42
+            IntLiteral 42
+          Unary Not
+            Call equals
+              IntLiteral 42
+        Call equals
+          IntLiteral 1
+      return
+        IntLiteral 2
+    return
+      Call saved
+        IntLiteral 42
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0
