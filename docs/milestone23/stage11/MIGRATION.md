@@ -426,3 +426,4 @@ parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end，
 | `delegate_initializer_adapters_republish_and_execute` | `m23-function-adapters` | 2／0 | 24／26 | 4 份阶段、0 份诊断逐项相同；LIR 仅补显已有的 external init-dependencies；完整旧输出逐字不变，provider Cone 与 initialization unit 身份在 provider HIR 中逐项核对；LIR 仅补显已有的 external init-dependencies；完整旧输出逐字不变，provider Cone 与 initialization unit 身份在 provider HIR 中逐项核对 |
 | `adapted_function_failures_preserve_catch_and_finally` | `m23-function-adapters` | 1／0 | 12／13 | 3 份阶段、0 份诊断逐项相同 |
 | `dynamic_function_variance_keeps_interface_ancestry` | `m23-function-adapters` | 1／0 | 12／13 | 3 份阶段、0 份诊断逐项相同 |
+| `private_function_signature_types_survive_tuple_boxing_and_republication` | `m23-function-adapters` | 1／0 | 12／13 | 3 份阶段、0 份诊断逐项相同 |
