@@ -1,0 +1,17 @@
+SourceFile
+  RootPackage
+  fun main()
+    val boxed: Any
+      Call boxInteger
+        IntLiteral 42
+    if
+      Binary Or
+        Binary Ne
+          Call castInteger
+            Var boxed
+          IntLiteral 42
+        Unary Not
+          Call testInteger
+            Var boxed
+      throw
+        Call IllegalStateException

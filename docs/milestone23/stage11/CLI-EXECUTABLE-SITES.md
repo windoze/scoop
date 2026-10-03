@@ -15,3 +15,4 @@
 | 完整签名、局部值与声明类型位置 | `types-declaration-standalone`、`types-declaration-combined` | 14／26 |
 | 字段、variant、初始化结果与静态存储 | `types-storage-standalone`、`types-storage-combined` | 14／26 |
 | 构造函数和 object 的实际源上下文 | `types-constructors` | 6／9 |
+| 装箱、拆箱、cast 与类型测试 | `types-shape-standalone`、`types-shape-combined` | 12／18 |
