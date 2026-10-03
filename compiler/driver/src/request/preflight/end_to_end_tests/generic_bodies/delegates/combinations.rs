@@ -193,21 +193,6 @@ fn check_fixture_cases(fixture: &str, cases: &[&str]) {
 }
 
 #[test]
-fn generic_delegate_initializer_closures_republish_and_execute() {
-    check_fixture_cases(
-        "m23-generic-delegate-closures",
-        &[
-            "initializer-closure",
-            "initializer-combined",
-            "initializer-plain",
-            "initializer-anonymous",
-            "initializer-values",
-            "initializer-local-closure",
-        ],
-    );
-}
-
-#[test]
 fn generic_delegate_initializer_references_republish_and_execute() {
     check_fixture_cases(
         "m23-generic-delegate-references",

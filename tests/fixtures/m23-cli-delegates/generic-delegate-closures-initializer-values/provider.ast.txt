@@ -1,0 +1,31 @@
+SourceFile
+  QualifiedPackage templates.delegateGenerated
+  public object Trace
+    public var initializerClosure: Int = <expr>
+      IntLiteral 0
+    public var initializerCombined: Int = <expr>
+      IntLiteral 0
+  public class Receiver<T>(val value: T)
+  public class Payload(var value: Int)
+  public class ReaderSlot<T>(val read: () -> Int)
+    public operator fun getValue
+  public val <T>Receiver<T>.initializerClosure: Int by <expr>
+  public val <T>Receiver<T>.initializerCombined: Int by <expr>
+  public object TraceMore
+    public var anonymous: Int = <expr>
+      IntLiteral 0
+    public var values: Int = <expr>
+      IntLiteral 0
+    public var localClosure: Int = <expr>
+      IntLiteral 0
+  public struct Triple
+    field first: Payload
+    field second: Payload
+    field third: Payload
+  public fun unitValue(value: Unit): Int
+    =
+      IntLiteral 0
+  public val <T>Receiver<T>.initializerPlain: Int by <expr>
+  public val <T>Receiver<T>.initializerAnonymous: Int by <expr>
+  public val <T>Receiver<T>.initializerValues: Int by <expr>
+  public val <T>Receiver<T>.initializerLocalClosure: Int by <expr>

@@ -22,3 +22,4 @@
 | `generic_delegate_mixed_roles_republish_and_execute` | 2／0 | 28／26 | 2 份旧阶段、0 份旧诊断逐项相同；mixed-members 的私有 extension 初始化路径加入 Cone coordinate／canonical source；MIR 12 处、LIR 2 处仅显示路径变化，符号与指令逐字相同；foreign-extensions 的私有 extension 初始化路径加入 Cone coordinate／canonical source；MIR 6 处、LIR 1 处仅显示路径变化，符号与指令逐字相同 |
 | `generic_delegate_language_errors_have_source_diagnostics` | 0／18 | 54／0 | 0 份旧阶段、18 份旧诊断逐项相同 |
 | `generic_delegate_initializer_local_functions_republish_and_execute` | 2／0 | 28／26 | 5 份旧阶段、0 份旧诊断逐项相同；LIR 仅追加实际初始化依赖；每个委托单元恰好依赖同一 provider 的 Trace，原正文逐字相同 |
+| `generic_delegate_initializer_closures_republish_and_execute` | 6／0 | 84／78 | 13 份旧阶段、0 份旧诊断逐项相同；LIR 仅追加实际初始化依赖；每个委托单元恰好依赖同一 provider 的 Trace，原正文逐字相同；LIR 仅追加实际初始化依赖；每个委托单元恰好依赖同一 provider 的 Trace，原正文逐字相同；LIR 仅追加实际初始化依赖；每个委托单元恰好依赖同一 provider 的 Trace，原正文逐字相同；LIR 仅追加实际初始化依赖；每个委托单元恰好依赖同一 provider 的 Trace，原正文逐字相同；LIR 仅追加实际初始化依赖；每个委托单元恰好依赖同一 provider 的 Trace，原正文逐字相同 |
