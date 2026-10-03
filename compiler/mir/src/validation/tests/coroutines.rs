@@ -14,6 +14,7 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
     let result = Type::Integer(IntegerKind::SIGNED_32);
     register_test_exact_type(&mut module, &result);
     let throwable = module.classes.alloc(ClassDef {
+        release_policy: Default::default(),
         type_arguments: Vec::new(),
         modifier: ClassModifier::Open,
         name: "Throwable".to_string(),
@@ -34,6 +35,7 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
     register_test_exact_type(&mut module, &Type::Interface(continuation));
     register_test_exact_type(&mut module, &Type::Unit);
     let adapter = module.classes.alloc(ClassDef {
+        release_policy: Default::default(),
         type_arguments: Vec::new(),
         modifier: ClassModifier::Final,
         name: "ContinuationAdapter".to_string(),
@@ -126,6 +128,7 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
     });
 
     let frame_class = module.classes.alloc(ClassDef {
+        release_policy: Default::default(),
         type_arguments: Vec::new(),
         modifier: ClassModifier::Final,
         name: "CoroutineFrame$pending".to_string(),

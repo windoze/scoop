@@ -79,7 +79,7 @@ impl ExpectedSafepoints {
 pub(crate) fn expectations(module: &scoop_lir::Module) -> Result<ExpectedSafepoints, CodegenError> {
     let mut sites = BTreeMap::new();
     let mut functions = BTreeMap::new();
-    for function in &module.functions {
+    for function in module.callable_bodies() {
         if functions
             .insert(function.symbol().to_string(), function.gc_effect)
             .is_some()
@@ -111,7 +111,9 @@ pub(crate) fn expectations(module: &scoop_lir::Module) -> Result<ExpectedSafepoi
                                 scoop_lir::RuntimeAbiSymbolV1::EnterNativeBorrowed,
                             ),
                         )),
-                        scoop_lir::CallSite::NoGc(_) => None,
+                        scoop_lir::CallSite::NoGc(_)
+                        | scoop_lir::CallSite::ReleaseScoop(_)
+                        | scoop_lir::CallSite::ReleaseNativeLeaf(_) => None,
                     },
                     scoop_lir::Instruction::Invoke { site } => match site {
                         scoop_lir::InvokeSite::Managed(site) => {
@@ -119,14 +121,18 @@ pub(crate) fn expectations(module: &scoop_lir::Module) -> Result<ExpectedSafepoi
                         }
                         scoop_lir::InvokeSite::NoGc(_) => None,
                     },
-                    scoop_lir::Instruction::NativeGlobalLoad { safepoint, .. }
-                    | scoop_lir::Instruction::NativeGlobalStore { safepoint, .. }
-                    | scoop_lir::Instruction::NativeGlobalAddress { safepoint, .. } => Some((
-                        *safepoint,
-                        ExpectedStatepoint::NativeTransition(
-                            scoop_lir::RuntimeAbiSymbolV1::EnterNativeSafe,
-                        ),
-                    )),
+                    scoop_lir::Instruction::NativeGlobalLoad { protocol, .. }
+                    | scoop_lir::Instruction::NativeGlobalStore { protocol, .. }
+                    | scoop_lir::Instruction::NativeGlobalAddress { protocol, .. } => {
+                        protocol.safepoint().map(|safepoint| {
+                            (
+                                safepoint,
+                                ExpectedStatepoint::NativeTransition(
+                                    scoop_lir::RuntimeAbiSymbolV1::EnterNativeSafe,
+                                ),
+                            )
+                        })
+                    }
                     scoop_lir::Instruction::BoxValue {
                         safepoint, live, ..
                     }

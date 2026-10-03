@@ -146,6 +146,7 @@ mod persistent_type_identities;
 mod persistent_types;
 mod pipeline;
 mod properties;
+mod release;
 mod scope;
 mod signatures;
 mod stmt;
@@ -608,6 +609,7 @@ pub(crate) struct Lowerer {
     pub(crate) enum_application_by_key:
         HashMap<(hir::SourceNominalId, Vec<TypeId>), hir::EnumApplicationId>,
     pub(crate) classes: Arena<ClassDecl>,
+    pub(crate) release_hooks: Arena<hir::ExportReleaseHook>,
     pub(crate) class_fields: Arena<hir::ClassField>,
     pub(crate) class_constructors: Arena<hir::ClassConstructor>,
     pub(crate) class_constructor_applications: Arena<hir::ClassConstructorApplication>,
@@ -806,6 +808,7 @@ pub(crate) struct Lowerer {
     /// Owner of the member function whose body is being lowered, for
     /// bare property / method resolution (`x` meaning `this.x`).
     pub(crate) current_owner: Option<Owner>,
+    pub(crate) current_release: Option<ClassId>,
     /// Typed primary-constructor parameters visible only while lowering a
     /// base-constructor delegation expression.
     pub(crate) constructor_params_in_scope:

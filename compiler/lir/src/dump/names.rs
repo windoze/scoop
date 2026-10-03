@@ -324,6 +324,30 @@ pub(super) fn call_site_name(function: &Function, site: &CallSite) -> String {
                 typed_call_name(function, &call)
             )
         }
+        CallSite::ReleaseScoop(site) => {
+            let call = targets.typed_call_view(
+                &site.call,
+                &targets.no_gc_targets,
+                NoGcCallDestination::view,
+            );
+            format!(
+                "{} {}",
+                typed_target_name("release-scoop", &call),
+                typed_call_name(function, &call)
+            )
+        }
+        CallSite::ReleaseNativeLeaf(site) => {
+            let call = targets.typed_call_view(
+                &site.call,
+                &targets.native_safe_targets,
+                NativeSafeCallDestination::view,
+            );
+            format!(
+                "{} {}",
+                typed_target_name("release-native-leaf", &call),
+                typed_call_name(function, &call)
+            )
+        }
         CallSite::NativeBorrowed(site) => {
             let native = site.call.view(targets);
             let call = native.call;

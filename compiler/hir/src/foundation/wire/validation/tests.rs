@@ -131,6 +131,7 @@ fn validate_origins_only(fixture: &Fixture) -> Result<(), HirFoundationValidatio
         &foundation.enum_variants,
         &foundation.enum_variant_fields,
         &foundation.generated_callables,
+        &foundation.exact_types,
         &foundation.initialization_units,
         &foundation.local_bindings,
         &foundation.local_values,

@@ -345,6 +345,7 @@ pub struct DispatchEntry {
 /// global (see runtime/include/scoop_runtime_metadata_v1.h for the field order).
 #[derive(Debug)]
 pub struct TypeDescriptor {
+    pub release_policy: ReleasePolicy,
     /// Canonical exact-type UTF-8 used only for diagnostics.
     pub diagnostic_name: String,
     /// Complete persistent-to-runtime identity selected by lir-lower.

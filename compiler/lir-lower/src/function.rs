@@ -11,6 +11,7 @@ mod places;
 mod pointers;
 mod scalars;
 mod statements;
+mod storage;
 
 use call::LoweredCallDestination;
 
@@ -120,7 +121,7 @@ pub(super) fn lower_function<'a>(
     let address_taken = locals::address_taken(function);
     let mut local_map = HashMap::new();
     assert_eq!(
-        function.params.len(),
+        function.params.len() + usize::from(callable_body.release_owner().is_some()),
         signature.logical_argument_count(),
         "preclassified function signature preserves logical arity"
     );
@@ -191,6 +192,7 @@ pub(super) fn lower_function<'a>(
         context,
         producer,
         callable_body: &callable_body,
+        gc_effect: function.gc_effect,
         module,
         mir_locals: &function.body.locals,
         global_map,
@@ -287,6 +289,7 @@ struct FunctionLowerer<'a> {
     context: &'a LoweringContext,
     producer: scoop_identity::ConeIdentity,
     callable_body: &'a lir::CallableBodyIdentity,
+    gc_effect: mir::GcEffect,
     module: &'a mir::Module,
     /// Locals of the MIR function being lowered (for local storage and parameters).
     mir_locals: &'a Arena<mir::Local>,

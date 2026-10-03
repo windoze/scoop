@@ -14,7 +14,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
 
         let is_native = matches!(
             protocol,
-            CallProtocol::NativeSafe { .. } | CallProtocol::NativeBorrowed { .. }
+            CallProtocol::NativeSafe { .. }
+                | CallProtocol::NativeBorrowed { .. }
+                | CallProtocol::ReleaseNativeLeaf
         );
         if is_native && has_invoke {
             return Err(CodegenError(format!(
@@ -109,7 +111,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         scoop_lir::GcEffect::Managed
                     }
                     CallProtocol::NoGc => scoop_lir::GcEffect::NoGc,
-                    CallProtocol::NativeSafe { .. } | CallProtocol::NativeBorrowed { .. } => {
+                    CallProtocol::NativeSafe { .. }
+                    | CallProtocol::NativeBorrowed { .. }
+                    | CallProtocol::ReleaseNativeLeaf => {
                         return Err(CodegenError(format!(
                             "typed local call @{} cannot use a native transition protocol",
                             self.function.symbol()
@@ -146,7 +150,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         scoop_lir::GcEffect::Managed
                     }
                     CallProtocol::NoGc => scoop_lir::GcEffect::NoGc,
-                    CallProtocol::NativeSafe { .. } | CallProtocol::NativeBorrowed { .. } => {
+                    CallProtocol::NativeSafe { .. }
+                    | CallProtocol::NativeBorrowed { .. }
+                    | CallProtocol::ReleaseNativeLeaf => {
                         return Err(CodegenError(format!(
                             "typed external call @{} cannot use a native transition protocol",
                             self.function.symbol()
@@ -227,7 +233,10 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                                 | TypedCallResult::Direct { .. }
                                 | TypedCallResult::Indirect { .. } => false,
                             },
-                            matches!(protocol, CallProtocol::NativeSafe { .. }),
+                            matches!(
+                                protocol,
+                                CallProtocol::NativeSafe { .. } | CallProtocol::ReleaseNativeLeaf
+                            ),
                         )
                     }
                     ExternFunctionKind::Scoop {

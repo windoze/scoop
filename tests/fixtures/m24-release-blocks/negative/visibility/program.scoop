@@ -1,0 +1,4 @@
+class Owner {
+    public release {}
+}
+fun main() {}

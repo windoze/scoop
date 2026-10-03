@@ -82,6 +82,9 @@ impl Lowerer {
                 | hir::StatementKind::Try(_)
                 | hir::StatementKind::Throw(_) => facts.requirements = None,
             }
+            if facts.requirements.is_none() {
+                facts.violation.get_or_insert(statement.span);
+            }
         }
     }
 

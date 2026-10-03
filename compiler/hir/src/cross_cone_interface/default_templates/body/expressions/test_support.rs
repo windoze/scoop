@@ -276,6 +276,7 @@ impl PersistentIdResolver<PersistentGenericFunctionId> for Resolver {
 }
 
 reject_identity!(PersistentPropertyAccessorId);
+reject_identity!(scoop_identity::PersistentExactTypeId);
 reject_identity!(scoop_identity::PersistentExtensionPropertyId);
 reject_identity!(PersistentGenericTypeId);
 reject_identity!(PersistentCallbackRegistrationId);

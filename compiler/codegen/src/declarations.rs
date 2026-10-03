@@ -38,6 +38,12 @@ pub(crate) fn declare_function<'ctx>(
         &function.signature,
     )?;
     statepoint::configure_function(context, llvm_function, function.gc_effect, profile);
+    if function.callable_body.release_owner().is_some() {
+        llvm_function.add_attribute(
+            AttributeLoc::Function,
+            context.create_enum_attribute(Attribute::get_named_enum_kind_id("nounwind"), 0),
+        );
+    }
     Ok(())
 }
 

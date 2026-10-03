@@ -20,6 +20,24 @@ fn a_parent_relocation_must_match_the_exact_external_descriptor_symbol() {
 }
 
 #[test]
+fn a_separate_hook_object_is_referenced_by_its_exact_callable_body_symbol() {
+    let hook = |owner| {
+        scoop_identity::PersistentCallableBodyId::from_key(
+            &scoop_identity::CallableBodyKey::release_hook(exact(owner)),
+        )
+        .unwrap()
+    };
+    let expected = PersistentSymbolKey::CallableBody(hook(CoreBuiltinNominal::Unit));
+    let other = PersistentSymbolKey::CallableBody(hook(CoreBuiltinNominal::Any));
+    let target = VerifiedRelocationTargetV1::ExternalUndefined {
+        table_index: 4,
+        name: format!("_{}", MangledSymbol::from_key(&expected)).into_bytes(),
+    };
+    assert!(external_target_matches(&target, expected));
+    assert!(!external_target_matches(&target, other));
+}
+
+#[test]
 fn a_local_relocation_cannot_substitute_another_definition_owner_or_role() {
     let producer = ConeIdentity::SINGLE_FILE;
     let entity = StrongDefinitionEntity::exact_type(exact(CoreBuiltinNominal::Unit));

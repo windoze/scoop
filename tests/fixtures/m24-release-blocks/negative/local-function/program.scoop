@@ -1,0 +1,5 @@
+fun helper() {}
+class Owner(private var handle: Int) {
+    release { fun nested() {} }
+}
+fun main() {}

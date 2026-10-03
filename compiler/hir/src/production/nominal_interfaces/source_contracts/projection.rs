@@ -67,6 +67,7 @@ pub(super) fn project(
         crate::production::nominal_dispatch::project(export, local.owner())?,
         primary,
         instantiation_conditions(export, local, parameters)?,
+        release_policy(export, local, parameters)?,
     );
     NominalInterfaceRecordV1::try_new(
         owner,
@@ -164,4 +165,36 @@ fn instantiation_conditions(
         no_gc,
         crate::CanonicalBinderUseListV1::try_new(arguments).map_err(invalid)?,
     ))
+}
+
+fn release_policy(
+    export: &ExportHir,
+    local: LocalNominalId,
+    parameters: &[TypeParamDecl],
+) -> Result<crate::NominalReleasePolicyV1, Error> {
+    let LocalNominalId::Class(id) = local else {
+        return Ok(crate::NominalReleasePolicyV1::None);
+    };
+    let requirements = match &export.classes[id].release_policy {
+        crate::ReleasePolicy::None => return Ok(crate::NominalReleasePolicyV1::None),
+        crate::ReleasePolicy::SynchronousGcFree { hook } => match hook {
+            crate::ExportReleaseHookRef::Template(id) => &export.release_hooks[*id].requirements,
+            crate::ExportReleaseHookRef::Imported { requirements } => requirements,
+        },
+    };
+    let mut requirements = requirements
+        .iter()
+        .map(|id| {
+            let index = parameters
+                .iter()
+                .position(|parameter| parameter.id == *id)
+                .and_then(|index| u32::try_from(index).ok())
+                .ok_or_else(|| {
+                    invalid("release condition must name its original nominal parameter")
+                })?;
+            Ok(crate::ReleaseValueBinderV1 { depth: 0, index })
+        })
+        .collect::<Result<Vec<_>, Error>>()?;
+    requirements.sort_unstable();
+    Ok(crate::NominalReleasePolicyV1::SynchronousGcFree { requirements })
 }

@@ -104,6 +104,11 @@ fn wire_reader_rejects_type_registrations_without_runtime_relations() {
     let plans = fixture.build().unwrap();
     let plan = &plans.registrations()[0];
     let mut encoded = encode(plan).unwrap();
+    assert_eq!(&encoded[..2], &[0xb8, 30]);
+    assert_eq!(&encoded[encoded.len() - 5..], &[0x18, 30, 0xa1, 0, 1]);
+    encoded[1] = 29;
+    encoded.truncate(encoded.len() - 5);
+    assert!(decode_canonical::<DecodedStrongTypeRegistrationPlanV1>(&encoded).is_err());
     assert_eq!(&encoded[..2], &[0xb8, 29]);
     assert_eq!(&encoded[encoded.len() - 5..], &[0x18, 29, 0xa1, 0, 0]);
     encoded[1] = 28;

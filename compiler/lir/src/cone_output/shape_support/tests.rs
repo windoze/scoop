@@ -215,6 +215,7 @@ fn fixture_module(producer: ConeIdentity) -> Module {
         source_nominal(&anchor),
     );
     Module {
+        release_hooks: Arena::new(),
         cone: producer,
         globals: Arena::new(),
         initialization_units: Arena::new(),
@@ -316,6 +317,7 @@ fn add_exact_shape_to_components(
     )
     .unwrap();
     let descriptor = type_descriptors.alloc(TypeDescriptor {
+        release_policy: Default::default(),
         relations: Default::default(),
         diagnostic_name: nominal.to_string(),
         vtable: VtableRecord::new(&identity, Vec::new()).unwrap(),

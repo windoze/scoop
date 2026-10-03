@@ -164,6 +164,7 @@ pub(crate) fn type_descriptors(
         let vtable = lir::VtableRecord::new(&identity, Vec::new())
             .expect("validated interface exact type must derive a vtable identity");
         let id = descriptors.alloc(lir::TypeDescriptor {
+            release_policy: Default::default(),
             relations: lir::TypeDescriptorRelations::Interface {
                 parents: Vec::new(),
             },

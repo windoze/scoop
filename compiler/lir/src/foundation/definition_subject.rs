@@ -46,10 +46,16 @@ impl ConeLirFoundation {
                 .callable_bodies()
                 .iter()
                 .find(|record| record.id() == body)?;
-            let CallableBodyKeyKind::Odr(member) = body.key().kind() else {
-                return None;
-            };
-            member.member()
+            match body.key().kind() {
+                CallableBodyKeyKind::Odr(member) => member.member(),
+                CallableBodyKeyKind::ReleaseHook { .. } => self
+                    .as_canonical()
+                    .odr_members
+                    .iter()
+                    .find(|record| member_subject(record.key()) == Some((entity, role)))?
+                    .id(),
+                _ => return None,
+            }
         } else {
             self.as_canonical()
                 .odr_members
@@ -76,6 +82,15 @@ impl ConeLirFoundation {
 
 pub(super) fn member_subject(key: &OdrMemberKey) -> Option<(StrongDefinitionEntity, S)> {
     let (entity, role) = match (key.role(), key.discriminator()) {
+        (R::ReleaseHook, D::ExactType(owner)) => (
+            StrongDefinitionEntity::callable_body(
+                scoop_identity::PersistentCallableBodyId::from_key(
+                    &scoop_identity::CallableBodyKey::release_hook(*owner),
+                )
+                .expect("an exact owner derives a fixed-size release body key"),
+            ),
+            S::CallableBody,
+        ),
         (R::Layout, D::Layout(id)) => (StrongDefinitionEntity::layout(*id), S::Layout),
         (R::ScanProgram, D::Scan(id)) => (StrongDefinitionEntity::scan(*id), S::ScanProgram),
         (R::TypeDescriptor, D::ExactType(id)) => {

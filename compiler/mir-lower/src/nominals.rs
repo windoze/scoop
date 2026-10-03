@@ -304,6 +304,7 @@ impl Lowerer {
                 }
             };
             let mir_id = self.classes.alloc(mir::ClassDef {
+                release_policy: Default::default(),
                 modifier,
                 name: decl.name.clone(),
                 type_arguments: Vec::new(),

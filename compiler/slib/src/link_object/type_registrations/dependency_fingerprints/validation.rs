@@ -207,6 +207,14 @@ where
                 None => false,
             },
             112 => relocation == descriptor.diagnostic_relocation(),
+            144 => plan.semantic().release_policy().hook().is_some_and(|hook| {
+                definition_target_matches(
+                    target,
+                    definitions,
+                    StrongDefinitionEntity::callable_body(*hook),
+                    StrongDefinitionRole::CallableBody,
+                ) || external_target_matches(target, PersistentSymbolKey::CallableBody(*hook))
+            }),
             offset if offset == 136 || offset >= 152 => {
                 let function = plan.semantic().relations();
                 let reference = if offset == 136 {
@@ -288,6 +296,9 @@ fn expected_relocation_offsets<D: Copy, C>(plan: &StrongTypeRegistrationPlan<D, 
     let function = plan.semantic().relations();
     if function.result().copied().flatten().is_some() {
         expected.push(136);
+    }
+    if plan.semantic().release_policy().hook().is_some() {
+        expected.push(144);
     }
     for (index, reference) in function.related_types().iter().enumerate() {
         if reference.is_some() {

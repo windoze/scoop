@@ -180,7 +180,9 @@ pub(super) fn annotate_root_plans(
                             context, &roots, function, structs, enums,
                         )?)
                     }
-                    lir::CallSite::NoGc(_) => RootPlan::None,
+                    lir::CallSite::NoGc(_)
+                    | lir::CallSite::ReleaseScoop(_)
+                    | lir::CallSite::ReleaseNativeLeaf(_) => RootPlan::None,
                     lir::CallSite::NativeSafe(_) => {
                         RootPlan::NativeSafe(lir::NativeSafeRootSet::new(caller_roots(
                             context, &live, function, structs, enums,
@@ -223,13 +225,20 @@ pub(super) fn annotate_root_plans(
                     )?),
                     lir::InvokeSite::NoGc(_) => RootPlan::None,
                 },
-                lir::Instruction::NativeGlobalLoad { .. }
-                | lir::Instruction::NativeGlobalStore { .. }
-                | lir::Instruction::NativeGlobalAddress { .. } => {
-                    RootPlan::NativeSafe(lir::NativeSafeRootSet::new(caller_roots(
-                        context, &live, function, structs, enums,
-                    )?))
+                lir::Instruction::NativeGlobalLoad {
+                    protocol: lir::NativeStorageProtocol::NativeSafe { .. },
+                    ..
                 }
+                | lir::Instruction::NativeGlobalStore {
+                    protocol: lir::NativeStorageProtocol::NativeSafe { .. },
+                    ..
+                }
+                | lir::Instruction::NativeGlobalAddress {
+                    protocol: lir::NativeStorageProtocol::NativeSafe { .. },
+                    ..
+                } => RootPlan::NativeSafe(lir::NativeSafeRootSet::new(caller_roots(
+                    context, &live, function, structs, enums,
+                )?)),
                 _ => RootPlan::None,
             };
             for value in instruction_uses(instruction, function) {
@@ -293,9 +302,18 @@ pub(super) fn annotate_root_plans(
                     RootPlan::Exceptional(roots),
                 ) => site.roots = roots,
                 (
-                    lir::Instruction::NativeGlobalLoad { roots, .. }
-                    | lir::Instruction::NativeGlobalStore { roots, .. }
-                    | lir::Instruction::NativeGlobalAddress { roots, .. },
+                    lir::Instruction::NativeGlobalLoad {
+                        protocol: lir::NativeStorageProtocol::NativeSafe { roots, .. },
+                        ..
+                    }
+                    | lir::Instruction::NativeGlobalStore {
+                        protocol: lir::NativeStorageProtocol::NativeSafe { roots, .. },
+                        ..
+                    }
+                    | lir::Instruction::NativeGlobalAddress {
+                        protocol: lir::NativeStorageProtocol::NativeSafe { roots, .. },
+                        ..
+                    },
                     RootPlan::NativeSafe(computed),
                 ) => *roots = computed,
                 (

@@ -39,6 +39,7 @@ pub type DerivedEqualityApplicationId = Idx<DerivedEqualityApplication>;
 pub type StructId = Idx<StructDecl>;
 pub type EnumId = Idx<EnumDecl>;
 pub type ClassId = Idx<ClassDecl>;
+pub type ExportReleaseHookId = Idx<ExportReleaseHook>;
 pub type ClassFieldId = Idx<ClassField>;
 pub type ClassConstructorId = Idx<ClassConstructor>;
 pub type StructConstructorId = Idx<StructConstructor>;

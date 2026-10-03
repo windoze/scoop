@@ -219,6 +219,20 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
             DefaultExpressionKindV1::ForeignCallbackOperation { callback, .. } => {
                 self.push_child(pending, BodyNode::Expression(callback))
             }
+            DefaultExpressionKindV1::ReleaseFieldLoad {
+                owner_type,
+                declaration,
+            } => self.push_child(
+                pending,
+                BodyNode::FieldUse {
+                    target: super::super::FieldTargetView::Class {
+                        owner_type,
+                        declaration: *declaration,
+                    },
+                    origin,
+                    site: ExportDefaultReferenceOccurrenceSiteV1::Expression,
+                },
+            ),
             DefaultExpressionKindV1::FieldAccess { receiver, field } => {
                 self.push_child(
                     pending,

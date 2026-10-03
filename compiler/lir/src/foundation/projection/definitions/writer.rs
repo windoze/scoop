@@ -44,8 +44,12 @@ impl DefinitionWriter {
                 )?;
             }
         }
-        for function in &module.functions {
+        for function in module.callable_bodies() {
             let body = &function.callable_body;
+            let root = body.materialization_root();
+            if let Some(owner) = body.release_owner() {
+                writer.materialization(&root, R::ReleaseHook, D::ExactType(owner))?;
+            }
             if let ObjectDefinitionPlanOwner::Odr { member } =
                 body.definition_plan_key(module.cone).owner()
             {
@@ -55,7 +59,6 @@ impl DefinitionWriter {
                     member,
                 )?;
             }
-            let root = body.materialization_root();
             writer.materialization(&root, R::RegistrationRecord, D::CallableBody(body.id()))?;
             for safepoint in function.safepoints.iter() {
                 writer.materialization(

@@ -8,7 +8,7 @@ use crate::{CoreLoweringAuthority, Lowerer, Owner};
 
 type Requirements = Option<HashSet<hir::TypeParamId>>;
 
-pub(super) struct ReleaseValueFacts {
+pub(crate) struct ReleaseValueFacts {
     templates: HashMap<hir::SourceNominalId, Requirements>,
 }
 

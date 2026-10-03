@@ -1,0 +1,698 @@
+Module
+  extern ef0 create @m24_create(Int) -> Ptr<Unit> <abi=c no-gc lib=m24_release>
+  extern ef1 drop @m24_drop(Ptr<Unit>) -> Unit <abi=c no-gc lib=m24_release>
+  extern ef2 count @m24_count() -> Int <abi=c no-gc lib=m24_release>
+  enum Option<Ptr<Unit>>
+    Some(_0: Ptr<Unit>)
+    None()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class Payload vtable=0 itables=0
+  class Base vtable=0 itables=0
+  class Owner vtable=0 itables=0
+  class GetterOwner vtable=0 itables=0
+  class EmptyOwner vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface ToString
+  interface Hash
+  fun Owner.acquire @fn0(this: Owner, value: Int) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Ptr<Unit> = extern0 @m24_create direct
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter._1: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $dependency.argument.0
+      field_set 1
+        Type Owner
+        Local this
+        Type Option<Ptr<Unit>>
+        VariantConstruct Option<Ptr<Unit>> v0
+          Type Ptr<Unit>
+          Local $dependency.parameter._1
+      return
+  fun Owner.close @fn1(this: Owner) -> Unit
+    bb0 entry
+      val saved: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
+        FieldAccess 1
+          Type Owner
+          Local this
+      field_set 1
+        Type Owner
+        Local this
+        Type Option<Ptr<Unit>>
+        VariantConstruct Option<Ptr<Unit>> v1
+      val $when.1: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
+        Local saved
+      val $pattern.subject.2: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Ptr<Unit>> v0
+          Type Option<Ptr<Unit>>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val pointer: Ptr<Unit>
+        Type Ptr<Unit>
+        VariantPayloadProject Option<Ptr<Unit>> v0 f0
+          Type Option<Ptr<Unit>>
+          Local $pattern.subject.2
+      val $argument.0: Ptr<Unit>
+        Type Ptr<Unit>
+        Local pointer
+      val $parameter.pointer: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $argument.0
+      call extern1 @m24_drop direct
+        Type Ptr<Unit>
+        Local $parameter.pointer
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Ptr<Unit>> v1
+          Type Option<Ptr<Unit>>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+    bb4 pattern.pass.4
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun drop @fn2(arg0: Ptr<Unit>) -> Unit
+    bb0 entry
+      call extern1 @m24_drop direct
+        Type Ptr<Unit>
+        Local arg0
+      return
+  fun GetterOwner.$get$handle @fn3(this: GetterOwner) -> Option<Ptr<Unit>>
+    bb0 entry
+      return
+        Type Option<Ptr<Unit>>
+        VariantConstruct Option<Ptr<Unit>> v1
+  fun create @fn4(arg0: Int) -> Ptr<Unit>
+    bb0 entry
+      call $call.1: Ptr<Unit> = extern0 @m24_create direct
+        Type Int
+        Local arg0
+      return
+        Type Ptr<Unit>
+        Local $call.1
+  fun count @fn5() -> Int
+    bb0 entry
+      call $call.1: Int = extern2 @m24_count direct
+      return
+        Type Int
+        Local $call.1
+  fun allocateNative @fn6(value: Int) -> Ptr<Unit>
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Ptr<Unit> = extern0 @m24_create direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Ptr<Unit>
+        Local $call.1
+  fun closed @fn7() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Owner
+        ClassAlloc Owner
+      call @fn18 direct
+        Type Owner
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      publish_release_ready Owner
+        Type Owner
+        Local $new.1
+      val owner: Owner
+        Type Owner
+        Local $new.1
+      call @scoop_rt_gc_collect direct
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Payload
+          FieldAccess 2
+            Type Owner
+            Local owner
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Owner
+          Local owner
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn14 direct
+        Type Int
+        Local $dependency.parameter.value
+      call $dependency.argument.0: Int = extern2 @m24_count direct
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn14 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $receiver: Owner
+        Type Owner
+        Local owner
+      call @fn1 direct
+        Type Owner
+        Local $receiver
+      val $receiver: Owner
+        Type Owner
+        Local owner
+      call @fn1 direct
+        Type Owner
+        Local $receiver
+      return
+  fun delegated @fn8() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Owner
+        ClassAlloc Owner
+      call @fn19 direct
+        Type Owner
+        Local $new.1
+      publish_release_ready Owner
+        Type Owner
+        Local $new.1
+      val owner: Owner
+        Type Owner
+        Local $new.1
+      return
+  fun lazyAcquisition @fn9() -> Unit
+    bb0 entry
+      val $argument.0: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
+        VariantConstruct Option<Ptr<Unit>> v1
+      val $parameter.initial: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
+        Local $argument.0
+      val $parameter.fail: Boolean
+        Type Boolean
+        BoolLiteral false
+      assign $new.1
+        Type Owner
+        ClassAlloc Owner
+      call @fn17 direct
+        Type Owner
+        Local $new.1
+        Type Option<Ptr<Unit>>
+        Local $parameter.initial
+        Type Boolean
+        Local $parameter.fail
+      publish_release_ready Owner
+        Type Owner
+        Local $new.1
+      val owner: Owner
+        Type Owner
+        Local $new.1
+      val $receiver: Owner
+        Type Owner
+        Local owner
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @fn0 direct
+        Type Owner
+        Local $receiver
+        Type Int
+        Local $parameter.value
+      return
+  fun getter @fn10() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=13 bits=0x0000000d
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $argument.0: Ptr<Unit> = extern0 @m24_create direct
+        Type Int
+        Local $parameter.value
+      val $parameter.pointer: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $argument.0
+      assign $new.1
+        Type GetterOwner
+        ClassAlloc GetterOwner
+      call @fn20 direct
+        Type GetterOwner
+        Local $new.1
+        Type Ptr<Unit>
+        Local $parameter.pointer
+      publish_release_ready GetterOwner
+        Type GetterOwner
+        Local $new.1
+      val owner: GetterOwner
+        Type GetterOwner
+        Local $new.1
+      return
+  fun failed @fn11() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call resource: Ptr<Unit> = extern0 @m24_create direct
+        Type Int
+        Local $parameter.value
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb9 bb10
+        Type Boolean
+        IsInstance ArithmeticException
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      return
+    bb8 try.body.8 unwind bb1
+      val $dependency.argument.0: Ptr<Unit>
+        Type Ptr<Unit>
+        Local resource
+      val $dependency.parameter._1: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $dependency.argument.0
+      val $argument.0: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
+        VariantConstruct Option<Ptr<Unit>> v0
+          Type Ptr<Unit>
+          Local $dependency.parameter._1
+      val $argument.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.initial: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
+        Local $argument.0
+      val $parameter.fail: Boolean
+        Type Boolean
+        Local $argument.1
+      assign $new.1
+        Type Owner
+        ClassAlloc Owner
+      call @fn17 direct
+        Type Owner
+        Local $new.1
+        Type Option<Ptr<Unit>>
+        Local $parameter.initial
+        Type Boolean
+        Local $parameter.fail
+      publish_release_ready Owner
+        Type Owner
+        Local $new.1
+      val owner: Owner
+        Type Owner
+        Local $new.1
+      goto bb7
+    bb9 try.catch.9
+      call $catch.2: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: ArithmeticException
+        Type ArithmeticException
+        Retype ArithmeticException
+          Type Any
+          Local $catch.2
+      goto bb11
+    bb10 try.next.10
+      rethrow unwind bb5
+    bb11 scope.11 unwind bb3
+      val $argument.0: Ptr<Unit>
+        Type Ptr<Unit>
+        Local resource
+      val $parameter.pointer: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $argument.0
+      call extern1 @m24_drop direct
+        Type Ptr<Unit>
+        Local $parameter.pointer
+      end_catch
+      goto bb12
+    bb12 scope.12
+      goto bb7
+  fun collectAndPrint @fn12() -> Unit
+    bb0 entry
+      call @scoop_rt_gc_collect direct
+      call @scoop_rt_gc_collect direct
+      call $dependency.argument.0: Int = extern2 @m24_count direct
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn14 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun main @fn13() -> Unit
+    bb0 entry
+      call @fn7 direct
+      call @fn12 direct
+      call @fn8 direct
+      call @fn12 direct
+      call @fn9 direct
+      call @fn12 direct
+      call @fn10 direct
+      call @fn12 direct
+      call @fn11 direct
+      call @fn12 direct
+      assign $new.1
+        Type EmptyOwner
+        ClassAlloc EmptyOwner
+      call @fn21 direct
+        Type EmptyOwner
+        Local $new.1
+      publish_release_ready EmptyOwner
+        Type EmptyOwner
+        Local $new.1
+      val empty: EmptyOwner
+        Type EmptyOwner
+        Local $new.1
+      return
+  fun println @fn14(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun init.Payload.$c0 @fn15(this: Payload, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Payload
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Base.$c1 @fn16(this: Base, inherited: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Base
+        Local this
+        Type Int
+        Local inherited
+      return
+  fun init.Owner.$c2 @fn17(this: Owner, initial: Option<Ptr<Unit>>, fail: Boolean) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.inherited: Int
+        Type Int
+        Local $argument.0
+      call @fn16 direct
+        Type Base
+        Retype Base
+          Type Owner
+          Local this
+        Type Int
+        Local $parameter.inherited
+      field_set 1
+        Type Owner
+        Local this
+        Type Option<Ptr<Unit>>
+        Local initial
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=31 bits=0x0000001f
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Payload
+        ClassAlloc Payload
+      call @fn15 direct
+        Type Payload
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      field_set 2
+        Type Owner
+        Local this
+        Type Payload
+        Local $new.1
+      call @scoop_rt_gc_collect direct
+      branch bb1 bb2
+        Type Boolean
+        Local fail
+    bb1 if.then.1
+      assign $new.2
+        Type ArithmeticException
+        ClassAlloc ArithmeticException
+      call external0 direct
+        Type ArithmeticException
+        Local $new.2
+      throw
+        Type ArithmeticException
+        Local $new.2
+    bb2 if.merge.2
+      return
+  fun init.Owner.$c3 @fn18(this: Owner, value: Int) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Ptr<Unit> = @fn6 direct
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter._1: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $dependency.argument.0
+      val $argument.0: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
+        VariantConstruct Option<Ptr<Unit>> v0
+          Type Ptr<Unit>
+          Local $dependency.parameter._1
+      val $parameter.initial: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
+        Local $argument.0
+      val $parameter.fail: Boolean
+        Type Boolean
+        BoolLiteral false
+      call @fn17 direct
+        Type Owner
+        Local this
+        Type Option<Ptr<Unit>>
+        Local $parameter.initial
+        Type Boolean
+        Local $parameter.fail
+      return
+  fun init.Owner.$c4 @fn19(this: Owner) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @fn18 direct
+        Type Owner
+        Local this
+        Type Int
+        Local $parameter.value
+      return
+  fun init.GetterOwner.$c5 @fn20(this: GetterOwner, pointer: Ptr<Unit>) -> Unit
+    bb0 entry
+      val $dependency.argument.0: Ptr<Unit>
+        Type Ptr<Unit>
+        Local pointer
+      val $dependency.parameter._1: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $dependency.argument.0
+      field_set 0
+        Type GetterOwner
+        Local this
+        Type Option<Ptr<Unit>>
+        VariantConstruct Option<Ptr<Unit>> v0
+          Type Ptr<Unit>
+          Local $dependency.parameter._1
+      field_set 1
+        Type GetterOwner
+        Local this
+        Type Unit
+        UnitLiteral
+      return
+  fun init.EmptyOwner.$c6 @fn21(this: EmptyOwner) -> Unit
+    bb0 entry
+      return
+  release_hook rh0 Owner <no-gc>
+    bb0 entry
+      val $when.1: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
+        ReleaseFieldLoad Owner.field1
+      val $pattern.subject.2: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Ptr<Unit>> v0
+          Type Option<Ptr<Unit>>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val pointer: Ptr<Unit>
+        Type Ptr<Unit>
+        VariantPayloadProject Option<Ptr<Unit>> v0 f0
+          Type Option<Ptr<Unit>>
+          Local $pattern.subject.2
+      val $argument.0: Ptr<Unit>
+        Type Ptr<Unit>
+        Local pointer
+      val $parameter.pointer: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $argument.0
+      call extern1 @m24_drop direct
+        Type Ptr<Unit>
+        Local $parameter.pointer
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Ptr<Unit>> v1
+          Type Option<Ptr<Unit>>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+    bb4 pattern.pass.4
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  release_hook rh1 GetterOwner <no-gc>
+    bb0 entry
+      val empty: Unit
+        Type Unit
+        ReleaseFieldLoad GetterOwner.field1
+      val $when.1: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
+        ReleaseFieldLoad GetterOwner.field0
+      val $pattern.subject.2: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Ptr<Unit>> v0
+          Type Option<Ptr<Unit>>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val pointer: Ptr<Unit>
+        Type Ptr<Unit>
+        VariantPayloadProject Option<Ptr<Unit>> v0 f0
+          Type Option<Ptr<Unit>>
+          Local $pattern.subject.2
+      val $argument.0: Ptr<Unit>
+        Type Ptr<Unit>
+        Local pointer
+      val $parameter.pointer: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $argument.0
+      call extern1 @m24_drop direct
+        Type Ptr<Unit>
+        Local $parameter.pointer
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Ptr<Unit>> v1
+          Type Option<Ptr<Unit>>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+    bb4 pattern.pass.4
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  release_hook rh2 EmptyOwner <no-gc>
+    bb0 entry
+      return
+  instance mi0 function=@fn14 <- println
+  str @str0 "\n"
+  output executable @fn13

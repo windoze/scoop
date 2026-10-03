@@ -123,7 +123,7 @@ fn validate_array_metadata(module: &Module) -> Result<(), CodegenError> {
             )));
         }
     }
-    for function in &module.functions {
+    for function in module.callable_bodies() {
         for (_, block) in function.blocks.iter() {
             for instruction in &block.instructions {
                 let Instruction::ArrayClone {
@@ -498,7 +498,7 @@ fn validate_machine_containers(module: &Module) -> Result<(), CodegenError> {
             }
             Ok(())
         };
-    for function in &module.functions {
+    for function in module.callable_bodies() {
         for (index, argument) in function.signature.arguments().iter().enumerate() {
             validate_value_type(
                 function,
@@ -716,7 +716,7 @@ fn validate_dispatch_signatures(module: &Module) -> Result<(), CodegenError> {
         Ok(())
     }
 
-    for function in &module.functions {
+    for function in module.callable_bodies() {
         let targets = &function.call_targets;
         for (_, target) in targets.managed_targets.void.iter() {
             if matches!(

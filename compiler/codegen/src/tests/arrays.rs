@@ -212,6 +212,7 @@ pub(super) fn arrays_module() -> Module {
     });
 
     Module {
+        release_hooks: Default::default(),
         cone: scoop_identity::ConeIdentity::SINGLE_FILE,
         globals,
         initialization_units: Arena::default(),

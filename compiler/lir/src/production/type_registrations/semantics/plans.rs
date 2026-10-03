@@ -81,6 +81,7 @@ impl<D: Copy, C> StrongTypeItableSemanticPlan<D, C> {
 /// Arena-independent semantic definition of one local M23 TypeDescriptor.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StrongTypeDescriptorSemanticPlan<D, C> {
+    pub(super) release_policy: crate::ReleasePolicy,
     pub(super) exact_type: PersistentExactTypeId,
     pub(super) diagnostic_name: String,
     pub(super) instance_layout: PersistentLayoutId,
@@ -106,8 +107,10 @@ impl<D: Copy, C> StrongTypeDescriptorSemanticPlan<D, C> {
         vtable: StrongTypeVtableSemanticPlan<C>,
         itables: Vec<StrongTypeItableSemanticPlan<D, C>>,
         relations: crate::TypeDescriptorRelations<Option<D>>,
+        release_policy: crate::ReleasePolicy,
     ) -> Self {
         Self {
+            release_policy,
             exact_type,
             diagnostic_name,
             instance_layout,
@@ -123,6 +126,10 @@ impl<D: Copy, C> StrongTypeDescriptorSemanticPlan<D, C> {
 
     pub const fn exact_type(&self) -> PersistentExactTypeId {
         self.exact_type
+    }
+
+    pub const fn release_policy(&self) -> crate::ReleasePolicy {
+        self.release_policy
     }
 
     pub fn diagnostic_name(&self) -> &str {

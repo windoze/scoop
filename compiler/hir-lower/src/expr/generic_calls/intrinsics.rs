@@ -39,6 +39,9 @@ impl Lowerer {
             ast::Expr::Var(name) => {
                 if let Some(local) = self.scopes.lookup(&name.text) {
                     Some((hir::Place::Local(local), self.locals[local].ty))
+                } else if self.release_has_field_name(&name.text) {
+                    self.error(name.span, "a `release` block cannot take the address of an owner field; copy its value to a local first".into());
+                    return None;
                 } else {
                     let target = self.resolve_value_name(name).ok()?;
                     target.and_then(|target| {

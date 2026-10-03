@@ -30,6 +30,7 @@ pub struct Module {
     pub structs: Arena<StructDef>,
     pub enums: Arena<EnumDef>,
     pub classes: Arena<ClassDef>,
+    pub release_hooks: Arena<ReleaseHook>,
     pub interfaces: Arena<InterfaceDef>,
     /// Every concrete specialization of core `Option`, identified by its
     /// inseparable Some payload-field and None variant identities. Consumers

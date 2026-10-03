@@ -11,6 +11,7 @@ mod exact_layouts;
 mod initialization;
 mod native_storage;
 mod pointers;
+mod release;
 mod storage_replay;
 mod zst_places;
 

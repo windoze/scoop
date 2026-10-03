@@ -107,7 +107,7 @@ pub(crate) fn expectations(module: &Module) -> Result<ExpectedEh, CodegenError> 
     let mut functions = BTreeMap::new();
     let mut symbols = BTreeSet::new();
     let mut managed_safepoints = BTreeSet::new();
-    for function in &module.functions {
+    for function in module.callable_bodies() {
         if !symbols.insert(function.symbol()) {
             return Err(CodegenError(format!(
                 "duplicate LIR function symbol `{}` in EH manifest",

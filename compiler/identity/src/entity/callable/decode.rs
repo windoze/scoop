@@ -329,6 +329,7 @@ pub enum DecodedCallableTemplateOwner {
     Accessor(DecodedPersistentId<PersistentPropertyAccessorId>),
     Generated(DecodedPersistentId<PersistentGeneratedCallableId>),
     VariantConstructor(DecodedPersistentId<PersistentEnumVariantId>),
+    ReleaseHook(DecodedPersistentId<PersistentExactTypeId>),
 }
 
 impl DecodedCallableTemplateOwner {
@@ -339,7 +340,8 @@ impl DecodedCallableTemplateOwner {
             + PersistentIdResolver<PersistentConstructorId, Error = E>
             + PersistentIdResolver<PersistentPropertyAccessorId, Error = E>
             + PersistentIdResolver<PersistentGeneratedCallableId, Error = E>
-            + PersistentIdResolver<PersistentEnumVariantId, Error = E>,
+            + PersistentIdResolver<PersistentEnumVariantId, Error = E>
+            + PersistentIdResolver<PersistentExactTypeId, Error = E>,
     {
         match self {
             Self::Function(id) => resolver.resolve(id).map(CallableTemplateOwner::Function),
@@ -352,6 +354,7 @@ impl DecodedCallableTemplateOwner {
             Self::VariantConstructor(id) => resolver
                 .resolve(id)
                 .map(CallableTemplateOwner::VariantConstructor),
+            Self::ReleaseHook(id) => resolver.resolve(id).map(CallableTemplateOwner::ReleaseHook),
         }
     }
 }
@@ -365,6 +368,7 @@ impl WireEncode for DecodedCallableTemplateOwner {
             Self::Accessor(id) => encode_value_sum(encoder, 4, id),
             Self::Generated(id) => encode_value_sum(encoder, 5, id),
             Self::VariantConstructor(id) => encode_value_sum(encoder, 6, id),
+            Self::ReleaseHook(id) => encode_value_sum(encoder, 7, id),
         }
     }
 }
@@ -392,6 +396,9 @@ impl WireDecode for DecodedCallableTemplateOwner {
             6 => decoder
                 .field(1, DecodedPersistentId::decode)
                 .map(Self::VariantConstructor),
+            7 => decoder
+                .field(1, DecodedPersistentId::decode)
+                .map(Self::ReleaseHook),
             tag => Err(unknown_tag(decoder, tag)),
         }
     }
@@ -473,6 +480,7 @@ impl DecodedCallableMaterialization {
             + PersistentIdResolver<PersistentGeneratedCallableId, Error = E>
             + PersistentIdResolver<PersistentEnumVariantId, Error = E>
             + PersistentIdResolver<PersistentCallableApplicationId, Error = E>
+            + PersistentIdResolver<PersistentExactTypeId, Error = E>
             + PersistentIdResolver<PersistentInitializationUnitId, Error = E>,
     {
         Ok(CallableMaterialization::new(

@@ -43,6 +43,22 @@ impl<'a> LocalValueIdentityBuilder<'a> {
         }
 
         let class_constructors = self.collect_class_constructors()?;
+        let mut release_hooks = Vec::with_capacity(self.inputs.release_hooks.len());
+        for (id, hook) in self.inputs.release_hooks.iter() {
+            release_hooks.push(self.collect_locals(
+                hook.materialization,
+                hook.body.locals.iter().map(|(local, value)| {
+                    (
+                        local,
+                        value,
+                        LocalValueLocation::ReleaseLocal {
+                            hook: raw_arena_index(id),
+                            local: raw_arena_index(local),
+                        },
+                    )
+                }),
+            )?);
+        }
         let struct_constructors = self.collect_struct_constructors()?;
         let callable_references = self.collect_callable_references()?;
         self.collect_lexical_local_values()?;
@@ -140,6 +156,7 @@ impl<'a> LocalValueIdentityBuilder<'a> {
             callable_references,
             class_constructors,
             struct_constructors,
+            release_hooks,
         })
     }
 }

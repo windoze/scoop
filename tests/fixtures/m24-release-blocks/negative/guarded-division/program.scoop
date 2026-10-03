@@ -1,0 +1,5 @@
+fun helper() {}
+class Owner(private var handle: Int) {
+    release { if (handle != 0) { val value = 42 / handle } }
+}
+fun main() {}

@@ -84,6 +84,8 @@ mod m23_source_model;
 mod m23_type_alias_interface_production;
 mod m23_type_alias_targets;
 mod m23_type_semantics_production;
+mod m24_release_blocks;
+mod m24_release_cfg;
 mod m24_release_effects;
 mod m3;
 mod m4;

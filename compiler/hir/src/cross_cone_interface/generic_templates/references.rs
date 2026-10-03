@@ -138,7 +138,9 @@ where
                     DefaultFieldRefV1::Class { declaration, .. }
                     | DefaultFieldRefV1::Struct { declaration, .. },
                 ) => ExternalHirTargetV1::Field(*declaration),
-                Field::Struct { declaration, .. } => ExternalHirTargetV1::Field(declaration),
+                Field::Struct { declaration, .. } | Field::Class { declaration, .. } => {
+                    ExternalHirTargetV1::Field(declaration)
+                }
                 Field::Field(DefaultFieldRefV1::Tuple { .. }) => return Ok(()),
             },
         };

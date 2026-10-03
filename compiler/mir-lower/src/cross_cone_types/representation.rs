@@ -92,6 +92,7 @@ pub(super) fn project(
         ) => {
             let class = &module.classes[*id];
             Repr::Class {
+                release_policy: release_policy(class.release_policy, fields::exact(module, ty)?),
                 kind: match class.modifier {
                     mir::ClassModifier::Final => mir::MirClassKindV1::Final,
                     mir::ClassModifier::Open => mir::MirClassKindV1::Open,
@@ -132,4 +133,16 @@ pub(super) fn project(
         _ => return Err(mismatch()),
     };
     Ok((shape, None))
+}
+
+pub(super) fn release_policy(
+    policy: mir::ReleasePolicy,
+    owner: PersistentExactTypeId,
+) -> mir::MirClassReleasePolicyV1 {
+    match policy {
+        mir::ReleasePolicy::None => mir::MirClassReleasePolicyV1::None,
+        mir::ReleasePolicy::SynchronousGcFree { .. } => {
+            mir::MirClassReleasePolicyV1::SynchronousGcFree { owner }
+        }
+    }
 }

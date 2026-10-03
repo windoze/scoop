@@ -125,6 +125,7 @@ pub fn walk_expr(expr: &Expr, visitor: &mut impl FnMut(&Expr)) {
         | ExprKind::IntegerLiteral(_)
         | ExprKind::MachineScalarLiteral(_)
         | ExprKind::BoolLiteral(_)
+        | ExprKind::ReleaseFieldLoad { .. }
         | ExprKind::UnitLiteral
         | ExprKind::ClassAlloc { .. }
         | ExprKind::Local(_)
@@ -263,6 +264,7 @@ pub fn walk_expr_mut(expr: &mut Expr, visitor: &mut impl FnMut(&mut Expr)) {
         | ExprKind::IntegerLiteral(_)
         | ExprKind::MachineScalarLiteral(_)
         | ExprKind::BoolLiteral(_)
+        | ExprKind::ReleaseFieldLoad { .. }
         | ExprKind::UnitLiteral
         | ExprKind::ClassAlloc { .. }
         | ExprKind::Local(_)
@@ -291,6 +293,7 @@ pub fn visit_block_exprs(block: &BasicBlock, visitor: &mut impl FnMut(&Expr)) {
                 }
             }
             StatementKind::ValDecl { init, .. } => visit_expr(init, visitor),
+            StatementKind::PublishReleaseReady { receiver, .. } => visit_expr(receiver, visitor),
             StatementKind::Assign { value, .. } | StatementKind::GlobalAssign { value, .. } => {
                 visit_expr(value, visitor)
             }

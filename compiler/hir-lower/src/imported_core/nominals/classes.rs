@@ -76,6 +76,7 @@ impl Lowerer {
             hir::LoadedClassDefinition {
                 declaration: Arc::clone(&declaration),
                 definition: hir::ClassDefinition {
+                    release_policy: Default::default(),
                     gc_free_pointee_requirements: Self::decoded_nominal_pointee_requirements(
                         &declaration,
                         &type_params,
@@ -134,6 +135,20 @@ impl Lowerer {
         definition.fields = fields;
         definition.base_class = base_class;
         definition.interfaces = interfaces;
+        definition.release_policy =
+            match declaration.interface.declaration_details().release_policy() {
+                hir::NominalReleasePolicyV1::None => hir::ReleasePolicy::None,
+                hir::NominalReleasePolicyV1::SynchronousGcFree { requirements } => {
+                    hir::ReleasePolicy::SynchronousGcFree {
+                        hook: hir::ExportReleaseHookRef::Imported {
+                            requirements: requirements
+                                .iter()
+                                .map(|binder| type_params[binder.index as usize].id)
+                                .collect(),
+                        },
+                    }
+                }
+            };
         let scope_len = self.type_params_in_scope.len();
         self.type_params_in_scope.extend(type_params);
         let dispatch = self.resolve_imported_class_dispatch(self_type, &declaration);

@@ -12,6 +12,7 @@ pub struct Module {
     /// `EnumDefId`).
     pub enums: EnumDefs,
     pub functions: Vec<Function>,
+    pub release_hooks: Arena<ReleaseHook>,
     /// Native declarations and C-bridge descriptions, transposed from MIR.
     /// ABI-refined references can only be minted while declarations are
     /// inserted into this registry.
@@ -44,6 +45,13 @@ pub enum LirOutput {
 }
 
 impl Module {
+    /// Emitted bodies share physical processing, but never ordinary function ids.
+    pub fn callable_bodies(&self) -> impl Iterator<Item = &Function> {
+        self.functions
+            .iter()
+            .chain(self.release_hooks.values().map(|hook| &hook.code))
+    }
+
     pub const fn executable_entry(&self) -> Option<LocalFunctionRef> {
         match self.output {
             LirOutput::Library => None,

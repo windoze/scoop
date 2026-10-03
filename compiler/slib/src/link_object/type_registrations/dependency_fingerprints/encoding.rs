@@ -184,6 +184,13 @@ where
     if let Some(reference) = function.result() {
         encode_descriptor_ref(encoder, *reference)?;
     }
+    match semantic.release_policy() {
+        scoop_lir::ReleasePolicy::None => encoder.u32(1)?,
+        scoop_lir::ReleasePolicy::SynchronousGcFree { hook } => {
+            encoder.u32(2)?;
+            encoder.fixed(hook.as_array())?;
+        }
+    }
     Ok(())
 }
 

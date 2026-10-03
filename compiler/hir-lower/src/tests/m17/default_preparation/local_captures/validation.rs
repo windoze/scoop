@@ -24,6 +24,7 @@ fn inputs<'a>(
         callable_references: &module.callable_references,
         class_constructors: &module.class_constructors,
         struct_constructors: &module.struct_constructors,
+        release_hooks: &module.release_hooks,
     }
 }
 

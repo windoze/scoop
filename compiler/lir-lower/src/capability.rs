@@ -77,6 +77,9 @@ fn validate_statement(
         mir::StatementKind::Expr(expr) => {
             validate_expr(module, roots, dependencies, function, expr)
         }
+        mir::StatementKind::PublishReleaseReady { receiver, .. } => {
+            validate_expr(module, roots, dependencies, function, receiver)
+        }
         mir::StatementKind::Call(effect) => {
             let call = match effect {
                 mir::CallEffect::Unit(call) | mir::CallEffect::Value { call, .. } => call,
@@ -222,6 +225,7 @@ fn expression_requirement(
         | mir::ExprKind::MachineScalarLiteral(_)
         | mir::ExprKind::BoolLiteral(_)
         | mir::ExprKind::UnitLiteral
+        | mir::ExprKind::ReleaseFieldLoad { .. }
         | mir::ExprKind::TupleLiteral(_)
         | mir::ExprKind::StructInit { .. }
         | mir::ExprKind::StructConstruct { .. }

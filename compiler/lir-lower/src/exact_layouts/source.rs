@@ -199,6 +199,7 @@ impl<'a> Projection<'a> {
                 Kind::Class {
                     kind,
                     declared_fields,
+                    ..
                 },
                 mir::Type::Class(id),
             ) => self.validate_class(source, *id, declared_fields, Some(*kind)),

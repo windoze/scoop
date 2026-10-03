@@ -206,6 +206,7 @@ fn bases_and_interfaces_keep_exact_kind_and_do_not_accept_duplicates() {
                 MirGcKindV1::ContainsManagedReferences,
             ),
             MirTypeRepresentationV1::Class {
+                release_policy: Default::default(),
                 kind: MirClassKindV1::Abstract,
                 declared_fields: vec![],
             },

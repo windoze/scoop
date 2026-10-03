@@ -52,9 +52,9 @@ fn dependency_parent_interface_and_dispatch_survive_the_registration_wire() {
             );
         }
         let mut extra_field = bytes.clone();
-        assert_eq!(&extra_field[..2], &[0xb8, 29]);
-        extra_field[1] = 30;
-        extra_field.extend_from_slice(&[0x18, 30, 0]);
+        assert_eq!(&extra_field[..2], &[0xb8, 30]);
+        extra_field[1] = 31;
+        extra_field.extend_from_slice(&[0x18, 31, 0]);
         assert!(decode_canonical::<DecodedStrongTypeRegistrationPlanV2>(&extra_field).is_err());
     }
     let changed_provider = build(&fixture, Some(ConeIdentity::SINGLE_FILE)).unwrap();
@@ -148,6 +148,7 @@ fn semantics(
                     })
                     .collect(),
                 crate::TypeDescriptorRelations::Absent,
+                old.release_policy(),
             )
         })
         .collect();

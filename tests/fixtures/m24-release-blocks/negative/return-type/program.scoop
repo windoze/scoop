@@ -1,0 +1,4 @@
+class Owner {
+    release: Unit {}
+}
+fun main() {}

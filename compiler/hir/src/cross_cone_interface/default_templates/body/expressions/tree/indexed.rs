@@ -101,6 +101,10 @@ enum IndexedDefaultExpressionKindV1<'a> {
         operation: DefaultForeignCallbackOperationV1,
         callback: Box<IndexedDefaultExpressionV1<'a>>,
     },
+    ReleaseFieldLoad {
+        owner_type: &'a scoop_identity::SignatureTypeKey,
+        declaration: &'a scoop_identity::PersistentFieldId,
+    },
     FieldAccess {
         receiver: Box<IndexedDefaultExpressionV1<'a>>,
         field: &'a DefaultFieldRefV1,
@@ -391,6 +395,13 @@ impl DefaultExpressionV1 {
             } => IndexedDefaultExpressionKindV1::ForeignCallbackOperation {
                 operation: *operation,
                 callback: index_child(callback, resolver, 30, 2)?,
+            },
+            DefaultExpressionKindV1::ReleaseFieldLoad {
+                owner_type,
+                declaration,
+            } => IndexedDefaultExpressionKindV1::ReleaseFieldLoad {
+                owner_type,
+                declaration,
             },
             DefaultExpressionKindV1::FieldAccess { receiver, field } => {
                 IndexedDefaultExpressionKindV1::FieldAccess {

@@ -4,10 +4,12 @@ mod callables;
 mod core_protocols;
 mod lexical_callables;
 mod release;
+mod release_hooks;
 pub use callables::*;
 pub use core_protocols::*;
 pub use lexical_callables::*;
 pub use release::*;
+pub use release_hooks::*;
 
 #[derive(Debug, Clone)]
 pub struct Module {
@@ -185,6 +187,7 @@ pub struct Module {
         std::collections::HashMap<SourceNominalId, LoadedInterfaceDefinition>,
     pub enum_applications: Arena<EnumApplication>,
     pub classes: Arena<ClassDecl>,
+    pub release_hooks: Arena<ExportReleaseHook>,
     pub class_fields: Arena<ClassField>,
     pub class_constructors: Arena<ClassConstructor>,
     pub class_constructor_applications: Arena<ClassConstructorApplication>,

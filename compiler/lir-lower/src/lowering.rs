@@ -216,34 +216,61 @@ pub(super) fn lower_graph(
         &type_descriptor_refs,
     )?;
 
+    let mut lower_body = |body_identity, body, signature| {
+        lower_function(
+            &context,
+            module.cone,
+            module,
+            body_identity,
+            body,
+            signature,
+            &string_global_map,
+            &storage_globals,
+            &mut globals,
+            &structs,
+            &enums,
+            &array_type_map,
+            &type_descriptor_refs,
+            &local_function_map,
+            &function_signatures,
+            &external_callables,
+            &external_callable_map,
+            &callback_map,
+            &extern_functions,
+            &extern_function_refs,
+        )
+    };
     let mut lowered_functions = module
         .top_level
         .iter()
-        .map(|&id| {
-            lower_function(
-                &context,
-                module.cone,
-                module,
-                callable_bodies[&id].clone(),
-                &module.functions[id],
-                &function_signatures[&id],
-                &string_global_map,
-                &storage_globals,
-                &mut globals,
-                &structs,
-                &enums,
-                &array_type_map,
-                &type_descriptor_refs,
-                &local_function_map,
-                &function_signatures,
-                &external_callables,
-                &external_callable_map,
-                &callback_map,
-                &extern_functions,
-                &extern_function_refs,
+        .map(|id| {
+            lower_body(
+                callable_bodies[id].clone(),
+                &module.functions[*id],
+                &function_signatures[id],
             )
         })
         .collect::<StorageResult<Vec<_>>>()?;
+    let release_signature =
+        abi::classify_signature(&context, [lir::RAW_PTR], None, &structs, &enums)?;
+    let mut release_hooks = Arena::new();
+    for (_, hook) in module.release_hooks.iter() {
+        let owner_type = mir::Type::Class(hook.owner);
+        if !identity_roots.materializes_type(&owner_type) {
+            continue;
+        }
+        let identity = lir::CallableBodyIdentity::for_release_hook(
+            exact_type_record(module, &owner_type).id(),
+            &identity_roots.for_type(&owner_type),
+        )
+        .expect("an exact release owner derives its machine body identity");
+        let body = lower_body(identity, &hook.code, &release_signature)?;
+        let code = safepoints::complete_function(&context, body, &structs, &enums)?;
+        release_hooks.alloc(lir::ReleaseHook {
+            owner: type_descriptor_refs.for_type(&owner_type),
+            code,
+        });
+    }
     if let (Some(reference), Some(gateway)) = (root_gateway_ref, root_artifacts) {
         assert_eq!(
             reference.declaration().into_u32() as usize,
@@ -283,6 +310,7 @@ pub(super) fn lower_graph(
         structs,
         enums,
         functions,
+        release_hooks,
         extern_functions,
         native_globals,
         native_global_bridges,
@@ -308,6 +336,7 @@ pub(super) fn lower_graph(
             external_callables,
         },
     };
+    safepoints::validate_release_bodies(&module)?;
     Ok(LoweredModule { module })
 }
 

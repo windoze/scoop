@@ -545,6 +545,7 @@ impl Harness {
             .expect("the empty MIR test callback relation is valid");
         let source_parameter_interfaces = self.test_parameter_interfaces();
         let module = hir::Module {
+            release_hooks: Arena::new(),
             cone: scoop_identity::ConeIdentity::SINGLE_FILE,
             nominal_identities,
             property_identities,

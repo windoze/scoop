@@ -47,6 +47,16 @@ impl BodyLowerer<'_> {
                 return_ty,
                 smir::ExprKind::ClassNew {
                     class_id,
+                    publish_release: {
+                        let hir::TypeKind::Class(class) = &self.module.types[result_type].kind
+                        else {
+                            unreachable!("an imported initializer constructs its exact class")
+                        };
+                        !matches!(
+                            self.module.classes[*class].release_policy,
+                            hir::ReleasePolicy::None
+                        )
+                    },
                     initializer: callee,
                     args: args.iter().map(|arg| self.lower_expr(arg)).collect(),
                 },

@@ -7,7 +7,10 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         destination: scoop_lir::CallDestination,
         protocol: &CallProtocol<'_>,
     ) {
-        if matches!(protocol, CallProtocol::NoGc) {
+        if matches!(
+            protocol,
+            CallProtocol::NoGc | CallProtocol::ReleaseNativeLeaf
+        ) {
             call.add_attribute(
                 AttributeLoc::Function,
                 self.context.create_string_attribute("gc-leaf-function", ""),
@@ -15,7 +18,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         }
         if matches!(
             protocol,
-            CallProtocol::NativeSafe { .. } | CallProtocol::NativeBorrowed { .. }
+            CallProtocol::NativeSafe { .. }
+                | CallProtocol::NativeBorrowed { .. }
+                | CallProtocol::ReleaseNativeLeaf
         ) {
             self.apply_nounwind(call);
         }

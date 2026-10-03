@@ -1,0 +1,17 @@
+schema = 1
+name = "release-blocks-reject-function-pointer-direct"
+root = "program.scoop"
+inputs = ["program.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["m24", "release-blocks", "negative", "canonical-diagnostics"]
+
+[[steps]]
+name = "reject"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "-o", "${work}/rejected"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "diagnostics.json"}
+checks = [{file = "${work}/rejected", exists = false}]

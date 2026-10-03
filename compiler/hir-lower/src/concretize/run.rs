@@ -82,6 +82,11 @@ impl Concretizer<'_> {
             self.foreign_callback_slots,
             identities.foreign_callback_applications,
         );
+        let release_hooks = release::finish_release_hooks(
+            self.release_hook_slots,
+            &self.classes,
+            &exact_type_identities,
+        );
         let local_value_identities =
             concrete::LocalValueIdentities::from_callables(concrete::LocalValueIdentityInputs {
                 source_files: &self.source.source_files,
@@ -94,6 +99,7 @@ impl Concretizer<'_> {
                 callable_references: &callable_references,
                 class_constructors: &class_constructors,
                 struct_constructors: &struct_constructors,
+                release_hooks: &release_hooks,
             })
             .expect("validated concretization produces a total local-value identity relation");
 
@@ -131,6 +137,7 @@ impl Concretizer<'_> {
             structs: self.structs,
             enums: self.enums,
             classes: self.classes,
+            release_hooks,
             class_constructors,
             struct_constructors,
             interfaces: self.interfaces,

@@ -100,8 +100,7 @@ impl StrongCallableRuntimeScanPlanSetV1 {
 
     pub fn from_module(module: &Module) -> Result<Self, StrongCallableRuntimeScanPlanError> {
         let mut callables = module
-            .functions
-            .iter()
+            .callable_bodies()
             .map(|function| callable_plan(module.cone, function))
             .collect::<Result<Vec<_>, _>>()?;
         callables.sort_unstable_by_key(StrongCallableRuntimeScanPlanV1::body);
@@ -191,10 +190,10 @@ fn append_instruction_scans(
     output: &mut Vec<RefScan>,
 ) -> Result<(), StrongCallableRuntimeScanPlanError> {
     match instruction {
-        Instruction::NativeGlobalLoad { roots, .. }
-        | Instruction::NativeGlobalStore { roots, .. }
-        | Instruction::NativeGlobalAddress { roots, .. } => {
-            append_roots(roots.as_slice(), body, output)?;
+        Instruction::NativeGlobalLoad { protocol, .. }
+        | Instruction::NativeGlobalStore { protocol, .. }
+        | Instruction::NativeGlobalAddress { protocol, .. } => {
+            append_roots(protocol.roots(), body, output)?;
         }
         Instruction::Call { site } => match site {
             CallSite::NativeSafe(site) => append_roots(site.roots.as_slice(), body, output)?,
@@ -214,7 +213,10 @@ fn append_instruction_scans(
                     | crate::NativeBorrowedResultPublication::IndirectResultGcFree => {}
                 }
             }
-            CallSite::Managed(_) | CallSite::NoGc(_) => {}
+            CallSite::Managed(_)
+            | CallSite::NoGc(_)
+            | CallSite::ReleaseScoop(_)
+            | CallSite::ReleaseNativeLeaf(_) => {}
         },
         Instruction::Invoke {
             site: InvokeSite::Managed(site),

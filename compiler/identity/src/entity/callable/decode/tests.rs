@@ -165,3 +165,38 @@ fn callable_decoder_rejects_empty_argument_lists_and_unknown_roles() {
     let error = decode_canonical::<DecodedPropertyAccessorKey>(&bad_role).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 }
+
+#[test]
+fn release_local_materialization_retains_its_exact_owner() {
+    let owner = PersistentExactTypeId::expected();
+    let materialization = CallableMaterialization::new(
+        CallableTemplateOwner::ReleaseHook(owner),
+        CallableMaterializationContext::NoSubstitution,
+    );
+    let decoded =
+        decode_canonical::<DecodedCallableMaterialization>(&encode(&materialization).unwrap())
+            .unwrap();
+    assert_eq!(decoded.resolve(&mut Resolver).unwrap(), materialization);
+    let selector = crate::LocalValueSelector::Synthetic {
+        path: crate::StructuralDefinitionPath::new(vec![crate::StructuralPathSegment::new(
+            crate::StructuralDefinitionSiteRole::SyntheticValue,
+            0,
+        )])
+        .unwrap(),
+        role: crate::SyntheticLocalRole::Temporary,
+    };
+    let id = crate::PersistentLocalValueId::from_key(&crate::LocalValueKey::new(
+        materialization,
+        selector.clone(),
+    ))
+    .unwrap();
+    let other = CallableMaterialization::new(
+        CallableTemplateOwner::ReleaseHook(PersistentExactTypeId([8; 32])),
+        CallableMaterializationContext::NoSubstitution,
+    );
+    assert_ne!(
+        id,
+        crate::PersistentLocalValueId::from_key(&crate::LocalValueKey::new(other, selector,))
+            .unwrap()
+    );
+}

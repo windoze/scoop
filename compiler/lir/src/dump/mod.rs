@@ -285,7 +285,7 @@ pub fn dump(module: &Module) -> String {
             bridge.return_type.dump(),
         ));
     }
-    for function in &module.functions {
+    for function in module.callable_bodies() {
         let params = function
             .signature
             .arguments()

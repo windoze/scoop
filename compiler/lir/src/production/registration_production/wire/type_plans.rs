@@ -100,6 +100,8 @@ pub struct DecodedStrongTypeRegistrationPlan<P, D, C> {
     pub(in crate::production::registration_production) instance_shape: DecodedTypeInstanceShapeV1,
     pub(in crate::production::registration_production) parent: P,
     pub(in crate::production::registration_production) relations: crate::TypeDescriptorRelations<P>,
+    pub(in crate::production::registration_production) release_policy:
+        crate::ReleasePolicy<DecodedPersistentId<PersistentCallableBodyId>>,
     pub(in crate::production::registration_production) vtable:
         DecodedStrongTypeVtableSemanticPlan<C>,
     pub(in crate::production::registration_production) itables:
@@ -113,7 +115,7 @@ impl<P: WireEncode, D: WireEncode, C: WireEncode> WireEncode
     for DecodedStrongTypeRegistrationPlan<P, D, C>
 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(29)?;
+        encoder.map(30)?;
         encode_field(encoder, 1, &self.exact_type)?;
         encode_unsigned_field(encoder, 2, self.runtime_type)?;
         encode_field(encoder, 3, &self.symbol)?;
@@ -143,7 +145,8 @@ impl<P: WireEncode, D: WireEncode, C: WireEncode> WireEncode
         encode_field(encoder, 26, &self.diagnostic_atom)?;
         encode_field(encoder, 27, &self.inline_scan)?;
         encode_field(encoder, 28, &self.itable_directory)?;
-        encode_field(encoder, 29, &self.relations)
+        encode_field(encoder, 29, &self.relations)?;
+        encode_field(encoder, 30, &self.release_policy)
     }
 }
 
@@ -151,7 +154,7 @@ impl<P: WireDecode, D: WireDecode, C: WireDecode> WireDecode
     for DecodedStrongTypeRegistrationPlan<P, D, C>
 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(29)?;
+        decoder.expect_map(30)?;
         Ok(Self {
             exact_type: decoder.field(1, DecodedPersistentId::decode)?,
             runtime_type: decoder.field(2, Decoder::unsigned)?,
@@ -186,6 +189,7 @@ impl<P: WireDecode, D: WireDecode, C: WireDecode> WireDecode
             inline_scan: decoder.field(27, DecodedTypeDescriptorInlineScanV1::decode)?,
             itable_directory: decoder.field(28, DecodedTypeDescriptorITableDirectoryV1::decode)?,
             relations: decoder.field(29, crate::TypeDescriptorRelations::<P>::decode)?,
+            release_policy: decoder.field(30, crate::ReleasePolicy::decode)?,
         })
     }
 }

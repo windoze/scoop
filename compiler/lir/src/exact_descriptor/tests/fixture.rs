@@ -179,6 +179,7 @@ impl Fixture {
         ExactDescriptorExportV1::replay_from_constituents(
             TARGET,
             ExactDescriptorSourceInputV1 {
+                release_policy: Default::default(),
                 exact: self.exact(),
                 parent: None,
                 interfaces: &[],
@@ -208,6 +209,7 @@ impl Fixture {
             StrongTypeVtableSemanticPlanV2::from_artifact(vtable, Vec::new()),
             Vec::new(),
             crate::TypeDescriptorRelations::Absent,
+            crate::ReleasePolicy::None,
         )
     }
 }

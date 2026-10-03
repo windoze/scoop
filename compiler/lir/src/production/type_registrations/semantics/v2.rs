@@ -115,6 +115,7 @@ fn build_descriptor_v2(
                 .map(|reference| descriptor_ref(module, reference))
                 .transpose()
         })?,
+        descriptor.release_policy,
     ))
 }
 

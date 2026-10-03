@@ -232,8 +232,7 @@ fn emit_object_set_with_production<D: scoop_lir::StrongDescriptorReference, C: C
             }
             ScoopLirObjectKindV1::CallableBody(body) => {
                 let function = module
-                    .functions
-                    .iter()
+                    .callable_bodies()
                     .find(|function| function.callable_body.id() == body)
                     .ok_or_else(|| {
                         CodegenError(format!(
@@ -341,8 +340,7 @@ pub fn render_llvm_ir_members(
                 }
                 ScoopLirObjectKindV1::CallableBody(body) => {
                     let function = module
-                        .functions
-                        .iter()
+                        .callable_bodies()
                         .find(|function| function.callable_body.id() == body)
                         .ok_or_else(|| {
                             CodegenError(format!(

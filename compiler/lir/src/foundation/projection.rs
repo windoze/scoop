@@ -11,7 +11,7 @@ impl CanonicalLirFoundation {
     /// function. It never scans instructions to reconstruct callable-body or
     /// safepoint semantics from local arena ids.
     pub fn from_module(module: &Module) -> Result<Self, LirFoundationBuildError> {
-        let mut foundation = Self::from_functions(&module.functions)?;
+        let mut foundation = Self::from_functions(module.callable_bodies())?;
         foundation.set_materialized_exact_types(
             module
                 .meta
@@ -370,7 +370,10 @@ impl CanonicalLirFoundation {
         Ok(())
     }
 
-    fn from_functions(functions: &[Function]) -> Result<Self, LirFoundationBuildError> {
+    fn from_functions<'a>(
+        functions: impl IntoIterator<Item = &'a Function>,
+    ) -> Result<Self, LirFoundationBuildError> {
+        let functions = functions.into_iter().collect::<Vec<_>>();
         let mut callable_bodies = Vec::with_capacity(functions.len());
         let safepoint_count = functions
             .iter()
@@ -618,6 +621,7 @@ mod tests {
         .unwrap();
         let interface_vtable = VtableRecord::new(&interface_identity, Vec::new()).unwrap();
         let interface = descriptors.alloc(TypeDescriptor {
+            release_policy: Default::default(),
             relations: Default::default(),
             diagnostic_name: "Interface".to_string(),
             identity: interface_identity,
@@ -649,6 +653,7 @@ mod tests {
             .unwrap(),
         ];
         descriptors.alloc(TypeDescriptor {
+            release_policy: Default::default(),
             relations: Default::default(),
             diagnostic_name: "Owner".to_string(),
             identity: owner_identity,

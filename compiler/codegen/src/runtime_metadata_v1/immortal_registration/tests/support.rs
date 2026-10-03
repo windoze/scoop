@@ -149,6 +149,7 @@ fn semantic_module(artifacts: &[ObjectArtifacts], string_type: PersistentExactTy
     let mut local_functions = LocalFunctionIdentities::default();
     let entry = LocalFunctionRef::Managed(local_functions.alloc_managed());
     Module {
+        release_hooks: Default::default(),
         cone: ConeIdentity::SINGLE_FILE,
         globals,
         initialization_units: Arena::new(),

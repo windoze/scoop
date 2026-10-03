@@ -10,11 +10,14 @@ use crate::Lowerer;
 
 mod calls;
 mod expressions;
+mod hooks;
 mod statements;
 
 struct BodyFacts {
     requirements: Option<HashSet<hir::TypeParamId>>,
     calls: Vec<GenericCall>,
+    release_block: bool,
+    violation: Option<hir::Span>,
 }
 
 impl BodyFacts {
@@ -22,6 +25,8 @@ impl BodyFacts {
         Self {
             requirements: Some(HashSet::new()),
             calls: Vec::new(),
+            release_block: false,
+            violation: None,
         }
     }
 
@@ -34,7 +39,7 @@ impl BodyFacts {
 }
 
 impl Lowerer {
-    pub(crate) fn infer_release_callability(&mut self) {
+    pub(crate) fn infer_release_callability(&mut self) -> ReleaseValueFacts {
         let values = ReleaseValueFacts::infer(self);
         let mut bodies = HashMap::new();
         for (id, function) in self.functions.iter() {
@@ -164,6 +169,7 @@ impl Lowerer {
                 }
             }
         }
+        values
     }
 }
 

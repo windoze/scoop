@@ -237,7 +237,7 @@ pub(super) fn validate_callback_declarations(module: &Module) -> Result<(), Code
 }
 
 pub(super) fn validate_callback_instructions(module: &Module) -> Result<(), CodegenError> {
-    for function in &module.functions {
+    for function in module.callable_bodies() {
         for (_, block) in function.blocks.iter() {
             for instruction in &block.instructions {
                 match instruction {

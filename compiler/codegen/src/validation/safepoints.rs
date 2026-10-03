@@ -5,7 +5,7 @@ use super::*;
 pub(super) fn validate_safepoint_identities(module: &Module) -> Result<(), CodegenError> {
     let mut persistent_sites = BTreeMap::new();
     let mut runtime_sites = BTreeMap::new();
-    for function in &module.functions {
+    for function in module.callable_bodies() {
         validate_function(function, &mut persistent_sites, &mut runtime_sites)?;
     }
     Ok(())

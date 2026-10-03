@@ -39,6 +39,7 @@ pub struct LocalValueIdentityInputs<'a> {
     pub callable_references: &'a Arena<CallableReference>,
     pub class_constructors: &'a Arena<ClassConstructor>,
     pub struct_constructors: &'a Arena<StructConstructor>,
+    pub release_hooks: &'a Arena<super::ReleaseHook>,
 }
 
 /// Total persistent identity relation for values owned by LocalConcrete HIR
@@ -55,6 +56,7 @@ pub struct LocalValueIdentities {
     callable_references: Vec<CallableReferenceLocalValue>,
     class_constructors: Vec<ClassConstructorLocalValues>,
     struct_constructors: Vec<StructConstructorLocalValues>,
+    release_hooks: Vec<Vec<PersistentLocalValueId>>,
 }
 
 #[derive(Clone, Debug)]
@@ -87,6 +89,15 @@ enum CallableReferenceLocalValue {
 }
 
 impl LocalValueIdentities {
+    pub fn release_local(
+        &self,
+        hook: super::ReleaseHookId,
+        local: LocalId,
+    ) -> &LocalValueIdentityRecord {
+        let identity = self.release_hooks[arena_index(hook)][arena_index(local)];
+        self.record(identity)
+            .expect("a release local has a canonical identity")
+    }
     pub fn from_callables(
         inputs: LocalValueIdentityInputs<'_>,
     ) -> Result<Self, LocalValueIdentityError> {
@@ -237,6 +248,7 @@ pub enum CaptureOwnerLocation {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LocalValueLocation {
+    ReleaseLocal { hook: u32, local: u32 },
     FunctionLocal { function: u32, local: u32 },
     ClassReceiver { constructor: u32 },
     ClassParameter { constructor: u32, parameter: u32 },

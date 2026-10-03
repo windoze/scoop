@@ -11,6 +11,12 @@ impl Lowerer {
         match target {
             hir::CallableTarget::Local(callable) => {
                 let function = self.callable_function_id(callable);
+                if facts.release_block
+                    && let hir::FunctionKind::Extern(external) = self.functions[function].kind
+                    && self.extern_functions[external].abi == hir::ExternAbi::C
+                {
+                    return;
+                }
                 if self.functions[function]
                     .method
                     .is_some_and(|method| !matches!(method.dispatch, hir::MethodDispatch::Direct))
@@ -56,6 +62,11 @@ impl Lowerer {
                     .resolve_callable(dependency.reference())
                     .expect("a selected dependency callable is present");
                 let effect = declaration.interface().effects();
+                if facts.release_block
+                    && effect.implementation() == hir::CallableImplementationV1::SourceExternC
+                {
+                    return;
+                }
                 if !matches!(effect.release_callability(),
                     hir::CallableReleaseCallabilityV1::NoTransition { requirements }
                     if requirements.is_empty())
@@ -122,7 +133,7 @@ impl Lowerer {
         }
     }
 
-    fn release_imported_call(
+    pub(super) fn release_imported_call(
         &self,
         effect: &hir::ReleaseCallability,
         arguments: &[(hir::TypeParamId, hir::TypeId)],

@@ -73,6 +73,17 @@ pub fn replay_shared_mir_descriptors(
             target,
             lir::ExactDescriptorSourceInputV1 {
                 exact: ty.exact(),
+                release_policy: match ty.representation().release_policy() {
+                    mir::MirClassReleasePolicyV1::None => lir::ReleasePolicy::None,
+                    mir::MirClassReleasePolicyV1::SynchronousGcFree { owner } => {
+                        lir::ReleasePolicy::SynchronousGcFree {
+                            hook: scoop_identity::PersistentCallableBodyId::from_key(
+                                &scoop_identity::CallableBodyKey::release_hook(owner),
+                            )
+                            .expect("a checked exact release owner has a canonical machine key"),
+                        }
+                    }
+                },
                 parent,
                 interfaces: &interfaces,
                 interface_parents: interface_parents.as_deref(),

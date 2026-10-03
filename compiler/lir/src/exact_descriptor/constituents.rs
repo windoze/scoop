@@ -18,6 +18,7 @@ mod tables;
 #[derive(Clone, Copy)]
 pub struct ExactDescriptorSourceInputV1<'a> {
     pub exact: PersistentExactTypeId,
+    pub release_policy: crate::ReleasePolicy,
     pub parent: Option<StrongTypeDescriptorRefV2>,
     pub interfaces: &'a [StrongTypeDescriptorRefV2],
     pub interface_parents: Option<&'a [StrongTypeDescriptorRefV2]>,
@@ -76,6 +77,7 @@ impl ExactDescriptorExportV1 {
                         parents: parents.iter().copied().map(Some).collect(),
                     }
                 }),
+            source.release_policy,
         );
         let physical = StrongShapeDefinitionRefV1::from_foundation(
             ExternalStrongShapeSubjectV1::TypeRegistration(exact),

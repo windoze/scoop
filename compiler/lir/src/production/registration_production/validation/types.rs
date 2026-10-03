@@ -10,6 +10,8 @@ use crate::{
 };
 use scoop_wire::{WirePath, encode_canonical_temporary};
 
+mod release;
+
 type DecodedTypeFor<R> = DecodedStrongTypeRegistrationPlan<
     <R as TypeReferences>::Parent,
     <R as TypeReferences>::DecodedDescriptor,
@@ -197,6 +199,13 @@ fn validate_types_with_references<R: TypeReferences>(
             }
             itables.push(itable);
         }
+        let release_policy = release::validate_policy(
+            decoded.release_policy,
+            exact_type,
+            &instance_shape,
+            foundation,
+            index,
+        )?;
         descriptors.push(StrongTypeDescriptorSemanticPlan::from_artifact(
             exact_type,
             decoded.diagnostic_name,
@@ -210,6 +219,7 @@ fn validate_types_with_references<R: TypeReferences>(
             decoded
                 .relations
                 .try_map(|reference| references.parent(reference, index))?,
+            release_policy,
         ));
     }
     let semantics = StrongTypeDescriptorSemanticPlanSet::from_artifact(

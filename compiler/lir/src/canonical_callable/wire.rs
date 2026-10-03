@@ -128,7 +128,7 @@ impl DecodedCanonicalCallableLirDefinitionsV1 {
                     CanonicalCallableLirError::UnknownBody(*definition.body.as_array()),
                 )?;
                 let body = record.id();
-                let owner = match (body_odr_member(record), definition.odr_abi) {
+                let owner = match (body_odr_member(record, foundation), definition.odr_abi) {
                     (None, None) => CanonicalCallableDefinitionOwnerV1::Strong,
                     (Some((group, member, role)), Some(abi)) => {
                         CanonicalCallableDefinitionOwnerV1::Odr {

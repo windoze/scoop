@@ -6,6 +6,9 @@ impl Lowerer {
         name: &ast::Ident,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<ResolvedPlacePlan> {
+        if self.reject_release_field_write(name) {
+            return None;
+        }
         if name.text == "field" && self.backing_field_context.is_some() {
             let (read, write) = self.contextual_backing_field(name.span)?;
             let ty = read.ty;

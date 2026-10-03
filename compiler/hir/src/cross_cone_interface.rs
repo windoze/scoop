@@ -275,7 +275,7 @@ pub use nominal_interfaces::{
     NominalInterfaceRecordV1, NominalInterfaceSemanticAuthority,
     NominalInterfaceSemanticValidationError, NominalInterfaceSetBuildError,
     NominalInterfaceSetSemanticValidationError, NominalInterfaceSetValidationError,
-    NominalSourceFieldInventoryError,
+    NominalReleasePolicyV1, NominalSourceFieldInventoryError,
 };
 pub use nominal_shapes::{
     DecodedEnumSourceFieldV1, DecodedEnumSourceVariantV1, DecodedNominalSourceFieldV1,

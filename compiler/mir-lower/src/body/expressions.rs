@@ -23,6 +23,10 @@ impl BodyLowerer<'_> {
             );
         }
         let kind = match &expr.kind {
+            hir::ExprKind::ReleaseFieldLoad { class, index } => smir::ExprKind::ReleaseFieldLoad {
+                class: self.class_map[class],
+                index: *index,
+            },
             hir::ExprKind::StringLiteral { value, owner } => {
                 let id = match *owner {
                     hir::StringConstantOwner::CurrentDefinition => {
@@ -90,6 +94,10 @@ impl BodyLowerer<'_> {
                 let class = self.module.class_constructors[*constructor].class;
                 smir::ExprKind::ClassNew {
                     class_id: self.class_map[&class],
+                    publish_release: !matches!(
+                        self.module.classes[class].release_policy,
+                        hir::ReleasePolicy::None
+                    ),
                     initializer: mir::Callee::User(self.ctors[constructor]),
                     args: args.iter().map(|arg| self.lower_expr(arg)).collect(),
                 }

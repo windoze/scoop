@@ -352,6 +352,7 @@ fn semantic_module(
     let mut local_functions = LocalFunctionIdentities::default();
     let entry = LocalFunctionRef::Managed(local_functions.alloc_managed());
     let module = Module {
+        release_hooks: Arena::new(),
         cone: producer,
         globals: Arena::new(),
         initialization_units: Arena::new(),
@@ -421,6 +422,7 @@ fn metadata() -> LirMeta {
         TypeDescriptorIdentity::new(runtime_type, MaterializationRoot::cone_owned()).unwrap();
     let vtable = VtableRecord::new(&identity, Vec::new()).unwrap();
     let string_descriptor = type_descriptors.alloc(TypeDescriptor {
+        release_policy: Default::default(),
         relations: Default::default(),
         diagnostic_name: "String".to_string(),
         identity,

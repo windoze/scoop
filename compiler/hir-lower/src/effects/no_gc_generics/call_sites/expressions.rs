@@ -61,6 +61,7 @@ impl Lowerer {
             | ExprKind::ConstructorReceiver
             | ExprKind::ConstructorParam(_)
             | ExprKind::InitializingClassFieldAccess { .. }
+            | ExprKind::ReleaseFieldLoad(_)
             | ExprKind::InitializingStructFieldAccess { .. }
             | ExprKind::GlobalRead(_)
             | ExprKind::GenericDelegateStorageRead(_)

@@ -190,6 +190,7 @@ fn type_semantics(types: &[TypeArtifacts]) -> StrongTypeDescriptorSemanticPlanSe
         .unwrap();
         let vtable = VtableRecord::new(&identity, Vec::new()).unwrap();
         let descriptor = type_descriptors.alloc(TypeDescriptor {
+            release_policy: Default::default(),
             relations: Default::default(),
             diagnostic_name: format!("type-{}", item.exact_type),
             identity,
@@ -229,6 +230,7 @@ fn type_semantics(types: &[TypeArtifacts]) -> StrongTypeDescriptorSemanticPlanSe
     });
     let mut functions = LocalFunctionIdentities::default();
     let module = Module {
+        release_hooks: Default::default(),
         cone: ConeIdentity::SINGLE_FILE,
         globals: Arena::new(),
         initialization_units: Arena::new(),

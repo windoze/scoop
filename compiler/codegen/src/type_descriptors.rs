@@ -242,6 +242,20 @@ fn emit_type_descriptor<'ctx>(
         .map(function_pointer)
         .transpose()?
         .unwrap_or_else(|| ptr.const_null());
+    let release_hook = match descriptor.release_policy {
+        scoop_lir::ReleasePolicy::None => ptr.const_null(),
+        scoop_lir::ReleasePolicy::SynchronousGcFree { hook } => {
+            let symbol = module
+                .callable_bodies()
+                .find(|body| body.callable_body.id() == hook)
+                .ok_or_else(|| CodegenError(format!("TypeDescriptor has no release body {hook}")))?
+                .symbol();
+            llvm.get_function(symbol)
+                .ok_or_else(|| CodegenError(format!("release hook {hook} was not declared")))?
+                .as_global_value()
+                .as_pointer_value()
+        }
+    };
     let mut fields = vec![
         i64_ty
             .const_int(
@@ -261,7 +275,7 @@ fn emit_type_descriptor<'ctx>(
             .into(),
         i32_ty.const_int(related_types.len() as u64, false).into(),
         function_result.into(),
-        ptr.const_null().into(),
+        release_hook.into(),
     ];
     if !related_types.is_empty() {
         fields.push(ptr.const_array(&related_types).into());

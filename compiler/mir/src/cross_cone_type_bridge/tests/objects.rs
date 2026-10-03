@@ -81,6 +81,7 @@ fn object_cannot_alias_a_source_class_or_a_different_generated_family() {
             MirTypeOriginV1::SourceNominal(fixture.backing.id()),
             reference_facts(),
             MirTypeRepresentationV1::Class {
+                release_policy: Default::default(),
                 kind: MirClassKindV1::Final,
                 declared_fields: vec![],
             },
@@ -99,6 +100,7 @@ fn execution_helpers_are_rejected_even_with_complete_canonical_identities() {
         role: fixture.frame.key().clone(),
     };
     let representation = MirTypeRepresentationV1::Class {
+        release_policy: Default::default(),
         kind: MirClassKindV1::Final,
         declared_fields: vec![],
     };

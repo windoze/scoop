@@ -191,6 +191,9 @@ impl CanonicalCrossConeRouteAuthority<'_> {
             CallableTemplateOwner::Accessor(id) => self.accessor_resolution(id),
             CallableTemplateOwner::VariantConstructor(id) => self.variant_resolution(id, target),
             CallableTemplateOwner::Generated(id) => self.generated_callable_resolution(id, target),
+            CallableTemplateOwner::ReleaseHook(_) => {
+                Err(CrossConeHirReferenceAuthorityError::NoPublicBindingRoot { target })
+            }
         }
     }
 

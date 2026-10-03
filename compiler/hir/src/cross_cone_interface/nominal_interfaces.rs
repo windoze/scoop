@@ -90,6 +90,11 @@ impl NominalInterfaceRecordV1 {
         details
             .instantiation_conditions()
             .validate(kind, type_parameters.binders().len())?;
+        details.release_policy().validate(
+            &source_shape,
+            details.modality(),
+            type_parameters.binders().len(),
+        )?;
         details
             .dispatch_order()
             .validate_kind(kind)

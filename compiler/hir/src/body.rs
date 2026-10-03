@@ -322,6 +322,7 @@ pub enum ExprKind {
     InitializingClassFieldAccess {
         field: InitializingClassFieldRef,
     },
+    ReleaseFieldLoad(ReleaseFieldRef),
     /// Direct read from the fully formed struct value owned by a secondary
     /// constructor. The value itself never becomes an expression.
     InitializingStructFieldAccess {

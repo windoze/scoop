@@ -208,6 +208,7 @@ impl ClassDecl {
             ClassMember::Function(function) => Some(function),
             ClassMember::StoredProperty(_)
             | ClassMember::InitBlock(_)
+            | ClassMember::ReleaseBlock(_)
             | ClassMember::SecondaryConstructor(_)
             | ClassMember::Nested(_)
             | ClassMember::Companion(_) => None,
@@ -219,6 +220,7 @@ impl ClassDecl {
             ClassMember::SecondaryConstructor(constructor) => Some(constructor),
             ClassMember::StoredProperty(_)
             | ClassMember::InitBlock(_)
+            | ClassMember::ReleaseBlock(_)
             | ClassMember::Function(_)
             | ClassMember::Nested(_)
             | ClassMember::Companion(_) => None,
@@ -345,6 +347,7 @@ pub struct SupertypeSpec {
 pub enum ClassMember {
     StoredProperty(StoredPropertyDecl),
     InitBlock(InitBlockDecl),
+    ReleaseBlock(ReleaseBlock),
     SecondaryConstructor(SecondaryConstructorDecl),
     Function(FunctionDecl),
     Nested(Box<NestedNominalDecl>),
@@ -356,6 +359,7 @@ impl ClassMember {
         match self {
             Self::StoredProperty(property) => property.span,
             Self::InitBlock(init) => init.span,
+            Self::ReleaseBlock(release) => release.span,
             Self::SecondaryConstructor(constructor) => constructor.span,
             Self::Function(function) => function.span,
             Self::Nested(declaration) => declaration.span(),
@@ -387,6 +391,13 @@ impl StructMember {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct InitBlockDecl {
+    pub body: Block,
+    pub span: Span,
+}
+
+/// A receiver-restricted reclamation block, separate from source callables.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ReleaseBlock {
     pub body: Block,
     pub span: Span,
 }

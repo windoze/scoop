@@ -28,7 +28,7 @@ fn computes_descriptor_and_managed_layout_from_the_closed_proof() {
     assert_eq!(actual.layout_node(), plan.layout_fingerprint_node());
     assert_eq!(
         actual.descriptor_definition().to_string(),
-        "f73803a3a84fbda3f7051a80268ea562a1005898e74468116b2bc858fb0bb935"
+        "29dae97edeb36bef6d7a94657558134d87c7622092dbc896131cfca2c2365a53"
     );
     assert_eq!(
         actual.layout().to_string(),

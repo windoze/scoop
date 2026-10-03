@@ -217,7 +217,7 @@ impl ShapeProjection<'_> {
     }
 
     fn descriptor(&self, descriptor: &TypeDescriptor, e: &mut Encoder) -> Result {
-        tagged(e, 5, if self.abi { 9 } else { 10 })?;
+        tagged(e, 5, if self.abi { 10 } else { 11 })?;
         e.field(1)?;
         descriptor.identity.exact_type().encode(e)?;
         e.field(2)?;
@@ -264,7 +264,8 @@ impl ShapeProjection<'_> {
             e.field(9)?;
             e.text(&descriptor.diagnostic_name)?;
         }
-        Ok(())
+        e.field(10)?;
+        descriptor.release_policy.encode(e)
     }
 
     fn descriptor_reference(&self, reference: TypeDescriptorRef, e: &mut Encoder) -> Result {

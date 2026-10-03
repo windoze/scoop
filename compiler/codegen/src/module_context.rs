@@ -56,7 +56,9 @@ pub(crate) fn root_storage_sources(function: &Function) -> Vec<scoop_lir::Caller
                     scoop_lir::CallSite::NativeBorrowed(site) => {
                         sources.extend(site.roots.as_slice().iter().map(|root| root.source));
                     }
-                    scoop_lir::CallSite::NoGc(_) => {}
+                    scoop_lir::CallSite::NoGc(_)
+                    | scoop_lir::CallSite::ReleaseScoop(_)
+                    | scoop_lir::CallSite::ReleaseNativeLeaf(_) => {}
                 },
                 Instruction::Invoke {
                     site: scoop_lir::InvokeSite::Managed(site),
@@ -66,10 +68,10 @@ pub(crate) fn root_storage_sources(function: &Function) -> Vec<scoop_lir::Caller
                 Instruction::Invoke {
                     site: scoop_lir::InvokeSite::NoGc(_),
                 } => {}
-                Instruction::NativeGlobalLoad { roots, .. }
-                | Instruction::NativeGlobalStore { roots, .. }
-                | Instruction::NativeGlobalAddress { roots, .. } => {
-                    sources.extend(roots.as_slice().iter().map(|root| root.source));
+                Instruction::NativeGlobalLoad { protocol, .. }
+                | Instruction::NativeGlobalStore { protocol, .. }
+                | Instruction::NativeGlobalAddress { protocol, .. } => {
+                    sources.extend(protocol.roots().iter().map(|root| root.source));
                 }
                 _ => {}
             }
@@ -99,6 +101,7 @@ pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId
         | Instruction::MakeAggregate { out, .. }
         | Instruction::MakeZstValue { out, .. }
         | Instruction::ExtractValue { out, .. }
+        | Instruction::ReleaseFieldLoad { out, .. }
         | Instruction::HeapLoad { out, .. }
         | Instruction::MachineHeapLoad { out, .. }
         | Instruction::AtomicLoad { out, .. }
@@ -133,6 +136,7 @@ pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId
         Instruction::ForeignCallbackOperation(operation) => operation.out(),
         Instruction::Store { .. }
         | Instruction::GlobalStore { .. }
+        | Instruction::PublishReleaseReady { .. }
         | Instruction::NativeGlobalStore { .. }
         | Instruction::HeapStore { .. }
         | Instruction::MachineHeapStore { .. }

@@ -397,6 +397,7 @@ pub(in super::super) fn collect_expr_types(
         ExprKind::InitializingClassFieldAccess { field, .. } => {
             out.push(field.owner);
         }
+        ExprKind::ReleaseFieldLoad(field) => out.push(field.owner),
         ExprKind::InitializingStructFieldAccess { owner, .. } => {
             out.push(*owner);
         }

@@ -100,6 +100,10 @@ impl WireEncode for IndexedDefaultExpressionKindV1<'_> {
                 operation,
                 callback,
             } => encode_two(encoder, 30, operation, callback.as_ref()),
+            Self::ReleaseFieldLoad {
+                owner_type,
+                declaration,
+            } => encode_two(encoder, 61, *owner_type, *declaration),
             Self::FieldAccess { receiver, field } => {
                 encode_two(encoder, 31, receiver.as_ref(), *field)
             }

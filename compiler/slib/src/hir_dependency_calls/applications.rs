@@ -104,7 +104,8 @@ pub(super) fn validate_root(
                     CallableOwner::Generated(id)
                 }
                 CallableTemplateOwner::GenericFunction(_)
-                | CallableTemplateOwner::VariantConstructor(_) => {
+                | CallableTemplateOwner::VariantConstructor(_)
+                | CallableTemplateOwner::ReleaseHook(_) => {
                     return Err(Error::CallRoot { position });
                 }
             };
@@ -129,7 +130,9 @@ pub(super) fn validate_root(
                 CallableTemplateOwner::VariantConstructor(id) => {
                     CallableTemplateOrigin::VariantConstructor(id)
                 }
-                CallableTemplateOwner::Generated(_) => return Err(Error::CallRoot { position }),
+                CallableTemplateOwner::Generated(_) | CallableTemplateOwner::ReleaseHook(_) => {
+                    return Err(Error::CallRoot { position });
+                }
             };
             signatures
                 .applications

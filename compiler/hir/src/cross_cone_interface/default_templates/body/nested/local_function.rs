@@ -199,12 +199,16 @@ impl WireEncode for IndexedDefaultLocalFunctionV1<'_> {
 }
 
 pub trait DefaultNestedCallableReferenceResolver<E>:
-    DefaultCallableReferenceResolver<E> + TemplateLocalReferenceResolver<E>
+    DefaultCallableReferenceResolver<E>
+    + TemplateLocalReferenceResolver<E>
+    + scoop_identity::PersistentIdResolver<scoop_identity::PersistentExactTypeId, Error = E>
 {
 }
 
 impl<R, E> DefaultNestedCallableReferenceResolver<E> for R where
-    R: DefaultCallableReferenceResolver<E> + TemplateLocalReferenceResolver<E>
+    R: DefaultCallableReferenceResolver<E>
+        + TemplateLocalReferenceResolver<E>
+        + scoop_identity::PersistentIdResolver<scoop_identity::PersistentExactTypeId, Error = E>
 {
 }
 

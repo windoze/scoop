@@ -86,6 +86,7 @@ impl Validator<'_> {
             | DefaultExpressionKindV1::IntegerLiteral(_)
             | DefaultExpressionKindV1::BooleanLiteral(_)
             | DefaultExpressionKindV1::UnitLiteral
+            | DefaultExpressionKindV1::ReleaseFieldLoad { .. }
             | DefaultExpressionKindV1::GlobalRead(_)
             | DefaultExpressionKindV1::GenericDelegateStorageRead(_)
             | DefaultExpressionKindV1::SingletonValue(_)

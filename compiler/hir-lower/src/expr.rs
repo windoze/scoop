@@ -240,6 +240,9 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        if self.reject_release_expression(expr) {
+            return None;
+        }
         let lowered = match expr {
             ast::Expr::StringLiteral { value, span } => Some(hir::Expr {
                 kind: ExprKind::StringLiteral {

@@ -68,6 +68,7 @@ pub(super) fn type_context(
             }
         };
         shell_classes.alloc(mir::ClassDef {
+            release_policy: Default::default(),
             modifier: mir::ClassModifier::Final,
             name: def.name.clone(),
             type_arguments: def.type_arguments.clone(),
@@ -95,6 +96,7 @@ pub(super) fn type_context(
         body: mir::Body::unreachable(Arena::new()),
     });
     mir::Module {
+        release_hooks: Arena::new(),
         cone,
         functions,
         extern_functions: Arena::new(),

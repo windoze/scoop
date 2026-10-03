@@ -33,6 +33,7 @@ impl<'a> CfgLowerer<'a> {
             }
             smir::ExprKind::ClassNew {
                 class_id,
+                publish_release,
                 initializer,
                 args,
             } => {
@@ -73,6 +74,18 @@ impl<'a> CfgLowerer<'a> {
                     None,
                     span,
                 );
+                if *publish_release {
+                    self.push(
+                        mir::StatementKind::PublishReleaseReady {
+                            class: *class_id,
+                            receiver: mir::Expr::new(
+                                receiver_ty.clone(),
+                                mir::ExprKind::Local(receiver),
+                            ),
+                        },
+                        span,
+                    );
+                }
                 return mir::Expr::new(receiver_ty, mir::ExprKind::Local(receiver));
             }
             smir::ExprKind::ClosureAlloc { class, captures } => mir::ExprKind::ClosureAlloc {
@@ -178,6 +191,10 @@ impl<'a> CfgLowerer<'a> {
             smir::ExprKind::Retype { operand, ty } => mir::ExprKind::Retype {
                 operand: Box::new(self.lower_expr(operand, span)),
                 ty: ty.clone(),
+            },
+            smir::ExprKind::ReleaseFieldLoad { class, index } => mir::ExprKind::ReleaseFieldLoad {
+                class: *class,
+                index: *index,
             },
             smir::ExprKind::FieldAccess { receiver, index } => mir::ExprKind::FieldAccess {
                 receiver: Box::new(self.lower_expr(receiver, span)),

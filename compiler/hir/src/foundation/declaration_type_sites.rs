@@ -185,6 +185,24 @@ impl<'a> Input<'a> {
                     self.source_record(id, |foundation| &foundation.enum_variants)?;
                 Self::source_origin(foundation, DefinitionOriginSubject::EnumVariant(id))
             }
+            CallableTemplateOwner::ReleaseHook(exact) => {
+                if position.is_some() {
+                    return Err(Error::Materialization(root));
+                }
+                let owner = self
+                    .foundation
+                    .release_hook_owner(exact)
+                    .ok_or(Error::Materialization(root))?;
+                let (foundation, key) = match owner {
+                    scoop_identity::NominalDeclarationOwner::Concrete(id) => {
+                        self.source_record(id, |foundation| &foundation.types)?
+                    }
+                    scoop_identity::NominalDeclarationOwner::GenericTemplate(id) => {
+                        self.source_record(id, |foundation| &foundation.generic_types)?
+                    }
+                };
+                self.declaration_origin(foundation, key)
+            }
             CallableTemplateOwner::GenericFunction(_) => Err(Error::Materialization(root)),
             CallableTemplateOwner::Generated(_) => {
                 unreachable!("generated roots were resolved with their substitution context")

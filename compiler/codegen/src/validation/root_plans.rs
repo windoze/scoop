@@ -13,7 +13,7 @@ use super::*;
 use crate::dataflow::*;
 
 pub(super) fn validate_call_root_plans(module: &Module) -> Result<(), CodegenError> {
-    for function in &module.functions {
+    for function in module.callable_bodies() {
         validate_function(module, function)?;
     }
     Ok(())
@@ -208,7 +208,9 @@ fn validate_call_plan(
                 &expected,
             )
         }
-        scoop_lir::CallSite::NoGc(_) => Ok(()),
+        scoop_lir::CallSite::NoGc(_)
+        | scoop_lir::CallSite::ReleaseScoop(_)
+        | scoop_lir::CallSite::ReleaseNativeLeaf(_) => Ok(()),
         scoop_lir::CallSite::NativeSafe(site) => validate_caller_roots(
             module,
             function,

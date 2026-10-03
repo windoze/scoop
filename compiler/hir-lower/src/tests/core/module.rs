@@ -154,7 +154,7 @@ fn make_class_members_public(members: &mut [ast::ClassMember]) {
     for member in members {
         match member {
             ast::ClassMember::StoredProperty(property) => make_property_public(property),
-            ast::ClassMember::InitBlock(_) => {}
+            ast::ClassMember::InitBlock(_) | ast::ClassMember::ReleaseBlock(_) => {}
             ast::ClassMember::SecondaryConstructor(constructor) => {
                 constructor.visibility = public_visibility();
             }

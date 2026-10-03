@@ -352,6 +352,7 @@ impl LocalFunctionCallPatcher<'_> {
             | hir::ExprKind::ConstructorReceiver
             | hir::ExprKind::ConstructorParam(_)
             | hir::ExprKind::InitializingClassFieldAccess { .. }
+            | hir::ExprKind::ReleaseFieldLoad(_)
             | hir::ExprKind::InitializingStructFieldAccess { .. }
             | hir::ExprKind::GlobalRead(_)
             | hir::ExprKind::GenericDelegateStorageRead(_)

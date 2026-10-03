@@ -46,7 +46,7 @@ impl<'a> AbiMetadataValidator<'a> {
     }
 
     fn validate_all(mut self) -> Result<(), CodegenError> {
-        for function in &self.module.functions {
+        for function in self.module.callable_bodies() {
             self.validate_scoop_signature(
                 &function.signature,
                 &format!("function @{}", function.symbol()),
@@ -444,6 +444,7 @@ enum CallProtocol {
     Managed,
     NoGc,
     NativeSafe,
+    ReleaseNativeLeaf,
     NativeBorrowed,
 }
 
@@ -453,6 +454,7 @@ impl CallProtocol {
             Self::Managed => "managed",
             Self::NoGc => "no-gc",
             Self::NativeSafe => "native-safe",
+            Self::ReleaseNativeLeaf => "release-native-leaf",
             Self::NativeBorrowed => "native-borrowed",
         }
     }
@@ -462,7 +464,7 @@ pub(super) fn validate_scoop_abi(module: &Module) -> Result<(), CodegenError> {
     AbiMetadataValidator::new(module).validate_all()?;
     validate_scoop_extern_declarations(module)?;
 
-    for function in &module.functions {
+    for function in module.callable_bodies() {
         validate_target_signature_references(function)?;
         for (_, block) in function.blocks.iter() {
             for instruction in &block.instructions {
@@ -609,7 +611,7 @@ fn validate_call_site(
             )?;
             validate_call(module, function, call, CallProtocol::Managed)
         }
-        scoop_lir::CallSite::NoGc(site) => {
+        scoop_lir::CallSite::NoGc(site) | scoop_lir::CallSite::ReleaseScoop(site) => {
             let call = checked_call_view(
                 function,
                 &site.call,
@@ -626,6 +628,21 @@ fn validate_call_site(
                 scoop_lir::NativeSafeCallDestination::view,
             )?;
             validate_call(module, function, call, CallProtocol::NativeSafe)
+        }
+        scoop_lir::CallSite::ReleaseNativeLeaf(site) => {
+            if function.callable_body.release_owner().is_none() {
+                return Err(call_error(
+                    function,
+                    "a release native leaf requires a release hook owner",
+                ));
+            }
+            let call = checked_call_view(
+                function,
+                &site.call,
+                &targets.native_safe_targets,
+                scoop_lir::NativeSafeCallDestination::view,
+            )?;
+            validate_call(module, function, call, CallProtocol::ReleaseNativeLeaf)
         }
         scoop_lir::CallSite::NativeBorrowed(site) => {
             // Native-borrowed calls are sealed by `CallTargets`: construction
@@ -934,7 +951,10 @@ fn validate_destination(
 ) -> Result<(), CodegenError> {
     let convention = indirect_result_convention(call);
     if convention == Some(scoop_lir::IndirectResultConvention::CStoragePointer)
-        && protocol != CallProtocol::NativeSafe
+        && !matches!(
+            protocol,
+            CallProtocol::NativeSafe | CallProtocol::ReleaseNativeLeaf
+        )
     {
         return Err(call_error(
             function,
@@ -1037,7 +1057,9 @@ fn validate_destination(
         scoop_lir::CallDestination::Dispatch { .. } => {
             if matches!(
                 protocol,
-                CallProtocol::NativeSafe | CallProtocol::NativeBorrowed
+                CallProtocol::NativeSafe
+                    | CallProtocol::NativeBorrowed
+                    | CallProtocol::ReleaseNativeLeaf
             ) {
                 return Err(call_error(
                     function,
@@ -1120,7 +1142,10 @@ fn validate_c_extern_call(
     declaration: &scoop_lir::ExternFunction,
     c_signature: &scoop_lir::CFunctionType,
 ) -> Result<(), CodegenError> {
-    if protocol != CallProtocol::NativeSafe {
+    if !matches!(
+        protocol,
+        CallProtocol::NativeSafe | CallProtocol::ReleaseNativeLeaf
+    ) {
         return Err(call_error(
             function,
             format!(
@@ -1425,6 +1450,7 @@ mod tests {
     fn module_with_types(structs: StructDefs, enums: EnumDefs) -> Module {
         let mut local_functions = scoop_lir::LocalFunctionIdentities::default();
         Module {
+            release_hooks: Default::default(),
             cone: scoop_identity::ConeIdentity::SINGLE_FILE,
             globals: Arena::new(),
             initialization_units: Arena::new(),

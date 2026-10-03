@@ -50,3 +50,15 @@ pub(super) fn intrinsic(source: hir::IntrinsicTypeKind) -> Option<mir::MirParamF
         | hir::IntrinsicTypeKind::FunPtr => return None,
     })
 }
+
+pub(in crate::layout_compile_closure::mir_types) fn release(
+    policy: &hir::NominalReleasePolicyV1,
+    owner: scoop_identity::PersistentExactTypeId,
+) -> mir::MirClassReleasePolicyV1 {
+    match policy {
+        hir::NominalReleasePolicyV1::None => mir::MirClassReleasePolicyV1::None,
+        hir::NominalReleasePolicyV1::SynchronousGcFree { .. } => {
+            mir::MirClassReleasePolicyV1::SynchronousGcFree { owner }
+        }
+    }
+}

@@ -56,6 +56,8 @@ pub use source_callable_materializations::*;
 
 mod local_values;
 pub use local_values::*;
+mod release;
+pub use release::*;
 
 mod closure_environment;
 pub use closure_environment::*;

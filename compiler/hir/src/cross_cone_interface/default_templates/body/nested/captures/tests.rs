@@ -273,6 +273,7 @@ resolve_callable!(
     scoop_identity::PersistentPropertyAccessorId,
     scoop_identity::PersistentGeneratedCallableId,
     scoop_identity::PersistentEnumVariantId,
+    scoop_identity::PersistentExactTypeId,
 );
 
 impl PersistentIdResolver<ConeIdentity> for Resolver {

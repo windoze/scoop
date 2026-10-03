@@ -53,7 +53,7 @@ fn error(function: &Function, reason: &'static str) -> GatewayValidationError {
 }
 
 pub fn validate_startup_gateways(module: &Module) -> Result<()> {
-    for function in &module.functions {
+    for function in module.callable_bodies() {
         let key = decode_runtime::<DecodedCallableBodyKey>(
             function.callable_body.identity_record().key_bytes(),
         )

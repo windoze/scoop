@@ -161,7 +161,7 @@ impl Lowerer {
             external_callables: &self.external_callables,
             source_exact_types: &mut self.source_exact_types,
             local_values: &mut self.local_values,
-            current_function: self.ctors[&constructor_id],
+            current_owner: self.ctors[&constructor_id].into(),
             current_materialization: constructor.materialization,
             current_string_owner: mir::ImmortalObjectOwner::Callable(constructor.materialization),
             next_string_ordinal: 0,
@@ -228,7 +228,7 @@ impl Lowerer {
             mutable: false,
         });
         lowerer.local_values.record(
-            lowerer.current_function,
+            lowerer.current_owner,
             receiver,
             module.local_value_identities.class_receiver(constructor_id),
         );
@@ -246,7 +246,7 @@ impl Lowerer {
                 mutable: false,
             });
             lowerer.local_values.record(
-                lowerer.current_function,
+                lowerer.current_owner,
                 local,
                 module
                     .local_value_identities
@@ -289,7 +289,7 @@ impl Lowerer {
             external_callables: &self.external_callables,
             source_exact_types: &mut self.source_exact_types,
             local_values: &mut self.local_values,
-            current_function: self.struct_ctors[&constructor_id],
+            current_owner: self.struct_ctors[&constructor_id].into(),
             current_materialization: constructor.materialization,
             current_string_owner: mir::ImmortalObjectOwner::Callable(constructor.materialization),
             next_string_ordinal: 0,
@@ -360,7 +360,7 @@ impl Lowerer {
                 mutable: false,
             });
             lowerer.local_values.record(
-                lowerer.current_function,
+                lowerer.current_owner,
                 local,
                 module
                     .local_value_identities
@@ -409,7 +409,7 @@ impl Lowerer {
                     mutable: false,
                 });
                 lowerer.local_values.record(
-                    lowerer.current_function,
+                    lowerer.current_owner,
                     receiver,
                     module
                         .local_value_identities

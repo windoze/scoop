@@ -11,6 +11,10 @@ pub(super) fn dump_expr(
     let pad = "  ".repeat(indent);
     out.push_str(&format!("{pad}Type {}\n", type_name(module, &expr.ty)));
     match &expr.kind {
+        ExprKind::ReleaseFieldLoad { class, index } => out.push_str(&format!(
+            "{pad}ReleaseFieldLoad {}.field{index}\n",
+            module.classes[*class].name,
+        )),
         ExprKind::StringConst(id) => {
             out.push_str(&format!("{pad}StringConst {}\n", string_ref(*id)));
         }

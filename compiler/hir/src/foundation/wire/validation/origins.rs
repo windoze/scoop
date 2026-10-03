@@ -67,6 +67,7 @@ pub(super) fn validate(
     enum_variants: &[EnumVariantRecord],
     enum_variant_fields: &[EnumVariantFieldRecord],
     generated_callables: &[GeneratedCallableRecord],
+    exact_types: &[crate::foundation::ExactTypeRecord],
     initialization_units: &[InitializationUnitRecord],
     local_bindings: &[LocalBindingRecord],
     local_values: &[LocalValueRecord],
@@ -132,8 +133,13 @@ pub(super) fn validate(
         ],
         &path,
     )?;
-    let mut requirements =
-        OriginRequirements::new(generated_callables, dependencies, required_count, &path)?;
+    let mut requirements = OriginRequirements::new(
+        generated_callables,
+        exact_types,
+        dependencies,
+        required_count,
+        &path,
+    )?;
 
     for record in types {
         if type_requires_definition_origin(record) {

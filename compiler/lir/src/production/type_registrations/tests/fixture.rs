@@ -234,6 +234,7 @@ impl Fixture {
                         ),
                         itables,
                         crate::TypeDescriptorRelations::Absent,
+                        crate::ReleasePolicy::None,
                     )
                 })
                 .collect(),

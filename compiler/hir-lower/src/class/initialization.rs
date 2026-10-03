@@ -303,7 +303,8 @@ impl Lowerer {
                 ast::ClassMember::SecondaryConstructor(_)
                 | ast::ClassMember::Function(_)
                 | ast::ClassMember::Nested(_)
-                | ast::ClassMember::Companion(_) => {}
+                | ast::ClassMember::Companion(_)
+                | ast::ClassMember::ReleaseBlock(_) => {}
             }
         }
         steps

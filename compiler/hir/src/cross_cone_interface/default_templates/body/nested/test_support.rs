@@ -345,3 +345,14 @@ fn owned_site(owner: DefinitionOwnerAtom) -> SourceDeclarationSite {
 fn identifier(value: &str) -> CanonicalIdentifier {
     CanonicalIdentifier::new(value).unwrap()
 }
+
+impl PersistentIdResolver<scoop_identity::PersistentExactTypeId> for Resolver {
+    type Error = ResolutionError;
+
+    fn resolve(
+        &mut self,
+        _id: DecodedPersistentId<scoop_identity::PersistentExactTypeId>,
+    ) -> Result<scoop_identity::PersistentExactTypeId, Self::Error> {
+        Err(ResolutionError)
+    }
+}

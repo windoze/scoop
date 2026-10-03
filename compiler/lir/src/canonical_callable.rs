@@ -76,31 +76,31 @@ impl CanonicalCallableLirDefinitionsV1 {
         foundation: &ConeLirFoundation,
     ) -> Result<Self, CanonicalCallableLirError> {
         let definitions = module
-            .functions
-            .iter()
+            .callable_bodies()
             .map(|function| {
-                let owner = match body_odr_member(function.callable_body.identity_record()) {
-                    None => CanonicalCallableDefinitionOwnerV1::Strong,
-                    Some((group, member, role)) => {
-                        let abi = domain_separated_cbor_hash(
-                            "scoop-odr-member-abi-v1",
-                            &encode::CallableAbiProjection {
-                                module,
-                                function,
+                let owner =
+                    match body_odr_member(function.callable_body.identity_record(), foundation) {
+                        None => CanonicalCallableDefinitionOwnerV1::Strong,
+                        Some((group, member, role)) => {
+                            let abi = domain_separated_cbor_hash(
+                                "scoop-odr-member-abi-v1",
+                                &encode::CallableAbiProjection {
+                                    module,
+                                    function,
+                                    group,
+                                    member,
+                                    role,
+                                },
+                            )
+                            .map_err(CanonicalCallableLirError::Hash)?;
+                            CanonicalCallableDefinitionOwnerV1::Odr {
                                 group,
                                 member,
                                 role,
-                            },
-                        )
-                        .map_err(CanonicalCallableLirError::Hash)?;
-                        CanonicalCallableDefinitionOwnerV1::Odr {
-                            group,
-                            member,
-                            role,
-                            abi,
+                                abi,
+                            }
                         }
-                    }
-                };
+                    };
                 Ok(CanonicalCallableLirDefinitionV1::new(
                     function.callable_body.id(),
                     canonical_callable_lir_fingerprint(module, function)
@@ -130,7 +130,7 @@ impl CanonicalCallableLirDefinitionsV1 {
             return Err(CanonicalCallableLirError::BodySet { expected, actual });
         }
         for (record, definition) in records.into_iter().zip(&definitions) {
-            let matches = match (body_odr_member(record), definition.owner) {
+            let matches = match (body_odr_member(record, foundation), definition.owner) {
                 (None, CanonicalCallableDefinitionOwnerV1::Strong) => true,
                 (
                     Some(expected),
@@ -164,13 +164,26 @@ impl CanonicalCallableLirDefinitionsV1 {
 
 fn body_odr_member(
     record: &RuntimeIdentityRecord<PersistentCallableBodyId>,
+    foundation: &ConeLirFoundation,
 ) -> Option<(OdrGroupId, OdrMemberId, OdrMemberRole)> {
     match record.key().kind() {
         CallableBodyKeyKind::Odr(member) => Some((member.group(), member.member(), member.role())),
+        CallableBodyKeyKind::ReleaseHook { .. } => {
+            let definition = foundation.definition_for(
+                scoop_identity::StrongDefinitionEntity::callable_body(record.id()),
+                scoop_identity::StrongDefinitionRole::CallableBody,
+            )?;
+            let scoop_identity::ObjectDefinitionPlanOwner::Odr { member } =
+                definition.key().owner()
+            else {
+                return None;
+            };
+            let member = foundation.odr_member(member)?;
+            Some((member.key().group(), member.id(), member.key().role()))
+        }
         CallableBodyKeyKind::Strong(_)
         | CallableBodyKeyKind::RootGateway { .. }
-        | CallableBodyKeyKind::InitializationStartupGateway(_)
-        | CallableBodyKeyKind::ReleaseHook { .. } => None,
+        | CallableBodyKeyKind::InitializationStartupGateway(_) => None,
     }
 }
 

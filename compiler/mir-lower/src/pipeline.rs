@@ -3,6 +3,7 @@ use super::*;
 mod coroutines;
 mod declarations;
 mod functions;
+mod release;
 
 impl Lowerer {
     pub(super) fn run(
@@ -251,6 +252,7 @@ impl Lowerer {
             function.body = body;
         }
         self.materialize_shape_types(module, shape_support);
+        let release_hooks = self.lower_release_hooks(module);
 
         // Finalize boxed value types to a fixed point. Function-type bridges
         // can discover additional boxed payloads.
@@ -340,6 +342,7 @@ impl Lowerer {
         let generated_exact_types = self.generated_exact_types(&boxed_types);
         let option_core = self.enums.all_option_core(module);
         let mut output = mir::Module {
+            release_hooks,
             cone: module.cone,
             functions: self.functions,
             extern_functions: self.extern_functions,

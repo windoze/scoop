@@ -31,6 +31,7 @@ impl Builder {
             });
         }
         self.classes.alloc(mir::ClassDef {
+            release_policy: Default::default(),
             modifier: mir::ClassModifier::Final,
             name: "String".to_string(),
             type_arguments: Vec::new(),
@@ -189,6 +190,7 @@ impl Builder {
         )
         .unwrap();
         mir::Module {
+            release_hooks: Arena::new(),
             cone: provider,
             functions: self.functions,
             extern_functions: self.extern_functions,

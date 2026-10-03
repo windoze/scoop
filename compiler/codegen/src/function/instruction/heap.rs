@@ -9,6 +9,42 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let builder = self.builder;
         let function = self.function;
         match instruction {
+            Instruction::PublishReleaseReady { object } => {
+                let object = self.value(*object)?.into_pointer_value();
+                let word = self.byte_gep(object, 8, "release_gc_word")?;
+                builder
+                    .build_atomicrmw(
+                        AtomicRMWBinOp::Or,
+                        word,
+                        context.i64_type().const_int(4, false),
+                        AtomicOrdering::Release,
+                    )
+                    .map_err(|error| CodegenError(format!("publish release ready: {error}")))?;
+            }
+            Instruction::ReleaseFieldLoad { out, offset } => {
+                if function.callable_body.release_owner().is_none() {
+                    return Err(CodegenError(
+                        "release field read outside a release hook".into(),
+                    ));
+                }
+                let object = self
+                    .llvm_function
+                    .get_nth_param(0)
+                    .ok_or_else(|| CodegenError("release hook has no reclaiming receiver".into()))?
+                    .into_pointer_value();
+                let pointer = self.byte_gep(object, *offset, "release_field")?;
+                let ty = basic_ty(
+                    context,
+                    self.structs,
+                    self.enums,
+                    self.managed_address_space,
+                    &function.temps[*out].ty,
+                )?;
+                let value = builder
+                    .build_load(ty, pointer, "release_value")
+                    .map_err(|error| CodegenError(format!("release field load: {error}")))?;
+                self.temps.insert(*out, value);
+            }
             Instruction::HeapLoad {
                 out,
                 object,

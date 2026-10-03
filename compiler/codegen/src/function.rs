@@ -118,6 +118,7 @@ enum CallProtocol<'a> {
         roots: &'a scoop_lir::ExceptionalRootSet,
     },
     NoGc,
+    ReleaseNativeLeaf,
     NativeSafe {
         safepoint: scoop_lir::SafepointId,
         roots: &'a scoop_lir::NativeSafeRootSet,
@@ -136,7 +137,7 @@ impl CallProtocol<'_> {
             | Self::ManagedInvoke { safepoint, .. }
             | Self::NativeSafe { safepoint, .. }
             | Self::NativeBorrowed { safepoint, .. } => Some(*safepoint),
-            Self::NoGc => None,
+            Self::NoGc | Self::ReleaseNativeLeaf => None,
         }
     }
 }

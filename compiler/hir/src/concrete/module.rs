@@ -52,6 +52,7 @@ pub struct Module {
     pub structs: Arena<StructDef>,
     pub enums: Arena<EnumDef>,
     pub classes: Arena<ClassDef>,
+    pub release_hooks: Arena<ReleaseHook>,
     /// Hidden, fully typed allocation/initialization callables for every
     /// instantiable declared class. Class construction expressions and
     /// compiler exceptions reference these ids directly.

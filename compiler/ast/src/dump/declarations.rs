@@ -387,6 +387,10 @@ fn dump_class_member(member: &ClassMember, indent: usize, out: &mut String) {
             out.push_str(&format!("{pad}init\n"));
             dump_block(&init.body, indent + 1, out);
         }
+        ClassMember::ReleaseBlock(release) => {
+            out.push_str(&format!("{pad}release\n"));
+            dump_block(&release.body, indent + 1, out);
+        }
         ClassMember::SecondaryConstructor(constructor) => {
             dump_secondary_constructor(constructor, indent, out)
         }

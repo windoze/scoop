@@ -164,6 +164,35 @@ fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) ->
         for &property in &decl.properties {
             dump_property(module, property, 2, &mut out);
         }
+        if let ReleasePolicy::SynchronousGcFree {
+            hook: ExportReleaseHookRef::Template(hook),
+        } = decl.release_policy
+        {
+            let hook = &module.release_hooks[hook];
+            let requirements = hook
+                .requirements
+                .iter()
+                .map(|id| {
+                    decl.type_params
+                        .iter()
+                        .find(|parameter| parameter.id == *id)
+                        .expect("release requirements bind owner parameters")
+                        .name
+                        .as_str()
+                })
+                .collect::<Vec<_>>();
+            out.push_str(&format!(
+                "    release <requires-release-value [{}]>\n",
+                requirements.join(", ")
+            ));
+            dump_statements(
+                module,
+                &hook.body.locals,
+                &hook.body.statements,
+                3,
+                &mut out,
+            );
+        }
     }
     for (object, declaration) in module.objects.iter() {
         let object_type = &module.object_types[declaration.object_type];

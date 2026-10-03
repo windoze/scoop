@@ -267,10 +267,7 @@ fn odr_registration(value: RegistrationFingerprintV1) -> Option<OdrMemberFingerp
 }
 
 fn physical_role(role: OdrMemberRole) -> bool {
-    !matches!(
-        role,
-        OdrMemberRole::GeneratedNominal | OdrMemberRole::ReleaseHook
-    )
+    role != OdrMemberRole::GeneratedNominal
 }
 
 fn encode_array(

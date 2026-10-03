@@ -56,6 +56,7 @@ pub(super) fn value_or_abstract_type_descriptor(
     let vtable = lir::VtableRecord::new(&identity, Vec::new())
         .expect("validated exact type must derive a vtable identity");
     Ok(lir::TypeDescriptor {
+        release_policy: Default::default(),
         relations: lir::TypeDescriptorRelations::Absent,
         diagnostic_name: mir::type_name(module, ty),
         identity,
@@ -199,6 +200,14 @@ pub(crate) fn class_type_descriptor(
         .collect();
     itables.sort_unstable_by_key(|table| table.identity_record().key().interface());
     Ok(lir::TypeDescriptor {
+        release_policy: match def.release_policy {
+            mir::ReleasePolicy::None => lir::ReleasePolicy::None,
+            mir::ReleasePolicy::SynchronousGcFree { .. } => lir::ReleasePolicy::SynchronousGcFree {
+                hook: lir::CallableBodyIdentity::for_release_hook(runtime_type.exact_type(), &root)
+                    .expect("a release owner derives its exact hook identity")
+                    .id(),
+            },
+        },
         relations: Default::default(),
         diagnostic_name: def.name.clone(),
         identity,

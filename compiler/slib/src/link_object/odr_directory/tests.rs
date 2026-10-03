@@ -60,20 +60,18 @@ fn directory_rejects_missing_unexpected_and_repeated_physical_members() {
             first.1.member
         )),
     );
-    for role in [OdrMemberRole::GeneratedNominal, OdrMemberRole::ReleaseHook] {
-        let mut entry = first.1;
-        entry.role = role;
-        assert_eq!(
-            CanonicalOdrMemberDirectoryV1::from_members(
-                BTreeSet::from([entry.member]),
-                [(first.0, entry)],
-            ),
-            Err(OdrMemberDirectoryProjectionError::InvalidPhysicalRole {
-                member: entry.member,
-                role,
-            }),
-        );
-    }
+    let mut entry = first.1;
+    entry.role = OdrMemberRole::GeneratedNominal;
+    assert_eq!(
+        CanonicalOdrMemberDirectoryV1::from_members(
+            BTreeSet::from([entry.member]),
+            [(first.0, entry)],
+        ),
+        Err(OdrMemberDirectoryProjectionError::InvalidPhysicalRole {
+            member: entry.member,
+            role: entry.role,
+        }),
+    );
 }
 
 #[test]
@@ -113,6 +111,16 @@ fn directory_reader_rejects_empty_groups_and_noncanonical_member_sets() {
 }
 
 #[test]
+fn directory_wire_accepts_the_release_hook_physical_role() {
+    let mut directory = directory();
+    directory.groups[0].members[0].role = OdrMemberRole::ReleaseHook;
+    let bytes = encode(&directory).unwrap();
+    let decoded = decode_canonical::<DecodedCanonicalOdrMemberDirectoryV1>(&bytes).unwrap();
+    decoded.validate_against(&directory).unwrap();
+    assert_eq!(encode(&decoded).unwrap(), bytes);
+}
+
+#[test]
 fn directory_reader_checks_record_shapes_roles_and_digest_widths() {
     let mut directory = directory();
     directory.groups.truncate(1);
@@ -128,7 +136,7 @@ fn directory_reader_checks_record_shapes_roles_and_digest_widths() {
     // A four-field entry starts with a 32-byte ID, then the role field.
     assert_eq!(&entry[..4], &[0xa4, 1, 0x58, 32]);
     assert_eq!(entry[36], 2);
-    for role in [0, 2, 16, 17] {
+    for role in [0, 2, 17] {
         let mut changed = bytes.clone();
         changed[start + 37] = role;
         assert!(decode_canonical::<DecodedCanonicalOdrMemberDirectoryV1>(&changed).is_err());

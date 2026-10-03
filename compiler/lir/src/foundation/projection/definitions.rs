@@ -26,7 +26,7 @@ impl CanonicalLirFoundation {
                 .push(identity);
         }
 
-        for function in &module.functions {
+        for function in module.callable_bodies() {
             let body = function.callable_body.id();
             let cstrings = cstrings_by_owner.remove(&body).unwrap_or_default();
             let runtime_scans = callable_runtime_scans
@@ -288,7 +288,10 @@ pub(super) fn callable_body_associated_atoms(
 ) -> Vec<(DefinitionAtomRole, DefinitionAtomSubkey)> {
     let body = function.callable_body.id();
     let subkey = || DefinitionAtomSubkey::CallableBody(body);
-    let mut associated = vec![(DefinitionAtomRole::CompactUnwind, subkey())];
+    let mut associated = Vec::new();
+    if function.callable_body.release_owner().is_none() {
+        associated.push((DefinitionAtomRole::CompactUnwind, subkey()));
+    }
     if !function.safepoints.is_empty() {
         associated.push((DefinitionAtomRole::Stackmap, subkey()));
     }

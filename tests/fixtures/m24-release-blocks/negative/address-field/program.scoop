@@ -1,0 +1,5 @@
+fun helper() {}
+class Owner(private var handle: Int) {
+    release { @Unsafe { addressOf(handle) } }
+}
+fun main() {}

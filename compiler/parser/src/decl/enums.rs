@@ -71,6 +71,9 @@ impl Parser {
                         self.peek().span,
                         "`init` blocks are not allowed in enums",
                     )),
+                    TokenKind::Ident(text) if text == "release" => {
+                        self.invalid_release_owner("enums")
+                    }
                     TokenKind::Ident(text) if text == "constructor" => Err(Diagnostic::at(
                         self.peek().span,
                         "secondary constructors are not allowed in enums",
@@ -124,6 +127,9 @@ impl Parser {
     }
 
     fn enum_member_starts_here(&self) -> bool {
+        if self.release_block_starts_here() {
+            return true;
+        }
         match &self.peek().kind {
             TokenKind::Fun
             | TokenKind::Suspend

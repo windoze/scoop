@@ -310,6 +310,7 @@ impl StructFieldRef {
 
 #[derive(Debug, Clone)]
 pub struct ClassDef {
+    pub release_policy: ReleasePolicy<ReleaseHookTarget>,
     pub origin: HirNominalIdentity,
     /// Canonical concrete type represented by this physical declaration.
     pub canonical_type: TypeId,

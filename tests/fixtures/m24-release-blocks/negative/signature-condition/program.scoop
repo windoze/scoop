@@ -1,0 +1,3 @@
+class Owner<T>(private val value: T) { release { val copy = value } }
+fun onlyType(value: Owner<String>) {}
+fun main() {}

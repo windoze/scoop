@@ -6,7 +6,7 @@
 
 - 按 DESIGN 第 4.3 节迁移共同 profile、section、outer schema、language/runtime/composite ABI。
 - 所有 callable body 改用 `scoop-callable-body-v2`；新增 tag 5 `ReleaseHook(exact owner)`，保留既有 RuntimeEncode ABI。
-- C/LLVM TypeDescriptor 固定部分为 152 bytes，release entry 位于 144，related types 从 152 开始；当前源码编译路径仍只发射 null entry。
+- C/LLVM TypeDescriptor 固定部分为 152 bytes，release entry 位于 144，related types 从 152 开始；第一批仅发射 null entry，第三批已接通源码 hook。
 - runtime 的 small/large reclaim 仅对逻辑死亡对象清除 ready 并同步调用 hook；搬迁旧副本不调用。清位先于回调，回调先于 poison、元数据退役与块回收。
 - runtime 加载阶段从 exact type registration 派生 hook body ID，复用 callable map 与已检查的 executable entry。
 - nominal parser 按成员、构造和修饰符拆分；主文件从 1,177 行降到 565 行。此提交未改变语法行为。
@@ -27,7 +27,7 @@
 
 ## 尚未完成
 
-源码 `release` 的 AST/HIR、受限 MIR/LIR、构造成功边 publish、机器 hook 发射、共有模板与参数自由/generic 依赖、ODR 和全部 M24 正负/组合 fixture，均须继续完成。最终以 DESIGN 第 6 节的源码、产物消费、独立链接和运行闭环验收为准。
+泛型 release 正文的共有模板与依赖实例化、ODR 实际组合、外来 helper 调用与剩余源码诊断/组合 fixture、最终格式基线和全量正式 CLI 回归仍须完成。已经完成的最小源码及参数自由依赖闭环见第三批；最终以 DESIGN 第 6 节的源码、产物消费、独立链接和运行闭环验收为准。
 
 ## 第二批：ReleaseValue 与 NoTransition
 
@@ -37,3 +37,15 @@
 - 新增独立、组合和跨 Cone 三项正式 CLI fixture，锁定 HIR/MIR/LIR 输出；跨 Cone 用例在删除源码后仍完成产物消费、链接并运行返回 42。
 - 使用这一批源码构建并保存于 `tmp/m24/effects-tools/` 的三个命令，执行原 fixture runner 的无更新模式 `--all`，退出码为 0：发现并选择全部 2,070 项，全部通过，覆盖 2,160 个变体、11,612 次进程执行及 11,024 份 stage/plan golden。
 - 完整报告位于 `tmp/m24/effects-all-acceptance/report.json`，命令日志位于 `tmp/m24/logs/effects-all-acceptance.log`。这次全量结果仅对应本批工具，不代表后续 release hook 编译路径已经完成。
+
+## 第三批：源码 hook 与参数自由依赖
+
+- `release` 从独立 AST 成员进入 Export/LocalConcrete HIR、MIR 和 LIR 的独立 typed arena。字段引用保留实际 owner 与字段身份；机器入口使用 AS0 私有参数，既有 CFG 和值操作共用原 lowering。
+- 最外层 class 构造的正常出口在 initializer 返回后发布 ready；委托与失败出口不发布。LIR/codegen 接通无 transition 的 C leaf、原 NoGc helper，以及非 TLS native global 的纯存储 bridge。受限 MIR/LIR 输出检查覆盖错误 owner/字段、过早发布、managed 值、接收者逃逸和异常边。
+- 共有 HIR nominal 声明保存 release policy 和必要 binder 条件；共有 MIR exact class 保存同一 owner 的 policy，LIR TD 投影直接消费它。参数自由 hook 由 provider 提供 Strong 定义，TD 的外部 relocation 保留精确 body symbol。
+- 新增 4 个运行 fixture，锁定 21 份 AST/HIR/MIR/LIR 快照。它们覆盖直接 C leaf、native global/helper、显式与重复 close、惰性取得资源、stored 自定义 getter、Unit/空 block、base/this 构造、initializer 中 GC 和失败构造；所有运行同时使用普通 GC 与 moving stress。
+- A→B→C fixture 删除 core/provider/middle/consumer 源码后完成下游消费和纯产物独立链接。provider 的私有 helper 随其原 Strong hook 发射，consumer 仅通过 middle 消费 Owner；普通与压力运行均得到 42。
+- 新增 63 个独立 negative fixture，精确断言 canonical source/span、code、message 和 notes，覆盖语法、owner、字段/receiver、控制流、实际 helper/default/TLS 效果、类型用途条件，以及 handle/pin/function-pointer/callback 的直接、Option、aggregate 和 pointer 包装。
+- `cargo fmt --all`、全 workspace/all-targets clippy 通过；完整 `cargo test --workspace --no-fail-fast` 执行了 5,238 项测试，其中 5 处旧字段数量/摘要断言迁移后，对相关 3 个 crate 的 2,379 项测试复核全部通过。原全量日志为 `tmp/m24/logs/hooks-workspace-tests.log`，复核日志为 `tmp/m24/logs/hooks-workspace-recheck.log`；原全量命令保留非零退出事实。
+- Python runner 的 29 项单元测试通过。使用 `tmp/m24/hooks-tools/` 的配套命令执行无更新模式 `--filter 'release-blocks-*'`，67/67 通过，覆盖 89 次进程执行及 21 份 stage golden；报告为 `tmp/m24/hooks-source-acceptance/report.json`。
+- 再次用 `cargo clean --profile dev --target-dir target` 清理默认开发产物，释放约 2.5 GiB。所有工具副本、测试目录和日志继续位于已忽略的仓库 `tmp/m24/`。

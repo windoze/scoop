@@ -8,6 +8,7 @@ pub(super) fn generated_class(
     itables: Vec<mir::ItableRecord>,
 ) -> mir::ClassId {
     let class = lowerer.classes.alloc(mir::ClassDef {
+        release_policy: Default::default(),
         modifier: mir::ClassModifier::Final,
         name: name.clone(),
         type_arguments: Vec::new(),
@@ -20,6 +21,7 @@ pub(super) fn generated_class(
         itables,
     });
     let shell = lowerer.shell.classes.alloc(mir::ClassDef {
+        release_policy: Default::default(),
         modifier: mir::ClassModifier::Final,
         name,
         type_arguments: Vec::new(),

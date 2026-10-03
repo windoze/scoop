@@ -227,6 +227,7 @@ fn callback_module() -> (Module, ForeignCallbackFamilyId, ForeignCallbackBridgeI
     });
     register_test_exact_type(&mut module, &Type::Struct(callback));
     let throwable = module.classes.alloc(ClassDef {
+        release_policy: Default::default(),
         type_arguments: Vec::new(),
         modifier: ClassModifier::Open,
         name: "Throwable".to_string(),
@@ -730,6 +731,7 @@ fn callback_bridge_rejects_a_stale_managed_signature_before_lowering() {
 fn callback_failure_constructor_rejects_another_managed_payload_type() {
     let (mut module, family, _) = callback_module();
     let other = module.classes.alloc(ClassDef {
+        release_policy: Default::default(),
         type_arguments: Vec::new(),
         modifier: ClassModifier::Final,
         name: "Other".to_string(),

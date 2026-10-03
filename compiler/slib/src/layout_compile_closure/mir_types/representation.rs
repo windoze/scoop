@@ -75,6 +75,7 @@ pub(super) fn validate(
             Repr::Class {
                 kind,
                 declared_fields: actual,
+                release_policy,
             },
         ) => {
             let expected = match declaration.declaration_details().modality() {
@@ -89,6 +90,12 @@ pub(super) fn validate(
                 }
             };
             Error::require(exact, Component::ClassKind, *kind == expected)?;
+            Error::require(
+                exact,
+                Component::ReleasePolicy,
+                *release_policy
+                    == policies::release(declaration.declaration_details().release_policy(), exact),
+            )?;
             fields_match(
                 comparison,
                 exact,

@@ -31,6 +31,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             | Instruction::MakeZstValue { .. }
             | Instruction::ExtractValue { .. } => self.emit_aggregate_instruction(instruction),
             Instruction::HeapLoad { .. }
+            | Instruction::ReleaseFieldLoad { .. }
+            | Instruction::PublishReleaseReady { .. }
             | Instruction::MachineHeapLoad { .. }
             | Instruction::AtomicLoad { .. }
             | Instruction::HeapStore { .. }

@@ -178,7 +178,9 @@ Unavailable 是合法普通 callable 的属性，只有从 release 使用时才�
 
 ### 3.2 hook 身份和 owner policy
 
-AST 是独立 ReleaseBlock。Export HIR 和 LocalConcrete 使用不同 typed hook ID；MIR、LIR 也有各自 ID。全局 machine identity 统一用第 4.2 节的 PersistentCallableBodyId，不增加 PersistentReleaseHookId 或新的 mangler kind。
+AST 是独立 ReleaseBlock。Export HIR 和 LocalConcrete 使用不同 typed hook ID；MIR、LIR 也有各自 ID。全局 machine identity 统一用第 4.2 节的 PersistentCallableBodyId，不增加 PersistentReleaseHookId 或新的 mangler kind。 各 stage 可复用普通 callable 的 CFG / 机器代码存储结构，但 hook 必须保存在自己的 typed arena 中，不能分配普通 FunctionId；local-value 的实际 owner 也保留 Function / ReleaseHook 的封闭区分。
+
+release 的 source context 复用 owner 的 nominal context；它没有函数声明，不增加另一种 lexical callable parent。其局部值复用原 definition path/selector 和 `PersistentLocalValueId`；具体化后，local-value materialization 的 `CallableTemplateOwner` 使用 tag 7 `ReleaseHook(owner_exact_type_id)`，context 为 `NoSubstitution`，因为 owner 已含全部具体类型实参。普通 callable 的编码保持不变，不把 release 伪装成函数、构造器或初始化单元。
 
 共有 nominal 声明承载 release template/policy。wire 以原 nominal owner 为键内联完整 typed template 与条件，不保存进程内 arena 序号。字段引用保存 PersistentFieldId 及原 owner/type；template 的 private/internal helper、native contract 和所需类型走现有支持声明闭包，不公开到普通 lookup，也不需要 template-support 授权记录。
 
@@ -186,13 +188,15 @@ LocalConcrete 明确区分本次物化 hook 与依赖 owner 的 hook 引用；�
 
 ### 3.3 MIR 与 LIR
 
-MIR 的 `MirReleaseHookBody` 只有 raw reclaiming input。`ReleaseFieldLoad` 是读取源对象的唯一操作；值运算、局部存储和 CFG 复用已有 lowering，受限 operation/call sum 不提供 managed receiver、barrier、invoke、throw、suspend 或 root API 分支。block 正常结果为 Unit，普通 helper 保留原函数返回类型。
+MIR 的 release body 没有普通参数，raw reclaiming input 只由后端私有 ABI 提供。`ReleaseFieldLoad` 是读取源对象的唯一操作；值运算、局部存储、调用和 CFG 复用已有存储与 lowering，正文保存在独立 hook arena。MIR 输出边界复用普通 CFG/值操作校验，再检查本次 hook 的受限操作、静态 NoGc/C 目标以及字段 owner，不重跑 HIR effect 推导。实际正文不能含 managed receiver、barrier、异常边、throw、suspend 或 root API。block 正常结果为 Unit，普通 helper 保留原函数返回类型。
 
 普通构造的 PublishReleaseReady 引用完整 exact class owner/policy 与当前 receiver；外来 owner 使用真实 typed 引用，不依赖本地 hook arena。MIR 输出边界检查本次 CFG 的正常/异常边、引用和类型，不能把既有完整 MIR 再送过第二条发布验证管线。
 
+共有 MIR class representation 保存 `None | SynchronousGcFree { owner_exact_type_id }`；这里的 typed exact owner 是唯一 hook 的语义引用，LIR 按 callable-body v2 tag 5 派生机器 body id。reader 在原 type bridge 边界检查 owner 等于该 class 的 exact id、class 为 final，并把 policy 与已读 nominal 声明对应起来。TD 投影直接消费这份 policy，不能只因 LIR foundation 中偶然存在某个 hook body 就给类型补上 policy。
+
 LIR 一次完成静态字段 offset/alignment、值表示、helper ABI 和 native storage ABI。ZST field 产生 exact typed 零 payload 值，不读取伪造的 offset；大值按已有 aggregate 规则处理。reclaiming receiver 为 AS0 私有参数，禁止把它转换为 AS1 或作为普通源语言值使用。
 
-release callsite 只有两种：带已有 local/external typed target 的 ReleaseSafeScoopCall，以及保留原 NativeExternalContractRecord 的 ReleaseNativeLeafCall。C storage bridge 使用普通生成单元，transition 本来属于 caller，release 不为 bridge/NoGc helper 克隆第二份正文。已有纯 memory-copy target support 可用，TLS/bootstrap、runtime transition 和 managed helper 不可用。
+release callsite 只有两种：带已有 local/external typed target 的 ReleaseSafeScoopCall，以及保留原 NativeExternalContractRecord 的 ReleaseNativeLeafCall。C storage bridge 使用普通生成单元，transition 本来属于 caller，release 不为 bridge/NoGc helper 克隆第二份正文。非 TLS native global 的纯存储访问在 release 与普通 NoGc 正文中明确使用 NoTransition，其他访问保留 NativeSafe；LIR 用封闭 sum 配对各自的 safepoint/root plan。已有纯 memory-copy target support 可用，TLS/bootstrap、runtime transition 和 managed helper 不可用。
 
 LIR 对本次新增的机器 body 检查无 managed value、statepoint、poll、root、EH 和 transition，保留必要 ABI/引用检查；不重算依赖的 ReleaseValue 或完整 release-call graph。codegen 机械发射 nounwind、address-significant 的 `void (ptr addrspace(0))` thunk，LLVM 不挂 GC strategy，不加入口/回边 poll、stackmap、personality 或 LSDA。
 
@@ -311,7 +315,7 @@ runtime 用 type registration 的 exact ID 与 body-v2 tag 5 得到预期 hook b
 
 ### 5.2 独立与组合 fixture
 
-在 `tests/fixtures/m24-release/` 使用 schema 1 数据，按 source、lifecycle、dependencies、native 等自然内容分组；不增加专用 runner 分支。AST、Export/LocalConcrete HIR、MIR、LIR golden 锁定 field identity、effect/条件、owner policy、成功边 publish、hook body 和真实调用目标。
+在 `tests/fixtures/m24-release-effects/` 与 `tests/fixtures/m24-release-blocks/` 使用 schema 1 数据，按 source、lifecycle、dependencies、native 等自然内容分组；不增加专用 runner 分支。AST、Export/LocalConcrete HIR、MIR、LIR golden 锁定 field identity、effect/条件、owner policy、成功边 publish、hook body 和真实调用目标。
 
 | 验收主题 | 正向与组合证据 |
 | --- | --- |

@@ -411,7 +411,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 ### M24 GC-free release hook（[设计](milestone24/DESIGN.md)已修订，实现中）
 
-2026-10-03 按 M23-11 已验收代码重做实施设计，承接 M15/M19/M23-11/M25；语言、runtime 和 pipeline 契约已同步修订。共同 ABI 与 runtime 回收接线已落地，源码和依赖闭环仍在实现；实际检查记录见 [M24 验收记录](milestone24/ACCEPTANCE.md)。
+2026-10-03 按 M23-11 已验收代码重做实施设计，承接 M15/M19/M23-11/M25；语言、runtime 和 pipeline 契约已同步修订。共同 ABI、runtime 回收、源码最小运行闭环及参数自由 A→B→C 依赖已落地；泛型模板、实际 ODR 组合和总验收仍在实现。实际检查记录见 [M24 验收记录](milestone24/ACCEPTANCE.md)。
 
 - 普通 final class 可声明至多一个不可显式调用的 `release { ... }`。无 managed this，只可只读本 owner 的合格 backing field；generic/static nested 合法，Throwable、object、intrinsic/generated class 与值类型不能声明。
 - `ReleaseValue` 在 GC-free 基础上排除 handle/pin/callback 等实际表示。定义方在既有 NoGc 分析中推导 `ReleaseCallability` 和泛型条件，沿共有 callable 接口传递；默认值与 operator/accessor/for/vararg 展开一并检查，依赖方不重放完整 helper 调用图。

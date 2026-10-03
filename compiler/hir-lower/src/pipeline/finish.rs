@@ -387,6 +387,7 @@ impl Lowerer {
             loaded_interface_definitions: self.loaded_interface_definitions,
             enum_applications: self.enum_applications,
             classes: self.classes,
+            release_hooks: self.release_hooks,
             class_fields: self.class_fields,
             class_constructors: self.class_constructors,
             class_constructor_applications: self.class_constructor_applications,

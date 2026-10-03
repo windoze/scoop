@@ -100,7 +100,7 @@ pub(super) fn validate_frame(
             .local_values
             .iter()
             .filter(|value| {
-                value.function() == *driver
+                value.owner() == LocalValueOwner::Function(*driver)
                     && value.identity_record().id() == saved.value_record().id()
             })
             .count();

@@ -112,6 +112,10 @@ enum DecodedDefaultExpressionKindV1 {
         operation: DefaultForeignCallbackOperationV1,
         callback: Box<DecodedDefaultExpressionV1>,
     },
+    ReleaseFieldLoad {
+        owner_type: DecodedSignatureTypeKey,
+        declaration: DecodedPersistentId<scoop_identity::PersistentFieldId>,
+    },
     FieldAccess {
         receiver: Box<DecodedDefaultExpressionV1>,
         field: DecodedDefaultFieldRefV1,

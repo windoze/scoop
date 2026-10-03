@@ -30,6 +30,7 @@ impl BodyLowerer<'_> {
                 exception_ty.clone(),
                 smir::ExprKind::ClassNew {
                     class_id,
+                    publish_release: false,
                     initializer,
                     args: Vec::new(),
                 },

@@ -126,6 +126,7 @@ fn build_descriptor(
     }
 
     Ok(StrongTypeDescriptorSemanticPlanV1 {
+        release_policy: descriptor.release_policy,
         exact_type,
         diagnostic_name: descriptor.diagnostic_name.clone(),
         instance_layout: descriptor.instance_layout.layout_record().id(),

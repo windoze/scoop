@@ -361,6 +361,7 @@ pub(crate) enum ExprKind {
     },
     ClassNew {
         class_id: mir::ClassId,
+        publish_release: bool,
         initializer: mir::Callee,
         args: Vec<Expr>,
     },
@@ -429,6 +430,10 @@ pub(crate) enum ExprKind {
     },
     FieldAccess {
         receiver: Box<Expr>,
+        index: u32,
+    },
+    ReleaseFieldLoad {
+        class: mir::ClassId,
         index: u32,
     },
     Call(Call),

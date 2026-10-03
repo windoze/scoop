@@ -1,0 +1,101 @@
+Module
+  extern ef0 dropNative @m24_release_add(Int) -> Unit <abi=c no-gc lib=m24_release>
+  extern ef1 released @m24_release_count() -> Int <abi=c no-gc lib=m24_release>
+  class Owner vtable=0 itables=0
+  interface ToString
+  interface Hash
+  fun dropNative @fn0(arg0: Int) -> Unit
+    bb0 entry
+      call extern0 @m24_release_add direct
+        Type Int
+        Local arg0
+      return
+  fun released @fn1() -> Int
+    bb0 entry
+      call $call.1: Int = extern1 @m24_release_count direct
+      return
+        Type Int
+        Local $call.1
+  fun allocate @fn2() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.handle: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Owner
+        ClassAlloc Owner
+      call @fn5 direct
+        Type Owner
+        Local $new.1
+        Type Int
+        Local $parameter.handle
+      publish_release_ready Owner
+        Type Owner
+        Local $new.1
+      val owner: Owner
+        Type Owner
+        Local $new.1
+      return
+  fun main @fn3() -> Unit
+    bb0 entry
+      call @fn2 direct
+      call @scoop_rt_gc_collect direct
+      call @scoop_rt_gc_collect direct
+      call $dependency.argument.0: Int = extern1 @m24_release_count direct
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun println @fn4(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun init.Owner.$c0 @fn5(this: Owner, handle: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Owner
+        Local this
+        Type Int
+        Local handle
+      return
+  release_hook rh0 Owner <no-gc>
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        ReleaseFieldLoad Owner.field0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call extern0 @m24_release_add direct
+        Type Int
+        Local $parameter.value
+      return
+  instance mi0 function=@fn4 <- println
+  str @str0 "\n"
+  output executable @fn3

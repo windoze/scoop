@@ -49,10 +49,16 @@ pub(super) fn validate_source_callable_materializations(
 pub(super) fn validate_local_value_metadata(module: &Module) -> Result<(), MirValidationError> {
     for entry in module.meta.local_values.iter() {
         let location = MirValidationLocation::LocalValue {
-            function: entry.function(),
+            owner: entry.owner(),
             local: entry.local(),
         };
-        let Some(function) = arena_get(&module.functions, entry.function()) else {
+        let function = match entry.owner() {
+            LocalValueOwner::Function(function) => arena_get(&module.functions, function),
+            LocalValueOwner::ReleaseHook(hook) => {
+                arena_get(&module.release_hooks, hook).map(|hook| &hook.code)
+            }
+        };
+        let Some(function) = function else {
             return Err(MirValidationError {
                 location,
                 kind: MirValidationErrorKind::InvalidLocalValue {

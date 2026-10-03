@@ -9,6 +9,9 @@ impl Lowerer {
     ) {
         use hir::ExprKind as E;
         facts.require(values.requirements(self, expression.ty));
+        if facts.requirements.is_none() {
+            facts.violation.get_or_insert(expression.span);
+        }
         match &expression.kind {
             E::IntegerLiteral(_)
             | E::BoolLiteral(_)
@@ -16,6 +19,7 @@ impl Lowerer {
             | E::Local(_)
             | E::ConstructorParam(_)
             | E::InitializingStructFieldAccess { .. }
+            | E::ReleaseFieldLoad(_)
             | E::NoneLiteral
             | E::SizeOf(_)
             | E::AlignOf(_) => {}
@@ -174,6 +178,9 @@ impl Lowerer {
             | E::ArrayLen(_)
             | E::ArrayClone(_)
             | E::CallableCall { .. } => facts.requirements = None,
+        }
+        if facts.requirements.is_none() {
+            facts.violation.get_or_insert(expression.span);
         }
     }
 }

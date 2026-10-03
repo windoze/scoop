@@ -260,6 +260,10 @@ pub enum ExprKind {
         receiver: Box<Expr>,
         field: FieldRef,
     },
+    ReleaseFieldLoad {
+        class: ClassId,
+        index: u32,
+    },
     MethodCall {
         receiver: Box<Expr>,
         callee: Callable,

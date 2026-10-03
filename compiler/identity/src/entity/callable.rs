@@ -260,6 +260,7 @@ pub enum CallableTemplateOwner {
     Accessor(PersistentPropertyAccessorId),
     Generated(PersistentGeneratedCallableId),
     VariantConstructor(PersistentEnumVariantId),
+    ReleaseHook(PersistentExactTypeId),
 }
 
 impl WireEncode for CallableTemplateOwner {
@@ -271,6 +272,7 @@ impl WireEncode for CallableTemplateOwner {
             Self::Accessor(id) => encode_id_sum(encoder, 4, id),
             Self::Generated(id) => encode_id_sum(encoder, 5, id),
             Self::VariantConstructor(id) => encode_id_sum(encoder, 6, id),
+            Self::ReleaseHook(id) => encode_id_sum(encoder, 7, id),
         }
     }
 }

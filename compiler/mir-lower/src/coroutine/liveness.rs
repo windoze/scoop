@@ -252,6 +252,7 @@ fn statement_use_def(statement: &mir::Statement) -> (HashSet<mir::LocalId>, Hash
     let mut defs = HashSet::new();
     match &statement.kind {
         mir::StatementKind::Expr(expr) => expr_uses(expr, &mut uses),
+        mir::StatementKind::PublishReleaseReady { receiver, .. } => expr_uses(receiver, &mut uses),
         mir::StatementKind::Call(effect) => match effect {
             mir::CallEffect::Unit(call) => call_uses(call, &mut uses),
             mir::CallEffect::Value { destination, call } => {
@@ -490,6 +491,7 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
         | mir::ExprKind::MachineScalarLiteral(_)
         | mir::ExprKind::BoolLiteral(_)
         | mir::ExprKind::UnitLiteral
+        | mir::ExprKind::ReleaseFieldLoad { .. }
         | mir::ExprKind::GlobalRead(_)
         | mir::ExprKind::InitializationUnitAddress(_)
         | mir::ExprKind::GlobalAddress { .. }

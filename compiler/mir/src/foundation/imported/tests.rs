@@ -49,6 +49,7 @@ fn ordinary_module(callable: crate::ExternalCallableUse) -> Module {
         },
     });
     Module {
+        release_hooks: Arena::new(),
         cone: ConeIdentity::SINGLE_FILE,
         functions,
         extern_functions: Arena::new(),
