@@ -1,0 +1,181 @@
+schema = 1
+name = "executable-sites-callables-routes"
+inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "../../m23-executable-dependency-callables/provider.scoop", "provider", "../../m23-executable-dependency-callables/facade.scoop", "facade", "../../m23-executable-dependency-callables/routes.scoop", "consumer", "program"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["executable-sites", "callables", "stage-golden", "moving-gc"]
+
+[[steps]]
+name = "prepare_core"
+files = [
+  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"copy" = {"from" = "${fixture}/../../m23-cli-imported-classes/support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
+  {"mkdir" = {"path" = "${work}/empty-sysroot"}},
+]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${core.result.root.artifact_fingerprint}", "equals" = "45d75884dda0cc2740c1215a8c49f84bdd82e8ec3ee793ff10a3cf2a341413c4"},
+]
+
+[[steps]]
+name = "remove_core_source"
+files = [
+  {"remove" = {"path" = "${work}/core-source"}},
+]
+
+[[steps]]
+name = "prepare_provider"
+files = [
+  {"copy" = {"from" = "${fixture}/provider", "to" = "${work}/sources/provider"}},
+  {"copy" = {"from" = "${fixture}/../../m23-executable-dependency-callables/provider.scoop", "to" = "${work}/sources/provider/src/main.scoop"}},
+]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", "${work}/sources/provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/executable-provider/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/provider"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${provider.result.root.artifact_fingerprint}", "equals" = "b94cf978c0615cc128de6b6d3cb9d98465b1824282e5f4655d2c4f4ee7b97ab8"},
+  {"actual" = "${provider.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/provider/${provider.result.root.identity}/ast.txt", "snapshot" = "provider.ast.txt"},
+  {"file" = "${work}/dump/provider/${provider.result.root.identity}/hir.txt", "snapshot" = "provider.hir.txt"},
+  {"file" = "${work}/dump/provider/${provider.result.root.identity}/mir.txt", "snapshot" = "provider.mir.txt"},
+  {"file" = "${work}/dump/provider/${provider.result.root.identity}/lir.txt", "snapshot" = "provider.lir.txt"},
+]
+
+[[steps]]
+name = "remove_provider_source"
+files = [
+  {"remove" = {"path" = "${work}/sources/provider"}},
+]
+
+[[steps]]
+name = "prepare_facade"
+files = [
+  {"copy" = {"from" = "${fixture}/facade", "to" = "${work}/sources/facade"}},
+  {"copy" = {"from" = "${fixture}/../../m23-executable-dependency-callables/facade.scoop", "to" = "${work}/sources/facade/src/main.scoop"}},
+]
+
+[[steps]]
+name = "facade"
+argv = ["${scoop}", "build", "${work}/sources/facade", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-facade", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/executable-facade/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/facade"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${facade.result.root.artifact_fingerprint}", "equals" = "587541c0826d9d2178a530163e108cc6192512d85b30b7f0ac158521abfe443b"},
+  {"actual" = "${facade.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/facade/${facade.result.root.identity}/ast.txt", "snapshot" = "facade.ast.txt"},
+  {"file" = "${work}/dump/facade/${facade.result.root.identity}/hir.txt", "snapshot" = "facade.hir.txt"},
+  {"file" = "${work}/dump/facade/${facade.result.root.identity}/mir.txt", "snapshot" = "facade.mir.txt"},
+  {"file" = "${work}/dump/facade/${facade.result.root.identity}/lir.txt", "snapshot" = "facade.lir.txt"},
+]
+
+[[steps]]
+name = "remove_facade_source"
+files = [
+  {"remove" = {"path" = "${work}/sources/facade"}},
+]
+
+[[steps]]
+name = "prepare_consumer"
+files = [
+  {"copy" = {"from" = "${fixture}/consumer", "to" = "${work}/sources/consumer"}},
+  {"copy" = {"from" = "${fixture}/../../m23-executable-dependency-callables/routes.scoop", "to" = "${work}/sources/consumer/src/main.scoop"}},
+]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", "${work}/sources/consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/routes/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/consumer"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${consumer.result.root.artifact_fingerprint}", "equals" = "1cd5eae2e674b7152762e0829f1f51d7100171d694c8ef18ad98ba77a7e1472f"},
+  {"actual" = "${consumer.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/ast.txt", "snapshot" = "consumer.ast.txt"},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/hir.txt", "snapshot" = "consumer.hir.txt"},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/mir.txt", "snapshot" = "consumer.mir.txt"},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/lir.txt", "snapshot" = "consumer.lir.txt"},
+]
+
+[[steps]]
+name = "remove_consumer_source"
+files = [
+  {"remove" = {"path" = "${work}/sources/consumer"}},
+]
+
+[[steps]]
+name = "prepare_program"
+files = [
+  {"copy" = {"from" = "${fixture}/program", "to" = "${work}/sources/program"}},
+]
+
+[[steps]]
+name = "program"
+argv = ["${scoop}", "build", "${work}/sources/program", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/built-program", "--emit", "all", "--dump-dir", "${work}/dump/program", "--runtime-root", "${runtime}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${program.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/ast.txt", "snapshot" = "program.ast.txt"},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/hir.txt", "snapshot" = "program.hir.txt"},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/mir.txt", "snapshot" = "program.mir.txt"},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/lir.txt", "snapshot" = "program.lir.txt"},
+]
+
+[[steps]]
+name = "isolate"
+files = [
+  {"copy" = {"from" = "${program.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
+  {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}},
+  {"remove" = {"path" = "${work}/sources"}},
+]
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--cone-path", "${work}/artifacts", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [
+  {"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
+  {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan.txt", "normalize" = ["paths"]},
+]
+
+[[steps]]
+name = "run"
+argv = ["${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "run_moving"
+argv = ["${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}

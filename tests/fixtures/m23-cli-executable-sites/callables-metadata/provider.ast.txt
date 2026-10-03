@@ -1,0 +1,9 @@
+SourceFile
+  QualifiedPackage dependency.api
+  public fun run(): Boolean
+    =
+      BoolLiteral true
+  public fun combineUnits(first: Unit, second: Unit): Unit
+  public fun choose(flag: Boolean = <expr>): Boolean
+    =
+      Var flag

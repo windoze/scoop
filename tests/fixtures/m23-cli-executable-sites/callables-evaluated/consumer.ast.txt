@@ -1,0 +1,11 @@
+SourceFile
+  QualifiedPackage consumer
+  ImportExact Local dependency.api.run
+  public fun withDefault(value: Boolean = <expr>): Boolean
+    =
+      Var value
+  public fun invoke(): Boolean
+    val first
+      Call withDefault
+    return
+      Call withDefault
