@@ -1,6 +1,6 @@
 Module
-  struct GcHandle<MovingResource> (raw: ULong)
-  struct PinnedPtr<MovingResource> (raw: ULong)
+  struct GcHandle<MovingResource> (raw: ULong) <c-abi uint64-field>
+  struct PinnedPtr<MovingResource> (raw: ULong) <c-abi uint64-field>
   enum Option<String>
     Some(_0: String)
     None()

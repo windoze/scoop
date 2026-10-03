@@ -1,7 +1,7 @@
 Module
   struct Marker (text: String)
-  struct GcHandle<String> (raw: ULong)
-  struct PinnedPtr<String> (raw: ULong)
+  struct GcHandle<String> (raw: ULong) <c-abi uint64-field>
+  struct PinnedPtr<String> (raw: ULong) <c-abi uint64-field>
   interface ToString
   interface Hash
   fun main @fn0() -> Unit

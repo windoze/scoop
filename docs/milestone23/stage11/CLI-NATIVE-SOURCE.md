@@ -14,3 +14,5 @@
 真实导入暴露的缺口已修复：首次加载声明时按完整 FFI protocol 的实际 nominal/field ID 保留 UInt64Field；native-boundary 持久化表只含已使用闭包，缺记录不再覆盖语言已有的 C 投影。LIR lowering 在 C 实参、返回、全局读写与 CLayout 字段边界显式拆包／封装。handle 的 Scoop aggregate ABI、指针存储、callback storage bridge 和产物格式保持原约定，codegen 继续要求准确的存储类型。
 
 原 Rust 文件快照 combined.snap、handle-c-projections.snap 退役。其类型、完整字段、UInt64Field/NullablePointer、GC-free、MIR 投影和 callback 数量断言继续保留；新测试专门核对未被 core native-boundary 表记录的导入 handle。内部手工 MIR 的 C storage 与 Scoop ABI 测试继续保留。
+
+全仓复验还同步历史 `legacy-m15-moving-handle-pin` 与 `native-link-runtime-handles` 的四份 HIR／MIR golden。每份 HIR 仅把导入 `GcHandle`／`PinnedPtr` 的 C 表示补为 `UInt64Field`，目标仍为原唯一字段的同一持久化 ID；MIR 仅补相应 C-ABI 标签。AST、Export 声明、LIR、运行结果与 native 输入均保持，未更改 Scoop 聚合布局或语言期望。
