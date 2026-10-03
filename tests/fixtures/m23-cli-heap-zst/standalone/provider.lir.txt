@@ -12,6 +12,10 @@ Module
   enum CoroutineSlot<HeapCell> niche(kind=managed,payload_variant=1)
   enum CoroutineStep<HeapEmpty> tagged size=8 align=8 variants=(struct0)@8+0 ()@8+0
   enum CoroutineSlot<HeapEmpty> tagged size=8 align=8 variants=()@8+0 (struct0)@8+0
+  fun @scoop$1$cb$1b39076342f51ae42f16ba3493052b6c053c0543ea78e378ec4a03c1b4956e28(elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret true
   fun @scoop$1$cb$0b41e351fb8842c2554dde3a44c7f570f1817e0ff47d142d8593e9f8df4a0fab(ptr<managed>) -> elided-zst<struct0 size=0 align=1>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
@@ -25,7 +29,7 @@ Module
     local %0 $call.1: struct0 <logical-zst 165bb32c6a79b75559c448c5a2e3b000e05d7ddabfe892f3b21c4d48a0af3ef6>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    call no-gc-elided-zst-target0 t0 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> local-fn14()
+    call no-gc-elided-zst-target0 t0 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> local-fn15()
     store t0 -> local0
     ret local0
   fun @scoop$1$cb$bd3d5129dc38345866f37494e80d63e709d8ae2d4a72fcebaa823b1d15491d46() -> ptr<managed>
@@ -34,12 +38,12 @@ Module
     local %2 $new.1: ptr<managed>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
-    call managed-elided-zst-target0 sp<managed-call:0> live=[] t0 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> local-fn2()
+    call managed-elided-zst-target0 sp<managed-call:0> live=[] t0 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> local-fn3()
     store t0 -> local0
     store local0 -> local1
     call managed-direct-target0 sp<managed-call:1> live=[] t1 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(16)))
     store t1 -> local2
-    call managed-void-target0 sp<managed-call:2> live=[local2:ptr<managed>@0] sig=void0 (ptr<managed>, elided-zst<struct0 size=0 align=1>) local-fn13(local2, elided-zst local1)
+    call managed-void-target0 sp<managed-call:2> live=[local2:ptr<managed>@0] sig=void0 (ptr<managed>, elided-zst<struct0 size=0 align=1>) local-fn14(local2, elided-zst local1)
     t2 = aggregate () : {}
     ret local2
   fun @scoop$1$cb$b26c83d3d15e667539c74d7f9bab33593e709d6ab8422f6a2df114fa11b24000() -> elided-zst<struct0 size=0 align=1>
@@ -48,13 +52,13 @@ Module
     local %2 $call.2: struct0 <logical-zst 165bb32c6a79b75559c448c5a2e3b000e05d7ddabfe892f3b21c4d48a0af3ef6>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> ptr<managed> local-fn3()
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> ptr<managed> local-fn4()
     store t0 -> local0
-    call managed-elided-zst-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] t1 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> local-fn2()
+    call managed-elided-zst-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] t1 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> local-fn3()
     store t1 -> local1
-    call managed-void-target0 sp<managed-call:2> live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>, elided-zst<struct0 size=0 align=1>) local-fn1(local0, elided-zst local1)
+    call managed-void-target0 sp<managed-call:2> live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>, elided-zst<struct0 size=0 align=1>) local-fn2(local0, elided-zst local1)
     t2 = aggregate () : {}
-    call managed-elided-zst-target1 sp<managed-call:3> live=[local0:ptr<managed>@0] t3 = sig=elided-zst1 (ptr<managed>) -> elided-zst<struct0 size=0 align=1> local-fn0(local0)
+    call managed-elided-zst-target1 sp<managed-call:3> live=[local0:ptr<managed>@0] t3 = sig=elided-zst1 (ptr<managed>) -> elided-zst<struct0 size=0 align=1> local-fn1(local0)
     store t3 -> local2
     ret local2
   fun @scoop$1$cb$d1d1a906e4dd34f0c22c88aee6963b9f3b385a86a7fb33947d558957970cbf7c(ptr<managed>, elided-zst<struct0 size=0 align=1>) -> void

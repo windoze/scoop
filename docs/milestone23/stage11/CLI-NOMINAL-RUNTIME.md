@@ -7,3 +7,4 @@
 | 功能 | 用例／进程／golden／指纹 | 实际覆盖与保留断言 |
 | --- | --- | --- |
 | `fact-providers` | 2／13／22／7 | 本 Cone 值类型、结构型支持、GC/ZST facts 与 core 基元 provider 分离；独立及组合 payload、宽度整数和引用字段。 |
+| `heap-zst` | 2／12／18／6 | 零大小 heap 字段、getter/setter、closure capture、派生值与单例初始化；原 3 次阶段编译改为一次正式生产。 |
