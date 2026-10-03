@@ -1,0 +1,97 @@
+Module
+  extern ef0 m24_release_add @m24_release_add(Int) -> Unit <abi=c no-gc lib=m24_release>
+  class Owner<Int> vtable=0 itables=0
+  fun makeLeft @fn0() -> Owner<Int>
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.handle: Int
+        Type Int
+        Local $dependency.argument.1
+      assign $new.1
+        Type Owner<Int>
+        ClassAlloc Owner<Int>
+      call @fn4 direct
+        Type Owner<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.value
+        Type Int
+        Local $dependency.parameter.handle
+      publish_release_ready Owner
+        Type Owner<Int>
+        Local $new.1
+      return
+        Type Owner<Int>
+        Local $new.1
+  fun observeLeft @fn1(value: Owner<Int>) -> Int
+    bb0 entry
+      val $dependency.receiver: Owner<Int>
+        Type Owner<Int>
+        Local value
+      call $call.1: Int = @fn3 direct
+        Type Owner<Int>
+        Local $dependency.receiver
+      return
+        Type Int
+        Local $call.1
+  fun keep @fn2(value: Int) -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun first @fn3(this: Owner<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+  fun init.Owner.$c0 @fn4(this: Owner<Int>, value: Int, handle: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Owner<Int>
+        Local this
+        Type Int
+        Local value
+      field_set 1
+        Type Owner<Int>
+        Local this
+        Type Int
+        Local handle
+      return
+  release_hook rh0 Owner <no-gc>
+    bb0 entry
+      val $dependency.release.local.1: Int
+        Type Int
+        ReleaseFieldLoad Owner.field0
+      val $dependency.release.local.2: Int
+        Type Int
+        Local $dependency.release.local.1
+      call $dependency.release.local.0: Int = @fn2 direct
+        Type Int
+        Local $dependency.release.local.2
+      val $dependency.release.local.3: Int
+        Type Int
+        ReleaseFieldLoad Owner.field1
+      val $dependency.release.local.4: Int
+        Type Int
+        Local $dependency.release.local.3
+      call $dependency.release.local.5: Int = external0 direct
+        Type Int
+        Local $dependency.release.local.4
+      val $dependency.release.local.6: Int
+        Type Int
+        Local $dependency.release.local.5
+      call extern0 @m24_release_add direct
+        Type Int
+        Local $dependency.release.local.6
+      return
+  instance mi0 function=@fn2 <- keep
+  instance mi1 function=@fn3 <- first
+  output library

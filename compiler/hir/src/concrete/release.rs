@@ -4,6 +4,7 @@ pub type ReleaseHookId = Idx<ReleaseHook>;
 
 #[derive(Debug, Clone)]
 pub struct ReleaseHook {
+    pub origin: crate::DefinitionOrigin,
     pub owner: ClassId,
     pub materialization: CallableMaterialization,
     pub body: Body,

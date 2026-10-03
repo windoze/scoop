@@ -5,7 +5,7 @@ impl Lowerer {
         &mut self,
         class: ClassId,
         block: &ast::ReleaseBlock,
-    ) -> hir::Body {
+    ) -> (hir::Body, hir::DefinitionOrigin) {
         let outer_source_context = self.current_source_context;
         let outer_paths = std::mem::take(&mut self.definition_paths);
         let outer_root = self.definition_root.take();
@@ -23,6 +23,7 @@ impl Lowerer {
         self.set_source_context(hir::SourceContextSubject::Nominal(
             hir::SourceContextNominal::Class(class),
         ));
+        let origin = self.definition_origin(block.span);
         self.push_suspension_context(SuspensionContext::Forbidden(
             ForbiddenSuspendContext::Release,
         ));
@@ -40,6 +41,6 @@ impl Lowerer {
         self.definition_paths = outer_paths;
         self.definition_root = outer_root;
         self.type_params_in_scope = outer_parameters;
-        hir::Body { locals, statements }
+        (hir::Body { locals, statements }, origin)
     }
 }

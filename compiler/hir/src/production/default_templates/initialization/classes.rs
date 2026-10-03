@@ -153,8 +153,13 @@ pub(super) fn project(
             .map_err(Error::Initialization)
         })
         .collect::<Result<_, Error>>()?;
-    ExportGenericNominalInitializationV1::try_new(owner, common, constructors)
-        .map_err(Error::Initialization)
+    ExportGenericNominalInitializationV1::try_new(
+        owner,
+        common,
+        constructors,
+        super::release::project(entities, declaration)?,
+    )
+    .map_err(Error::Initialization)
 }
 
 fn base_delegation(

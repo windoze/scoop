@@ -34,7 +34,6 @@ impl Lowerer {
                     .collect(),
                 captures: &[],
                 loop_targets: Vec::new(),
-                parent: template.definition_root().template_owner(),
             };
             let mut selectors = BTreeMap::new();
             for local in template.locals().records() {
@@ -50,7 +49,7 @@ impl Lowerer {
                     }
                 };
                 let binding = self.loaded_default_local_binding(
-                    context.parent,
+                    template.definition_root().template_owner(),
                     template.definition_path(),
                     local.selector(),
                     definition,

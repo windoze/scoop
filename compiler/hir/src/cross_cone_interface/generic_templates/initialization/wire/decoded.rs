@@ -1,3 +1,4 @@
+use super::release::DecodedReleaseTemplate;
 use super::*;
 use crate::{
     BinderUseListValidationError, CallableSourceEffectsBuildError, DecodedCallableSourceEffectsV1,
@@ -21,6 +22,7 @@ struct DecodedNominalInitialization {
     owner: DecodedPersistentId<PersistentGenericTypeId>,
     common: Vec<DecodedCommonStep>,
     constructors: Vec<DecodedConstructor>,
+    release_policy: crate::ReleasePolicy<DecodedReleaseTemplate>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -110,8 +112,21 @@ impl DecodedNominalInitialization {
             .into_iter()
             .map(|constructor| constructor.resolve(resolver))
             .collect::<Result<Vec<_>, _>>()?;
-        ExportGenericNominalInitializationV1::from_canonical(owner, common, constructors)
-            .map_err(Error::Record)
+        let release_policy = match self.release_policy {
+            crate::ReleasePolicy::None => crate::ReleasePolicy::None,
+            crate::ReleasePolicy::SynchronousGcFree { hook } => {
+                crate::ReleasePolicy::SynchronousGcFree {
+                    hook: hook.resolve(resolver)?,
+                }
+            }
+        };
+        ExportGenericNominalInitializationV1::from_canonical(
+            owner,
+            common,
+            constructors,
+            release_policy,
+        )
+        .map_err(Error::Record)
     }
 }
 

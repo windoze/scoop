@@ -39,7 +39,7 @@ impl Lowerer {
             }
             self.current_file = self.class_files[&class];
             let Some(required) = facts.requirements else {
-                self.error(facts.violation.unwrap_or(hook.span),
+                self.error(facts.violation.unwrap_or(hook.origin.span),
                     "`release` requires ReleaseValue values and direct NoTransition calls; allocation, managed access, transitions and trapping operations are forbidden".into());
                 continue;
             };

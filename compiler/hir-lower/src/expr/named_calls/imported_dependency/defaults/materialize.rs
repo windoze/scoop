@@ -28,6 +28,7 @@ mod operators;
 mod patterns;
 mod pointers;
 mod references;
+mod release;
 mod statements;
 
 struct ImportedDefaultContext<'a> {
@@ -38,12 +39,12 @@ struct ImportedDefaultContext<'a> {
     lexical_arguments: Vec<hir::TypeId>,
     captures: &'a [hir::BindingId],
     loop_targets: Vec<hir::LoopId>,
-    parent: scoop_identity::CallableTemplateOwner,
 }
 
 enum ImportedTemplateSource<'a> {
     Default(&'a dyn hir::ImportedCallableSource),
     Callable(&'a crate::imported_generics::PreparedImportedCallableSource),
+    Nominal(&'a hir::ImportedNominalInitialization),
 }
 
 impl ImportedTemplateSource<'_> {
@@ -55,6 +56,7 @@ impl ImportedTemplateSource<'_> {
         match self {
             Self::Default(owner) => owner.source_location(source, context),
             Self::Callable(owner) => owner.source_location(source, context),
+            Self::Nominal(owner) => owner.source_location(source, context),
         }
     }
     fn definition_source(
@@ -64,6 +66,7 @@ impl ImportedTemplateSource<'_> {
         match self {
             Self::Default(owner) => owner.definition_source(source),
             Self::Callable(owner) => owner.definition_source(source),
+            Self::Nominal(owner) => owner.definition_source(source),
         }
     }
 }

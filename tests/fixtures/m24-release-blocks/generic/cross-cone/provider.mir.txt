@@ -1,0 +1,43 @@
+Module
+  extern ef0 record @m24_release_add(Int) -> Unit <abi=c no-gc lib=m24_release>
+  callback cb0 @fn1 -> @fn2 function_type0 id=b1e9d3493c5d8c8ed3e7d0fbb7dac7605ad7a861a789aa8ef01b9887ef64a7aa
+  generated_callable gc0 function=@fn2 id=b1e9d3493c5d8c8ed3e7d0fbb7dac7605ad7a861a789aa8ef01b9887ef64a7aa
+  fun record @fn0(arg0: Int) -> Unit
+    bb0 entry
+      call extern0 @m24_release_add direct
+        Type Int
+        Local arg0
+      return
+  fun adjusted @fn1(value: Int) -> Int <no-gc>
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun callback bridge for adjusted @fn2($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Int = @fn1 direct
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $arg0
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $result
+        Type Int
+        Local $value
+      return
+  output library

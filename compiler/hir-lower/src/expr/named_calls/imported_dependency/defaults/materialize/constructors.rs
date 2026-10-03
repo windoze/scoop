@@ -135,9 +135,6 @@ impl Lowerer {
                 .collect(),
             captures: &[],
             loop_targets: Vec::new(),
-            parent: scoop_identity::CallableTemplateOwner::Constructor(
-                template.signature.declaration,
-            ),
         };
         for local in fragment.locals().records() {
             let ty = self.materialize_imported_default_type(local.value_type(), &context)?;

@@ -10,7 +10,7 @@ pub(super) fn collect(
 ) -> Result<Vec<ExternalHirBindingWitnessUse>, DependencyCallOccurrenceError> {
     let mut uses = Vec::new();
     occurrences::visit(output, selected, |call| {
-        call.validate_origin(output.export.module())?;
+        call.validate_origin(output)?;
         if let crate::CommittedDependencyCallTarget::Direct { callee, .. } = call.target() {
             executable.push(callee);
         }

@@ -207,7 +207,7 @@ impl Lowerer {
                     .map(local_type)
                     .collect();
                 (
-                    mir::Callee::External(target.callable),
+                    mir::Callee::External(target.scoop_entry()),
                     params,
                     local_type(signature.result()),
                 )

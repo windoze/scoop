@@ -1,4 +1,6 @@
-use crate::{Body, ExportReleaseHookId, SourceNominalId, Span, TypeId, TypeParamId};
+use crate::{Body, DefinitionOrigin, ExportReleaseHookId, SourceNominalId, TypeId, TypeParamId};
+
+mod wire;
 
 /// A nominal's complete release contract, before the physical nullable ABI.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -8,6 +10,15 @@ pub enum ReleasePolicy<H> {
     SynchronousGcFree {
         hook: H,
     },
+}
+
+impl<H> ReleasePolicy<H> {
+    pub const fn hook(&self) -> Option<&H> {
+        match self {
+            Self::None => None,
+            Self::SynchronousGcFree { hook } => Some(hook),
+        }
+    }
 }
 
 /// A dependency's non-generic hook remains a definition of its provider.
@@ -22,7 +33,7 @@ pub struct ExportReleaseHook {
     pub owner: SourceNominalId,
     pub requirements: Vec<TypeParamId>,
     pub body: Body,
-    pub span: Span,
+    pub origin: DefinitionOrigin,
 }
 
 /// A value copy from this hook's own reclaiming object. No managed receiver

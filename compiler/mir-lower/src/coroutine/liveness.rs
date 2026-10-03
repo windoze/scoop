@@ -191,7 +191,7 @@ fn suspend_effect(
                 .imported_dependency_callable_map
                 .values()
                 .any(|target| {
-                    target.callable == external
+                    target.external() == Some(external)
                         && target.semantic_signature.effect() == scoop_identity::Effect::Suspend
                 });
             return suspends.then(|| {

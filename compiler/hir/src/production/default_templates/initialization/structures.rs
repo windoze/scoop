@@ -64,6 +64,11 @@ pub(super) fn project(
             .map_err(Error::Initialization)
         })
         .collect::<Result<_, Error>>()?;
-    ExportGenericNominalInitializationV1::try_new(owner, Vec::new(), constructors)
-        .map_err(Error::Initialization)
+    ExportGenericNominalInitializationV1::try_new(
+        owner,
+        Vec::new(),
+        constructors,
+        crate::ReleasePolicy::None,
+    )
+    .map_err(Error::Initialization)
 }

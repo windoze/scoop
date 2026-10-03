@@ -15,6 +15,9 @@ impl ExportGenericNominalInitializationV1 {
                 }
             }
         }
+        if let Some(hook) = self.release_policy().hook() {
+            visitor(hook.definition_origin())?;
+        }
         for fragment in self.fragments() {
             fragment.visit_definition_sources(visitor, path)?;
         }
@@ -46,5 +49,10 @@ impl ExportGenericNominalInitializationV1 {
                 ExportCommonInitializationStepV1::Field { value, .. } => value,
                 ExportCommonInitializationStepV1::Body(body) => body,
             }))
+            .chain(
+                self.release_policy()
+                    .hook()
+                    .map(ExportReleaseTemplateV1::body),
+            )
     }
 }

@@ -1381,6 +1381,12 @@ bound callable 的 receiver 使用完整 `SignatureTypeKey`，可以是定义处
 
 构造模板按原名义声明组织：每个泛型 class 保存一次公共初始化序列，各构造器保存自身参数、委托及次构造正文；struct 保留 primary 值构造与 secondary 委托的区别。委托实参、字段初始化和语句正文共用已有 typed expression/statement 与局部值表，分别保存实际结果列表，不用假的 Unit 表达式填充没有结果的语句正文。构造参数按源码参数位置关联原 `LocalValueSelector::Parameter`，初始化接收者使用原 `This` selector；正文中的已解析字段读取和写入保留原字段身份。公共初始化中的 stored/delegate 写入与 `init` 保持源码顺序；class 委托目标仍是对同一已分配对象的 initializer 调用，不能改成再次分配的构造表达式。共有名义与源码调用声明继续唯一保存 shape、参数协议和 bounds，执行模板不复制另一套声明表。
 
+M24 在同一泛型 nominal 执行记录中增加独立的 release policy/body 字段，与 nominal 声明中的 policy 和 binder 条件对应。hook 保存 nominal source context 下的真实 definition origin，正文复用无结果的通用 fragment，没有 `This` 或 constructor 参数输入，不归属任一构造器。现有 fragment visitor 同时收集其来源、字段、helper、native contract 和所需类型；导入方在原 nominal binder 域恢复一次 Export hook，实际 exact type 的正常物化产生独立 concrete hook。参数自由依赖只消费声明 policy，继续引用 provider 的 Strong hook。
+
+release 中直接调用外来 C extern 时，依赖选择携带已验证的原 source native contract，MIR 将该调用投影到既有 extern arena，LIR 使用 native leaf 协议。普通外来调用继续引用 provider 的 Scoop ABI 入口；该入口含 outbound transition，不能作为 release helper 使用，也不为 release 复制入口或新建来源声明身份。
+
+共有 HIR dependency call site 以 `NativeLeaf`（tag 3）明确此实际调用分支；引用检查确认 release root、C 声明以及完整参数/结果。该分支无需选择 provider 的 Scoop wrapper，native ABI 与 symbol 关系沿既有 LIR/native contract 验证；仅有 leaf 使用时删除未使用的 Scoop entry，混合普通使用时保留各自实际入口。
+
 消费方构造候选沿同一名义声明查询入口同时接受普通 owner 与 generic template；宿主实参参加现有推断、参数协议和 bound 检查。选中的泛型构造保留原 `PersistentConstructorId` 和实际名义 application，执行片段接入已有类型替换及具体化队列，输出原 struct constructor 或 class initializer，不转换成泛型函数声明或定义方的普通 external callable。class 的 `this` 委托复用同一接收者，只有 terminal 构造执行公共初始化；泛型基类构造也在已有对象上调用实际 initializer。未调用的构造模板不因出现在接口中而生成机器正文。构造生成的参数读取、字段写入和委托调用保留原定义位置，并复用提供方已有的构造执行上下文；导入目录须保留该上下文，包括没有显式正文的 primary 构造。
 
 HIR foundation 从已有 concrete exact type 表发布每个实际名义类型 application 的 specialization group，与 callable application group 一并去重；MIR/LIR 只引用该上游 group，不复制其身份记录。泛型名义类型的实际 layout、scan、TD 和 dispatch 保留上游 application 的 ODR group，各物理角色使用自己的 member 与 primary symbol。LIR 为这些实际定义保存由完整 metadata 计算的 canonical LIR/ABI 摘要，固定布局包含有序字段偏移，变长与 abstract/boxed 实例使用既有完整表示；reader 复用这些内容摘要。对象摘要继续覆盖真实 bytes、关联 atom 和归一化 typed relocation，类型注册在 TD/layout 上游摘要完成后计算自身 member。该流程复用共有生产、最终摘要目录和 image 路径，不以 identity-only 摘要替代布局内容，也不重复执行语言语义检查。实际 shape 内容由 production 必需 field 14 承载，`cone-production` 升至 `/2`；共用该结构的历史 `strong-production` 由 `/13` 升至 `/15`，其 shape 表为空，仍在原边界拒绝 ODR。

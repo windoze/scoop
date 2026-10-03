@@ -7,6 +7,7 @@ pub enum HirDependencyCallSignatureError {
     Target(ExternalHirTargetV1),
     Declaration(CallableTemplateOrigin),
     GenericDeclaration(CallableTemplateOrigin),
+    NativeLeaf(CallableTemplateOrigin),
     ApplicationOrigin {
         expected: CallableTemplateOrigin,
         actual: CallableTemplateOrigin,
@@ -64,6 +65,10 @@ impl std::fmt::Display for HirDependencyCallSignatureError {
             Self::GenericDeclaration(target) => write!(
                 f,
                 "source call target {target:?} has unresolved type parameters"
+            ),
+            Self::NativeLeaf(target) => write!(
+                f,
+                "native leaf target {target:?} requires a C declaration and a release root"
             ),
             Self::ApplicationOrigin { expected, actual } => write!(
                 f,

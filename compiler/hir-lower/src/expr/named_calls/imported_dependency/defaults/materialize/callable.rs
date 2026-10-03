@@ -59,7 +59,6 @@ impl Lowerer {
                 _ => &[],
             },
             loop_targets: Vec::new(),
-            parent: template.declaration.body_owner().template_owner(),
         };
         let statements = template
             .source

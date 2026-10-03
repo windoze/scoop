@@ -1,6 +1,7 @@
 use super::*;
 
 pub(super) struct PendingReleaseHook {
+    origin: export::DefinitionOrigin,
     owner: concrete::ClassId,
     body: concrete::Body,
 }
@@ -37,8 +38,14 @@ impl Concretizer<'_> {
         self.classes[class].release_policy = concrete::ReleasePolicy::SynchronousGcFree {
             hook: concrete::ReleaseHookTarget::Local(id),
         };
-        let (body, _) = self.lower_body(&self.source.release_hooks[hook].body, arguments);
-        self.release_hook_slots[index] = Some(PendingReleaseHook { owner: class, body });
+        let source = &self.source.release_hooks[hook];
+        let origin = source.origin;
+        let (body, _) = self.lower_body(&source.body, arguments);
+        self.release_hook_slots[index] = Some(PendingReleaseHook {
+            origin,
+            owner: class,
+            body,
+        });
     }
 }
 
@@ -53,6 +60,7 @@ pub(super) fn finish_release_hooks(
             let hook = slot.expect("every requested release body is completely lowered");
             let owner = exact_types[classes[hook.owner].canonical_type].id();
             concrete::ReleaseHook {
+                origin: hook.origin,
                 owner: hook.owner,
                 materialization: concrete::CallableMaterialization::new(
                     concrete::CallableTemplateOwner::ReleaseHook(owner),

@@ -39,6 +39,7 @@ pub(super) struct BodyLowerer<'a> {
     pub(super) method_slots: &'a HashMap<mir::ClassId, HashMap<hir::VirtualMethodId, u32>>,
     pub(super) function_map: &'a HashMap<hir::FunctionId, mir::FunctionId>,
     pub(super) extern_map: &'a HashMap<hir::ExternFunctionId, mir::ExternFunctionId>,
+    pub(super) extern_functions: &'a mut Arena<mir::ExternFunction>,
     pub(super) external_callables: &'a Arena<mir::ExternalCallableUse>,
 
     pub(super) imported_dependency_callable_map: &'a ImportedCallableMap,

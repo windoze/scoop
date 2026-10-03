@@ -13,6 +13,7 @@ mod bodies;
 mod catalog;
 mod diagnostics;
 mod error;
+mod initializations;
 mod intrinsics;
 mod members;
 mod model;
@@ -20,6 +21,7 @@ mod nominals;
 mod properties;
 pub use bodies::ImportedCallableBody;
 pub use error::*;
+pub use initializations::ImportedNominalInitialization;
 pub use intrinsics::ImportedIntrinsicCallable;
 pub use members::*;
 pub use model::*;
@@ -190,6 +192,7 @@ impl ImportedDependencySelectionPlan {
         self.callables
             .entry(id)
             .or_insert_with(|| SelectedImportedDependencyCallable {
+                native_contract: entry.native_contract.clone(),
                 provider: entry.provider,
                 interface: entry.interface.clone(),
                 source: entry.source.clone(),

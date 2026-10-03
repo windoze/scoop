@@ -160,6 +160,24 @@ impl Lowerer {
             .expect("the class builder registered its identity");
         loaded.virtual_methods = virtual_methods;
         loaded.definition.interface_implementations = implementations;
+        if matches!(owner, hir::SourceNominalId::GenericTemplate(_))
+            && matches!(
+                declaration.interface.declaration_details().release_policy(),
+                hir::NominalReleasePolicyV1::SynchronousGcFree { .. }
+            )
+        {
+            let hook = self
+                .load_imported_release_hook(&declaration, &bindings)
+                .map_err(|_| ImportedSignatureTypeError::Structural)?;
+            let hook = self.release_hooks.alloc(hook);
+            self.loaded_class_definitions
+                .get_mut(&owner)
+                .expect("the class builder registered its identity")
+                .definition
+                .release_policy = hir::ReleasePolicy::SynchronousGcFree {
+                hook: hir::ExportReleaseHookRef::Template(hook),
+            };
+        }
         Ok(())
     }
 }

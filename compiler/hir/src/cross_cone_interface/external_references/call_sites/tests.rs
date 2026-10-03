@@ -84,7 +84,7 @@ fn call_instantiation_is_required_and_rejects_unknown_tags() {
         }
     ));
     bytes[0] = 0xa8;
-    for malformed in [vec![0xa1, 0, 3], vec![0xa1, 0, 2], vec![0xa2, 0, 1, 1, 0]] {
+    for malformed in [vec![0xa1, 0, 4], vec![0xa1, 0, 2], vec![0xa2, 0, 1, 1, 0]] {
         let mut malformed_record = bytes.clone();
         malformed_record.push(8);
         malformed_record.extend(malformed);

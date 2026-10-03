@@ -27,7 +27,7 @@
 
 ## 尚未完成
 
-泛型 release 正文的共有模板与依赖实例化、ODR 实际组合、外来 helper 调用与剩余源码诊断/组合 fixture、最终格式基线和全量正式 CLI 回归仍须完成。已经完成的最小源码及参数自由依赖闭环见第三批；最终以 DESIGN 第 6 节的源码、产物消费、独立链接和运行闭环验收为准。
+大值与 native aggregate bridge、其余 GC 根和 helper 组合、机器属性与 ODR 冲突/缓存检查、最终格式基线和全量正式 CLI 回归仍须完成。已经完成的源码和依赖闭环见第三、四批；最终以 DESIGN 第 6 节的源码、产物消费、独立链接和运行闭环验收为准。
 
 ## 第二批：ReleaseValue 与 NoTransition
 
@@ -49,3 +49,12 @@
 - `cargo fmt --all`、全 workspace/all-targets clippy 通过；完整 `cargo test --workspace --no-fail-fast` 执行了 5,238 项测试，其中 5 处旧字段数量/摘要断言迁移后，对相关 3 个 crate 的 2,379 项测试复核全部通过。原全量日志为 `tmp/m24/logs/hooks-workspace-tests.log`，复核日志为 `tmp/m24/logs/hooks-workspace-recheck.log`；原全量命令保留非零退出事实。
 - Python runner 的 29 项单元测试通过。使用 `tmp/m24/hooks-tools/` 的配套命令执行无更新模式 `--filter 'release-blocks-*'`，67/67 通过，覆盖 89 次进程执行及 21 份 stage golden；报告为 `tmp/m24/hooks-source-acceptance/report.json`。
 - 再次用 `cargo clean --profile dev --target-dir target` 清理默认开发产物，释放约 2.5 GiB。所有工具副本、测试目录和日志继续位于已忽略的仓库 `tmp/m24/`。
+
+## 第四批：泛型模板与外来 C leaf
+
+- 泛型 nominal initialization 的共有格式显式保存 release policy、定义来源和完整正文。下游按原 nominal binder 替换并实例化独立 hook；共享表达式遍历、来源和调用引用包含 hook，provider 无须预先物化 consumer 才使用的 exact owner。
+- 依赖选择保留 C extern 的原 source native contract。release 内直接使用其 native leaf，普通调用仍使用原 provider Scoop 入口；同一声明同时用于这两种调用也保持各自 ABI。共有 HIR 的 `NativeLeaf` 分支明确连接该调用，避免为它保留未使用的 Scoop wrapper。
+- 新增本地泛型组合，覆盖标量、值聚合、Option、Unit、nested owner、phantom 引用参数和循环；新增跨 Cone 签名、别名、字段及构造四项条件失败 fixture，精确断言 canonical 诊断。
+- 新增 provider、left、right、consumer 组合：两个库和下游共同实例化 `Owner<Int>`，另有独立 `Owner<Long>`；不同库使用不同 method，release 还调用私有普通与泛型 NoGc helper。删除所有源码后，独立 artifact-only link 与普通/moving stress 运行均输出 `3`、`69`。
+- 格式化和全 workspace/all-targets clippy 通过。六个相关 crate 共执行 3,382 项测试，其中一处旧未知 tag 断言迁移后，HIR 的全部 873 项复核通过；日志为 `tmp/m24/logs/generic-hooks-regression.log` 与 `tmp/m24/logs/generic-hooks-hir-recheck.log`，首轮非零退出事实保留。
+- 使用 `tmp/m24/generic-hooks-tools/` 的三个固定命令运行原 runner，无更新模式 `--filter 'release-*'` 退出码为 0：76/76 通过，覆盖 128 次进程执行、50 份 stage/plan golden；报告为 `tmp/m24/generic-hooks-acceptance/report.json`。最终全量验收仍须使用最终版本的工具重新执行。

@@ -30,9 +30,9 @@ pub struct CommittedDependencyCallOccurrence<'a> {
 impl<'a> CommittedDependencyCallOccurrence<'a> {
     pub(super) fn validate_origin(
         self,
-        export: &crate::ExportHir,
+        output: &crate::Output,
     ) -> Result<(), DependencyCallOccurrenceError> {
-        validate_origins(export, self.occurrence)
+        validate_origins(output, self.occurrence)
     }
 
     pub const fn target(self) -> CommittedDependencyCallTarget<'a> {
@@ -50,6 +50,16 @@ impl<'a> CommittedDependencyCallOccurrence<'a> {
 
     pub fn instantiation(self) -> crate::HirDependencyCallInstantiationV1 {
         match self.target {
+            CommittedDependencyCallTarget::Direct { callable, .. }
+                if callable.interface().effects().implementation()
+                    == crate::CallableImplementationV1::SourceExternC
+                    && matches!(
+                        self.position().root.template(),
+                        scoop_identity::CallableTemplateOwner::ReleaseHook(_)
+                    ) =>
+            {
+                crate::HirDependencyCallInstantiationV1::NativeLeaf
+            }
             CommittedDependencyCallTarget::Direct { .. } => {
                 crate::HirDependencyCallInstantiationV1::Direct
             }
@@ -204,9 +214,10 @@ pub(super) fn visit<'a>(
 }
 
 fn validate_origins(
-    export: &crate::ExportHir,
+    output: &crate::Output,
     occurrence: ExecutableExpressionOccurrence<'_>,
 ) -> Result<(), DependencyCallOccurrenceError> {
+    let export = output.export.module();
     let origin = occurrence.expression.origin;
     let evaluation = crate::DefinitionOrigin {
         provider: origin.evaluation.provider,
@@ -240,6 +251,8 @@ fn validate_origins(
                 matches.then_some(template.origin)
             }).or_else(|| export.imported_constructor_templates.iter().find_map(|(_, template)| {
                 matches!(occurrence.position.root.template(), scoop_identity::CallableTemplateOwner::Constructor(declaration) if declaration == template.declaration).then_some(template.origin)
+            })).or_else(|| output.local.module().release_hooks.iter().find_map(|(_, hook)| {
+                (occurrence.position.root == hook.materialization).then_some(hook.origin)
             }));
             if origin.is_none_or(|origin| {
                 export.source_files[origin.file as usize].identity != *projected.origin().source()

@@ -152,7 +152,7 @@ impl<'a, 'hir> ConstructorProjection<'a, 'hir> {
     }
 }
 
-fn definition_source(
+pub(super) fn definition_source(
     export: &ExportHir,
     origin: DefinitionOrigin,
 ) -> Result<ExportDefinitionSourceV1, Error> {

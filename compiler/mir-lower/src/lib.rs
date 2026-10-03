@@ -191,13 +191,8 @@ pub fn lower(
     ))
 }
 
-#[derive(Clone)]
-struct ImportedCallableTarget {
-    callable: mir::ExternalCallableUseId,
-    lowering_role: mir::MirCallableLoweringRoleV1,
-    signature: scoop_identity::ExactCallableSignature,
-    semantic_signature: scoop_identity::ExactCallableSignature,
-}
+mod imported_callables;
+use imported_callables::{ImportedCallableEntry, ImportedCallableTarget};
 
 type ImportedCallableMap = HashMap<hir::ImportedDependencyCallableUseId, ImportedCallableTarget>;
 

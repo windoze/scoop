@@ -12,6 +12,7 @@ use crate::{
 
 mod classes;
 mod fragment;
+mod release;
 mod structures;
 use fragment::ConstructorProjection;
 

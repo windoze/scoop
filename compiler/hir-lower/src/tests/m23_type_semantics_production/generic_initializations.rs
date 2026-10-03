@@ -173,19 +173,30 @@ fn generic_initialization_records_reject_incomplete_or_inconsistent_shapes() {
         };
 
         assert_eq!(
-            Nominal::try_new(class.owner(), Vec::new(), Vec::new()),
+            Nominal::try_new(
+                class.owner(),
+                Vec::new(),
+                Vec::new(),
+                hir::ReleasePolicy::None
+            ),
             Err(Error::MissingConstructors)
         );
         assert_eq!(
             Nominal::try_new(
                 class.owner(),
                 Vec::new(),
-                vec![primary.clone(), primary.clone()]
+                vec![primary.clone(), primary.clone()],
+                hir::ReleasePolicy::None,
             ),
             Err(Error::ConstructorOrder)
         );
         assert_eq!(
-            Nominal::try_new(structure.owner(), Vec::new(), class.constructors().to_vec()),
+            Nominal::try_new(
+                structure.owner(),
+                Vec::new(),
+                class.constructors().to_vec(),
+                hir::ReleasePolicy::None
+            ),
             Err(Error::ConstructorOwner)
         );
         assert_eq!(
@@ -196,7 +207,8 @@ fn generic_initialization_records_reject_incomplete_or_inconsistent_shapes() {
             Nominal::try_new(
                 structure.owner(),
                 class.common().to_vec(),
-                structure.constructors().to_vec()
+                structure.constructors().to_vec(),
+                hir::ReleasePolicy::None,
             ),
             Err(Error::StructCommonInitialization)
         );
@@ -241,7 +253,8 @@ fn generic_initialization_records_reject_incomplete_or_inconsistent_shapes() {
                     field: field.clone(),
                     value: empty_value
                 }],
-                class.constructors().to_vec()
+                class.constructors().to_vec(),
+                hir::ReleasePolicy::None,
             ),
             Err(Error::FieldInitializer)
         );

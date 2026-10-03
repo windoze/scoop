@@ -51,13 +51,13 @@ impl Lowerer {
                 );
                 continue;
             }
-            let body = self.lower_release_body(class, block);
+            let (body, origin) = self.lower_release_body(class, block);
             let owner = self.nominal_identity(Owner::Class(class)).declaration_id();
             let hook = self.release_hooks.alloc(hir::ExportReleaseHook {
                 owner,
                 requirements: Vec::new(),
                 body,
-                span: block.span,
+                origin,
             });
             self.classes[class].release_policy = hir::ReleasePolicy::SynchronousGcFree {
                 hook: hir::ExportReleaseHookRef::Template(hook),

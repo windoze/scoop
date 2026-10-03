@@ -2,6 +2,8 @@
 
 use super::*;
 
+mod release;
+
 pub(super) fn external_equality(
     callables: &Arena<mir::ExternalCallableUse>,
     target: scoop_hir::ImportedDerivedEquality,
@@ -22,7 +24,7 @@ pub(super) fn external_equality(
 /// Lowers one complete HIR product with its unified external callable selection.
 pub fn lower_current_cone(
     output: &scoop_hir::DependencyHirOutput,
-    selected_callables: mir::SelectedExternalMirSet,
+    mut selected_callables: mir::SelectedExternalMirSet,
 ) -> Result<mir::DependencyMirOutput, CurrentConeMirLoweringError> {
     let hir = output.output().local.module();
     if selected_callables.consumer() != hir.cone {
@@ -33,7 +35,7 @@ pub fn lower_current_cone(
     }
     let mut callables = Arena::new();
     let dependency_mapping =
-        lower_dependency_callables(output, &selected_callables, &mut callables)?;
+        lower_dependency_callables(output, &mut selected_callables, &mut callables)?;
     lower_initialization_callables(hir, &selected_callables, &mut callables)?;
     lower_runtime_constructors(hir, &selected_callables, &mut callables)?;
     for selected in selected_callables.callables() {
@@ -146,11 +148,13 @@ fn lower_initialization_callables(
 
 fn lower_dependency_callables(
     output: &scoop_hir::DependencyHirOutput,
-    imported: &mir::SelectedExternalMirSet,
+    imported: &mut mir::SelectedExternalMirSet,
     callables: &mut Arena<mir::ExternalCallableUse>,
 ) -> Result<ImportedCallableMap, CurrentConeMirLoweringError> {
     let mut mapping = HashMap::new();
     let mut definitions = HashMap::<_, ImportedCallableTarget>::new();
+    let mut native_entries = std::collections::HashSet::new();
+    let release_only = release::exclusive_calls(output.output().local.module())?;
 
     let executable = output
         .executable_dependency_callables()
@@ -176,13 +180,26 @@ fn lower_dependency_callables(
             false => mir::GcEffect::Managed,
             true => mir::GcEffect::NoGc,
         };
-        let callable = callables.alloc(
-            imported
-                .callable_use(id, effect)
-                .expect("a selected dependency MIR callable has a complete typed reference"),
-        );
+        let native_contract = selected.native_contract().cloned();
+        let entry =
+            match native_contract {
+                Some(contract)
+                    if release_only.contains(&source_id)
+                        && selected.interface().effects().implementation()
+                            == scoop_hir::CallableImplementationV1::SourceExternC =>
+                {
+                    native_entries.insert(definition);
+                    ImportedCallableEntry::ReleaseNative(contract)
+                }
+                native_contract => ImportedCallableEntry::Scoop {
+                    callable: callables.alloc(imported.callable_use(id, effect).expect(
+                        "a selected dependency MIR callable has a complete typed reference",
+                    )),
+                    native_contract,
+                },
+            };
         let target = ImportedCallableTarget {
-            callable,
+            entry,
             lowering_role: target.lowering_role(),
             signature: target.signature().clone(),
             semantic_signature: target.semantic_signature().clone(),
@@ -190,6 +207,9 @@ fn lower_dependency_callables(
         mapping.insert(source_id, target.clone());
         definitions.insert(definition, target);
     }
+    imported.retain_callables(|callable| {
+        !native_entries.contains(&(callable.provider(), callable.implementation()))
+    });
     Ok(mapping)
 }
 

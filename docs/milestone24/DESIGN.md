@@ -1,6 +1,6 @@
 # M24 GC-free release hook 设计
 
-状态：实现中。共同 ABI、runtime 回收接线和 parser 模块拆分已落地；源码到 hook 的编译及跨 Cone 消费仍在实现。
+状态：实现中。共同 ABI、runtime 回收、源码 hook、参数自由及泛型跨 Cone 消费已落地；其余表示组合、产物检查和最终全量验收仍在推进。
 
 日期：2026-10-03（按 M23 总验收后的实现重新核对）。
 
@@ -184,6 +184,8 @@ release 的 source context 复用 owner 的 nominal context；它没有函数声
 
 共有 nominal 声明承载 release template/policy。wire 以原 nominal owner 为键内联完整 typed template 与条件，不保存进程内 arena 序号。字段引用保存 PersistentFieldId 及原 owner/type；template 的 private/internal helper、native contract 和所需类型走现有支持声明闭包，不公开到普通 lookup，也不需要 template-support 授权记录。
 
+具体存储复用共有 nominal 声明与泛型 nominal 执行模板：声明 details 保存 policy 和 binder 条件；既有 generic initialization record 增加必需的 release policy 字段，`SynchronousGcFree` 分支保存独立 hook 的 definition origin 和无结果的通用正文 fragment。该 fragment 没有 constructor receiver 或参数输入，不属于任一 constructor。reader 在原声明/模板连接边界检查 policy 一致；来源、字段、helper 与 native 引用继续使用现有 fragment visitor 和支持闭包。导入时恢复一次 nominal binder 域中的 Export hook，再由实际 exact type 具体化；不复制为外来源码 class 或普通 callable。
+
 LocalConcrete 明确区分本次物化 hook 与依赖 owner 的 hook 引用；只有前者携带完整本地 body。参数自由外来类型的构造只消费 policy，不能为取得一个 ConcreteReleaseHookId 而重建外来 body。generic exact application 由正常物化队列产生完整 hook、条件结果与引用；没有残留 binder 或“以后再检查”标志。仅类型用途的条件检查不额外物化 TD/hook；一旦按既有规则发射带 release policy 的 TD，其 hook 与 registration 才必须随实际引用闭合。
 
 ### 3.3 MIR 与 LIR
@@ -197,6 +199,10 @@ MIR 的 release body 没有普通参数，raw reclaiming input 只由后端私�
 LIR 一次完成静态字段 offset/alignment、值表示、helper ABI 和 native storage ABI。ZST field 产生 exact typed 零 payload 值，不读取伪造的 offset；大值按已有 aggregate 规则处理。reclaiming receiver 为 AS0 私有参数，禁止把它转换为 AS1 或作为普通源语言值使用。
 
 release callsite 只有两种：带已有 local/external typed target 的 ReleaseSafeScoopCall，以及保留原 NativeExternalContractRecord 的 ReleaseNativeLeafCall。C storage bridge 使用普通生成单元，transition 本来属于 caller，release 不为 bridge/NoGc helper 克隆第二份正文。非 TLS native global 的纯存储访问在 release 与普通 NoGc 正文中明确使用 NoTransition，其他访问保留 NativeSafe；LIR 用封闭 sum 配对各自的 safepoint/root plan。已有纯 memory-copy target support 可用，TLS/bootstrap、runtime transition 和 managed helper 不可用。
+
+外来 C extern 的普通 Scoop 入口含 outbound transition，不能作为 release helper 使用。依赖选择保留该声明已验证的 source native contract；release 内的实际直接调用将它投影到 MIR 既有 extern arena，再沿上述 native leaf 路径发射。普通调用仍引用 provider 的 Scoop 入口，不复制该入口或重新建立外来函数声明身份。
+
+共有 HIR dependency call site 的实际目标分支增加 `NativeLeaf`（tag 3），只用于 release root 下的直接 C 声明。HIR 引用边界检查该 kind、原声明和完整实参/结果；MIR 的 Scoop 入口连接不要求此分支再选择 provider wrapper，native ABI 和实际 symbol 继续由既有 LIR/native contract 边界检查。仅由 leaf 使用的声明不保留未使用的 Scoop entry，混合普通/leaf 使用则各自引用实际入口。
 
 LIR 对本次新增的机器 body 检查无 managed value、statepoint、poll、root、EH 和 transition，保留必要 ABI/引用检查；不重算依赖的 ReleaseValue 或完整 release-call graph。codegen 机械发射 nounwind、address-significant 的 `void (ptr addrspace(0))` thunk，LLVM 不挂 GC strategy，不加入口/回边 poll、stackmap、personality 或 LSDA。
 

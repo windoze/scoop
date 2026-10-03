@@ -102,6 +102,10 @@ impl ExportGenericNominalInitializationV1 {
                 }
             }
         }
+        if let Some(hook) = self.release_policy().hook() {
+            hook.body()
+                .visit_direct_references(hook.definition_origin(), visitor, path)?;
+        }
         Ok(())
     }
 }

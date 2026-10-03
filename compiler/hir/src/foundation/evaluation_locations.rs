@@ -81,8 +81,8 @@ impl CanonicalHirFoundation {
             .map(|index| self.source_contexts[index].key())
             .ok_or_else(context_error)?;
         // Generated lexical and initialization bodies use their canonical source anchor.
-        let subject =
-            contexts::source_subject(self, root.template(), context).ok_or_else(context_error)?;
+        let subject = contexts::source_subject(self, materializations, root.template(), context)
+            .ok_or_else(context_error)?;
 
         let definition = self
             .definition_origin(subject)

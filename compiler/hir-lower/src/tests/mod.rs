@@ -87,6 +87,7 @@ mod m23_type_semantics_production;
 mod m24_release_blocks;
 mod m24_release_cfg;
 mod m24_release_effects;
+mod m24_release_generics;
 mod m3;
 mod m4;
 mod m5;

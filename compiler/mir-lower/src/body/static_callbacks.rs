@@ -45,7 +45,7 @@ impl BodyLowerer<'_> {
         source_signature: hir::FunctionTypeId,
     ) -> mir::CallbackBridgeId {
         self.lower_callback_storage_types(source_signature);
-        let source = self.imported_dependency_callable_map[&source].callable;
+        let source = self.imported_dependency_callable_map[&source].scoop_entry();
         let reference = self.external_callables[source].reference();
         let scoop_identity::StrongCallableDefinitionOwner::Function(function) =
             reference.implementation()

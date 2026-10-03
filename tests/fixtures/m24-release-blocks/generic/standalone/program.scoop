@@ -1,0 +1,49 @@
+@Extern(lib = "m24_release", name = "m24_release_add")
+private fun record(value: Int)
+
+@Extern(lib = "m24_release", name = "m24_release_count")
+private fun count(): Int
+
+@NoGC private fun <T> keep(value: T): T = value
+
+struct Pair<T>(val first: T, val second: T)
+struct Phantom<T>(val code: Int)
+
+class Owner<T>(private val value: T, private val code: Int) {
+    release {
+        val copied = keep(value)
+        var remaining = code
+        while (remaining > 0) {
+            remaining -= 1
+            if (remaining > 0) { continue }
+            @Unsafe { record(code) }
+            break
+        }
+    }
+}
+
+class PhantomOwner<T>(private val phantom: Phantom<T>, val retained: T) {
+    release { @Unsafe { record(phantom.code) } }
+}
+
+class Container {
+    class Nested<T>(private val value: T) {
+        release { val copied = keep(value) }
+    }
+}
+
+private fun allocate() {
+    val scalar = Owner(1, 3)
+    val aggregate = Owner(Pair(4, 5), 7)
+    val optional: Owner<Option<Int>> = Owner(Some(8), 11)
+    val empty = Owner(Unit, 13)
+    val phantom: PhantomOwner<String> = PhantomOwner(Phantom(8), "retained")
+    val nested = Container.Nested(9)
+}
+
+fun main() {
+    allocate()
+    gcCollect()
+    gcCollect()
+    @Unsafe { println(count()) }
+}

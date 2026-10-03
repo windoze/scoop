@@ -1,0 +1,3 @@
+import releasegeneric.Owner
+
+public class Holder(val nested: Owner<String>) {}

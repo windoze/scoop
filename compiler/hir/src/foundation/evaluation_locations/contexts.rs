@@ -8,6 +8,7 @@ use super::super::CanonicalHirFoundation;
 
 pub(super) fn source_subject(
     foundation: &CanonicalHirFoundation,
+    materializations: &CanonicalHirFoundation,
     mut root: CallableTemplateOwner,
     context: &SourceContextKey,
 ) -> Option<DefinitionOriginSubject> {
@@ -70,7 +71,7 @@ pub(super) fn source_subject(
             }
             CallableTemplateOwner::VariantConstructor(_) => return None,
             CallableTemplateOwner::ReleaseHook(exact) => {
-                let owner = foundation.release_hook_owner(exact)?;
+                let owner = materializations.release_hook_owner(exact)?;
                 if !matches!(context, SourceContextKey::Nominal { owner: source, .. } if *source == owner)
                 {
                     return None;

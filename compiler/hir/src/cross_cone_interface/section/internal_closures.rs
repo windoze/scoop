@@ -42,6 +42,9 @@ impl CrossConeHirInterfaceSectionV1 {
         self.constants()
             .validate_property_closure(self.property_interfaces())
             .map_err(CrossConeHirInternalClosureValidationError::Constants)?;
+        self.generic_initializations()
+            .validate_release_policies(self.nominal_interfaces())
+            .map_err(CrossConeHirInternalClosureValidationError::ReleasePolicy)?;
         self.validate_definition_source_closure(path)
             .map_err(CrossConeHirInternalClosureValidationError::DefinitionSources)
     }
@@ -56,6 +59,7 @@ pub enum CrossConeHirInternalClosureValidationError {
     DefaultTemplates(ExportDefaultTemplateSourceClosureValidationError),
     Constants(ExportConstValueClosureValidationError),
     DefinitionSources(ExportDefinitionSourceClosureValidationError),
+    ReleasePolicy(scoop_identity::PersistentGenericTypeId),
 }
 
 impl fmt::Display for CrossConeHirInternalClosureValidationError {
@@ -68,6 +72,12 @@ impl fmt::Display for CrossConeHirInternalClosureValidationError {
             Self::DefaultTemplates(error) => ("default template closure", error),
             Self::Constants(error) => ("constant closure", error),
             Self::DefinitionSources(error) => ("definition source closure", error),
+            Self::ReleasePolicy(owner) => {
+                return write!(
+                    formatter,
+                    "release policy and generic body disagree for {owner}"
+                );
+            }
         };
         write!(formatter, "invalid cross-Cone HIR {relation}: {error}")
     }
