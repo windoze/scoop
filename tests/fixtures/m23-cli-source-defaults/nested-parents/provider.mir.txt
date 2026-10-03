@@ -1,0 +1,304 @@
+Module
+  enum NestedParentChoice
+    First(callback: () -> String)
+    Second(callback: () -> String)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<NestedParentChoice>
+    Completed(value: NestedParentChoice)
+    Suspended()
+  enum CoroutineSlot<NestedParentChoice>
+    Empty()
+    Value(value: NestedParentChoice)
+  enum CoroutineStep<NestedParentHost>
+    Completed(value: NestedParentHost)
+    Suspended()
+  enum CoroutineSlot<NestedParentHost>
+    Empty()
+    Value(value: NestedParentHost)
+  enum CoroutineStep<NestedParentConstructor>
+    Completed(value: NestedParentConstructor)
+    Suspended()
+  enum CoroutineSlot<NestedParentConstructor>
+    Empty()
+    Value(value: NestedParentConstructor)
+  class NestedParentHost vtable=0 itables=0
+  class NestedParentConstructor vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<NestedParentChoice> vtable=0 itables=0
+  interface Continuation<NestedParentChoice>
+  interface SuspendTask<NestedParentChoice>
+  interface SuspendRegistration<NestedParentChoice>
+  interface Continuation<NestedParentHost>
+  interface SuspendTask<NestedParentHost>
+  interface SuspendRegistration<NestedParentHost>
+  interface Continuation<NestedParentConstructor>
+  interface SuspendTask<NestedParentConstructor>
+  interface SuspendRegistration<NestedParentConstructor>
+  generated_exact_type get0 location=enum2 nominal_id=56c48b3f49617a6a5b20a1b4e3b6ac8d6ae0c631c056414e85c25dec3c830393 exact_id=14a790b3fb84161942d00faaec6d224c1233325ad8f5ac192ca52c1f5274a33e
+  generated_exact_type get1 location=enum3 nominal_id=3034a19c1f7b707d599cfea0b30a31a363a2ef850403908b3ae89f382ac56561 exact_id=1a1eea858d02c8f64450fd3ea2ac0affb652f0a7ec070a16929fd1244fe13b15
+  generated_exact_type get2 location=class5 nominal_id=179a9eaf6ee64bfb208fb8d8cda95cdfdedbda5cf42d1202982865b0f2dad9ff exact_id=3d8d80970b5d88b9f1d06aca3840b0e78412b40ffd43c253ebae4c54236c75e7
+  generated_exact_type get3 location=enum7 nominal_id=9a0544c80c850f4c13afdc9afe04587a5e7b37980e53195fd87a1d03fbfa6e62 exact_id=4760e6ec61e6451b335b92399934d5bf77572987074035572d0bd6491483b34b
+  generated_exact_type get4 location=enum6 nominal_id=31f0a82bd829c85ba0d13fc4a91358d3d8cac03f44dc499498e883d3f4dca5e3 exact_id=889e69edfd33ae0d1095cdc045a605c8ccd9e58fe6303d1e1ae7837f58dca19d
+  generated_exact_type get5 location=enum4 nominal_id=7bd4a742003ab490da6bd28231213d7723346ffb87b64c932e1395cc64c15c02 exact_id=de6390b4cfd86b4f8e2d10b11e058b1ad14e41d8e1058b1a60401227b74f7d41
+  generated_exact_type get6 location=enum5 nominal_id=ecb4acdf846329fc2dca0cbe976c4f98f7d0956aff0e410cdc2224705b13b665 exact_id=f986f719627bf0b87e0a774753d76437154b426cce9bd1c4576dd3a36c614c43
+  generated_callable gc0 function=@fn27 id=1a8efe111b4eeb5a3d97de6e8c6bec3558c36f7d90fd494ecd5b8c5a8207e6ef
+  generated_callable gc1 function=@fn26 id=2b673195bdd4c06e4cc6cc2c485b0ee0db5d2d2981afe97b382f7661b7d03dbe
+  generated_callable gc2 function=@fn25 id=a6d191d23455151b65ea00d3db45638bf4feaab58ed4fe19b26804513a0e25a4
+  fun NestedParentHost.lambdaA @fn0(this: NestedParentHost, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun NestedParentHost.lambdaB @fn1(this: NestedParentHost, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun NestedParentHost.anonymousA @fn2(this: NestedParentHost, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun NestedParentHost.anonymousB @fn3(this: NestedParentHost, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun NestedParentHost.referenceA @fn4(this: NestedParentHost, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun NestedParentHost.referenceB @fn5(this: NestedParentHost, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun NestedParentHost.localA @fn6(this: NestedParentHost, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun NestedParentHost.localB @fn7(this: NestedParentHost, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun NestedParentHost.expanded @fn8(this: NestedParentHost, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun nestedParentSeed @fn9() -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str0
+  fun nestedParentProvider @fn10(value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun Continuation.resume @fn11(this: Continuation<NestedParentChoice>, value: NestedParentChoice) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn12(this: Continuation<NestedParentChoice>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn13(this: SuspendTask<NestedParentChoice>, $completion: Continuation<NestedParentChoice>) -> CoroutineStep<NestedParentChoice>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn14(this: SuspendRegistration<NestedParentChoice>, continuation: Continuation<NestedParentChoice>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn15(this: Continuation<NestedParentHost>, value: NestedParentHost) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn16(this: Continuation<NestedParentHost>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn17(this: SuspendTask<NestedParentHost>, $completion: Continuation<NestedParentHost>) -> CoroutineStep<NestedParentHost>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn18(this: SuspendRegistration<NestedParentHost>, continuation: Continuation<NestedParentHost>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn19(this: Continuation<NestedParentConstructor>, value: NestedParentConstructor) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn20(this: Continuation<NestedParentConstructor>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn21(this: SuspendTask<NestedParentConstructor>, $completion: Continuation<NestedParentConstructor>) -> CoroutineStep<NestedParentConstructor>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn22(this: SuspendRegistration<NestedParentConstructor>, continuation: Continuation<NestedParentConstructor>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.NestedParentHost.$c0 @fn23(this: NestedParentHost) -> Unit
+    bb0 entry
+      return
+  fun init.NestedParentConstructor.$c1 @fn24(this: NestedParentConstructor, callback: () -> String) -> Unit
+    bb0 entry
+      field_set 0
+        Type NestedParentConstructor
+        Local this
+        Type () -> String
+        Local callback
+      return
+  fun startCoroutine<NestedParentChoice> @fn25(task: SuspendTask<NestedParentChoice>, completion: Continuation<NestedParentChoice>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn11 interface Continuation<NestedParentChoice>[0]
+        Type Continuation<NestedParentChoice>
+        Local completion
+        Type NestedParentChoice
+        EnumField v0 f0
+          Type CoroutineStep<NestedParentChoice>
+          Local $step
+      return
+    bb2 failed
+      call @fn12 interface Continuation<NestedParentChoice>[1]
+        Type Continuation<NestedParentChoice>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<NestedParentChoice> = @fn13 interface SuspendTask<NestedParentChoice>[0]
+        Type SuspendTask<NestedParentChoice>
+        Local task
+        Type Continuation<NestedParentChoice>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<NestedParentChoice>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<NestedParentHost> @fn26(task: SuspendTask<NestedParentHost>, completion: Continuation<NestedParentHost>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn15 interface Continuation<NestedParentHost>[0]
+        Type Continuation<NestedParentHost>
+        Local completion
+        Type NestedParentHost
+        EnumField v0 f0
+          Type CoroutineStep<NestedParentHost>
+          Local $step
+      return
+    bb2 failed
+      call @fn16 interface Continuation<NestedParentHost>[1]
+        Type Continuation<NestedParentHost>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<NestedParentHost> = @fn17 interface SuspendTask<NestedParentHost>[0]
+        Type SuspendTask<NestedParentHost>
+        Local task
+        Type Continuation<NestedParentHost>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<NestedParentHost>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<NestedParentConstructor> @fn27(task: SuspendTask<NestedParentConstructor>, completion: Continuation<NestedParentConstructor>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn19 interface Continuation<NestedParentConstructor>[0]
+        Type Continuation<NestedParentConstructor>
+        Local completion
+        Type NestedParentConstructor
+        EnumField v0 f0
+          Type CoroutineStep<NestedParentConstructor>
+          Local $step
+      return
+    bb2 failed
+      call @fn20 interface Continuation<NestedParentConstructor>[1]
+        Type Continuation<NestedParentConstructor>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<NestedParentConstructor> = @fn21 interface SuspendTask<NestedParentConstructor>[0]
+        Type SuspendTask<NestedParentConstructor>
+        Local task
+        Type Continuation<NestedParentConstructor>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<NestedParentConstructor>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<NestedParentChoice> result=NestedParentChoice
+  coroutine_step cs1 CoroutineStep<NestedParentHost> result=NestedParentHost
+  coroutine_step cs2 CoroutineStep<NestedParentConstructor> result=NestedParentConstructor
+  coroutine_slot cl0 CoroutineSlot<NestedParentChoice> value=NestedParentChoice
+  coroutine_slot cl1 CoroutineSlot<NestedParentHost> value=NestedParentHost
+  coroutine_slot cl2 CoroutineSlot<NestedParentConstructor> value=NestedParentConstructor
+  coroutine_start ct0 result=NestedParentChoice function=fn25
+  coroutine_start ct1 result=NestedParentHost function=fn26
+  coroutine_start ct2 result=NestedParentConstructor function=fn27
+  coroutine_fn cf0 @fn13 source_return=NestedParentChoice step=cs0 immediate
+  coroutine_fn cf1 @fn17 source_return=NestedParentHost step=cs1 immediate
+  coroutine_fn cf2 @fn21 source_return=NestedParentConstructor step=cs2 immediate
+  instance mi0 function=@fn11 <- Continuation.resume
+  instance mi1 function=@fn12 <- Continuation.resumeWithException
+  instance mi2 function=@fn13 <- SuspendTask.run
+  instance mi3 function=@fn14 <- SuspendRegistration.register
+  instance mi4 function=@fn15 <- Continuation.resume
+  instance mi5 function=@fn16 <- Continuation.resumeWithException
+  instance mi6 function=@fn17 <- SuspendTask.run
+  instance mi7 function=@fn18 <- SuspendRegistration.register
+  instance mi8 function=@fn19 <- Continuation.resume
+  instance mi9 function=@fn20 <- Continuation.resumeWithException
+  instance mi10 function=@fn21 <- SuspendTask.run
+  instance mi11 function=@fn22 <- SuspendRegistration.register
+  str @str0 "parent"
+  output library
