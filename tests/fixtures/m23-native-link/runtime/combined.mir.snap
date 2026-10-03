@@ -1,0 +1,260 @@
+Module
+  struct Marker (text: String)
+  struct GcHandle<String> (raw: ULong)
+  struct PinnedPtr<String> (raw: ULong)
+  interface ToString
+  interface Hash
+  fun main @fn0() -> Unit
+    bb0 entry
+      val $dependency.receiver: String
+        Type String
+        StringConst @str0
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call text: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $dependency.receiver: String
+        Type String
+        StringConst @str2
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.text: String
+        Type String
+        Local $argument.0
+      call marker: Marker = @fn7 direct
+        Type String
+        Local $parameter.text
+      val $dependency.argument.0: Marker
+        Type Marker
+        Local marker
+      val $dependency.argument.1: String
+        Type String
+        Local text
+      val $dependency.parameter.marker: Marker
+        Type Marker
+        Local $dependency.argument.0
+      val $dependency.parameter.text: String
+        Type String
+        Local $dependency.argument.1
+      call $dependency.argument.0: String = @fn1 direct
+        Type Marker
+        Local $dependency.parameter.marker
+        Type String
+        Local $dependency.parameter.text
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type String
+        Local $dependency.parameter.value
+      call @scoop_rt_gc_collect direct
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type Marker
+          Local marker
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        Local text
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun preserve @fn1(marker: Marker, text: String) -> String
+    bb0 entry
+      val $dependency.local.5: String
+        Type String
+        Local text
+      val $dependency.local.6: String
+        Type String
+        Local $dependency.local.5
+      call $dependency.local.2: GcHandle<String> = @fn3 direct
+        Type String
+        Local $dependency.local.6
+      call @scoop_rt_gc_collect direct
+      val $dependency.local.7: GcHandle<String>
+        Type GcHandle<String>
+        Local $dependency.local.2
+      val $dependency.local.8: GcHandle<String>
+        Type GcHandle<String>
+        Local $dependency.local.7
+      call $dependency.local.3: String = @fn4 direct
+        Type GcHandle<String>
+        Local $dependency.local.8
+      val $dependency.local.9: String
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.10: String
+        Type String
+        Local $dependency.local.9
+      call $dependency.local.4: PinnedPtr<String> = @fn5 direct
+        Type String
+        Local $dependency.local.10
+      call @scoop_rt_gc_collect direct
+      val $dependency.local.11: PinnedPtr<String>
+        Type PinnedPtr<String>
+        Local $dependency.local.4
+      val $dependency.local.12: PinnedPtr<String>
+        Type PinnedPtr<String>
+        Local $dependency.local.11
+      call $call.1: String = @fn6 direct
+        Type PinnedPtr<String>
+        Local $dependency.local.12
+      return
+        Type String
+        Local $call.1
+  fun println @fn2(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun getGcHandle @fn3(v: String) -> GcHandle<String>
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local v
+      val $dependency.local.2: String
+        Type String
+        Local $dependency.local.1
+      call $dependency.local.3: ULong = @scoop_rt_get_handle direct
+        Type String
+        Local $dependency.local.2
+      val $dependency.local.4: ULong
+        Type ULong
+        Local $dependency.local.3
+      call $call.1: GcHandle<String> = @fn8 direct
+        Type ULong
+        Local $dependency.local.4
+      return
+        Type GcHandle<String>
+        Local $call.1
+  fun releaseGcHandle @fn4(h: GcHandle<String>) -> String
+    bb0 entry
+      val $dependency.local.1: ULong
+        Type ULong
+        FieldAccess 0
+          Type GcHandle<String>
+          Local h
+      val $dependency.local.2: ULong
+        Type ULong
+        Local $dependency.local.1
+      call $call.1: String = @scoop_rt_release_handle direct
+        Type ULong
+        Local $dependency.local.2
+      return
+        Type String
+        Local $call.1
+  fun pin @fn5(v: String) -> PinnedPtr<String>
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local v
+      val $dependency.local.2: String
+        Type String
+        Local $dependency.local.1
+      call $dependency.local.3: ULong = @scoop_rt_pin direct
+        Type String
+        Local $dependency.local.2
+      val $dependency.local.4: ULong
+        Type ULong
+        Local $dependency.local.3
+      call $call.1: PinnedPtr<String> = @fn9 direct
+        Type ULong
+        Local $dependency.local.4
+      return
+        Type PinnedPtr<String>
+        Local $call.1
+  fun unpin @fn6(p: PinnedPtr<String>) -> String
+    bb0 entry
+      val $dependency.local.1: ULong
+        Type ULong
+        FieldAccess 0
+          Type PinnedPtr<String>
+          Local p
+      val $dependency.local.2: ULong
+        Type ULong
+        Local $dependency.local.1
+      call $call.1: String = @scoop_rt_unpin direct
+        Type ULong
+        Local $dependency.local.2
+      return
+        Type String
+        Local $call.1
+  fun ctor.Marker.$c0 @fn7(text: String) -> Marker <no-gc>
+    bb0 entry
+      return
+        Type Marker
+        StructInit Marker
+          Type String
+          Local text
+  fun ctor.GcHandle.$c0 @fn8(raw: ULong) -> GcHandle<String> <no-gc>
+    bb0 entry
+      return
+        Type GcHandle<String>
+        StructInit GcHandle<String>
+          Type ULong
+          Local raw
+  fun ctor.PinnedPtr.$c1 @fn9(raw: ULong) -> PinnedPtr<String> <no-gc>
+    bb0 entry
+      return
+        Type PinnedPtr<String>
+        StructInit PinnedPtr<String>
+          Type ULong
+          Local raw
+  instance mi0 function=@fn1 <- preserve
+  instance mi1 function=@fn2 <- println
+  instance mi2 function=@fn3 <- getGcHandle
+  instance mi3 function=@fn4 <- releaseGcHandle
+  instance mi4 function=@fn5 <- pin
+  instance mi5 function=@fn6 <- unpin
+  str @str0 "handles-"
+  str @str1 "alive"
+  str @str2 "marker-"
+  str @str3 "alive"
+  str @str4 "\n"
+  output executable @fn0
+

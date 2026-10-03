@@ -1,17 +1,38 @@
 use super::*;
 
-mod support;
+mod dynamic;
+mod native;
+use crate::test_support as support;
 
 #[test]
 fn actual_executable_corruption_is_rejected_before_publication() {
     let fixture = support::fixture();
-    let inputs = ProgramInputs::new(&fixture.closure, &fixture.runtime, &fixture.profile).unwrap();
+    let inputs = ProgramInputs::new(
+        &fixture.closure,
+        &fixture.runtime,
+        &fixture.profile,
+        &fixture.library_paths,
+    )
+    .unwrap();
     let startup =
         StartupObject::build(&inputs, &fixture.profile, fixture.directory.path()).unwrap();
     let original = std::fs::read(&fixture.output.path).unwrap();
-    verify(&original, &inputs, &startup, &fixture.profile).unwrap();
+    verify(
+        &original,
+        &inputs,
+        &startup,
+        &fixture.profile,
+        &crate::link::map::LinkMap::default(),
+    )
+    .unwrap();
     let reject = |name: &str, bytes: Vec<u8>, expected: &str| {
-        let error = match verify(&bytes, &inputs, &startup, &fixture.profile) {
+        let error = match verify(
+            &bytes,
+            &inputs,
+            &startup,
+            &fixture.profile,
+            &crate::link::map::LinkMap::default(),
+        ) {
             Err(error) => error.to_string(),
             Ok(()) => panic!("{name}: corrupted executable was accepted"),
         };
@@ -28,6 +49,11 @@ fn actual_executable_corruption_is_rejected_before_publication() {
     let library = find(&bytes, b"/usr/lib/libSystem.B.dylib");
     bytes[library + 18] = b'X';
     reject("provider", bytes, "unexpected final dynamic provider");
+
+    let mut bytes = original.clone();
+    let library = command(&bytes, macho::LC_LOAD_DYLIB);
+    bytes[library + 16..library + 20].copy_from_slice(&0u32.to_le_bytes());
+    reject("provider version", bytes, "version differs");
 
     let mut bytes = original.clone();
     let signature = command(&bytes, macho::LC_CODE_SIGNATURE);

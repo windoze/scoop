@@ -54,6 +54,7 @@ impl std::ops::DerefMut for ImportedGenericCallableSignature {
 #[derive(Debug, Clone)]
 pub enum ImportedCallableTemplateOrigin {
     Generic(scoop_identity::PersistentGenericFunctionId),
+    Intrinsic(scoop_identity::PersistentFunctionId),
     ExtensionAccessor(scoop_identity::PersistentPropertyAccessorId),
     Initialization {
         template: crate::ImportedGenericDelegateTemplateId,
@@ -88,6 +89,7 @@ impl ImportedCallableTemplateOrigin {
     pub fn declaration(&self) -> scoop_identity::CallableTemplateOrigin {
         match self {
             Self::Generic(id) => scoop_identity::CallableTemplateOrigin::GenericFunction(*id),
+            Self::Intrinsic(id) => scoop_identity::CallableTemplateOrigin::Function(*id),
             Self::ExtensionAccessor(id) => scoop_identity::CallableTemplateOrigin::Accessor(*id),
             Self::Initialization { .. } | Self::Closure { .. } => {
                 panic!("initialization helpers and closures have generated identities")

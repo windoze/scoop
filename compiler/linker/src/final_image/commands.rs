@@ -4,6 +4,7 @@ impl FinalImage<'_> {
     pub(super) fn read_commands(
         &mut self,
         profile: &ValidatedFinalLinkProfile,
+        inputs: &ProgramInputs<'_>,
     ) -> Result<(), LinkError> {
         let endian = self.file.endian();
         let mut commands = self.file.macho_load_commands().map_err(error)?;
@@ -11,7 +12,8 @@ impl FinalImage<'_> {
         let mut build = None;
         let mut dyld = None;
         let mut signature = None;
-        let mut libraries = 0;
+        let mut libraries = BTreeSet::new();
+        let mut rpaths = BTreeSet::new();
         let mut interpreters = 0;
         while let Some(command) = commands.next().map_err(error)? {
             match command.cmd() {
@@ -88,20 +90,44 @@ impl FinalImage<'_> {
                         .map_err(error)?
                         .ok_or_else(|| error("invalid final library"))?;
                     let name = command.string(endian, library.dylib.name).map_err(error)?;
-                    if name != profile.system_provider().install_name().as_bytes() {
+                    let provider = inputs
+                        .providers
+                        .stubs
+                        .keys()
+                        .filter_map(|id| inputs.providers.providers.get(id))
+                        .find(|provider| provider.install_name.as_bytes() == name)
+                        .ok_or_else(|| {
+                            error(format!(
+                                "unexpected final dynamic provider {}",
+                                String::from_utf8_lossy(name)
+                            ))
+                        })?;
+                    if library.dylib.current_version.get(endian) != provider.current_version
+                        || library.dylib.compatibility_version.get(endian)
+                            != provider.compatibility_version
+                    {
                         return Err(error(format!(
-                            "unexpected final dynamic provider {}",
-                            String::from_utf8_lossy(name)
+                            "final dynamic provider {} version differs from its input",
+                            provider.install_name
                         )));
                     }
-                    if library.dylib.current_version.get(endian)
-                        != profile.system_provider().current_version()
-                        || library.dylib.compatibility_version.get(endian)
-                            != profile.system_provider().compatibility_version()
-                    {
-                        return Err(error("final libSystem version differs from its SDK stub"));
+                    if !libraries.insert(provider.id) {
+                        return Err(error("duplicate final dynamic provider load command"));
                     }
-                    libraries += 1;
+                    self.providers.push(provider.id);
+                }
+                macho::LC_RPATH => {
+                    let path: &macho::RpathCommand<object::Endianness> =
+                        command.data().map_err(error)?;
+                    let value =
+                        std::str::from_utf8(command.string(endian, path.path).map_err(error)?)
+                            .map_err(error)?
+                            .to_owned();
+                    if !inputs.providers.rpaths.contains(&value) || !rpaths.insert(value.clone()) {
+                        return Err(error(format!(
+                            "unexpected or duplicate final RPATH {value}"
+                        )));
+                    }
                 }
                 macho::LC_LOAD_DYLINKER => {
                     let interpreter: &macho::DylinkerCommand<object::Endianness> =
@@ -126,7 +152,6 @@ impl FinalImage<'_> {
                 | macho::LC_LOAD_WEAK_DYLIB
                 | macho::LC_REEXPORT_DYLIB
                 | macho::LC_LOAD_UPWARD_DYLIB
-                | macho::LC_RPATH
                 | macho::LC_DYLD_ENVIRONMENT
                 | macho::LC_DYLD_EXPORTS_TRIE => {
                     return Err(error(
@@ -145,7 +170,9 @@ impl FinalImage<'_> {
         if build.platform.get(endian) != macho::PLATFORM_MACOS
             || build.minos.get(endian) != expected.minimum_os().packed()
             || build.sdk.get(endian) != expected.sdk().packed()
-            || libraries != 1
+            || libraries != inputs.providers.stubs.keys().copied().collect()
+            || rpaths != inputs.providers.rpaths
+            || self.file.macho_header().flags.get(endian) & macho::MH_TWOLEVEL == 0
             || interpreters != 1
             || self.file.macho_header().flags.get(endian) & macho::MH_PIE == 0
         {

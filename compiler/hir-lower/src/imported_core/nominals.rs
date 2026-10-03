@@ -94,6 +94,17 @@ impl Lowerer {
                 Ok(self.intern_type(hir::Type::Ptr(arguments[0])))
             }
             hir::NominalSourceShapeV1::Intrinsic(representation)
+                if representation.family() == hir::IntrinsicTypeKind::FunPtr =>
+            {
+                if !matches!(
+                    self.types[arguments[0]],
+                    hir::Type::Function(_) | hir::Type::Param(_)
+                ) {
+                    return Err(ImportedSignatureTypeError::Structural);
+                }
+                self.imported_struct_type(declaration, arguments)
+            }
+            hir::NominalSourceShapeV1::Intrinsic(representation)
                 if matches!(
                     representation.family(),
                     hir::IntrinsicTypeKind::Array | hir::IntrinsicTypeKind::MutableArray

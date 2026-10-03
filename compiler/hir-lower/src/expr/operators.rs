@@ -219,9 +219,8 @@ impl Lowerer {
         let negate = op == ast::BinOp::Ne;
         let symbol = if negate { "!=" } else { "==" };
         // A contextual operand takes its exact type from the independently
-        // typed peer. A clone-only probe discovers that type; real lowering
-        // still appends both operand sinks in source order because a payload
-        // variant may evaluate effectful arguments.
+        // typed peer. Commit the peer's type arena together with its expression,
+        // while retaining source evaluation order in the two operand sinks.
         let lhs_is_integer_literal = crate::expr::integer_literal_default_kind(lhs).is_some();
         let rhs_is_integer_literal = crate::expr::integer_literal_default_kind(rhs).is_some();
         let lhs_requires_expected = self.expr_requires_expected_type(lhs);
@@ -259,9 +258,16 @@ impl Lowerer {
                 }
                 return None;
             };
+            *self = probe;
             let lhs = self.lower_expr(lhs, sink, Some(rhs_probe.ty))?;
-            let rhs_expected = Some(lhs.ty);
-            self.lower_equality_rhs(lhs, rhs, sink, rhs_expected)?
+            let lhs = if probe_sink.is_empty() {
+                lhs
+            } else {
+                let span = lhs.span;
+                self.materialize_temporary("$equality.lhs".into(), lhs, span, sink)
+            };
+            sink.extend(probe_sink);
+            (lhs, rhs_probe)
         } else {
             let lhs = self.lower_expr(lhs, sink, None)?;
             let rhs_hint = if rhs_is_integer_literal {

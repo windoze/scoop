@@ -8,7 +8,7 @@ pub(crate) enum ArgumentExpression<'a> {
     Source(&'a ast::Expr),
     Lowered(&'a hir::Expr),
     Addressable {
-        place: hir::Place,
+        place: &'a hir::Place,
         ty: hir::TypeId,
         span: ast::Span,
     },
@@ -78,8 +78,17 @@ impl ArgumentExpression<'_> {
             Self::Addressable { place, ty, span } => (
                 Some(hir::Expr {
                     kind: match place {
-                        hir::Place::Local(local) => hir::ExprKind::Local(local),
-                        hir::Place::Global(global) => hir::ExprKind::GlobalRead(global),
+                        hir::Place::Local(local) => hir::ExprKind::Local(*local),
+                        hir::Place::Global(global) => hir::ExprKind::GlobalRead(*global),
+                        hir::Place::ExternalGlobal { .. } => hir::ExprKind::PtrLoad {
+                            pointer: Box::new(hir::Expr {
+                                kind: hir::ExprKind::AddressOf(place.clone()),
+                                ty: state.intern_type(hir::Type::Ptr(ty)),
+                                span,
+                                origin: state.expression_origin(span),
+                            }),
+                            offset: None,
+                        },
                     },
                     ty,
                     span,

@@ -1,0 +1,9 @@
+package nativelink.scoopabifacade
+
+public import nativelink.scoopabi.*
+
+public fun <T> roundTrip(marker: T, text: String, token: Empty = Empty()): Aggregate {
+    empty(token)
+    val reloaded = leafEcho(managedEcho(text))
+    return aggregate(Aggregate(reloaded, 10L, 20L))
+}

@@ -1,0 +1,72 @@
+Module
+  fun left @fn0() -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.marker: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      call $dependency.receiver: Int = @fn1 direct
+        Type Int
+        Local $dependency.parameter.marker
+        Type Int
+        Local $dependency.parameter.value
+      call $dependency.argument.0: Int = external0 direct
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      call $dependency.argument.0: Int = external1 direct
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun shared @fn1(marker: Int, value: Int) -> Int
+    bb0 entry
+      val $dependency.local.2: Int
+        Type Int
+        Local value
+      val $dependency.local.3: Int
+        Type Int
+        Local $dependency.local.2
+      call $dependency.local.6: Int = external2 direct
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.4: Int
+        Type Int
+        Local value
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.4
+      call $dependency.local.7: Int = external3 direct
+        Type Int
+        Local $dependency.local.5
+      val $dependency.local.8: Int
+        Type Int
+        Local $dependency.local.7
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.6
+          Type Int
+          Local $dependency.local.8
+  instance mi0 function=@fn1 <- shared
+  output library
+

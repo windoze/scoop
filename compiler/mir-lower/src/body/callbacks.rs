@@ -1,5 +1,7 @@
 use super::*;
 
+mod protocol;
+
 impl BodyLowerer<'_> {
     pub(super) fn ensure_foreign_callback_family(
         &mut self,
@@ -14,7 +16,7 @@ impl BodyLowerer<'_> {
             struct_map: self.struct_map,
             class_map: self.class_map,
         };
-        let core = crate::defined_protocols(self.core_protocols).foreign_callbacks;
+        let core = self.callback_protocol();
         for enumeration in [
             core.modes.enumeration(),
             core.states.enumeration(),
@@ -93,28 +95,11 @@ impl BodyLowerer<'_> {
             exact_callback_signature(self.module, registration.managed_function_type);
         let callback = self.struct_map[&registration.callback];
         let family = self.ensure_foreign_callback_family(callback);
-        let mode = self.enums.lower_variant_ref(registration.mode);
-        assert!(
-            self.foreign_callback_families[family].modes.contains(mode),
-            "a callback registration mode belongs to the validated core protocol"
-        );
-        let callback_mode = if registration.mode
-            == crate::defined_protocols(self.core_protocols)
-                .foreign_callbacks
-                .modes
-                .reusable()
-        {
-            hir::CallbackMode::Reusable
-        } else {
-            assert_eq!(
-                registration.mode,
-                crate::defined_protocols(self.core_protocols)
-                    .foreign_callbacks
-                    .modes
-                    .one_shot(),
-                "a callback registration mode belongs to the validated core protocol"
-            );
-            hir::CallbackMode::OneShot
+        let callback_mode = registration.mode;
+        let modes = self.foreign_callback_families[family].modes;
+        let mode = match callback_mode {
+            hir::CallbackMode::Reusable => modes.reusable(),
+            hir::CallbackMode::OneShot => modes.one_shot(),
         };
         let signature = self.shell.function_types[managed_signature].clone();
         debug_assert!(!signature.is_suspend);
@@ -140,10 +125,9 @@ impl BodyLowerer<'_> {
             mutable: false,
         });
         let throwable = mir::Type::Class(
-            self.class_map[&crate::defined_protocols(self.core_protocols)
-                .exceptions
-                .throwable
-                .class()],
+            self.foreign_callback_families[family]
+                .failure_result
+                .throwable(),
         );
         let exception_pointer_ty = mir::Type::Ptr(Box::new(throwable.clone()));
         let exception_out = locals.alloc(mir::Local {

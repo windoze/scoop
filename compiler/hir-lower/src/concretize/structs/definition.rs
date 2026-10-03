@@ -88,7 +88,26 @@ impl<'input> Concretizer<'input> {
 }
 
 impl<'a> ResolvedStructDefinition<'a> {
-    pub(super) fn from_dependency(source: &'a export::LoadedStructDefinition) -> Self {
+    pub(super) fn from_dependency(
+        source: &'a export::LoadedStructDefinition,
+        application: ConcreteApplicationRepresentation,
+    ) -> Self {
+        if let ConcreteApplicationRepresentation::Intrinsic(application) = application {
+            let export::StructRepresentation::Intrinsic(declaration) =
+                source.definition.representation
+            else {
+                unreachable!("declaration and application representations agree")
+            };
+            return Self::dependency(
+                &source.declaration,
+                ResolvedStructRepresentation::Intrinsic {
+                    declaration,
+                    application,
+                },
+                &source.definition.interfaces,
+                &source.definition.interface_implementations,
+            );
+        }
         let c_abi = match source.declaration.c_abi {
             export::NativeBoundaryCAbiV1::SourceRepresentation => {
                 concrete::StructCAbi::SourceRepresentation

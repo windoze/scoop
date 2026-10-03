@@ -1,0 +1,278 @@
+Module
+  struct Marker (text: String)
+  struct Empty ()
+  struct Aggregate (text: String, left: Long, right: Long)
+  interface ToString
+  interface Hash
+  fun main @fn0() -> Unit
+    bb0 entry
+      val $dependency.receiver: String
+        Type String
+        StringConst @str0
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.text: String
+        Type String
+        Local $argument.0
+      call marker: Marker = @fn5 direct
+        Type String
+        Local $parameter.text
+      val $dependency.argument.0: Marker
+        Type Marker
+        Local marker
+      val $dependency.receiver: String
+        Type String
+        StringConst @str2
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $dependency.argument.1: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $dependency.parameter.marker: Marker
+        Type Marker
+        Local $dependency.argument.0
+      val $dependency.parameter.text: String
+        Type String
+        Local $dependency.argument.1
+      call $dependency.parameter.token: Empty = external0 direct
+      call result: Aggregate = @fn1 direct
+        Type Marker
+        Local $dependency.parameter.marker
+        Type String
+        Local $dependency.parameter.text
+        Type Empty
+        Local $dependency.parameter.token
+      call @scoop_rt_gc_collect direct
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type Aggregate
+          Local result
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 1
+          Type Aggregate
+          Local result
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 2
+          Type Aggregate
+          Local result
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Long
+        Local $dependency.parameter.value
+      call $dependency.argument.0: Empty = external0 direct
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $dependency.parameter.empty: Empty
+        Type Empty
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.1
+      call $dependency.argument.0: Int = external1 direct
+        Type Empty
+        Local $dependency.parameter.empty
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type Marker
+          Local marker
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun roundTrip @fn1(marker: Marker, text: String, token: Empty) -> Aggregate
+    bb0 entry
+      val $dependency.local.4: Empty
+        Type Empty
+        Local token
+      val $dependency.local.5: Empty
+        Type Empty
+        Local $dependency.local.4
+      call $call.1: Empty = external2 direct
+        Type Empty
+        Local $dependency.local.5
+      val $dependency.local.6: String
+        Type String
+        Local text
+      val $dependency.local.7: String
+        Type String
+        Local $dependency.local.6
+      call $dependency.local.8: String = external3 direct
+        Type String
+        Local $dependency.local.7
+      val $dependency.local.9: String
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.3: String = external4 direct
+        Type String
+        Local $dependency.local.9
+      val $dependency.local.10: String
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.11: Long
+        Type Long
+        IntegerLiteral Long value=10 bits=0x000000000000000a
+      val $dependency.local.12: Long
+        Type Long
+        IntegerLiteral Long value=20 bits=0x0000000000000014
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.10
+      val $dependency.local.14: Long
+        Type Long
+        Local $dependency.local.11
+      val $dependency.local.15: Long
+        Type Long
+        Local $dependency.local.12
+      call $dependency.local.16: Aggregate = external5 direct
+        Type String
+        Local $dependency.local.13
+        Type Long
+        Local $dependency.local.14
+        Type Long
+        Local $dependency.local.15
+      val $dependency.local.17: Aggregate
+        Type Aggregate
+        Local $dependency.local.16
+      call $call.2: Aggregate = external6 direct
+        Type Aggregate
+        Local $dependency.local.17
+      return
+        Type Aggregate
+        Local $call.2
+  fun println @fn2(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external9 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external10 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external10 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn3(value: Long) -> Unit
+    bb0 entry
+      val $dependency.local.1: Long
+        Type Long
+        Local value
+      call $dependency.local.2: String = external8 direct
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external10 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str5
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external10 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn4(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external7 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external10 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str6
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external10 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun ctor.Marker.$c0 @fn5(text: String) -> Marker <no-gc>
+    bb0 entry
+      return
+        Type Marker
+        StructInit Marker
+          Type String
+          Local text
+  instance mi0 function=@fn1 <- roundTrip
+  instance mi1 function=@fn2 <- println
+  instance mi2 function=@fn3 <- println
+  instance mi3 function=@fn4 <- println
+  str @str0 "caller-"
+  str @str1 "alive"
+  str @str2 "managed-"
+  str @str3 "alive"
+  str @str4 "\n"
+  str @str5 "\n"
+  str @str6 "\n"
+  output executable @fn0
+

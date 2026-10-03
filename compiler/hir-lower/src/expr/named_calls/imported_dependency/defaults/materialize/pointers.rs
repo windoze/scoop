@@ -63,11 +63,10 @@ impl Lowerer {
                 };
                 hir::ExprKind::AddressOf(hir::Place::Local(local))
             }
-            Kind::AddressOf(hir::DefaultPlaceV1::Global { .. }) => {
-                return Err(ImportedDefaultMaterializationError::Plan(
-                    "dependency raw storage requires a native storage binding".into(),
-                ));
-            }
+            Kind::AddressOf(hir::DefaultPlaceV1::Global { property }) => hir::ExprKind::AddressOf(
+                self.external_global_place(*property)
+                    .map_err(ImportedDefaultMaterializationError::Plan)?,
+            ),
             Kind::SizeOf(ty) | Kind::AlignOf(ty) => {
                 let ty = self
                     .imported_default_type_with_bindings(ty, context.bindings)

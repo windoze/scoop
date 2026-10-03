@@ -15,7 +15,6 @@ use crate::{
 };
 
 mod commands;
-mod dyld_cursor;
 mod exports;
 mod fixups;
 mod references;
@@ -40,6 +39,7 @@ pub(crate) struct FinalImage<'a> {
     rebases: BTreeSet<u64>,
     bindings: BTreeMap<u64, fixups::Binding>,
     exports: BTreeMap<String, u64>,
+    providers: Vec<crate::dynamic::NativeDynamicProviderId>,
 }
 
 pub(crate) fn verify(
@@ -47,6 +47,7 @@ pub(crate) fn verify(
     inputs: &ProgramInputs<'_>,
     startup_object: &StartupObject,
     profile: &ValidatedFinalLinkProfile,
+    map: &crate::link::map::LinkMap,
 ) -> Result<(), LinkError> {
     let file: MachOFile64<'_> = MachOFile64::parse(bytes).map_err(error)?;
     if file.kind() != ObjectKind::Executable
@@ -73,8 +74,9 @@ pub(crate) fn verify(
         rebases: BTreeSet::new(),
         bindings: BTreeMap::new(),
         exports: BTreeMap::new(),
+        providers: Vec::new(),
     };
-    image.read_commands(profile)?;
+    image.read_commands(profile, inputs)?;
     exports::check(&image, inputs)?;
     for (symbol, owner) in &inputs.definitions {
         // Object-verifier boundaries are not program definitions. ld may
@@ -115,39 +117,7 @@ pub(crate) fn verify(
             "runtime String alias does not share its actual TD address",
         ));
     }
-    for import in image.file.imports().map_err(error)? {
-        let name = std::str::from_utf8(import.name()).map_err(error)?;
-        if import.library() != profile.system_provider().install_name().as_bytes()
-            || !inputs.dynamic.contains(name)
-        {
-            return Err(error(format!("unexpected final dynamic import {name}")));
-        }
-    }
-    for binding in image.bindings.values() {
-        if binding.weak && inputs.definitions.contains_key(&binding.symbol) {
-            if image.exports.get(&binding.symbol) != Some(&image.symbol(&binding.symbol)?) {
-                return Err(error(format!(
-                    "weak binding {} has no matching final export",
-                    binding.symbol
-                )));
-            }
-            continue;
-        }
-        if binding.ordinal != 1
-            || !inputs.dynamic.contains(&binding.symbol)
-            || !profile
-                .system_provider()
-                .exports()
-                .contains_key(&binding.symbol)
-            || binding.symbol.starts_with("___cxa_")
-            || binding.symbol.starts_with("___gxx_personality")
-        {
-            return Err(error(format!(
-                "unexpected final binding {} from ordinal {}",
-                binding.symbol, binding.ordinal
-            )));
-        }
-    }
+    check_bindings(&image, inputs)?;
     let array = image.symbol(crate::startup::IMAGE_ARRAY)?;
     for (index, symbol) in inputs.images.iter().enumerate() {
         if image.pointer(array + index as u64 * 8)? != image.symbol(symbol)? {
@@ -157,7 +127,7 @@ pub(crate) fn verify(
         }
     }
     startup::check(&image, startup_object, inputs)?;
-    references::check(&image, inputs)?;
+    references::check(&image, inputs, map)?;
     sections::check(&image, inputs)?;
     Ok(())
 }
@@ -218,4 +188,64 @@ impl FinalImage<'_> {
         }
         Ok(value)
     }
+}
+
+fn check_bindings(image: &FinalImage<'_>, inputs: &ProgramInputs<'_>) -> Result<(), LinkError> {
+    let mut seen = BTreeSet::new();
+    for import in image.file.imports().map_err(error)? {
+        let name = std::str::from_utf8(import.name()).map_err(error)?;
+        let expected = inputs
+            .dynamic
+            .get(name)
+            .ok_or_else(|| error(format!("unexpected final dynamic import {name}")))?;
+        if import.library()
+            != inputs.providers.providers[&expected.owner]
+                .install_name
+                .as_bytes()
+            || inputs.definitions.contains_key(name)
+        {
+            return Err(error(format!(
+                "final dynamic import {name} binds to a different provider"
+            )));
+        }
+        seen.insert(name.to_owned());
+    }
+    for binding in image.bindings.values() {
+        if binding.weak && inputs.definitions.contains_key(&binding.symbol) {
+            if image.exports.get(&binding.symbol) != Some(&image.symbol(&binding.symbol)?) {
+                return Err(error(format!(
+                    "weak binding {} has no matching final export",
+                    binding.symbol
+                )));
+            }
+            continue;
+        }
+        let expected = inputs.dynamic.get(&binding.symbol).ok_or_else(|| {
+            error(format!(
+                "unexpected final binding {} from ordinal {}",
+                binding.symbol, binding.ordinal
+            ))
+        })?;
+        let owner = binding
+            .ordinal
+            .checked_sub(1)
+            .and_then(|index| usize::try_from(index).ok())
+            .and_then(|index| image.providers.get(index));
+        if owner != Some(&expected.owner)
+            || inputs.definitions.contains_key(&binding.symbol)
+            || binding.weak
+        {
+            return Err(error(format!(
+                "unexpected final binding {} from ordinal {}; expected provider {}",
+                binding.symbol, binding.ordinal, expected.owner
+            )));
+        }
+        seen.insert(binding.symbol.clone());
+    }
+    if let Some(symbol) = inputs.dynamic.keys().find(|symbol| !seen.contains(*symbol)) {
+        return Err(error(format!(
+            "final image omitted dynamic import {symbol}"
+        )));
+    }
+    Ok(())
 }

@@ -1,0 +1,34 @@
+Module
+  fun preserve<T>(marker: T0, text: String): String
+    val local2
+      Local text : String
+    val local3
+      Local $dependency.argument.0 : String
+    val local4
+      Call getGcHandle<String> : GcHandle<String>
+        Local $dependency.parameter.v : String
+    Call gcCollect<> : Unit
+    val local5
+      Local handle : GcHandle<String>
+    val local6
+      Local $dependency.argument.0 : GcHandle<String>
+    val local7
+      Call releaseGcHandle<String> : String
+        Local $dependency.parameter.h : GcHandle<String>
+    val local8
+      Local restored : String
+    val local9
+      Local $dependency.argument.0 : String
+    val local10
+      Call pin<String> : PinnedPtr<String>
+        Local $dependency.parameter.v : String
+    Call gcCollect<> : Unit
+    val local11
+      Local pinned : PinnedPtr<String>
+    val local12
+      Local $dependency.argument.0 : PinnedPtr<String>
+    return
+      Call unpin<String> : String
+        Local $dependency.parameter.p : PinnedPtr<String>
+  output library
+

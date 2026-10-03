@@ -90,12 +90,9 @@ pub fn verify_current_cone_undefined_requirements_v1(
 
     let mut bridge_atoms = BTreeMap::new();
     for unit in generated_bridges.units() {
-        bridge_atoms.insert(unit.primary_atom(), (unit.unit(), true));
-        for atom in unit
-            .materialized_associated_atoms()
-            .chain(unit.static_assert_atoms())
-        {
-            bridge_atoms.insert(atom, (unit.unit(), false));
+        bridge_atoms.insert(unit.primary_atom(), unit.unit());
+        for atom in unit.materialized_associated_atoms() {
+            bridge_atoms.insert(atom, unit.unit());
         }
     }
 
@@ -117,21 +114,13 @@ pub fn verify_current_cone_undefined_requirements_v1(
                 CurrentConeUndefinedRequirementV1::OdrMember { member }
             }
             LinkDefinitionOwnerV1::GeneratedBridge(atom) => {
-                let Some((unit, is_primary)) = bridge_atoms.get(&atom).copied() else {
+                let Some(unit) = bridge_atoms.get(&atom).copied() else {
                     return Err(
                         CurrentConeUndefinedRequirementValidationError::UnplannedGeneratedBridgeAtom {
                             atom,
                         },
                     );
                 };
-                if !is_primary {
-                    return Err(
-                        CurrentConeUndefinedRequirementValidationError::NonPrimaryGeneratedBridgeTarget {
-                            atom,
-                            unit,
-                        },
-                    );
-                }
                 CurrentConeUndefinedRequirementV1::GeneratedBridge { unit }
             }
             LinkDefinitionOwnerV1::ConeImage(cone) => {
@@ -173,10 +162,6 @@ pub enum CurrentConeUndefinedRequirementValidationError {
     },
     UnplannedGeneratedBridgeAtom {
         atom: GeneratedBridgeAtomId,
-    },
-    NonPrimaryGeneratedBridgeTarget {
-        atom: GeneratedBridgeAtomId,
-        unit: GeneratedBridgeUnitId,
     },
     ConeImageRelocationTarget {
         cone: ConeIdentity,

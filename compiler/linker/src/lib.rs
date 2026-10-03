@@ -1,11 +1,18 @@
 //! Artifact-only program linking and its ordinary runtime object inputs.
 mod artifacts;
+mod dynamic;
 mod final_image;
 mod link;
+mod macho_cursor;
+mod macho_exports;
+mod native_input;
 mod native_object;
 mod program;
 mod runtime;
 mod startup;
+
+#[cfg(test)]
+mod test_support;
 
 pub use artifacts::{ArtifactLinkRequest, read_program_artifacts};
 pub use link::{ProgramLinkOutput, ResolvedLinkPlanFingerprint, link_program};

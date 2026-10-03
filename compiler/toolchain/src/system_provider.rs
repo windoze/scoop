@@ -8,6 +8,7 @@ use scoop_wire::{Digest256, sha256};
 use crate::ToolchainError;
 
 mod tbd;
+pub use tbd::{TextStubInterface, read_text_stubs, write_link_stub};
 #[cfg(test)]
 mod tests;
 
@@ -19,6 +20,12 @@ pub enum SystemExportKind {
     /// Text stubs do not distinguish C functions from ordinary data.
     Symbol,
     ThreadLocal,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct NativeExport {
+    pub kind: SystemExportKind,
+    pub weak: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -43,7 +50,7 @@ impl SystemStubFile {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SystemProvider {
     files: Vec<SystemStubFile>,
-    exports: BTreeMap<String, SystemExportKind>,
+    exports: BTreeMap<String, NativeExport>,
     reexports: BTreeSet<String>,
     current_version: u32,
     compatibility_version: u32,
@@ -81,7 +88,7 @@ impl SystemProvider {
             let record = records.get(&name).ok_or_else(|| {
                 ToolchainError(format!("SDK stub does not define re-export {name}"))
             })?;
-            record.collect(deployment, &mut exports, &mut pending)?;
+            record.collect(deployment, true, &mut exports, &mut pending)?;
         }
         let root = records
             .get(LIBSYSTEM_INSTALL_NAME)
@@ -104,7 +111,7 @@ impl SystemProvider {
     pub fn files(&self) -> &[SystemStubFile] {
         &self.files
     }
-    pub fn exports(&self) -> &BTreeMap<String, SystemExportKind> {
+    pub fn exports(&self) -> &BTreeMap<String, NativeExport> {
         &self.exports
     }
     pub fn reexports(&self) -> &BTreeSet<String> {

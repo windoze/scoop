@@ -134,61 +134,41 @@ impl Lowerer {
                 return Err(vec![diagnostic]);
             }
         };
-        let callback_registration_identities = match &core_protocols {
-            hir::CoreProtocols::Defined(protocols) => {
-                match crate::persistent_callbacks::build(
-                    &self,
-                    protocols.foreign_callbacks,
-                    nominal_identities,
-                    &property_accessor_identities,
-                    &constructor_identities,
-                    enum_member_identities,
-                    &function_identities,
-                    core_types,
-                ) {
-                    Ok(identities) => identities,
-                    Err(error) => {
-                        let (file, span) = error.registration().map_or(
-                            (0, Span { start: 0, end: 0 }),
-                            |registration| {
-                                let registration =
-                                    &self.foreign_callback_registrations[registration];
-                                let file = match registration.definition_root {
-                                    hir::LexicalDefinitionRoot::Function(function) => {
-                                        self.function_files[&function]
-                                    }
-                                    hir::LexicalDefinitionRoot::ClassConstructor(constructor) => {
-                                        self.class_files
-                                            [&self.class_constructors[constructor].owner]
-                                    }
-                                    hir::LexicalDefinitionRoot::StructConstructor(constructor) => {
-                                        self.struct_files
-                                            [&self.struct_constructors[constructor].owner]
-                                    }
-                                    hir::LexicalDefinitionRoot::VariantConstructor(variant) => {
-                                        self.enum_files[&variant.enumeration()]
-                                    }
-                                };
-                                (file, registration.span)
-                            },
-                        );
-                        let mut diagnostic = Diagnostic::at(span, error.to_string());
-                        diagnostic.file = file;
-                        return Err(vec![diagnostic]);
-                    }
-                }
-            }
-            hir::CoreProtocols::Imported(_) => {
-                match hir::HirCallbackRegistrationIdentities::for_imported_core(
-                    &self.foreign_callback_registrations,
-                ) {
-                    Ok(identities) => identities,
-                    Err(error) => {
-                        let registration =
-                            &self.foreign_callback_registrations[error.registration()];
-                        return Err(vec![Diagnostic::at(registration.span, error.to_string())]);
-                    }
-                }
+        let callback_registration_identities = match crate::persistent_callbacks::build(
+            &self,
+            nominal_identities,
+            &property_accessor_identities,
+            &constructor_identities,
+            enum_member_identities,
+            &function_identities,
+            core_types,
+        ) {
+            Ok(identities) => identities,
+            Err(error) => {
+                let (file, span) =
+                    error
+                        .registration()
+                        .map_or((0, Span { start: 0, end: 0 }), |registration| {
+                            let registration = &self.foreign_callback_registrations[registration];
+                            let file = match registration.definition_root {
+                                hir::LexicalDefinitionRoot::Function(function) => {
+                                    self.function_files[&function]
+                                }
+                                hir::LexicalDefinitionRoot::ClassConstructor(constructor) => {
+                                    self.class_files[&self.class_constructors[constructor].owner]
+                                }
+                                hir::LexicalDefinitionRoot::StructConstructor(constructor) => {
+                                    self.struct_files[&self.struct_constructors[constructor].owner]
+                                }
+                                hir::LexicalDefinitionRoot::VariantConstructor(variant) => {
+                                    self.enum_files[&variant.enumeration()]
+                                }
+                            };
+                            (file, registration.span)
+                        });
+                let mut diagnostic = Diagnostic::at(span, error.to_string());
+                diagnostic.file = file;
+                return Err(vec![diagnostic]);
             }
         };
         let public_bindings = match crate::persistent_export_bindings::build(

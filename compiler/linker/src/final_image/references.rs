@@ -4,12 +4,19 @@ use scoop_identity::{DefinitionAtomRole, ObjectDefinitionAtomId, ObjectDefinitio
 use scoop_slib::{
     PlannedStrongObjectSymbolRoleV1 as SymbolRole, VerifiedDarwinArm64RelocationShapeV1 as Shape,
     VerifiedDefinitionAtomRangeV1, VerifiedMemberObjectRelocationIndexV1,
-    VerifiedRelocationTargetV1 as Target, VerifiedRelocationUseV1,
+    VerifiedRelocationTargetV1 as Target,
 };
 
 mod instructions;
+mod native;
+mod resolved;
+use resolved::ResolvedShape;
 
-pub(super) fn check(image: &FinalImage<'_>, inputs: &ProgramInputs<'_>) -> Result<(), LinkError> {
+pub(super) fn check(
+    image: &FinalImage<'_>,
+    inputs: &ProgramInputs<'_>,
+    map: &crate::link::map::LinkMap,
+) -> Result<(), LinkError> {
     for closure in &inputs.strong_relocations {
         for member in closure.members() {
             Member::new(member).check(image, inputs).map_err(|err| {
@@ -21,7 +28,7 @@ pub(super) fn check(image: &FinalImage<'_>, inputs: &ProgramInputs<'_>) -> Resul
             })?;
         }
     }
-    Ok(())
+    native::check(image, inputs, map)
 }
 
 struct Member<'a> {
@@ -116,7 +123,7 @@ impl<'a> Member<'a> {
     }
 
     fn check(&self, image: &FinalImage<'_>, inputs: &ProgramInputs<'_>) -> Result<(), LinkError> {
-        let mut pages = BTreeMap::new();
+        let mut pages: BTreeMap<ObjectDefinitionAtomId, BTreeMap<u32, u64>> = BTreeMap::new();
         let mut uses: Vec<_> = self.source.relocations().iter().collect();
         uses.sort_by_key(|use_| (use_.containing_atom(), use_.offset_within_atom()));
         for use_ in uses {
@@ -137,7 +144,15 @@ impl<'a> Member<'a> {
                 .atom_address(image, use_.containing_atom())?
                 .checked_add(use_.offset_within_atom())
                 .ok_or_else(|| error("reference address overflow"))?;
-            instructions::check(image, inputs, self, use_, place, &mut pages).map_err(|err| {
+            instructions::check(
+                image,
+                inputs,
+                &ResolvedShape::scoop(use_.shape(), |target| self.target(image, target))?,
+                use_.encoded_value(),
+                place,
+                pages.entry(use_.containing_atom()).or_default(),
+            )
+            .map_err(|err| {
                 error(format!(
                     "atom {} + {:#x}: {err}",
                     use_.containing_atom(),

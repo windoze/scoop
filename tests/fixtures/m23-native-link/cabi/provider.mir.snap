@@ -1,0 +1,392 @@
+Module
+  extern ef0 roundI8 @m23_i8(Int8) -> Int8 <abi=c no-gc lib=m23_cabi>
+  extern ef1 roundI16 @m23_i16(Int16) -> Int16 <abi=c no-gc lib=m23_cabi>
+  extern ef2 roundI32 @m23_i32(Int) -> Int <abi=c no-gc lib=m23_cabi>
+  extern ef3 roundI64 @m23_i64(Long) -> Long <abi=c no-gc lib=m23_cabi>
+  extern ef4 roundU8 @m23_u8(UInt8) -> UInt8 <abi=c no-gc lib=m23_cabi>
+  extern ef5 roundU16 @m23_u16(UInt16) -> UInt16 <abi=c no-gc lib=m23_cabi>
+  extern ef6 roundU32 @m23_u32(UInt) -> UInt <abi=c no-gc lib=m23_cabi>
+  extern ef7 roundU64 @m23_u64(ULong) -> ULong <abi=c no-gc lib=m23_cabi>
+  extern ef8 transformWidths @m23_widths(Widths) -> Widths <abi=c no-gc lib=m23_cabi>
+  extern ef9 transformEnvelope @m23_envelope(Envelope, FunPtr<(Envelope) -> Envelope>) -> Envelope <abi=c no-gc lib=m23_cabi>
+  extern ef10 transformPointer @m23_pointer(Ptr<Int>, Option<Ptr<Int>>, Option<FunPtr<(Int) -> Int>>) -> Int <abi=c no-gc lib=m23_cabi>
+  struct Widths (signed8: Int8, signed16: Int16, signed32: Int, signed64: Long, unsigned8: UInt8, unsigned16: UInt16, unsigned32: UInt, unsigned64: ULong) <c-layout aligned=natural packed=natural>
+  struct Envelope (tag: UInt16, packed: Packed, tail: Long) <c-layout aligned=16 packed=2>
+  struct Packed (flag: Boolean, value: Int) <c-layout aligned=8 packed=1>
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Ptr<Int>>
+    Some(_0: Ptr<Int>)
+    None()
+  enum Option<FunPtr<(Int) -> Int>>
+    Some(_0: FunPtr<(Int) -> Int>)
+    None()
+  enum CoroutineStep<Envelope>
+    Completed(value: Envelope)
+    Suspended()
+  enum CoroutineSlot<Envelope>
+    Empty()
+    Value(value: Envelope)
+  enum CoroutineStep<Widths>
+    Completed(value: Widths)
+    Suspended()
+  enum CoroutineSlot<Widths>
+    Empty()
+    Value(value: Widths)
+  enum CoroutineStep<Packed>
+    Completed(value: Packed)
+    Suspended()
+  enum CoroutineSlot<Packed>
+    Empty()
+    Value(value: Packed)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Envelope> vtable=0 itables=0
+  class box<Widths> vtable=0 itables=0
+  class box<Packed> vtable=0 itables=0
+  interface Continuation<Widths>
+  interface SuspendTask<Widths>
+  interface SuspendRegistration<Widths>
+  interface Continuation<Envelope>
+  interface SuspendTask<Envelope>
+  interface SuspendRegistration<Envelope>
+  interface Continuation<Packed>
+  interface SuspendTask<Packed>
+  interface SuspendRegistration<Packed>
+  generated_exact_type get0 location=class5 nominal_id=76591638dc4d812e97184c0ac401fc06798adbab5caee71f6c6ce86dccc8a839 exact_id=1df1381f82c2c1edb594e3d83b5f0ac708b9e28d3574933e98367a6f16f88478
+  generated_exact_type get1 location=enum7 nominal_id=03b6594f4b974e540b0fca78ab8bd3d42dc41d11e1cc692a75866edcf25cc35d exact_id=3f50db32414fa9a804aaf2dd0380df9e7cf9bb67894c881b48f8763945aaa2bb
+  generated_exact_type get2 location=enum4 nominal_id=2a712f85944dd346f3abe2c0c51159322cc96d15ae84aef92686c4a5d8328b01 exact_id=5bf6bc65d855b76094fdde8d3f553a740dbff92bd784158e355c82808a26778e
+  generated_exact_type get3 location=enum5 nominal_id=bbcb3014f750a899b9b3f1ac20efe98e1143d025a1109ccddb322f6cff98f7e7 exact_id=675fdd513ce49372ff69375892cc4fefed1b4fc5248e1e121a1a93df64de36d2
+  generated_exact_type get4 location=class4 nominal_id=aa6374b330cf5ecc0ec927941ff05ff05115502cb8f0d7759629520ee2f0013a exact_id=85cd4f9b781e87c93dbd71daa83ee5d78c9482b70fd77f58c7c6cccc2a4418ef
+  generated_exact_type get5 location=enum3 nominal_id=6215dc31f8fde091e5b6b28be957faed477001610582446e96a0f7780cea3f96 exact_id=a932f4d7b21f5b41c9d82eff3350fc26c2e6f013f40a4e78f89d52b36d4250ab
+  generated_exact_type get6 location=enum6 nominal_id=8f4b44c11ed18b6ec4bd5b5c295fca24c8881c4aac178a01a2c3a5167a09a4cc exact_id=cdf9c4294304939675c5c9ae4fd5f9255f40e662b4c422f1894187450e54018a
+  generated_exact_type get7 location=class3 nominal_id=e680bcd49499271f10a9cf16e92c2fb4f4a97caa73ecec686a835c9d308d91bf exact_id=ef6af16e1f60b38396cf66d46f264bad074b77da2d758a4911be1f77b4e1c0c3
+  generated_exact_type get8 location=enum8 nominal_id=d7affe8512bd6749009d64fbd42612a5286c0c2a32bf7a439f5ab21ebe6e33a7 exact_id=ffe97b91549b053fc7a9a74a73f2dc8fd868b7bbbc369ecc06fbf86559c98693
+  generated_callable gc0 function=@fn26 id=3c71a0070330ba983ee598ccbbbab566270d629f7cb29b4a850aa9af9c678681
+  generated_callable gc1 function=@fn28 id=85cac0c35055b3e277a95bb79f95fc8f2baedeb50e186b28fbc57cda316b814d
+  generated_callable gc2 function=@fn27 id=bd8eff5260df4034d241e7e2318c5b82d27826af164adbc22ec888fe3edfdfbc
+  fun roundI8 @fn0(arg0: Int8) -> Int8
+    bb0 entry
+      call $call.1: Int8 = extern0 @m23_i8 direct
+        Type Int8
+        Local arg0
+      return
+        Type Int8
+        Local $call.1
+  fun roundI16 @fn1(arg0: Int16) -> Int16
+    bb0 entry
+      call $call.1: Int16 = extern1 @m23_i16 direct
+        Type Int16
+        Local arg0
+      return
+        Type Int16
+        Local $call.1
+  fun roundI32 @fn2(arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = extern2 @m23_i32 direct
+        Type Int
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun roundI64 @fn3(arg0: Long) -> Long
+    bb0 entry
+      call $call.1: Long = extern3 @m23_i64 direct
+        Type Long
+        Local arg0
+      return
+        Type Long
+        Local $call.1
+  fun roundU8 @fn4(arg0: UInt8) -> UInt8
+    bb0 entry
+      call $call.1: UInt8 = extern4 @m23_u8 direct
+        Type UInt8
+        Local arg0
+      return
+        Type UInt8
+        Local $call.1
+  fun roundU16 @fn5(arg0: UInt16) -> UInt16
+    bb0 entry
+      call $call.1: UInt16 = extern5 @m23_u16 direct
+        Type UInt16
+        Local arg0
+      return
+        Type UInt16
+        Local $call.1
+  fun roundU32 @fn6(arg0: UInt) -> UInt
+    bb0 entry
+      call $call.1: UInt = extern6 @m23_u32 direct
+        Type UInt
+        Local arg0
+      return
+        Type UInt
+        Local $call.1
+  fun roundU64 @fn7(arg0: ULong) -> ULong
+    bb0 entry
+      call $call.1: ULong = extern7 @m23_u64 direct
+        Type ULong
+        Local arg0
+      return
+        Type ULong
+        Local $call.1
+  fun transformWidths @fn8(arg0: Widths) -> Widths
+    bb0 entry
+      call $call.1: Widths = extern8 @m23_widths direct
+        Type Widths
+        Local arg0
+      return
+        Type Widths
+        Local $call.1
+  fun transformEnvelope @fn9(arg0: Envelope, arg1: FunPtr<(Envelope) -> Envelope>) -> Envelope
+    bb0 entry
+      call $call.1: Envelope = extern9 @m23_envelope direct
+        Type Envelope
+        Local arg0
+        Type FunPtr<(Envelope) -> Envelope>
+        Local arg1
+      return
+        Type Envelope
+        Local $call.1
+  fun transformPointer @fn10(arg0: Ptr<Int>, arg1: Option<Ptr<Int>>, arg2: Option<FunPtr<(Int) -> Int>>) -> Int
+    bb0 entry
+      call $call.1: Int = extern10 @m23_pointer direct
+        Type Ptr<Int>
+        Local arg0
+        Type Option<Ptr<Int>>
+        Local arg1
+        Type Option<FunPtr<(Int) -> Int>>
+        Local arg2
+      return
+        Type Int
+        Local $call.1
+  fun Continuation.resume @fn11(this: Continuation<Widths>, value: Widths) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn12(this: Continuation<Widths>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn13(this: SuspendTask<Widths>, $completion: Continuation<Widths>) -> CoroutineStep<Widths>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn14(this: SuspendRegistration<Widths>, continuation: Continuation<Widths>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn15(this: Continuation<Envelope>, value: Envelope) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn16(this: Continuation<Envelope>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn17(this: SuspendTask<Envelope>, $completion: Continuation<Envelope>) -> CoroutineStep<Envelope>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn18(this: SuspendRegistration<Envelope>, continuation: Continuation<Envelope>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn19(this: Continuation<Packed>, value: Packed) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn20(this: Continuation<Packed>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn21(this: SuspendTask<Packed>, $completion: Continuation<Packed>) -> CoroutineStep<Packed>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn22(this: SuspendRegistration<Packed>, continuation: Continuation<Packed>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.Widths.$c2 @fn23(signed8: Int8, signed16: Int16, signed32: Int, signed64: Long, unsigned8: UInt8, unsigned16: UInt16, unsigned32: UInt, unsigned64: ULong) -> Widths <no-gc>
+    bb0 entry
+      return
+        Type Widths
+        StructInit Widths
+          Type Int8
+          Local signed8
+          Type Int16
+          Local signed16
+          Type Int
+          Local signed32
+          Type Long
+          Local signed64
+          Type UInt8
+          Local unsigned8
+          Type UInt16
+          Local unsigned16
+          Type UInt
+          Local unsigned32
+          Type ULong
+          Local unsigned64
+  fun ctor.Packed.$c0 @fn24(flag: Boolean, value: Int) -> Packed <no-gc>
+    bb0 entry
+      return
+        Type Packed
+        StructInit Packed
+          Type Boolean
+          Local flag
+          Type Int
+          Local value
+  fun ctor.Envelope.$c1 @fn25(tag: UInt16, packed: Packed, tail: Long) -> Envelope <no-gc>
+    bb0 entry
+      return
+        Type Envelope
+        StructInit Envelope
+          Type UInt16
+          Local tag
+          Type Packed
+          Local packed
+          Type Long
+          Local tail
+  fun startCoroutine<Envelope> @fn26(task: SuspendTask<Envelope>, completion: Continuation<Envelope>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn15 interface Continuation<Envelope>[0]
+        Type Continuation<Envelope>
+        Local completion
+        Type Envelope
+        EnumField v0 f0
+          Type CoroutineStep<Envelope>
+          Local $step
+      return
+    bb2 failed
+      call @fn16 interface Continuation<Envelope>[1]
+        Type Continuation<Envelope>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Envelope> = @fn17 interface SuspendTask<Envelope>[0]
+        Type SuspendTask<Envelope>
+        Local task
+        Type Continuation<Envelope>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Envelope>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Widths> @fn27(task: SuspendTask<Widths>, completion: Continuation<Widths>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn11 interface Continuation<Widths>[0]
+        Type Continuation<Widths>
+        Local completion
+        Type Widths
+        EnumField v0 f0
+          Type CoroutineStep<Widths>
+          Local $step
+      return
+    bb2 failed
+      call @fn12 interface Continuation<Widths>[1]
+        Type Continuation<Widths>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Widths> = @fn13 interface SuspendTask<Widths>[0]
+        Type SuspendTask<Widths>
+        Local task
+        Type Continuation<Widths>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Widths>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Packed> @fn28(task: SuspendTask<Packed>, completion: Continuation<Packed>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn19 interface Continuation<Packed>[0]
+        Type Continuation<Packed>
+        Local completion
+        Type Packed
+        EnumField v0 f0
+          Type CoroutineStep<Packed>
+          Local $step
+      return
+    bb2 failed
+      call @fn20 interface Continuation<Packed>[1]
+        Type Continuation<Packed>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Packed> = @fn21 interface SuspendTask<Packed>[0]
+        Type SuspendTask<Packed>
+        Local task
+        Type Continuation<Packed>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Packed>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Envelope> result=Envelope
+  coroutine_step cs1 CoroutineStep<Widths> result=Widths
+  coroutine_step cs2 CoroutineStep<Packed> result=Packed
+  coroutine_slot cl0 CoroutineSlot<Envelope> value=Envelope
+  coroutine_slot cl1 CoroutineSlot<Widths> value=Widths
+  coroutine_slot cl2 CoroutineSlot<Packed> value=Packed
+  coroutine_start ct0 result=Envelope function=fn26
+  coroutine_start ct1 result=Widths function=fn27
+  coroutine_start ct2 result=Packed function=fn28
+  coroutine_fn cf0 @fn13 source_return=Widths step=cs1 immediate
+  coroutine_fn cf1 @fn17 source_return=Envelope step=cs0 immediate
+  coroutine_fn cf2 @fn21 source_return=Packed step=cs2 immediate
+  instance mi0 function=@fn11 <- Continuation.resume
+  instance mi1 function=@fn12 <- Continuation.resumeWithException
+  instance mi2 function=@fn13 <- SuspendTask.run
+  instance mi3 function=@fn14 <- SuspendRegistration.register
+  instance mi4 function=@fn15 <- Continuation.resume
+  instance mi5 function=@fn16 <- Continuation.resumeWithException
+  instance mi6 function=@fn17 <- SuspendTask.run
+  instance mi7 function=@fn18 <- SuspendRegistration.register
+  instance mi8 function=@fn19 <- Continuation.resume
+  instance mi9 function=@fn20 <- Continuation.resumeWithException
+  instance mi10 function=@fn21 <- SuspendTask.run
+  instance mi11 function=@fn22 <- SuspendRegistration.register
+  output library
+

@@ -50,7 +50,7 @@ Stage 7/8 的完整 Strong/ODR、gateway、真实线程握手、初始化并发�
 
 `cross-cone-generic/2` ID 保持，required inventory 的 descriptor fingerprint 更新为 `803512d065288817215dd104c6c9c94400fecb92dea092efefc99b6657e3cc5e`。旧 required inventory 和旧 generated-C flags fingerprint 的产物／缓存需要重建，不借前端重放兼容。runtime metadata ABI 3、144-byte TD、现有 image/root/gateway 和 String 表示保持。
 
-本阶段只交付 Darwin/AArch64、单主 Mach-O 与完整静态 Cone 图。一般用户 native library、archive/dynamic 输入与 capability handler 由 M23-10 接入同一解析器；umbrella CLI、single-file 与历史 fixture 总迁移归 M23-11。final-link cache 仍为后续可选优化。
+本阶段只交付 Darwin/AArch64、单主 Mach-O 与完整静态 Cone 图。一般用户 native library、archive/dynamic 输入由 [M23-10](../stage10/DESIGN.md) 接入同一解析器；后续设计不要求为尚无生产用途的 capability 增加 handler，unknown required 输入仍诊断。umbrella CLI、single-file 与历史 fixture 总迁移归 M23-11。final-link cache 仍为后续可选优化。
 
 ## 4. 最终验证与快照审阅
 

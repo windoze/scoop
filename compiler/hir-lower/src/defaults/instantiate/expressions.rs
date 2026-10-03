@@ -133,6 +133,7 @@ impl Lowerer {
             hir::ExprKind::AddressOf(place) => hir::ExprKind::AddressOf(match place {
                 hir::Place::Local(local) => hir::Place::Local(mapped_local(context, *local)),
                 hir::Place::Global(global) => hir::Place::Global(*global),
+                hir::Place::ExternalGlobal { .. } => place.clone(),
             }),
             hir::ExprKind::SizeOf(ty) => {
                 hir::ExprKind::SizeOf(self.instantiate_method_ty(*ty, &context.bindings))

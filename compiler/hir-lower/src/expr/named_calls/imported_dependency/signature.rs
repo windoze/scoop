@@ -44,6 +44,7 @@ impl Lowerer {
         let generic = generic_constructor
             || candidate.pointer_intrinsic().is_some()
             || candidate.array_intrinsic().is_some()
+            || candidate.callback_intrinsic().is_some()
             || matches!(
                 interface.effects().implementation(),
                 hir::CallableImplementationV1::Intrinsic(
@@ -51,6 +52,7 @@ impl Lowerer {
                         | hir::IntrinsicFunctionKind::CoroutineSuspend
                 )
             )
+            || matches!(interface.effects().implementation(), hir::CallableImplementationV1::Intrinsic(kind) if kind.is_runtime_gc_call())
             || (interface.modality() == hir::CallableModalityV1::Abstract
                 && matches!(
                     interface.owner(),

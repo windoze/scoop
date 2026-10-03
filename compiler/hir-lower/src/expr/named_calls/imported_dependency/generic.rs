@@ -31,6 +31,34 @@ impl Lowerer {
             Some(arguments) => arguments,
             None => return Err(self),
         };
+        let forced_hint = if candidate.callback_intrinsic()
+            == Some(hir::IntrinsicFunctionKind::ForeignCallbackRegister)
+        {
+            use crate::call_resolution::arguments::ResolvedParameterInput;
+            let ResolvedParameterInput::Explicit(context) =
+                argument_map.mapping().parameters[1].input
+            else {
+                unreachable!("the context index is a required argument");
+            };
+            let ResolvedParameterInput::Explicit(callback) =
+                argument_map.mapping().parameters[0].input
+            else {
+                unreachable!("the callback closure is a required argument");
+            };
+            let Some(context) = call.arguments.source(context.index()) else {
+                self.error(
+                    call.span,
+                    "foreign callback `contextIndex` must be a compile-time integer literal".into(),
+                );
+                return Err(self);
+            };
+            match self.foreign_callback_expected(&explicit, context, callback.index(), call.span) {
+                Ok(hint) => Some(hint),
+                Err(()) => return Err(self),
+            }
+        } else {
+            None
+        };
         let nominal = matches!(
             template,
             ImportedGenericTarget::Constructor(_) | ImportedGenericTarget::Variant(_)
@@ -90,10 +118,10 @@ impl Lowerer {
                 None
             };
         let expressions = call.arguments.expressions();
-        let expressions = if let Some((place, ty)) = address_place {
+        let expressions = if let Some((place, ty)) = address_place.as_ref() {
             vec![ArgumentExpression::Addressable {
                 place,
-                ty,
+                ty: *ty,
                 span: call.arguments.span(0),
             }]
         } else {
@@ -115,7 +143,7 @@ impl Lowerer {
             bound_receiver,
             expressions: &expressions,
             expected_result: if nominal { None } else { expected },
-            forced_hint: None,
+            forced_hint,
         }) {
             Ok(arguments) => arguments,
             Err(failure) => {
@@ -168,7 +196,15 @@ impl Lowerer {
                 return Err(self);
             }
         };
-        let implementation = if let Some(operation) = candidate.array_intrinsic() {
+        let implementation = if let Some(kind) = candidate.callback_intrinsic() {
+            ImportedCallImplementation::Intrinsic {
+                template,
+                operation: ImportedIntrinsicCall::ForeignCallback {
+                    kind,
+                    native_type: solution.callable[0],
+                },
+            }
+        } else if let Some(operation) = candidate.array_intrinsic() {
             ImportedCallImplementation::Intrinsic {
                 template,
                 operation,

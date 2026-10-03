@@ -98,7 +98,9 @@ impl SourceRoots {
             }
         }
         for reference in &references.globals {
-            self.property(export, export.globals[reference.target].property, roots)?;
+            if let crate::ExportDefaultGlobalTarget::Local(global) = reference.target {
+                self.property(export, export.globals[global].property, roots)?;
+            }
         }
         for reference in &references.fields {
             let ty = match reference.target {

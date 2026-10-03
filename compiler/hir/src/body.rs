@@ -541,10 +541,16 @@ impl BoundCallableRef {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Place {
     Local(LocalId),
     Global(GlobalId),
+    /// A provider-owned extern property, using the ordinary native contract.
+    ExternalGlobal {
+        property: scoop_identity::PersistentPropertyId,
+        source_contract: std::sync::Arc<scoop_identity::SourceNativeExternalContractRecord>,
+        ty: TypeId,
+    },
 }
 
 /// A ready backing field reached through the current initializer receiver.

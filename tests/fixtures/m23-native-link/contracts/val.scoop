@@ -1,0 +1,2 @@
+@Extern(lib = "m23_contract", name = "m23_contract")
+public val entry: Int

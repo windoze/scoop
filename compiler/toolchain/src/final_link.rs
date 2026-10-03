@@ -18,6 +18,7 @@ const OPTIONS: &[&str] = &[
     "_main",
     "-no_deduplicate",
     "-no_fixup_chains",
+    "-no_implicit_dylibs",
     "-adhoc_codesign",
     "-rename_section",
     "__LLVM_STACKMAPS",
@@ -98,7 +99,7 @@ impl ValidatedFinalLinkProfile {
     }
 
     pub fn fingerprint(&self) -> Result<Digest256, ToolchainError> {
-        domain_separated_cbor_hash("scoop-final-link-profile-v1", self).map_err(error)
+        domain_separated_cbor_hash("scoop-final-link-profile-v2", self).map_err(error)
     }
 
     /// Callers append the ordered objects, aliases and snapshotted system stub.
@@ -128,7 +129,7 @@ impl ValidatedFinalLinkProfile {
 
 impl WireEncode for ValidatedFinalLinkProfile {
     fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        e.map(8)?;
+        e.map(9)?;
         e.field(1)?;
         self.target().wire_id().encode(e)?;
         e.field(2)?;
@@ -158,7 +159,8 @@ impl WireEncode for ValidatedFinalLinkProfile {
         for symbol in self.linker_system_requirements() {
             e.text(symbol)?;
         }
-        Ok(())
+        e.field(9)?;
+        e.unsigned(1)
     }
 }
 

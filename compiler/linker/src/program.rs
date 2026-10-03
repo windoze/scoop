@@ -5,14 +5,18 @@ use scoop_identity::{ConeIdentity, PersistentSymbolRequest};
 use scoop_slib::{LinkDefinitionOwnerV1, ProgramLinkClosure, SlibMemberId};
 use scoop_toolchain::ValidatedFinalLinkProfile;
 
+use crate::native_input::{NativeInputs, NativeObjectId};
 use crate::{LinkError, RuntimeObjectId, RuntimeObjectSet, error};
 
 pub(crate) mod native;
+mod object;
+pub(crate) use object::{InputObject, ObjectBytes};
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub(crate) enum DefinitionOwner {
     Scoop(LinkDefinitionOwnerV1),
     Runtime(RuntimeObjectId),
+    Native(NativeObjectId),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -22,30 +26,30 @@ pub(crate) enum ObjectOrigin {
         member: SlibMemberId,
     },
     Runtime(RuntimeObjectId),
+    Native(NativeObjectId),
 }
 impl std::fmt::Display for ObjectOrigin {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Cone { cone, member } => write!(f, "cone-{cone}-{member}"),
             Self::Runtime(id) => write!(f, "runtime-{id}"),
+            Self::Native(id) => write!(f, "native-{id}"),
         }
     }
-}
-
-pub(crate) struct InputObject<'a> {
-    pub origin: ObjectOrigin,
-    pub bytes: &'a [u8],
 }
 
 pub(crate) struct ProgramInputs<'a> {
     pub objects: Vec<InputObject<'a>>,
     pub definitions: BTreeMap<String, DefinitionOwner>,
     pub requirements: BTreeSet<String>,
-    pub dynamic: BTreeSet<String>,
+    pub requirement_origins: BTreeMap<String, Vec<String>>,
+    pub dynamic: BTreeMap<String, crate::dynamic::DynamicBinding>,
+    pub providers: crate::dynamic::DynamicInputs,
     pub images: Vec<String>,
     pub root: String,
     pub string_target: String,
     pub strong_relocations: Vec<&'a scoop_slib::VerifiedCurrentConeStrongRelocationClosureV1>,
+    pub native: NativeInputs,
 }
 
 impl<'a> ProgramInputs<'a> {
@@ -53,6 +57,7 @@ impl<'a> ProgramInputs<'a> {
         closure: &'a ProgramLinkClosure,
         runtime: &'a RuntimeObjectSet,
         profile: &ValidatedFinalLinkProfile,
+        library_paths: &[std::path::PathBuf],
     ) -> Result<Self, LinkError> {
         if runtime.target() != profile.target() {
             return Err(error("runtime target differs from final-link target"));
@@ -60,6 +65,7 @@ impl<'a> ProgramInputs<'a> {
         let mut objects = Vec::new();
         let mut definitions = BTreeMap::new();
         let mut requirements = BTreeSet::new();
+        let mut requirement_origins: BTreeMap<String, Vec<String>> = BTreeMap::new();
         let mut images = Vec::new();
         let mut root = None;
         let mut string_target = None;
@@ -94,7 +100,7 @@ impl<'a> ProgramInputs<'a> {
             }
             objects.extend(members.into_iter().map(|(member, bytes)| InputObject {
                 origin: ObjectOrigin::Cone { cone, member },
-                bytes,
+                bytes: ObjectBytes::Borrowed(bytes),
             }));
             let odr_symbols: BTreeSet<_> = symbols
                 .object_contents()
@@ -142,9 +148,17 @@ impl<'a> ProgramInputs<'a> {
                 }
             }
             for requirement in symbols.undefined_partitions().legacy().requirements() {
-                requirements.insert(
-                    String::from_utf8(requirement.use_site().symbol().to_vec()).map_err(error)?,
-                );
+                let symbol =
+                    String::from_utf8(requirement.use_site().symbol().to_vec()).map_err(error)?;
+                requirement_origins
+                    .entry(symbol.clone())
+                    .or_default()
+                    .push(format!(
+                        "Cone {} member {}",
+                        artifact.manifest().cone().coordinate(),
+                        requirement.member()
+                    ));
+                requirements.insert(symbol);
             }
         }
         for object in runtime.objects() {
@@ -159,9 +173,15 @@ impl<'a> ProgramInputs<'a> {
                 }
             }
             requirements.extend(object.info().requirements.iter().cloned());
+            for symbol in &object.info().requirements {
+                requirement_origins
+                    .entry(symbol.clone())
+                    .or_default()
+                    .push(format!("runtime object {}", object.id()));
+            }
             objects.push(InputObject {
                 origin: ObjectOrigin::Runtime(object.id()),
-                bytes: object.bytes(),
+                bytes: ObjectBytes::Borrowed(object.bytes()),
             });
         }
         let root = root.ok_or_else(|| error("executable closure has no root entry"))?;
@@ -179,13 +199,16 @@ impl<'a> ProgramInputs<'a> {
             objects,
             definitions,
             requirements,
-            dynamic: BTreeSet::new(),
+            requirement_origins,
+            dynamic: BTreeMap::new(),
+            providers: crate::dynamic::DynamicInputs::default(),
             images,
             root,
             string_target,
             strong_relocations,
+            native: NativeInputs::default(),
         };
-        native::resolve(closure, runtime, profile, &mut result)?;
+        native::resolve(closure, runtime, profile, library_paths, &mut result)?;
         Ok(result)
     }
 }

@@ -1,0 +1,278 @@
+Module
+  struct Marker
+    field0 text: String
+    property0 val text: String getter0=storage <stored struct0-field0>
+  fun threadCount(): ULong <unsafe no-gc cdecl> <extern0 abi=c symbol=scoop_rt_thread_debug_count>
+  fun main(): Unit
+    val local0
+      StringLiteral "caller-" : String
+    val local1
+      StringLiteral "alive" : String
+    val local2
+      Local $dependency.argument.0 : String
+    val local3
+      PrimitiveBinary StringConcat : String
+        Local $dependency.receiver : String
+        Local $dependency.parameter.other : String
+    val local4
+      Local $argument.0 : String
+    val local5
+      StructInit Marker : Marker
+        Local $parameter.text : String
+    val local6
+      Local marker : Marker
+    val local7
+      Local $dependency.argument.0 : Marker
+    val local8
+      IntegerLiteral 2 : Int
+    val local9
+      Call update<Marker> : Int
+        Local $dependency.parameter.marker : Marker
+        Local $dependency.parameter.amount : Int
+    val local10
+      Local $dependency.argument.0 : Int
+    Call println<Int> : Unit
+      Local $dependency.parameter.value : Int
+    val local11
+      PtrLoad : Int
+        AddressOf external global 9353455ac849409c642d307cb2b799c584c6e9f691257bb40d967726db1905f0 : Ptr<Int>
+    val local12
+      Local $old.0 : Int
+    val local13
+      IntegerOperation int.inc <no-gc> : Int
+        Local $dependency.receiver : Int
+    PtrStore : Unit
+      AddressOf external global 9353455ac849409c642d307cb2b799c584c6e9f691257bb40d967726db1905f0 : Ptr<Int>
+      Local $new.1 : Int
+    val local14
+      Local $old.0 : Int
+    val local15
+      Local $dependency.argument.0 : Int
+    Call println<Int> : Unit
+      Local $dependency.parameter.value : Int
+    val local16
+      AddressOf external global 9353455ac849409c642d307cb2b799c584c6e9f691257bb40d967726db1905f0 : Ptr<Int>
+    val local17
+      IntegerLiteral 40 : Int
+    val local18
+      Local $dependency.argument.0 : Int
+    PtrStore : Unit
+      Local $dependency.receiver : Ptr<Int>
+      Local $dependency.parameter.value : Int
+    val local19
+      AddressOf external global 9353455ac849409c642d307cb2b799c584c6e9f691257bb40d967726db1905f0 : Ptr<Int>
+    val local20
+      Local $dependency.argument.0 : Ptr<Int>
+    val local21
+      Call external #0 : Int
+        Local $dependency.parameter.pointer : Ptr<Int>
+    val local22
+      Local $dependency.argument.0 : Int
+    Call println<Int> : Unit
+      Local $dependency.parameter.value : Int
+    val local23
+      PtrLoad : Int
+        AddressOf external global e13895c547237c7d3884a11713bbe3e53dc9c70330c23fcac6183e3d7d309da0 : Ptr<Int>
+    val local24
+      Local $dependency.argument.0 : Int
+    Call println<Int> : Unit
+      Local $dependency.parameter.value : Int
+    val local25
+      IntegerLiteral 50 : Int
+    val local26
+      IntegerLiteral 51 : Int
+    val local27
+      Local $dependency.argument.0 : Int
+    val local28
+      Local $dependency.argument.1 : Int
+    PtrStore : Unit
+      AddressOf external global f5a21a1bcdf9468be61ae243af7fe35c2bfde358d3b2495f2406c5a09f6505db : Ptr<Pair>
+      Call external #1 : Pair
+        Local $dependency.parameter.left : Int
+        Local $dependency.parameter.right : Int
+    val local33
+      AddressOf external global f5a21a1bcdf9468be61ae243af7fe35c2bfde358d3b2495f2406c5a09f6505db : Ptr<Pair>
+    val local29
+      IntegerLiteral 52 : Int
+    val local30
+      IntegerLiteral 53 : Int
+    val local31
+      Local $dependency.argument.0 : Int
+    val local32
+      Local $dependency.argument.1 : Int
+    val local34
+      Call external #1 : Pair
+        Local $dependency.parameter.left : Int
+        Local $dependency.parameter.right : Int
+    val local35
+      Local $dependency.argument.0 : Pair
+    PtrStore : Unit
+      Local $dependency.receiver : Ptr<Pair>
+      Local $dependency.parameter.value : Pair
+    val local37
+      FieldAccess field 0 : Int
+        PtrLoad : Pair
+          AddressOf external global f5a21a1bcdf9468be61ae243af7fe35c2bfde358d3b2495f2406c5a09f6505db : Ptr<Pair>
+    val local36
+      AddressOf external global f5a21a1bcdf9468be61ae243af7fe35c2bfde358d3b2495f2406c5a09f6505db : Ptr<Pair>
+    val local38
+      FieldAccess field 1 : Int
+        PtrLoad : Pair
+          Local $dependency.receiver : Ptr<Pair>
+    val local39
+      Local $dependency.argument.0 : Int
+    val local40
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    val local41
+      Local $dependency.argument.0 : Int
+    Call println<Int> : Unit
+      Local $dependency.parameter.value : Int
+    PtrStore : Unit
+      AddressOf external global b7c045065f1d0e4759ba251dbc7e45a96514d0c69431094ee2e9f5e007e8c806 : Ptr<Int>
+      IntegerLiteral 33 : Int
+    val local42
+      AddressOf external global d2c16de027d77e7a16fcfad850703a0a1df263edf456b7dba88344b6468ce322 : Ptr<Int>
+    val local43
+      IntegerLiteral 34 : Int
+    val local44
+      Local $dependency.argument.0 : Int
+    PtrStore : Unit
+      Local $dependency.receiver : Ptr<Int>
+      Local $dependency.parameter.value : Int
+    val local45
+      AddressOf external global b7c045065f1d0e4759ba251dbc7e45a96514d0c69431094ee2e9f5e007e8c806 : Ptr<Int>
+    val local46
+      PtrToULong : ULong
+        Local $dependency.receiver : Ptr<Int>
+    PtrStore : Unit
+      AddressOf external global 9353455ac849409c642d307cb2b799c584c6e9f691257bb40d967726db1905f0 : Ptr<Int>
+      IntegerLiteral 70 : Int
+    val local47
+      Lambda lambda0 invoke=$lambda.0 captures=2 : (Int) -> Int
+        capture marker binding6 : Marker
+        capture callerAddress binding60 : ULong
+    val local48
+      IntegerLiteral 1 : Long
+    val local49
+      VariantConstruct ForeignCallbackMode.Reusable : ForeignCallbackMode
+    val local50
+      Local $dependency.argument.0 : (Int) -> Int
+    val local51
+      Local $dependency.argument.1 : Long
+    val local52
+      Local $dependency.argument.2 : ForeignCallbackMode
+    val local53
+      ForeignCallbackRegister registration0 native=function_type0 managed=function_type1 context=1 mode=ForeignCallbackMode.Reusable : ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Local $dependency.parameter.callback : (Int) -> Int
+    val local54
+      FieldAccess field 0 : FunPtr<(Int, Ptr<Unit>) -> Int>
+        Local callback : ForeignCallback<(Int, Ptr<Unit>) -> Int>
+    val local55
+      FieldAccess field 1 : Ptr<Unit>
+        Local callback : ForeignCallback<(Int, Ptr<Unit>) -> Int>
+    val local56
+      Local callerAddress : ULong
+    val local57
+      Local $dependency.argument.0 : FunPtr<(Int, Ptr<Unit>) -> Int>
+    val local58
+      Local $dependency.argument.1 : Ptr<Unit>
+    val local59
+      Local $dependency.argument.2 : ULong
+    val local60
+      Call external #4 : Int
+        Local $dependency.parameter.callback : FunPtr<(Int, Ptr<Unit>) -> Int>
+        Local $dependency.parameter.context : Ptr<Unit>
+        Local $dependency.parameter.callerAddress : ULong
+    val local61
+      Local $dependency.argument.0 : Int
+    Call println<Int> : Unit
+      Local $dependency.parameter.value : Int
+    val local62
+      PtrLoad : Int
+        AddressOf external global b7c045065f1d0e4759ba251dbc7e45a96514d0c69431094ee2e9f5e007e8c806 : Ptr<Int>
+    val local63
+      IntegerLiteral 33 : Int
+    val local64
+      Local $dependency.argument.0 : Int
+    if
+      IntegerOperation int.equals <no-gc> : Boolean
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+      val local65
+        PtrLoad : Int
+          AddressOf external global d2c16de027d77e7a16fcfad850703a0a1df263edf456b7dba88344b6468ce322 : Ptr<Int>
+      val local66
+        IntegerLiteral 34 : Int
+      val local67
+        Local $dependency.argument.0 : Int
+      val local68
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+    else
+      val local68
+        BoolLiteral false : Boolean
+    if
+      Local $shortCircuit.7 : Boolean
+      val local69
+        PtrLoad : Int
+          AddressOf external global 9353455ac849409c642d307cb2b799c584c6e9f691257bb40d967726db1905f0 : Ptr<Int>
+      val local70
+        IntegerLiteral 70 : Int
+      val local71
+        Local $dependency.argument.0 : Int
+      val local72
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+    else
+      val local72
+        BoolLiteral false : Boolean
+    val local73
+      Local $shortCircuit.8 : Boolean
+    val local74
+      Local $dependency.argument.0 : Boolean
+    Call println<Boolean> : Unit
+      Local $dependency.parameter.value : Boolean
+    val local75
+      Local callback : ForeignCallback<(Int, Ptr<Unit>) -> Int>
+    val local76
+      Local $dependency.argument.0 : ForeignCallback<(Int, Ptr<Unit>) -> Int>
+    when
+      ForeignCallbackState : ForeignCallbackState
+        Local $dependency.parameter.callback : ForeignCallback<(Int, Ptr<Unit>) -> Int>
+      arm variant0()
+        assign $result.9
+          BoolLiteral true : Boolean
+      else
+        assign $result.9
+          BoolLiteral false : Boolean
+    val local78
+      Local $result.9 : Boolean
+    val local79
+      Local $dependency.argument.0 : Boolean
+    Call println<Boolean> : Unit
+      Local $dependency.parameter.value : Boolean
+    val local80
+      Local callback : ForeignCallback<(Int, Ptr<Unit>) -> Int>
+    val local81
+      Local $dependency.argument.0 : ForeignCallback<(Int, Ptr<Unit>) -> Int>
+    ForeignCallbackRelease : Unit
+      Local $dependency.parameter.callback : ForeignCallback<(Int, Ptr<Unit>) -> Int>
+    val local82
+      Call threadCount : ULong
+    val local83
+      Local $dependency.argument.0 : ULong
+    Call println<ULong> : Unit
+      Local $dependency.parameter.value : ULong
+    val local84
+      FieldAccess field 0 : String
+        Local marker : Marker
+    val local85
+      Local $dependency.argument.0 : String
+    Call println<String> : Unit
+      Local $dependency.parameter.value : String
+  output executable main
+

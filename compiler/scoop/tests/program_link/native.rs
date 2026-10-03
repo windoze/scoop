@@ -73,10 +73,7 @@ fn native_input_errors_do_not_replace_an_existing_executable() {
             "native-missing",
             "unresolved native symbol _m23_missing_native",
         ),
-        (
-            "native-library-required",
-            "additional providers belong to M23-10",
-        ),
+        ("native-library-required", "missing native library"),
         ("native-effect-conflict", "GC effect differs"),
         (
             "native-kind-conflict",

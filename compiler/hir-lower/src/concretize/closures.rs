@@ -187,11 +187,8 @@ impl Concretizer<'_> {
             self.lower_function_type(source.native_function_type, substitution);
         let managed_function_type =
             self.lower_function_type(source.managed_function_type, substitution);
-        let export::CoreProtocols::Defined(protocols) = self.core else {
-            panic!("imported-core HIR must encode foreign callback support as imported targets")
-        };
-        assert!(protocols.foreign_callbacks.modes.contains(source.mode));
-        let mode = self.lower_applied_enum_variant_ref(source.mode, substitution);
+        self.lower_imported_callback_support();
+        let mode = source.mode;
         let id = concrete::ForeignCallbackRegistrationId::from_raw(
             (self.foreign_callback_slots.len() as u32).into(),
         );

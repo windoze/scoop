@@ -173,7 +173,7 @@ impl BodyProjection<'_, '_> {
                 offset: Box::new(self.expression(offset)?),
                 subtract: CanonicalBooleanV1::from(*subtract),
             },
-            ExprKind::AddressOf(place) => DefaultExpressionKindV1::AddressOf(self.place(*place)?),
+            ExprKind::AddressOf(place) => DefaultExpressionKindV1::AddressOf(self.place(place)?),
             ExprKind::SizeOf(ty) => DefaultExpressionKindV1::SizeOf(self.type_key(*ty)?),
             ExprKind::AlignOf(ty) => DefaultExpressionKindV1::AlignOf(self.type_key(*ty)?),
             ExprKind::FunctionAddress(function) => DefaultExpressionKindV1::FunctionAddress(

@@ -1,0 +1,24 @@
+package nativelink.mixed
+
+@Extern(lib = "m23_mix_archive", name = "m23_archived")
+public fun archived(value: Int): Int
+
+@Extern(lib = "m23_mix_dynamic", name = "m23_dynamic")
+public fun dynamic(value: Int): Int
+
+public fun <T> shared(marker: T, value: Int = 10): Int {
+    @Unsafe { return archived(value) + dynamic(value) }
+}
+
+private fun initialize(): Int {
+    println(100)
+    @Unsafe { return archived(3) }
+}
+public val eager: Int = initialize()
+
+private fun initializeLazy(): Int {
+    println(200)
+    @Unsafe { return dynamic(4) }
+}
+private object Delayed { val value: Int = initializeLazy() }
+public fun readLazy(): Int = Delayed.value

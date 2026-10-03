@@ -37,7 +37,10 @@ exports:
     assert_eq!(provider.exports().len(), 2);
     assert_eq!(provider.current_version(), (1359 << 16) | (2 << 8) | 1);
     assert_eq!(provider.compatibility_version(), 1 << 16);
-    assert_eq!(provider.exports()["_tls"], SystemExportKind::ThreadLocal);
+    assert_eq!(
+        provider.exports()["_tls"].kind,
+        SystemExportKind::ThreadLocal
+    );
     assert!(provider.exports().contains_key("_unused_system_export"));
     let destination = tempfile::tempdir().unwrap();
     let snapshot = provider.write_to(destination.path()).unwrap();
@@ -67,5 +70,51 @@ fn missing_reexports_and_wrong_targets_report_the_actual_input() {
             .unwrap_err()
             .to_string()
             .contains("no compatible macOS/arm64")
+    );
+}
+
+#[test]
+fn native_stubs_preserve_exports_and_reject_conflicting_install_records() {
+    let deployment = DarwinPackedVersionV1::from_components(14, 0, 0).unwrap();
+    let imports = BTreeMap::from([
+        (
+            "_ordinary".into(),
+            NativeExport {
+                kind: SystemExportKind::Symbol,
+                weak: false,
+            },
+        ),
+        (
+            "_weak".into(),
+            NativeExport {
+                kind: SystemExportKind::Symbol,
+                weak: true,
+            },
+        ),
+        (
+            "_tls".into(),
+            NativeExport {
+                kind: SystemExportKind::ThreadLocal,
+                weak: false,
+            },
+        ),
+    ]);
+    let first = tbd::write_link_stub("@rpath/libtest.dylib", 2 << 16, 1 << 16, &imports).unwrap();
+    let interface = tbd::read_text_stubs(&first, deployment, false).unwrap();
+    assert_eq!(interface[0].exports, imports);
+    let mut identical = first.clone();
+    identical.extend_from_slice(&first);
+    assert_eq!(
+        tbd::read_text_stubs(&identical, deployment, false).unwrap(),
+        interface
+    );
+    let mut conflicting = first;
+    conflicting
+        .extend(tbd::write_link_stub("@rpath/libtest.dylib", 3 << 16, 1 << 16, &imports).unwrap());
+    assert!(
+        tbd::read_text_stubs(&conflicting, deployment, false)
+            .unwrap_err()
+            .to_string()
+            .contains("conflicting text stub records")
     );
 }

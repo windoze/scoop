@@ -7,7 +7,10 @@ use scoop_wire::{Digest256, Encoder, WireEncode, domain_separated_cbor_hash, sha
 
 use crate::{LinkError, RuntimeObjectSet, error, program::ProgramInputs, startup::StartupObject};
 
-mod map;
+pub(crate) mod map;
+
+#[cfg(test)]
+mod tests;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ResolvedLinkPlanFingerprint(Digest256);
@@ -28,9 +31,20 @@ pub fn link_program(
     closure: &ProgramLinkClosure,
     runtime: &RuntimeObjectSet,
     profile: &ValidatedFinalLinkProfile,
+    library_paths: &[PathBuf],
     output: &Path,
 ) -> Result<ProgramLinkOutput, LinkError> {
-    let inputs = ProgramInputs::new(closure, runtime, profile)?;
+    let inputs = ProgramInputs::new(closure, runtime, profile, library_paths)?;
+    link_inputs(closure, runtime, profile, &inputs, output)
+}
+
+fn link_inputs(
+    closure: &ProgramLinkClosure,
+    runtime: &RuntimeObjectSet,
+    profile: &ValidatedFinalLinkProfile,
+    inputs: &ProgramInputs<'_>,
+    output: &Path,
+) -> Result<ProgramLinkOutput, LinkError> {
     let output = std::path::absolute(output).map_err(error)?;
     let parent = output
         .parent()
@@ -40,27 +54,37 @@ pub fn link_program(
         .prefix(".scoop-link-")
         .tempdir_in(parent)
         .map_err(error)?;
-    let startup = StartupObject::build(&inputs, profile, directory.path())?;
+    let startup = StartupObject::build(inputs, profile, directory.path())?;
     let mut paths = Vec::new();
     let first = directory.path().join("startup.o");
     write_new(&first, &startup.bytes)?;
     paths.push(first);
     for input in &inputs.objects {
         let path = directory.path().join(format!("{}.o", input.origin));
-        write_new(&path, input.bytes)?;
+        write_new(&path, input.bytes())?;
         paths.push(path);
     }
     let sdk = directory.path().join("sdk");
-    let stub = profile.system_provider().write_to(&sdk).map_err(error)?;
+    std::fs::create_dir(&sdk).map_err(error)?;
+    let mut stubs = std::collections::BTreeMap::new();
+    for (id, bytes) in &inputs.providers.stubs {
+        let path = directory.path().join(format!("dynamic-{id}.tbd"));
+        write_new(&path, bytes)?;
+        stubs.insert(path, inputs.providers.providers[id].install_name.clone());
+    }
     let candidate = directory.path().join("program");
     let link_map = directory.path().join("program.map");
-    let result = profile
-        .command(&sdk, &candidate, &link_map)
+    let mut command = profile.command(&sdk, &candidate, &link_map);
+    command
         .args(&paths)
         .arg("-alias")
         .arg(&inputs.string_target)
-        .arg("_scoop_td_String")
-        .arg(&stub)
+        .arg("_scoop_td_String");
+    for path in &inputs.providers.rpaths {
+        command.arg("-rpath").arg(path);
+    }
+    command.args(stubs.keys());
+    let result = command
         .output()
         .map_err(|err| error(format!("cannot start system linker: {err}")))?;
     if !result.status.success() {
@@ -69,30 +93,44 @@ pub fn link_program(
             String::from_utf8_lossy(&result.stderr)
         )));
     }
-    map::check(
+    let native_paths = inputs
+        .objects
+        .iter()
+        .zip(&paths[1..])
+        .filter_map(|(input, path)| match input.origin {
+            crate::program::ObjectOrigin::Native(id) => Some((path.clone(), id)),
+            _ => None,
+        })
+        .collect();
+    let map = map::check(
         &std::fs::read_to_string(link_map).map_err(error)?,
         &paths,
-        &stub,
-        profile.system_provider(),
+        &stubs,
+        &native_paths,
+    )?;
+    map::trace(
+        std::str::from_utf8(&result.stdout).map_err(error)?,
+        &paths,
+        &stubs,
     )?;
     let bytes = std::fs::read(&candidate).map_err(error)?;
-    crate::final_image::verify(&bytes, &inputs, &startup, profile)
+    crate::final_image::verify(&bytes, inputs, &startup, profile, &map)
         .map_err(|err| error(format!("final Mach-O validation: {err}")))?;
     let profile_fingerprint = profile.fingerprint().map_err(error)?;
     let fingerprint = ResolvedLinkPlanFingerprint(
         domain_separated_cbor_hash(
-            "scoop-resolved-link-plan-v1",
+            "scoop-resolved-link-plan-v2",
             &Plan {
                 closure,
                 runtime,
-                inputs: &inputs,
+                inputs,
                 startup: &startup,
                 profile: profile_fingerprint,
             },
         )
         .map_err(error)?,
     );
-    let plan_dump = dump(closure, runtime, &inputs, &startup);
+    let plan_dump = dump(closure, runtime, inputs, &startup);
     std::fs::File::open(&candidate)
         .and_then(|file| file.sync_all())
         .map_err(error)?;
@@ -127,7 +165,7 @@ struct Plan<'a> {
 }
 impl WireEncode for Plan<'_> {
     fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        e.map(7)?;
+        e.map(9)?;
         e.field(1)?;
         self.closure.root().encode(e)?;
         e.field(2)?;
@@ -150,12 +188,17 @@ impl WireEncode for Plan<'_> {
         for input in &self.inputs.objects {
             e.array(2)?;
             e.text(&input.origin.to_string())?;
-            sha256(input.bytes).encode(e)?;
+            sha256(input.bytes()).encode(e)?;
         }
         e.field(7)?;
         e.array(2)?;
         e.text(&self.inputs.string_target)?;
-        e.text("_scoop_td_String")
+        e.text("_scoop_td_String")?;
+        e.field(8)?;
+        self.inputs.native.encode(e)?;
+        e.field(9)?;
+        self.inputs.providers.encode(&self.inputs.dynamic, e)?;
+        Ok(())
     }
 }
 
@@ -165,7 +208,7 @@ fn dump(
     inputs: &ProgramInputs<'_>,
     startup: &StartupObject,
 ) -> String {
-    let mut text = String::from("program-link v1\n");
+    let mut text = String::from("program-link v2\n");
     for (artifact, symbols) in closure.artifacts() {
         text.push_str(&format!(
             "cone {} kind={:?} objects={}\n",
@@ -183,6 +226,8 @@ fn dump(
         inputs.string_target
     ));
     text.push_str("link inputs: startup, cone/member order, runtime/object order, libSystem\n");
+    text.push_str(&inputs.native.dump());
+    text.push_str(&inputs.providers.dump(&inputs.dynamic));
     text.push_str("startup object references:\n");
     for symbol in &startup.references {
         text.push_str(&format!("  {symbol}\n"));

@@ -1,0 +1,18 @@
+Module
+  fun start(): Int <unsafe no-gc cdecl> <extern0 abi=c symbol=m23_start lib=m23_chain>
+  fun marker(): Int <unsafe no-gc cdecl> <extern1 abi=c symbol=m23_marker lib=m23_tail>
+  fun main(): Unit
+    val local0
+      Call start : Int
+    val local1
+      Local $dependency.argument.0 : Int
+    Call println<Int> : Unit
+      Local $dependency.parameter.value : Int
+    val local2
+      Call marker : Int
+    val local3
+      Local $dependency.argument.0 : Int
+    Call println<Int> : Unit
+      Local $dependency.parameter.value : Int
+  output executable main
+

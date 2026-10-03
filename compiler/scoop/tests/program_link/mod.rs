@@ -10,6 +10,7 @@ mod combinations;
 mod initialization;
 mod inputs;
 mod native;
+mod native_inputs;
 mod orchestration;
 mod plans;
 mod publication;

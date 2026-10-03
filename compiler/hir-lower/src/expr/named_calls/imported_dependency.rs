@@ -14,6 +14,7 @@ mod commit;
 mod defaults;
 mod generic;
 mod inputs;
+mod intrinsics;
 mod pattern;
 mod probe;
 mod properties;
@@ -47,6 +48,10 @@ enum ImportedIntrinsicCall {
     PointerMember(hir::PointerIntrinsic),
     ArrayConversion(hir::ArrayIntrinsic),
     ArrayAccess(hir::ArrayAccessKind),
+    ForeignCallback {
+        kind: hir::IntrinsicFunctionKind,
+        native_type: hir::TypeId,
+    },
 }
 
 pub(crate) struct ImportedDependencyCallProbe {

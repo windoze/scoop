@@ -1481,6 +1481,7 @@ kind = "library" # 或 "executable"
 ### 12.3 静态exact依赖图
 
 - M23固定三层工具边界：umbrella binary `scoop`负责root-input分流、locator、resolved DAG、cache与调度；`scoopc`每次只编译一个当前Cone并产生该Cone的`.slib`；program-link是只消费已验证artifact的独立stage。`scoop build`和`scoop run`共用这条完整pipeline；`run`只在build/program-link成功后执行binary，不是另一种编译或解释模式。三层不能用共享的未持久AST/IR或隐式进程状态绕过`.slib`边界；
+- M23-11 的公开命令、默认输出、诊断与观察输出见实现规范 2.7 及 [阶段设计](../milestone23/stage11/DESIGN.md)。`run` 的 `--` 后参数原样传给进程，不改变源码 `main(): Unit` 的入口合同或编译缓存；cwd、environment、stdio 和 exit/signal 保持普通进程语义。显式 `scoop link` 只消费 root／dependency `.slib`、runtime 对象索引及已有 native 文件，不构建缺失的源码依赖。stage dump 和本次诊断展示路径不是语言 IR 或产物身份；
 - M23只接受最终链接前已经完整解析的静态Cone图。依赖边必须无环；同一resolved graph中同一`group:name`只能出现一个version，同一`ConeIdentity`只能对应一组一致的semantic fingerprints。cycle、多个version、同identity不同artifact或dependency coordinate不匹配都是构建错误；
 - `executable`不能成为另一个Cone的dependency。一次程序构建恰有一个executable root，其余节点都是library；library单独构建时不需要executable root；
 - core可从任意普通manifest目录作为`scoop`构建根；当前根已经定义core时不读取默认sysroot、不加载另一份core，也不注入self edge。graph、源码快照、缓存和产物返回均使用普通Manifest library节点。
@@ -1728,9 +1729,17 @@ M23-6 的共有 HIR 接口 `/30` 保留 struct 的实际 `@CLayout`、`@Interior
 
 独立 program-link stage 从显式 executable artifact 和完整依赖读取 Link 数据，按语言规范 12.3 的 canonical Cone order 与目录中的 `SlibMemberId` 顺序，将每个 `LinkObject` 恰好提取一次。root、image、定义、ABI、ODR 与真实 relocation 来自产物，Link 不重建 HIR 模板或重做语言语义；缺定义不能退回源码修补。M23-9 直接复用已有 foundation 身份／合同及 production、import 与对象记录，通过 `org.scoop-lang.lir/link-support/1` 的单字段 map 补齐 runtime 数据 alias，完整机器 ABI／布局仍原位读取；格式和 reader 职责见实现规范 2.8。diagnostic、opaque 和 unknown optional 成员不成为对象，当前 Link purpose 不认识的 required capability 必须失败。
 
-Cone 的 defined/undefined 记录只覆盖带 `SlibMemberId` 的 `.slib` object。program、runtime 和 native 对象保留各自实际定义、引用及对象身份，不能伪造 Cone member。动态 provider 只满足已声明且 ABI 一致的外部绑定，不能替代受控的 Scoop/runtime/program 定义。native direct object/static archive 的候选格式、符号、ABI、EH/TLS、实际抽取和隐式输入检查按实现规范 2.8 与 M23 总设计 3.7 执行；thin/nested archive、未登记 producer、bitcode/LTO 或没有合同的 autolink 不会被当作普通对象接受。
+Cone 的 defined/undefined 记录只覆盖带 `SlibMemberId` 的 `.slib` object。program、runtime 和 native 对象保留各自实际定义、引用及对象身份，不能伪造 Cone member。动态 provider 只满足已声明且 ABI 一致的外部绑定，不能替代受控的 Scoop/runtime/program 定义。M23-10 接受由已有逻辑 library requirement 定位的普通 native object、static archive 与 dynamic provider；这些外部文件不要求 Scoop producer 身份、专用 verifier 凭证或额外函数签名清单。消费边界检查实际格式、target、符号、存储、引用及必要 EH/TLS 事实。thin/nested archive、bitcode/LTO、隐式 autolink 和超出当前 target 输入范围的构造／析构等机制仍有明确错误，具体规则见实现规范 2.8 与 [M23-10 设计](../milestone23/stage10/DESIGN.md)。这不开放 Cone 内 C/C++ 源码编译或新的 `.slib` LinkObject producer。
 
 所有源码 extern 按同一套完整声明合同和符号规则链接，不按 core 身份、函数名或所需功能设置特许清单。M23-9 从本次 runtime 对象与已选 SDK 系统 provider 的实际定义／export 解析引用；普通 Cone 也可以引用未被 core/runtime 使用的系统 export。声明间 ABI、GC effect、library、kind/storage 不一致或实际目标缺失均为错误；编译器产生的 runtime/target 需求与源码 extern 共用符号时还须合并其既有合同。普通外部对象不携带完整函数类型，不从符号表虚构 ABI 证明；外部实现遵守声明继续由 FFI 作者负责，core 也适用。M23-10 扩展新 library、archive 等输入的定位与供应，沿用同一 extern 合并／解析路径。
+
+非空 `@Extern(lib = L)` 是逻辑库名，不是文件路径或 linker 参数。当前 Darwin target 对 `TargetDefault` 在每个显式 `--library-path R` 下检查 `R/L.o`、`R/libL.a`、`R/libL.dylib`、`R/libL.tbd` 与 `R/L.framework/L`；不去掉名字中已有的 `lib` 或扩展名，不递归扫描其他文件。已有显式 kind 只收窄对应的候选格式。相同内容及装载合同的重复候选合并，不同候选报歧义；目录枚举与 search-root 顺序不能决定选择。空 `lib` 只查询本次已引入的 runtime、native 对象及动态 export，不扫描目录寻找能提供某个符号的任意库。固定系统 provider 继续由 target 明确提供。
+
+完整 extern 声明集合始终参与合同冲突与候选可用性检查；只有实际机器引用推动 archive 成员抽取。program-link 以实际 undefined 符号工作集闭合所需成员，包括成员之间及多个已提供 archive 之间的引用，选中的成员以独立对象交给系统 linker。同一归档内同名候选按物理成员顺序选择；重复被选的物理成员只加入一次，实际纳入的重复定义仍报冲突。归档循环引用由有限成员工作集处理，不要求用户重复列库或提供 whole-archive/group 参数。不被抽取的成员不贡献定义、引用、初始化或运行时效果；其容器、成员边界及候选符号索引仍须可正确读取。
+
+一般 dynamic provider 是已有 native FFI 实现，按实际 install name、export、re-export 与 load-command 依赖解析；它不是可动态加载的 Scoop Cone。非 re-export 的依赖不会自动成为父库的公开 export。final-link 使用 two-level binding，并把每个实际 import 关联到确定的 provider；多个库中存在同名 export 不足以改变一个显式 library binding，默认命名空间中的多 provider 则报歧义。普通 native 文件的依赖不能触发 Scoop 源码、C/C++ 编译或隐式目录搜索。
+
+`--library-path` 首先是链接时 locator。对于实际选中的 `@rpath/...` provider，M23-10 还从匹配该 install name 的明确目录生成必要 `LC_RPATH`，以使正常运行可以找到该库；这些实际写入 executable 的路径与 install name 属于装载语义，必须进入 link plan。纯输入 locator、临时快照路径和输出文件名仍不进入 identity 或 plan。此区别不影响 Cone/entity identity、三层语义 fingerprint 或 `.slib` 内容；不承诺复制／部署第三方库，也不在运行时证明 dylib 内容未改变。具体相对装载名范围及解析规则见 M23-10 设计第 5 节。
 
 runtime 由 `scoop` 按明确的 target、C toolchain、源文件、头文件及构建规则产生任意非空普通对象集合；源码/object 数量不是协议基数。内容缓存与普通对象索引用于构建复用和进程交接，外部输入在消费边界检查 bytes、target、符号、引用与必要 ABI，不建立来源授权或独立信任容器。program-link 不读取 Scoop/runtime 源码，只可调用明确 C compiler 编译自己生成的固定 startup C 代码；不调用 Scoop codegen，不重编译 artifact bridge，不接受 raw archive 或额外对象注入。实际低层入口及索引见 [M23-9 设计](../milestone23/stage9/DESIGN.md)。
 

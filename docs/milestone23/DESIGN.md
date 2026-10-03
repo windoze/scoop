@@ -101,7 +101,7 @@ Strong production 的两种表示使用 `/11`、`/12`，删除初始化专用 AB
 ## 0. 关键决策与范围
 
 - **Cone是module/distribution/build unit，package只是源码namespace。** 二者不互相推导；一个Cone可包含多个package，同一package也可由多个依赖Cone贡献声明，冲突由typed origin与普通名称规则诊断；
-- M23 v1只支持最终链接前已完整解析的、**静态无环Cone图**。不实现registry下载、版本范围求解、lockfile生成、动态库加载、`dlopen`、image卸载或ABI-stable plugin；
+- M23 v1只支持最终链接前已完整解析的、**静态无环Cone图**。不实现registry下载、版本范围求解、lockfile生成、运行期加载Cone、`dlopen`、image卸载或ABI-stable plugin；M23-10 允许进程装载时引入普通 native FFI dylib/framework，它们不成为新的 Scoop image；
 - `Cone.toml` v1使用exact coordinate与library/executable kind。dependency locator可以是source path、`.slib`路径或搜索路径中的exact artifact，但locator不进入Cone identity和产物metadata；
 - **`scoop`与`scoopc`的关系类比Cargo与rustc。** `scoop`拥有manifest locator解析、完整DAG、缓存与多Cone调用顺序；`scoopc`只发现并编译命令行指定的当前Cone，要求完整上游`.slib`闭包作为显式输入，不递归定位、构建或重建任何上游Cone；
 - **`scoop build <file.scoop>` / `scoop run <file.scoop>`是正式单文件模式。** 该文件被建模为只含一个source、只具有默认 core Cone 依赖的synthetic executable Cone，仍通过普通single-Cone `scoopc` → `.slib` → program-link路径。它不扫描相邻manifest、其他`.scoop`、C/C++源码或blob；FFI native library requirement不是Cone dependency，只能由`.slib`中已有的typed requirement经显式`--library-path`解析；
@@ -135,8 +135,8 @@ Strong production 的两种表示使用 `/11`、`/12`，删除初始化专用 AB
 | M23-7 | 跨 Cone generic、ODR 与 generic delegated extension（[详细设计](stage7/DESIGN.md)） | 消费 6a 的共同 HIR，闭合机器定义与引用、逐 member ODR、委托存储和真实运行 |
 | M23-8 | runtime multi-image registry 与启动（[详细设计](stage8/DESIGN.md)） | 统一 unit record、实际 image/registration 消费、逐次 gateway 握手与完整 stackmap |
 | M23-9 | 基础 artifact-only program-link（[详细设计](stage9/DESIGN.md)、[实际验收](stage9/ACCEPTANCE.md)） | 独立 Link reader、普通 runtime 对象、固定系统输入、启动对象与真实链接 |
-| M23-10 | 一般 native 输入与链接闭包 | 复用 extern 解析，增加 object/archive/provider 供应、实际抽取／绑定及最终检查 |
-| M23-11 | umbrella CLI、单文件模式与总验收 | 正式工具边界、fixture迁移与旧路径删除 |
+| M23-10 | 一般 native 输入与链接闭包（[详细设计](stage10/DESIGN.md)、[实际验收](stage10/ACCEPTANCE.md)） | 复用 extern 解析，增加 object/archive/provider 供应、实际成员选择、TLS／FFI、动态绑定与最终检查 |
+| M23-11 | umbrella CLI、单文件模式与总验收（[详细设计](stage11/DESIGN.md)） | 公开 build/run/link、协议与诊断／dump、Python fixture infra 迁移、历史覆盖恢复和总验收 |
 
 persistent identity、mangler、container 和 section 使用显式版本管理；任何必要的合同修正先改 spec，再升级实际改变的 section/schema 和缓存，不以既有冻结条款保留错误分层。M23-6 的布局与 ABI 算法继续复用，M23-6a 统一语义表示与输入；实际机器适配若需要格式变化，按相同规则迁移。M23-7 及后续不得恢复 param-free/source-only 语义 gate、来源专用 HIR 或导入正文重建器。每个中间里程碑输出必须结构完备，未完成状态不能混入成功 IR 或通过旧管线回退。
 
@@ -220,7 +220,7 @@ kind = "executable" # 或 "library"
 - executable root必须恰有一个top-level ordinary、non-generic、non-suspend、无参数、返回`Unit`的`main`。只在root Cone中发现，dependency中的同名声明不参与竞争；`Executable`分支的`local_entry`非可选且entry可保持internal；
 - root实际entry也使用普通namespaced stable symbol。实际 root entry 保存 typed gateway pointer，普通启动对象将 image/root 引用交给 scoop_rt_run_program，runtime 不再调用固定 scoop_main 符号。
 
-现有单文件fixture不需要为每个历史目录手写manifest：runner必须调用正式`scoop` orchestration的`SingleFile`分支，不能直接调用`scoopc` pipeline library或使用仅测试可见的第二套synthetic manifest。测试allowlist仍只能用于intrinsic authority单元测试，不会赋予single-file root额外依赖或authority。
+现有单文件fixture不需要为每个历史目录手写manifest：M23-11 的统一 Python runner 必须调用正式`scoop build <file>`的`SingleFile`分支，不能直接调用`scoopc` pipeline library或使用仅测试可见的第二套synthetic manifest。测试allowlist仍只能用于intrinsic authority单元测试，不会赋予single-file root额外依赖或authority。
 
 ### 1.4 resolved DAG与缓存输入
 
@@ -865,376 +865,33 @@ CanonicalScoopAbiFunctionSignature = {
 
 undefined闭包不能替代definition闭包。每个`LinkObject`中的non-local strong/weak/common definition也必须唯一归属于封闭`DefinedLinkSymbolOwner::{ScoopDefinition(typed owner), GeneratedBridge(atom: GeneratedBridgeAtomId), TargetSupport(profile definition id), MemberCapability(capability definition id)}`并带其linkage/visibility/kind与canonical contract；bridge definition必须是artifact Cone拥有且可materialize的atom，不能以共享unit充当物理owner。local/debug symbol由对应object capability的allowlist单独约束。M23内建capability只能接受已经由LIR definition plan、generated bridge plan或target profile列出的定义，未认领或多重认领的external/weak definition直接拒绝；未来C/C++ producer必须定义自己的typed native-definition contract与跨Cone冲突/ODR策略，不能让native linker按输入顺序选择。manifest保存按member分区的完整defined-symbol index，program-link在启动native linker前合并验证。
 
-`DefinedLinkSymbolOwner`与上述member-aware requirement只描述Cone `.slib`中的`LinkObject`，不能伪装成普通启动对象、runtime 或 host native input 也具有 SlibMemberId。program-link先把每条逻辑native需求及其来源归一化；一个物理输入可同时满足多个来源，不能只保留任意一个“主需求”：
+`DefinedLinkSymbolOwner` 与 member-aware requirement 只描述 Cone `.slib` 的 `LinkObject`。program-link 的 startup、runtime、native direct object/archive member 和动态 provider 保留各自实际 origin，不能伪造 `SlibMemberId`。M23-10 的详细输入、解析和验收见 [阶段设计](stage10/DESIGN.md)，不再采用旧版预设的 native 来源凭证和通用 verifier/effect 框架。
 
-```text
-NativeInputRequestOrigin =
-    ConeMetadata {
-        cone: ConeIdentity,
-        artifact: ArtifactFingerprint,
-        requirement: NativeLinkRequirementId,
-        provider_contract: NativeProviderContractFingerprint,
-    }
-  | ConeLinkExtension {
-        cone: ConeIdentity,
-        artifact: ArtifactFingerprint,
-        member: SlibMemberId,
-        requirement: NativeLinkRequirementId,
-        provider_contract: NativeProviderContractFingerprint,
-    }
-  | Runtime {
-        runtime_artifact: RuntimeArtifactFingerprint,
-        requirement: RuntimeNativeRequirementId,
-        provider_contract: NativeProviderContractFingerprint,
-    }
-  | TargetProfile {
-        target_profile: TargetProfileWireId,
-        capability: CapabilityId,
-        requirement: TargetNativeRequirementId,
-        provider_contract: NativeProviderContractFingerprint,
-    }
+普通 native 输入的数据限于以下内容：
 
-NativeProviderContract =
-    Static {
-        target: TargetProfileWireId,
-        kind: DirectObject | StaticArchive,
-        verifier: NativeObjectVerifierProfileFingerprint,
-    }
-  | Dynamic {
-        target: TargetProfileWireId,
-        kind: SharedLibrary | Framework,
-        identity: NativeProviderIdentityContract,
-        load_command_contract: DynamicLoadCommandContractFingerprint,
-    }
+| 输入 | 实际记录 |
+| --- | --- |
+| direct object | target、文件内容、选中 slice、原 requirement 集合、定义与真实引用 |
+| static archive | 原文件内容、normal ar 成员索引、物理 ordinal/offset/length/digest 及实际选中成员 |
+| dynamic provider | 文件/stub、install name、target/版本、export、普通 load 与 re-export 依赖、实际 binding |
 
-NativeProviderIdentityContract =
-    ContentDigest
-  | PlatformIdentity { scheme: CapabilityId }
+`NativeInputId` 用 `scoop-native-input-v1` 域标识 target/kind/content；`NativeDynamicProviderId` 用独立 `scoop-native-dynamic-provider-v1` 域标识 target/input/install-name。archive member 用 parent input 加实际物理位置区分，同名或相同 bytes 的不同成员不混同。定义 owner 与 use origin 直接引用这些对象／成员和真实 symbol/relocation；不再为每条 contribution、selection event、dynamic binding 发出独立证明 id 和 fingerprint。已有 source/compiler native 合同保持原 typed 引用；普通 C helper 没有完整函数类型时只检查对象、符号及实际可观察事实，不能为它合成假 SourceExtern。
 
-NativeProviderContractFingerprint =
-    DomainSeparatedCborHash("scoop-native-provider-contract-v1",
-                            NativeProviderContract)
-```
+非空 logical library 经显式 search roots 定位；当前 Darwin `TargetDefault` 检查 `L.o`、`libL.a`、`libL.dylib`、`libL.tbd` 与 `L.framework/L`。已有 kind 收窄候选，名字不做前后缀猜测。不同根的相同内容／装载合同合并，不同候选报歧义；root 顺序不决定 provider。空 `lib` 只查询本次已有输入，不扫描 roots 寻找任意库。`NativeLinkRequirementKey` 的现有 target/library/kind/grouping 及 source/target ABI wire 保持；grouping 只表达候选排列，不能产生 raw argv、whole-archive 或 force-load 操作。
 
-`RuntimeNativeRequirementId`与`TargetNativeRequirementId`分别由runtime registry、target profile对其canonical requirement record使用独立domain hash产生，不能和`NativeLinkRequirementId`互换。`request_origins`按完整variant payload排序并去重；同一resolved input上的每个origin都必须与该input的provider contract逐字段相容，诊断保留全部origin，不能因去重丢掉“是谁要求了这个库”。profile隐式default library也只能从`TargetProfile`分支产生。
+对象消费复用当前 Mach-O reader 与 `object` crate，检查 target/deployment、符号 kind、可写性、range/relocation 及必要 EH/TLS。ordinary native 输入不要求 Scoop producer 身份或专用 verifier capability。允许普通 C unwind 与静态初始化 TLS；实际纳入对象中的 constructor/destructor、动态 TLS initializer、bitcode/LTO、autolink、Objective-C/Swift metadata 和 M25 禁止的 C++ ABI 依赖均有明确错误。单一 weak 定义可用；已纳入 native 对象的重复定义及 common/tentative storage 按阶段范围拒绝，不借用 Scoop ODR 判等。
 
-静态native input不能使用“任意合法object”能力。每个known verifier capability必须冻结一个`NativeObjectVerifierProfile`；其中每个effect字段都是`Reject | Verify { capability: CapabilityId }`的封闭sum，unknown capability或未归类effect均失败：
+native archive 使用真实 BSD/GNU normal ar 结构，不要求 `.slib` canonical header。先检查全部容器、成员边界和必要对象／符号索引；thin/external、nested、损坏索引、非目标对象仍拒绝。完整 relocation、EH/TLS/初始化效果检查只在成员实际被选中时完成，结果复用；未选成员的 autolink/constructor 不影响输出。成员名字不作为提取路径，也不要求从 `archive(name.o)` trace 猜回同名成员。
 
-```text
-NativeObjectVerifierProfile {
-    capability: CapabilityId,
-    target: TargetProfileWireId,
-    object_format: ObjectFormatId,
-    object_kind: Relocatable,
-    load_commands: NativeSemanticEffectPolicy,
-    sections: NativeSemanticEffectPolicy,
-    local_and_debug_symbols: NativeSemanticEffectPolicy,
-    constructors_and_destructors: NativeSemanticEffectPolicy,
-    eh_and_unwind: NativeSemanticEffectPolicy,
-    tls: NativeSemanticEffectPolicy,
-    language_runtime_metadata: NativeSemanticEffectPolicy,
-}
+所有声明先参与完整合同和候选可用性检查。实际 Cone/runtime/startup/direct-object undefined 构成唯一符号工作集；解析所需 archive 成员后加入它的全部真实引用，直到有限闭包完成。显式 library 限定对应 provider，默认／普通 native 引用的多 provider 报歧义；同一 archive 内按物理顺序选第一个可提供所需 symbol 的成员。每个物理成员最多纳入一次，跨 archive 回边不需要重复传库或通用资源预算。selected 成员以独立 `.o` 快照传给系统 linker，不再传整个 archive 重复抽取；空 selection 不伪造对象。
 
-NativeSemanticEffectPolicy =
-    Reject
-  | Verify { capability: CapabilityId }
+native static 对象从同一份已读 bytes 物化到私有 create-new 文件；dynamic 输入从已读内容产生下文的标准链接 stub。原 locator 后续变化不能改变本次输入；snapshot 只是 I/O 内容，不是 CAS 资格或来源凭证。system provider 保留实际 SDK stub、install name、target/deployment 与 ABI，stub 摘要不声称是运行时 dylib/shared cache 的内容摘要。
 
-NativeObjectVerifierProfileFingerprint =
-    DomainSeparatedCborHash("scoop-native-object-verifier-profile-v1",
-                            NativeObjectVerifierProfile)
+dynamic provider 读取实际 export/load/re-export 接口；普通 load 不传播 export，re-export 保留公开 library owner 与实际导出者。重复 install name 不同内容拒绝，多个 provider 未使用的同名 export 可以共存；实际默认引用有多个 provider 时拒绝，显式库绑定不得被其他 static/dynamic 同名定义接管。文件格式没有完整函数类型时不虚构 ABI 证明；外部实现遵守声明仍是 FFI 作者责任。
 
-CanonicalRelocationUse {
-    atom: CanonicalNativeAtomId,
-    section_role: CanonicalSectionRole,
-    relocation_role: CanonicalRelocationRole,
-    offset_within_atom: u64,
-    checked_addend: i64,
-}
+直接 provider 使用绝对 install name 或 `@rpath/...`；实际依赖按明确 roots、已选 provider 的 `@loader_path` 位置和 SDK 解析。本阶段不部署 native bundle，不接受需要猜测输出目录的直接 `@loader_path`/`@executable_path`。实际需要的 RPATH 来自明确库目录，并与 install name 一起进入 plan，因为它们写入 executable；纯 locator 和临时路径不进入。Mach-O undefined 不携带 library，单一库顺序不足以保证所有显式选库；program-link 为每个直接 provider 从已解析 binding 生成标准 `.tbd` v4，只列本次选择的符号并保留真实 target/install name/版本。re-export 投影为公开 owner 的可见符号，运行时仍加载原库；固定 libSystem 使用同一投影。ld 只读生成 stub，`-no_implicit_dylibs` 保持 two-level owner，原 bytes、规则与 stub 进入 plan。最终检查按真实 load-command 顺序解析 ordinal/provider，不固定为 libSystem/1。
 
-CanonicalNativeDefinition {
-    definition_id: NativeDefinitionId,
-    native_link_symbol: CanonicalNativeLinkSymbol,
-    linkage: CanonicalNativeLinkage,
-    visibility: CanonicalNativeVisibility,
-    kind: Function | ReadOnlyData | MutableData | ReadOnlyTls | MutableTls,
-    contract: NativeDefinitionContractFingerprint,
-}
-
-CanonicalNativeUndefinedUse {
-    use_id: NativeUndefinedUseId,
-    native_link_symbol: CanonicalNativeLinkSymbol,
-    relocation: CanonicalRelocationUse,
-    contract: NativeExternalContractFingerprint,
-}
-
-VerifiedNativeObjectSurface {
-    byte_length: u64,
-    sha256: Digest256,
-    target: TargetProfileWireId,
-    object_format: ObjectFormatId,
-    verifier_profile: NativeObjectVerifierProfileFingerprint,
-    definitions: CanonicalSet<CanonicalNativeDefinition>,
-    requirements: CanonicalSet<CanonicalNativeUndefinedUse>,
-    semantic_effects: CanonicalNativeSemanticEffectSet,
-    verification_fingerprint: NativeObjectVerificationFingerprint,
-}
-```
-
-`NativeDefinitionId`、`NativeUndefinedUseId`与`NativeObjectVerificationFingerprint`分别从所标识record移除自身id后以独立domain hash重算；set按相应id排序。verifier必须把每段会进入最终image的bytes及每个load command、section、symbol、relocation、constructor/destructor、EH/unwind、TLS和语言runtime metadata恰好归入上述typed surface或profile的一个`Verify` handler；不能归类就拒绝。M23内建的plain native-static capability拒绝constructor/destructor、EH/unwind、TLS、Objective-C/Swift metadata、自定义linker section以及任何autolink/embedded linker option；以后开放C/C++或更丰富native input时必须增加新的versioned contract，不能放宽为generic object pass-through。`CanonicalNativeAtomId`由verifier的canonical atom partition产生，relocation定位不使用raw section ordinal、symbol-table index、host path或临时文件名。
-
-resolved native input是下列封闭sum；key不含host path，id只由key产生。direct object与static archive只能使用内容身份；只有target profile登记的dynamic identity scheme可以使用platform identity：
-
-```text
-CanonicalContentIdentity = { byte_length: u64, sha256: Digest256 }
-
-CanonicalNativeProviderIdentity =
-    ContentDigest(CanonicalContentIdentity)                            // tag 1
-  | PlatformIdentity { scheme: CapabilityId, canonical_value: bytes } // tag 2
-
-ResolvedNativeInputKey =
-    DirectObject {
-        target: TargetProfileWireId,
-        object_format: ObjectFormatId,
-        content: CanonicalContentIdentity,
-    }
-  | StaticArchive {
-        target: TargetProfileWireId,
-        archive_format: ArchiveFormatId,
-        content: CanonicalContentIdentity,
-    }
-  | DynamicProvider {
-        target: TargetProfileWireId,
-        kind: SharedLibrary | Framework,
-        identity: CanonicalNativeProviderIdentity,
-    }
-
-ResolvedNativeInputId =
-    DomainSeparatedCborHash("scoop-resolved-native-input-v1",
-                            ResolvedNativeInputKey)
-
-NativeArchiveMemberRef {
-    archive_input: ResolvedNativeInputId,
-    physical_ordinal: u64,
-    header_offset: u64,
-    payload_offset: u64,
-    payload_length: u64,
-    payload_sha256: Digest256,
-}
-
-VerifiedNativeArchiveCandidate {
-    member: NativeArchiveMemberRef,
-    object: VerifiedNativeObjectSurface,
-}
-
-CanonicalResolvedNativeInput =
-    DirectObject {
-        input_id: ResolvedNativeInputId,
-        key: ResolvedNativeInputKey::DirectObject,
-        request_origins: NonEmpty<NativeInputRequestOrigin>,
-        provider_contract: NativeProviderContractFingerprint,
-        object: VerifiedNativeObjectSurface,
-    }
-  | StaticArchive {
-        input_id: ResolvedNativeInputId,
-        key: ResolvedNativeInputKey::StaticArchive,
-        request_origins: NonEmpty<NativeInputRequestOrigin>,
-        provider_contract: NativeProviderContractFingerprint,
-        archive_layout_fingerprint: Digest256,
-        candidates_in_physical_order: CanonicalVec<VerifiedNativeArchiveCandidate>,
-        verification_fingerprint: NativeArchiveVerificationFingerprint,
-    }
-  | DynamicProvider {
-        input_id: ResolvedNativeInputId,
-        key: ResolvedNativeInputKey::DynamicProvider,
-        request_origins: NonEmpty<NativeInputRequestOrigin>,
-        provider_contract: NativeProviderContractFingerprint,
-    }
-```
-
-`NativeArchiveVerificationFingerprint = DomainSeparatedCborHash("scoop-native-archive-verification-v1", {1=input_id, 2=archive_layout_fingerprint, 3=candidates_in_physical_order})`。static archive必须在调用native linker前一次性、有界地解析完整archive：拒绝thin/external/path member、nested archive、bitcode/LTO、unknown special member、非object ordinary member和越界/重叠布局；允许的symbol/long-name table也必须由`ArchiveFormatId`解释并进入layout fingerprint。每个ordinary candidate都按non-optional verifier profile检查，即使linker最后不抽取它。`NativeArchiveMemberRef`只在其精确archive digest内有意义；ordinal、offset、length与digest共同区分同名甚至相同bytes的重复member。target/linker profile的load trace若不能唯一恢复这个ref，该profile不合格。post-link trace只能选择该preverified candidate index中的记录，绝不能在链接后才发现并“补验”一个member。
-
-文件输入在读取和检查后，从同一份 bytes 物化到本次私有、create-new 的临时文件，linker 使用这些文件；原 locator 后续改变不能替换本次实际输入。使用已有打开的文件或普通内容缓存时同样保持所检查内容与实际消费一致，不增加 identity-pinning proof、来源凭证或 CAS 资格。平台 provider 记录实际 SDK stub、install name、target/deployment 和 ABI；stub 摘要不冒充运行时系统库或 dyld shared cache 的内容摘要。M23-9 固定 provider 按 [阶段设计](stage9/DESIGN.md) 第 6 节处理；M23-10 再接入实际一般 native 输入与必要的内容快照，不把 platform pinning/revalidation 协议作为编译器完成门。
-
-direct object 和每个实际抽取的 archive member 分别形成 static contribution，关联实际有序链接操作，而不是只保留库名或 member basename。`LinkActionIndex` 是该操作序列中从零开始的 typed u32 下标：
-
-```text
-NativeContributionSource =
-    DirectObject {
-        input: ResolvedNativeInputId,
-        action: LinkActionIndex,
-    }
-  | ArchiveMember {
-        input: ResolvedNativeInputId,
-        action: LinkActionIndex,
-        member: NativeArchiveMemberRef,
-    }
-
-ValidatedNativeContribution {
-    contribution_id: NativeContributionId,
-    plan: ResolvedLinkPlanFingerprint,
-    source: NativeContributionSource,
-    object_verification: NativeObjectVerificationFingerprint,
-    selection_evidence: NativeSelectionTraceEventFingerprint,
-}
-
-NativeContributionId =
-    DomainSeparatedCborHash("scoop-native-contribution-v1",
-                            {1=plan, 2=source, 3=object_verification})
-
-TargetSyntheticInputKey =
-    RelocatableObject {
-        target_profile: TargetProfileWireId,
-        capability: CapabilityId,
-        role: TargetSyntheticRole,
-        content: CanonicalContentIdentity,
-    }
-  | LinkerGenerated {
-        target_profile: TargetProfileWireId,
-        capability: CapabilityId,
-        role: TargetSyntheticRole,
-        generation_rule: Digest256,
-    }
-
-VerifiedTargetSyntheticInput =
-    RelocatableObject {
-        input_id: TargetSyntheticInputId,
-        key: TargetSyntheticInputKey::RelocatableObject,
-        object: VerifiedNativeObjectSurface,
-    }
-  | LinkerGenerated {
-        input_id: TargetSyntheticInputId,
-        key: TargetSyntheticInputKey::LinkerGenerated,
-        definitions: CanonicalTargetDefinitionSet,
-        requirements: CanonicalTargetRequirementSet,
-        verification_fingerprint: Digest256,
-    }
-```
-
-`TargetSyntheticInputId`以domain `scoop-target-synthetic-input-v1`从key重算。profile的default static archive/direct object必须进入`CanonicalResolvedNativeInput`并带`TargetProfile` request origin，default shared library/framework必须进入dynamic-provider分支；都不能伪装成`TargetSynthetic`。该分支只表示profile明确声明的startup/support relocatable object或linker-generated contract。
-
-native linker与artifact inspection完成后，program-link把每个实际受控贡献或dynamic provider归一化为封闭sum；未抽取任何member的static archive仍由plan/evidence覆盖，但不会伪造空contribution：
-
-```text
-FinalLinkInput =
-    ConeObject(VerifiedLinkObject)
-  | ProgramObject { bytes, image_and_root_references }
-  | RuntimeObject { bytes, definitions, requirements }
-  | NativeStaticContribution(ValidatedNativeContribution)
-  | NativeDynamicProvider(ValidatedDynamicProvider)
-  | TargetSynthetic(VerifiedTargetSyntheticInput)
-
-FinalLinkInputKey =
-    ConeObject { cone: ConeIdentity,
-                 artifact: ArtifactFingerprint,
-                 member: SlibMemberId,
-                 object_verification: Digest256 }
-  | ProgramObject { object_digest: Digest256 }
-  | RuntimeObject { artifact: RuntimeArtifactFingerprint,
-                    object: RuntimeObjectId }
-  | NativeStaticContribution { contribution: NativeContributionId }
-  | NativeDynamicProvider { provider: ResolvedNativeProviderId }
-  | TargetSynthetic { input: TargetSyntheticInputId }
-
-FinalLinkInputId =
-    DomainSeparatedCborHash("scoop-final-link-input-v1",
-                            FinalLinkInputKey)
-
-FinalLinkSymbolOwner =
-    Cone { cone, member, owner: DefinedLinkSymbolOwner }
-  | ProgramObject { symbol_role }
-  | Runtime { runtime_artifact, runtime_object, runtime_symbol }
-  | NativeStatic {
-        contribution: NativeContributionId,
-        definition: NativeDefinitionId,
-    }
-  | TargetSynthetic {
-        input: TargetSyntheticInputId,
-        definition: TargetSyntheticDefinitionId,
-    }
-```
-
-static owner只引用一个contribution中的一条definition；该contribution对应的全部request origin、resolved input与provider contract由typed relation反查，不能在owner中再复制一份可能不一致的单个requirement。undefined use也必须保存完整、类型化且可重算的origin：
-
-```text
-FinalUndefinedOrigin =
-    Cone {
-        cone: ConeIdentity,
-        member: SlibMemberId,
-        requirement: UndefinedSymbolRequirement,
-        relocation: CanonicalRelocationUse,
-    }
-  | ProgramObject {
-        program_object: Digest256,
-        requirement: CanonicalProgramRequirement,
-        relocation: CanonicalRelocationUse,
-    }
-  | Runtime {
-        runtime_artifact: RuntimeArtifactFingerprint,
-        runtime_object: RuntimeObjectId,
-        requirement: CanonicalRuntimeRequirement,
-        relocation: CanonicalRelocationUse,
-    }
-  | NativeStatic {
-        contribution: NativeContributionId,
-        requirement: NativeUndefinedUseId,
-        relocation: CanonicalRelocationUse,
-    }
-  | TargetSynthetic {
-        input: TargetSyntheticInputId,
-        requirement: TargetSyntheticRequirementId,
-        relocation: CanonicalRelocationUse,
-    }
-
-FinalUndefinedSymbolRequirement {
-    requirement_id: FinalUndefinedSymbolRequirementId,
-    origin: FinalUndefinedOrigin,
-    native_link_symbol: CanonicalNativeLinkSymbol,
-    contract: NativeExternalContractFingerprint,
-}
-
-FinalUndefinedSymbolRequirementId =
-    DomainSeparatedCborHash("scoop-final-undefined-symbol-v1",
-                            {1=origin, 2=native_link_symbol, 3=contract})
-
-FinalUndefinedResolution =
-    Controlled {
-        requirement: FinalUndefinedSymbolRequirementId,
-        owner: FinalLinkSymbolOwner,
-    }
-  | DynamicImport {
-        requirement: FinalUndefinedSymbolRequirementId,
-        provider: ResolvedNativeProviderId,
-        binding: ValidatedDynamicImportBindingId,
-    }
-```
-
-每个origin中的typed requirement与relocation必须反查到所属object verification surface中的同一symbol/contract，不能靠symbol name重新配对。dynamic provider只出现在resolution中，从不成为definition owner或undefined origin：
-
-```text
-ResolvedNativeProviderId =
-    SHA-256(ByteSpan("scoop-resolved-native-provider-v1") ||
-            raw(ResolvedNativeInputId))
-
-ValidatedDynamicProvider {
-    provider_id: ResolvedNativeProviderId,
-    resolved_input: ResolvedNativeInputId,
-    bindings: CanonicalSet<ValidatedDynamicImportBinding>,
-}
-
-ValidatedDynamicImportBinding {
-    binding_id: ValidatedDynamicImportBindingId,
-    undefined_requirement: FinalUndefinedSymbolRequirementId,
-    native_link_symbol: CanonicalNativeLinkSymbol,
-    contract: NativeExternalContractFingerprint,
-}
-
-ValidatedDynamicImportBindingId =
-    DomainSeparatedCborHash(
-        "scoop-dynamic-import-binding-v1",
-        {1=undefined_requirement, 2=native_link_symbol, 3=contract})
-```
-
-provider id按上式只表示dynamic resolved input身份，不随本次程序实际imports改变；只有`CanonicalResolvedNativeInput::DynamicProvider`的id可用于该公式。target/kind/identity全部从`resolved_input`反查并作为provider record的一致性证明，不进入provider id preimage，也不能在post-link record中复制第二份。binding id从移除自身id后的完整binding重算。完整request origins与provider contract同样只由`resolved_input`反查。`PlatformIdentity.canonical_value`必须是对应scheme定义的有界canonical bytes，unknown scheme不能进入plan。bindings按binding id严格排序，可以为空（例如profile明确保留但当前没有import的load command）；但每个实际允许external resolution的requirement必须在全部provider中恰绑定一次。未绑定export不是`FinalLinkSymbolOwner`。每个实际shared-library/framework load command都有一个dynamic-provider origin；仅作为候选而未形成load command的input只保留plan/evidence。dynamic provider不得满足、抢占或interpose任何最终解析类别为`Controlled`的requirement，而不只是compiler-private符号。外部provider在运行机器上是否真实遵守声明的C ABI仍是FFI作者责任，但不能因此跳过输入identity、contract或provenance验证。
+普通 final input/reference 数据直接复用原 Cone/runtime/startup 记录，并增加 native static origin 与 dynamic provider 关联。dynamic provider 只作为外部解析目标，不冒充受控定义。map/trace 验证实际对象和读取文件，最终 symbol/fixup/bind/load 检查链接新产生的地址与绑定；不重新读取 HIR/MIR、重算全部对象/ODR，或要求 runtime 验证 native 来源。未知 Link-required capability 仍报错；没有实际 producer/consumer 的 blob handler、Cone 内 C/C++ producer 和通用 action/evidence 状态机不属于 M23 完成门。
 
 M23-9 的启动对象保存实际 image/root 引用，runtime 构建结果保存实际 target、C toolchain、build rules、对象及符号/ABI 摘要。外部对象输入在读取边界检查格式、引用和 ABI，同次构建的完整结果直接使用；不要求不可伪造的 runtime/program 凭证，也不预设固定 core binding 或独立来源证明。
 
@@ -1778,6 +1435,7 @@ scoop build <root-input> [--cone-path <root> ...]
 scoop run <root-input> [--cone-path <root> ...]
           [--library-path <root> ...] [-- <program-arg> ...]
 scoop link --root-slib <root.slib> --dependency-slib <upstream.slib>...
+           --runtime-objects <index> [--cone-path <root> ...]
            [--library-path <root> ...] -o <binary>
 
 scoopc build <Cone-root-or-Cone.toml-or-file.scoop>
@@ -1786,7 +1444,7 @@ scoopc build <Cone-root-or-Cone.toml-or-file.scoop>
     --out-slib <current.slib>
 ```
 
-`root-input`是第1.3节的封闭sum：目录或`Cone.toml`选择manifest Cone，regular `.scoop`文件选择single-file root；显式文件operand始终优先，不查找相邻manifest。`scoop run`对library root报错，对executable manifest root与single-file root采用同一路径。target profile与sysroot仍是每个命令的显式、规范化配置，示意中省略。所有CLI path只作定位或当次诊断展示，不进入Cone/member/entity identity、fingerprint或semantic source identity；大量dependency以后可以增加与上述参数逐项等价的response-file传输形式，但它不能成为第二套graph/artifact协议。host native library search path只属于`scoop`/program-link；`scoopc`仅把源码与member capability产生的逻辑native requirement写入`.slib`，不能让当前机器的`-L`选择改变single-Cone semantic/code artifact。单文件旁边的`.c`/`.cc`、archive或blob不会被自动发现；需要它们的调用方或fixture runner必须先显式构建出满足已有typed requirement的library，再只通过`--library-path`把候选搜索根交给program-link。CLI不提供无来源的raw object/archive注入参数。
+`root-input`是第1.3节的封闭sum：目录或`Cone.toml`选择manifest Cone，regular `.scoop`文件选择single-file root；显式文件operand始终优先，不查找相邻manifest。`scoop run`对library root报错，对executable manifest root与single-file root采用同一路径。target profile与sysroot仍是每个命令的显式、规范化配置，示意中省略。用于定位／展示的 CLI path 不进入 Cone/member/entity identity、fingerprint 或 semantic source identity；M23-10 实际写入 executable 的 install name/RPATH 属于装载语义，按 3.7 和阶段设计纳入 link plan；大量dependency以后可以增加与上述参数逐项等价的response-file传输形式，但它不能成为第二套graph/artifact协议。host native library search path只属于`scoop`/program-link；`scoopc`仅把源码与member capability产生的逻辑native requirement写入`.slib`，不能让当前机器的`-L`选择改变single-Cone semantic/code artifact。单文件旁边的`.c`/`.cc`、archive或blob不会被自动发现；需要它们的调用方或fixture runner必须先显式构建出满足已有typed requirement的library，再只通过`--library-path`把候选搜索根交给program-link。CLI不提供无来源的raw object/archive注入参数。
 
 `scoop build <file.scoop>`省略`-o`时，把最终binary原子物化到调用者cwd下的`.scoop/build/single-file/<target-profile-id>/<ResolvedLinkPlanFingerprint>/<sanitized-input-stem>`；fingerprint使用完整值建立目录，示意路径可缩写显示，stem只影响展示文件名而不进入semantic/cache identity。同一输出位置由build lock串行发布，因而并行fixture不会因共享reserved Cone coordinate、相同basename、不同core/toolchain或不同native解析结果而覆盖。显式`-o`只改变materialization destination，不改变artifact或link plan。`scoop run <file.scoop>`默认直接执行本次build得到的已验证binary；它可以位于受检cache或私有临时物化目录，但不额外承诺一个用户可见输出路径，需要保留binary时使用`build -o`。manifest root的默认输出仍位于其自己的build目录，不能与single-file默认路径混用。
 
@@ -1800,6 +1458,10 @@ scoopc build <Cone-root-or-Cone.toml-or-file.scoop>
 4. 对当前Cone执行parser → HIR → MIR → LIR → codegen/native-member production → per-member verification/finalization → pack。当前实现产生多少native object不是接口不变量；packager接收typed member集合并按4.1建立canonical目录；
 5. 所有link object联合起来恰好定义本Cone的一个image descriptor；全部undefined relocation按`{SlibMemberId, use}`验证、收集contract/requirement。之后原子写`--out-slib`临时文件，核对写入字节与同次编译归档一致，再rename；不把当前产物及全部依赖重新交给 Compile/Link reader；
 6. 无论manifest kind是library还是executable，唯一产物都是当前Cone `.slib`。executable分支结构上额外携带非可选typed main/root gateway metadata，但`scoopc`不生成program descriptor、不读取或构建runtime输入，也不调用最终native linker。
+
+M23-11 的具体 CLI／配置、诊断／dump、输出路径及恢复历史覆盖见 [阶段设计](stage11/DESIGN.md)。公开 `link` 必需显式 runtime index，只沿 root artifact 的 exact edge 查找已有 `.slib`，不启动 compiler、不读 Scoop/runtime 源码或重建缺失依赖。build/run 可选择实际 runtime source build 或显式对象索引，使用同一 program-link。manifest 默认输出按 target 和完整 artifact／link-plan fingerprint 放在 Cone root 的 `.scoop/build/`；single-file 路径保持上述规则。默认路径需要本次 link-plan fingerprint 时，先在私有目录链接一次，再移交同一已检查 binary，不二次链接或重验。
+
+child 协议 2 保留单 request／response 的 canonical CBOR framing，以明确 stage 集合和文件目录请求观察输出；machine stdout 只保存 response frame，返回全部请求 stage 的文件位置与内容摘要。HIR dump 显示 Export 和 LocalConcrete。正常 cache hit 零 child；显式 dump 对指定 source 节点重新编译一次，不从 `.slib` 反造瞬时 IR，不缓存 dump。语言诊断在尚持有实际 source 映射的边界保留 primary／note 的 canonical source/span，父进程只增加本次显示路径，cache warning 同样保持。协议／配套 capability 与 compile key 同步迁移，既有 `.slib`、runtime ABI 3 和 link-plan v2 不因 CLI 变更升级。
 
 直接生成的single-file `.slib`可交给`scoop link --root-slib`，但linker必须验证它是闭包中唯一root，从普通 core artifact locator 取得依赖，默认 sysroot 只作查找位置，并要求其 identity、root dependency edge 记录的 HIR/MIR/LIR semantic fingerprint 及 ABI 全部匹配；本次core的code/artifact fingerprint另行进入link plan，不要求等于编译root时某个未被dependency table记录的byte-exact artifact。single-file `.slib`继续禁止出现在`--dependency-slib`或manifest locator位置。这样低层`scoopc build <file.scoop>`有完整后续路径，又不会把reserved identity变成可发布library identity或破坏object-only更新只需relink的规则。
 
@@ -1834,7 +1496,9 @@ ResolvedLinkPlanFingerprint =
 
 各字段使用实际 typed identity、完整合同、内容与工具 fingerprint，具体输入见阶段设计第 3～7 节；物化/cache/output 的 host 路径不参与 canonical key。Code 已覆盖 provider、definition、ABI 和 ODR 等影响链接的数据，不另生成一份用于“证明已读入”的 surface digest。相同产物换路径不改变 plan；有效对象、合同、alias、工具或操作顺序改变则变化。
 
-M23-10 在同一模型中增加实际 direct native object、archive 和 dynamic provider。archive 重复、group、ordinary/whole-archive/force-load 等有序语义不能退化为集合，候选解析后实际抽取必须落到原 input/member；零抽取是正常结果。dynamic load/binding 关联其实际 provider，不能被未声明的 extra input 或 linker default 补齐。暂未实现的 variant 不要求 Stage 9 构造空壳表或通用事件框架。
+M23-10 在同一模型中增加实际 direct native object、archive 和 dynamic provider，详细规则见 [阶段设计](stage10/DESIGN.md)。archive 成员由同一符号解析器选择并作为独立对象传给 ld，实际记录对应原 input/member，零选择不伪造贡献。同一成员不重复纳入，不增加没有生产输入表达的 whole-archive/force-load 或通用 action/evidence 框架。dynamic load/binding 关联其实际 provider；re-export 与普通依赖分开，必要快照和目标参数防止隐式替换输入。
+
+本阶段 plan 改用 `scoop-resolved-link-plan-v2`，加入 native 内容、成员选择、动态依赖／绑定及有序命令。用于定位／展示的路径仍不进入摘要；实际写入 executable 的 install name 和必要 RPATH 是装载语义，必须参与 plan。final-link profile 使用 `scoop-final-link-profile-v2`，原八字段加 native 输入规则 revision `1`；不改变 `.slib`、LIR target、backend、runtime metadata ABI 3 或 runtime index schema 1。
 
 linker 返回的 map/trace、最终 symbol/binding/load command 与 executable digest 是普通检查结果。它们解释实际定义、对象贡献和外部绑定，不包含 `FrozenContentSnapshotProof`、`PlatformIdentityProof` 或新的验证器凭证链；删除这些未实现的证明外层。已有不可变输入直接使用，实际 I/O 内容变化或新输入边界才重做对应检查。
 
@@ -2312,18 +1976,18 @@ non-generic delegated extension继续按M21普通top-level eager storage；两�
 
 至少提供以下稳定错误：
 
-- manifest schema/coordinate/kind/dependency/locator错误，reserved core伪造、path/artifact coordinate不匹配；
+- manifest schema/coordinate/kind/dependency/locator错误，core coordinate/version不匹配、path/artifact coordinate不匹配；合法的用户 core 源码与其他普通 Cone 使用相同图规则；
 - root operand不存在、不是regular file/目录、文件名与扩展名无法唯一分类，single-file伪造reserved coordinate、传入非core Cone artifact或将single-file `.slib`当作dependency；
 - dependency cycle、同`group:name`多version、同Cone identity不同semantic artifact、executable dependency；
 - source path逃逸/重复/非UTF-8、空Cone、executable entry缺失/重复/签名错误；
 - package/import位置或path错误、star alias、非direct import、不可见target、exact/split-package歧义；
 - public import当前Cone/internal/private/protected target、destination binding冲突、star展开冲突；
 - imported overload/extension/property/alias按M16–M22普通规则产生的无适用/MSC/访问错误，诊断同时显示声明source coordinate；
-- public inheritance surface缺失protected slot/constructor或witness损坏；
+- public inheritance surface缺失protected slot/constructor或实际typed声明／引用损坏；
 - `.slib` magic/hash/schema/ABI/target不兼容、section 缺失/重复/实际范围越界、typed ref/kind/index/origin错误；
 - stale direct dependency fingerprint、HIR/MIR/LIR bridge不完整；
 - symbol、persistent id、runtime type id、SafepointId碰撞；ODR同key不同member/fingerprint或link后多地址；
-- program/image descriptor缺失/重复、DAG/order/table/root/TD/init record不完整；
+- image/root-entry descriptor缺失/重复、DAG/order/table/root/TD/init record不完整；
 - generic delegated extension不能由receiver定型或specialization ODR不一致。
 
 `scoop`/`scoopc`/program-link/reader错误不得把host绝对路径写入artifact或可复现golden的semantic部分。manifest Cone的canonical diagnostic source是`group:name:version/src/...`，single-file root则恒为`scoop:single-file:0.0.0/main.scoop`；`SourceLocation.file`也使用该canonical source path。CLI可用当次用户传入路径装饰本地manifest、artifact或single source诊断，但装饰值不参与排序、identity、wire、structured semantic snapshot或cache。测试把snapshot分为两层：typed/structured diagnostic snapshot只含canonical source；CLI presentation snapshot可另含经过fixture runner规范化的relative display locator，绝不保存host绝对路径。diagnostic排序为graph phase/order、Cone coordinate、canonical source path/span或`SlibMemberId`；不能依赖HashMap、archive member物理顺序或filesystem枚举顺序。
@@ -2339,7 +2003,7 @@ non-generic delegated extension继续按M21普通top-level eager storage；两�
 - single-file root在相对路径、绝对路径与等价symlink spelling下产生相同Cone/source/entity identity与`.slib` bytes，只有CLI diagnostic decorator不同；不同源码内容必须产生不同cache entry。该artifact只能作唯一executable root（包括显式`scoop link --root-slib`），不能作为可分发artifact发布、作dependency或由manifest locator引用；
 - single-file source的Cone dependency闭包恒为trusted core；对非core Cone的import、direct/support `.slib`参数均稳定失败。另行覆盖`@Extern`所需native library只由artifact中的typed requirement加显式`--library-path`成功解析，证明它不被误当作Cone dependency，也不能用raw object注入绕过requirement；
 - chain、diamond、无依赖siblings、cycle、自环、多version、same coordinate different artifact；
-- 用recording/fake compiler runner锁定`scoop`按canonical dependency-first顺序为每个source cache miss调用配套`scoopc`恰好一次，prebuilt/cache hit不调用；但候选必须完整构造Compile与Link view后才能标为命中、交给dependent或作为library root返回，只通过Graph、Compile失败、unknown LinkObject capability或Link verifier失败都稳定拒绝。cycle等全图错误发生在首次调用前，上游失败后dependent与program-link均不启动；
+- 用recording/fake compiler runner锁定`scoop`按canonical dependency-first顺序为每个source cache miss调用配套`scoopc`恰好一次，普通prebuilt/cache hit不调用。父进程核对不可变归档、summary、实际依赖和缓存／child结果；完整Compile或Link数据在对应消费者读取，不能为标记cache hit重放两个完整view。容器／hash损坏在父进程失败，typed IR、unknown Link-required capability或对象损坏在实际消费边界拒绝。显式dump只对指定source节点重新编译一次，不改变编译键。cycle等全图错误发生在首次调用前，上游失败后dependent与program-link均不启动；
 - 直接运行`scoopc`时，direct/support参数乱序仍产生同一artifact；缺失、重复、错分、stale、额外不可达、cycle、自环、同名多version、executable dependency 与错误 typed identity/签名/表示的 `.slib` 闭包按共有规则稳定失败，并证明它没有跟随manifest locator、读取上游source或产生上游artifact。手工按序调用`scoopc`得到的`.slib`逐byte等于`scoop build`的对应产物；
 - `scoop`拒绝来自任意`PATH`的错版本`scoopc`及不兼容结构化协议；child成功后篡改coordinate/fingerprint的输出在cache发布前被父进程拒绝；
 - recursive multi-file source、不同package、root package、source排序/路径归一化；
@@ -2365,7 +2029,7 @@ non-generic delegated extension继续按M21普通top-level eager storage；两�
 - typed member directory覆盖一个及多个`LinkObject`、diagnostic attachment、optional/Link-required extension blob与混合顺序；raw container缺少link object时仍可构造`DecodedSlibEnvelope`，metadata完备时也可构造Compile view，但不能构造`ValidatedLinkArtifact`或作为M23可发布artifact。同一完整产物闭包提供实际 Compile/Link 数据；未读取 IR 或对象的摘要不能提供相应数据，Diagnostics 不改变这一要求。物理名、输入端basename/扩展名和枚举顺序不决定role。把原始标签为`foo.o`的bytes登记为opaque blob时它绝不进入link view，把无`.o`标签的bytes登记为`LinkObject`时它仍进入；archive内二者照常使用canonical `mNNNNNNNN`名。重复id/name、path-like/reserved/special ar成员、thin archive、未声明/缺失payload及member/hash/target错配均拒绝；
 - exact wire golden覆盖`SlibMemberRecord`的1…5 field key、stable-key/role tag 1…6、purpose bit 0x1/0x2/0x4/0x8、Capability ASCII边界/NonZero major、四个内建typed id，以及从logical key到member id的固定hash vector；内建object key另覆盖1个、128个与大型plan/unit集合，锁定count + sorted-set digest、乱序等价、重复/遗漏/跨member重用失败及key长度恒定。callback unit覆盖同一C签名不同合法context index得到不同id、不同closure使用同一pair复用同一id，以及负数、超过`u32`、越界或非`Ptr<Unit>`槽在生成unit前失败。unknown/额外tag或field、reserved bit、非canonical CBOR、capability大小写/空label/过长logical key均拒绝。canonical ar golden逐byte锁定global magic、`name/`、mtime/uid/gid/mode/size padding、odd payload `0x0A` pad和十进制`m00000000`…名；任何等价但非canonical header spelling也拒绝；
 - unknown optional capability在完整长度/hash验证后可跳过且不能影响Graph/Compile/Link结果；unknown Link-required capability只在Link view解码前失败，Graph/Compile仍把payload保持opaque。ExtensionBlob上的Graph/Compile/Diagnostics bit、多bit组合和unknown purpose bit都是v1非法role/purpose组合；插入或修改optional blob只改变`ArtifactFingerprint`，不得通过物理ordinal/name间接改变三层semantic fingerprint、`LinkMemberFingerprint`或`CodeFingerprint`；
-- unknown `LinkObject.verifier_capability`、Mach-O非`MH_OBJECT`、`LC_LINKER_OPTION`/autolink、未认领external/weak definition，以及Link extension handler试图输出object/raw bytes/argv/path/script/unchecked input都在native linker前拒绝；Scoop、generated bridge、未来C/C++等所有object都只能经显式`LinkObject` role进入统一object/defined/undefined/image验证；
+- unknown `LinkObject.verifier_capability`、Mach-O非`MH_OBJECT`、`LC_LINKER_OPTION`/autolink、未认领external/weak definition，以及把 Link-required blob 当作 object/raw argv/path/script 的输入都在 native linker 前拒绝；当前未知 required capability 直接诊断，不为构造反例新增 handler；Scoop、generated bridge、未来C/C++等所有object都只能经显式`LinkObject` role进入统一object/defined/undefined/image验证；
 - 多个link object的definition range、patch、stackmap、undefined-symbol use及diagnostic都必须携带正确`SlibMemberId`；跨member range、错owner、零/重复image descriptor或manifest `image_owner_member`错指均在pack/read/link前失败；
 - generic concretization predicate逐variant wire round-trip；unknown tag、缺字段路径、binder/persistent type ref越界均拒绝，predicate或字段路径改变必须改变HIR semantic fingerprint；
 - 同一artifact由两个direct path加载只intern一个origin world id；
@@ -2393,9 +2057,9 @@ non-generic delegated extension继续按M21普通top-level eager storage；两�
 - 全部Scoop-owned symbol符合persistent mangling，两个Cone声明同package/name的non-generic实体无link碰撞；
 - native extern/library/member-capability requirements从transitive closure完整汇总；同symbol的canonical contract相同则去重，library、function/data/TLS/mutability、C/Scoop ABI、calling convention、参数/结果canonical storage或storage type任一差异均在native linker前失败，诊断包含双方origin及不同字段。未调用的声明同样参与验证；任一link object的`SourceExtern` relocation漏contract或匹配多个contract时拒绝。只改变contract而不改变object bytes也必须使code/link key失效；
 - program-link在全新进程中只凭共有 Link 数据与 runtime 对象成功链接，证明不依赖root编译内存状态或runtime源码；fake native linker argv精确等于按Cone/member canonical order形成的typed link view，每个object一次且没有任何opaque/diagnostic成员。两个Cone内部相同raw archive member名必须物化为不同create-new路径且不可借symlink覆盖；多个object之间互相引用可正常解析，任一link member变化触发relink但不在semantic metadata不变时重编译dependent；
-- runtime target/ABI/digest/entry/contract不符、定义program/Cone/Scoop保留symbol、program object多定义或少/多image/root/core relocation，以及Cone/program/runtime/native/target object中的autolink/linker directive都在native linker前失败。专门构造**不会被抽取**但含autolink/directive的static archive candidate，必须在fake linker runner被调用前失败；thin/external/path member、nested archive、bitcode/LTO、未知ordinary member，以及constructor/destructor、EH/unwind、TLS或语言metadata缺少对应capability contract也同样失败；
-- static archive trace必须覆盖：零member抽取产生显式空selection并可成功；同名member、相同bytes的不同ordinal仍按parent input + ordinal/offset/length/digest唯一定位；引用另一archive member、未知/未验证candidate、重复trace event或把direct object伪装成archive member均拒绝。shared provider允许空binding，但缺失/重复/错provider binding、意外load command、target默认动态库没有`TargetProfile` request origin，或provider尝试满足/interpose任一`Controlled` requirement都失败；
-- `ResolvedLinkPlan` golden覆盖相同archive在不同位置或重复出现、group边界、ordinary/whole-archive/force-load及profile option occurrence；任何顺序变化都改变plan fingerprint。每个planned action/input都有且只有一个evidence outcome，archive未抽取与dynamic未加载也不能省略；extra trace/load/target-synthetic input拒绝。target synthetic还覆盖缺capability、额外definition/use、错误generation rule和content digest变化；
+- runtime target/ABI/digest/entry/contract 不符、定义 program/Cone/Scoop 保留 symbol、startup 少／多 image/root 引用，以及实际进入链接的对象含 autolink/linker directive 均在 ld 前失败。native archive 的 thin/external、nested、坏边界／索引、非目标对象拒绝；选中成员的 constructor/destructor、动态 TLS initializer、common 或 M25 禁止依赖失败。未选成员只进行必要格式和候选索引检查，不要求完整效果验证。
+- static archive 覆盖空／多成员选择、同名及相同 bytes 的不同 ordinal、成员链与跨 archive 回边；有限工作集每个成员只纳入一次，选中成员作为独立对象物化并在 map/trace 精确对应原 input/member。未选成员不提供定义或引用，实际纳入的重复定义拒绝。dynamic 覆盖实际 export、普通依赖与 re-export、TLS、provider/ordinal、绝对 install name 和 RPATH；默认歧义、缺失／错误绑定、意外 load 或接管受控定义均失败。
+- `ResolvedLinkPlan` v2 golden 覆盖 requirement 来源合并、实际对象／archive member 顺序、provider 依赖及绑定、RPATH 和系统命令操作；内容、合同、选择、工具或装载路径改变影响摘要，纯 locator 改变不影响。没有生产输入表达的 whole-archive/force-load、通用 action/evidence outcome 或 target-synthetic 证明工厂不属于验收。
 - 实际输入一致性测试在 plan 定稿后改变原 native locator 或 symlink，linker 仍消费本次已经读取／物化的 bytes；内容记录不一致在输入边界失败。固定系统 provider 使用真实 SDK stub/install name/ABI，不增加 platform pinning proof；
 - 若启用 final-link cache，更换实际 native/runtime/target 内容、合同或 toolchain 必须失效；相同 bytes 的路径别名可以命中。metadata-only 的 owner/requirement 变化也通过 Code 进入 plan；损坏缓存或 executable digest 不一致按 miss 重链，复用未变化的输入和已完成检查，不要求凭证或重复完整 final/runtime 验证；
 
@@ -2437,7 +2101,11 @@ non-generic delegated extension继续按M21普通top-level eager storage；两�
 - `tests/fixtures/m23-errors/`；
 - `tests/slib/`的format/corruption/reproducibility测试。
 
-每个多Conefixture自身含多个Cone目录和manifest，runner以graph root为单位快照每个Cone AST/Export HIR/LocalConcrete HIR/MIR/LIR及最终stdout/stderr。至少一个组合fixture串联re-exported generic default → downstream local type specialization → interface dispatch → delegated generic extension → eager/lazy globals → moving GC/exception。M1–M22及M25全部历史单文件fixture改走正式`scoop build <file>` orchestration后保持语言结果与诊断覆盖；涉及路径的snapshot允许一次受控更新。runner从版本化child protocol或同一orchestration library的typed test result取得AST/HIR/MIR/LIR、warning与diagnostic，不直接调用`scoopc` pipeline library，也不把dump混入program stdout。diagnostic presentation layer可把当次operand规范化为fixture-relative display locator以保持可读性，但canonical semantic source仍为`scoop:single-file:0.0.0/main.scoop`。现有FFI fixture继续由runner显式把配套native source构建成满足既有`@Extern` requirement的library，并仅以`--library-path`传入其搜索根，不引入“发现相邻`.c`”或注入raw object/archive的隐式规则。
+每个多 Cone fixture 自身含多个 Cone 目录和 manifest，统一 Python runner 以 graph root 为单位快照每个 Cone AST/Export HIR/LocalConcrete HIR/MIR/LIR 及最终 stdout/stderr。至少一个组合 fixture 串联 re-exported generic default → downstream local type specialization → interface dispatch → delegated generic extension → eager/lazy globals → moving GC/exception。M1–M22 及 M25 全部历史单文件 fixture 改走正式 `scoop build <file>` 后保持语言结果与诊断覆盖；涉及路径的 snapshot 允许一次受控更新。
+
+runner 从正式 CLI 的 JSON 记录、实际 dump 文件和进程结果取得 AST/HIR/MIR/LIR、warning 与 diagnostic，不直接调用 `scoopc` pipeline library 或 orchestration library，也不把 dump 混入 program stdout。diagnostic presentation layer 可把当次 operand 规范化为 fixture-relative display locator 以保持可读性，但 canonical semantic source 仍为 `scoop:single-file:0.0.0/main.scoop`。现有 FFI fixture 继续由 runner 显式把配套 native source 构建成满足既有 `@Extern` requirement 的 library，并仅以 `--library-path` 传入其搜索根，不引入“发现相邻 `.c`”或注入 raw object/archive 的隐式规则。
+
+源码注释或附加 TOML 使用同一 acceptance schema，统一描述执行条件、步骤、诊断／快照／运行断言、native 输入与 stress 变体。新 fixture 自动发现，通常只增加源码、条件和期望文件；不按 case、文件名或里程碑修改 Python。M23-11 将现有 Rust 文件 fixture 编排和 golden 比较迁入这套规则，恢复覆盖后删除旧 runner、专用 helper、入口及不再使用的依赖；普通 Rust 内部单元测试保留。完整验收同时执行 Rust 测试和 Python fixture suite，具体规则与清理完成门见 [Stage 11 设计](stage11/DESIGN.md) 第 7 节。
 
 ## 10. 实现顺序与完成门
 
@@ -2547,28 +2215,36 @@ Link 直接复用原 foundation 身份／合同，完整机器 ABI／布局原�
 
 ### M23-10：一般 native 输入与链接闭包
 
-本地调用、默认值、泛型实例和依赖调用均从 6a 共同 HIR 继承已选 native contract、effects 和完整类型，MIR/LIR 生成实际 ABI 与 requirement。本阶段只解析已有 requirement 对应的 native 输入，不能重跑 HIR 类型／重载选择或另建 generic native 前端。正负例复用共同 HIR 的直接／模板调用组合。
+详细设计见 [M23-10](stage10/DESIGN.md)，状态：已完成并验收（2026-10-02）；真实产物、最终绑定、功能组合及完整回归见 [验收记录](stage10/ACCEPTANCE.md)。前置条件为已验收的 M23-9。
 
-依赖 M23-9。扩展同一物理输入模型，增加 direct native object、static archive、一般 dynamic provider 的定位与供应、known Link-required blob handler、实际候选／抽取／绑定、必要内容快照和最终检查；复用已有 extern 合并／解析器，不为 core 或普通库另开路径。`ResolvedLinkPlan` 及 map/trace 保存这些实际输入和链接结果，不恢复来源证明外层。可选 final-link cache 按实际内容、合同和工具失效；本阶段封闭 `.slib v1` 的内建 Link capability 集合。CLI 或 fixture 只用 `--library-path` 为 artifact 已有逻辑 requirement 提供候选，不能注入没有真实 requirement 的 raw `.o`、archive、linker option 或 script。
+本地调用、默认值、泛型实例和依赖调用均从 6a 共同 HIR 继承已选 native contract、effects 和完整类型，MIR/LIR 生成实际 ABI 与 requirement。补齐导入 global／TLS、GC intrinsic、callback 协议和泛型 FunPtr 的共有消费；program-link 只解析已有 requirement 对应的 native 输入，不能重跑 HIR 类型／重载选择或另建 generic native 前端。正负例复用共同 HIR 的直接／模板调用组合。
 
-完成门：archive 零／多 member 抽取、dynamic binding、native 合同冲突、实际输入与 target 生成项、输入内容变化及 trace/map/binding 核对矩阵通过；启用 final-link cache 时另验证内容失效和损坏重链。第 9.4/9.6 节除公开 CLI/历史 fixture 迁移外的实际 Link 闭包得到验证。Cone 内未来 C/C++ producer 仍须新增自己的格式与对象 verifier capability，不改变 typed member directory 或引入单 object 假设。
+扩展同一物理输入模型，增加 direct native object、static archive、一般 dylib/framework 的定位与供应。archive 由有限符号工作集选择，选中成员独立交给 ld；dynamic 保留真实 export/load/re-export 关系、two-level provider binding 和必要 RPATH。复用原 extern、对象、startup、map/trace 与 final verifier，不为 core 或普通库另开路径。CLI 或 fixture 只用 `--library-path` 为 artifact 已有逻辑 requirement 提供候选，不注入 raw `.o`、archive、linker option 或 script。
+
+普通 native 输入不要求 producer 来源凭证或通用 verifier profile；不实现没有实际生产调用的 Link-required handler、Cone 内 C/C++ producer、effect 插件和逐 action/binding 的证明状态机。未选 archive 成员只作必要格式／索引检查，选中成员才检查实际效果。unknown required capability 仍诊断。plan/profile 升至本阶段 `/v2` 内容规则，既有 `.slib` 和 runtime ABI 保持；final-link cache 不在本阶段实现。
+
+完成门：正式独立进程只用产物和 native 文件完成三类输入的链接运行，覆盖 archive 成员链／回边／同名／未选成员、dynamic/re-export/RPATH、global/TLS、CLayout、Scoop ABI、callback、默认值／泛型再次发布与 moving GC。全部真实合同、选择、引用、最终绑定、输入变化、诊断及原子输出矩阵通过，完成第 9.4/9.6 节适用回归。公开 CLI、single-file 和历史 fixture 总迁移归 M23-11。
 
 ### M23-11：umbrella CLI、single-file mode与总验收
 
+详细设计见 [M23-11](stage11/DESIGN.md)，状态：已设计，待实现（2026-10-02）。前置为已验收的 M23-10；本文中的完成门尚不能据此标记通过。
+
 CLI 只编排同一编译管线。总验收继承 6a 的源码／wire 等价、声明位置变化和双向泛型组合矩阵，并覆盖 Stage 7–10 的实际产物与运行；历史 fixture 不能通过旧本地/core 拼接入口掩盖依赖消费差异。
 
-依赖M23-10。正式启用`compiler/scoop` bin、配套`scoopc` child protocol、artifact cache发布、`scoop build`、`scoop run`和`scoop link`；实现第1.3/5.5节的manifest/single-file root分流、默认输出物化与执行语义。final-link cache仍是可选优化，不是完成门。M1–M22及M25全部历史fixture在本阶段一次性切到正式`scoop build <file>` orchestration，保留stage dump/warning/diagnostic与运行结果覆盖；FFI companion native code由runner显式构建为满足已有`@Extern` requirement的library，并仅通过显式`--library-path`参与解析。切换与删除旧driver为同一批变更，不留两条生产路径。
+正式启用`compiler/scoop` bin、配套`scoopc`协议2、现有artifact cache和`scoop build/run/link`。补齐canonical primary/note、cache warning及一次多stage文件dump；普通命中零child，显式观察重新编译指定source节点一次。实现第1.3/5.5节的manifest/single-file分流、默认输出原子物化和run语义；公开link必须消费现有runtime index与产物，不读源码或启动compiler。final-link cache不在本阶段实现。
 
-完成门：`scoop build/run <file>`对相邻manifest/source/native文件不做隐式发现，只构建一个source + core的synthetic executable graph；`run`只是build + execute，正确处理`--`、stdio/cwd/environment和exit/signal；单文件和多Cone综合fixture、cache失效矩阵、corruption/reproducibility与moving-GC/exception/closure/coroutine/FFI全量回归通过。诊断snapshot允许一次受控迁移到semantic source identity与独立display locator模型，不能把host路径重新写进persistent identity。
+旧 driver executable 入口和 fixture runner 已经在 `c02bd245c` 删除。本阶段以统一 Python infra 恢复 M1–M22 及 M25 历史端到端 fixture 到正式 `scoop build <file>`，保留 stage dump/warning/diagnostic 和运行结果；现有 Rust 文件 fixture harness（含阶段 golden、program-link/native）一并迁移，明确各源码归属并补 CLI 规则覆盖。acceptance criteria 采用源码注释／附加 TOML 的同一 schema，统一表达条件、步骤和断言；新增 fixture 原则上只改数据，只有无法表达新的实际能力时才扩展公共规则，禁止 case-by-case 分支。FFI companion 由公共步骤按声明构建，仅通过 `--library-path` 参与解析。恢复覆盖后删除原 Rust fixture infra、专用 helper／依赖／入口和剩余临时 link/startup 旁路；普通 Rust 内部单元测试保留，不恢复旧 core/source 拼接或第二条生产路径。
 
-每个子里程碑均先`cargo fmt --all`与`cargo clippy --workspace`，再执行对应unit/golden/fixture。M23-3到M23-10期间允许的旧fixture executable driver只是临时保持回归的迁移边界，不能向新pipeline提供artifact、runtime或link能力；M23-11完成时必须删除。最终不得保留旧的“`scoopc`直接把裸文件与core source合并并链接”入口、让`scoopc`递归构建或最终链接的旁路、固定`code.o`/`bridge.o`成员判断、两套symbol mangler、raw arena id wire格式、固定`scoop_image_*` weak fallback或“ODR不一致让linker选择”的路径。
+完成门：`scoop build/run <file>`对相邻manifest/source/native文件不做隐式发现，只构建一个source + core的synthetic executable graph；`run`只是build + execute，正确处理`--`、stdio/cwd/environment和exit/signal；单文件和多Cone综合fixture、cache失效矩阵、corruption/reproducibility与moving-GC/exception/closure/coroutine/FFI全量回归通过。Python fixture infra 的迁移、仅改数据的扩展性验收和原 Rust infra 清理同时完成，Rust 测试与完整 Python suite 分别通过，不能以 cargo 总数替代 fixture 覆盖。诊断snapshot允许一次受控迁移到semantic source identity与独立display locator模型，不能把host路径重新写进persistent identity。
+
+每个子里程碑均先`cargo fmt --all`与`cargo clippy --workspace`，再执行对应unit/golden/fixture；M23-11 的 Python 变更同样先完成统一格式化与 lint，再运行公共规则测试和 fixture suite。早期允许的旧fixture executable driver只是迁移边界，已删除的入口不得恢复；M23-11必须恢复正式CLI覆盖、完成 Python fixture 迁移并清除旧 Rust infra 和剩余临时运行旁路。最终不得保留旧的“`scoopc`直接把裸文件与core source合并并链接”入口、让`scoopc`递归构建或最终链接的旁路、固定`code.o`/`bridge.o`成员判断、两套symbol mangler、raw arena id wire格式、固定`scoop_image_*` weak fallback或“ODR不一致让linker选择”的路径。
 
 M23系列只有在以下条件同时满足时完成：`scoop`可只经配套`scoopc`的单Cone artifact边界按DAG构建，而直接`scoopc`在缺上游artifact时只失败、不递归；任意library Cone无需`main`即可独立生成可重复`.slib`，executable也先生成同类`.slib`再由artifact-only program-link产生binary；`scoop build/run <file>`使用固定synthetic identity、唯一source和core-only Cone dependency，却不禁止已有typed FFI requirement经显式library search root解析；typed member directory可同时承载多个link object和非link blob，unknown required/optional capability、fingerprint分层与link view均按4.1/4.6工作，任何代码都不按名称、扩展名或数量猜成员；direct/re-export/import层在下游使用同一M16/M17 resolver/default协议；non-generic alias/protected inheritance/generic hidden closure跨artifact边界不泄漏权限且信息完备；reader对完整损坏矩阵无panic；上游generic与下游local type可实例化，重复specialization的全部runtime identity真正coalesce；ZST从HIR status到LIR layout、Scoop/C ABI、box、static token及`Array`/`MutableArray`均通过9.5矩阵；generic delegated extension全程序exactly once；core作为trusted独立`.slib`消费；最终程序先登记全部image/storage/root/TD/stackmap/callable/init metadata，再按canonical DAG顺序初始化并从no-throw typed root gateway运行；多Cone moving-GC/exception/closure/coroutine/FFI组合通过。
 
 ## 11. 明确不做
 
 1. package registry、网络下载、version range/SAT求解、lockfile生成、dependency feature与workspace发布；M23只消费exact resolved graph；
-2. shared library ABI、`dlopen`/`dlclose`、hot reload、plugin discovery、image unload/global destructor及运行期新增Cone；
+2. Scoop shared library ABI、`dlopen`/`dlclose`、hot reload、plugin discovery、Scoop image unload/global destructor 及运行期新增 Cone；M23-10 的普通 native FFI provider 不属于动态 Cone；
 3. 跨不同target、language/runtime ABI或wire schema的兼容适配；v1只接受exact capability match；
 4. 加密签名、publisher trust、sandboxed compiler或对恶意producer的真实性认证；reader仍必须内存安全并拒绝损坏结构；
 5. generic/nested typealias、interface method自身type parameter、declaration/use-site variance、star projection或runtime generic dictionary；

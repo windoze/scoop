@@ -1,0 +1,33 @@
+package nativelink.storage
+
+@CLayout
+public struct Pair(val left: Int, val right: Int)
+
+@Extern(lib = "m23_storage", name = "m23_counter")
+@Global
+public var counter: Int
+
+@Extern(lib = "m23_storage", name = "m23_limit")
+public val limit: Int
+
+@Extern(lib = "m23_storage", name = "m23_pair")
+@Global
+public var pair: Pair
+
+@Extern(lib = "m23_storage", name = "m23_tls_initial")
+@ThreadLocal
+public var tlsInitial: Int
+
+@Extern(lib = "m23_storage", name = "m23_tls_zero")
+@ThreadLocal
+public var tlsZero: Int
+
+@Extern(lib = "m23_storage", name = "m23_increment")
+public fun increment(pointer: Ptr<Int>): Int
+
+@Extern(lib = "m23_storage", name = "m23_storage_threads")
+public fun storageThreads(
+    callback: FunPtr<(Int, Ptr<Unit>) -> Int>,
+    context: Ptr<Unit>,
+    callerAddress: ULong
+): Int

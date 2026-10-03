@@ -1,0 +1,90 @@
+Module
+  struct Marker
+    field0 text: String
+    property0 val text: String getter0=storage <stored struct0-field0>
+  fun main(): Unit
+    val local0
+      StringLiteral "caller-" : String
+    val local1
+      StringLiteral "alive" : String
+    val local2
+      Local $dependency.argument.0 : String
+    val local3
+      PrimitiveBinary StringConcat : String
+        Local $dependency.receiver : String
+        Local $dependency.parameter.other : String
+    val local4
+      Local $argument.0 : String
+    val local5
+      StructInit Marker : Marker
+        Local $parameter.text : String
+    val local9
+      Local marker : Marker
+    val local6
+      StringLiteral "managed-" : String
+    val local7
+      StringLiteral "alive" : String
+    val local8
+      Local $dependency.argument.0 : String
+    val local10
+      PrimitiveBinary StringConcat : String
+        Local $dependency.receiver : String
+        Local $dependency.parameter.other : String
+    val local11
+      Local $dependency.argument.0 : Marker
+    val local12
+      Local $dependency.argument.1 : String
+    val local13
+      Call external #0 : Empty
+    val local14
+      Call roundTrip<Marker> : Aggregate
+        Local $dependency.parameter.marker : Marker
+        Local $dependency.parameter.text : String
+        Local $dependency.parameter.token : Empty
+    Call gcCollect<> : Unit
+    val local15
+      FieldAccess field 0 : String
+        Local result : Aggregate
+    val local16
+      Local $dependency.argument.0 : String
+    Call println<String> : Unit
+      Local $dependency.parameter.value : String
+    val local17
+      FieldAccess field 1 : Long
+        Local result : Aggregate
+    val local18
+      Local $dependency.argument.0 : Long
+    Call println<Long> : Unit
+      Local $dependency.parameter.value : Long
+    val local19
+      FieldAccess field 2 : Long
+        Local result : Aggregate
+    val local20
+      Local $dependency.argument.0 : Long
+    Call println<Long> : Unit
+      Local $dependency.parameter.value : Long
+    val local21
+      Call external #0 : Empty
+    val local22
+      IntegerLiteral 41 : Int
+    val local23
+      Local $dependency.argument.0 : Empty
+    val local24
+      Local $dependency.argument.1 : Int
+    val local25
+      Call external #1 : Int
+        Local $dependency.parameter.empty : Empty
+        Local $dependency.parameter.value : Int
+    val local26
+      Local $dependency.argument.0 : Int
+    Call println<Int> : Unit
+      Local $dependency.parameter.value : Int
+    val local27
+      FieldAccess field 0 : String
+        Local marker : Marker
+    val local28
+      Local $dependency.argument.0 : String
+    Call println<String> : Unit
+      Local $dependency.parameter.value : String
+  output executable main
+

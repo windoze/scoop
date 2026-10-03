@@ -218,6 +218,13 @@ impl Lowerer {
             }
         } else if let CallableTemplateOrigin::GenericFunction(origin) = key {
             hir::ImportedCallableTemplateOrigin::Generic(origin)
+        } else if let CallableTemplateOrigin::Function(origin) = key
+            && matches!(
+                declaration.interface().effects().implementation(),
+                hir::CallableImplementationV1::Intrinsic(_)
+            )
+        {
+            hir::ImportedCallableTemplateOrigin::Intrinsic(origin)
         } else if let CallableTemplateOrigin::Accessor(origin) = key
             && declaration.interface().owner() == hir::PublicDeclarationOwnerV1::Extension
             && self

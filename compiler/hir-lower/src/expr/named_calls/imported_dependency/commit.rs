@@ -119,12 +119,29 @@ impl Lowerer {
             .as_ref()
             .filter(|receiver| matches!(self.types[receiver.ty], hir::Type::Param(_)))
             .map(|_| candidate.interface().clone());
-        let parameters = signature
+        let mut parameters = signature
             .value_parameters
             .iter()
             .zip(parameter_types.iter().copied())
             .map(|(parameter, ty)| (parameter.name.clone(), ty))
             .collect::<Vec<_>>();
+        if matches!(
+            &implementation,
+            super::ImportedCallImplementation::Intrinsic {
+                operation: super::ImportedIntrinsicCall::ForeignCallback {
+                    kind: hir::IntrinsicFunctionKind::ForeignCallbackRegister,
+                    ..
+                },
+                ..
+            }
+        ) {
+            let crate::call_resolution::arguments::ResolvedParameterInput::Explicit(source) =
+                argument_map.parameters()[0].input
+            else {
+                unreachable!("a callback registration has a required closure");
+            };
+            parameters[0].1 = source_args[source.index()].ty;
+        }
         let (receiver, parameter_values) = self.materialize_argument_inputs(
             ResolvedArgumentMaterialization {
                 parameters: &parameters,
@@ -222,38 +239,14 @@ impl Lowerer {
             });
         }
         if let super::ImportedCallImplementation::Intrinsic { operation, .. } = implementation {
-            let receiver = receiver.expect("a resolved intrinsic member has a receiver");
-            return Some(match operation {
-                super::ImportedIntrinsicCall::PointerMember(intrinsic) => self
-                    .normalize_pointer_intrinsic(
-                        intrinsic,
-                        receiver,
-                        parameter_values,
-                        result_type,
-                        call_span,
-                    ),
-                super::ImportedIntrinsicCall::ArrayConversion(intrinsic) => self
-                    .normalize_array_intrinsic_call(
-                        hir::IntrinsicFunctionKind::Array(intrinsic),
-                        receiver,
-                        &parameter_values,
-                        result_type,
-                        call_span,
-                    )?,
-                super::ImportedIntrinsicCall::ArrayAccess(intrinsic) => self
-                    .normalize_array_intrinsic_call(
-                        hir::IntrinsicFunctionKind::ArrayAccess(intrinsic),
-                        receiver,
-                        &parameter_values,
-                        result_type,
-                        call_span,
-                    )?,
-                super::ImportedIntrinsicCall::Expression(_) => {
-                    unreachable!(
-                        "expression intrinsics were committed before argument materialization"
-                    )
-                }
-            });
+            return self.commit_imported_intrinsic(
+                operation,
+                receiver,
+                parameter_values,
+                result_type,
+                call_span,
+                sink,
+            );
         }
         let mut args = Vec::with_capacity(parameter_values.len() + usize::from(receiver.is_some()));
         args.extend(receiver);

@@ -23,14 +23,17 @@ impl BodyProjection<'_, '_> {
 
     pub(super) fn place(
         &self,
-        place: Place,
+        place: &Place,
     ) -> Result<DefaultPlaceV1, super::super::super::DefaultBodyProjectionError> {
         Ok(match place {
             Place::Local(local) => DefaultPlaceV1::Local {
-                local: self.local(local)?,
+                local: self.local(*local)?,
             },
             Place::Global(global) => DefaultPlaceV1::Global {
-                property: self.entities.global_property(global)?,
+                property: self.entities.global_property(*global)?,
+            },
+            Place::ExternalGlobal { property, .. } => DefaultPlaceV1::Global {
+                property: *property,
             },
         })
     }

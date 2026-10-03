@@ -214,9 +214,12 @@ impl Concretizer<'_> {
                 offset: Box::new(self.lower_expr(offset, substitution, locals)),
                 subtract: *subtract,
             },
-            export::ExprKind::AddressOf(place) => {
-                concrete::ExprKind::AddressOf(self.lower_place(*place, locals))
-            }
+            export::ExprKind::AddressOf(place) => concrete::ExprKind::AddressOf(self.lower_place(
+                place,
+                locals,
+                substitution,
+                source.span,
+            )),
             export::ExprKind::SizeOf(size) => {
                 concrete::ExprKind::SizeOf(self.lower_type(*size, substitution))
             }
@@ -243,23 +246,26 @@ impl Concretizer<'_> {
             export::ExprKind::ForeignCallbackOperation {
                 operation,
                 callback,
-            } => concrete::ExprKind::ForeignCallbackOperation {
-                operation: match operation {
-                    export::ForeignCallbackOperation::Retain => {
-                        concrete::ForeignCallbackOperation::Retain
-                    }
-                    export::ForeignCallbackOperation::Release => {
-                        concrete::ForeignCallbackOperation::Release
-                    }
-                    export::ForeignCallbackOperation::State => {
-                        concrete::ForeignCallbackOperation::State
-                    }
-                    export::ForeignCallbackOperation::Failure => {
-                        concrete::ForeignCallbackOperation::Failure
-                    }
-                },
-                callback: Box::new(self.lower_expr(callback, substitution, locals)),
-            },
+            } => {
+                self.lower_imported_callback_support();
+                concrete::ExprKind::ForeignCallbackOperation {
+                    operation: match operation {
+                        export::ForeignCallbackOperation::Retain => {
+                            concrete::ForeignCallbackOperation::Retain
+                        }
+                        export::ForeignCallbackOperation::Release => {
+                            concrete::ForeignCallbackOperation::Release
+                        }
+                        export::ForeignCallbackOperation::State => {
+                            concrete::ForeignCallbackOperation::State
+                        }
+                        export::ForeignCallbackOperation::Failure => {
+                            concrete::ForeignCallbackOperation::Failure
+                        }
+                    },
+                    callback: Box::new(self.lower_expr(callback, substitution, locals)),
+                }
+            }
             export::ExprKind::FieldAccess { receiver, field } => {
                 let receiver = self.lower_expr(receiver, substitution, locals);
                 let field = self.lower_field_ref(*field, substitution);

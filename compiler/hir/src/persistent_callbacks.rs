@@ -5,13 +5,13 @@ use std::ops::Index;
 
 use la_arena::{Arena, Idx};
 use scoop_identity::{
-    CallbackMode, CallbackParameterIndex, CallbackRegistrationKey, CborIdentityRecord, Effect,
+    CallbackParameterIndex, CallbackRegistrationKey, CborIdentityRecord, Effect,
     PersistentCallbackRegistrationId, SignatureCallableShape, SourceCAbiFunctionSignature,
     SourceCAbiReturn, StructuralDefinitionSiteRole,
 };
 
 use crate::{
-    AnonymousFunction, ClassConstructor, ForeignCallbackModes, ForeignCallbackRegistration,
+    AnonymousFunction, ClassConstructor, ForeignCallbackRegistration,
     ForeignCallbackRegistrationId, Function, FunctionType, HirConstructorIdentities,
     HirEnumMemberIdentities, HirFunctionIdentities, HirPropertyAccessorIdentities,
     HirSignatureTypeMapper, HirTypeIdentityInputs, Lambda, LocalFunction, StructConstructor, Type,
@@ -39,7 +39,6 @@ pub struct HirCallbackRegistrationIdentityInputs<'a> {
     pub property_accessor_identities: &'a HirPropertyAccessorIdentities,
     pub constructor_identities: &'a HirConstructorIdentities,
     pub enum_member_identities: &'a HirEnumMemberIdentities,
-    pub callback_modes: ForeignCallbackModes,
     pub type_inputs: HirTypeIdentityInputs<'a>,
     pub unit: TypeId,
 }
@@ -51,44 +50,7 @@ pub struct HirCallbackRegistrationIdentities {
     records: Vec<HirCallbackRegistrationIdentity>,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct ImportedCoreCallbackIdentityError {
-    registration: ForeignCallbackRegistrationId,
-}
-
-impl ImportedCoreCallbackIdentityError {
-    pub const fn registration(self) -> ForeignCallbackRegistrationId {
-        self.registration
-    }
-}
-
-impl std::fmt::Display for ImportedCoreCallbackIdentityError {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str(
-            "imported-core HIR cannot retain a local foreign callback registration target",
-        )
-    }
-}
-
-impl std::error::Error for ImportedCoreCallbackIdentityError {}
-
 impl HirCallbackRegistrationIdentities {
-    /// Construct the callback identity relation for an ordinary module whose
-    /// core authority is imported. Callback conversions in that domain must
-    /// already be represented by imported-core uses rather than by local
-    /// callback registrations.
-    pub fn for_imported_core(
-        registrations: &Arena<ForeignCallbackRegistration>,
-    ) -> Result<Self, ImportedCoreCallbackIdentityError> {
-        if let Some((registration, _)) = registrations.iter().next() {
-            return Err(ImportedCoreCallbackIdentityError { registration });
-        }
-        Ok(Self {
-            identities: Vec::new(),
-            records: Vec::new(),
-        })
-    }
-
     pub fn from_registrations(
         inputs: HirCallbackRegistrationIdentityInputs<'_>,
     ) -> Result<Self, HirCallbackRegistrationIdentityError> {
@@ -240,22 +202,13 @@ fn build_identity(
         managed_parameters,
         map(managed.return_type)?,
     );
-    let mode = if declaration.mode == inputs.callback_modes.reusable() {
-        CallbackMode::Reusable
-    } else if declaration.mode == inputs.callback_modes.one_shot() {
-        CallbackMode::OneShot
-    } else {
-        return Err(HirCallbackRegistrationIdentityError::invalid_mode(
-            registration,
-        ));
-    };
     CborIdentityRecord::from_key(CallbackRegistrationKey::new(
         context.parent,
         declaration.definition_path.clone(),
         source_signature,
         CallbackParameterIndex::new(declaration.context_index),
         managed_signature,
-        mode,
+        declaration.mode,
     ))
     .map_err(|error| HirCallbackRegistrationIdentityError::identity(registration, error))
 }
