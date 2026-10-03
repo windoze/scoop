@@ -1,0 +1,6 @@
+public fun child(): Child = Child()
+private class Complete: Inherited() {
+    public override fun first(value: Token): Token = value
+    protected override val copy: Token get() = Token()
+}
+public fun inherited(): Base = Complete()

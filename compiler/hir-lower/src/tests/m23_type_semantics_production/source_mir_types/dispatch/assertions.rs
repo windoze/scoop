@@ -1,5 +1,5 @@
 use super::*;
-use scoop_mir::{MirDispatchImplementationV1 as Implementation, MirDispatchSlotsV1};
+use scoop_mir::MirDispatchImplementationV1 as Implementation;
 
 pub(super) fn object_overrides(
     output: &hir::DependencyHirOutput,
@@ -163,92 +163,4 @@ pub(super) fn actual(
             }
         }
     }
-}
-
-pub(super) fn dump(
-    output: &hir::DependencyHirOutput,
-    input: &ConeMirInput,
-    types: &CanonicalParamFreeMirTypeExportsV1,
-    schemas: &CanonicalMirDispatchSchemasV1,
-) -> String {
-    let mut names: BTreeMap<_, _> = source_dispatch::owners(output)
-        .into_iter()
-        .map(|(name, exact)| (exact, name))
-        .collect();
-    for record in types.records() {
-        if let scoop_mir::MirTypeRepresentationV1::Object { backing } = record.representation() {
-            names.insert(*backing, format!("{} backing", names[&record.exact()]));
-        }
-    }
-    let targets: BTreeMap<_, _> = input
-        .materialization()
-        .callable_roots()
-        .iter()
-        .filter_map(|root| {
-            let scoop_mir::CallableSignatureSubject::Strong(owner) = root.subject() else {
-                return None;
-            };
-            Some((
-                owner,
-                input.module().functions[root.function()].name.as_str(),
-            ))
-        })
-        .collect();
-    let mut blocks = Vec::new();
-    for schema in schemas
-        .records()
-        .iter()
-        .filter(|schema| names.contains_key(&schema.owner()))
-    {
-        let mut text = format!("{}\n", names[&schema.owner()]);
-        let tables = match schema.slots() {
-            MirDispatchSlotsV1::NoClassVtable => Vec::new(),
-            MirDispatchSlotsV1::ClassVtable(entries) => {
-                vec![("vtable".to_owned(), entries.as_slice())]
-            }
-            MirDispatchSlotsV1::InterfaceSlots(slots) => {
-                text.push_str("  interface slots\n");
-                for slot in slots {
-                    text.push_str(&format!(
-                        "    {} {:?}\n",
-                        slot.position().get(),
-                        slot.signature(),
-                    ));
-                }
-                Vec::new()
-            }
-        };
-        for (name, entries) in tables
-            .into_iter()
-            .chain(schema.itables().iter().map(|table| {
-                (
-                    format!("itable {}", names[&table.interface()]),
-                    table.entries(),
-                )
-            }))
-        {
-            text.push_str(&format!("  {name}\n"));
-            for entry in entries {
-                let role = match entry.implementation() {
-                    Implementation::AbstractObligation { .. } => "abstract",
-                    Implementation::DirectStrongTarget { .. } => "direct",
-                    Implementation::InterfaceDefaultTarget { .. } => "default",
-                    Implementation::AdjustThunkTarget(_) => "adjust",
-                };
-                text.push_str(&format!(
-                    "    {} {role} {}\n",
-                    entry.position().get(),
-                    targets[&entry
-                        .implementation()
-                        .target()
-                        .strong_owner()
-                        .unwrap()
-                        .callable_owner()]
-                ));
-            }
-        }
-        blocks.push(text);
-    }
-    blocks.sort();
-    blocks.concat()
 }

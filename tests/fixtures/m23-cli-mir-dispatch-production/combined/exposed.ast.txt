@@ -1,0 +1,61 @@
+SourceFile
+  RootPackage
+  public fun derived(): Derived
+    =
+      Call Derived
+  private class Complete() : Pending(<0 args>)
+    public fun run
+    public open override val token: Token <computed>
+      get()
+        Call Token
+  public fun pending(): Diamond
+    =
+      Call Complete
+  private class CompleteMutable() : PendingMutable(<0 args>)
+    public open override var value: Token = <expr>
+      Call Token
+  public fun mutable(): Mutable
+    =
+      Call CompleteMutable
+SourceFile
+  RootPackage
+  public struct Token
+  public interface Root
+    fun run
+    fun echo
+    public open val token: Token <computed>
+  public interface Left : Root
+    fun echo
+  public interface Right : Root
+  public interface Diamond : Left, Right
+  public struct Value : Diamond
+    public fun run
+    public final override val token: Token <computed>
+      get()
+        Call Token
+  public interface Default
+    fun token
+  public enum Choice : Default
+    One
+  public open class Base(), Root
+    public fun run
+    public open override val token: Token <computed>
+      get()
+        Call Token
+  public class Derived() : Base(<0 args>), Diamond
+  public abstract class Pending(), Diamond
+  public object Singleton
+    public fun run
+    public open override val token: Token <computed>
+      get()
+        Call Token
+  public object OtherSingleton
+  public fun throughBase(value: Base): Token
+    =
+      MethodCall run
+        Var value
+        Call Token
+  public interface Mutable
+    public open var value: Token <computed>
+  public abstract class PendingMutable(), Mutable
+  private class Hidden() : Base(<0 args>)

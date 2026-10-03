@@ -105,34 +105,17 @@ fn with_dispatch<R>(
 #[test]
 fn actual_dispatch_schemas_cover_inheritance_defaults_boxes_and_abstract_slots() {
     for name in ["standalone", "combined"] {
-        let (directory, source) = fixture(name);
-        let (bytes, dump) =
-            with_dispatch(&source, |output, input, hir, types, authority, schemas| {
-                assertions::actual(input, hir, types, authority, schemas);
-                (
-                    encode(schemas).unwrap(),
-                    assertions::dump(output, input, types, schemas),
-                )
-            });
+        let (_, source) = fixture(name);
+        let bytes = with_dispatch(&source, |_, input, hir, types, authority, schemas| {
+            assertions::actual(input, hir, types, authority, schemas);
+            encode(schemas).unwrap()
+        });
         with_dispatch(
             &format!("private struct Unrelated() {{}}\n{source}"),
             |_, _, _, _, _, schemas| {
                 assert_eq!(encode(schemas).unwrap(), bytes);
             },
         );
-        if let Some(path) = std::env::var_os("SCOOP_MIR_DISPATCH_SNAPSHOT_DIR") {
-            std::fs::create_dir_all(&path).unwrap();
-            std::fs::write(
-                std::path::Path::new(&path).join(format!("{name}.snap")),
-                dump,
-            )
-            .unwrap();
-        } else {
-            assert_eq!(
-                dump,
-                std::fs::read_to_string(directory.join(format!("{name}.snap"))).unwrap()
-            );
-        }
     }
 }
 
