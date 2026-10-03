@@ -1,0 +1,10 @@
+SourceFile
+  RootPackage
+  public fun vault(): Vault
+    =
+      Call Vault
+SourceFile
+  RootPackage
+  public class Vault()
+    public fun observe
+    protected fun read

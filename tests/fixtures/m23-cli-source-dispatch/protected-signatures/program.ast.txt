@@ -1,0 +1,20 @@
+SourceFile
+  RootPackage
+  fun verifyDispatch(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call verifyDispatch
+      Binary Eq
+        MethodCall observe
+          Call shape
+        TupleLiteral
+          TupleLiteral
+            IntLiteral 1
+            IntLiteral 2L
+          TupleLiteral
+            IntLiteral 3
+            IntLiteral 4L

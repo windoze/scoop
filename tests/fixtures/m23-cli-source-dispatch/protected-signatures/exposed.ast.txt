@@ -1,0 +1,10 @@
+SourceFile
+  RootPackage
+  public fun shape(): ShapeSource
+    =
+      Call ShapeSource
+SourceFile
+  RootPackage
+  public class ShapeSource()
+    public fun observe
+    protected fun nested

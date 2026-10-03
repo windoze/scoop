@@ -9,3 +9,4 @@
 | 构造器 | `constructors`、`protected-construction` | 14／26／8 | public／protected／internal／private、主次构造器、默认值、值类型与 object；保留九份 typed 合同的 owner／visibility／modality／参数身份断言，删除旧字符串拼装快照 |
 | 参数协议 | `parameter-protocols` | 7／13／4 | 显式／省略默认实参、泛型 identity、零参数和默认字段构造；普通值 4 与显式值 9 |
 | 属性派发 | `properties`、`property-direct` | 14／26／8 | 实际读写、private／protected／internal setter、接口默认属性、派生覆盖、值类型及 object 属性 |
+| protected 绑定与签名 | `protected-binding`、`protected-direct`、`protected-signatures` | 21／39／12 | 嵌套 owner、泛型边界、Long 直接调用、嵌套 tuple 返回；仅由合法 owner 入口访问 |
