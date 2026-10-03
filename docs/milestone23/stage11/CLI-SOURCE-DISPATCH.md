@@ -7,3 +7,4 @@
 | Suspend 与普通 callable 组合 | `callables`、`protected-callables` | 14／26／8 | unsafe、infix、operator、protected 与泛型调用；实际跨 Cone suspend 运行，见 [修复记录](CLI-SUSPEND-MEMBERS.md) |
 | 虚表与接口 | `virtual`、`interfaces` | 14／26／8 | 父虚表前缀、final override、protected accessor、菱形接口顺序、默认方法及 class／object／struct／enum 表；保留 typed slot 与 wire roundtrip，删除两份专用摘要快照 |
 | 构造器 | `constructors`、`protected-construction` | 14／26／8 | public／protected／internal／private、主次构造器、默认值、值类型与 object；保留九份 typed 合同的 owner／visibility／modality／参数身份断言，删除旧字符串拼装快照 |
+| 参数协议 | `parameter-protocols` | 7／13／4 | 显式／省略默认实参、泛型 identity、零参数和默认字段构造；普通值 4 与显式值 9 |
