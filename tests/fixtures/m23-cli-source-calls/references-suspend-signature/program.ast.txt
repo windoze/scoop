@@ -1,0 +1,47 @@
+SourceFile
+  RootPackage
+  ImportExact Local consumer.references.instantiate
+  ImportExact Local consumer.references.reference
+  fun verifyCalls(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  class Completion<T>(var result: T), Continuation<T>
+    public fun resume
+    public fun resumeWithException
+  fun main()
+    val integer
+      Call instantiate
+    val text
+      Call reference<String>
+        StringLiteral "seed"
+    val integerDone
+      Call Completion<Int>
+        IntLiteral 0
+    val textDone
+      Call Completion<String>
+        StringLiteral ""
+    Call startCoroutine
+      Lambda 0 suspend=true
+        parameters omitted
+        Call integer
+          IntLiteral 43
+      Var integerDone
+    Call startCoroutine
+      Lambda 1 suspend=true
+        parameters omitted
+        Call text
+          StringLiteral "suspended"
+      Var textDone
+    Call verifyCalls
+      Binary Eq
+        FieldAccess result
+          Var integerDone
+        IntLiteral 43
+    Call verifyCalls
+      Binary Eq
+        FieldAccess result
+          Var textDone
+        StringLiteral "suspended"

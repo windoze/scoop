@@ -1,0 +1,20 @@
+import consumer.references.instantiate
+import consumer.references.reference
+
+fun verifyCalls(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+class Completion<T> constructor(var result: T) : Continuation<T> {
+    public override fun resume(value: T) { result = value }
+    public override fun resumeWithException(exception: Throwable) { throw exception }
+}
+
+fun main() {
+    val integer = instantiate()
+    val text = reference<String>("seed")
+    val integerDone = Completion<Int>(0)
+    val textDone = Completion<String>("")
+    startCoroutine(suspend { integer(43) }, integerDone)
+    startCoroutine(suspend { text("suspended") }, textDone)
+    verifyCalls(integerDone.result == 43)
+    verifyCalls(textDone.result == "suspended")
+}

@@ -1,0 +1,10 @@
+SourceFile
+  QualifiedPackage consumer.references
+  ImportExact Local templates.references.suspended
+  public fun reference<T>(value: T): suspend (T) -> T
+    =
+      CallableReference 0 suspended
+  public fun instantiate(): suspend (Int) -> Int
+    =
+      Call reference<Int>
+        IntLiteral 42
