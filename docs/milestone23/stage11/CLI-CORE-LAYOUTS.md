@@ -8,7 +8,12 @@
 
 原 shared slot 负例 helper 只按 slot id 寻找待改记录，同一 slot 出现在不同 schema role 时会替换错误的记录并构造重复 key。现在按完整 `(role, slot)` key 修改，原 ancestor、modality、abstract obligation 和 signature 拒绝断言不变。包含该组断言的 `actual_core_sources_produce_closed_mir_and_lir_export_tables` 已运行通过；本次对照运行显式更新旧快照，最终验收仍须关闭更新。
 
+`shared-equality-standalone` 中公开的 `SharedEqualityDeferred` 和 `SharedEqualityUnused` 同样必须提供派生正文。原断言改为检查两者均有 Strong 定义和导出 binding；私有 `SharedEqualityHidden` 仍有本地正文但不导出，不可比较类型仍无派生候选。该组内部测试重新运行通过。
+
+41 个 core 产物中 40 个与原生产逻辑逐字一致。`shared-units-combined` 的唯一非摘要差异是私有 object 初始化显示名由 `layout_probe.scoop` 变为正式 CLI 的 canonical `scoop:scoop.core:0.1.0/src/layout_probe.scoop`。HIR、MIR、全部函数对象及其机器码相同；runtime image 对象仅该 C 字符串改变，LIR 对应显示名、对象偏移与内容摘要随之更新，沿用 Stage 11 已规定的 canonical 来源。
+
 ## 已迁移功能
 
 | 原内部测试 | 正式 CLI 用例 | 进程／四阶段 golden | 产物核对 |
 | --- | --- | --- | --- |
+| `actual_core_sources_produce_closed_mir_and_lir_export_tables` | `base`、`standalone`、`combined` | 6／24 | 逐字相同 |
