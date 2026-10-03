@@ -1,0 +1,603 @@
+Module
+  global @scoop$1$bs$4a26ca9b6d9d8cb6a5c6f328318aa8ce13a9a85cc33e9a760b68cf469c4c0fd1 = c"call to abstract method `Values.$set$second`"
+  global @scoop$1$bs$9002076c24a3a630b58ff035c0977699532b05d2508420d35c38ec01124dc2be = c"call to abstract method `Values.$set$second`"
+  global @scoop$1$bs$69945cd43159c38de925fd06ad93d089e087e2a3472ad968002ea48b35b248ad = c"call to abstract method `Values.$get$first`"
+  global @scoop$1$bs$5f2b86f439989222c04b54cd470d425debc2347ba89726ac6afdaad93fd09fe4 = c"call to abstract method `Values.$get$second`"
+  global @scoop$1$bs$03656cc0b8249cc3c9dd20947027b8fac1b4ab5f01a435d0f140d774d21f8713 = c"call to abstract method `Values.$get$first`"
+  global @scoop$1$bs$c53d51e6345acda11d9497ee8593e243feb7b012396ca528264dff2eaa3b0e90 = c"call to abstract method `Values.$get$second`"
+  global @scoop$1$bs$ef40dbb3e16ea546c851ee96c90c740b065b8840a34d6b51a21a87a581e84bb5 = c"call to abstract method `Continuation.resume`"
+  global @scoop$1$bs$439b979039a6c85888f41dc7730417a8242798e86bf3e56829c9170129cf8f9e = c"call to abstract method `Continuation.resumeWithException`"
+  global @scoop$1$bs$658791a00c1a8494560b861b59bc91bc4b14a434f63f806e0e76b1665a299692 = c"call to abstract method `SuspendTask.run`"
+  global @scoop$1$bs$f3c17d9aedff0e3a90a50de43dd37082c8cacd28eae67bd9a35961b23fd67e05 = c"call to abstract method `SuspendRegistration.register`"
+  enum Option niche(kind=managed,payload_variant=0)
+  enum CoroutineStep<Payload> niche(kind=managed,payload_variant=0)
+  enum CoroutineSlot<Payload> niche(kind=managed,payload_variant=1)
+  fun @scoop$1$cb$660ce1b09a553c45755452d712460ded60791ac69edb2fd0ca9863f61a603ede() -> i32
+    local %0 $argument.0: i32
+    local %1 $parameter.value: i32
+    local %2 stored: ptr<managed>
+    local %3 $dependency.argument.0: ptr<managed>
+    local %4 $dependency.argument.1: ptr<managed>
+    local %5 $dependency.parameter.value: ptr<managed>
+    local %6 $dependency.parameter.read: ptr<managed>
+    local %7 $dependency.receiver: i32
+    local %8 $dependency.argument.0: i32
+    local %9 $dependency.parameter.other: i32
+    local %10 $dependency.argument.0: i32
+    local %11 $dependency.argument.1: ptr<managed>
+    local %12 $dependency.parameter.value: i32
+    local %13 $dependency.parameter.read: ptr<managed>
+    local %14 $dependency.receiver: i32
+    local %15 $dependency.argument.0: i32
+    local %16 $dependency.parameter.other: i32
+    local %17 $argument.0: i32
+    local %18 $parameter.value: i32
+    local %19 allocation: ptr<managed>
+    local %20 $dependency.receiver: i32
+    local %21 $dependency.argument.0: i32
+    local %22 $dependency.parameter.other: i32
+    local %23 $new.1: ptr<managed>
+    local %24 $new.2: ptr<managed>
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> i32 external-fn0()
+    store t0 -> local0
+    store local0 -> local1
+    call managed-direct-target1 sp<managed-call:1> live=[] t1 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td11, machine<byte-size>(ByteSize(24)))
+    store t1 -> local23
+    call managed-void-target0 sp<managed-call:2> live=[local23:ptr<managed>@0] sig=void0 (ptr<managed>, i32) local-fn27(local23, local1)
+    t2 = aggregate () : {}
+    store local23 -> local2
+    store local2 -> local3
+    call managed-direct-target2 sp<managed-call:3> live=[local2:ptr<managed>@0, local3:ptr<managed>@0] t3 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td17, machine<byte-size>(ByteSize(24)))
+    t4 = function_address @scoop$1$cb$1200c2f415fb48273bd9e607801c66c6f412b419ac628dbf3a7ec6e95aca0d7c : ptr
+    heap_store t3 +16 t4
+    store t3 -> local4
+    store local3 -> local5
+    store local4 -> local6
+    call managed-direct-target3 sp<managed-call:4> live=[local2:ptr<managed>@0, local5:ptr<managed>@0, local6:ptr<managed>@0] t5 = sig=direct3 (ptr<managed>, ptr<managed>) -> i32 local-fn2(local5, local6)
+    store t5 -> local7
+    store integer<Int>(0x0000002a) -> local8
+    store local8 -> local9
+    t6 = integer_compare_Equal<Int> local7, local9 : i1
+    t7 = Not t6 : i1
+    cbr t7 then @if.then.1 else @if.merge.2
+  block if.then.1
+    ret integer<Int>(0x00000001)
+  block if.merge.2
+    store integer<Int>(0x0000002a) -> local10
+    call managed-direct-target4 sp<managed-call:5> live=[local2:ptr<managed>@0] t8 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td18, machine<byte-size>(ByteSize(24)))
+    t9 = function_address @scoop$1$cb$bcaff171b04ba55e9adccb4abed3d1b15fbe36a04869e743d26c5888527808b8 : ptr
+    heap_store t8 +16 t9
+    store t8 -> local11
+    store local10 -> local12
+    store local11 -> local13
+    call managed-direct-target5 sp<managed-call:6> live=[local2:ptr<managed>@0, local13:ptr<managed>@0] t10 = sig=direct5 (i32, ptr<managed>) -> i32 local-fn4(local12, local13)
+    store t10 -> local14
+    store integer<Int>(0x0000002a) -> local15
+    store local15 -> local16
+    t11 = integer_compare_Equal<Int> local14, local16 : i1
+    t12 = Not t11 : i1
+    cbr t12 then @if.then.3 else @if.merge.4
+  block if.then.3
+    ret integer<Int>(0x00000002)
+  block if.merge.4
+    store integer<Int>(0x00000000) -> local17
+    store local17 -> local18
+    call managed-direct-target6 sp<managed-call:7> live=[local2:ptr<managed>@0] t13 = sig=direct6 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td11, machine<byte-size>(ByteSize(24)))
+    store t13 -> local24
+    call managed-void-target1 sp<managed-call:8> live=[local2:ptr<managed>@0, local24:ptr<managed>@0] sig=void1 (ptr<managed>, i32) local-fn27(local24, local18)
+    t14 = aggregate () : {}
+    store local24 -> local19
+    t15 = heap_load local2 +16 : i32
+    store t15 -> local20
+    t16 = heap_load local19 +16 : i32
+    store t16 -> local21
+    store local21 -> local22
+    t17 = integer_Add<Int> local20, local22 : i32
+    ret t17
+  fun @scoop$1$cb$1200c2f415fb48273bd9e607801c66c6f412b419ac628dbf3a7ec6e95aca0d7c(ptr<managed>, ptr<managed>) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param1:ptr<managed>@0]
+    t0 = heap_load param1 +16 : i32
+    ret t0
+  fun @scoop$1$cb$849c910286047b415e1123689868d28c5ef42e68c226d3c01e5c6415ffcadfb7(ptr<managed>, ptr<managed>) -> i32
+    local %0 $dependency.local.2: ptr<managed>
+    local %1 $dependency.local.3: ptr<managed>
+    local %2 $dependency.local.4: ptr<managed>
+    local %3 $dependency.local.5: ptr<managed>
+    local %4 $dependency.local.6: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
+    local %5 $dependency.local.7: ptr<managed>
+    local %6 $dependency.local.8: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
+    local %7 $dependency.local.9: ptr<managed>
+    local %8 $dependency.local.10: ptr<managed>
+    local %9 $dependency.local.11: ptr<managed>
+    local %10 $dependency.local.12: ptr<managed>
+    local %11 $dependency.local.13: ptr<managed>
+    local %12 $dependency.local.14: ptr<managed>
+    local %13 $dependency.local.15: i32
+    local %14 $dependency.local.16: i32
+    local %15 $dependency.local.17: i32
+    local %16 $dependency.local.18: ptr<managed>
+    local %17 $dependency.local.19: ptr<managed>
+    local %18 $dependency.local.20: ptr<managed>
+    local %19 $dependency.local.21: ptr<managed>
+    local %20 $dependency.local.22: ptr<managed>
+    local %21 $new.1: ptr<managed>
+    local %22 $call.2: i32
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    store param0 -> local3
+    t0 = aggregate () : {}
+    store t0 -> local4
+    store local3 -> local5
+    store local4 -> local6
+    call managed-direct-target0 sp<managed-call:0> live=[param1:ptr<managed>@0, local5:ptr<managed>@0] t1 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td12, machine<byte-size>(ByteSize(24)))
+    store t1 -> local21
+    call managed-void-target0 sp<managed-call:1> live=[param1:ptr<managed>@0, local5:ptr<managed>@0, local21:ptr<managed>@0] sig=void0 (ptr<managed>, ptr<managed>, elided-zst<{} size=0 align=1>) local-fn28(local21, local5, elided-zst local6)
+    t2 = aggregate () : {}
+    store local21 -> local0
+    store local0 -> local7
+    t3 = aggregate () : {}
+    t4 = heap_load local7 +0 : ptr<metadata>
+    call no-gc-direct-target0 t5 = sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t4, td3)
+    call managed-void-target1 sp<managed-call:2> live=[param1:ptr<managed>@0, local0:ptr<managed>@0, local7:ptr<managed>@0] sig=void1 (ptr<managed>, elided-zst<{} size=0 align=1>) dispatch[Interface:3] t5(local7, elided-zst t3)
+    t6 = aggregate () : {}
+    store local0 -> local1
+    store local1 -> local8
+    store param1 -> local9
+    call managed-direct-target1 sp<managed-call:3> live=[param1:ptr<managed>@0, local0:ptr<managed>@0, local8:ptr<managed>@0, local9:ptr<managed>@0] t7 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td19, machine<byte-size>(ByteSize(24)))
+    t8 = function_address @scoop$1$cb$51b487a430c6f5dc1aa709e3e44c608b716729b1b8cd4c0631be2de7f7343eb1 : ptr
+    heap_store t7 +16 t8
+    store t7 -> local10
+    store local9 -> local11
+    store local10 -> local12
+    t9 = heap_load local8 +0 : ptr<metadata>
+    call no-gc-direct-target1 t10 = sig=direct3 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t9, td3)
+    call managed-direct-target2 sp<managed-call:4> live=[param1:ptr<managed>@0, local0:ptr<managed>@0, local8:ptr<managed>@0, local11:ptr<managed>@0, local12:ptr<managed>@0] t11 = sig=direct4 (ptr<managed>, ptr<managed>, ptr<managed>) -> i32 dispatch[Interface:0] t10(local8, local11, local12)
+    store t11 -> local13
+    store integer<Int>(0x0000002a) -> local14
+    store local14 -> local15
+    t12 = integer_compare_Equal<Int> local13, local15 : i1
+    t13 = Not t12 : i1
+    cbr t13 then @if.then.1 else @if.merge.2
+  block if.then.1
+    ret integer<Int>(0x00000001)
+  block if.merge.2
+    store local0 -> local2
+    store local2 -> local16
+    store param1 -> local17
+    call managed-direct-target3 sp<managed-call:5> live=[local16:ptr<managed>@0, local17:ptr<managed>@0] t14 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td20, machine<byte-size>(ByteSize(24)))
+    t15 = function_address @scoop$1$cb$63803f64e47316f3b2a145b675147d5cff206340c498e04573aab10130061981 : ptr
+    heap_store t14 +16 t15
+    store t14 -> local18
+    store local17 -> local19
+    store local18 -> local20
+    t16 = heap_load local16 +0 : ptr<metadata>
+    call no-gc-direct-target2 t17 = sig=direct6 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t16, td3)
+    call managed-direct-target4 sp<managed-call:6> live=[local16:ptr<managed>@0, local19:ptr<managed>@0, local20:ptr<managed>@0] t18 = sig=direct7 (ptr<managed>, ptr<managed>, ptr<managed>) -> i32 dispatch[Interface:0] t17(local16, local19, local20)
+    store t18 -> local22
+    ret local22
+  fun @scoop$1$cb$bcaff171b04ba55e9adccb4abed3d1b15fbe36a04869e743d26c5888527808b8(ptr<managed>, i32) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret param1
+  fun @scoop$1$cb$297ce1a3f766d69006b791f088fc35a157fc7d1af20ef8d994bcf1ba7dfc350b(i32, ptr<managed>) -> i32
+    local %0 $dependency.local.2: ptr<managed>
+    local %1 $dependency.local.3: ptr<managed>
+    local %2 $dependency.local.4: ptr<managed>
+    local %3 $dependency.local.5: i32
+    local %4 $dependency.local.6: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
+    local %5 $dependency.local.7: i32
+    local %6 $dependency.local.8: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
+    local %7 $dependency.local.9: ptr<managed>
+    local %8 $dependency.local.10: ptr<managed>
+    local %9 $dependency.local.11: ptr<managed>
+    local %10 $dependency.local.12: ptr<managed>
+    local %11 $dependency.local.13: ptr<managed>
+    local %12 $dependency.local.14: ptr<managed>
+    local %13 $dependency.local.15: i32
+    local %14 $dependency.local.16: i32
+    local %15 $dependency.local.17: i32
+    local %16 $dependency.local.18: ptr<managed>
+    local %17 $dependency.local.19: ptr<managed>
+    local %18 $dependency.local.20: ptr<managed>
+    local %19 $dependency.local.21: ptr<managed>
+    local %20 $dependency.local.22: ptr<managed>
+    local %21 $new.1: ptr<managed>
+    local %22 $call.2: i32
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[param1:ptr<managed>@0]
+    store param0 -> local3
+    t0 = aggregate () : {}
+    store t0 -> local4
+    store local3 -> local5
+    store local4 -> local6
+    call managed-direct-target0 sp<managed-call:0> live=[param1:ptr<managed>@0] t1 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td13, machine<byte-size>(ByteSize(24)))
+    store t1 -> local21
+    call managed-void-target0 sp<managed-call:1> live=[param1:ptr<managed>@0, local21:ptr<managed>@0] sig=void0 (ptr<managed>, i32, elided-zst<{} size=0 align=1>) local-fn29(local21, local5, elided-zst local6)
+    t2 = aggregate () : {}
+    store local21 -> local0
+    store local0 -> local7
+    t3 = aggregate () : {}
+    t4 = heap_load local7 +0 : ptr<metadata>
+    call no-gc-direct-target0 t5 = sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t4, td7)
+    call managed-void-target1 sp<managed-call:2> live=[param1:ptr<managed>@0, local0:ptr<managed>@0, local7:ptr<managed>@0] sig=void1 (ptr<managed>, elided-zst<{} size=0 align=1>) dispatch[Interface:3] t5(local7, elided-zst t3)
+    t6 = aggregate () : {}
+    store local0 -> local1
+    store local1 -> local8
+    store param1 -> local9
+    call managed-direct-target1 sp<managed-call:3> live=[param1:ptr<managed>@0, local0:ptr<managed>@0, local8:ptr<managed>@0, local9:ptr<managed>@0] t7 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td21, machine<byte-size>(ByteSize(24)))
+    t8 = function_address @scoop$1$cb$727fa08f52cd21fe6603b550db95327a665ea2c05ac99f3b47ed3491f6cb725b : ptr
+    heap_store t7 +16 t8
+    store t7 -> local10
+    store local9 -> local11
+    store local10 -> local12
+    t9 = heap_load local8 +0 : ptr<metadata>
+    call no-gc-direct-target1 t10 = sig=direct3 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t9, td7)
+    call managed-direct-target2 sp<managed-call:4> live=[param1:ptr<managed>@0, local0:ptr<managed>@0, local8:ptr<managed>@0, local11:ptr<managed>@0, local12:ptr<managed>@0] t11 = sig=direct4 (ptr<managed>, ptr<managed>, ptr<managed>) -> i32 dispatch[Interface:0] t10(local8, local11, local12)
+    store t11 -> local13
+    store integer<Int>(0x0000002a) -> local14
+    store local14 -> local15
+    t12 = integer_compare_Equal<Int> local13, local15 : i1
+    t13 = Not t12 : i1
+    cbr t13 then @if.then.1 else @if.merge.2
+  block if.then.1
+    ret integer<Int>(0x00000001)
+  block if.merge.2
+    store local0 -> local2
+    store local2 -> local16
+    store param1 -> local17
+    call managed-direct-target3 sp<managed-call:5> live=[local16:ptr<managed>@0, local17:ptr<managed>@0] t14 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td22, machine<byte-size>(ByteSize(24)))
+    t15 = function_address @scoop$1$cb$c94c0ccab6bf24788a63dabd78154d066a05a86c48e5e24103246aedfc75b90a : ptr
+    heap_store t14 +16 t15
+    store t14 -> local18
+    store local17 -> local19
+    store local18 -> local20
+    t16 = heap_load local16 +0 : ptr<metadata>
+    call no-gc-direct-target2 t17 = sig=direct6 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t16, td7)
+    call managed-direct-target4 sp<managed-call:6> live=[local16:ptr<managed>@0, local19:ptr<managed>@0, local20:ptr<managed>@0] t18 = sig=direct7 (ptr<managed>, ptr<managed>, ptr<managed>) -> i32 dispatch[Interface:0] t17(local16, local19, local20)
+    store t18 -> local22
+    ret local22
+  fun @scoop$1$cb$622ca9dc6f569b95dd3e4daf3668162cf34d123bd3d620669d6b0620e4f663d5(ptr<managed>, ptr<managed>, ptr<managed>) -> i32
+    local %0 $dependency.local.3: i32
+    local %1 $dependency.local.4: i32
+    local %2 $dependency.local.5: i32
+    local %3 $call.1: ptr<managed>
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0, param2:ptr<managed>@0]
+    t0 = heap_load param0 +0 : ptr<metadata>
+    call no-gc-direct-target0 t1 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t0, td3)
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0, param2:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> ptr<managed> dispatch[Interface:1] t1(param0)
+    store t2 -> local3
+    call managed-direct-target1 sp<managed-call:1> live=[param0:ptr<managed>@0, param1:ptr<managed>@0, param2:ptr<managed>@0, local3:ptr<managed>@0] t3 = sig=direct2 (ptr<managed>, ptr<managed>) -> i32 dispatch[Closure:2] param1(param1, local3)
+    store t3 -> local0
+    t4 = heap_load param0 +0 : ptr<metadata>
+    call no-gc-direct-target1 t5 = sig=direct3 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t4, td3)
+    call managed-void-target0 sp<managed-call:2> live=[param0:ptr<managed>@0, param2:ptr<managed>@0] sig=void0 (ptr<managed>) dispatch[Interface:2] t5(param0)
+    t6 = aggregate () : {}
+    t7 = aggregate () : {}
+    call managed-direct-target2 sp<managed-call:3> live=[param2:ptr<managed>@0] t8 = sig=direct4 (ptr<managed>, elided-zst<{} size=0 align=1>) -> i32 dispatch[Closure:2] param2(param2, elided-zst t7)
+    store t8 -> local1
+    store local1 -> local2
+    t9 = integer_Add<Int> local0, local2 : i32
+    ret t9
+  fun @scoop$1$cb$59d166015127dd320a2dbbffc5452dc648f26c5fbca25838030bbd3c0f2277f6(ptr<managed>) -> ptr<managed>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    t0 = heap_load param0 +16 : ptr<managed>
+    ret t0
+  fun @scoop$1$cb$a037b2906e595882a3f1e228582677778ba4226ee7dfbcadf62910349cf20492(ptr<managed>) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
+    ret
+  fun @scoop$1$cb$aa58a35dbdd4deab05c4b83fa06e3c72f319b6c6dabb1d56b28184feb4bd1521(ptr<managed>, elided-zst<{} size=0 align=1>) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret
+  fun @scoop$1$cb$d8328d29dba3248b1111f7fdeecff62f8455fac3947fa909eb344f2f07162dfd(ptr<managed>, elided-zst<{} size=0 align=1>) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    br @unwrap.trap.1
+  block unwrap.trap.1
+    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global0)
+    unreachable
+  fun @scoop$1$cb$51b487a430c6f5dc1aa709e3e44c608b716729b1b8cd4c0631be2de7f7343eb1(ptr<managed>, elided-zst<{} size=0 align=1>) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret integer<Int>(0x00000000)
+  fun @scoop$1$cb$63803f64e47316f3b2a145b675147d5cff206340c498e04573aab10130061981(ptr<managed>, elided-zst<{} size=0 align=1>) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret integer<Int>(0x00000000)
+  fun @scoop$1$cb$4de32ec365bfbcc43c1e2433300688a7ac4e3f58458d9e47236102047a5dda5f(ptr<managed>, ptr<managed>, ptr<managed>) -> i32
+    local %0 $dependency.local.3: i32
+    local %1 $dependency.local.4: i32
+    local %2 $dependency.local.5: i32
+    local %3 $call.1: i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0, param2:ptr<managed>@0]
+    t0 = heap_load param0 +0 : ptr<metadata>
+    call no-gc-direct-target0 t1 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t0, td7)
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0, param2:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> i32 dispatch[Interface:1] t1(param0)
+    store t2 -> local3
+    call managed-direct-target1 sp<managed-call:1> live=[param0:ptr<managed>@0, param1:ptr<managed>@0, param2:ptr<managed>@0] t3 = sig=direct2 (ptr<managed>, i32) -> i32 dispatch[Closure:2] param1(param1, local3)
+    store t3 -> local0
+    t4 = heap_load param0 +0 : ptr<metadata>
+    call no-gc-direct-target1 t5 = sig=direct3 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t4, td7)
+    call managed-void-target0 sp<managed-call:2> live=[param0:ptr<managed>@0, param2:ptr<managed>@0] sig=void0 (ptr<managed>) dispatch[Interface:2] t5(param0)
+    t6 = aggregate () : {}
+    t7 = aggregate () : {}
+    call managed-direct-target2 sp<managed-call:3> live=[param2:ptr<managed>@0] t8 = sig=direct4 (ptr<managed>, elided-zst<{} size=0 align=1>) -> i32 dispatch[Closure:2] param2(param2, elided-zst t7)
+    store t8 -> local1
+    store local1 -> local2
+    t9 = integer_Add<Int> local0, local2 : i32
+    ret t9
+  fun @scoop$1$cb$5a4434ca318509769b56d41904f59c5f740472cd69750e9afcd4f313d66fa469(ptr<managed>) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    t0 = heap_load param0 +16 : i32
+    ret t0
+  fun @scoop$1$cb$c47b1d2cbf7579f77d8dcc579697332e44156bd020f8a076c857eb622f5f9924(ptr<managed>) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
+    ret
+  fun @scoop$1$cb$8e1fe245c6000bb5ac81ceb4069c77ed4fa245ba979d54ddd95c1a9db963ed67(ptr<managed>, elided-zst<{} size=0 align=1>) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret
+  fun @scoop$1$cb$1a9b465480890ed0ca34ff841c1f96ae17bb04bcc5fa99adafcd68469f294811(ptr<managed>, elided-zst<{} size=0 align=1>) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    br @unwrap.trap.1
+  block unwrap.trap.1
+    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global1)
+    unreachable
+  fun @scoop$1$cb$727fa08f52cd21fe6603b550db95327a665ea2c05ac99f3b47ed3491f6cb725b(ptr<managed>, elided-zst<{} size=0 align=1>) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret integer<Int>(0x00000000)
+  fun @scoop$1$cb$c94c0ccab6bf24788a63dabd78154d066a05a86c48e5e24103246aedfc75b90a(ptr<managed>, elided-zst<{} size=0 align=1>) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret integer<Int>(0x00000000)
+  fun @scoop$1$cb$1e99d34543ff6901a4ceee65c63e10c79e5ae9cab8e797ae3510e15aa289806e(ptr<managed>) -> ptr<managed>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    br @unwrap.trap.1
+  block unwrap.trap.1
+    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global2)
+    unreachable
+  fun @scoop$1$cb$6795e4f09d1de2be8678871ea9b127315969111b8b5988b7dde46f37bf72d45d(ptr<managed>) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    br @unwrap.trap.1
+  block unwrap.trap.1
+    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global3)
+    unreachable
+  fun @scoop$1$cb$f0bb268981c8d89e9f5a8511d8826e7231f03ee70277004e27946a2cc42354b7(ptr<managed>) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    br @unwrap.trap.1
+  block unwrap.trap.1
+    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global4)
+    unreachable
+  fun @scoop$1$cb$dd87c9c0e4c57412061b8250ddda694936a2620c2fe06a632d8533b1085f3d7c(ptr<managed>) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    br @unwrap.trap.1
+  block unwrap.trap.1
+    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global5)
+    unreachable
+  fun @scoop$1$cb$adf0cdb8072a776a01007bd12e70aff40e590b281f8149c7300bbb92f04cf3ff(ptr<managed>, ptr<managed>) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    br @unwrap.trap.1
+  block unwrap.trap.1
+    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global6)
+    unreachable
+  fun @scoop$1$cb$d1b08330d118d3dcbbf47ec7c83be231873d5d1fae744518c7f4c82003efa069(ptr<managed>, ptr<managed>) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    br @unwrap.trap.1
+  block unwrap.trap.1
+    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global7)
+    unreachable
+  fun @scoop$1$cb$6893357e4d6fe3102d2f90b6f2866efc085d0b04fc8b2d516e989e851006b1ab(ptr<managed>, ptr<managed>) -> enum1
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    br @unwrap.trap.1
+  block unwrap.trap.1
+    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global8)
+    unreachable
+  fun @scoop$1$cb$7f7da7b58db646de275f5aa49bcd1dc40c9e5c7c0c1ca8065ed41e3de9175f01(ptr<managed>, ptr<managed>) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    br @unwrap.trap.1
+  block unwrap.trap.1
+    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global9)
+    unreachable
+  fun @scoop$1$cb$863f0442804cf6c189e65184ed881b63b3c9346a694ba376c9ff121008b3162f(ptr<managed>, i32) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    heap_store param0 +16 param1
+    ret
+  fun @scoop$1$cb$b4053985f97fbca55c297de1e8baa9288bf614bf5691a1e6e459256ab4c90589(ptr<managed>, ptr<managed>, elided-zst<{} size=0 align=1>) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    heap_store param0 +16 param1
+    ret
+  fun @scoop$1$cb$016446668f69aee40d4e1c29c500ca84c513655868fda51a538951eae226dabb(ptr<managed>, i32, elided-zst<{} size=0 align=1>) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    heap_store param0 +16 param1
+    ret
+  fun @scoop$1$cb$95ed917aacb049760142b42e74a9d9cb5c61a3c20671496b599712396b41d569(ptr<managed>, ptr<managed>) -> void
+    local %0 $step: enum1
+    local %1 $exception: ptr<managed>
+    local %2 $sc.1: exception_record
+    local %3 $sc.2: ptr<raw>
+    local %4 $sc.3: ptr<managed>
+  block suspended
+    ret
+  block completed
+    t0 = enum_field e1 v0 f0 local0 : ptr<managed>
+    t1 = heap_load param1 +0 : ptr<metadata>
+    call no-gc-direct-target0 t2 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t1, td8)
+    call managed-void-target0 sp<managed-call:2> live=[param1:ptr<managed>@0, t0:ptr<managed>@0] sig=void0 (ptr<managed>, ptr<managed>) dispatch[Interface:0] t2(param1, t0)
+    t3 = aggregate () : {}
+    ret
+  block failed
+    t4 = heap_load param1 +0 : ptr<metadata>
+    call no-gc-direct-target1 t5 = sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t4, td8)
+    call managed-void-target1 sp<managed-call:1> live=[param1:ptr<managed>@0, local1:ptr<managed>@0] sig=void1 (ptr<managed>, ptr<managed>) dispatch[Interface:1] t5(param1, local1)
+    t6 = aggregate () : {}
+    ret
+  block body_failure
+    (t7, t8) = landingpad : (exception_record, ptr<raw>)
+    store t7 -> local2
+    store t8 -> local3
+    t9 = begin_catch local3 : ptr<managed>
+    store t9 -> local4
+    call managed-direct-target0 sp<managed-call:0> live=[param1:ptr<managed>@0, local4:ptr<managed>@0] t10 = sig=direct2 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local4)
+    store t10 -> local1
+    end_catch
+    br @failed
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    t11 = heap_load param0 +0 : ptr<metadata>
+    call no-gc-direct-target2 t12 = sig=direct3 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t11, td9)
+    invoke managed-direct-target1 sp<managed-invoke:0> roots=[param0:argument, param1:normal+unwind] t13 = sig=direct4 (ptr<managed>, ptr<managed>) -> enum1 dispatch[Interface:0] t12(param0, param1) normal @invoke.normal.1 unwind @body_failure
+    br @invoke.normal.1
+  block invoke.normal.1
+    store t13 -> local0
+    t14 = enum_tag e1 local0 : machine<enum-tag>
+    t15 = MachineEq(EnumTag) t14, machine<enum-tag>(EnumTag(0)) : i1
+    cbr t15 then @completed else @suspended
+  fun @scoop$1$cb$a9b29721c87e42a7aee490a332a894ce2f00171ff57cd87857741db3391841ad(ptr<managed>, ptr<managed>) -> ptr<managed>
+    local %0 $call.1: i32
+    local %1 $box.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, ptr<managed>) -> i32 dispatch[Closure:2] param0(param0, param1)
+    store t0 -> local0
+    store local0 -> local1
+    t1 = box_value external-td1, local1 scan=none sp<managed-call:1> live=[]
+    ret t1
+  fun @scoop$1$cb$618e9f52d199f7c63eb6b7357afba754c2d49f6fee693f862aa902fbf7398c13(ptr<managed>, ptr<managed>) -> ptr<managed>
+    local %0 $call.1: i32
+    local %1 $box.1: i32
+    local %2 $box.2: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    unbox_value external-td1, param1 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, i32) -> i32 dispatch[Closure:2] param0(param0, local1)
+    store t0 -> local0
+    store local0 -> local2
+    t1 = box_value external-td1, local2 scan=none sp<managed-call:1> live=[]
+    ret t1
+  fun @scoop$1$cb$3d47503db4d485aaec8291760c676c3c4d4069da6ef8d2545626139c4c373a99(ptr<managed>, ptr<managed>) -> ptr<managed>
+    local %0 $call.1: i32
+    local %1 $box.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    unbox_zst external-td0, param1 -> t0
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t1 = sig=direct0 (ptr<managed>, elided-zst<{} size=0 align=1>) -> i32 dispatch[Closure:2] param0(param0, elided-zst t0)
+    store t1 -> local0
+    store local0 -> local1
+    t2 = box_value external-td1, local1 scan=none sp<managed-call:1> live=[]
+    ret t2
+  fun @scoop$1$cb$d496f7ddeed1eae7f0d4c638beb53619bca19093107f83ca0402d90f6a275ad3(ptr<managed>, ptr<managed>) -> ptr<managed>
+    local %0 $call.1: i32
+    local %1 $box.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    unbox_zst external-td0, param1 -> t0
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t1 = sig=direct0 (ptr<managed>, elided-zst<{} size=0 align=1>) -> i32 dispatch[Closure:2] param0(param0, elided-zst t0)
+    store t1 -> local0
+    store local0 -> local1
+    t2 = box_value external-td1, local1 scan=none sp<managed-call:1> live=[]
+    ret t2
+  fun @scoop$1$cb$b1b73dbc435a38cfe61fc02102f8b051d9350849a91a28cf052d776f32c59622(ptr<managed>, ptr<managed>) -> ptr<managed>
+    local %0 $call.1: i32
+    local %1 $box.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    unbox_zst external-td0, param1 -> t0
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t1 = sig=direct0 (ptr<managed>, elided-zst<{} size=0 align=1>) -> i32 dispatch[Closure:2] param0(param0, elided-zst t0)
+    store t1 -> local0
+    store local0 -> local1
+    t2 = box_value external-td1, local1 scan=none sp<managed-call:1> live=[]
+    ret t2
+  fun @scoop$1$cb$1f56e4c2b2252d9015d39d4ccb6144bd5a71a72f42eca67bb60ba0b9cc7adb4a(ptr<managed>, ptr<managed>) -> ptr<managed>
+    local %0 $call.1: i32
+    local %1 $box.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    unbox_zst external-td0, param1 -> t0
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t1 = sig=direct0 (ptr<managed>, elided-zst<{} size=0 align=1>) -> i32 dispatch[Closure:2] param0(param0, elided-zst t0)
+    store t1 -> local0
+    store local0 -> local1
+    t2 = box_value external-td1, local1 scan=none sp<managed-call:1> live=[]
+    ret t2
+  td td0 a(n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.interfaces;o=-;k=I;x=Diamond);[n(c=dev.example%3Ageneric-member-downstream-combined%3A0.1.0;p=;o=-;k=C;x=Payload),n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit)]) @scoop$1$td$19dff74cbc46623402d211b67b7405ad29dae149047af70ed7ac0b60111a3b7e type-id=8438647838217101763 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[td3, td1]
+  td td1 a(n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.interfaces;o=-;k=I;x=Restored);[n(c=dev.example%3Ageneric-member-downstream-combined%3A0.1.0;p=;o=-;k=C;x=Payload),n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit)]) @scoop$1$td$b52445e0cd7189b7505b51a9d4cda0b6cfb1b18f0f3e4a18d5a07d57108635ba type-id=13817449762176627227 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[td2]
+  td td2 a(n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.interfaces;o=-;k=I;x=Reversed);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit),n(c=dev.example%3Ageneric-member-downstream-combined%3A0.1.0;p=;o=-;k=C;x=Payload)]) @scoop$1$td$683f727c3b56b79d4183222a55faf018b5e1d6a8098ff470ce6f0fc7af922340 type-id=13859735177758629943 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[td3]
+  td td3 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.interfaces;o=-;k=I;x=Values);[n(c=dev.example%3Ageneric-member-downstream-combined%3A0.1.0;p=;o=-;k=C;x=Payload),n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit)]) @scoop$1$td$7f7990f8a340f5e513996c8d14cddb11302762f7e3347477f6c9b4318524f8de type-id=3514960647583415668 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td4 a(n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.interfaces;o=-;k=I;x=Diamond);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int),n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit)]) @scoop$1$td$75c186a87aff175f47485d5c3f64623a032c81e741b3df4138888fc3f369d85e type-id=3139466008333681601 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[td7, td5]
+  td td5 a(n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.interfaces;o=-;k=I;x=Restored);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int),n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit)]) @scoop$1$td$52520c8874344a499b93fcc79e31911d1738befe908b028c76f3423951fee670 type-id=15237445211514738425 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[td6]
+  td td6 a(n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.interfaces;o=-;k=I;x=Reversed);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit),n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$cb7e9d9e5a20e05e854a6d9e0fbfbf7980cc6c9da190dbaaae2e750a2f4ef1ef type-id=10076036588425896535 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[td7]
+  td td7 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.interfaces;o=-;k=I;x=Values);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int),n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit)]) @scoop$1$td$2df80d1f75f04baf19fd45ce2d43592558f565a909966418b35d6f02ccc21c37 type-id=6913751310856404530 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td8 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=dev.example%3Ageneric-member-downstream-combined%3A0.1.0;p=;o=-;k=C;x=Payload)]) @scoop$1$td$612381ee8a3ff022741202c17d27e1c6dc8fb759a2efac74e1ff050c2af250fd type-id=9844566827641296894 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td9 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=dev.example%3Ageneric-member-downstream-combined%3A0.1.0;p=;o=-;k=C;x=Payload)]) @scoop$1$td$fd84886fc3b2de8a497ac5280bf6ffb171a9f92b6e13a8def1cf49603725bb7b type-id=12212272610513192229 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td10 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=dev.example%3Ageneric-member-downstream-combined%3A0.1.0;p=;o=-;k=C;x=Payload)]) @scoop$1$td$267bc18c3e9600a7d6cafe0c379d56a11d4c8f769679287d3e82b95ef95bb807 type-id=4115772312118569196 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td11 n(c=dev.example%3Ageneric-member-downstream-combined%3A0.1.0;p=;o=-;k=C;x=Payload) @scoop$1$td$1b3e632c723737cbb24402d1bf9b602de98305072b28b2252760a61ed78005e2 type-id=8092466347079364594 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td12 a(n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.interfaces;o=-;k=C;x=Local);[n(c=dev.example%3Ageneric-member-downstream-combined%3A0.1.0;p=;o=-;k=C;x=Payload),n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit)]) @scoop$1$td$a7d8057e5c271f3aedb10421f2a68be132793818f4e94dba7f6c1471991ac71e type-id=13272214704559470301 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[td0:[local-fn5, local-fn6, local-fn7, local-fn8], td2:[local-fn5, local-fn6, local-fn7, local-fn8], td3:[local-fn5, local-fn6, local-fn7, local-fn8], td1:[local-fn5, local-fn6, local-fn7, local-fn8]]
+  td td13 a(n(c=dev.example%3Ageneric-member-combined%3A0.1.0;p=consumer.interfaces;o=-;k=C;x=Local);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int),n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit)]) @scoop$1$td$105544f8acdca0fce3e6edde82e7296ba15d8773a3eb4a02cfe78a3780a5868b type-id=4354985891288611653 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[td7:[local-fn12, local-fn13, local-fn14, local-fn15], td5:[local-fn12, local-fn13, local-fn14, local-fn15], td4:[local-fn12, local-fn13, local-fn14, local-fn15], td6:[local-fn12, local-fn13, local-fn14, local-fn15]]
+  td td14 f(o;[n(c=dev.example%3Ageneric-member-downstream-combined%3A0.1.0;p=;o=-;k=C;x=Payload)]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)) @scoop$1$td$007ec3c4045063c0bede0643065e814286849e76218f8ed0904309d5aba344c4 type-id=13618649614393063965 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary(td11)->external-td1
+  td td15 f(o;[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)) @scoop$1$td$23935e22ada5206ddbde55e993e7c8ab4bb4428a0f9a361c61c6565ee1902d69 type-id=15845947979171618166 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary(external-td1)->external-td1
+  td td16 f(o;[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit)]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)) @scoop$1$td$629d09ff83ed8e513deee1234c19d1a048dbfb01ec7fef71e6064e4c827cd040 type-id=13792928394547298880 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary(external-td0)->external-td1
+  td td17 g(r=00000001;i=5ae7cf6922f33b4b3a0a8dc35c9465abd7d3d0cc2df89e843ece3ace55f0345d) @scoop$1$td$05a87b8afbeb1a56aaf15390c2885ed506d1e155268b31f88569c69210b99e49 type-id=14720561599133874788 shape=FixedObject minimum-size=24 align=8 parent=td14 vtable=[local-fn31] itables=[]
+  td td18 g(r=00000001;i=8994f82e0dfe0a3f664a058f34f59a709a91b0ffba8d43fa2fead4dfa67516da) @scoop$1$td$5d07fda395885e88f1c3fec66119f2ced276475c643f48dd52de84fdf9bbc675 type-id=3368624048938507272 shape=FixedObject minimum-size=24 align=8 parent=td15 vtable=[local-fn32] itables=[]
+  td td19 g(r=00000001;i=1c338043a31fb69b924853b8169ccd2d9115dab448055015bdf025441d6e7ca8) @scoop$1$td$24ea8b2a402d088876db28a603c5906d15a08eea7222d3f2c83d1b696b5a7d11 type-id=8788786732652541315 shape=FixedObject minimum-size=24 align=8 parent=td16 vtable=[local-fn33] itables=[]
+  td td20 g(r=00000001;i=1cd261ca103a2aedba22d00c297dc7430c650557b9974d1c4647bddcebc73365) @scoop$1$td$848805bfb6340ffdc32633328164cbb19bc22ddf532b7bbbc7e53620228cbb30 type-id=7559484013856017526 shape=FixedObject minimum-size=24 align=8 parent=td16 vtable=[local-fn34] itables=[]
+  td td21 g(r=00000001;i=c03f678787207fb5122b9fc0d2d34b6ef171fcb769ddeeb671a4869fb55849f8) @scoop$1$td$cd61255ad88778f905fb918612e977fddfd299743c9b307d0293e9e4d6744d44 type-id=15034456130935439465 shape=FixedObject minimum-size=24 align=8 parent=td16 vtable=[local-fn35] itables=[]
+  td td22 g(r=00000001;i=474302743e64f9907d99f0f9435bb0c72db39d348d5184a148c4d7706cb023a9) @scoop$1$td$269b01eaa2d68e23f7776b5704b8daccb6ded3fa5c8025f1d2c934e2df96b4ab type-id=12669225771528725040 shape=FixedObject minimum-size=24 align=8 parent=td16 vtable=[local-fn36] itables=[]
+  td td23 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td24 g(r=00000007;i=c415c6916e8d793dc56f39b8a1fd345fc40d4e23e9f52318da370db23e7b9d41) @scoop$1$td$41c06e0e135a7296d03396c9652af2d91cb3ff30b547f065cdfa4be7e4bbc1e9 type-id=3265465010344773833 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td25 g(r=00000005;i=4b2656b10a0d965a7eb6675a2a20621f2ee03940d90d1e9d604039bc0c7b32bb) @scoop$1$td$d19f75285cd62aad45da0c33de6db5b84d62ba3cd33ec79f380a7b05fe1f93e2 type-id=1568390866104849841 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout Option size=8 align=8 enum-scan=refs[0]
+  layout CoroutineStep<Payload> size=8 align=8 enum-scan=refs[0]
+  layout CoroutineSlot<Payload> size=8 align=8 enum-scan=refs[0]
+  layout Diamond value size=8 align=8 refs=[0]
+  layout Restored value size=8 align=8 refs=[0]
+  layout Reversed value size=8 align=8 refs=[0]
+  layout Values value size=8 align=8 refs=[0]
+  layout Diamond value size=8 align=8 refs=[0]
+  layout Restored value size=8 align=8 refs=[0]
+  layout Reversed value size=8 align=8 refs=[0]
+  layout Values value size=8 align=8 refs=[0]
+  layout Continuation value size=8 align=8 refs=[0]
+  layout SuspendTask value size=8 align=8 refs=[0]
+  layout SuspendRegistration value size=8 align=8 refs=[0]
+  layout Payload value size=8 align=8 refs=[0]
+  layout Payload size=24 align=8 refs=[]
+  layout Local value size=8 align=8 refs=[0]
+  layout Local size=24 align=8 refs=[16]
+  layout Local value size=8 align=8 refs=[0]
+  layout Local size=24 align=8 refs=[]
+  layout $Closure$lambda0 value size=8 align=8 refs=[0]
+  layout $Closure$lambda0 size=24 align=8 refs=[]
+  layout $Closure$lambda1 value size=8 align=8 refs=[0]
+  layout $Closure$lambda1 size=24 align=8 refs=[]
+  layout $Closure$lambda2 value size=8 align=8 refs=[0]
+  layout $Closure$lambda2 size=24 align=8 refs=[]
+  layout $Closure$lambda3 value size=8 align=8 refs=[0]
+  layout $Closure$lambda3 size=24 align=8 refs=[]
+  layout $Closure$lambda4 value size=8 align=8 refs=[0]
+  layout $Closure$lambda4 size=24 align=8 refs=[]
+  layout $Closure$lambda5 value size=8 align=8 refs=[0]
+  layout $Closure$lambda5 size=24 align=8 refs=[]
+  output library

@@ -1,7 +1,0 @@
-span=84..141
-expression=public override val first: String
-        get() = "wrong"
-property `first` must have the exact inherited type Int, found String
-span=104..109
-expression=first
-`$get$first` is marked `override` but does not override any method

@@ -1,0 +1,19 @@
+SourceFile
+  QualifiedPackage upstream.interfaces
+  public interface Values<A, B>
+    fun total
+    public open val first: A <computed>
+    public open var second: B <computed>
+  public class Remote<A, B>(val a: A, var b: B), Values<A, B>
+    public open override val first: A <computed>
+      get()
+        FieldAccess a
+          This
+    public open override var second: B <computed>
+      get()
+        FieldAccess b
+          This
+      set(value)
+        assign .b
+          This
+          Var value

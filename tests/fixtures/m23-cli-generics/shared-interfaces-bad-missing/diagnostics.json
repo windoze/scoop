@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `Missing` does not implement interface method `Values<Int, Unit>.$get$second`",
+    "notes": [],
+    "origin": {
+      "cone": "6364323c2c3701ba342109ba3601cf7bcbc30d1019cf895c57b4e7f1a5c1f320",
+      "end": 133,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 35
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `Missing` does not implement interface method `Values<Int, Unit>.$set$second`",
+    "notes": [],
+    "origin": {
+      "cone": "6364323c2c3701ba342109ba3601cf7bcbc30d1019cf895c57b4e7f1a5c1f320",
+      "end": 133,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 35
+    },
+    "severity": "error"
+  }
+]
