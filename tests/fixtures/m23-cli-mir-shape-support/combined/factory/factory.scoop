@@ -1,0 +1,2 @@
+public fun holder(value: Message): Holder = Holder(value)
+public fun held(value: Holder): Message = value.value

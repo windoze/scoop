@@ -1,0 +1,270 @@
+Module
+  global0 $singleton$962b63c6b4b6c2a1f707091568053ebeee0a0d2b303ef2dcf73cc55d6c4606a2: Singleton imported provider=911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006 storage=1ed09dc134578776f6d2e382973eb480035371f925b629bf52db57c6670c89ae
+  struct Payload (label: String)
+  enum Message
+    Idle()
+    Data(_0: Payload)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Holder vtable=0 itables=0
+  class Singleton vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class box<Payload> vtable=0 itables=0
+  class box<Message> vtable=0 itables=0
+  interface Marker
+  generated_exact_type get0 location=class7 nominal_id=49a72170f7c7a3c1e40405a37887832a8dec18a4cc9eabfd764235acc6d96d56 exact_id=30a9704a9e62a591872b40fc700cd388b7bb467e86f5b5558eedf65387006af6
+  generated_exact_type get1 location=class6 nominal_id=e9c6b12c924835208c04ec4cdb900f19cf0c24d7d5cd9923e0e2a04a2b01039e exact_id=99fcb892d3c13c3f6ebd0634f29fd72ca79d07570f362583eb5935aa4bb34903
+  fun verifyType @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.label: String
+        Type String
+        Local $dependency.argument.0
+      call payload: Payload = external1 direct
+        Type String
+        Local $dependency.parameter.label
+      val marker: Marker
+        Type Marker
+        Box
+          Type Payload
+          Local payload
+      val $dependency.receiver: Marker
+        Type Marker
+        Local marker
+      call $dependency.receiver: Int = external2 interface Marker[0]
+        Type Marker
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      val $dependency.receiver: Marker
+        Type Marker
+        Box
+          Type Payload
+          Local payload
+      call $dependency.receiver: Int = external2 interface Marker[0]
+        Type Marker
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.0
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Payload
+        Type Payload
+        Local payload
+      val $dependency.parameter._1: Payload
+        Type Payload
+        Local $dependency.argument.0
+      val message: Message
+        Type Message
+        VariantConstruct Message v1
+          Type Payload
+          Local $dependency.parameter._1
+      val $dependency.argument.0: Message
+        Type Message
+        Local message
+      val $dependency.parameter.value: Message
+        Type Message
+        Local $dependency.argument.0
+      call $dependency.argument.0: Holder = external3 direct
+        Type Message
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Holder
+        Type Holder
+        Local $dependency.argument.0
+      call $call.1: Message = external4 direct
+        Type Holder
+        Local $dependency.parameter.value
+      call $argument.0: Boolean = external9 direct
+        Type Message
+        Local $call.1
+        Type Message
+        Local message
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call external10 direct
+      call $dependency.receiver: String = external5 direct
+        Type Singleton
+        GlobalRead $singleton$962b63c6b4b6c2a1f707091568053ebeee0a0d2b303ef2dcf73cc55d6c4606a2
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call external10 direct
+      call external10 direct
+      call $call.2: Boolean = external6 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      branch bb4 bb5
+        Type Boolean
+        Local $call.2
+    bb4 logic.rhs.4
+      assign $logic.3
+        Type Boolean
+        Binary RefEq
+          Type Singleton
+          GlobalRead $singleton$962b63c6b4b6c2a1f707091568053ebeee0a0d2b303ef2dcf73cc55d6c4606a2
+          Type Singleton
+          GlobalRead $singleton$962b63c6b4b6c2a1f707091568053ebeee0a0d2b303ef2dcf73cc55d6c4606a2
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.3
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 logic.merge.6
+      val $argument.0: Boolean
+        Type Boolean
+        Local $logic.3
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $call.4: Any = external7 direct
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance String
+            Type Any
+            Local $call.4
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val erased: Any
+        Type Any
+        Box
+          Type Message
+          Local message
+      val $cast.1: Any
+        Type Any
+        Local erased
+      branch bb7 bb8
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Message
+            Type Any
+            Local $cast.1
+    bb7 if.then.7
+      assign $new.5
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external8 direct
+        Type ClassCastException
+        Local $new.5
+      throw
+        Type ClassCastException
+        Local $new.5
+    bb8 if.merge.8
+      val $ub.2: Message
+        Type Message
+        Unbox
+          Type Any
+          Local $cast.1
+      call $argument.0: Boolean = external9 direct
+        Type Message
+        Local $ub.2
+        Type Message
+        Local message
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  str @str0 "illegal state"
+  str @str1 "payload"
+  str @str2 "stable"
+  output executable @fn1

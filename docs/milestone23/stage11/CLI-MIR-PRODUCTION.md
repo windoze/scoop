@@ -11,3 +11,4 @@
 | `mir-equality-production` | 2／13／22／7 | ZST、嵌套字段、enum、显式 equals 与异类型重载；用实际调用映射保留 Leaf／Pair／Choice／UsesManual 的依赖，Manual 与 NotComparable 不产生错误的派生 binding。 |
 | `mir-object-production` | 2／12／18／6 | 独立／companion 单例、依赖初始化、private object、顶层值和 closure；保留 singleton identity、published root、initializer／ensure 角色和 1／3 个公开 object 计数。 |
 | `mir-export-assembly` | 2／13／22／7 | 类型、callable、dispatch、object、shape 六表与普通导出分区；保留每个实际签名、GC effect、对象初始化入口、完整引用关系及全部 wire roundtrip。 |
+| `mir-shape-support` | 2／13／22／7 | ZST、managed payload、enum、object、私有 box 与默认方法；保留真实物化根、owner 完整性、boxed／step／slot 绑定及其 GC facts。 |
