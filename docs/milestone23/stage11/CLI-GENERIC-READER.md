@@ -7,3 +7,4 @@
 | 原功能 | 用例 | 只读进程／golden | 原 typed 断言 |
 | --- | --- | --- | --- |
 | `ordinary_reader_retains_generic_bodies_from_actual_published_libraries` | `standalone`、`combined`、`support`、`concrete-support` | 48／36 | 全部保留 generic function 正文；standalone 正文 3、callable support 2；combined 有 capture；support／concrete-support 各有 1 个 nominal support 与 public binding；concrete-support 正文和 representation support 各为 1；删除旧文件编排、注册和已替代快照 |
+| `native_storage_exports_do_not_emit_unused_c_trampolines` | `native-storage` | 12／9 | MIR callback storage 为 6，来源严格为 echo、echo、hidden、previouslyUsed、roundWide、sink；均为原函数且 ABI 和 physical provider 一致；实际 C bridge plan 与对象数都为 1；删除旧文件编排、注册和已替代快照 |

@@ -1,0 +1,52 @@
+SourceFile
+  QualifiedPackage dependency.nativeAddresses
+  public var state: Long = <expr>
+    @NoGC
+  public fun echo(value: Long): Long
+    =
+      Var value
+    @NoGC
+  public fun echo(value: Int): Int
+    =
+      Var value
+    @NoGC
+  public fun previouslyUsed(value: Long): Long
+    =
+      Var value
+  public fun previousAddress(): FunPtr<(Long) -> Long>
+    =
+      CallableReference 0 previouslyUsed
+    @NoGC
+  private fun hidden(value: Long): Long
+    =
+      Binary Add
+        Var value
+        IntLiteral 2
+  public fun selected<T>(value: T, callback: FunPtr<(Long) -> Long> = <expr>): FunPtr<(Long) -> Long>
+    =
+      Var callback
+  public fun privateAddress<T>(value: T): FunPtr<(Long) -> Long>
+    =
+      CallableReference 2 hidden
+    @CLayout
+  public struct Wide
+    field first: Long
+    field second: Long
+    field third: Long
+    @NoGC
+  public fun roundWide(value: Wide): Wide
+    =
+      Var value
+    @NoGC
+    @Unsafe
+  public fun sink(pointer: Ptr<Long>)
+    MethodCall store
+      Var pointer
+      IntLiteral 42
+  public fun managed(value: Long): Long
+    =
+      Var value
+    @NoGC
+  public fun generic<T : value>(value: T): T
+    =
+      Var value
