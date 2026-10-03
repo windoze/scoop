@@ -1,0 +1,31 @@
+SourceFile
+  RootPackage
+  public interface Marker
+    fun mark
+  public open class Base(val seed: Int), Marker
+    protected fun value
+    protected open var number: Int = <expr>
+      Var seed
+    public fun mark
+  public class Derived() : Base(<1 args>)
+    protected fun value
+  public struct Packet
+    field number: Int
+  public enum Choice
+    Empty
+    Positional(Int)
+    Named <named>
+      value: Int
+    Constructed <ctor>
+      value: Int
+  public enum GenericChoice<T>
+    Empty
+    Positional(T)
+    Named <named>
+      value: T
+    Constructed <ctor>
+      value: T
+  public object Singleton
+    private val hidden: Int = <expr>
+      IntLiteral 4
+    public fun mark
