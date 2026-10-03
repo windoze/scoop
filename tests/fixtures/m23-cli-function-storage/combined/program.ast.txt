@@ -1,0 +1,30 @@
+SourceFile
+  RootPackage
+  ImportExact Local functionstorage.callback
+  val first: () -> Int = <expr>
+  val second: () -> Int = <expr>
+  val callbacks: Array<() -> Int> = <expr>
+  fun main()
+    if
+      Binary Or
+        Binary Ne
+          Binary Add
+            Call first
+            Call second
+          IntLiteral 42
+        Binary Ne
+          Binary Add
+            Invoke
+              Index
+                Var callbacks
+                IntLiteral 0
+            Invoke
+              Index
+                Var callbacks
+                IntLiteral 1
+          Invoke
+            Index
+              Var callbacks
+              IntLiteral 2
+      throw
+        Call IllegalStateException

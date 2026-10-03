@@ -1,0 +1,12 @@
+SourceFile
+  RootPackage
+  ImportExact Local functionstorage.callback
+  fun main()
+    val local
+      Var callback
+    if
+      Binary Ne
+        Call local
+        IntLiteral 42
+      throw
+        Call IllegalStateException
