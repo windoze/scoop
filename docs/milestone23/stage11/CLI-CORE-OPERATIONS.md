@@ -28,3 +28,17 @@ core 包含原 driver 用例的六个扩展文件与两个 reference source-fiel
 仍先报告完整的 `SCOOP_CLI_CONFIG`，不建立 cache/target。组合用例从普通 sysroot
 artifact slot 取得已经编译的 core，不传额外 Cone locator。完整输入 suite
 21 项／72 进程／8 份 golden 通过；两项 single-file 组合的产物和阶段期望均未变化。
+
+## 独立成员与常量
+
+普通输入保留原 `test:scoop-hir-lower:0.0.0`、`src/main.scoop` 身份。
+先单独编译原 library 并锁定 AST/HIR/MIR/LIR，再通过实际程序验证值；
+原 internal 成员由同 Cone 新增入口调用，不改可见性。public 常量与静态属性
+由删除源码后的独立下游读取，静态可变属性还验证再次赋值。
+所有正例均从根 `.slib` 独立链接并运行普通／移动 GC。
+参数改名用例只修改原 core 的 `Int.shl(count: Long)` 参数名为 `distance`，
+验证方法、infix、const 与旧具名参数诊断遵循真实源码声明。
+
+| 功能 | 新 case 前缀与范围 | 用例／进程／golden | 原断言与实际验证 |
+| --- | --- | --- | --- |
+| 成员调用与参数 | `members-`：`methods`、`wrong-name`、`wrong-type`、`non-infix`、`conversion-argument` | 5／14／9 | typed core 成员选择、窄整数回绕、转换、Boolean/String 运算及 4 个完整错误 |
