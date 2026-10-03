@@ -1,19 +1,4 @@
 #[test]
-fn pointer_function_adapters_republish_and_execute() {
-    super::members::check_fixture_cases(
-        "m23-function-adapters",
-        &["static", "dynamic", "nested", "lambda-results"],
-        &[
-            "bad-pointer-argument",
-            "bad-result",
-            "bad-native-argument",
-            "bad-lambda-result",
-        ],
-        "downstream",
-    );
-}
-
-#[test]
 fn delegate_initializer_adapters_republish_and_execute() {
     super::members::check_fixture_cases(
         "m23-function-adapters",

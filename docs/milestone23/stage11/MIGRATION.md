@@ -422,3 +422,4 @@ parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end，
 | `shared_struct_instances_republish_and_execute_from_artifacts` | `m23-shared-structs` | 2／2 | 30／26 | 6 份阶段、2 份诊断逐项相同 |
 | `source_calls_share_targets_defaults_and_evaluation_order` | `m23-shared-source-calls` | 2／3 | 33／26 | 6 份阶段、3 份诊断逐项相同 |
 | `dependency_value_wrappers_preserve_inline_layout_boundaries` | `m23-shared-value-layouts` | 2／4 | 36／26 | 6 份阶段、4 份诊断逐项相同 |
+| `pointer_function_adapters_republish_and_execute` | `m23-function-adapters` | 4／4 | 60／52 | 12 份阶段、4 份诊断逐项相同 |

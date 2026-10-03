@@ -1,3 +1,0 @@
-span=121..127
-expression=source
-body of `broken` must be of type (FunPtr<(Long) -> Long>) -> Any, found (FunPtr<(Int) -> Int>) -> Int
