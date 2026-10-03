@@ -1,0 +1,21 @@
+SourceFile
+  RootPackage
+  private class Number(val value: Int)
+  private class Unused(val value: Int)
+  public enum Parcel<T>
+    Empty
+    Item(T)
+  public fun result(): Int
+    val parcel
+      MethodCall Item
+        Var Parcel
+        Call Number
+          IntLiteral 42
+    return
+      WhenExpression
+        Var parcel
+        arm Empty
+          IntLiteral 0
+        arm Item(number)
+          FieldAccess value
+            Var number

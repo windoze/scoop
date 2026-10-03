@@ -1,0 +1,15 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val empty = Empty()
+    verifyType(EmptyPair(empty, empty) == EmptyPair(Empty(), Empty()))
+    verifyType(Pair(17, empty).number == 17)
+    verifyType(Packet(19).number == 19)
+    verifyType(State.Off == State.Off)
+    verifyType(State.On(23) == State.On(23))
+    verifyType(State.Stamp(empty) == State.Stamp(Empty()))
+    val state = State.Data(29, empty)
+    verifyType(when (state) { Data(number, token) -> number == 29 && token == empty; else -> false })
+    val erased: Any = state
+    verifyType((erased as State) == state)
+}

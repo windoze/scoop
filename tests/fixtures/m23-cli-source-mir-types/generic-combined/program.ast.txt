@@ -1,0 +1,75 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val first
+      Call reference
+        IntLiteral 17
+    val second
+      Call reference
+        IntLiteral 25
+    val pair
+      Call Pair
+        Var first
+        Var second
+    val value
+      Call Combined
+        Call owner
+          Var first
+        MethodCall Full
+          Var Maybe
+          Var pair
+        ArrayLiteral
+          Var pair
+          Var pair
+    Call verifyType
+      Binary RefEq
+        Call ownedValue
+          FieldAccess reference
+            Var value
+        Var first
+    Call verifyType
+      WhenExpression
+        FieldAccess values
+          Var value
+        arm Empty
+          BoolLiteral false
+        arm Full(item)
+          Binary And
+            Binary RefEq
+              FieldAccess first
+                Var item
+              Var first
+            Binary RefEq
+              FieldAccess second
+                Var item
+              Var second
+    Call verifyType
+      Binary Eq
+        Binary Add
+          Call referenceValue
+            FieldAccess first
+              Index
+                FieldAccess array
+                  Var value
+                IntLiteral 0
+          Call referenceValue
+            FieldAccess second
+              Index
+                FieldAccess array
+                  Var value
+                IntLiteral 1
+        IntLiteral 42
+    val erased: Any
+      Var pair
+    Call verifyType
+      Binary RefEq
+        FieldAccess second
+          Cast Pair<Reference> optional=false
+            Var erased
+        Var second

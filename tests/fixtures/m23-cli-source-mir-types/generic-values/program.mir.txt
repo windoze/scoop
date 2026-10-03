@@ -1,0 +1,378 @@
+Module
+  struct Marker ()
+  struct Box<Marker> (value: Marker)
+  struct Box<Int> (value: Int)
+  struct Numbers (one: Box<Int>, nested: Maybe<Box<Marker>>)
+  struct Box<String> (value: String)
+  enum Maybe<Box<Marker>>
+    Empty()
+    Full(_0: Box<Marker>)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class box<Box<String>> vtable=0 itables=0
+  generated_exact_type get0 location=class4 nominal_id=d9e2e064388a833cf3e9a4662b9a760a67c597e739370601af98a35e375b02ac exact_id=515ef98dbf658a1e056c17d66818c77a1d469e7ee5375a03db3405be9392f015
+  fun verifyType @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.0: Box<Int> = @fn4 direct
+        Type Int
+        Local $dependency.parameter.value
+      call $dependency.argument.0: Marker = external1 direct
+      val $dependency.parameter.value: Marker
+        Type Marker
+        Local $dependency.argument.0
+      call $dependency.argument.0: Box<Marker> = @fn5 direct
+        Type Marker
+        Local $dependency.parameter.value
+      val $dependency.parameter._1: Box<Marker>
+        Type Box<Marker>
+        Local $dependency.argument.0
+      val $dependency.argument.1: Maybe<Box<Marker>>
+        Type Maybe<Box<Marker>>
+        VariantConstruct Maybe<Box<Marker>> v1
+          Type Box<Marker>
+          Local $dependency.parameter._1
+      val $dependency.parameter.one: Box<Int>
+        Type Box<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.nested: Maybe<Box<Marker>>
+        Type Maybe<Box<Marker>>
+        Local $dependency.argument.1
+      call numbers: Numbers = external2 direct
+        Type Box<Int>
+        Local $dependency.parameter.one
+        Type Maybe<Box<Marker>>
+        Local $dependency.parameter.nested
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Box<Int>
+          FieldAccess 0
+            Type Numbers
+            Local numbers
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $when.1: Maybe<Box<Marker>>
+        Type Maybe<Box<Marker>>
+        FieldAccess 1
+          Type Numbers
+          Local numbers
+      val $pattern.subject.2: Maybe<Box<Marker>>
+        Type Maybe<Box<Marker>>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Maybe<Box<Marker>> v0
+          Type Maybe<Box<Marker>>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $result.0
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Maybe<Box<Marker>>
+        Type Maybe<Box<Marker>>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Maybe<Box<Marker>> v1
+          Type Maybe<Box<Marker>>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $argument.0: Boolean
+        Type Boolean
+        Local $result.0
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call text: Box<String> = @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      val erased: Any
+        Type Any
+        Box
+          Type Box<String>
+          Local text
+      val $cast.4: Any
+        Type Any
+        Local erased
+      branch bb7 bb8
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Box<String>
+            Type Any
+            Local $cast.4
+    bb4 pattern.pass.4
+      val value: Box<Marker>
+        Type Box<Marker>
+        VariantPayloadProject Maybe<Box<Marker>> v1 f0
+          Type Maybe<Box<Marker>>
+          Local $pattern.subject.3
+      call $call.1: Marker = external1 direct
+      call $call.2: Boolean = external5 direct
+        Type Marker
+        FieldAccess 0
+          Type Box<Marker>
+          Local value
+        Type Marker
+        Local $call.1
+      assign $result.0
+        Type Boolean
+        Local $call.2
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+    bb7 if.then.7
+      assign $new.3
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external4 direct
+        Type ClassCastException
+        Local $new.3
+      throw
+        Type ClassCastException
+        Local $new.3
+    bb8 if.merge.8
+      val $ub.5: Box<String>
+        Type Box<String>
+        Unbox
+          Type Any
+          Local $cast.4
+      val $dependency.receiver: String
+        Type String
+        FieldAccess 0
+          Type Box<String>
+          Local $ub.5
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external3 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val empty: Maybe<Box<Marker>>
+        Type Maybe<Box<Marker>>
+        VariantConstruct Maybe<Box<Marker>> v0
+      call $argument.0: Boolean = @fn3 direct
+        Type Maybe<Box<Marker>>
+        Local empty
+        Type Maybe<Box<Marker>>
+        VariantConstruct Maybe<Box<Marker>> v0
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun $derived.equals.0 @fn2(this: Box<Marker>, other: Box<Marker>) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = external5 direct
+        Type Marker
+        FieldAccess 0
+          Type Box<Marker>
+          Local this
+        Type Marker
+        FieldAccess 0
+          Type Box<Marker>
+          Local other
+      return
+        Type Boolean
+        Local $call.1
+  fun $derived.equals.1 @fn3(this: Maybe<Box<Marker>>, other: Maybe<Box<Marker>>) -> Boolean
+    bb0 entry
+      val $when.1: Maybe<Box<Marker>>
+        Type Maybe<Box<Marker>>
+        Local this
+      val $pattern.subject.2: Maybe<Box<Marker>>
+        Type Maybe<Box<Marker>>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Maybe<Box<Marker>> v0
+          Type Maybe<Box<Marker>>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $when.3: Maybe<Box<Marker>>
+        Type Maybe<Box<Marker>>
+        Local other
+      val $pattern.subject.4: Maybe<Box<Marker>>
+        Type Maybe<Box<Marker>>
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Maybe<Box<Marker>> v0
+          Type Maybe<Box<Marker>>
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Maybe<Box<Marker>>
+        Type Maybe<Box<Marker>>
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Maybe<Box<Marker>> v1
+          Type Maybe<Box<Marker>>
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      return
+        Type Boolean
+        BoolLiteral true
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $left.1.0: Box<Marker>
+        Type Box<Marker>
+        VariantPayloadProject Maybe<Box<Marker>> v1 f0
+          Type Maybe<Box<Marker>>
+          Local $pattern.subject.5
+      val $when.6: Maybe<Box<Marker>>
+        Type Maybe<Box<Marker>>
+        Local other
+      val $pattern.subject.7: Maybe<Box<Marker>>
+        Type Maybe<Box<Marker>>
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Maybe<Box<Marker>> v1
+          Type Maybe<Box<Marker>>
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      val $right.1.0: Box<Marker>
+        Type Box<Marker>
+        VariantPayloadProject Maybe<Box<Marker>> v1 f0
+          Type Maybe<Box<Marker>>
+          Local $pattern.subject.7
+      call $call.1: Boolean = @fn2 direct
+        Type Box<Marker>
+        Local $left.1.0
+        Type Box<Marker>
+        Local $right.1.0
+      return
+        Type Boolean
+        Local $call.1
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+  fun ctor.Box.$c0 @fn4(value: Int) -> Box<Int> <no-gc>
+    bb0 entry
+      return
+        Type Box<Int>
+        StructInit Box<Int>
+          Type Int
+          Local value
+  fun ctor.Box.$c0 @fn5(value: Marker) -> Box<Marker> <no-gc>
+    bb0 entry
+      return
+        Type Box<Marker>
+        StructInit Box<Marker>
+          Type Marker
+          Local value
+  fun ctor.Box.$c0 @fn6(value: String) -> Box<String> <no-gc>
+    bb0 entry
+      return
+        Type Box<String>
+        StructInit Box<String>
+          Type String
+          Local value
+  str @str0 "illegal state"
+  str @str1 "text"
+  str @str2 "text"
+  output executable @fn1

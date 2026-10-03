@@ -1,0 +1,79 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val empty
+      Call Empty
+    Call verifyType
+      Binary Eq
+        Call EmptyPair
+          Var empty
+          Var empty
+        Call EmptyPair
+          Call Empty
+          Call Empty
+    Call verifyType
+      Binary Eq
+        FieldAccess number
+          Call Pair
+            IntLiteral 17
+            Var empty
+        IntLiteral 17
+    Call verifyType
+      Binary Eq
+        FieldAccess number
+          Call Packet
+            IntLiteral 19
+        IntLiteral 19
+    Call verifyType
+      Binary Eq
+        FieldAccess Off
+          Var State
+        FieldAccess Off
+          Var State
+    Call verifyType
+      Binary Eq
+        MethodCall On
+          Var State
+          IntLiteral 23
+        MethodCall On
+          Var State
+          IntLiteral 23
+    Call verifyType
+      Binary Eq
+        MethodCall Stamp
+          Var State
+          Var empty
+        MethodCall Stamp
+          Var State
+          Call Empty
+    val state
+      MethodCall Data
+        Var State
+        IntLiteral 29
+        Var empty
+    Call verifyType
+      WhenExpression
+        Var state
+        arm Data(number, token)
+          Binary And
+            Binary Eq
+              Var number
+              IntLiteral 29
+            Binary Eq
+              Var token
+              Var empty
+        else
+          BoolLiteral false
+    val erased: Any
+      Var state
+    Call verifyType
+      Binary Eq
+        Cast State optional=false
+          Var erased
+        Var state

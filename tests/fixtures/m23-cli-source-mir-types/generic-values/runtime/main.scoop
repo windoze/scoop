@@ -1,0 +1,12 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val numbers = Numbers(Box(17), Maybe.Full(Box(Marker())))
+    verifyType(numbers.one.value == 17)
+    verifyType(when (numbers.nested) { Empty -> false; Full(value) -> value.value == Marker() })
+    val text = Box("text")
+    val erased: Any = text
+    verifyType((erased as Box<String>).value == "text")
+    val empty: Maybe<Box<Marker>> = Maybe.Empty
+    verifyType(empty == Maybe.Empty)
+}

@@ -1,0 +1,52 @@
+SourceFile
+  RootPackage
+  private class Number(val value: Int)
+  private class Unused(val value: Int)
+  private struct Marker
+  private struct Pair<T>
+    field first: T
+    field second: T
+  private enum Parcel<T>
+    Empty
+    Item(T)
+  private struct Dormant<T>
+    field value: T
+  private object Singleton
+    val value: Int =
+      IntLiteral 0
+  public fun sourceOnly<T>(value: T): T
+    val never
+      Call Dormant
+        IntLiteral 42
+    return
+      Var value
+  public fun result(): Int
+    val parcel
+      MethodCall Item
+        Var Parcel
+        Call Pair
+          Call Number
+            IntLiteral 20
+          Call Number
+            IntLiteral 22
+    val marker
+      MethodCall Item
+        Var Parcel
+        Call Marker
+    val singleton
+      MethodCall Item
+        Var Parcel
+        Var Singleton
+    return
+      WhenExpression
+        Var parcel
+        arm Empty
+          IntLiteral 0
+        arm Item(pair)
+          Binary Add
+            FieldAccess value
+              FieldAccess first
+                Var pair
+            FieldAccess value
+              FieldAccess second
+                Var pair

@@ -1,74 +1,31 @@
 use super::*;
 use scoop_mir::MirTypeRepresentationV1 as Repr;
-use std::fmt::Write;
 
-pub(super) fn dump(
+pub(super) fn source_shapes(
     output: &hir::DependencyHirOutput,
     table: &CanonicalParamFreeMirTypeExportsV1,
-) -> String {
-    let names = source_dispatch::owners(output);
-    let mut text = String::new();
+) {
     let mut seen = BTreeSet::new();
-    for (name, exact) in &names {
+    for exact in source_dispatch::owners(output).values() {
         let record = table.get(*exact).unwrap();
         assert!(matches!(record.origin(), MirTypeOriginV1::SourceNominal(_)));
         seen.insert(*exact);
-        let bases = record.base_and_interfaces();
-        writeln!(
-            text,
-            "{name}: {:?}/{:?} base={} interfaces={}",
-            record.facts().kind(),
-            record.facts().gc(),
-            matches!(bases.base, scoop_mir::MirBaseClassV1::Base(_)),
-            bases.interfaces.len()
-        )
-        .unwrap();
-        match record.representation() {
-            Repr::Struct {
-                fields,
-                c_layout,
-                interior_mutable,
-            } => writeln!(
-                text,
-                "  struct fields={} {c_layout:?} interior_mutable={interior_mutable}",
-                fields.len()
-            )
-            .unwrap(),
-            Repr::Enum { variants } => {
-                for (index, variant) in variants.iter().enumerate() {
-                    writeln!(
-                        text,
-                        "  variant {index} fields={} {:?}",
-                        variant.fields.len(),
-                        variant.gc
-                    )
-                    .unwrap();
-                }
-            }
-            Repr::Class {
-                kind,
-                declared_fields,
-            } => writeln!(
-                text,
-                "  class {kind:?} own_fields={}",
-                declared_fields.len()
-            )
-            .unwrap(),
-            Repr::Interface => writeln!(text, "  interface").unwrap(),
-            Repr::Object { backing } => {
-                let backing = table.get(*backing).unwrap();
-                seen.insert(backing.exact());
-                let Repr::ObjectBacking { declared_fields } = backing.representation() else {
-                    panic!("object backing")
-                };
-                assert_eq!(backing.base_and_interfaces(), record.base_and_interfaces());
-                writeln!(text, "  object backing_fields={}", declared_fields.len()).unwrap();
-            }
-            other => panic!("unexpected source shape {other:?}"),
+        if let Repr::Object { backing } = record.representation() {
+            let backing = table.get(*backing).unwrap();
+            seen.insert(backing.exact());
+            assert!(matches!(
+                backing.representation(),
+                Repr::ObjectBacking { .. }
+            ));
+            assert_eq!(backing.base_and_interfaces(), record.base_and_interfaces());
+        } else {
+            assert!(matches!(
+                record.representation(),
+                Repr::Struct { .. } | Repr::Enum { .. } | Repr::Class { .. } | Repr::Interface
+            ));
         }
     }
     assert_eq!(seen.len(), table.records().len());
-    text
 }
 
 pub(super) fn rejections(

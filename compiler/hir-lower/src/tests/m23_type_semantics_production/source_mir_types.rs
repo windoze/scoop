@@ -115,7 +115,7 @@ fn source_mir_types_cover_actual_source_representations_and_finite_helpers() {
         let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/m23-source-mir-types");
         let source = std::fs::read_to_string(directory.join(format!("{name}.scoop"))).unwrap();
-        let (bytes, dump) = with_production(&source, |output, strong, hir_types, graph, table| {
+        let bytes = with_production(&source, |output, strong, hir_types, graph, table| {
             identities::source_members(output, table);
             let finite =
                 CanonicalParamFreeMirTypeExportsV1::from_generated_shapes(strong, table, graph)
@@ -133,7 +133,8 @@ fn source_mir_types_cover_actual_source_representations_and_finite_helpers() {
                 actual
             );
             assert!(combined.records().len() > table.records().len());
-            (encode(table).unwrap(), assertions::dump(output, table))
+            assertions::source_shapes(output, table);
+            encode(table).unwrap()
         });
         with_production(
             &format!("private struct Unrelated() {{}}\n{source}"),
@@ -141,19 +142,6 @@ fn source_mir_types_cover_actual_source_representations_and_finite_helpers() {
                 assert_eq!(encode(table).unwrap(), bytes);
             },
         );
-        if let Some(path) = std::env::var_os("SCOOP_SOURCE_MIR_SNAPSHOT_DIR") {
-            std::fs::create_dir_all(&path).unwrap();
-            std::fs::write(
-                std::path::Path::new(&path).join(format!("{name}.snap")),
-                dump,
-            )
-            .unwrap();
-        } else {
-            assert_eq!(
-                dump,
-                std::fs::read_to_string(directory.join(format!("{name}.snap"))).unwrap()
-            );
-        }
     }
 }
 

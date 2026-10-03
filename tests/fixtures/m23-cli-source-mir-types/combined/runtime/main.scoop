@@ -1,0 +1,16 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val child = child("child", 17)
+    val base: Base = child
+    val marker: Marker = child
+    verifyType(inherited(base) == 17 && observeChild(child) == (17, "child", 17))
+    verifyType(marker.mark() == 7 && child.mark() == 7)
+    val label = Label("label")
+    val labelMarker: Marker = label
+    verifyType(labelMarker.mark() == 7 && label.text == "label")
+    verifyType(Choice.Some(label) == Choice.Some(label))
+    verifyType(Singleton === Singleton)
+    verifyType(inherited(Singleton) == 2 && Singleton.number == 3 && Singleton.text == "value")
+    verifyType(Singleton.mark() == 7)
+}

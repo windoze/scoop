@@ -1,0 +1,11 @@
+SourceFile
+  RootPackage
+  public struct Box<T>
+    field value: T
+  public enum Maybe<T>
+    Empty
+    Full(T)
+  public struct Marker
+  public struct Numbers
+    field one: Box<Int>
+    field nested: Maybe<Box<Marker>>

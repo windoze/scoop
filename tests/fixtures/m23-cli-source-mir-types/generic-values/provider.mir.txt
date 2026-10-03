@@ -1,0 +1,337 @@
+Module
+  struct Marker ()
+  struct Numbers (one: Box<Int>, nested: Maybe<Box<Marker>>)
+  struct Box<Int> (value: Int)
+  struct Box<Marker> (value: Marker)
+  enum Maybe<Box<Marker>>
+    Empty()
+    Full(_1: Box<Marker>)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Marker>
+    Completed(value: Marker)
+    Suspended()
+  enum CoroutineSlot<Marker>
+    Empty()
+    Value(value: Marker)
+  enum CoroutineStep<Numbers>
+    Completed(value: Numbers)
+    Suspended()
+  enum CoroutineSlot<Numbers>
+    Empty()
+    Value(value: Numbers)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Marker> vtable=0 itables=0
+  class box<Numbers> vtable=0 itables=0
+  interface Continuation<Marker>
+  interface SuspendTask<Marker>
+  interface SuspendRegistration<Marker>
+  interface Continuation<Numbers>
+  interface SuspendTask<Numbers>
+  interface SuspendRegistration<Numbers>
+  generated_exact_type get0 location=class3 nominal_id=5b85024e9b6f086c8fd319a68ead5e9e6b4c90d505d40da968759bbeaa1bfbaa exact_id=0dd339a9eab5003c3cea7c19e0e9d34d101a85073467a1025b5848cf3f53d62b
+  generated_exact_type get1 location=enum5 nominal_id=a1cbbdde1a542ede01ed083c042cb8db01aecc731d867d2e0ee62416f2cec0c6 exact_id=63238a7809d6ec3b9a0c6055f40672eecd4e788da921040077b0ef72488de21e
+  generated_exact_type get2 location=class4 nominal_id=5238c929f72b1963cdf7339dac160e69495a99946bda8098b324334041b4c4af exact_id=a71badec2cfdfbad6adfdffaac92bcab957d049edb6f61b70101c8723f76ac58
+  generated_exact_type get3 location=enum2 nominal_id=e8af93cf015ba8e2be5ee58a6bf93b2c7b579517d74ccaadc86aef8bc2d006ae exact_id=b7c55f6f7cf1ff97b0294e25075ac8942cf5f0e22ca5473ed733a2873eb17595
+  generated_exact_type get4 location=enum3 nominal_id=38d6fd27021f18bc745c85a8b2c89891b39c9a0f906d84f27f74aa3aa29ac53b exact_id=bacdf43d1be7a4c18f643b29e75684d71283d7d3fc5b537c22aeb539eabd27ec
+  generated_exact_type get5 location=enum4 nominal_id=0f56aef9f82d68d7057cfaddd4464575ea4d197a1541e517cc6cdb198e0aada0 exact_id=f61c9488b6e9043d7684df646baf641d86bdb458a44b45618c5958d4d0944d48
+  generated_callable gc0 function=@fn15 id=38dcec84d259b1837f05f16198be20a51c17feb3d9e9c2c374fa29e44e5e73da
+  generated_callable gc1 function=@fn16 id=b913cda35f27c14e7e28a694944717005ef9a0d6298e52e45bafb0fa7465b88b
+  fun Marker.equals @fn0(this: Marker, other: Marker) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun Numbers.equals @fn1(this: Numbers, other: Numbers) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn2 direct
+        Type Box<Int>
+        FieldAccess 0
+          Type Numbers
+          Local this
+        Type Box<Int>
+        FieldAccess 0
+          Type Numbers
+          Local other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 logic.rhs.1
+      call $call.3: Boolean = @fn3 direct
+        Type Maybe<Box<Marker>>
+        FieldAccess 1
+          Type Numbers
+          Local this
+        Type Maybe<Box<Marker>>
+        FieldAccess 1
+          Type Numbers
+          Local other
+      assign $logic.2
+        Type Boolean
+        Local $call.3
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.2
+  fun Box.equals @fn2(this: Box<Int>, other: Box<Int>) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type Box<Int>
+            Local this
+          Type Int
+          FieldAccess 0
+            Type Box<Int>
+            Local other
+  fun Maybe.equals @fn3(this: Maybe<Box<Marker>>, other: Maybe<Box<Marker>>) -> Boolean
+    bb0 entry
+      val $when.1: Maybe<Box<Marker>>
+        Type Maybe<Box<Marker>>
+        Local this
+      val $pattern.subject.2: Maybe<Box<Marker>>
+        Type Maybe<Box<Marker>>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Maybe<Box<Marker>> v0
+          Type Maybe<Box<Marker>>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $when.3: Maybe<Box<Marker>>
+        Type Maybe<Box<Marker>>
+        Local other
+      val $pattern.subject.4: Maybe<Box<Marker>>
+        Type Maybe<Box<Marker>>
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Maybe<Box<Marker>> v0
+          Type Maybe<Box<Marker>>
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Maybe<Box<Marker>>
+        Type Maybe<Box<Marker>>
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Maybe<Box<Marker>> v1
+          Type Maybe<Box<Marker>>
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      return
+        Type Boolean
+        BoolLiteral true
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $left.1.0: Box<Marker>
+        Type Box<Marker>
+        VariantPayloadProject Maybe<Box<Marker>> v1 f0
+          Type Maybe<Box<Marker>>
+          Local $pattern.subject.5
+      val $when.6: Maybe<Box<Marker>>
+        Type Maybe<Box<Marker>>
+        Local other
+      val $pattern.subject.7: Maybe<Box<Marker>>
+        Type Maybe<Box<Marker>>
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Maybe<Box<Marker>> v1
+          Type Maybe<Box<Marker>>
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      val $right.1.0: Box<Marker>
+        Type Box<Marker>
+        VariantPayloadProject Maybe<Box<Marker>> v1 f0
+          Type Maybe<Box<Marker>>
+          Local $pattern.subject.7
+      call $call.1: Boolean = @fn4 direct
+        Type Box<Marker>
+        Local $left.1.0
+        Type Box<Marker>
+        Local $right.1.0
+      return
+        Type Boolean
+        Local $call.1
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+  fun Box.equals @fn4(this: Box<Marker>, other: Box<Marker>) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn0 direct
+        Type Marker
+        FieldAccess 0
+          Type Box<Marker>
+          Local this
+        Type Marker
+        FieldAccess 0
+          Type Box<Marker>
+          Local other
+      return
+        Type Boolean
+        Local $call.1
+  fun Continuation.resume @fn5(this: Continuation<Marker>, value: Marker) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn6(this: Continuation<Marker>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn7(this: SuspendTask<Marker>, $completion: Continuation<Marker>) -> CoroutineStep<Marker>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn8(this: SuspendRegistration<Marker>, continuation: Continuation<Marker>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn9(this: Continuation<Numbers>, value: Numbers) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn10(this: Continuation<Numbers>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn11(this: SuspendTask<Numbers>, $completion: Continuation<Numbers>) -> CoroutineStep<Numbers>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn12(this: SuspendRegistration<Numbers>, continuation: Continuation<Numbers>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.Marker.$c1 @fn13() -> Marker <no-gc>
+    bb0 entry
+      return
+        Type Marker
+        StructInit Marker
+  fun ctor.Numbers.$c2 @fn14(one: Box<Int>, nested: Maybe<Box<Marker>>) -> Numbers <no-gc>
+    bb0 entry
+      return
+        Type Numbers
+        StructInit Numbers
+          Type Box<Int>
+          Local one
+          Type Maybe<Box<Marker>>
+          Local nested
+  fun startCoroutine<Marker> @fn15(task: SuspendTask<Marker>, completion: Continuation<Marker>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn5 interface Continuation<Marker>[0]
+        Type Continuation<Marker>
+        Local completion
+        Type Marker
+        EnumField v0 f0
+          Type CoroutineStep<Marker>
+          Local $step
+      return
+    bb2 failed
+      call @fn6 interface Continuation<Marker>[1]
+        Type Continuation<Marker>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Marker> = @fn7 interface SuspendTask<Marker>[0]
+        Type SuspendTask<Marker>
+        Local task
+        Type Continuation<Marker>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Marker>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Numbers> @fn16(task: SuspendTask<Numbers>, completion: Continuation<Numbers>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn9 interface Continuation<Numbers>[0]
+        Type Continuation<Numbers>
+        Local completion
+        Type Numbers
+        EnumField v0 f0
+          Type CoroutineStep<Numbers>
+          Local $step
+      return
+    bb2 failed
+      call @fn10 interface Continuation<Numbers>[1]
+        Type Continuation<Numbers>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Numbers> = @fn11 interface SuspendTask<Numbers>[0]
+        Type SuspendTask<Numbers>
+        Local task
+        Type Continuation<Numbers>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Numbers>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Marker> result=Marker
+  coroutine_step cs1 CoroutineStep<Numbers> result=Numbers
+  coroutine_slot cl0 CoroutineSlot<Marker> value=Marker
+  coroutine_slot cl1 CoroutineSlot<Numbers> value=Numbers
+  coroutine_start ct0 result=Marker function=fn15
+  coroutine_start ct1 result=Numbers function=fn16
+  coroutine_fn cf0 @fn7 source_return=Marker step=cs0 immediate
+  coroutine_fn cf1 @fn11 source_return=Numbers step=cs1 immediate
+  instance mi0 function=@fn5 <- Continuation.resume
+  instance mi1 function=@fn6 <- Continuation.resumeWithException
+  instance mi2 function=@fn7 <- SuspendTask.run
+  instance mi3 function=@fn8 <- SuspendRegistration.register
+  instance mi4 function=@fn9 <- Continuation.resume
+  instance mi5 function=@fn10 <- Continuation.resumeWithException
+  instance mi6 function=@fn11 <- SuspendTask.run
+  instance mi7 function=@fn12 <- SuspendRegistration.register
+  output library
