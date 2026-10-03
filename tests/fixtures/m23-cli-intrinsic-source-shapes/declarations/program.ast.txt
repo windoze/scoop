@@ -1,0 +1,47 @@
+SourceFile
+  RootPackage
+  fun verifyShape(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val empty
+      Call IntrinsicEmptyLike
+    Call verifyShape
+      Binary Eq
+        Var empty
+        Call IntrinsicEmptyLike
+    Call verifyShape
+      Binary Eq
+        FieldAccess raw
+          Call IntrinsicNativeLike
+            IntLiteral 42uL
+        IntLiteral 42uL
+    Call verifyShape
+      Binary Eq
+        FieldAccess item
+          Call IntrinsicContainer<Int>
+            IntLiteral 17
+        IntLiteral 17
+    Call verifyShape
+      Binary Eq
+        FieldAccess item
+          Call IntrinsicContainer<String>
+            StringLiteral "value"
+        StringLiteral "value"
+    val value
+      Call makeIntrinsicString
+        StringLiteral "shape"
+    val boxed: Any
+      Var value
+    Call gcCollect
+    Call verifyShape
+      Is IntrinsicStringLike false
+        Var boxed
+    Call verifyShape
+      Binary Eq
+        Call readIntrinsicString
+          Var value
+        StringLiteral "shape"

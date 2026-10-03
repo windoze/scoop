@@ -68,34 +68,37 @@ fn shared_nominal_producer_preserves_every_intrinsic_family() {
     }
     assert_eq!(expected.len(), 14);
 
-    let mut dump = Vec::new();
     for (owner, name, family) in expected {
         let record = public.get(owner).unwrap();
-        let expected = hir::NominalSourceShapeV1::Intrinsic(
-            hir::NominalIntrinsicRepresentationV1::new(family),
+        assert_eq!(
+            record.source_shape(),
+            &hir::NominalSourceShapeV1::Intrinsic(hir::NominalIntrinsicRepresentationV1::new(
+                family
+            ))
         );
-        assert_eq!(record.source_shape(), &expected);
+        assert_eq!(family.source_name(), name);
+        let kind = match family {
+            hir::IntrinsicTypeKind::Array
+            | hir::IntrinsicTypeKind::MutableArray
+            | hir::IntrinsicTypeKind::String => hir::PublicNominalKindV1::Class,
+            _ => hir::PublicNominalKindV1::Struct,
+        };
+        assert_eq!(record.kind(), kind);
         let bounds = record
             .type_parameters()
             .binders()
             .iter()
-            .map(|binder| format!("{:?}", binder.bounds()))
-            .collect::<Vec<_>>()
-            .join(", ");
-        dump.push(format!(
-            "{name}: {:?}, intrinsic={}, binders=[{bounds}]\n",
-            record.kind(),
-            family.source_name()
-        ));
+            .map(|binder| binder.bounds())
+            .collect::<Vec<_>>();
+        let expected = match family {
+            hir::IntrinsicTypeKind::Array
+            | hir::IntrinsicTypeKind::MutableArray
+            | hir::IntrinsicTypeKind::FunPtr => vec![&hir::TypeParameterBoundsV1::Unconstrained],
+            hir::IntrinsicTypeKind::Ptr => vec![&hir::TypeParameterBoundsV1::Value],
+            _ => Vec::new(),
+        };
+        assert_eq!(bounds, expected);
     }
-    dump.sort();
-    assert_eq!(
-        dump.concat(),
-        include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../tests/fixtures/m23-intrinsic-source-shapes/declarations.snap"
-        ))
-    );
 }
 
 #[test]

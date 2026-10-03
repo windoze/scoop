@@ -1,0 +1,77 @@
+SourceFile
+  RootPackage
+  fun verifyShape(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call verifyShape
+      Var exportedIntrinsicFlag
+    Call verifyShape
+      Binary Eq
+        Var exportedIntrinsicText
+        StringLiteral "source-shape"
+    Call verifyShape
+      Binary Eq
+        Var exportedIntrinsicNumber
+        IntLiteral 42
+    Call verifyShape
+      Binary Eq
+        Call exportedFlagVarargs
+        IntLiteral 0
+    Call verifyShape
+      Binary Eq
+        Call exportedFlagVarargs
+          BoolLiteral true
+          BoolLiteral false
+        IntLiteral 0
+    val flags
+      ArrayLiteral
+        BoolLiteral true
+        BoolLiteral false
+    Call verifyShape
+      Binary Eq
+        Call exportedFlagVarargs
+          Argument *
+            Var flags
+        IntLiteral 0
+    Call verifyShape
+      Binary Eq
+        Call exportedFlagVarargs
+          Argument flags=
+            Var flags
+        IntLiteral 0
+    Call verifyShape
+      Binary Eq
+        Call exportedGenericVarargs<Int>
+        IntLiteral 0
+    Call verifyShape
+      Binary Eq
+        Call exportedGenericVarargs<Int>
+          IntLiteral 1
+          IntLiteral 2
+        IntLiteral 0
+    val texts
+      ArrayLiteral
+        StringLiteral "left"
+        StringLiteral "right"
+    Call verifyShape
+      Binary Eq
+        Call exportedGenericVarargs<String>
+          Argument *
+            Var texts
+        IntLiteral 0
+    val values
+      ArrayLiteral
+        Call IntrinsicContainer<Int>
+          IntLiteral 17
+        Call IntrinsicContainer<Int>
+          IntLiteral 25
+    Call verifyShape
+      Binary Eq
+        Call exportedGenericVarargs<IntrinsicContainer<Int>>
+          Argument values=
+            Var values
+        IntLiteral 0
