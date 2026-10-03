@@ -23,3 +23,9 @@
 `edited_core_rebuilds_through_the_common_cache_without_writing_sysroot_artifacts` 迁为 `core-source/`。保留原 extension 与 library consumer，cold 编译 core／root，warm 两者零 child；修改 core 的 `+ 1` 为 `+ 2` 后两个节点重编译，fingerprint／缓存键都变化，再构建命中新的条目。恢复原内容时直接命中原条目，证明两个版本的缓存都仍可用。各状态的普通与 moving GC 程序结果为 42、43、42；sysroot 始终没有 artifacts 目录。
 
 原 Rust 进程测试与注册已删除；已准备源码不受随后宿主文件修改影响的内部断言仍由 `core_uses_the_common_immutable_snapshot_and_cache_key` 及 `prepare_materializes_only_immutable_private_source_inputs` 保留。格式化与全 workspace lint 后，退役状态再次只读通过：1 个用例、1 个变体、14 次进程、8 次 golden 比较。
+
+## 显式 core locator 切换
+
+`explicit_core_source_rebuilds_and_can_be_replaced_by_its_prebuilt_artifact` 迁为 `core-locator/`。原 root／helper 坐标与 core extension／consumer 保留，默认 sysroot 始终不存在。cold 按 core、helper、root 顺序编译，warm 零 child；修改 core 后三者的实际产物和缓存键都变化，再构建命中缓存。把 core 源码 locator 改为刚完成的 `.slib` 并删除源码后，core 为 prebuilt 且没有 source cache key，helper／root 仍命中相同 bytes。通过依赖 root 的真实 executable 再次发现这条显式 core 边，程序在普通与 moving GC 下保持 42、43、43。
+
+原 Rust 进程测试与注册已删除。格式化与全 workspace lint 后，退役状态再次只读通过：1 个用例、1 个变体、14 次进程、8 次 golden 比较。此前五项 CLI cache 用例一起关闭更新开关也全部通过，共 5 个变体、73 次进程、52 次 golden 比较。

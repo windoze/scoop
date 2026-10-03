@@ -422,5 +422,3 @@ fn assert_manifest_current_identity(current: &CurrentConeRequestV1, identity: Co
         std::ffi::OsStr::new(&expected)
     );
 }
-
-mod core_locator;
