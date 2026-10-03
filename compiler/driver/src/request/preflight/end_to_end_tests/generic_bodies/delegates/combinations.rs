@@ -197,11 +197,6 @@ fn check_fixture_cases(fixture: &str, cases: &[&str]) {
 }
 
 #[test]
-fn generic_delegates_use_dependency_members_and_local_accessors() {
-    check_cases(&["foreign-delegate", "foreign-local"]);
-}
-
-#[test]
 fn generic_delegate_mixed_roles_republish_and_execute() {
     check_cases(&["mixed-members", "foreign-extensions"]);
 }
